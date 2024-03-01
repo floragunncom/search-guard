@@ -21,29 +21,19 @@ import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
-import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
-import static com.floragunn.searchsupport.junit.matcher.ExceptionsMatchers.messageContainsMatcher;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 
-import org.apache.http.HttpStatus;
-import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -53,7 +43,6 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
@@ -61,16 +50,6 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.google.common.collect.ImmutableMap;
 
 public class MiscAuthorizationIntTests {
-
-
-    private static TestSgConfig.User NEG_LOOKAHEAD_USER = new TestSgConfig.User("neg_lookahead_user").roles(
-            new Role("neg_lookahead_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ").on("/^(?!t.*).*/"));
-
-    private static TestSgConfig.User REGEX_USER = new TestSgConfig.User("regex_user")
-            .roles(new Role("regex_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ").on("/[^a-z].*/"));
-
-    private static TestSgConfig.User HIDDEN_TEST_USER = new TestSgConfig.User("hidden_test_user").roles(
-            new Role("hidden_test_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("*").on("hidden_test_not_hidden"));
 
     private static TestCertificates certificatesContext = TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
             .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard").addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
@@ -89,24 +68,6 @@ public class MiscAuthorizationIntTests {
             .user("resolve_test_user", "secret",
                     new Role("resolve_test_user_role").indexPermissions("*").on("resolve_test_allow_*").indexPermissions("*")
                             .on("/alias_resolve_test_index_allow_.*/")) //
-            .user("exclusion_test_user_basic", "secret",
-                    new Role("exclusion_test_user_role").clusterPermissions("*").indexPermissions("*").on("exclude_test_*")
-                            .excludeIndexPermissions("*").on("exclude_test_disallow_*"))//
-            .user("exclusion_test_user_basic_no_pattern", "secret",
-                    new Role("exclusion_test_user_basic_no_pattern_role").clusterPermissions("*").indexPermissions("*").on("exclude_test_*")
-                            .excludeIndexPermissions("*").on("exclude_test_disallow_2"))//            
-            .user("exclusion_test_user_write", "secret",
-                    new Role("exclusion_test_user_action_exclusion_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")//
-                            .indexPermissions("*").on("write_exclude_test_*")//
-                            .excludeIndexPermissions("SGS_WRITE").on("write_exclude_test_disallow_*"))//  
-            .user("exclusion_test_user_write_no_pattern", "secret",
-                    new Role("exclusion_test_user_write_no_pattern_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")//
-                            .indexPermissions("*").on("write_exclude_test_*")//
-                            .excludeIndexPermissions("SGS_WRITE").on("write_exclude_test_disallow_2"))//  
-            .user("exclusion_test_user_cluster_permission", "secret",
-                    new Role("exclusion_test_user_cluster_permission_role").clusterPermissions("*")
-                            .excludeClusterPermissions("indices:data/read/msearch").indexPermissions("*").on("exclude_test_*")
-                            .excludeIndexPermissions("*").on("exclude_test_disallow_*"))//
             .user("admin", "admin", new Role("admin_role").clusterPermissions("*"))//
             .user("permssion_rest_api_user", "secret", new Role("permssion_rest_api_user_role").clusterPermissions("indices:data/read/mtv"))//
             .users().build();
@@ -117,25 +78,6 @@ public class MiscAuthorizationIntTests {
             .user("resolve_test_user", "secret",
                     new Role("resolve_test_user_role").indexPermissions("*").on("resolve_test_allow_*").indexPermissions("*")
                             .on("/alias_resolve_test_index_allow_.*/")) //            
-            .user("exclusion_test_user_basic", "secret",
-                    new Role("exclusion_test_user_role").clusterPermissions("*").indexPermissions("*").on("exclude_test_*")
-                            .excludeIndexPermissions("*").on("exclude_test_disallow_*"))//
-            .user("exclusion_test_user_basic_no_pattern", "secret",
-                    new Role("exclusion_test_user_basic_no_pattern_role").clusterPermissions("*").indexPermissions("*").on("exclude_test_*")
-                            .excludeIndexPermissions("*").on("exclude_test_disallow_2"))//                   
-            .user("exclusion_test_user_write", "secret",
-                    new Role("exclusion_test_user_action_exclusion_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")//
-                            .indexPermissions("*").on("write_exclude_test_*")//
-                            .excludeIndexPermissions("SGS_WRITE").on("write_exclude_test_disallow_*"))//  
-            .user("exclusion_test_user_write_no_pattern", "secret",
-                    new Role("exclusion_test_user_write_no_pattern_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")//
-                            .indexPermissions("*").on("write_exclude_test_*")//
-                            .excludeIndexPermissions("SGS_WRITE").on("write_exclude_test_disallow_2"))//             
-            .user("exclusion_test_user_cluster_permission", "secret",
-                    new Role("exclusion_test_user_cluster_permission_role").clusterPermissions("*")
-                            .excludeClusterPermissions("indices:data/read/msearch").indexPermissions("*").on("exclude_test_*")
-                            .excludeIndexPermissions("*").on("exclude_test_disallow_*"))//
-            .users(NEG_LOOKAHEAD_USER, REGEX_USER, HIDDEN_TEST_USER)//
             .build();
 
     @BeforeClass
@@ -293,34 +235,6 @@ public class MiscAuthorizationIntTests {
         }
     }
 
-  
-
-    @Test
-    public void excludeClusterPermission() throws Exception {
-        try (GenericRestClient basicCestClient = cluster.getRestClient("exclusion_test_user_basic", "secret");
-                GenericRestClient clusterPermissionCestClient = cluster.getRestClient("exclusion_test_user_cluster_permission", "secret")) {
-
-            HttpResponse httpResponse = basicCestClient.get("/exclude_test_*/_search");
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
-
-            httpResponse = clusterPermissionCestClient.get("/exclude_test_*/_search");
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(nodeAt("hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
-
-            httpResponse = basicCestClient.postJson("/exclude_test_*/_msearch", "{}\n{\"query\": {\"match_all\": {}}}\n");
-            assertThat(httpResponse, isOk());
-
-            assertThat(httpResponse,
-                    json(nodeAt("responses[0].hits.hits[*]._source.index", containsInAnyOrder("exclude_test_allow_1", "exclude_test_allow_2"))));
-
-            httpResponse = clusterPermissionCestClient.postJson("/exclude_test_*/_msearch", "{}\n{\"query\": {\"match_all\": {}}}\n");
-            assertThat(httpResponse, isForbidden());
-        }
-    }
-
     @Test
     public void permissionApi_evaluateClusterAndTenantPrivileges() throws Exception {
         try (GenericRestClient adminRestClient = cluster.getRestClient("admin", "admin");
@@ -338,21 +252,6 @@ public class MiscAuthorizationIntTests {
             assertThat(httpResponse, json(nodeAt("permissions['indices:data/read/viva']", equalTo(false))));
         }
 
-    }
-
-    @Test
-    public void negativeLookaheadPattern() throws Exception {
-
-        try (GenericRestClient restClient = clusterFof.getRestClient(NEG_LOOKAHEAD_USER)) {
-
-            HttpResponse httpResponse = restClient.get("*/_search");
-
-            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
-
-            httpResponse = restClient.get("r*/_search");
-
-            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_OK));
-        }
     }
 
 }

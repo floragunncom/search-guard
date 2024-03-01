@@ -22,10 +22,11 @@ import static com.floragunn.searchguard.test.IndexApiMatchers.limitedTo;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedToNone;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimited;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncludingSearchGuardIndices;
+import static com.floragunn.searchguard.test.RestMatchers.isCreated;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
-import static com.floragunn.searchguard.test.RestMatchers.isOk;
+import static com.floragunn.searchguard.test.RestMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
-
+import static org.hamcrest.core.IsEqual.equalTo;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -33,11 +34,8 @@ import java.util.List;
 import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.xcontent.XContentType;
 import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -49,13 +47,13 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.IndexApiMatchers.IndexMatcher;
 import com.floragunn.searchguard.test.TestAlias;
 import com.floragunn.searchguard.test.TestIndex;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchsupport.meta.Meta;
 
 import net.jcip.annotations.NotThreadSafe;
 
@@ -89,7 +87,7 @@ public class IndexAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_a*")//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("index_a*")//
                             .indexPermissions("SGS_WRITE").on("index_aw*"))//
             .indexMatcher("read", limitedTo(index_ar1, index_ar2, index_aw1, index_aw2))//
             .indexMatcher("write", limitedTo(index_aw1, index_aw2))//
@@ -102,7 +100,7 @@ public class IndexAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_b*")//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("index_b*")//
                             .indexPermissions("SGS_WRITE").on("index_bw*"))//
             .indexMatcher("read", limitedTo(index_br1, index_br2, index_bw1, index_bw2, index_bwx))//
             .indexMatcher("write", limitedTo(index_bw1, index_bw2, index_bwx))//
@@ -115,7 +113,7 @@ public class IndexAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_b*")//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("index_b*")//
                             .indexPermissions("SGS_WRITE").on("index_bw*")//
                             .indexPermissions("SGS_CREATE_INDEX").on("index_bw*"))//
             .indexMatcher("read", limitedTo(index_br1, index_br2, index_bw1, index_bw2, index_bwx))//
@@ -129,7 +127,7 @@ public class IndexAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_b*")//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("index_b*")//
                             .indexPermissions("SGS_WRITE").on("index_bw*")//
                             .indexPermissions("SGS_MANAGE").on("index_bw*"))//
             .indexMatcher("read", limitedTo(index_br1, index_br2, index_bw1, index_bw2, index_bwx))//
@@ -143,7 +141,7 @@ public class IndexAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_b*")//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("index_b*")//
                             .indexPermissions("SGS_WRITE").on("index_bw*")//
                             .indexPermissions("SGS_MANAGE").on("index_bw*")//
                             .aliasPermissions("SGS_MANAGE_ALIASES").on("alias_bwx*"))//
@@ -158,7 +156,7 @@ public class IndexAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_a*", "index_b*")//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("index_a*", "index_b*")//
                             .indexPermissions("SGS_WRITE").on("index_aw*", "index_bw*")//
                             .indexPermissions("SGS_MANAGE").on("index_aw*", "index_bw*"))//
             .indexMatcher("read", limitedTo(index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_br2, index_bw1, index_bw2, index_bwx))//
@@ -172,7 +170,7 @@ public class IndexAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_c*")//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh").on("index_c*")//
                             .indexPermissions("SGS_WRITE").on("index_cw*"))//
             .indexMatcher("read", limitedTo(index_cr1, index_cw1))//
             .indexMatcher("write", limitedTo(index_cw1))//
@@ -186,7 +184,7 @@ public class IndexAuthorizationReadWriteIntTests {
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get").on("alias_ab1r")//
-                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get", "SGS_WRITE").on("alias_ab1w"))//
+                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get", "SGS_WRITE", "indices:admin/refresh*").on("alias_ab1w"))//
             .indexMatcher("read", limitedTo(index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_bw1, alias_ab1r, alias_ab1w))//
             .indexMatcher("write", limitedTo(index_aw1, index_aw2, index_bw1, index_bw2, alias_ab1w))//
             .indexMatcher("create_index", limitedTo(index_aw1, index_aw2, index_bw1, index_bw2))//
@@ -198,7 +196,7 @@ public class IndexAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_WRITE").on("index_aw1")//
+                            .indexPermissions("SGS_READ", "SGS_WRITE", "indices:admin/refresh").on("index_aw1")//
                             .aliasPermissions("SGS_READ").on("alias_ab1w"))//
             .indexMatcher("read", limitedTo(index_aw1, index_aw2, index_bw1, alias_ab1w))//
             .indexMatcher("write", limitedTo(index_aw1, alias_ab1w)) // alias_ab1w is included because index_aw1 is the write index of alias_ab1w
@@ -330,11 +328,42 @@ public class IndexAuthorizationReadWriteIntTests {
 
     @Test
     public void putDocument_delete() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+        try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
             HttpResponse httpResponse = restClient.putJson("/index_bw1/_doc/put_delete_test_1?refresh=true", DocNode.of("a", 1));
             assertThat(httpResponse, containsExactly(index_bw1).at("_index").but(user.indexMatcher("write")).whenEmpty(403));
             httpResponse = restClient.delete("/index_bw1/_doc/put_delete_test_1");
             assertThat(httpResponse, containsExactly(index_bw1).at("_index").but(user.indexMatcher("write")).whenEmpty(403));
+        }
+    }
+
+    @Test
+    public void deleteByQuery_indexPattern() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user);
+                GenericRestClient adminRestClient = cluster.getAdminCertRestClient().trackResources()) {
+
+            HttpResponse httpResponse = adminRestClient.putJson("/index_bw1/_doc/put_delete_delete_by_query_b1?refresh=true",
+                    DocNode.of("delete_by_query_test", "yes"));
+            assertThat(httpResponse, isCreated());
+            httpResponse = adminRestClient.putJson("/index_bw1/_doc/put_delete_delete_by_query_b2?refresh=true",
+                    DocNode.of("delete_by_query_test", "no"));
+            assertThat(httpResponse, isCreated());
+            httpResponse = adminRestClient.putJson("/index_aw1/_doc/put_delete_delete_by_query_a1?refresh=true",
+                    DocNode.of("delete_by_query_test", "yes"));
+            assertThat(httpResponse, isCreated());
+            httpResponse = adminRestClient.putJson("/index_aw1/_doc/put_delete_delete_by_query_a2?refresh=true",
+                    DocNode.of("delete_by_query_test", "no"));
+            assertThat(httpResponse, isCreated());
+
+            httpResponse = restClient.postJson("/index_aw*,index_bw*/_delete_by_query?refresh=true&wait_for_completion=true",
+                    DocNode.of("query.term.delete_by_query_test", "yes"));
+
+            if (containsExactly(index_aw1, index_aw2, index_bw1, index_bw2).at("_index").but(user.indexMatcher("write")).isEmpty()) {
+                assertThat(httpResponse, isForbidden());
+            } else {
+                assertThat(httpResponse, isOk());
+                int expectedDeleteCount = containsExactly(index_aw1, index_bw1).at("_index").but(user.indexMatcher("write")).size();
+                assertThat(httpResponse, json(nodeAt("deleted", equalTo(expectedDeleteCount))));
+            }
         }
     }
 
