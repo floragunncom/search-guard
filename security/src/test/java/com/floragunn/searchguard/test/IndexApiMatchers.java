@@ -290,9 +290,7 @@ public class IndexApiMatchers {
             // this:  a, b
             // other: a, b, c
             // -> true
-            
-            
-            
+
             if (other instanceof LimitedToMatcher) {
                 return ((LimitedToMatcher) other).getExpectedIndices().containsAll(this.getExpectedIndices());
             } else if (other instanceof ContainsExactlyMatcher) {
@@ -520,6 +518,11 @@ public class IndexApiMatchers {
         public boolean containsSearchGuardIndices() {
             return containsSearchGuardIndices;
         }
+
+        @Override
+        public int size() {
+            throw new IllegalStateException("The UnlimitedMatcher cannot specify a size");
+        }
     }
 
     public static class StatusCodeMatcher extends DiagnosingMatcher<Object> implements IndexMatcher {
@@ -593,6 +596,11 @@ public class IndexApiMatchers {
             return false;
         }
 
+        @Override
+        public int size() {
+            return 0;
+        }
+
     }
 
     public static interface IndexMatcher extends Matcher<Object> {
@@ -605,6 +613,8 @@ public class IndexApiMatchers {
         IndexMatcher whenEmpty(int statusCode);
 
         boolean isEmpty();
+
+        int size();
 
         boolean isCoveredBy(IndexMatcher other);
 
@@ -705,6 +715,15 @@ public class IndexApiMatchers {
         @Override
         public boolean isEmpty() {
             return indexNameMap.isEmpty();
+        }
+
+        @Override
+        public int size() {
+            if (!containsSearchGuardIndices) {
+                return indexNameMap.size();
+            } else {
+                throw new RuntimeException("Size cannot be exactly specified because containsSearchGuardIndices is true");
+            }
         }
 
         @Override

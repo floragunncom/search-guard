@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 floragunn GmbH
+ * Copyright 2022-2024 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,11 +50,6 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.meta.Meta;
 
-/**
- * TODO index exclusions
- *
- * TODO int test IndicesAliasesAction
- */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({ RoleBasedActionAuthorizationTests.ClusterPermissions.class, RoleBasedActionAuthorizationTests.IndexPermissions.class,
         RoleBasedActionAuthorizationTests.IndexPermissionsSpecial.class, RoleBasedActionAuthorizationTests.AliasPermissions.class,
@@ -172,7 +167,8 @@ public class RoleBasedActionAuthorizationTests {
 
             if (this.indexSpec.wildcardPrivs || this.indexSpec.givenIndexPrivs.contains("index_*")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
-            } else if (this.indexSpec.givenIndexPrivs.contains("index_a1*") && !this.indexSpec.givenIndexPrivs.contains("-index_a12")) {
+            } else if ((this.indexSpec.givenIndexPrivs.contains("index_a1*") || this.indexSpec.givenIndexPrivs.contains("/index_(?!b.*).*/"))
+                    && !this.indexSpec.givenIndexPrivs.contains("-index_a12")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
             } else {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
@@ -188,7 +184,8 @@ public class RoleBasedActionAuthorizationTests {
 
             if (this.indexSpec.wildcardPrivs || this.indexSpec.givenIndexPrivs.contains("index_*")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
-            } else if (this.indexSpec.givenIndexPrivs.contains("index_a1*") && !this.indexSpec.givenIndexPrivs.contains("-index_a12")) {
+            } else if ((this.indexSpec.givenIndexPrivs.contains("index_a1*") || this.indexSpec.givenIndexPrivs.contains("/index_(?!b.*).*/"))
+                    && !this.indexSpec.givenIndexPrivs.contains("-index_a12")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11", "index_a12")));
             } else {
@@ -204,7 +201,9 @@ public class RoleBasedActionAuthorizationTests {
                             AliasDataStreamHandling.RESOLVE_IF_NECESSARY);
 
             if ((this.indexSpec.wildcardPrivs || this.indexSpec.givenIndexPrivs.contains("index_*")
-                    || this.indexSpec.givenIndexPrivs.contains("index_a1*")) && !this.indexSpec.givenIndexPrivs.contains("-index_a12")) {
+                    || this.indexSpec.givenIndexPrivs.contains("index_a1*") //
+                    || this.indexSpec.givenIndexPrivs.contains("/index_(?!b.*).*/")) //
+                    && !this.indexSpec.givenIndexPrivs.contains("-index_a12")) {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("index_a11", "index_a12")));
             } else {
@@ -262,7 +261,8 @@ public class RoleBasedActionAuthorizationTests {
                     new IndexSpec().givenIndexPrivs("index_a1*"), // 
                     new IndexSpec().givenIndexPrivs("index_${user.attrs.dept_no}"), //
                     new IndexSpec().givenIndexPrivs("index_a1*", "-index_a12"), //
-                    new IndexSpec().givenIndexPrivs("index_${user.attrs.dept_no}", "-index_a12"))
+                    new IndexSpec().givenIndexPrivs("index_${user.attrs.dept_no}", "-index_a12"), //
+                    new IndexSpec().givenIndexPrivs("/index_(?!b.*).*/"))// negative lookahead pattern: indices that do not match index_b*, but everything else that matches index_*
 
             ) {
                 for (ActionSpec actionSpec : Arrays.asList(//
