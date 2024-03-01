@@ -225,7 +225,10 @@ public class IndexAuthorizationReadOnlyIntTests {
             .aliases(alias_ab1, alias_c1)//
             .authzDebug(true)//
             .plugin(TestSystemIndexPlugin.class)//
+            .logRequests()//
             .build();
+    
+    static List<GenericRestClient.RequestInfo> executedRequests = new ArrayList<>(1000);
 
     final TestSgConfig.User user;
 
