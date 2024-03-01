@@ -33,8 +33,7 @@ import org.junit.Test;
 
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeSizeEqualTo;
-import static org.apache.http.HttpStatus.SC_FORBIDDEN;
-import static org.apache.http.HttpStatus.SC_OK;
+import static org.apache.http.HttpStatus.*;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 import static org.elasticsearch.rest.RestStatus.CREATED;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -88,6 +87,10 @@ public class GetAvailableTenantsActionTest {
             .tenantPermission("SGS_KIBANA_ALL_READ").on(IT_TENANT.getName(), PR_TENANT.getName(), QA_TENANT.getName()) //
             .indexPermissions("*") //
             .on(FRONTEND_INDEX +"*"));
+
+    private static final User USER_WITHOUT_ACCESS_TO_ANY_TENANT = new User("user_without_access_to_any_tenant") //
+            .roles(new Role("no_tenant_access") //
+                    .clusterPermissions("cluster:admin:searchguard:femt:user/available_tenants/get"));
 
 
     @ClassRule
@@ -287,6 +290,17 @@ public class GetAvailableTenantsActionTest {
 
             log.debug("Response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_FORBIDDEN));
+        }
+    }
+
+    @Test
+    public void shouldReturnUnauthorized_whenUserDoesNotHaveAccessToAnyTenantAndDefaultTenantCannotBeDetermined() throws Exception {
+        try(GenericRestClient client = cluster.getRestClient(USER_WITHOUT_ACCESS_TO_ANY_TENANT)) {
+
+            HttpResponse response = client.get("/_searchguard/current_user/tenants");
+
+            log.debug("Response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_UNAUTHORIZED));
         }
     }
 

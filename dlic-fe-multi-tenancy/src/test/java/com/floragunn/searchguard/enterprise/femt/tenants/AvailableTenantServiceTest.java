@@ -5,6 +5,7 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.OptimisticLockException;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import org.elasticsearch.common.transport.TransportAddress;
@@ -22,10 +23,9 @@ import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.aMapWithSize;
-import static org.hamcrest.Matchers.anEmptyMap;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -70,7 +70,7 @@ public class AvailableTenantServiceTest {
     }
 
     @Test
-    public void shouldWorkWithDefaultConfigurationProvider() {
+    public void shouldThrowExceptionWhenUsingDefaultConfigProvider() {
         User user = new User("user");
         TransportAddress remoteAddress = new TransportAddress(new InetSocketAddress(8901));
         when(threadContext.getTransient(ConfigConstants.SG_USER)).thenReturn(user);
@@ -79,10 +79,7 @@ public class AvailableTenantServiceTest {
         when(repository.exists(any(String[].class))).thenAnswer(new TenantExistsAnswer(true));
         this.service = new AvailableTenantService(MultiTenancyConfigurationProvider.DEFAULT, authorizationService, threadPool, repository);
 
-        AvailableTenantData data = service.findTenantAvailableForCurrentUser().orElseThrow();
-
-        assertThat(data.multiTenancyEnabled(), equalTo(false));
-        assertThat(data.tenants(), anEmptyMap());
+        assertThatThrown(() -> service.findTenantAvailableForCurrentUser(), instanceOf(DefaultTenantNotFoundException.class));
     }
 
     @Test
