@@ -5,7 +5,7 @@ import org.elasticsearch.rest.RestStatus;
 
 class DefaultTenantNotFoundException extends ElasticsearchStatusException {
 
-    public DefaultTenantNotFoundException() {
-        super("Default tenant for current user not found", RestStatus.UNAUTHORIZED);
+    public DefaultTenantNotFoundException(String username) {
+        super(String.format("Default tenant for user: '%s' not found", username), RestStatus.UNAUTHORIZED);
     }
 }
