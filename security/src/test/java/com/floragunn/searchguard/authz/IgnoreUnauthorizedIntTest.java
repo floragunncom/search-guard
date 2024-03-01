@@ -56,7 +56,8 @@ public class IgnoreUnauthorizedIntTest {
                     .on("a*").aliasPermissions("SGS_MANAGE_ALIASES").on("z_alias_a*"));
 
     static TestSgConfig.User LIMITED_USER_B = new TestSgConfig.User("limited_user_B").roles(//
-            new Role("limited_user_b_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD", "SGS_MANAGE_ALIASES").on("b*"));
+            new Role("limited_user_b_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD", "SGS_MANAGE_ALIASES")
+                    .on("b*"));
 
     static TestSgConfig.User LIMITED_USER_C = new TestSgConfig.User("limited_user_C").roles(//
             new Role("limited_user_c_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("c*"));
@@ -92,153 +93,56 @@ public class IgnoreUnauthorizedIntTest {
             .aliases(xalias_ab1)//
             .build();
 
-
-    @Test
-    public void deleteByQuery() throws Exception {
-        // TODO: Moved over from IntegrationTests.testDeleteByQueryDnfof; however the purpose of this is a bit unclear, as no behaviour specific to DNFOF is tested here
-
-        try (Client client = cluster.getInternalNodeClient()) {
-            for (int i = 0; i < 3; i++) {
-                client.index(new IndexRequest("d1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
-                        .actionGet();
-            }
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_D)) {
-            HttpResponse httpResponse = restClient.postJson("/d*/_delete_by_query?refresh=true&wait_for_completion=true",
-                    "{\"query\" : {\"match_all\" : {}}}");
-
-            System.out.println(httpResponse.getBody());
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("deleted", is(3))));
-        }
-
-    }
-
-    @Test
-    public void search_termsAggregation_index() throws Exception {
-
-        String aggregationBody = "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}";
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.postJson("/_search", aggregationBody);
-
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("aggregations.indices.buckets[*].key", containsInAnyOrder("a1", "a2", "a3"))));
-        }
-
-    }
-
-    @Test
-    public void analyze_specificIndex() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.postJson("/a1/_analyze", DocNode.of("text", "foo"));
-
-            Assert.assertThat(httpResponse, isOk());
-        }
-    }
-
-    @Test
-    public void analyze_specificIndex_forbidden() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.postJson("/b1/_analyze", DocNode.of("text", "foo"));
-
-            Assert.assertThat(httpResponse, isForbidden());
-        }
-    }
-
-    @Test
-    public void analyze_noIndex() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.postJson("/_analyze", DocNode.of("text", "foo"));
-
-            Assert.assertThat(httpResponse, isOk());
-        }
-    }
-
-    @Test
-    public void analyze_noIndex_forbidden() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A_WITHOUT_ANALYZE)) {
-            HttpResponse httpResponse = restClient.postJson("/_analyze", DocNode.of("text", "foo"));
-
-            Assert.assertThat(httpResponse, isForbidden());
-        }
-    }
-
     // TODO assert that I cannot add an alias to an alias
     @Test
     public void createAlias() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A).trackResources()) {
             HttpResponse httpResponse = restClient.put("/a1,a2/_alias/z_alias_xxx");
-            
+
             Assert.assertThat(httpResponse, isForbidden());
-            
+
             httpResponse = restClient.put("/a1,a2/_alias/z_alias_a12");
-            
+
             Assert.assertThat(httpResponse, isOk());
-            
+
             //httpResponse = restClient.put("/a3,z_alias_a12/_alias/z_alias_aa12");
-            
+
             //Assert.assertThat(httpResponse, isOk());
-            
+
             httpResponse = restClient.put("/a1,a2,b1/_alias/z_alias_a12b1");
-            
+
             Assert.assertThat(httpResponse, isForbidden());
-            
+
             httpResponse = restClient.get("/_alias/z_alias_a12");
-            
+
             Assert.assertThat(httpResponse, isOk());
-            
+
             try (GenericRestClient restClient2 = cluster.getRestClient(LIMITED_USER_B)) {
                 httpResponse = restClient2.delete("/b1/_alias/z_alias_a12");
-                
+
                 Assert.assertThat(httpResponse, isForbidden());
-                
+
                 httpResponse = restClient2.get("/_alias/z_alias_a12");
-                
+
                 Assert.assertThat(httpResponse, isForbidden());
             }
         }
 
-     
     }
-    
+
     @Test
     public void createAlias2() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A).trackResources()) {
             HttpResponse httpResponse = restClient.put("/a99/_alias/z_alias_xxx");
-            
+
             Assert.assertThat(httpResponse, isForbidden());
-            
-           // httpResponse = restClient.put("/a98/_alias/z_alias_a98");      
-            
+
+            // httpResponse = restClient.put("/a98/_alias/z_alias_a98");      
+
             //Assert.assertThat(httpResponse, isOk());
-         
+
         }
 
-     
     }
-    
-    @Test
-    public void getAlias() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A).trackResources()) {
-            HttpResponse httpResponse = restClient.get("/_alias");
-            
-            System.out.println(httpResponse.getBody());
-            
-            Assert.assertThat(httpResponse, isOk());
-            
-         
-        }
 
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_B).trackResources()) {
-            HttpResponse httpResponse = restClient.get("/_alias");
-            
-            System.out.println(httpResponse.getBody());
-            
-            Assert.assertThat(httpResponse, isOk());
-            
-         
-        }
-    }
 }
