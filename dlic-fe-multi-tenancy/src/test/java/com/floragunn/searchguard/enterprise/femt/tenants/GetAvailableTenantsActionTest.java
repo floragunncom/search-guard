@@ -5,6 +5,7 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.authz.TenantManager;
 import com.floragunn.searchguard.authz.config.Tenant;
+import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfig;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
@@ -100,7 +101,7 @@ public class GetAvailableTenantsActionTest {
         .roleMapping(new RoleMapping("SGS_KIBANA_MT_USER").users(USER_SINGLE_TENANT.getName(), USER_EACH_TENANT_READ.getName(),
             USER_EACH_TENANT_WRITE.getName(), USER_SOME_TENANT_ACCESS.getName()),//
             new RoleMapping("SGS_KIBANA_SERVER").users(FRONTEND_SERVER_USER.getName())) //
-        .users(FRONTEND_SERVER_USER, USER_SINGLE_TENANT, USER_EACH_TENANT_READ, USER_EACH_TENANT_WRITE, USER_SOME_TENANT_ACCESS) //
+        .users(FRONTEND_SERVER_USER, USER_SINGLE_TENANT, USER_EACH_TENANT_READ, USER_EACH_TENANT_WRITE, USER_SOME_TENANT_ACCESS, USER_WITHOUT_ACCESS_TO_ANY_TENANT) //
         .frontendMultiTenancy(new FrontendMultiTenancy(true).index(FRONTEND_INDEX).serverUser(FRONTEND_SERVER_USER.getName())) //
         .tenants(HR_TENANT, FINANCE_TENANT, SALES_TENANT, OPERATIONS_TENANT, RD_TENANT, BD_TENANT, LEGAL_TENANT,
             IT_TENANT, PR_TENANT, QA_TENANT) //
@@ -295,12 +296,29 @@ public class GetAvailableTenantsActionTest {
 
     @Test
     public void shouldReturnUnauthorized_whenUserDoesNotHaveAccessToAnyTenantAndDefaultTenantCannotBeDetermined() throws Exception {
-        try(GenericRestClient client = cluster.getRestClient(USER_WITHOUT_ACCESS_TO_ANY_TENANT)) {
+        try(GenericRestClient client = cluster.getRestClient(USER_WITHOUT_ACCESS_TO_ANY_TENANT); GenericRestClient adminClient = cluster.getAdminCertRestClient()) {
 
             HttpResponse response = client.get("/_searchguard/current_user/tenants");
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.data.default_tenant", USER_WITHOUT_ACCESS_TO_ANY_TENANT.getName()));
 
-            log.debug("Response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(SC_UNAUTHORIZED));
+            cluster.callAndRestoreConfig(FeMultiTenancyConfig.TYPE, () -> {
+
+                HttpResponse getConfigResponse = adminClient.get("/_searchguard/config/fe_multi_tenancy");
+                assertThat(getConfigResponse.getStatusCode(), equalTo(SC_OK));
+                DocNode config = getConfigResponse.getBodyAsDocNode().getAsNode("content");
+                config = config.with("private_tenant_enabled", false);
+                HttpResponse putConfigResponse = adminClient.putJson("/_searchguard/config/fe_multi_tenancy", config);
+                assertThat(putConfigResponse.getStatusCode(), equalTo(SC_OK));
+
+                HttpResponse getTenantsResponse = client.get("/_searchguard/current_user/tenants");
+                log.debug("Response status '{}' and body '{}'.", getTenantsResponse.getStatusCode(), getTenantsResponse.getBody());
+                assertThat(getTenantsResponse.getStatusCode(), equalTo(SC_UNAUTHORIZED));
+                assertThat(getTenantsResponse.getBodyAsDocNode(), containsValue("$.message", "Cannot determine default tenant for current user"));
+
+
+                return null;
+            });
         }
     }
 
