@@ -18,7 +18,6 @@ class DefaultTenantSelector {
 
         Optional<String> preferredGlobalOrPrivateTenant = configuredPreferredTenants
                 .stream()
-                .sorted()
                 //return first of preferred tenants to which: user has write access or (user has read access and tenant exists)
                 .filter(tenant -> Optional.ofNullable(tenantsAvailableToUser.get(tenant))
                         .map(writeAccessOrReadAccessToExistingTenant::test)
