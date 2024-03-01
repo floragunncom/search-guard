@@ -22,6 +22,7 @@ public class AvailableTenantService {
     private final AuthorizationService authorizationService;
     private final ThreadPool threadPool;
     private final TenantAvailabilityRepository tenantRepository;
+    private final DefaultTenantSelector defaultTenantSelector;
 
     public AvailableTenantService(MultiTenancyConfigurationProvider configProvider, AuthorizationService authorizationService,
         ThreadPool threadPool, TenantAvailabilityRepository tenantRepository) {
@@ -29,6 +30,7 @@ public class AvailableTenantService {
         this.authorizationService = requireNonNull(authorizationService, "Authorization service is required");
         this.threadPool = requireNonNull(threadPool, "Thread pool is required");
         this.tenantRepository = requireNonNull(tenantRepository, "Tenant availability repository is required");
+        this.defaultTenantSelector = new DefaultTenantSelector();
     }
 
     public Optional<AvailableTenantData> findTenantAvailableForCurrentUser() {
@@ -41,7 +43,10 @@ public class AvailableTenantService {
                 ImmutableSet<String> exists = tenantRepository.exists(tenantsWriteAccessMap.keySet().toArray(String[]::new));
                 Map<String, TenantAccessData> tenantsAccess = new HashMap<>(tenantsWriteAccessMap.size());
                 tenantsWriteAccessMap.forEach((key, value) -> tenantsAccess.put(key, new TenantAccessData(true, value, exists.contains(key))));
-                return new AvailableTenantData(configProvider.isMultiTenancyEnabled(), tenantsAccess, user.getName());
+                Optional<String> tenantSelectedByDefault = defaultTenantSelector.findDefaultTenantForUser(user, tenantsAccess, configProvider.getPreferredTenants());
+                return new AvailableTenantData(
+                        configProvider.isMultiTenancyEnabled(), tenantsAccess, user.getName(),
+                        tenantSelectedByDefault.orElseThrow(DefaultTenantNotFoundException::new));
             });
     }
 }

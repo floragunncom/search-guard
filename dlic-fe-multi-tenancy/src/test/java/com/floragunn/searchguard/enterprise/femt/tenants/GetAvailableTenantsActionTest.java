@@ -137,6 +137,7 @@ public class GetAvailableTenantsActionTest {
             log.debug("Response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
+            assertThat(body, containsValue("$.data.default_tenant", HR_TENANT.getName()));
             assertThat(body, containsValue("$.data.username", USER_SINGLE_TENANT.getName()));
             assertThat(body, containsValue("$.data.multi_tenancy_enabled", true));
             assertThat(body, containsValue("$.data.tenants.hr_tenant.read_access", true));
@@ -169,6 +170,7 @@ public class GetAvailableTenantsActionTest {
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("$.data.tenants", 12));
+            assertThat(body, containsValue("$.data.default_tenant", Tenant.GLOBAL_TENANT_ID));
             assertThat(body, containsValue("$.data.username", USER_EACH_TENANT_READ.getName()));
             for(String tenantName : ALL_DEFINED_TENANTS.map(TestSgConfig.Tenant::getName)) {
                 String readAccessPath = "$.data.tenants." + tenantName + ".read_access";
@@ -202,6 +204,7 @@ public class GetAvailableTenantsActionTest {
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("$.data.tenants", 12));
+            assertThat(body, containsValue("$.data.default_tenant", Tenant.GLOBAL_TENANT_ID));
             assertThat(body, containsValue("$.data.username", USER_EACH_TENANT_WRITE.getName()));
             for(String tenantName : tenantsToBeCreated) {
                 String readAccessPath = "$.data.tenants." + tenantName + ".read_access";
@@ -227,6 +230,7 @@ public class GetAvailableTenantsActionTest {
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("$.data.tenants", 12));
+            assertThat(body, containsValue("$.data.default_tenant", Tenant.GLOBAL_TENANT_ID));
             assertThat(body, containsValue("$.data.username", USER_EACH_TENANT_WRITE.getName()));
             for(String tenantName : accessibleTenantsNames) {
                 String readAccessPath = "$.data.tenants." + tenantName + ".read_access";
@@ -250,6 +254,7 @@ public class GetAvailableTenantsActionTest {
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("$.data.tenants", 8));
+            assertThat(body, containsValue("$.data.default_tenant", Tenant.GLOBAL_TENANT_ID));
             assertThat(body, containsValue("$.data.username", USER_SOME_TENANT_ACCESS.getName()));
             // read only tenants IT_TENANT, PR_TENANT, QA_TENANT
             assertThat(body, containsValue("$.data.tenants.information_technology_tenant.write_access", false));

@@ -42,6 +42,10 @@ public class GetAvailableTenantsAction extends Action<EmptyRequest, StandardResp
                     return availableTenantService.findTenantAvailableForCurrentUser() //
                         .map(availableTenantData -> new StandardResponse(SC_OK).data(availableTenantData)) //
                         .orElseGet(() -> new StandardResponse(SC_NOT_FOUND, "User not found"));
+                } catch (DefaultTenantNotFoundException ex) {
+                    String message = "Cannot determine default tenant for current user";
+                    log.error(message, ex);
+                    return new StandardResponse(ex.status().getStatus(), message);
                 } catch (Exception ex) {
                     String message = "Cannot retrieve information about tenants available for current user.";
                     log.error(message, ex);
