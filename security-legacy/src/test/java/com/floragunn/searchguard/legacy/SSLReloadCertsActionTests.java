@@ -48,6 +48,7 @@ import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.helper.certificate.NodeCertificateType;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
+import com.floragunn.searchguard.test.helper.cluster.EsClientProvider.UserCredentialsHolder;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestCertificateBasedSSLContextProvider;
@@ -303,7 +304,8 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
     private GenericRestClient prepareRestClient(InetSocketAddress address, TestCertificate rootCertificate, TestCertificate clientCertificate,
             boolean clientAuthentication) {
         TestCertificateBasedSSLContextProvider sslContextProvider = new TestCertificateBasedSSLContextProvider(rootCertificate, clientCertificate);
-        return new GenericRestClient(address, Collections.emptyList(), sslContextProvider.getSslContext(clientAuthentication));
+        return new GenericRestClient(address, Collections.emptyList(), sslContextProvider.getSslContext(clientAuthentication),
+                UserCredentialsHolder.basic("cert", null), null);
     }
 
     private List<String> certificatesToListOfString(X509CertificateHolder... certificates) {

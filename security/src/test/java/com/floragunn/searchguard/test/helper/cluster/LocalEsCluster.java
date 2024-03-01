@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.SortedSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -69,6 +70,7 @@ import org.elasticsearch.transport.BindTransportException;
 import org.elasticsearch.transport.TransportInfo;
 import org.elasticsearch.xcontent.XContentType;
 
+import com.floragunn.searchguard.test.GenericRestClient.RequestInfo;
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
@@ -612,6 +614,11 @@ public class LocalEsCluster {
         @Override
         public TestCertificates getTestCertificates() {
             return testCertificates;
+        }
+
+        @Override
+        public Consumer<RequestInfo> getRequestInfoConsumer() {
+            return null;
         }
     }
     
