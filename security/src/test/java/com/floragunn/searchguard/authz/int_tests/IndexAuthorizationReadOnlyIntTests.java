@@ -666,7 +666,7 @@ public class IndexAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_resolve/index/*");
             assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, alias_ab1, alias_c1)
-                    .at("$.*[*].name").but(user.indexMatcher("read_top_level")).whenEmpty(200));
+                    .at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -675,7 +675,7 @@ public class IndexAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_resolve/index/*?expand_wildcards=all");
             assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, alias_ab1, alias_c1,
-                    index_hidden, index_hidden_dot, searchGuardIndices()).at("$.*[*].name").but(user.indexMatcher("read_top_level")).whenEmpty(200));
+                    index_hidden, index_hidden_dot, searchGuardIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -684,7 +684,7 @@ public class IndexAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_resolve/index/index_a*,index_b*");
             assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3).at("$.*[*].name")
-                    .but(user.indexMatcher("read_top_level")).whenEmpty(200));
+                    .but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
