@@ -566,7 +566,14 @@ public class GenericRestClient implements AutoCloseable {
                 result.append(response.statusCode).append(" ").append(response.statusReason).append("\n");
                 if (response.isJsonContentType()) {
                     try {
-                        result.append(response.getBodyAsDocNode().toPrettyJsonString()).append("\n");
+                        String prettyJson = response.getBodyAsDocNode().toPrettyJsonString();
+                        
+                        if (countOfLines(prettyJson) <= 25) {
+                            result.append(prettyJson).append("\n");                            
+                        } else {                            
+                            result.append(response.getBody()).append("\n");                            
+                        }
+                        
                     } catch (DocumentParseException | UnknownDocTypeException e) {
                         result.append(response.getBody()).append("\n");
                     }
@@ -576,6 +583,16 @@ public class GenericRestClient implements AutoCloseable {
             }
 
             return result.toString();
+        }
+        
+        private int countOfLines(String s) {
+            int result = 0;
+            
+            for (int i = 0; i < s.length(); i++) {
+                if (s.charAt(i) == '\n') result++;
+            }
+            
+            return result;
         }
 
     }

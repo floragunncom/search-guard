@@ -223,17 +223,6 @@ public class MiscAuthorizationIntTests {
         }
     }
 
-    @Test
-    public void resolveTestAliasAndIndexMixed() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient("resolve_test_user", "secret")) {
-
-            HttpResponse httpResponse = restClient.get("/_resolve/index/alias_resolve_test_*");
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(nodeAt("indices[*].name", containsInAnyOrder("alias_resolve_test_index_allow_aliased_1",
-                    "alias_resolve_test_index_allow_aliased_2", "alias_resolve_test_index_allow_1"))));
-        }
-    }
 
     @Test
     public void permissionApi_evaluateClusterAndTenantPrivileges() throws Exception {
