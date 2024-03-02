@@ -48,6 +48,7 @@ import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.action.admin.indices.resolve.ResolveIndexAction;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesIndexRequest;
@@ -178,6 +179,8 @@ public class ActionRequestIntrospector {
                 return new ActionRequestInfo(resizeRequest.getSourceIndex(), EXACT, IndicesRequestInfo.Scope.ANY).additional(
                         IndicesRequestInfo.AdditionalInfoRole.RESIZE_TARGET, ((ResizeRequest) request).getTargetIndexRequest(),
                         IndicesRequestInfo.Scope.ANY);
+            } else if (request instanceof ResolveIndexAction.Request) {
+                return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.ANY_DISTINCT);
             } else {
                 // request instanceof IndicesRequest
                 return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.ANY);
@@ -943,8 +946,36 @@ public class ActionRequestIntrospector {
         }
 
         public static enum Scope {
-            ANY(true, true, true), INDEX(true, false, false), ALIAS(false, true, false), DATA_STREAM(false, false, true),
-            INDICES_DATA_STREAMS(true, false, true);
+
+            /**
+             * Both indices, aliases and data streams are expected. If an alias containing certain indices is present, the contained indices are skipped, as these are implied by the alias.
+             */
+            ANY(true, true, true),
+
+            /**
+             * Only indices are expected
+             */
+            INDEX(true, false, false),
+
+            /**
+             * Only aliases are expected
+             */
+            ALIAS(false, true, false),
+
+            /**
+             * Only data streams are expected
+             */
+            DATA_STREAM(false, false, true),
+
+            /**
+             * Only indices and data streams are expected (the common denominator of both is that both can be members of indices)
+             */
+            INDICES_DATA_STREAMS(true, false, true),
+
+            /**
+             * Both indices, aliases and data streams are expected. In contrast to ANY, indices are also contained even if they are members of an alias which is also contained.
+             */
+            ANY_DISTINCT(true, true, true);
 
             private final boolean includeIndices;
             private final boolean includeAliases;
@@ -1542,7 +1573,7 @@ public class ActionRequestIntrospector {
                                 if (scope == IndicesRequestInfo.Scope.DATA_STREAM) {
                                     dataStreams.add(Meta.DataStream.nonExistent(index));
                                 } else if (scope == IndicesRequestInfo.Scope.ALIAS) {
-                                    aliases.add(Meta.Alias.nonExistent(index));                                    
+                                    aliases.add(Meta.Alias.nonExistent(index));
                                 } else {
                                     nonExistingIndices.add(Meta.NonExistent.of(index));
                                 }
@@ -1569,7 +1600,7 @@ public class ActionRequestIntrospector {
 
                 ImmutableSet<Meta.Index> pureIndices = indices.build();
 
-                if (aliases.size() != 0 || dataStreams.size() != 0) {
+                if ((aliases.size() != 0 || dataStreams.size() != 0) && scope != IndicesRequestInfo.Scope.ANY_DISTINCT) {
                     // If there are aliases or dataStreams, remove the indices that are part of these aliases or dataStreams
 
                     pureIndices = pureIndices.matching((index) -> {
@@ -1600,7 +1631,7 @@ public class ActionRequestIntrospector {
                 ImmutableSet<Meta.DataStream> dataStreams;
                 ImmutableSet<Meta.NonExistent> nonExistingIndices = ImmutableSet.empty();
 
-                if (includeDataStreams && includeAliases) {
+                if (includeDataStreams && includeAliases && scope != IndicesRequestInfo.Scope.ANY_DISTINCT) {
                     if (!includeIndices) {
                         pureIndices = ImmutableSet.empty();
                     } else if (!includeHidden) {
@@ -1628,12 +1659,14 @@ public class ActionRequestIntrospector {
                             : ImmutableSet.empty();
                     dataStreams = includeDataStreams ? indexMetadata.dataStreams() : ImmutableSet.empty();
 
-                    if (!dataStreams.isEmpty()) {
-                        pureIndices = pureIndices.matching(e -> e.parentDataStreamName() == null);
-                    }
+                    if (scope != IndicesRequestInfo.Scope.ANY_DISTINCT) {
+                        if (!dataStreams.isEmpty()) {
+                            pureIndices = pureIndices.matching(e -> e.parentDataStreamName() == null);
+                        }
 
-                    if (!aliases.isEmpty()) {
-                        pureIndices = pureIndices.matching(e -> e.parentAliasNames().isEmpty());
+                        if (!aliases.isEmpty()) {
+                            pureIndices = pureIndices.matching(e -> e.parentAliasNames().isEmpty());
+                        }
                     }
                 }
 
@@ -1682,7 +1715,7 @@ public class ActionRequestIntrospector {
 
                 ImmutableSet<Meta.Index> pureIndices = indices.build();
 
-                if (aliases.size() != 0 || dataStreams.size() != 0) {
+                if ((aliases.size() != 0 || dataStreams.size() != 0) && scope != IndicesRequestInfo.Scope.ANY_DISTINCT) {
                     // If there are aliases or dataStreams, remove the indices that are part of these aliases or dataStreams
 
                     pureIndices = pureIndices.matching(index -> {
