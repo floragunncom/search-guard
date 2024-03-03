@@ -142,7 +142,6 @@ public class ActionRequestIntrospector {
                                 IndicesRequestInfo.Scope.ALIAS);
             } else if (request instanceof IndicesAliasesRequest) {
                 IndicesAliasesRequest indicesAliasesRequest = (IndicesAliasesRequest) request;
-
                 ActionRequestInfo result = new ActionRequestInfo(ImmutableSet.empty());
 
                 for (IndicesAliasesRequest.AliasActions aliasAction : indicesAliasesRequest.getAliasActions()) {

@@ -20,9 +20,9 @@ package com.floragunn.searchguard.authz.int_tests;
 import static com.floragunn.searchguard.test.IndexApiMatchers.containsExactly;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedTo;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedToNone;
+import static com.floragunn.searchguard.test.IndexApiMatchers.searchGuardIndices;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimited;
-import static com.floragunn.searchguard.test.IndexApiMatchers.*;
-
+import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncludingSearchGuardIndices;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
