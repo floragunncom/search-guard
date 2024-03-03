@@ -143,10 +143,29 @@ public class ActionRequestIntrospector {
             } else if (request instanceof IndicesAliasesRequest) {
                 IndicesAliasesRequest indicesAliasesRequest = (IndicesAliasesRequest) request;
 
-                return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.INDICES_DATA_STREAMS).additional(
-                        IndicesRequestInfo.AdditionalInfoRole.ALIASES, indicesAliasesRequest.getAliasActions().stream()
-                                .flatMap(a -> Arrays.asList(a.aliases()).stream()).collect(ImmutableList.collector()),
-                        IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN, IndicesRequestInfo.Scope.ALIAS);
+                ActionRequestInfo result = new ActionRequestInfo(ImmutableSet.empty());
+
+                for (IndicesAliasesRequest.AliasActions aliasAction : indicesAliasesRequest.getAliasActions()) {
+                    switch (aliasAction.actionType()) {
+                    case ADD:
+                        result = result.with(aliasAction, IndicesRequestInfo.Scope.INDICES_DATA_STREAMS) //
+                                .additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES, aliasAction.aliases(), EXACT,
+                                        IndicesRequestInfo.Scope.ALIAS);
+                        break;
+                    case REMOVE:
+                        result = result.with(aliasAction, IndicesRequestInfo.Scope.INDICES_DATA_STREAMS) //
+                                .additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES, aliasAction.aliases(),
+                                        aliasAction.expandAliasesWildcards() ? IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN : EXACT,
+                                        IndicesRequestInfo.Scope.ALIAS);
+                        break;
+                    case REMOVE_INDEX:
+                        // This is the most weird part of IndicesAliasesRequest: You can delete an index - completely unrelated to aliases.
+                        result = result.with(aliasAction, IndicesRequestInfo.Scope.INDICES_DATA_STREAMS);
+                        break;
+                    }
+                }
+
+                return result;
             } else if (request instanceof CreateIndexRequest) {
                 CreateIndexRequest createIndexRequest = (CreateIndexRequest) request;
 
@@ -502,6 +521,16 @@ public class ActionRequestIntrospector {
         ActionRequestInfo(List<String> index, IndicesOptions indicesOptions, IndicesRequestInfo.Scope scope) {
             this(ImmutableSet
                     .of(new IndicesRequestInfo(null, index, indicesOptions, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
+        }
+
+        ActionRequestInfo with(IndicesRequest indices, IndicesRequestInfo.Scope scope) {
+            return new ActionRequestInfo(unknown, indexRequest,
+                    this.indices.with(new IndicesRequestInfo(null, indices, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
+        }
+
+        ActionRequestInfo with(String[] indices, IndicesOptions indicesOptions, IndicesRequestInfo.Scope scope) {
+            return new ActionRequestInfo(unknown, indexRequest, this.indices.with(new IndicesRequestInfo(null, ImmutableList.ofArray(indices),
+                    indicesOptions, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
         }
 
         ActionRequestInfo additional(IndicesRequestInfo.AdditionalInfoRole role, IndicesRequest indices, IndicesRequestInfo.Scope scope) {
@@ -1006,7 +1035,9 @@ public class ActionRequestIntrospector {
                     ImmutableSet.ofArray("indices:admin/create"));
             public static final AdditionalInfoRole MANAGE_ALIASES = new AdditionalInfoRole("manage_aliases",
                     ImmutableSet.ofArray("indices:admin/aliases"));
-
+            public static final AdditionalInfoRole DELETE_INDEX = new AdditionalInfoRole("delete_index",
+                    ImmutableSet.ofArray("indices:admin/delete"));
+            
             private final String id;
             private final ImmutableSet<String> requiredPrivileges;
 
