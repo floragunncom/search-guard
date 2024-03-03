@@ -253,8 +253,7 @@ public class Actions {
 
         index(IndicesAliasesAction.INSTANCE) //
                 .requestType(IndicesAliasesRequest.class)//
-                .requestItems(IndicesAliasesRequest::getAliasActions, IndicesAliasesRequest.AliasActions::actionType)//
-                .requiresAdditionalPrivilegesForItemType(AliasActions.Type.REMOVE_INDEX, "indices:admin/delete");
+                .requestItems(IndicesAliasesRequest::getAliasActions, IndicesAliasesRequest.AliasActions::actionType);
 
         index(UpdateSettingsAction.INSTANCE);
         index(AnalyzeAction.INSTANCE);
