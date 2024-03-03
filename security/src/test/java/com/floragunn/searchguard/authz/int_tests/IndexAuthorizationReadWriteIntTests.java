@@ -79,7 +79,9 @@ public class IndexAuthorizationReadWriteIntTests {
 
     static TestAlias alias_c1 = new TestAlias("alias_c1", index_cr1);
 
-    static TestIndex index_bwx = TestIndex.name("index_bwx").documentCount(0).build(); // not initially created
+    static TestIndex index_bwx1 = TestIndex.name("index_bwx1").documentCount(0).build(); // not initially created
+    static TestIndex index_bwx2 = TestIndex.name("index_bwx2").documentCount(0).build(); // not initially created
+
     static TestAlias alias_bwx = new TestAlias("alias_bwx"); // not initially created
 
     static TestSgConfig.User LIMITED_USER_A = new TestSgConfig.User("limited_user_A")//
@@ -102,8 +104,8 @@ public class IndexAuthorizationReadWriteIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("index_b*")//
                             .indexPermissions("SGS_WRITE").on("index_bw*"))//
-            .indexMatcher("read", limitedTo(index_br1, index_br2, index_bw1, index_bw2, index_bwx))//
-            .indexMatcher("write", limitedTo(index_bw1, index_bw2, index_bwx))//
+            .indexMatcher("read", limitedTo(index_br1, index_br2, index_bw1, index_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("write", limitedTo(index_bw1, index_bw2, index_bwx1, index_bwx2))//
             .indexMatcher("create_index", limitedToNone())//
             .indexMatcher("manage_index", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
@@ -116,9 +118,9 @@ public class IndexAuthorizationReadWriteIntTests {
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("index_b*")//
                             .indexPermissions("SGS_WRITE").on("index_bw*")//
                             .indexPermissions("SGS_CREATE_INDEX").on("index_bw*"))//
-            .indexMatcher("read", limitedTo(index_br1, index_br2, index_bw1, index_bw2, index_bwx))//
-            .indexMatcher("write", limitedTo(index_bw1, index_bw2, index_bwx))//
-            .indexMatcher("create_index", limitedTo(index_bw1, index_bw2, index_bwx))//
+            .indexMatcher("read", limitedTo(index_br1, index_br2, index_bw1, index_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("write", limitedTo(index_bw1, index_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("create_index", limitedTo(index_bw1, index_bw2, index_bwx1, index_bwx2))//
             .indexMatcher("manage_index", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
@@ -130,10 +132,10 @@ public class IndexAuthorizationReadWriteIntTests {
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("index_b*")//
                             .indexPermissions("SGS_WRITE").on("index_bw*")//
                             .indexPermissions("SGS_MANAGE").on("index_bw*"))//
-            .indexMatcher("read", limitedTo(index_br1, index_br2, index_bw1, index_bw2, index_bwx))//
-            .indexMatcher("write", limitedTo(index_bw1, index_bw2, index_bwx))//
-            .indexMatcher("create_index", limitedTo(index_bw1, index_bw2, index_bwx))//
-            .indexMatcher("manage_index", limitedTo(index_bw1, index_bw2, index_bwx))//
+            .indexMatcher("read", limitedTo(index_br1, index_br2, index_bw1, index_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("write", limitedTo(index_bw1, index_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("create_index", limitedTo(index_bw1, index_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("manage_index", limitedTo(index_bw1, index_bw2, index_bwx1, index_bwx2))//
             .indexMatcher("get_alias", limitedTo());
 
     static TestSgConfig.User LIMITED_USER_B_MANAGE_INDEX_ALIAS = new TestSgConfig.User("limited_user_B_manage_index_alias")//
@@ -145,10 +147,10 @@ public class IndexAuthorizationReadWriteIntTests {
                             .indexPermissions("SGS_WRITE").on("index_bw*")//
                             .indexPermissions("SGS_MANAGE").on("index_bw*")//
                             .aliasPermissions("SGS_MANAGE_ALIASES").on("alias_bwx*"))//
-            .indexMatcher("read", limitedTo(index_br1, index_br2, index_bw1, index_bw2, index_bwx))//
-            .indexMatcher("write", limitedTo(index_bw1, index_bw2, index_bwx))//
-            .indexMatcher("create_index", limitedTo(index_bw1, index_bw2, index_bwx))//
-            .indexMatcher("manage_index", limitedTo(index_bw1, index_bw2, index_bwx, alias_bwx))//
+            .indexMatcher("read", limitedTo(index_br1, index_br2, index_bw1, index_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("write", limitedTo(index_bw1, index_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("create_index", limitedTo(index_bw1, index_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("manage_index", limitedTo(index_bw1, index_bw2, index_bwx1, index_bwx2, alias_bwx))//
             .indexMatcher("get_alias", limitedTo(alias_bwx));
 
     static TestSgConfig.User LIMITED_USER_AB_MANAGE_INDEX = new TestSgConfig.User("limited_user_AB_manage_index")//
@@ -159,10 +161,10 @@ public class IndexAuthorizationReadWriteIntTests {
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("index_a*", "index_b*")//
                             .indexPermissions("SGS_WRITE").on("index_aw*", "index_bw*")//
                             .indexPermissions("SGS_MANAGE").on("index_aw*", "index_bw*"))//
-            .indexMatcher("read", limitedTo(index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_br2, index_bw1, index_bw2, index_bwx))//
-            .indexMatcher("write", limitedTo(index_aw1, index_aw2, index_bw1, index_bw2, index_bwx))//
-            .indexMatcher("create_index", limitedTo(index_aw1, index_aw2, index_bw1, index_bw2, index_bwx))//
-            .indexMatcher("manage_index", limitedTo(index_aw1, index_aw2, index_bw1, index_bw2, index_bwx))//
+            .indexMatcher("read", limitedTo(index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_br2, index_bw1, index_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("write", limitedTo(index_aw1, index_aw2, index_bw1, index_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("create_index", limitedTo(index_aw1, index_aw2, index_bw1, index_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("manage_index", limitedTo(index_aw1, index_aw2, index_bw1, index_bw2, index_bwx1, index_bwx2))//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_C = new TestSgConfig.User("limited_user_C")//
@@ -184,7 +186,8 @@ public class IndexAuthorizationReadWriteIntTests {
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get").on("alias_ab1r")//
-                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get", "SGS_WRITE", "indices:admin/refresh*").on("alias_ab1w"))//
+                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get", "SGS_WRITE", "indices:admin/refresh*")
+                            .on("alias_ab1w"))//
             .indexMatcher("read", limitedTo(index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_bw1, alias_ab1r, alias_ab1w))//
             .indexMatcher("write", limitedTo(index_aw1, index_aw2, index_bw1, index_bw2, alias_ab1w))//
             .indexMatcher("create_index", limitedTo(index_aw1, index_aw2, index_bw1, index_bw2))//
@@ -401,27 +404,27 @@ public class IndexAuthorizationReadWriteIntTests {
     @Test
     public void putDocument_noExistingIndex() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
-            restClient.deleteWhenClosed("/index_bwx");
+            restClient.deleteWhenClosed("/index_bwx1");
 
-            HttpResponse httpResponse = restClient.putJson("/index_bwx/_doc/put_doc_non_existing_index_test_1", DocNode.of("a", 1));
-            assertThat(httpResponse, containsExactly(index_bwx).at("_index").but(user.indexMatcher("create_index")).whenEmpty(403));
+            HttpResponse httpResponse = restClient.putJson("/index_bwx1/_doc/put_doc_non_existing_index_test_1", DocNode.of("a", 1));
+            assertThat(httpResponse, containsExactly(index_bwx1).at("_index").but(user.indexMatcher("create_index")).whenEmpty(403));
         }
     }
 
     @Test
     public void createIndex() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
-            HttpResponse httpResponse = restClient.putJson("/index_bwx", DocNode.EMPTY);
-            assertThat(httpResponse, containsExactly(index_bwx).at("index").but(user.indexMatcher("create_index")).whenEmpty(403));
+            HttpResponse httpResponse = restClient.putJson("/index_bwx1", DocNode.EMPTY);
+            assertThat(httpResponse, containsExactly(index_bwx1).at("index").but(user.indexMatcher("create_index")).whenEmpty(403));
         }
     }
 
     @Test
     public void createIndex_deleteIndex() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
-            HttpResponse httpResponse = restClient.putJson("/index_bwx", DocNode.EMPTY);
-            assertThat(httpResponse, containsExactly(index_bwx).at("index").but(user.indexMatcher("create_index")).whenEmpty(403));
-            httpResponse = restClient.delete("/index_bwx");
+            HttpResponse httpResponse = restClient.putJson("/index_bwx1", DocNode.EMPTY);
+            assertThat(httpResponse, containsExactly(index_bwx1).at("index").but(user.indexMatcher("create_index")).whenEmpty(403));
+            httpResponse = restClient.delete("/index_bwx1");
 
             if (user.indexMatcher("manage_index").isEmpty()) {
                 assertThat(httpResponse, isForbidden());
@@ -434,12 +437,12 @@ public class IndexAuthorizationReadWriteIntTests {
     @Test
     public void createIndex_withAlias() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
-            HttpResponse httpResponse = restClient.putJson("/index_bwx", DocNode.of("aliases.alias_bwx", DocNode.EMPTY));
+            HttpResponse httpResponse = restClient.putJson("/index_bwx1", DocNode.of("aliases.alias_bwx", DocNode.EMPTY));
 
             if (containsExactly(alias_bwx).but(user.indexMatcher("manage_index")).isEmpty()) {
                 assertThat(httpResponse, isForbidden());
             } else {
-                assertThat(httpResponse, containsExactly(index_bwx).at("index").but(user.indexMatcher("create_index")).whenEmpty(403));
+                assertThat(httpResponse, containsExactly(index_bwx1).at("index").but(user.indexMatcher("create_index")).whenEmpty(403));
             }
         }
     }
@@ -530,12 +533,37 @@ public class IndexAuthorizationReadWriteIntTests {
     }
 
     @Test
+    public void aliases_removeIndex() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user);
+                GenericRestClient adminRestClient = cluster.getAdminCertRestClient().trackResources()) {
+            adminRestClient.deleteWhenClosed("/*/_alias/alias_bwx");
+
+            // Initialization
+            {
+                HttpResponse httpResponse = adminRestClient.putJson("/index_bwx1", DocNode.of("aliases.alias_bwx", DocNode.EMPTY));
+                assertThat(httpResponse, isOk());              
+                httpResponse = adminRestClient.putJson("/index_bwx2", DocNode.of("aliases.alias_bwx", DocNode.EMPTY));
+                assertThat(httpResponse, isOk());              
+            }
+            
+            HttpResponse httpResponse = restClient.postJson("/_aliases",
+                    DocNode.of("actions", DocNode.array(DocNode.of("remove_index.index", "index_bwx1"))));
+                        
+            if (containsExactly(index_bwx2).isCoveredBy(user.indexMatcher("manage_index"))) {
+                assertThat(httpResponse, isOk());
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
+        }
+    }
+
+    @Test
     public void reindex() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
-            restClient.deleteWhenClosed("/index_bwx");
+            restClient.deleteWhenClosed("/index_bwx1");
 
-            HttpResponse httpResponse = restClient.postJson("/_reindex", DocNode.of("source.index", "index_br1", "dest.index", "index_bwx"));
-            if (containsExactly(index_bwx).but(user.indexMatcher("create_index")).isEmpty()) {
+            HttpResponse httpResponse = restClient.postJson("/_reindex", DocNode.of("source.index", "index_br1", "dest.index", "index_bwx1"));
+            if (containsExactly(index_bwx1).but(user.indexMatcher("create_index")).isEmpty()) {
                 assertThat(httpResponse, isForbidden());
             } else {
                 assertThat(httpResponse, isOk());
@@ -549,9 +577,9 @@ public class IndexAuthorizationReadWriteIntTests {
     @Test
     public void reindex2() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
-            restClient.deleteWhenClosed("/index_bwx");
+            restClient.deleteWhenClosed("/index_bwx1");
 
-            HttpResponse httpResponse = restClient.postJson("/_reindex", DocNode.of("source.index", "index_ar1", "dest.index", "index_bwx"));
+            HttpResponse httpResponse = restClient.postJson("/_reindex", DocNode.of("source.index", "index_ar1", "dest.index", "index_bwx1"));
 
             if (user == UNLIMITED_USER || user == SUPER_UNLIMITED_USER || user == LIMITED_USER_AB_MANAGE_INDEX) {
                 assertThat(httpResponse, isOk());
@@ -567,7 +595,7 @@ public class IndexAuthorizationReadWriteIntTests {
     @Test
     public void cloneIndex() throws Exception {
         String sourceIndex = "index_bw1";
-        String targetIndex = "index_bwx";
+        String targetIndex = "index_bwx1";
 
         try (Client client = cluster.getInternalNodeClient()) {
             client.admin().indices()
@@ -580,7 +608,7 @@ public class IndexAuthorizationReadWriteIntTests {
 
             HttpResponse httpResponse = restClient.post(sourceIndex + "/_clone/" + targetIndex);
 
-            assertThat(httpResponse, containsExactly(index_bwx).at("index").but(user.indexMatcher("manage_index")).whenEmpty(403));
+            assertThat(httpResponse, containsExactly(index_bwx1).at("index").but(user.indexMatcher("manage_index")).whenEmpty(403));
 
         } finally {
             try (Client client = cluster.getInternalNodeClient()) {
