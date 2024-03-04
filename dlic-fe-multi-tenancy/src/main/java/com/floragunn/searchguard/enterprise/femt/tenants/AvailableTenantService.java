@@ -42,7 +42,13 @@ public class AvailableTenantService {
                 Map<String, Boolean> tenantsWriteAccessMap = configProvider.getTenantAccessMapper().mapTenantsAccess(user, internalRoles);
                 ImmutableSet<String> exists = tenantRepository.exists(tenantsWriteAccessMap.keySet().toArray(String[]::new));
                 Map<String, TenantAccessData> tenantsAccess = new HashMap<>(tenantsWriteAccessMap.size());
-                tenantsWriteAccessMap.forEach((key, value) -> tenantsAccess.put(key, new TenantAccessData(true, value, exists.contains(key))));
+                tenantsWriteAccessMap.entrySet()
+                        .stream()
+                        .filter(tenantWriteAccess -> tenantWriteAccess.getValue() || exists.contains(tenantWriteAccess.getKey()))
+                        .forEach(tenantAccess -> {
+                            TenantAccessData tenantAccessData = new TenantAccessData(true, tenantAccess.getValue(), exists.contains(tenantAccess.getKey()));
+                            tenantsAccess.put(tenantAccess.getKey(), tenantAccessData);
+                        });
                 Optional<String> tenantSelectedByDefault = defaultTenantSelector.findDefaultTenantForUser(user, tenantsAccess, configProvider.getPreferredTenants());
                 return new AvailableTenantData(
                         configProvider.isMultiTenancyEnabled(), tenantsAccess, user.getName(),

@@ -257,12 +257,10 @@ public class GetAvailableTenantsActionTest {
             log.debug("Response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("$.data.tenants", 8));
+            assertThat(body, docNodeSizeEqualTo("$.data.tenants", 7));
             assertThat(body, containsValue("$.data.default_tenant", Tenant.GLOBAL_TENANT_ID));
             assertThat(body, containsValue("$.data.username", USER_SOME_TENANT_ACCESS.getName()));
-            // read only tenants IT_TENANT, PR_TENANT, QA_TENANT
-            assertThat(body, containsValue("$.data.tenants.information_technology_tenant.write_access", false));
-            assertThat(body, containsValue("$.data.tenants.information_technology_tenant.exists", false));
+            // read only, existing tenants PR_TENANT, QA_TENANT
             assertThat(body, containsValue("$.data.tenants.public_relations_tenant.write_access", false));
             assertThat(body, containsValue("$.data.tenants.public_relations_tenant.exists", true));
             assertThat(body, containsValue("$.data.tenants.quality_assurance_tenant.write_access", false));
