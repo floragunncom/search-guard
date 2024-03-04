@@ -1,5 +1,6 @@
 package com.floragunn.searchguard.enterprise.femt.tenants;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
@@ -9,6 +10,7 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -37,6 +39,10 @@ public class AvailableTenantService {
         ThreadContext threadContext = threadPool.getThreadContext();
         return Optional.<User>ofNullable(threadContext.getTransient(ConfigConstants.SG_USER))
             .map(user -> {
+                boolean multiTenancyEnabled = configProvider.isMultiTenancyEnabled();
+                if(!multiTenancyEnabled) {
+                    return new AvailableTenantData(false, ImmutableMap.empty(), user.getName(), null);
+                }
                 final TransportAddress remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
                 Set<String> internalRoles = authorizationService.getMappedRoles(user, remoteAddress);
                 Map<String, Boolean> tenantsWriteAccessMap = configProvider.getTenantAccessMapper().mapTenantsAccess(user, internalRoles);
@@ -50,9 +56,11 @@ public class AvailableTenantService {
                             tenantsAccess.put(tenantAccess.getKey(), tenantAccessData);
                         });
                 Optional<String> tenantSelectedByDefault = defaultTenantSelector.findDefaultTenantForUser(user, tenantsAccess, configProvider.getPreferredTenants());
-                return new AvailableTenantData(
-                        configProvider.isMultiTenancyEnabled(), tenantsAccess, user.getName(),
-                        tenantSelectedByDefault.orElseThrow(() -> new DefaultTenantNotFoundException(user.getName())));
+                String defaultTenant = null;
+                if(multiTenancyEnabled) {
+                    defaultTenant = tenantSelectedByDefault.orElseThrow(() -> new DefaultTenantNotFoundException(user.getName()));
+                }
+                return new AvailableTenantData(true, tenantsAccess, user.getName(), defaultTenant);
             });
     }
 }

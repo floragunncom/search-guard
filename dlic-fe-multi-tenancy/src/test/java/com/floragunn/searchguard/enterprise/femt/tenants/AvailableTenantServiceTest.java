@@ -11,6 +11,7 @@ import com.floragunn.searchguard.user.User;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -70,16 +71,35 @@ public class AvailableTenantServiceTest {
     }
 
     @Test
-    public void shouldThrowExceptionWhenUsingDefaultConfigProvider() {
+    public void shouldThrowExceptionWhenMultiTenancyIsEnabledAndUserHaveAccessToZeroTenants() {
         User user = new User("user");
         TransportAddress remoteAddress = new TransportAddress(new InetSocketAddress(8901));
         when(threadContext.getTransient(ConfigConstants.SG_USER)).thenReturn(user);
         when(threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS)).thenReturn(remoteAddress);
         when(authorizationService.getMappedRoles(user, remoteAddress)).thenReturn(ImmutableSet.of("my_role"));
         when(repository.exists(any(String[].class))).thenAnswer(new TenantExistsAnswer(true));
-        this.service = new AvailableTenantService(MultiTenancyConfigurationProvider.DEFAULT, authorizationService, threadPool, repository);
+        when(configProvider.isMultiTenancyEnabled()).thenReturn(true);
+        this.service = new AvailableTenantService(configProvider, authorizationService, threadPool, repository);
+        when(configProvider.getTenantAccessMapper()).thenReturn(accessMapper);
 
         assertThatThrown(() -> service.findTenantAvailableForCurrentUser(), instanceOf(DefaultTenantNotFoundException.class));
+    }
+
+    @Test
+    public void shouldNotThrowExceptionWhenMultiTenancyIsDisabledAndUserHaveAccessToZeroTenants() {
+        User user = new User("user");
+        when(threadContext.getTransient(ConfigConstants.SG_USER)).thenReturn(user);
+        when(configProvider.isMultiTenancyEnabled()).thenReturn(false);
+        this.service = new AvailableTenantService(configProvider, authorizationService, threadPool, repository);
+
+        AvailableTenantData tenantAvailableForCurrentUser = service.findTenantAvailableForCurrentUser().get();
+
+        assertThat(tenantAvailableForCurrentUser.multiTenancyEnabled(), equalTo(false));
+        assertThat(tenantAvailableForCurrentUser.tenants(), anEmptyMap());
+        assertThat(tenantAvailableForCurrentUser.defaultTenant(), nullValue());
+        assertThat(tenantAvailableForCurrentUser.username(), equalTo("user"));
+
+
     }
 
     @Test
@@ -111,7 +131,7 @@ public class AvailableTenantServiceTest {
     }
 
     @Test
-    public void shouldReturnInformationAboutTreeTenantsWithVariousAccessLevelWhichDoesNotExist() {
+    public void shouldNotReturnInformationAboutTenantsWithReadOnlyAccessWhichDoesNotExist() {
         User user = new User("user");
         TransportAddress remoteAddress = new TransportAddress(new InetSocketAddress(8901));
         when(threadContext.getTransient(ConfigConstants.SG_USER)).thenReturn(user);
@@ -128,14 +148,10 @@ public class AvailableTenantServiceTest {
 
         assertThat(data.multiTenancyEnabled(), equalTo(true));
         Map<String, TenantAccessData> tenants = data.tenants();
-        assertThat(tenants, aMapWithSize(2));
+        assertThat(tenants, aMapWithSize(1));
         TenantAccessData accessData = tenants.get(TENANT_4);
         assertThat(accessData.readAccess(), equalTo(true));
         assertThat(accessData.writeAccess(), equalTo(true));
-        assertThat(accessData.exists(), equalTo(false));
-        accessData = tenants.get(TENANT_5);
-        assertThat(accessData.readAccess(), equalTo(true));
-        assertThat(accessData.writeAccess(), equalTo(false));
         assertThat(accessData.exists(), equalTo(false));
     }
 
@@ -192,25 +208,21 @@ public class AvailableTenantServiceTest {
         when(configProvider.isMultiTenancyEnabled()).thenReturn(true);
         var tenantWriteAccess = ImmutableMap.of(TENANT_1, false, TENANT_2, false, TENANT_3, false, TENANT_4, true, TENANT_5, true);
         when(accessMapper.mapTenantsAccess(user, userRoles)).thenReturn(tenantWriteAccess);
-        when(repository.exists(any(String[].class))).thenReturn(ImmutableSet.of(TENANT_4, TENANT_5));
+        when(repository.exists(any(String[].class))).thenReturn(ImmutableSet.of(TENANT_1, TENANT_2, TENANT_4));
 
         AvailableTenantData data = service.findTenantAvailableForCurrentUser().orElseThrow();
 
         assertThat(data.multiTenancyEnabled(), equalTo(true));
         Map<String, TenantAccessData> tenants = data.tenants();
-        assertThat(tenants, aMapWithSize(5));
+        assertThat(tenants, aMapWithSize(4));
         TenantAccessData accessData = tenants.get(TENANT_1);
         assertThat(accessData.readAccess(), equalTo(true));
         assertThat(accessData.writeAccess(), equalTo(false));
-        assertThat(accessData.exists(), equalTo(false));
+        assertThat(accessData.exists(), equalTo(true));
         accessData = tenants.get(TENANT_2);
         assertThat(accessData.readAccess(), equalTo(true));
         assertThat(accessData.writeAccess(), equalTo(false));
-        assertThat(accessData.exists(), equalTo(false));
-        accessData = tenants.get(TENANT_3);
-        assertThat(accessData.readAccess(), equalTo(true));
-        assertThat(accessData.writeAccess(), equalTo(false));
-        assertThat(accessData.exists(), equalTo(false));
+        assertThat(accessData.exists(), equalTo(true));
         accessData = tenants.get(TENANT_4);
         assertThat(accessData.readAccess(), equalTo(true));
         assertThat(accessData.writeAccess(), equalTo(true));
@@ -218,7 +230,7 @@ public class AvailableTenantServiceTest {
         accessData = tenants.get(TENANT_5);
         assertThat(accessData.readAccess(), equalTo(true));
         assertThat(accessData.writeAccess(), equalTo(true));
-        assertThat(accessData.exists(), equalTo(true));
+        assertThat(accessData.exists(), equalTo(false));
     }
 
     private static class TenantExistsAnswer implements Answer<ImmutableSet<String>> {
