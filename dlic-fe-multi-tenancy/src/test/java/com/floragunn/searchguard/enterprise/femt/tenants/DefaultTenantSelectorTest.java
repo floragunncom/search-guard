@@ -68,6 +68,80 @@ public class DefaultTenantSelectorTest {
     }
 
     @Test
+    public void shouldReturnFirstOfPreferredTenants_toWhichUserHasWriteAccessOrHasReadAccessAndTenantExists_globalTenantPreferred() {
+
+        User user = User.forUser("user").build();
+        List<String> preferredTenants = ImmutableList.of("tenant-1", "global", "tenant-2");
+        ImmutableMap<String, TenantAccessData> tenantAccess = new ImmutableMap.Builder<String, TenantAccessData>()
+                .with("tenant-1", new TenantAccessData(true, false, false))
+                .with(Tenant.GLOBAL_TENANT_ID, new TenantAccessData(true, false, true))
+                .with("tenant-2", new TenantAccessData(true, true, true))
+                .build();
+
+        Optional<String> selectedTenant = tenantSelector.findDefaultTenantForUser(user, tenantAccess, preferredTenants);
+        assertThat(selectedTenant.isPresent(), equalTo(true));
+        assertThat(selectedTenant.get(), equalTo(Tenant.GLOBAL_TENANT_ID));
+
+        preferredTenants = ImmutableList.of("tenant-1", "GlObAl", "tenant-2");
+
+        selectedTenant = tenantSelector.findDefaultTenantForUser(user, tenantAccess, preferredTenants);
+        assertThat(selectedTenant.isPresent(), equalTo(true));
+        assertThat(selectedTenant.get(), equalTo(Tenant.GLOBAL_TENANT_ID));
+
+        preferredTenants = ImmutableList.of("tenant-1", "__global__", "tenant-2");
+
+        selectedTenant = tenantSelector.findDefaultTenantForUser(user, tenantAccess, preferredTenants);
+        assertThat(selectedTenant.isPresent(), equalTo(true));
+        assertThat(selectedTenant.get(), equalTo(Tenant.GLOBAL_TENANT_ID));
+
+        preferredTenants = ImmutableList.of("tenant-1", "__gLObAl__", "tenant-2");
+
+        selectedTenant = tenantSelector.findDefaultTenantForUser(user, tenantAccess, preferredTenants);
+        assertThat(selectedTenant.isPresent(), equalTo(true));
+        assertThat(selectedTenant.get(), equalTo(Tenant.GLOBAL_TENANT_ID));
+    }
+
+    @Test
+    public void shouldReturnFirstOfPreferredTenants_toWhichUserHasWriteAccessOrHasReadAccessAndTenantExists_privateTenantPreferred() {
+
+        User user = User.forUser("user").build();
+        List<String> preferredTenants = ImmutableList.of("tenant-1", "private", "tenant-2");
+        ImmutableMap<String, TenantAccessData> tenantAccess = new ImmutableMap.Builder<String, TenantAccessData>()
+                .with("tenant-1", new TenantAccessData(true, false, false))
+                .with(user.getName(), new TenantAccessData(true, false, true))
+                .with("tenant-2", new TenantAccessData(true, true, true))
+                .build();
+
+        Optional<String> selectedTenant = tenantSelector.findDefaultTenantForUser(user, tenantAccess, preferredTenants);
+        assertThat(selectedTenant.isPresent(), equalTo(true));
+        assertThat(selectedTenant.get(), equalTo(user.getName()));
+
+        preferredTenants = ImmutableList.of("tenant-1", "pRiVaTe", "tenant-2");
+
+        selectedTenant = tenantSelector.findDefaultTenantForUser(user, tenantAccess, preferredTenants);
+        assertThat(selectedTenant.isPresent(), equalTo(true));
+        assertThat(selectedTenant.get(), equalTo(user.getName()));
+
+        preferredTenants = ImmutableList.of("tenant-1", "__user__", "tenant-2");
+
+        selectedTenant = tenantSelector.findDefaultTenantForUser(user, tenantAccess, preferredTenants);
+        assertThat(selectedTenant.isPresent(), equalTo(true));
+        assertThat(selectedTenant.get(), equalTo(user.getName()));
+
+        preferredTenants = ImmutableList.of("tenant-1", "__UsEr__", "tenant-2");
+
+        selectedTenant = tenantSelector.findDefaultTenantForUser(user, tenantAccess, preferredTenants);
+        assertThat(selectedTenant.isPresent(), equalTo(true));
+        assertThat(selectedTenant.get(), equalTo(user.getName()));
+
+        preferredTenants = ImmutableList.of("tenant-1", user.getName(), "tenant-2");
+
+        selectedTenant = tenantSelector.findDefaultTenantForUser(user, tenantAccess, preferredTenants);
+        assertThat(selectedTenant.isPresent(), equalTo(true));
+        assertThat(selectedTenant.get(), equalTo(user.getName()));
+    }
+
+    @Test
     public void shouldReturnGlobalTenant_userHasNoAccessToPreferredTenant_butHasWriteAccessToGlobal() {
 
         User user = User.forUser("user").build();
