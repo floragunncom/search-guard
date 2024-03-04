@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.enterprise.femt;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -24,7 +25,9 @@ import co.elastic.clients.elasticsearch.core.MgetRequest;
 import co.elastic.clients.elasticsearch.core.MgetResponse;
 import co.elastic.clients.elasticsearch.core.mget.MultiGetResponseItem;
 import co.elastic.clients.elasticsearch.indices.UpdateAliasesResponse;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.client.RestHighLevelClient;
+import com.google.common.collect.ImmutableList;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.admin.indices.alias.Alias;
@@ -45,6 +48,10 @@ import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.google.common.collect.ImmutableMap;
+
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 
 public class MultitenancyTests {
 
@@ -401,5 +408,77 @@ public class MultitenancyTests {
             }
         }
 
+    }
+
+    @Test
+    public void testMultitenancyConfigApi() throws Exception {
+        try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {
+            cluster.callAndRestoreConfig(FeMultiTenancyConfig.TYPE, () -> {
+                GenericRestClient.HttpResponse response = restClient.get("/_searchguard/config/fe_multi_tenancy");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                DocNode config = DocNode.of(
+                        "enabled", true, "index", "kibana_index", "server_user", "kibana_user",
+                        "global_tenant_enabled", true, "private_tenant_enabled", false,
+                        "preferred_tenants", ImmutableList.of("tenant-1")
+                );
+
+                response = restClient.putJson("/_searchguard/config/fe_multi_tenancy", config);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                response = restClient.get("/_searchguard/config/frontend_multi_tenancy");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                config = response.getBodyAsDocNode();
+                assertThat(config, containsValue("$.content.enabled", true));
+                assertThat(config, containsValue("$.content.index", "kibana_index"));
+                assertThat(config, containsValue("$.content.server_user", "kibana_user"));
+                assertThat(config, containsValue("$.content.global_tenant_enabled", true));
+                assertThat(config, containsValue("$.content.private_tenant_enabled", false));
+                assertThat(config, docNodeSizeEqualTo("$.content.preferred_tenants", 1));
+                assertThat(config, containsValue("$.content.preferred_tenants[0]", "tenant-1"));
+
+                config = DocNode.of(
+                        "enabled", false, "index", "kibana_index_v2", "server_user", "kibana_user_v2",
+                        "global_tenant_enabled", false, "private_tenant_enabled", true,
+                        "preferred_tenants", ImmutableList.of()
+                );
+
+                response = restClient.putJson("/_searchguard/config/frontend_multi_tenancy", config);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                response = restClient.get("/_searchguard/config/fe_multi_tenancy");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                config = response.getBodyAsDocNode();
+                assertThat(config, containsValue("$.content.enabled", false));
+                assertThat(config, containsValue("$.content.index", "kibana_index_v2"));
+                assertThat(config, containsValue("$.content.server_user", "kibana_user_v2"));
+                assertThat(config, containsValue("$.content.global_tenant_enabled", false));
+                assertThat(config, containsValue("$.content.private_tenant_enabled", true));
+                assertThat(config, docNodeSizeEqualTo("$.content.preferred_tenants", 0));
+
+                config = DocNode.of(
+                        "enabled", true, "global_tenant_enabled", true, "preferred_tenants",
+                        ImmutableList.of("tenant-2")
+                );
+                response = restClient.patchJsonMerge("/_searchguard/config/fe_multi_tenancy", config);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                response = restClient.get("/_searchguard/config/fe_multi_tenancy");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                config = response.getBodyAsDocNode();
+                assertThat(config, containsValue("$.content.enabled", true));
+                assertThat(config, containsValue("$.content.index", "kibana_index_v2"));
+                assertThat(config, containsValue("$.content.server_user", "kibana_user_v2"));
+                assertThat(config, containsValue("$.content.global_tenant_enabled", true));
+                assertThat(config, containsValue("$.content.private_tenant_enabled", true));
+                assertThat(config, docNodeSizeEqualTo("$.content.preferred_tenants", 1));
+                assertThat(config, containsValue("$.content.preferred_tenants[0]", "tenant-2"));
+
+                return null;
+            });
+        }
     }
 }
