@@ -350,6 +350,15 @@ public class IndexAuthorizationReadOnlyIntTests {
             }
         }
     }
+    
+    @Test
+    public void search_staticIndicies_hidden() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("index_hidden/_search?size=1000");
+            assertThat(httpResponse,
+                    containsExactly(index_hidden).at("hits.hits[*]._index").butForbiddenIfIncomplete(user.indexMatcher("read")));
+        }
+    }
 
     @Test
     public void search_indexPattern() throws Exception {
@@ -374,6 +383,15 @@ public class IndexAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("index_a*,index_b*,xxx_non_existing/_search?size=1000&ignore_unavailable=true");
             assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3).at("hits.hits[*]._index")
+                    .but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+    
+    @Test
+    public void search_indexPattern_noWildcards() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("index_a*,index_b*/_search?size=1000&expand_wildcards=none&ignore_unavailable=true");
+            assertThat(httpResponse, containsExactly().at("hits.hits[*]._index")
                     .but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
