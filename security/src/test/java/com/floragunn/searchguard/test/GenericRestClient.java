@@ -284,6 +284,10 @@ public class GenericRestClient implements AutoCloseable {
     }
 
     public GenericRestClient deleteWhenClosed(String... paths) {
+        if (this.clientForTrackedResourceDeletion == null) {
+            this.clientForTrackedResourceDeletion = this;
+        }
+        
         for (String path : paths) {
             if (!puttedResourcesSet.contains(path)) {
                 puttedResourcesSet.add(path);
