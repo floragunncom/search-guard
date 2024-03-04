@@ -70,7 +70,6 @@ import org.elasticsearch.cluster.metadata.IndexAbstraction.DataStream;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.common.regex.Regex;
-import org.elasticsearch.index.Index;
 import org.elasticsearch.index.reindex.ReindexRequest;
 import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.snapshots.SnapshotUtils;
@@ -689,8 +688,7 @@ public class ActionRequestIntrospector {
             } else if (!indexRequest) {
                 return "CLUSTER_REQUEST";
             } else {
-                return "indices: " + getResolvedIndices() + "; additional: " + getAdditionalResolvedIndices() + "; source: " + this.indices
-                        + "; containsWildcards: " + containsWildcards;
+                return "main: " + getMainResolvedIndices() + "; additional: " + getAdditionalResolvedIndices() + "; source: " + this.indices;
             }
         }
 
@@ -908,22 +906,6 @@ public class ActionRequestIntrospector {
 
             for (String index : localIndices) {
                 result = result.with(DateMathExpressionResolver.resolveExpression(index));
-            }
-
-            return result;
-        }
-
-        private ImmutableSet<String> resolveWriteIndex() {
-            ImmutableSet<String> result = ImmutableSet.empty();
-
-            for (String index : localIndices) {
-                Index concreteIndex = null; // TODO resolver.concreteWriteIndex(clusterService.state(), indicesOptions, index, true, includeDataStreams);
-
-                if (concreteIndex != null) {
-                    result = result.with(concreteIndex.getName());
-                } else {
-                    result = result.with(DateMathExpressionResolver.resolveExpression(index));
-                }
             }
 
             return result;

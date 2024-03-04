@@ -19,18 +19,15 @@ package com.floragunn.searchguard.authz.actions;
 
 import static com.floragunn.searchsupport.meta.Meta.Mock.indices;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.AllOf.allOf;
-
-import java.util.Arrays;
 
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
+import org.elasticsearch.action.support.IndicesOptions;
 import org.hamcrest.Description;
 import org.hamcrest.DiagnosingMatcher;
-import org.junit.Assert;
 import org.junit.Test;
 
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -55,8 +52,19 @@ public class ActionRequestIntrospectorTest {
     public void getAliasesRequest() {
         GetAliasesRequest request = new GetAliasesRequest("alias_a1", "alias_a2").indices("index_a11", "index_a12", "index_a21", "index_a22");
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(GetAliasesAction.NAME), request);
-        System.out.println(requestInfo);
+        assertThat(requestInfo, resolved(//
+                main().hasIndices("index_a11", "index_a12", "index_a21", "index_a22").hasNoAliases().hasNoDataStreams(),
+                additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES).hasNoIndices().hasAliases("alias_a1", "alias_a2").hasNoDataStreams()));
+    }
 
+    @Test
+    public void getAliasesRequest_aliasPattern_noWildcards() {
+        GetAliasesRequest request = new GetAliasesRequest("alias_a*").indices("index_a1*")
+                .indicesOptions(IndicesOptions.strictSingleIndexNoExpandForbidClosed());
+        ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(GetAliasesAction.NAME), request);
+        assertThat(requestInfo, resolved(//
+                main().hasIndices("index_a1*").hasNoAliases().hasNoDataStreams(), additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES)
+                        .hasNoIndices().hasAliases("alias_a", "alias_a1", "alias_a2").hasNoDataStreams()));
     }
 
     @Test
@@ -64,9 +72,9 @@ public class ActionRequestIntrospectorTest {
         IndicesAliasesRequest request = new IndicesAliasesRequest().addAliasAction(AliasActions.add().alias("alias_ax").index("index_a11"));
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(IndicesAliasesAction.NAME), request);
 
-        assertThat(requestInfo, allOf(//
-                resolved().hasIndices("index_a11").hasNoAliases().hasNoDataStreams(),
-                resolved(IndicesRequestInfo.AdditionalInfoRole.ALIASES).hasNoIndices().hasAliases("alias_ax").hasNoDataStreams()));
+        assertThat(requestInfo, resolved(//
+                main().hasIndices("index_a11").hasNoAliases().hasNoDataStreams(),
+                additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES).hasNoIndices().hasAliases("alias_ax").hasNoDataStreams()));
 
     }
 
@@ -75,9 +83,9 @@ public class ActionRequestIntrospectorTest {
         IndicesAliasesRequest request = new IndicesAliasesRequest().addAliasAction(AliasActions.add().alias("alias_a*").index("index_a11"));
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(IndicesAliasesAction.NAME), request);
 
-        assertThat(requestInfo, allOf(//
-                resolved().hasIndices("index_a11").hasNoAliases().hasNoDataStreams(),
-                resolved(IndicesRequestInfo.AdditionalInfoRole.ALIASES).hasNoIndices().hasAliases("alias_a*").hasNoDataStreams()));
+        assertThat(requestInfo, resolved(//
+                main().hasIndices("index_a11").hasNoAliases().hasNoDataStreams(),
+                additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES).hasNoIndices().hasAliases("alias_a*").hasNoDataStreams()));
 
     }
 
@@ -86,9 +94,9 @@ public class ActionRequestIntrospectorTest {
         IndicesAliasesRequest request = new IndicesAliasesRequest().addAliasAction(AliasActions.remove().alias("alias_a*").index("index_a11"));
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(IndicesAliasesAction.NAME), request);
 
-        assertThat(requestInfo, allOf(//
-                resolved().hasIndices("index_a11").hasNoAliases().hasNoDataStreams(), //
-                resolved(IndicesRequestInfo.AdditionalInfoRole.ALIASES).hasNoIndices().hasAliases("alias_a", "alias_a1", "alias_a2")
+        assertThat(requestInfo, resolved(//
+                main().hasIndices("index_a11").hasNoAliases().hasNoDataStreams(), //
+                additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES).hasNoIndices().hasAliases("alias_a", "alias_a1", "alias_a2")
                         .hasNoDataStreams()));
 
     }
@@ -98,7 +106,7 @@ public class ActionRequestIntrospectorTest {
         IndicesAliasesRequest request = new IndicesAliasesRequest().addAliasAction(AliasActions.removeIndex().index("index_a1*"));
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(IndicesAliasesAction.NAME), request);
 
-        assertThat(requestInfo, resolved().hasIndices("index_a11", "index_a12").hasNoAliases().hasNoDataStreams());
+        assertThat(requestInfo, main().hasIndices("index_a11", "index_a12").hasNoAliases().hasNoDataStreams());
     }
 
     @Test
@@ -108,20 +116,48 @@ public class ActionRequestIntrospectorTest {
                 .addAliasAction(AliasActions.removeIndex().indices("index_a11", "-index_a1*"));
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(IndicesAliasesAction.NAME), request);
 
-        assertThat(requestInfo, resolved().hasIndices("index_a11", "index_a12").hasNoAliases().hasNoDataStreams());
+        assertThat(requestInfo, main().hasIndices("index_a11", "index_a12").hasNoAliases().hasNoDataStreams());
     }
-
-    // TODO more IndicesAliasesRequest
 
     static ActionRequestIntrospector simple() {
         return new ActionRequestIntrospector(() -> META, () -> SystemIndexAccess.DISALLOWED, () -> false, null);
     }
 
-    static ResolvedIndicesMatcher resolved() {
+    static DiagnosingMatcher<ActionRequestInfo> resolved(ResolvedIndicesMatcher... matchers) {
+        return new DiagnosingMatcher<ActionRequestInfo>() {
+
+            @Override
+            public void describeTo(Description description) {
+                description.appendText("An ActionRequestInfo object where:\n");
+
+                for (ResolvedIndicesMatcher matcher : matchers) {
+                    description.appendDescriptionOf(matcher);
+                    description.appendText("\n");
+                }
+
+            }
+
+            @Override
+            protected boolean matches(Object item, Description mismatchDescription) {
+                boolean result = true;
+
+                for (ResolvedIndicesMatcher matcher : matchers) {
+                    if (!matcher.matches(item, mismatchDescription)) {
+                        mismatchDescription.appendText("\n");
+                        result = false;
+                    }
+                }
+                return result;
+            }
+
+        };
+    }
+
+    static ResolvedIndicesMatcher main() {
         return new ResolvedIndicesMatcher(null, null, null, null);
     }
 
-    static ResolvedIndicesMatcher resolved(AdditionalInfoRole role) {
+    static ResolvedIndicesMatcher additional(AdditionalInfoRole role) {
         return new ResolvedIndicesMatcher(role, null, null, null);
     }
 
@@ -190,6 +226,11 @@ public class ActionRequestIntrospectorTest {
 
             if (dataStreamsMatcher != null) {
                 match &= dataStreamsMatcher.matches(resolvedIndices, mismatchDescription);
+            }
+
+            if (!match) {
+                mismatchDescription.appendText("\n").appendText(role == null ? "main" : this.role.toString()).appendText(": ")
+                        .appendValue(resolvedIndices);
             }
 
             return match;
