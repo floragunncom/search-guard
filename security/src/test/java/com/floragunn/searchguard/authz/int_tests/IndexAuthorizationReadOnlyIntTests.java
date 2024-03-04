@@ -638,6 +638,17 @@ public class IndexAuthorizationReadOnlyIntTests {
                     containsExactly(index_a1, index_a2, index_a3, index_b1).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
         }
     }
+    
+    @Test
+    public void getAlias_aliasPattern_noWildcards() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("_alias/alias_ab*?expand_wildcards=none");
+            assertThat(httpResponse, containsExactly(alias_ab1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+            assertThat(httpResponse,
+                    containsExactly(index_a1, index_a2, index_a3, index_b1).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+        }
+    }
+
 
     @Test
     public void getAlias_mixed() throws Exception {
