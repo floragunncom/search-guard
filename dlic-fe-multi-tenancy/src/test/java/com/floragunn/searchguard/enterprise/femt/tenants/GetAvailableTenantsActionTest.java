@@ -141,7 +141,7 @@ public class GetAvailableTenantsActionTest {
             log.debug("Response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             DocNode body = response.getBodyAsDocNode();
-            assertThat(body, containsValue("$.data.default_tenant", HR_TENANT.getName()));
+            assertThat(body, containsValue("$.data.default_tenant", Tenant.GLOBAL_TENANT_ID));
             assertThat(body, containsValue("$.data.username", USER_SINGLE_TENANT.getName()));
             assertThat(body, containsValue("$.data.multi_tenancy_enabled", true));
             assertThat(body, containsValue("$.data.tenants.hr_tenant.read_access", true));
