@@ -39,6 +39,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import com.floragunn.searchguard.test.TestSgConfig.UserPassword;
 import com.google.common.base.Strings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -537,12 +538,12 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
 
         public Builder user(String name, String password, String... sgRoles) {
-            testSgConfig.user(name, password, sgRoles);
+            testSgConfig.user(name, UserPassword.of(password), sgRoles);
             return this;
         }
 
         public Builder user(String name, String password, Role... sgRoles) {
-            testSgConfig.user(name, password, sgRoles);
+            testSgConfig.user(name, UserPassword.of(password), sgRoles);
             return this;
         }
 
@@ -563,6 +564,16 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
         public Builder authc(TestSgConfig.Authc authc) {
             testSgConfig.authc(authc);
+            return this;
+        }
+
+        public Builder frontendMultiTenancy(TestSgConfig.FrontendMultiTenancy frontendMultiTenancy) {
+            testSgConfig.frontendMultiTenancy(frontendMultiTenancy);
+            return this;
+        }
+
+        public Builder tenants(TestSgConfig.Tenant... tenants) {
+            testSgConfig.tenants(tenants);
             return this;
         }
 
