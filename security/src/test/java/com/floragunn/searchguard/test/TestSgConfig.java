@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -337,6 +336,8 @@ public class TestSgConfig {
         writeOptionalConfigToIndex(client, CType.FRONTEND_AUTHC, "sg_frontend_authc.yml", overrideFrontendConfigSettings);
         writeOptionalConfigToIndex(client, "frontend_multi_tenancy", "sg_frontend_multi_tenancy.yml", null);
 
+        System.out.println(DocNode.wrap(overrideRoleSettings).toYamlString());
+        
         if (authc != null) {
             writeConfigToIndex(client, CType.AUTHC, authc);
         } else {
@@ -634,7 +635,13 @@ public class TestSgConfig {
         }
         
         public IndexApiMatchers.IndexMatcher indexMatcher(String key) {
-            return this.indexMatchers.get(key);
+            IndexApiMatchers.IndexMatcher result = this.indexMatchers.get(key);
+            
+            if (result != null) {
+                return result;
+            } else {
+                throw new RuntimeException("Unknown index matcher " + key + " in user " + this.name);
+            }
         }
         
         public String getName() {
