@@ -106,7 +106,9 @@ public class ActionRequestIntrospectorTest {
         IndicesAliasesRequest request = new IndicesAliasesRequest().addAliasAction(AliasActions.removeIndex().index("index_a1*"));
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(IndicesAliasesAction.NAME), request);
 
-        assertThat(requestInfo, main().hasIndices("index_a11", "index_a12").hasNoAliases().hasNoDataStreams());
+        assertThat(requestInfo, resolved(//
+                main().hasNoIndices().hasNoAliases().hasNoDataStreams(), //
+                additional(IndicesRequestInfo.AdditionalInfoRole.DELETE_INDEX).hasIndices("index_a11", "index_a12").hasNoAliases().hasNoDataStreams()));
     }
 
     @Test
@@ -209,8 +211,12 @@ public class ActionRequestIntrospectorTest {
                     : actionRequestInfo.getAdditionalResolvedIndices().get(role);
 
             if (resolvedIndices == null) {
-                mismatchDescription.appendText("additional resolved indices with role " + role + " are missing. Available roles: ")
-                        .appendValue(actionRequestInfo.getAdditionalResolvedIndices().keySet());
+                if (role == null) {
+                    mismatchDescription.appendText("main resolved indices are missing.");
+                } else {
+                    mismatchDescription.appendText("additional resolved indices with role " + role + " are missing. Available roles: ")
+                            .appendValue(actionRequestInfo.getAdditionalResolvedIndices().keySet());
+                }
                 return false;
             }
 

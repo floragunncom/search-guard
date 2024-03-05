@@ -295,10 +295,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     log.debug("### evaluate " + action0 + " (" + request.getClass().getName() + ")\nUser: " + user
                             + "\nspecialPrivilegesEvaluationContext: " + specialPrivilegesEvaluationContext);
                 } else {
-                    log.debug("### evaluate " + action0 + " (" + request.getClass().getName() + ")\nUser: " + user
-                            + "\nspecialPrivilegesEvaluationContext: " + specialPrivilegesEvaluationContext + "\nResolved: "
-                            + requestInfo.getResolvedIndices() + "\nUresolved: " + requestInfo.getUnresolved() + "\nIgnoreUnauthorizedIndices: "
-                            + authzConfig.isIgnoreUnauthorizedIndices());
+                    log.debug("### evaluate {} ({})\nUser: {}\nspecialPrivilegesEvaluationContext: {}\nRequestInfo: {}", action0,
+                            request.getClass().getName(), user, specialPrivilegesEvaluationContext, requestInfo);
                 }
             }
 
@@ -500,16 +498,17 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 actionRequestInfo.getMainResolvedIndices(), action.aliasDataStreamHandling());
 
         if (!actionRequestInfo.getAdditionalResolvedIndices().isEmpty()) {
-            for (Map.Entry<ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole, ActionRequestIntrospector.ResolvedIndices> entry : actionRequestInfo.getAdditionalResolvedIndices().entrySet()) {
+            for (Map.Entry<ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole, ActionRequestIntrospector.ResolvedIndices> entry : actionRequestInfo
+                    .getAdditionalResolvedIndices().entrySet()) {
                 ImmutableSet<Action> additionalIndexPermissions = entry.getKey().getRequiredPrivileges(allIndexPermsRequired, actions);
-                
+
                 PrivilegesEvaluationResult subResult = actionAuthorization.hasIndexPermission(context, additionalIndexPermissions, entry.getValue(),
                         action.aliasDataStreamHandling());
-                
+
                 if (log.isTraceEnabled()) {
-                    log.trace("Sub result for {}:\n{}", entry.getKey(), subResult);
+                    log.trace("Sub result for {}/{}:\n{}", entry.getKey(), additionalIndexPermissions, subResult);
                 }
-                
+
                 privilegesEvaluationResult = privilegesEvaluationResult.withAdditional(entry.getKey(), subResult);
             }
         }
@@ -518,19 +517,11 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             log.trace("Result from privileges evaluation: " + privilegesEvaluationResult.getStatus() + "\n" + privilegesEvaluationResult);
         }
 
-        if (request instanceof GetRequest && actionRequestInfo.getResolvedIndices().getLocal().hasAliasesOnly()
-                && actionRequestInfo.getResolvedIndices().getLocal().getAliases().only().members().size() == 1
-                && privilegesEvaluationResult.getStatus() == Status.OK_WHEN_RESOLVED
-                && privilegesEvaluationResult.getAvailableIndices().size() == 1) {
-            // Special case for the GET document by ID API if used on an alias. When the alias only points to a single index and we have privileges for that index, we just let it pass
-
-            privilegesEvaluationResult = PrivilegesEvaluationResult.OK;
-        }
-
         if (privilegesEvaluationResult.getStatus() == Status.PARTIALLY_OK || privilegesEvaluationResult.getStatus() == Status.OK_WHEN_RESOLVED) {
             if (dnfofPossible) {
                 if (log.isDebugEnabled()) {
-                    log.debug("Reducing indices to {}; {}\n{}", privilegesEvaluationResult.getAvailableIndices(), privilegesEvaluationResult.getAdditionalAvailableIndices(), privilegesEvaluationResult);
+                    log.debug("Reducing indices to {}; {}\n{}", privilegesEvaluationResult.getAvailableIndices(),
+                            privilegesEvaluationResult.getAdditionalAvailableIndices(), privilegesEvaluationResult);
                 }
 
                 privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request,
@@ -538,16 +529,21 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                         actionRequestInfo);
             } else if (actionRequestInfo.getResolvedIndices().getLocal().hasAliasesOnly()
                     && privilegesEvaluationResult.getStatus() == Status.OK_WHEN_RESOLVED) {
-                // We only come here if no wildcard was requested and ignore_unavailable=false. Thus, normally we won't apply dnfof logic. However, we make
-                // an exception if enabled in the config: aliases.allow_if_all_indices_are_allowed
 
                 if (authzConfig.isAllowAliasesIfAllIndicesAllowed() && authzConfig.isIgnoreUnauthorizedIndices()
                         && authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action.name())) {
+                    // We only come here if no wildcard was requested and ignore_unavailable=false. Thus, normally we won't apply dnfof logic. However, we make
+                    // an exception if enabled in the config: aliases.allow_if_all_indices_are_allowed
+
                     privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request,
                             privilegesEvaluationResult.getAvailableIndices(), privilegesEvaluationResult.getAdditionalAvailableIndices(),
                             actionRequestInfo);
+                } else if (actionRequestInfo.getResolvedIndices().getLocal().getAliases().only().members().size() == 1
+                        && privilegesEvaluationResult.getAvailableIndices().size() == 1 && request instanceof GetRequest) {
+                    // Special case for the GET document by ID API if used on an alias. When the alias only points to a single index and we have privileges for that index, we just let it pass
+                    privilegesEvaluationResult = PrivilegesEvaluationResult.OK;
                 } else {
-                    String reasonForNoIndexReduction = "You have privileges for all members of an alias, but for the whole alias. Access to the alias is denied, because ";
+                    String reasonForNoIndexReduction = "You have privileges for all members of an alias, but not for the whole alias. Access to the alias is denied, because ";
 
                     if (!authzConfig.isIgnoreUnauthorizedIndices()) {
                         reasonForNoIndexReduction += "ignore_unauthorized_indices is globally disabled in sg_authz.";

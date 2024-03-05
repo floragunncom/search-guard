@@ -58,7 +58,7 @@ import com.floragunn.searchsupport.meta.Meta;
 /**
  * TODO aliases create deep exclusions
  *
- * TODO  decision: what happens if only subset of alias is available?
+ * TODO resolve to write index
  */
 public class RoleBasedActionAuthorization implements ActionAuthorization, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(RoleBasedActionAuthorization.class);
