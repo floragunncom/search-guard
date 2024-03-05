@@ -147,6 +147,11 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         User user = context.getUser();
         ResolvedIndices requestedResolved = context.getRequestInfo().getResolvedIndices();
         
+        if (requestedResolved == null) {
+            // This request is not index related
+            return NORMAL;
+        }
+        
         if (user.getName().equals(kibanaServerUsername)) {
             return NORMAL;
         }
