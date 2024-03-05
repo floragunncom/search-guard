@@ -14,6 +14,8 @@ import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestSgConfig.RoleMapping;
 import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.apache.http.Header;
+import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteResponse;
@@ -32,6 +34,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsNullValue;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeSizeEqualTo;
 import static org.apache.http.HttpStatus.*;
@@ -134,7 +137,8 @@ public class GetAvailableTenantsActionTest {
     @Test
     public void shouldFindAccessibleTenantsForSingleTenantUser() throws Exception {
         createTenants(FRONTEND_INDEX, ALL_DEFINED_TENANTS.map(TestSgConfig.Tenant::getName).toArray(String[]::new));
-        try(GenericRestClient client = cluster.getRestClient(USER_SINGLE_TENANT)) {
+        Header tenantHeader = new BasicHeader("sg_tenant", "test_tenant");
+        try(GenericRestClient client = cluster.getRestClient(USER_SINGLE_TENANT, tenantHeader)) {
 
             HttpResponse response = client.get("/_searchguard/current_user/tenants");
 
@@ -143,6 +147,7 @@ public class GetAvailableTenantsActionTest {
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, containsValue("$.data.default_tenant", Tenant.GLOBAL_TENANT_ID));
             assertThat(body, containsValue("$.data.username", USER_SINGLE_TENANT.getName()));
+            assertThat(body, containsValue("$.data.user_requested_tenant", tenantHeader.getValue()));
             assertThat(body, containsValue("$.data.multi_tenancy_enabled", true));
             assertThat(body, containsValue("$.data.tenants.hr_tenant.read_access", true));
             assertThat(body, containsValue("$.data.tenants.hr_tenant.write_access", true));
@@ -176,6 +181,7 @@ public class GetAvailableTenantsActionTest {
             assertThat(body, docNodeSizeEqualTo("$.data.tenants", 12));
             assertThat(body, containsValue("$.data.default_tenant", Tenant.GLOBAL_TENANT_ID));
             assertThat(body, containsValue("$.data.username", USER_EACH_TENANT_READ.getName()));
+            assertThat(body, containsNullValue("$.data.user_requested_tenant"));
             for(String tenantName : ALL_DEFINED_TENANTS.map(TestSgConfig.Tenant::getName)) {
                 String readAccessPath = "$.data.tenants." + tenantName + ".read_access";
                 String writeAccessPath = "$.data.tenants." + tenantName + ".write_access";
@@ -210,6 +216,7 @@ public class GetAvailableTenantsActionTest {
             assertThat(body, docNodeSizeEqualTo("$.data.tenants", 12));
             assertThat(body, containsValue("$.data.default_tenant", Tenant.GLOBAL_TENANT_ID));
             assertThat(body, containsValue("$.data.username", USER_EACH_TENANT_WRITE.getName()));
+            assertThat(body, containsNullValue("$.data.user_requested_tenant"));
             for(String tenantName : tenantsToBeCreated) {
                 String readAccessPath = "$.data.tenants." + tenantName + ".read_access";
                 String writeAccessPath = "$.data.tenants." + tenantName + ".write_access";
@@ -236,6 +243,7 @@ public class GetAvailableTenantsActionTest {
             assertThat(body, docNodeSizeEqualTo("$.data.tenants", 12));
             assertThat(body, containsValue("$.data.default_tenant", Tenant.GLOBAL_TENANT_ID));
             assertThat(body, containsValue("$.data.username", USER_EACH_TENANT_WRITE.getName()));
+            assertThat(body, containsNullValue("$.data.user_requested_tenant"));
             for(String tenantName : accessibleTenantsNames) {
                 String readAccessPath = "$.data.tenants." + tenantName + ".read_access";
                 String writeAccessPath = "$.data.tenants." + tenantName + ".write_access";
@@ -260,6 +268,7 @@ public class GetAvailableTenantsActionTest {
             assertThat(body, docNodeSizeEqualTo("$.data.tenants", 7));
             assertThat(body, containsValue("$.data.default_tenant", Tenant.GLOBAL_TENANT_ID));
             assertThat(body, containsValue("$.data.username", USER_SOME_TENANT_ACCESS.getName()));
+            assertThat(body, containsNullValue("$.data.user_requested_tenant"));
             // read only, existing tenants PR_TENANT, QA_TENANT
             assertThat(body, containsValue("$.data.tenants.public_relations_tenant.write_access", false));
             assertThat(body, containsValue("$.data.tenants.public_relations_tenant.exists", true));

@@ -87,7 +87,7 @@ public class AvailableTenantServiceTest {
 
     @Test
     public void shouldNotThrowExceptionWhenMultiTenancyIsDisabledAndUserHaveAccessToZeroTenants() {
-        User user = new User("user");
+        User user = User.forUser("user").requestedTenant("my_tenant").build();
         when(threadContext.getTransient(ConfigConstants.SG_USER)).thenReturn(user);
         when(configProvider.isMultiTenancyEnabled()).thenReturn(false);
         this.service = new AvailableTenantService(configProvider, authorizationService, threadPool, repository);
@@ -98,13 +98,14 @@ public class AvailableTenantServiceTest {
         assertThat(tenantAvailableForCurrentUser.tenants(), anEmptyMap());
         assertThat(tenantAvailableForCurrentUser.defaultTenant(), nullValue());
         assertThat(tenantAvailableForCurrentUser.username(), equalTo("user"));
+        assertThat(tenantAvailableForCurrentUser.userRequestedTenant(), equalTo("my_tenant"));
 
 
     }
 
     @Test
     public void shouldReturnInformationAboutTwoExistingTenantsWithWriteAccess() {
-        User user = new User("user");
+        User user = User.forUser("user").requestedTenant("my_tenant").build();
         TransportAddress remoteAddress = new TransportAddress(new InetSocketAddress(8901));
         when(threadContext.getTransient(ConfigConstants.SG_USER)).thenReturn(user);
         when(threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS)).thenReturn(remoteAddress);
@@ -118,6 +119,7 @@ public class AvailableTenantServiceTest {
         AvailableTenantData data = service.findTenantAvailableForCurrentUser().orElseThrow();
 
         assertThat(data.multiTenancyEnabled(), equalTo(true));
+        assertThat(data.userRequestedTenant(), equalTo("my_tenant"));
         Map<String, TenantAccessData> tenants = data.tenants();
         assertThat(tenants, aMapWithSize(2));
         TenantAccessData accessData = tenants.get(TENANT_1);
@@ -147,6 +149,7 @@ public class AvailableTenantServiceTest {
         AvailableTenantData data = service.findTenantAvailableForCurrentUser().orElseThrow();
 
         assertThat(data.multiTenancyEnabled(), equalTo(true));
+        assertThat(data.userRequestedTenant(), nullValue());
         Map<String, TenantAccessData> tenants = data.tenants();
         assertThat(tenants, aMapWithSize(1));
         TenantAccessData accessData = tenants.get(TENANT_4);

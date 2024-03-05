@@ -53,9 +53,9 @@ public class AvailableTenantService {
                     });
                 Optional<String> tenantSelectedByDefault = defaultTenantSelector.findDefaultTenantForUser(user, tenantsAccess, configProvider.getPreferredTenants());
                 String defaultTenant = tenantSelectedByDefault.orElseThrow(() -> new DefaultTenantNotFoundException(user.getName()));
-                return new AvailableTenantData(true, tenantsAccess, user.getName(), defaultTenant);
+                return new AvailableTenantData(true, tenantsAccess, user.getName(), user.getRequestedTenant(), defaultTenant);
             } else {
-                return new AvailableTenantData(false, ImmutableMap.empty(), user.getName(), null);
+                return new AvailableTenantData(false, ImmutableMap.empty(), user.getName(), user.getRequestedTenant(), null);
             }
         });
     }
