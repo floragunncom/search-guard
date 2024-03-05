@@ -37,30 +37,26 @@ public class AvailableTenantService {
 
     public Optional<AvailableTenantData> findTenantAvailableForCurrentUser() {
         ThreadContext threadContext = threadPool.getThreadContext();
-        return Optional.<User>ofNullable(threadContext.getTransient(ConfigConstants.SG_USER))
-            .map(user -> {
-                boolean multiTenancyEnabled = configProvider.isMultiTenancyEnabled();
-                if(!multiTenancyEnabled) {
-                    return new AvailableTenantData(false, ImmutableMap.empty(), user.getName(), null);
-                }
+        return Optional.<User>ofNullable(threadContext.getTransient(ConfigConstants.SG_USER)).map(user -> {
+            if (configProvider.isMultiTenancyEnabled()) {
                 final TransportAddress remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
                 Set<String> internalRoles = authorizationService.getMappedRoles(user, remoteAddress);
                 Map<String, Boolean> tenantsWriteAccessMap = configProvider.getTenantAccessMapper().mapTenantsAccess(user, internalRoles);
                 ImmutableSet<String> exists = tenantRepository.exists(tenantsWriteAccessMap.keySet().toArray(String[]::new));
                 Map<String, TenantAccessData> tenantsAccess = new HashMap<>(tenantsWriteAccessMap.size());
                 tenantsWriteAccessMap.entrySet()
-                        .stream()
-                        .filter(tenantWriteAccess -> tenantWriteAccess.getValue() || exists.contains(tenantWriteAccess.getKey()))
-                        .forEach(tenantAccess -> {
-                            TenantAccessData tenantAccessData = new TenantAccessData(true, tenantAccess.getValue(), exists.contains(tenantAccess.getKey()));
-                            tenantsAccess.put(tenantAccess.getKey(), tenantAccessData);
-                        });
+                    .stream()
+                    .filter(tenantWriteAccess -> tenantWriteAccess.getValue() || exists.contains(tenantWriteAccess.getKey()))
+                    .forEach(tenantAccess -> {
+                        TenantAccessData tenantAccessData = new TenantAccessData(true, tenantAccess.getValue(), exists.contains(tenantAccess.getKey()));
+                        tenantsAccess.put(tenantAccess.getKey(), tenantAccessData);
+                    });
                 Optional<String> tenantSelectedByDefault = defaultTenantSelector.findDefaultTenantForUser(user, tenantsAccess, configProvider.getPreferredTenants());
-                String defaultTenant = null;
-                if(multiTenancyEnabled) {
-                    defaultTenant = tenantSelectedByDefault.orElseThrow(() -> new DefaultTenantNotFoundException(user.getName()));
-                }
+                String defaultTenant = tenantSelectedByDefault.orElseThrow(() -> new DefaultTenantNotFoundException(user.getName()));
                 return new AvailableTenantData(true, tenantsAccess, user.getName(), defaultTenant);
-            });
+            } else {
+                return new AvailableTenantData(false, ImmutableMap.empty(), user.getName(), null);
+            }
+        });
     }
 }
