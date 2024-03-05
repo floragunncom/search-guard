@@ -168,7 +168,7 @@ fe_kerberos:
        echo "export SGADMIN_SNAPSHOT=${TEST_SG_ADMIN}" >> $CI_PROJECT_DIR/environment.env
        echo "export SG_SOURCE=snapshot" >> $CI_PROJECT_DIR/environment.env
        echo "export SG_VERSION=whatever" >> environment.env
-       echo "export BASEIMAGE=0.9.3-open-jdk-11" >> $CI_PROJECT_DIR/environment.env
+       echo "export BASEIMAGE=0.9.7-open-jdk-11" >> $CI_PROJECT_DIR/environment.env
        echo "export ES_VERSION=$TEST_ES_VERSION" >> $CI_PROJECT_DIR/environment.env
        echo "export KIBANA_VERSION=${TEST_KI_VERSION}"  >> $CI_PROJECT_DIR/environment.env
        echo "export KI_URL=https://artifacts.elastic.co/downloads/kibana/kibana-$TEST_KI_VERSION-linux-x86_64.tar.gz"
