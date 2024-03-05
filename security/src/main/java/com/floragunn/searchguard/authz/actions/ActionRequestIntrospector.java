@@ -158,7 +158,7 @@ public class ActionRequestIntrospector {
                         break;
                     case REMOVE_INDEX:
                         // This is the most weird part of IndicesAliasesRequest: You can delete an index - completely unrelated to aliases.
-                        result = result.with(aliasAction, IndicesRequestInfo.Scope.INDICES_DATA_STREAMS);
+                        result = result.additional(IndicesRequestInfo.AdditionalInfoRole.DELETE_INDEX, aliasAction, IndicesRequestInfo.Scope.INDICES_DATA_STREAMS);
                         break;
                     }
                 }
@@ -651,7 +651,7 @@ public class ActionRequestIntrospector {
                 mainResolvedIndices = allResolvedIndices = indices.only().resolveIndices();
                 additionalResolvedIndices = ImmutableMap.empty();
             } else {
-                ResolvedIndices mainResolvedIndices = null;
+                ResolvedIndices mainResolvedIndices = EMPTY;
                 ImmutableMap<IndicesRequestInfo.AdditionalInfoRole, ResolvedIndices> additionalResolvedIndicesMap = ImmutableMap.empty();
 
                 for (IndicesRequestInfo info : indices) {
@@ -1097,7 +1097,7 @@ public class ActionRequestIntrospector {
         }
 
         ResolvedIndices with(ResolvedIndices other) {
-            if (other == null) {
+            if (other == null || other == EMPTY) {
                 return this;
             }
 

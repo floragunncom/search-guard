@@ -31,9 +31,6 @@ public interface Meta extends Document<Meta> {
      * Returns indices that are not contained in an alias or data stream
      */
     ImmutableSet<Index> indicesWithoutParents();
-
-    /**
-    
     
     /**
      * Returns indices that are not hidden 
@@ -136,6 +133,8 @@ public interface Meta extends Document<Meta> {
     }
 
     interface Alias extends IndexCollection {
+        IndexLikeObject writeTarget();
+        
         static Alias nonExistent(String name) {
             return new MetaImpl.NonExistentAliasImpl(name);
         }
