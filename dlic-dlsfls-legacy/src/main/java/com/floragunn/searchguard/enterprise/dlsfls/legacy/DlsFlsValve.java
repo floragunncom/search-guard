@@ -148,11 +148,13 @@ public class DlsFlsValve implements SyncAuthorizationFilter {
             throw new ElasticsearchSecurityException("Error while evaluating DLS/FLS configuration", e);
         }
 
-        if (evaluatedDlsFlsConfig == null || evaluatedDlsFlsConfig.isEmpty() || resolved == null) {
+        if (evaluatedDlsFlsConfig == null || evaluatedDlsFlsConfig.isEmpty()) {
             return SyncAuthorizationFilter.Result.OK;
         }
 
-        EvaluatedDlsFlsConfig filteredDlsFlsConfig = evaluatedDlsFlsConfig.filter(resolved);
+        // We need to use the unfiltered DLS configuration if the request does not contain any index information. This
+        // is the case for example for scroll requests.
+        EvaluatedDlsFlsConfig filteredDlsFlsConfig = resolved != null ? evaluatedDlsFlsConfig.filter(resolved) : evaluatedDlsFlsConfig;
 
         boolean doFilterLevelDls;
 
