@@ -104,8 +104,12 @@ public abstract class MetaImpl implements Meta {
     }
 
     public static class AliasImpl extends AbstractIndexCollection<AliasImpl> implements Meta.Alias {
-        public AliasImpl(DefaultMetaImpl root, String name, UnmodifiableCollection<IndexLikeObject> members, boolean hidden) {
+        private final IndexLikeObject writeTarget;
+
+        public AliasImpl(DefaultMetaImpl root, String name, UnmodifiableCollection<IndexLikeObject> members, boolean hidden,
+                IndexLikeObject writeTarget) {
             super(root, name, ImmutableSet.empty(), null, members, hidden);
+            this.writeTarget = writeTarget;
         }
 
         @Override
@@ -126,7 +130,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected AliasImpl copy() {
-            return new AliasImpl(null, name(), members(), isHidden());
+            return new AliasImpl(null, name(), members(), isHidden(), writeTarget);
         }
 
         @Override
@@ -142,6 +146,11 @@ public abstract class MetaImpl implements Meta {
         @Override
         public Object toBasicObject() {
             return DocNode.of("name", this.name(), "members", members(), "hidden", isHidden());
+        }
+
+        @Override
+        public IndexLikeObject writeTarget() {
+            return writeTarget;
         }
     }
 
@@ -447,6 +456,8 @@ public abstract class MetaImpl implements Meta {
             ImmutableSet.Builder<Index> indicesWithoutParents = new ImmutableSet.Builder<>(esMetadata.getIndices().size());
             ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, ImmutableList.Builder<IndexLikeObject>> aliasToIndicesMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, ImmutableList.Builder<IndexLikeObject>>()
                     .defaultValue((k) -> new ImmutableList.Builder<IndexLikeObject>());
+            ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, IndexLikeObject> aliasToWriteIndexMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, IndexLikeObject>();
+
             ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> dataStreamAliasToIndicesMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>()
                     .defaultValue((k) -> new ArrayList<IndexLikeObject>());
             ImmutableSet.Builder<Alias> aliases = new ImmutableSet.Builder<>(64);
@@ -506,6 +517,9 @@ public abstract class MetaImpl implements Meta {
 
                 for (org.elasticsearch.cluster.metadata.AliasMetadata esAliasMetadata : esIndexMetadata.getAliases().values()) {
                     aliasToIndicesMap.get(esAliasMetadata).add(index);
+                    if (esAliasMetadata.writeIndex() != null && esAliasMetadata.writeIndex().booleanValue()) {
+                        aliasToWriteIndexMap.put(esAliasMetadata, index);
+                    }
                 }
             }
 
@@ -516,8 +530,16 @@ public abstract class MetaImpl implements Meta {
                         ? dataStreamAliasToIndicesMap.get(dataStreamAlias)
                         : ImmutableList.empty();
 
-                Alias alias = new AliasImpl(this, entry.getKey().alias(), entry.getValue().build().with(dataStreams),
-                        entry.getKey().isHidden() != null ? entry.getKey().isHidden() : false);
+                ImmutableList<IndexLikeObject> members = entry.getValue().build().with(dataStreams);
+
+                IndexLikeObject writeTarget = aliasToWriteIndexMap.get(entry.getKey());
+                if (writeTarget == null && members.size() == 1) {
+                    // By ES semantics, if an alias has only one member, this automatically becomes the write index
+                    writeTarget = members.only();
+                }
+
+                Alias alias = new AliasImpl(this, entry.getKey().alias(), members,
+                        entry.getKey().isHidden() != null ? entry.getKey().isHidden() : false, writeTarget);
                 aliases.add(alias);
                 nameMap.put(alias.name(), alias);
             }
@@ -529,7 +551,9 @@ public abstract class MetaImpl implements Meta {
                     continue;
                 }
 
-                Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false);
+                IndexLikeObject writeTarget = entry.getKey().getWriteDataStream() != null ? nameMap.get(entry.getKey().getWriteDataStream()) : null;
+
+                Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false, writeTarget);
                 aliases.add(alias);
                 nameMap.put(alias.name(), alias);
             }
@@ -590,12 +614,12 @@ public abstract class MetaImpl implements Meta {
         public ImmutableSet<Index> nonHiddenIndicesWithoutParents() {
             return nonHiddenIndicesWithoutParents;
         }
-        
+
         @Override
         public ImmutableSet<Index> nonSystemIndices() {
             return nonSystemIndices;
         }
-        
+
         @Override
         public ImmutableSet<Index> nonSystemIndicesWithoutParents() {
             return this.nonSystemIndicesWithoutParents;
@@ -655,8 +679,11 @@ public abstract class MetaImpl implements Meta {
                         }
                     }
 
+                    UnmodifiableCollection<IndexLikeObject> members = aliasMembersBuilder.build().values();
+                    IndexLikeObject writeTarget = members.size() == 1 ? members.iterator().next() : null;
+
                     ImmutableSet<Alias> aliases = ImmutableSet.<Alias>of(DefaultMetaImpl.this.aliases.map(i -> ((AliasImpl) i).copy()))
-                            .with(new AliasImpl(null, aliasName, aliasMembersBuilder.build().values(), false));
+                            .with(new AliasImpl(null, aliasName, members, false, writeTarget));
 
                     return new DefaultMetaImpl(newIndices.build(), aliases, newDataStreams.build(), DefaultMetaImpl.this.indicesWithoutParents);
                 }
@@ -763,7 +790,8 @@ public abstract class MetaImpl implements Meta {
         public Meta of(String... indexNames) {
             ImmutableSet<String> aliasSet = ImmutableSet.of(name);
             ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames), (k) -> new IndexImpl(null, k, aliasSet, null));
-            ImmutableSet<Alias> aliases = ImmutableSet.of(new AliasImpl(null, name, ImmutableSet.<IndexLikeObject>of(indices), false));
+            ImmutableSet<Alias> aliases = ImmutableSet
+                    .of(new AliasImpl(null, name, ImmutableSet.<IndexLikeObject>of(indices), false, indices.size() == 1 ? indices.only() : null));
 
             return new DefaultMetaImpl(indices, aliases, ImmutableSet.empty(), ImmutableSet.empty());
         }
@@ -895,6 +923,11 @@ public abstract class MetaImpl implements Meta {
         @Override
         public ImmutableSet<Index> resolveDeepAsIndex() {
             return ImmutableSet.empty();
+        }
+
+        @Override
+        public IndexLikeObject writeTarget() {
+            return null;
         }
 
     }
