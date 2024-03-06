@@ -201,7 +201,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
     @Override
     public PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, Action primaryAction, ImmutableSet<Action> actions,
-            ResolvedIndices resolved, AliasDataStreamHandling aliasDataStreamHandling) throws PrivilegesEvaluationException {
+            ResolvedIndices resolved, Action.Scope actionScope) throws PrivilegesEvaluationException {
         if (metricsLevel.basicEnabled()) {
             actions.forEach((action) -> {
                 indexActionTypes.increment();
@@ -344,7 +344,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 log.trace("Permissions before exclusions:\n" + shallowCheckTable);
             }
 
-            shallowCheckTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i.resolveDeepToNames()));
+            shallowCheckTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL)));
 
             if (log.isTraceEnabled()) {
                 log.trace("Permissions after universallyDeniedIndices exclusions:\n" + shallowCheckTable);
@@ -366,8 +366,12 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             ImmutableSet<Meta.DataStream> incompleteDataStreams = resolved.getLocal().getDataStreams()
                     .matching(e -> !shallowCheckTable.isRowComplete(e));
 
-            if (aliasDataStreamHandling == ActionAuthorization.AliasDataStreamHandling.DO_NOT_RESOLVE
-                    || (incompleteAliases.isEmpty() && incompleteDataStreams.isEmpty())) {
+            if (actionScope.canOnlyReferToAliases || (incompleteAliases.isEmpty() && incompleteDataStreams.isEmpty())) {
+                // Further resolution does not make sense when:
+                // - The action can only refer to aliases
+                // - There are actually no aliases or indices to further resolve
+                // In these cases abort early
+
                 ImmutableSet<Meta.IndexLikeObject> availableIndices = shallowCheckTable.getCompleteRows();
 
                 if (!availableIndices.isEmpty()) {
@@ -447,7 +451,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         checkNonWellKnownActions(context, localContext, semiDeepCheckTable, false, true, meter);
                     }
 
-                    semiDeepCheckTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i.resolveDeepToNames()));
+                    semiDeepCheckTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL)));
 
                     indexExclusions.uncheckExclusions(semiDeepCheckTable, user, mappedRoles, actions, resolved, context, meter);
 
@@ -471,7 +475,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     .map(i -> i instanceof Meta.IndexCollection ? (Meta.IndexCollection) i : null);
 
             try (Meter subMeter = meter.basic("resolve_all_aliases")) {
-                ImmutableSet<Meta.Index> incompleteDeepResolved = Meta.IndexCollection.resolveDeep(incompleteAliasesAndDataStreams);
+                ImmutableSet<Meta.Index> incompleteDeepResolved = Meta.IndexCollection.resolveDeep(incompleteAliasesAndDataStreams, primaryAction.aliasResolutionMode());
                 ImmutableSet<Meta.IndexLikeObject> retainedIndices = prevCheckTable.getRows().without(incompleteAliasesAndDataStreams);
 
                 CheckTable<Meta.IndexLikeObject, Action> deepCheckTable = CheckTable.create(retainedIndices.with(incompleteDeepResolved), actions);
@@ -1481,7 +1485,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                             if (indexPattern != null) {
                                 for (Meta.IndexLikeObject index : checkTable.iterateCheckedRows(action)) {
                                     if (indexPattern.matches(index.name(), user, context, subMeter)
-                                            || indexPattern.matches(index.resolveDeepToNames(), user, context, subMeter)) {
+                                            || indexPattern.matches(index.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL), user, context, subMeter)) {
                                         checkTable.uncheck(index, action);
                                     }
                                 }
@@ -1515,7 +1519,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     if (actionPattern.matches(action.name())) {
                                         for (Meta.IndexLikeObject index : checkTable.iterateCheckedRows(action)) {
                                             if (indexPattern.matches(index.name(), user, context, subMeter)
-                                                    || indexPattern.matches(index.resolveDeepToNames(), user, context, subMeter)) {
+                                                    || indexPattern.matches(index.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL), user, context, subMeter)) {
                                                 checkTable.uncheck(index, action);
                                             }
                                         }
@@ -1687,7 +1691,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                                     if (action instanceof WellKnownAction) {
                                         for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::name)) {
-                                            alias.resolveDeepToNames().forEach((index) -> {
+                                            alias.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL).forEach((index) -> {
                                                 actionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
                                             });
                                         }
@@ -1699,7 +1703,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.IndexCollection::name)) {
-                                        alias.resolveDeepToNames().forEach((index) -> {
+                                        alias.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL).forEach((index) -> {
                                             for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
                                                 actionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
                                             }

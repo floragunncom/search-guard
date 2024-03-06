@@ -35,24 +35,21 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization.AliasDataStreamHandling;
-import com.floragunn.searchguard.authz.actions.Actions.Scope;
 import com.floragunn.searchsupport.meta.Meta;
 
 public interface Action {
 
     String name();
 
-    boolean isIndexPrivilege();
+    boolean isIndexLikePrivilege();
 
     boolean isClusterPrivilege();
 
     boolean isTenantPrivilege();
 
-    boolean isDataStreamPrivilege();
-
-    boolean isIndexLikePrivilege();
-
     boolean isOpen();
+
+    Scope scope();
 
     ImmutableSet<Action> getAdditionalPrivileges(ActionRequest request);
 
@@ -67,14 +64,33 @@ public interface Action {
 
     AliasDataStreamHandling aliasDataStreamHandling();
 
-    default <RequestType extends ActionRequest> WellKnownAction<RequestType, ?, ?> wellKnown(RequestType request) {
-        if (this instanceof WellKnownAction) {
-            @SuppressWarnings("unchecked")
-            WellKnownAction<RequestType, ?, ?> result = (WellKnownAction<RequestType, ?, ?>) this;
-            result.cast(request);
-            return result;
-        } else {
-            return null;
+    ImmutableSet<AdditionalDimension> additionalDimensions();
+
+    /**
+     * If this action is well known, this method casts this object to WellKnownAction<RequestType, ?, ?>, matching the given request object. 
+     * If this action is not well known, this method returns null.
+     */
+    <RequestType extends ActionRequest> WellKnownAction<RequestType, ?, ?> wellKnown(RequestType request);
+
+    enum Scope {
+        INDEX_LIKE(true, true, true, false), INDEX(true, false, false, false), ALIAS(false, true, false, false),
+        DATA_STREAM(false, false, true, false), CLUSTER(false, false, false, false), TENANT(false, false, false, true),
+        OPEN(false, false, false, false);
+
+        public final boolean canReferToIndices;
+        public final boolean canReferToAliases;
+        public final boolean canReferToDataStreams;
+        public final boolean canReferToTenants;
+        public final boolean canReferToIndexLikeObjects;
+        public final boolean canOnlyReferToAliases;
+
+        private Scope(boolean canReferToIndices, boolean canReferToAliases, boolean canReferToDataStreams, boolean canReferToTenants) {
+            this.canReferToIndices = canReferToIndices;
+            this.canReferToAliases = canReferToAliases;
+            this.canReferToDataStreams = canReferToDataStreams;
+            this.canReferToTenants = canReferToTenants;
+            this.canReferToIndexLikeObjects = canReferToIndices || canReferToAliases || canReferToDataStreams;
+            this.canOnlyReferToAliases = canReferToAliases && !canReferToDataStreams && !canReferToIndices;
         }
     }
 
@@ -91,12 +107,14 @@ public interface Action {
         private final int hashCode;
         private final AliasDataStreamHandling aliasDataStreamHandling;
         private final Meta.Alias.ResolutionMode aliasResolutionMode;
+        private final ImmutableSet<AdditionalDimension> additionalDimensions;
 
         public WellKnownAction(String actionName, Scope scope, Class<RequestType> requestType, String requestTypeName,
                 ImmutableList<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges,
                 ImmutableMap<RequestItemType, ImmutableSet<String>> additionalPrivilegesByItemType,
                 RequestItems<RequestType, RequestItem, RequestItemType> requestItems, Resources resources,
-                AliasDataStreamHandling aliasDataStreamHandling, Meta.Alias.ResolutionMode aliasResolutionMode, Actions actions) {
+                AliasDataStreamHandling aliasDataStreamHandling, Meta.Alias.ResolutionMode aliasResolutionMode,
+                ImmutableSet<AdditionalDimension> additionalDimensions, Actions actions) {
             this.actionName = actionName;
             this.scope = scope;
             this.requestType = requestType;
@@ -109,6 +127,7 @@ public interface Action {
             this.hashCode = actionName.hashCode();
             this.aliasDataStreamHandling = aliasDataStreamHandling;
             this.aliasResolutionMode = aliasResolutionMode;
+            this.additionalDimensions = additionalDimensions;
         }
 
         @Override
@@ -140,18 +159,8 @@ public interface Action {
         }
 
         @Override
-        public boolean isIndexPrivilege() {
-            return scope == Scope.INDEX;
-        }
-
-        @Override
         public boolean isIndexLikePrivilege() {
-            return scope == Scope.INDEX || scope == Scope.DATA_STREAM;
-        }
-
-        @Override
-        public boolean isDataStreamPrivilege() {
-            return scope == Scope.DATA_STREAM;
+            return scope.canReferToIndexLikeObjects;
         }
 
         @Override
@@ -458,6 +467,23 @@ public interface Action {
             return this.aliasResolutionMode;
         }
 
+        @Override
+        public Scope scope() {
+            return this.scope;
+        }
+
+        @Override
+        public <R extends ActionRequest> WellKnownAction<R, ?, ?> wellKnown(R request) {
+            @SuppressWarnings("unchecked")
+            WellKnownAction<R, ?, ?> result = (WellKnownAction<R, ?, ?>) this;
+            result.cast(request);
+            return result;
+        }
+
+        @Override
+        public ImmutableSet<AdditionalDimension> additionalDimensions() {
+            return additionalDimensions;
+        }
     }
 
     public static class OtherAction implements Action {
@@ -479,18 +505,8 @@ public interface Action {
         }
 
         @Override
-        public boolean isIndexPrivilege() {
-            return scope == Scope.INDEX;
-        }
-
-        @Override
         public boolean isIndexLikePrivilege() {
-            return scope == Scope.INDEX || scope == Scope.DATA_STREAM;
-        }
-
-        @Override
-        public boolean isDataStreamPrivilege() {
-            return scope == Scope.DATA_STREAM;
+            return scope.canReferToIndexLikeObjects;
         }
 
         @Override
@@ -556,6 +572,81 @@ public interface Action {
         public Meta.Alias.ResolutionMode aliasResolutionMode() {
             return Meta.Alias.ResolutionMode.NORMAL;
         }
+
+        @Override
+        public Scope scope() {
+            return this.scope;
+        }
+
+        @Override
+        public <RequestType extends ActionRequest> WellKnownAction<RequestType, ?, ?> wellKnown(RequestType request) {
+            return null;
+        }
+
+        @Override
+        public ImmutableSet<AdditionalDimension> additionalDimensions() {
+            return ImmutableSet.empty();
+        }
+    }
+
+    public static class AdditionalDimension {
+        public static final AdditionalDimension ALIASES = new AdditionalDimension("aliases", Scope.ALIAS);
+        public static final AdditionalDimension RESIZE_TARGET = new AdditionalDimension("resize_target", Scope.INDEX,
+                ImmutableSet.ofArray("indices:admin/create"));
+        public static final AdditionalDimension MANAGE_ALIASES = new AdditionalDimension("manage_aliases", Scope.ALIAS,
+                ImmutableSet.ofArray("indices:admin/aliases"));
+        public static final AdditionalDimension DELETE_INDEX = new AdditionalDimension("delete_index", Scope.INDEX_LIKE,
+                ImmutableSet.ofArray("indices:admin/delete"));
+
+        private final String id;
+        private final ImmutableSet<String> requiredPrivileges;
+        private final Scope scope;
+
+        public AdditionalDimension(String id, Scope scope) {
+            this.id = id;
+            this.scope = scope;
+            this.requiredPrivileges = null;
+        }
+
+        public AdditionalDimension(String id, Scope scope, ImmutableSet<String> requiredPrivileges) {
+            this.id = id;
+            this.scope = scope;
+            this.requiredPrivileges = requiredPrivileges;
+        }
+
+        public ImmutableSet<Action> getRequiredPrivileges(ImmutableSet<Action> original, Actions actions) {
+            if (this.requiredPrivileges == null) {
+                return original;
+            } else {
+                return this.requiredPrivileges.map(a -> actions.get(a));
+            }
+        }
+
+        @Override
+        public int hashCode() {
+            return id.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof AdditionalDimension)) {
+                return false;
+            }
+            return (((AdditionalDimension) other).id.equals(this.id));
+        }
+
+        @Override
+        public String toString() {
+            return id;
+        }
+
+        public Scope scope() {
+            return scope;
+        }
+
     }
 
 }

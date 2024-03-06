@@ -70,8 +70,8 @@ public class PrivilegesEvaluationResult {
     private final CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable;
     private final ImmutableList<Error> errors;
     private final ImmutableSet<String> availableIndices;
-    private final ImmutableMap<ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole, ImmutableSet<String>> additionalAvailableIndices;
-    private final ImmutableMap<ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole, CheckTable<Meta.IndexLikeObject, Action>> additionalIndexToActionPrivilegeTables;
+    private final ImmutableMap<Action.AdditionalDimension, ImmutableSet<String>> additionalAvailableIndices;
+    private final ImmutableMap<Action.AdditionalDimension, CheckTable<Meta.IndexLikeObject, Action>> additionalIndexToActionPrivilegeTables;
 
     private final String reason;
     private final ImmutableList<ActionFilter> additionalActionFilters;
@@ -88,9 +88,9 @@ public class PrivilegesEvaluationResult {
     }
 
     PrivilegesEvaluationResult(Status status, String reason, ImmutableSet<String> availableIndices,
-            ImmutableMap<ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole, ImmutableSet<String>> additionalAvailableIndices,
+            ImmutableMap<Action.AdditionalDimension, ImmutableSet<String>> additionalAvailableIndices,
             CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable,
-            ImmutableMap<ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole, CheckTable<Meta.IndexLikeObject, Action>> additionalIndexToActionPrivilegeTables,
+            ImmutableMap<Action.AdditionalDimension, CheckTable<Meta.IndexLikeObject, Action>> additionalIndexToActionPrivilegeTables,
             ImmutableList<Error> errors, ImmutableList<ActionFilter> additionalActionFilters) {
         this.status = status;
         this.indexToActionPrivilegeTable = indexToActionPrivilegeTable;
@@ -175,7 +175,7 @@ public class PrivilegesEvaluationResult {
                 indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, errors, this.additionalActionFilters);
     }*/
 
-    public PrivilegesEvaluationResult availableAdditionally(ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole role,
+    public PrivilegesEvaluationResult availableAdditionally(Action.AdditionalDimension role,
             ImmutableSet<String> addtionalAvailableIndices, CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable,
             ImmutableList<Error> errors) {
         return new PrivilegesEvaluationResult(this.status, this.reason, this.availableIndices,
@@ -183,14 +183,14 @@ public class PrivilegesEvaluationResult {
                 this.additionalIndexToActionPrivilegeTables.with(role, indexToActionPrivilegeTable), errors, this.additionalActionFilters);
     }
 
-    public PrivilegesEvaluationResult availableAdditionally(ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole role,
+    public PrivilegesEvaluationResult availableAdditionally(Action.AdditionalDimension role,
             ImmutableSet<String> addtionalAvailableIndices, CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable) {
         return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices,
                 this.additionalAvailableIndices.with(role, addtionalAvailableIndices), this.indexToActionPrivilegeTable,
                 this.additionalIndexToActionPrivilegeTables.with(role, indexToActionPrivilegeTable), errors, this.additionalActionFilters);
     }
 
-    public PrivilegesEvaluationResult withAdditional(ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole role,
+    public PrivilegesEvaluationResult withAdditional(Action.AdditionalDimension role,
             PrivilegesEvaluationResult additional) {
         Status status;
 
@@ -315,7 +315,7 @@ public class PrivilegesEvaluationResult {
             }
 
             if (!this.additionalIndexToActionPrivilegeTables.isEmpty()) {
-                for (Map.Entry<ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole, CheckTable<Meta.IndexLikeObject, Action>> entry : this.additionalIndexToActionPrivilegeTables
+                for (Map.Entry<Action.AdditionalDimension, CheckTable<Meta.IndexLikeObject, Action>> entry : this.additionalIndexToActionPrivilegeTables
                         .entrySet()) {
                     String evaluatedPrivileges = entry.getValue().toString("ok", "MISSING");
 
@@ -499,7 +499,7 @@ public class PrivilegesEvaluationResult {
 
     private boolean isRelatedToIndexPermission() {
         return this.indexToActionPrivilegeTable != null && !this.indexToActionPrivilegeTable.isEmpty()
-                && this.indexToActionPrivilegeTable.getColumns().any().isIndexPrivilege();
+                && this.indexToActionPrivilegeTable.getColumns().any().isIndexLikePrivilege();
     }
 
     private List<String> getFlattenedIndexToActionPrivilegeTable() {
@@ -516,7 +516,7 @@ public class PrivilegesEvaluationResult {
         return result;
     }
 
-    public ImmutableMap<ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole, ImmutableSet<String>> getAdditionalAvailableIndices() {
+    public ImmutableMap<Action.AdditionalDimension, ImmutableSet<String>> getAdditionalAvailableIndices() {
         return additionalAvailableIndices;
     }
 }

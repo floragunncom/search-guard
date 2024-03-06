@@ -497,15 +497,15 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         }
 
         PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasIndexPermission(context, action, allIndexPermsRequired,
-                actionRequestInfo.getMainResolvedIndices(), action.aliasDataStreamHandling());
+                actionRequestInfo.getMainResolvedIndices(), action.scope());
 
         if (!actionRequestInfo.getAdditionalResolvedIndices().isEmpty()) {
-            for (Map.Entry<ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole, ActionRequestIntrospector.ResolvedIndices> entry : actionRequestInfo
+            for (Map.Entry<Action.AdditionalDimension, ActionRequestIntrospector.ResolvedIndices> entry : actionRequestInfo
                     .getAdditionalResolvedIndices().entrySet()) {
                 ImmutableSet<Action> additionalIndexPermissions = entry.getKey().getRequiredPrivileges(allIndexPermsRequired, actions);
 
                 PrivilegesEvaluationResult subResult = actionAuthorization.hasIndexPermission(context, action, additionalIndexPermissions,
-                        entry.getValue(), action.aliasDataStreamHandling());
+                        entry.getValue(), action.scope());
 
                 if (log.isTraceEnabled()) {
                     log.trace("Sub result for {}/{}:\n{}", entry.getKey(), additionalIndexPermissions, subResult);
@@ -631,7 +631,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             ActionAuthorization actionAuthorization, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext,
             PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
 
-        if (additionalPrivileges.forAllApplies((a) -> a.isIndexPrivilege())) {
+        if (additionalPrivileges.forAllApplies((a) -> a.isIndexLikePrivilege())) {
             return evaluateIndexPrivileges(user, action, additionalPrivileges, request, task, actionRequestInfo, mappedRoles, authzConfig,
                     actionAuthorization, specialPrivilegesEvaluationContext, context);
         }
@@ -653,7 +653,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     log.info("Additional privilege missing: " + result);
                     return result;
                 }
-            } else if (additionalPrivilege.isIndexPrivilege()) {
+            } else if (additionalPrivilege.isIndexLikePrivilege()) {
                 indexPrivileges = indexPrivileges.with(additionalPrivilege);
             }
         }

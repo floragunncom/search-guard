@@ -17,6 +17,7 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.fluent.collections.UnmodifiableCollection;
+import com.floragunn.searchsupport.meta.Meta.Alias;
 
 public abstract class MetaImpl implements Meta {
     private static final Logger log = LogManager.getLogger(MetaImpl.class);
@@ -37,12 +38,12 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        protected ImmutableSet<Meta.IndexOrNonExistent> resolveDeepImpl() {
+        protected ImmutableSet<Meta.IndexOrNonExistent> resolveDeepImpl(Alias.ResolutionMode resolutionMode) {
             return ImmutableSet.of(this);
         }
 
         @Override
-        protected ImmutableSet<String> resolveDeepToNamesImpl() {
+        protected ImmutableSet<String> resolveDeepToNamesImpl(Alias.ResolutionMode resolutionMode) {
             return ImmutableSet.of(this.name());
         }
 
@@ -111,7 +112,7 @@ public abstract class MetaImpl implements Meta {
                 IndexLikeObject writeTarget) {
             super(root, name, ImmutableSet.empty(), null, members, hidden);
             this.writeTarget = writeTarget;
-            this.writeTargetAsSet = writeTarget != null ? ImmutableSet.of(writeTarget) : null;
+            this.writeTargetAsSet = writeTarget != null ? ImmutableSet.of(writeTarget) : ImmutableSet.empty();
         }
 
         @Override
@@ -163,6 +164,42 @@ public abstract class MetaImpl implements Meta {
                 return members();
             }
         }
+
+        @Override
+        public ImmutableSet<Meta.Index> resolveDeepAsIndex(Alias.ResolutionMode resolutionMode) {
+            if (resolutionMode == Alias.ResolutionMode.TO_WRITE_TARGET) {
+                if (writeTarget == null) {
+                    return ImmutableSet.empty();
+                } else if (writeTarget instanceof Meta.Index) {
+                    @SuppressWarnings({ "unchecked", "rawtypes" }) // TODO
+                    ImmutableSet<Index> result = (ImmutableSet<Index>) (ImmutableSet) writeTargetAsSet;
+                    return result;
+                } else if (writeTarget instanceof Meta.DataStream) {
+                    return ((Meta.DataStream) writeTarget).resolveDeepAsIndex(resolutionMode);
+                } else {
+                    return super.resolveDeepAsIndex(resolutionMode);
+                }
+            } else {
+                return super.resolveDeepAsIndex(resolutionMode);
+            }
+        }
+
+        @Override
+        protected ImmutableSet<String> resolveDeepToNamesImpl(Alias.ResolutionMode resolutionMode) {
+            if (resolutionMode == Alias.ResolutionMode.TO_WRITE_TARGET) {
+                if (writeTarget == null) {
+                    return ImmutableSet.empty();
+                } else if (writeTarget instanceof Meta.Index) {
+                    return ImmutableSet.of(writeTarget.name());
+                } else if (writeTarget instanceof Meta.DataStream) {
+                    return writeTarget.resolveDeepToNames(resolutionMode);
+                } else {
+                    return super.resolveDeepToNamesImpl(resolutionMode);
+                }
+            } else {
+                return super.resolveDeepToNamesImpl(resolutionMode);
+            }
+        }
     }
 
     public static class DataStreamImpl extends AbstractIndexCollection<DataStreamImpl> implements Meta.DataStream {
@@ -210,7 +247,9 @@ public abstract class MetaImpl implements Meta {
         private final boolean hidden;
         private DefaultMetaImpl root;
         private ImmutableSet<Meta.IndexOrNonExistent> cachedResolveDeep;
+        private ImmutableSet<Meta.IndexOrNonExistent> cachedResolveDeepWrite;
         private ImmutableSet<String> cachedResolveDeepToNames;
+        private ImmutableSet<String> cachedResolveDeepToNamesWrite;
         private ImmutableSet<Meta.Alias> cachedParentAliases;
 
         public AbstractIndexLike(DefaultMetaImpl root, String name, Collection<String> parentAliasNames, String parentDataStreamName,
@@ -268,24 +307,34 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        public ImmutableSet<Meta.IndexOrNonExistent> resolveDeep() {
-            ImmutableSet<Meta.IndexOrNonExistent> result = this.cachedResolveDeep;
+        public ImmutableSet<Meta.IndexOrNonExistent> resolveDeep(Alias.ResolutionMode resolutionMode) {
+            ImmutableSet<Meta.IndexOrNonExistent> result = resolutionMode == Alias.ResolutionMode.NORMAL ? this.cachedResolveDeep
+                    : this.cachedResolveDeepWrite;
 
             if (result == null) {
-                result = this.resolveDeepImpl();
-                this.cachedResolveDeep = result;
+                result = this.resolveDeepImpl(resolutionMode);
+                if (resolutionMode == Alias.ResolutionMode.NORMAL) {
+                    this.cachedResolveDeep = result;
+                } else {
+                    this.cachedResolveDeepWrite = result;
+                }
             }
 
             return result;
         }
 
         @Override
-        public ImmutableSet<String> resolveDeepToNames() {
-            ImmutableSet<String> result = this.cachedResolveDeepToNames;
+        public ImmutableSet<String> resolveDeepToNames(Alias.ResolutionMode resolutionMode) {
+            ImmutableSet<String> result = resolutionMode == Alias.ResolutionMode.NORMAL ? this.cachedResolveDeepToNames
+                    : this.cachedResolveDeepToNamesWrite;
 
             if (result == null) {
-                result = this.resolveDeepToNamesImpl();
-                this.cachedResolveDeepToNames = result;
+                result = this.resolveDeepToNamesImpl(resolutionMode);
+                if (resolutionMode == Alias.ResolutionMode.NORMAL) {
+                    this.cachedResolveDeepToNames = result;
+                } else {
+                    this.cachedResolveDeepToNamesWrite = result;
+                }
             }
 
             return result;
@@ -306,9 +355,9 @@ public abstract class MetaImpl implements Meta {
 
         protected abstract AbstractIndexLike<T> withAlias(String alias);
 
-        protected abstract ImmutableSet<Meta.IndexOrNonExistent> resolveDeepImpl();
+        protected abstract ImmutableSet<Meta.IndexOrNonExistent> resolveDeepImpl(Alias.ResolutionMode resolutionMode);
 
-        protected abstract ImmutableSet<String> resolveDeepToNamesImpl();
+        protected abstract ImmutableSet<String> resolveDeepToNamesImpl(Alias.ResolutionMode resolutionMode);
 
         protected abstract T copy();
 
@@ -334,6 +383,7 @@ public abstract class MetaImpl implements Meta {
     static abstract class AbstractIndexCollection<T> extends AbstractIndexLike<T> implements IndexCollection {
         private final UnmodifiableCollection<IndexLikeObject> members;
         private ImmutableSet<Meta.Index> cachedResolveDeepAsIndex;
+        private ImmutableSet<Meta.Index> cachedResolveDeepAsIndexWrite;
 
         public AbstractIndexCollection(DefaultMetaImpl root, String name, Collection<String> parentAliasNames, String parentDataStreamName,
                 UnmodifiableCollection<IndexLikeObject> members, boolean hidden) {
@@ -347,13 +397,14 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        protected ImmutableSet<Meta.IndexOrNonExistent> resolveDeepImpl() {
-            return ImmutableSet.<Meta.IndexOrNonExistent>of(resolveDeepAsIndex());
+        protected ImmutableSet<Meta.IndexOrNonExistent> resolveDeepImpl(Alias.ResolutionMode resolutionMode) {
+            return ImmutableSet.<Meta.IndexOrNonExistent>of(resolveDeepAsIndex(resolutionMode));
         }
 
         @Override
-        public ImmutableSet<Meta.Index> resolveDeepAsIndex() {
-            ImmutableSet<Meta.Index> result = this.cachedResolveDeepAsIndex;
+        public ImmutableSet<Meta.Index> resolveDeepAsIndex(Alias.ResolutionMode resolutionMode) {
+            ImmutableSet<Meta.Index> result = resolutionMode == Alias.ResolutionMode.TO_WRITE_TARGET ? this.cachedResolveDeepAsIndexWrite
+                    : this.cachedResolveDeepAsIndex;
 
             if (result == null) {
                 ImmutableSet.Builder<Meta.Index> builder = new ImmutableSet.Builder<>(this.members.size());
@@ -362,7 +413,7 @@ public abstract class MetaImpl implements Meta {
                     if (member instanceof Meta.Index) {
                         builder.add((Meta.Index) member);
                     } else if (member instanceof Meta.IndexCollection) {
-                        builder.addAll(((Meta.IndexCollection) member).resolveDeepAsIndex());
+                        builder.addAll(((Meta.IndexCollection) member).resolveDeepAsIndex(resolutionMode));
                     } else {
                         throw new RuntimeException("Unexpected member " + member + " of " + this);
                     }
@@ -370,21 +421,25 @@ public abstract class MetaImpl implements Meta {
 
                 result = builder.build();
 
-                this.cachedResolveDeepAsIndex = result;
+                if (resolutionMode == Alias.ResolutionMode.TO_WRITE_TARGET) {
+                    this.cachedResolveDeepAsIndexWrite = result;
+                } else {
+                    this.cachedResolveDeepAsIndex = result;
+                }
             }
 
             return result;
         }
 
         @Override
-        protected ImmutableSet<String> resolveDeepToNamesImpl() {
+        protected ImmutableSet<String> resolveDeepToNamesImpl(Alias.ResolutionMode resolutionMode) {
             ImmutableSet.Builder<String> result = new ImmutableSet.Builder<>(this.members.size());
 
             for (IndexLikeObject member : this.members) {
                 if (member instanceof Meta.Index) {
                     result.add(member.name());
                 } else {
-                    result.addAll(member.resolveDeepToNames());
+                    result.addAll(member.resolveDeepToNames(resolutionMode));
                 }
             }
 
@@ -659,14 +714,26 @@ public abstract class MetaImpl implements Meta {
                     ImmutableMap.Builder<String, IndexLikeObject> aliasMembersBuilder = new ImmutableMap.Builder<>(indexNames.length);
                     ImmutableSet.Builder<Index> newIndices = new ImmutableSet.Builder<>(indexNames.length);
                     ImmutableSet.Builder<DataStream> newDataStreams = new ImmutableSet.Builder<>(indexNames.length);
+                    IndexLikeObject writeTarget = null;
 
                     for (String indexName : indexNames) {
+                        boolean setWriteTarget = false;
+
+                        if (indexName.startsWith(">")) {
+                            setWriteTarget = true;
+                            indexName = indexName.substring(1);
+                        }
+
                         AbstractIndexLike<?> indexLikeObject = (AbstractIndexLike<?>) getIndexOrLike(indexName);
 
                         if (indexLikeObject != null) {
                             indexLikeObject = indexLikeObject.withAlias(aliasName);
                         } else {
                             indexLikeObject = new IndexImpl(null, indexName, singleAliasSet, null);
+                        }
+
+                        if (setWriteTarget) {
+                            writeTarget = indexLikeObject;
                         }
 
                         if (indexLikeObject instanceof DataStream) {
@@ -691,7 +758,10 @@ public abstract class MetaImpl implements Meta {
                     }
 
                     UnmodifiableCollection<IndexLikeObject> members = aliasMembersBuilder.build().values();
-                    IndexLikeObject writeTarget = members.size() == 1 ? members.iterator().next() : null;
+
+                    if (writeTarget == null && members.size() == 1) {
+                        writeTarget = members.iterator().next();
+                    }
 
                     ImmutableSet<Alias> aliases = ImmutableSet.<Alias>of(DefaultMetaImpl.this.aliases.map(i -> ((AliasImpl) i).copy()))
                             .with(new AliasImpl(null, aliasName, members, false, writeTarget));
@@ -900,12 +970,12 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        public ImmutableSet<Meta.IndexOrNonExistent> resolveDeep() {
+        public ImmutableSet<Meta.IndexOrNonExistent> resolveDeep(Alias.ResolutionMode resolutionMode) {
             return ImmutableSet.of(this);
         }
 
         @Override
-        public ImmutableSet<String> resolveDeepToNames() {
+        public ImmutableSet<String> resolveDeepToNames(Alias.ResolutionMode resolutionMode) {
             return ImmutableSet.of(name());
         }
 
@@ -917,12 +987,12 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        public ImmutableSet<Meta.IndexOrNonExistent> resolveDeep() {
+        public ImmutableSet<Meta.IndexOrNonExistent> resolveDeep(Alias.ResolutionMode resolutionMode) {
             return ImmutableSet.empty();
         }
 
         @Override
-        public ImmutableSet<String> resolveDeepToNames() {
+        public ImmutableSet<String> resolveDeepToNames(Alias.ResolutionMode resolutionMode) {
             return ImmutableSet.empty();
         }
 
@@ -932,7 +1002,7 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        public ImmutableSet<Index> resolveDeepAsIndex() {
+        public ImmutableSet<Index> resolveDeepAsIndex(Alias.ResolutionMode resolutionMode) {
             return ImmutableSet.empty();
         }
 
@@ -954,12 +1024,12 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        public ImmutableSet<Meta.IndexOrNonExistent> resolveDeep() {
+        public ImmutableSet<Meta.IndexOrNonExistent> resolveDeep(Alias.ResolutionMode resolutionMode) {
             return ImmutableSet.empty();
         }
 
         @Override
-        public ImmutableSet<String> resolveDeepToNames() {
+        public ImmutableSet<String> resolveDeepToNames(Alias.ResolutionMode resolutionMode) {
             return ImmutableSet.empty();
         }
 
@@ -969,7 +1039,7 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        public ImmutableSet<Index> resolveDeepAsIndex() {
+        public ImmutableSet<Index> resolveDeepAsIndex(Alias.ResolutionMode resolutionMode) {
             return ImmutableSet.empty();
         }
 
