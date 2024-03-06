@@ -164,6 +164,10 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         }
 
         String requestedTenant = user.getRequestedTenant();
+        if (requestedTenant == null || requestedTenant.isEmpty()) {
+            //requestedTenant = Tenant.GLOBAL_TENANT_ID;
+            return NORMAL;
+        }
 
         boolean frontendServerUser = user.getName().equals(kibanaServerUsername);
         TenantAccess tenantAccess = frontendServerUser ? TenantAccess.FULL_ACCESS : getTenantAccess(context, requestedTenant, actionAuthorization);
