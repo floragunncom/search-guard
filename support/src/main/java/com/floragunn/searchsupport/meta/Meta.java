@@ -134,7 +134,13 @@ public interface Meta extends Document<Meta> {
 
     interface Alias extends IndexCollection {
         IndexLikeObject writeTarget();
+        UnmodifiableCollection<IndexLikeObject> resolve(ResolutionMode resolutionMode);
         
+        static enum ResolutionMode {
+            NORMAL,
+            TO_WRITE_TARGET
+        }
+
         static Alias nonExistent(String name) {
             return new MetaImpl.NonExistentAliasImpl(name);
         }

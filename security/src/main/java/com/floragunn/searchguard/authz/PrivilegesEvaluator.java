@@ -36,7 +36,9 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -494,7 +496,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             }
         }
 
-        PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasIndexPermission(context, allIndexPermsRequired,
+        PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasIndexPermission(context, action, allIndexPermsRequired,
                 actionRequestInfo.getMainResolvedIndices(), action.aliasDataStreamHandling());
 
         if (!actionRequestInfo.getAdditionalResolvedIndices().isEmpty()) {
@@ -502,8 +504,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     .getAdditionalResolvedIndices().entrySet()) {
                 ImmutableSet<Action> additionalIndexPermissions = entry.getKey().getRequiredPrivileges(allIndexPermsRequired, actions);
 
-                PrivilegesEvaluationResult subResult = actionAuthorization.hasIndexPermission(context, additionalIndexPermissions, entry.getValue(),
-                        action.aliasDataStreamHandling());
+                PrivilegesEvaluationResult subResult = actionAuthorization.hasIndexPermission(context, action, additionalIndexPermissions,
+                        entry.getValue(), action.aliasDataStreamHandling());
 
                 if (log.isTraceEnabled()) {
                     log.trace("Sub result for {}/{}:\n{}", entry.getKey(), additionalIndexPermissions, subResult);
@@ -538,9 +540,16 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request,
                             privilegesEvaluationResult.getAvailableIndices(), privilegesEvaluationResult.getAdditionalAvailableIndices(),
                             actionRequestInfo);
-                } else if (actionRequestInfo.getResolvedIndices().getLocal().getAliases().only().members().size() == 1
-                        && privilegesEvaluationResult.getAvailableIndices().size() == 1 && request instanceof GetRequest) {
-                    // Special case for the GET document by ID API if used on an alias. When the alias only points to a single index and we have privileges for that index, we just let it pass
+                } else if (actionRequestInfo.getResolvedIndices().getLocal().getAliases().only().resolve(action.aliasResolutionMode()).size() == 1
+                        && privilegesEvaluationResult.getAvailableIndices().size() == 1
+                        && (request instanceof GetRequest || request instanceof IndexRequest || request instanceof BulkShardRequest)) {
+                    // Special case for actions which can only operate on aliases which contain a single index. 
+                    // Such actions are:
+                    // - GetRequest (GET document by ID)
+                    // - IndexRequest (PUT document; resolves to the write index of the alias)
+                    // - BulkShardRequest (backs IndexRequest and bulk document API)
+                    // In case we have an OK_WHEN_RESOLVED state for that single index, we let that pass
+
                     privilegesEvaluationResult = PrivilegesEvaluationResult.OK;
                 } else {
                     String reasonForNoIndexReduction = "You have privileges for all members of an alias, but not for the whole alias. Access to the alias is denied, because ";
