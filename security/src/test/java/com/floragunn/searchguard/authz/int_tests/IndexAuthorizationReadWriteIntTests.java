@@ -77,6 +77,7 @@ public class IndexAuthorizationReadWriteIntTests {
 
     static TestAlias alias_ab1r = new TestAlias("alias_ab1r", index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_bw1);
     static TestAlias alias_ab1w = new TestAlias("alias_ab1w", index_aw1, index_aw2, index_bw1).writeIndex(index_aw1);
+    static TestAlias alias_ab1w_nowriteindex = new TestAlias("alias_ab1w_nowriteindex", index_aw1, index_aw2, index_bw1);
 
     static TestAlias alias_c1 = new TestAlias("alias_c1", index_cr1);
 
@@ -228,9 +229,9 @@ public class IndexAuthorizationReadWriteIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get").on("alias_ab1r")//
                             .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get", "SGS_WRITE", "indices:admin/refresh*")
-                            .on("alias_ab1w"))//
-            .indexMatcher("read", limitedTo(index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_bw1, alias_ab1r, alias_ab1w))//
-            .indexMatcher("write", limitedTo(index_aw1, index_aw2, index_bw1, alias_ab1w))//
+                            .on("alias_ab1w*"))//
+            .indexMatcher("read", limitedTo(index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_bw1, alias_ab1r, alias_ab1w, alias_ab1w_nowriteindex))//
+            .indexMatcher("write", limitedTo(index_aw1, index_aw2, index_bw1, alias_ab1w, alias_ab1w_nowriteindex))//
             .indexMatcher("create_index", limitedTo(index_aw1, index_aw2, index_bw1))//
             .indexMatcher("manage_index", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone())//
@@ -364,7 +365,7 @@ public class IndexAuthorizationReadWriteIntTests {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
             .indices(index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_br2, index_bw1, index_bw2, index_cr1, index_cw1, index_hidden)//
-            .aliases(alias_ab1r, alias_ab1w, alias_c1)//
+            .aliases(alias_ab1r, alias_ab1w, alias_ab1w_nowriteindex, alias_c1)//
             .authzDebug(true)//
             .build();
 
@@ -455,6 +456,19 @@ public class IndexAuthorizationReadWriteIntTests {
         }
     }
 
+    @Test
+    public void putDocument_alias_noWriteIndex() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
+            HttpResponse httpResponse = restClient.putJson("/alias_ab1w_nowriteindex/_doc/put_doc_alias_test_1", DocNode.of("a", 1));
+
+            if (containsExactly(alias_ab1w_nowriteindex).but(user.indexMatcher("write")).isEmpty()) {
+                assertThat(httpResponse, isForbidden());
+            } else {
+                assertThat(httpResponse, isBadRequest());
+            }
+        }
+    }
+    
     @Test
     public void putDocument_bulk_alias() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
