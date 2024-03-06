@@ -36,6 +36,7 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization.AliasDataStreamHandling;
 import com.floragunn.searchguard.authz.actions.Actions.Scope;
+import com.floragunn.searchsupport.meta.Meta;
 
 public interface Action {
 
@@ -46,11 +47,11 @@ public interface Action {
     boolean isClusterPrivilege();
 
     boolean isTenantPrivilege();
-    
+
     boolean isDataStreamPrivilege();
 
     boolean isIndexLikePrivilege();
-    
+
     boolean isOpen();
 
     ImmutableSet<Action> getAdditionalPrivileges(ActionRequest request);
@@ -62,8 +63,10 @@ public interface Action {
 
     boolean requiresSpecialProcessing();
 
+    Meta.Alias.ResolutionMode aliasResolutionMode();
+
     AliasDataStreamHandling aliasDataStreamHandling();
-    
+
     default <RequestType extends ActionRequest> WellKnownAction<RequestType, ?, ?> wellKnown(RequestType request) {
         if (this instanceof WellKnownAction) {
             @SuppressWarnings("unchecked")
@@ -87,11 +90,13 @@ public interface Action {
         private final Actions actions;
         private final int hashCode;
         private final AliasDataStreamHandling aliasDataStreamHandling;
+        private final Meta.Alias.ResolutionMode aliasResolutionMode;
 
         public WellKnownAction(String actionName, Scope scope, Class<RequestType> requestType, String requestTypeName,
                 ImmutableList<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges,
                 ImmutableMap<RequestItemType, ImmutableSet<String>> additionalPrivilegesByItemType,
-                RequestItems<RequestType, RequestItem, RequestItemType> requestItems, Resources resources, AliasDataStreamHandling aliasDataStreamHandling, Actions actions) {
+                RequestItems<RequestType, RequestItem, RequestItemType> requestItems, Resources resources,
+                AliasDataStreamHandling aliasDataStreamHandling, Meta.Alias.ResolutionMode aliasResolutionMode, Actions actions) {
             this.actionName = actionName;
             this.scope = scope;
             this.requestType = requestType;
@@ -103,6 +108,7 @@ public interface Action {
             this.asImmutableSet = ImmutableSet.of(this);
             this.hashCode = actionName.hashCode();
             this.aliasDataStreamHandling = aliasDataStreamHandling;
+            this.aliasResolutionMode = aliasResolutionMode;
         }
 
         @Override
@@ -137,13 +143,12 @@ public interface Action {
         public boolean isIndexPrivilege() {
             return scope == Scope.INDEX;
         }
-        
 
         @Override
         public boolean isIndexLikePrivilege() {
             return scope == Scope.INDEX || scope == Scope.DATA_STREAM;
         }
-        
+
         @Override
         public boolean isDataStreamPrivilege() {
             return scope == Scope.DATA_STREAM;
@@ -340,7 +345,7 @@ public interface Action {
             public Resource(String type, Function<ActionRequest, Object> id) {
                 this(type, id, false, null);
             }
-            
+
             public Resource(String type, Function<ActionRequest, Object> id, boolean deleteAction, String ownerCheckBypassPermission) {
                 this.type = type;
                 this.id = id;
@@ -359,11 +364,11 @@ public interface Action {
             public boolean isDeleteAction() {
                 return deleteAction;
             }
-            
+
             public Resource deleteAction(boolean deleteAction) {
                 return new Resource(this.type, this.id, deleteAction, this.ownerCheckBypassPermission);
             }
-            
+
             public Resource ownerCheckBypassPermission(String permission) {
                 return new Resource(this.type, this.id, this.deleteAction, permission);
             }
@@ -448,6 +453,11 @@ public interface Action {
             return aliasDataStreamHandling;
         }
 
+        @Override
+        public Meta.Alias.ResolutionMode aliasResolutionMode() {
+            return this.aliasResolutionMode;
+        }
+
     }
 
     public static class OtherAction implements Action {
@@ -472,17 +482,17 @@ public interface Action {
         public boolean isIndexPrivilege() {
             return scope == Scope.INDEX;
         }
-        
+
         @Override
         public boolean isIndexLikePrivilege() {
             return scope == Scope.INDEX || scope == Scope.DATA_STREAM;
         }
-        
+
         @Override
         public boolean isDataStreamPrivilege() {
             return scope == Scope.DATA_STREAM;
         }
-        
+
         @Override
         public boolean isClusterPrivilege() {
             return scope == Scope.CLUSTER;
@@ -541,6 +551,11 @@ public interface Action {
         public AliasDataStreamHandling aliasDataStreamHandling() {
             return AliasDataStreamHandling.RESOLVE_IF_NECESSARY;
         }
+
+        @Override
+        public Meta.Alias.ResolutionMode aliasResolutionMode() {
+            return Meta.Alias.ResolutionMode.NORMAL;
+        }
     }
- 
+
 }
