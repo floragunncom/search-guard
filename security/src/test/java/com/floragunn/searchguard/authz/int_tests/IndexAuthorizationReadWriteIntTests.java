@@ -447,7 +447,7 @@ public class IndexAuthorizationReadWriteIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
             HttpResponse httpResponse = restClient.putJson("/alias_ab1w/_doc/put_doc_alias_test_1", DocNode.of("a", 1));
 
-            if (containsExactly(alias_ab1w).but(user.indexMatcher("write")).isEmpty()) {
+            if (containsExactly(alias_ab1w, index_aw1).but(user.indexMatcher("write")).isEmpty()) {
                 assertThat(httpResponse, isForbidden());
             } else {
                 assertThat(httpResponse, containsExactly(index_aw1).at("_index").but(user.indexMatcher("write")).whenEmpty(403));
