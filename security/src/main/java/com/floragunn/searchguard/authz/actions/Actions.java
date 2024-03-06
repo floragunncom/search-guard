@@ -166,6 +166,8 @@ import com.floragunn.searchguard.authc.internal_users_db.InternalUsersConfigApi;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.authc.session.backend.SessionApi;
 import com.floragunn.searchguard.authz.ActionAuthorization.AliasDataStreamHandling;
+import com.floragunn.searchguard.authz.actions.Action.AdditionalDimension;
+import com.floragunn.searchguard.authz.actions.Action.Scope;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.AdditionalPrivileges;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.NewResource;
@@ -179,10 +181,10 @@ import com.floragunn.searchsupport.meta.Meta;
 import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 import com.floragunn.searchsupport.xcontent.AttributeValueFromXContent;
 
+import static com.floragunn.searchguard.authz.actions.Action.AdditionalDimension.*;
+
 public class Actions {
     private final ImmutableMap<String, Action> actionMap;
-    private final ImmutableSet<WellKnownAction<?, ?, ?>> indexActions;
-    private final ImmutableSet<WellKnownAction<?, ?, ?>> dataStreamActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> clusterActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> tenantActions;
@@ -197,19 +199,19 @@ public class Actions {
         //
         // Additionally, extended settings are applied for some actions, such as additionally needed privileges.
 
-        index(IndexAction.INSTANCE).aliasesResolveToWriteTarget();
-        index(GetAction.INSTANCE);
-        index(TermVectorsAction.INSTANCE);
-        index(DeleteAction.INSTANCE);
-        index(UpdateAction.INSTANCE);
-        index(SearchAction.INSTANCE);
-        index(ExplainAction.INSTANCE);
-        index(ResolveIndexAction.INSTANCE);
+        indexLike(IndexAction.INSTANCE).aliasesResolveToWriteTarget();
+        indexLike(GetAction.INSTANCE);
+        indexLike(TermVectorsAction.INSTANCE);
+        indexLike(DeleteAction.INSTANCE);
+        indexLike(UpdateAction.INSTANCE);
+        indexLike(SearchAction.INSTANCE);
+        indexLike(ExplainAction.INSTANCE);
+        indexLike(ResolveIndexAction.INSTANCE);
 
-        index(UpdateByQueryAction.INSTANCE);
-        index(DeleteByQueryAction.INSTANCE);
+        indexLike(UpdateByQueryAction.INSTANCE);
+        indexLike(DeleteByQueryAction.INSTANCE);
 
-        index(TransportShardBulkAction.ACTION_NAME)//
+        indexLike(TransportShardBulkAction.ACTION_NAME)//
                 .requestType(BulkShardRequest.class)//
                 .requestItemsA(BulkShardRequest::items, (item) -> item.request().opType())
                 .requiresAdditionalPrivilegesForItemType(DocWriteRequest.OpType.DELETE, "indices:data/write/delete")
@@ -217,10 +219,10 @@ public class Actions {
                 .requiresAdditionalPrivilegesForItemType(DocWriteRequest.OpType.CREATE, "indices:data/write/index")
                 .requiresAdditionalPrivilegesForItemType(DocWriteRequest.OpType.UPDATE, "indices:data/write/index");
 
-        index(ClusterSearchShardsAction.INSTANCE) //
+        indexLike(ClusterSearchShardsAction.INSTANCE) //
                 .requiresAdditionalPrivileges(always(), "indices:data/read/search");
 
-        index(MultiGetAction.NAME + "[shard]");
+        indexLike(MultiGetAction.NAME + "[shard]");
 
         cluster(MultiGetAction.INSTANCE);
         cluster(BulkAction.INSTANCE);
@@ -231,33 +233,30 @@ public class Actions {
         cluster("indices:data/read/search/template");
         cluster("indices:data/read/msearch/template");
 
-        index(IndicesStatsAction.INSTANCE);
-        index(IndicesSegmentsAction.INSTANCE);
-        index(IndicesShardStoresAction.INSTANCE);
-        index(CreateIndexAction.INSTANCE) //
-                .requestType(CreateIndexRequest.class)//
-                .requiresAdditionalPrivileges(ifNotEmpty(CreateIndexRequest::aliases), "indices:admin/aliases");
+        indexLike(IndicesStatsAction.INSTANCE);
+        indexLike(IndicesSegmentsAction.INSTANCE);
+        indexLike(IndicesShardStoresAction.INSTANCE);
 
-        index(ResizeAction.INSTANCE);
-        index(RolloverAction.INSTANCE);
-        index(DeleteIndexAction.INSTANCE);
-        index(GetIndexAction.INSTANCE);
+        index(CreateIndexAction.INSTANCE).additionalDimensions(MANAGE_ALIASES);
         index(OpenIndexAction.INSTANCE);
         index(CloseIndexAction.INSTANCE);
-        index(IndicesExistsAction.INSTANCE);
-        index(AddIndexBlockAction.INSTANCE);
-        index(GetMappingsAction.INSTANCE);
-        index(GetFieldMappingsAction.INSTANCE);
-        index(PutMappingAction.INSTANCE);
-        index(AutoPutMappingAction.INSTANCE);
+        index(ResizeAction.INSTANCE).additionalDimensions(RESIZE_TARGET);
 
-        index(IndicesAliasesAction.INSTANCE) //
-                .requestType(IndicesAliasesRequest.class)//
-                .requestItems(IndicesAliasesRequest::getAliasActions, IndicesAliasesRequest.AliasActions::actionType);
+        indexLike(RolloverAction.INSTANCE);
+        indexLike(DeleteIndexAction.INSTANCE);
+        indexLike(GetIndexAction.INSTANCE);
+        indexLike(IndicesExistsAction.INSTANCE);
+        indexLike(AddIndexBlockAction.INSTANCE);
+        indexLike(GetMappingsAction.INSTANCE);
+        indexLike(GetFieldMappingsAction.INSTANCE);
+        indexLike(PutMappingAction.INSTANCE);
+        indexLike(AutoPutMappingAction.INSTANCE);
 
-        index(UpdateSettingsAction.INSTANCE);
-        index(AnalyzeAction.INSTANCE);
-        index(AutoCreateAction.INSTANCE);
+        indexLike(IndicesAliasesAction.INSTANCE).additionalDimensions(ALIASES);
+
+        indexLike(UpdateSettingsAction.INSTANCE);
+        indexLike(AnalyzeAction.INSTANCE);
+        indexLike(AutoCreateAction.INSTANCE);
 
         cluster(ClearScrollAction.INSTANCE);
         cluster(RecoveryAction.INSTANCE);
@@ -327,22 +326,22 @@ public class Actions {
         cluster(SimulateIndexTemplateAction.INSTANCE);
         cluster(SimulateTemplateAction.INSTANCE);
 
-        index(ValidateQueryAction.INSTANCE);
-        index(RefreshAction.INSTANCE);
-        index(TransportShardRefreshAction.NAME);
-        index(FlushAction.INSTANCE);
-        index(SyncedFlushAction.INSTANCE);
-        index(ForceMergeAction.INSTANCE);
-        index(UpgradeAction.INSTANCE);
-        index(UpgradeStatusAction.INSTANCE);
-        index(UpgradeSettingsAction.INSTANCE);
-        index(ClearIndicesCacheAction.INSTANCE);
+        indexLike(ValidateQueryAction.INSTANCE);
+        indexLike(RefreshAction.INSTANCE);
+        indexLike(TransportShardRefreshAction.NAME);
+        indexLike(FlushAction.INSTANCE);
+        indexLike(SyncedFlushAction.INSTANCE);
+        indexLike(ForceMergeAction.INSTANCE);
+        indexLike(UpgradeAction.INSTANCE);
+        indexLike(UpgradeStatusAction.INSTANCE);
+        indexLike(UpgradeSettingsAction.INSTANCE);
+        indexLike(ClearIndicesCacheAction.INSTANCE);
 
-        index(GetAliasesAction.INSTANCE);
-        index(AliasesExistAction.INSTANCE);
-        index(GetSettingsAction.INSTANCE);
+        indexLike(GetAliasesAction.INSTANCE).additionalDimensions(ALIASES);
+        indexLike(AliasesExistAction.INSTANCE).additionalDimensions(ALIASES);
+        indexLike(GetSettingsAction.INSTANCE);
 
-        index(FieldCapabilitiesAction.INSTANCE);
+        indexLike(FieldCapabilitiesAction.INSTANCE);
 
         cluster(PutStoredScriptAction.INSTANCE);
         cluster(GetStoredScriptAction.INSTANCE);
@@ -415,8 +414,7 @@ public class Actions {
         this.actionMap = builder.build();
 
         ImmutableSet.Builder<WellKnownAction<?, ?, ?>> clusterActions = new ImmutableSet.Builder<>(actionMap.size());
-        ImmutableSet.Builder<WellKnownAction<?, ?, ?>> indexActions = new ImmutableSet.Builder<>(actionMap.size());
-        ImmutableSet.Builder<WellKnownAction<?, ?, ?>> dataStreamActions = new ImmutableSet.Builder<>();
+        ImmutableSet.Builder<WellKnownAction<?, ?, ?>> indexLikeActions = new ImmutableSet.Builder<>(actionMap.size());
         ImmutableSet.Builder<WellKnownAction<?, ?, ?>> tenantActions = new ImmutableSet.Builder<>();
 
         for (Action action : actionMap.values()) {
@@ -424,18 +422,14 @@ public class Actions {
                 clusterActions.add((WellKnownAction<?, ?, ?>) action);
             } else if (action.isTenantPrivilege()) {
                 tenantActions.add((WellKnownAction<?, ?, ?>) action);
-            } else if (action.isDataStreamPrivilege()) {
-                dataStreamActions.add((WellKnownAction<?, ?, ?>) action);
             } else {
-                indexActions.add((WellKnownAction<?, ?, ?>) action);
+                indexLikeActions.add((WellKnownAction<?, ?, ?>) action);
             }
         }
 
         this.clusterActions = clusterActions.build();
-        this.indexActions = indexActions.build();
-        this.dataStreamActions = dataStreamActions.build();
         this.tenantActions = tenantActions.build();
-        this.indexLikeActions = this.indexActions.with(this.dataStreamActions);
+        this.indexLikeActions = indexLikeActions.build();
     }
 
     public Action get(String actionName) {
@@ -452,16 +446,8 @@ public class Actions {
         return clusterActions;
     }
 
-    public ImmutableSet<WellKnownAction<?, ?, ?>> indexActions() {
-        return indexActions;
-    }
-
     public ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActions() {
         return indexLikeActions;
-    }
-
-    public ImmutableSet<WellKnownAction<?, ?, ?>> dataStreamActions() {
-        return dataStreamActions;
     }
 
     public ImmutableSet<WellKnownAction<?, ?, ?>> tenantActions() {
@@ -476,7 +462,7 @@ public class Actions {
         } else if (action.startsWith("searchguard:cluster:") || action.startsWith("cluster:")) {
             return Scope.CLUSTER;
         } else {
-            return Scope.INDEX;
+            return Scope.INDEX_LIKE;
         }
     }
 
@@ -488,12 +474,20 @@ public class Actions {
         return builder.cluster(action);
     }
 
+    private ActionBuilder<?, ?, ?> indexLike(ActionType<?> actionType) {
+        return builder.indexLike(actionType);
+    }
+
+    private ActionBuilder<?, ?, ?> indexLike(String action) {
+        return builder.indexLike(action);
+    }
+
     private ActionBuilder<?, ?, ?> index(ActionType<?> actionType) {
         return builder.index(actionType);
     }
 
-    private ActionBuilder<?, ?, ?> index(String action) {
-        return builder.index(action);
+    private ActionBuilder<?, ?, ?> alias(ActionType<?> actionType) {
+        return builder.alias(actionType);
     }
 
     private ActionBuilder<?, ?, ?> dataStream(String action) {
@@ -528,6 +522,18 @@ public class Actions {
             return builder;
         }
 
+        ActionBuilder<?, ?, ?> indexLike(ActionType<?> actionType) {
+            ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(actionType.name(), Scope.INDEX_LIKE);
+            builders.put(actionType.name(), builder);
+            return builder;
+        }
+
+        ActionBuilder<?, ?, ?> indexLike(String action) {
+            ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(action, Scope.INDEX_LIKE);
+            builders.put(action, builder);
+            return builder;
+        }
+
         ActionBuilder<?, ?, ?> index(ActionType<?> actionType) {
             ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(actionType.name(), Scope.INDEX);
             builders.put(actionType.name(), builder);
@@ -537,6 +543,12 @@ public class Actions {
         ActionBuilder<?, ?, ?> index(String action) {
             ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(action, Scope.INDEX);
             builders.put(action, builder);
+            return builder;
+        }
+
+        ActionBuilder<?, ?, ?> alias(ActionType<?> actionType) {
+            ActionBuilder<ActionRequest, ?, ?> builder = new ActionBuilder<ActionRequest, Void, Void>(actionType.name(), Scope.ALIAS);
+            builders.put(actionType.name(), builder);
             return builder;
         }
 
@@ -586,10 +598,6 @@ public class Actions {
 
     }
 
-    public static enum Scope {
-        INDEX, CLUSTER, TENANT, OPEN, DATA_STREAM;
-    }
-
     class ActionBuilder<RequestType extends ActionRequest, RequestItem, RequestItemType> {
 
         private Class<RequestType> requestType;
@@ -607,6 +615,7 @@ public class Actions {
         private Function<RequestItem, RequestItemType> requestItemTypeFunction;
         private AliasDataStreamHandling aliasDataStreamHandling = AliasDataStreamHandling.RESOLVE_IF_NECESSARY;
         private Meta.Alias.ResolutionMode aliasResolutionMode = Meta.Alias.ResolutionMode.NORMAL;
+        private ImmutableSet<Action.AdditionalDimension> additionalDimensions = ImmutableSet.empty();
 
         ActionBuilder(String actionName, Scope scope) {
             this.actionName = actionName;
@@ -704,6 +713,12 @@ public class Actions {
             return this;
         }
 
+        ActionBuilder<RequestType, RequestItem, RequestItemType> additionalDimensions(Action.AdditionalDimension... additionalDimensions) {
+            this.additionalDimensions = ImmutableSet.ofArray(additionalDimensions);
+
+            return this;
+        }
+
         ActionBuilder<RequestType, RequestItem, RequestItemType> createsResource(String type, Function<ActionResponse, Object> id,
                 Function<ActionResponse, Instant> expiresAfter) {
             createsResource = new NewResource(type, id, expiresAfter);
@@ -724,7 +739,7 @@ public class Actions {
             this.aliasDataStreamHandling = AliasDataStreamHandling.DO_NOT_RESOLVE;
             return this;
         }
-        
+
         ActionBuilder<RequestType, RequestItem, RequestItemType> aliasesResolveToWriteTarget() {
             this.aliasResolutionMode = Meta.Alias.ResolutionMode.TO_WRITE_TARGET;
             return this;
@@ -754,7 +769,7 @@ public class Actions {
             return new Action.WellKnownAction<RequestType, RequestItem, RequestItemType>(actionName, scope, requestType, requestTypeName,
                     ImmutableList.of(additionalPrivileges),
                     additionalPrivilegesByItemType != null ? ImmutableMap.of(additionalPrivilegesByItemType) : ImmutableMap.empty(), requestItems,
-                    resources, this.aliasDataStreamHandling, aliasResolutionMode, Actions.this);
+                    resources, this.aliasDataStreamHandling, aliasResolutionMode, additionalDimensions, Actions.this);
         }
 
     }
