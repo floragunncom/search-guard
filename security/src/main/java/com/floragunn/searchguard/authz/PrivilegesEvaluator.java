@@ -533,14 +533,16 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     && privilegesEvaluationResult.getStatus() == Status.OK_WHEN_RESOLVED) {
 
                 if (authzConfig.isAllowAliasesIfAllIndicesAllowed() && authzConfig.isIgnoreUnauthorizedIndices()
-                        && authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action.name())) {
+                        && authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action.name())
+                        && actionRequestIntrospector.isReduceIndicesAvailable(action, actionRequestInfo)) {
                     // We only come here if no wildcard was requested and ignore_unavailable=false. Thus, normally we won't apply dnfof logic. However, we make
                     // an exception if enabled in the config: aliases.allow_if_all_indices_are_allowed
 
                     privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request,
                             privilegesEvaluationResult.getAvailableIndices(), privilegesEvaluationResult.getAdditionalAvailableIndices(),
                             actionRequestInfo);
-                } else if (actionRequestInfo.getResolvedIndices().getLocal().getAliases().only().resolve(action.aliasResolutionMode()).size() == 1
+                } else if (actionRequestInfo.getResolvedIndices().getLocal().getAliases().size() == 1
+                        && actionRequestInfo.getResolvedIndices().getLocal().getAliases().only().resolve(action.aliasResolutionMode()).size() == 1
                         && privilegesEvaluationResult.getAvailableIndices().size() == 1
                         && (request instanceof GetRequest || request instanceof IndexRequest || request instanceof BulkShardRequest)) {
                     // Special case for actions which can only operate on aliases which contain a single index. 
