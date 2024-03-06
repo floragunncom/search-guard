@@ -38,7 +38,7 @@ class DefaultTenantSelector {
                         .flatMap(accessible -> accessible? Optional.of(Tenant.GLOBAL_TENANT_ID) : Optional.empty()))
                 //return private tenant if it's enabled
                 .or(() -> Optional.ofNullable(tenantsAvailableToUser.get(user.getName()))
-                        .map(tenantAccessData -> user.getName())
+                        .map(tenantAccessData -> User.USER_TENANT)
                 );
 
         return preferredGlobalOrPrivateTenant

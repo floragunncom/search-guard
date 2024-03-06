@@ -203,7 +203,7 @@ public class DefaultTenantSelectorTest {
 
         Optional<String> selectedTenant = tenantSelector.findDefaultTenantForUser(user, tenantAccess, preferredTenants);
         assertThat(selectedTenant.isPresent(), equalTo(true));
-        assertThat(selectedTenant.get(), equalTo(user.getName()));
+        assertThat(selectedTenant.get(), equalTo(User.USER_TENANT));
 
 
         tenantAccess =  tenantAccess.without(user.getName());

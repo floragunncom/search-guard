@@ -309,7 +309,7 @@ public class GetAvailableTenantsActionTest {
 
             HttpResponse response = client.get("/_searchguard/current_user/tenants");
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-            assertThat(response.getBodyAsDocNode(), containsValue("$.data.default_tenant", USER_WITHOUT_ACCESS_TO_ANY_TENANT.getName()));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.data.default_tenant", com.floragunn.searchguard.user.User.USER_TENANT));
 
             cluster.callAndRestoreConfig(FeMultiTenancyConfig.TYPE, () -> {
 
