@@ -129,14 +129,18 @@ public class ActionRequestIntrospector {
                 return new ActionRequestInfo("*", IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN, IndicesRequestInfo.Scope.ANY);
             }
         } else if (request instanceof IndicesRequest) {
-            if (action.isDataStreamPrivilege()) {
+            if (action.scope() == Action.Scope.DATA_STREAM) {
                 return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.DATA_STREAM);
             } else if (request instanceof AliasesRequest) {
                 AliasesRequest aliasesRequest = (AliasesRequest) request;
                 IndicesRequest indicesRequest = (IndicesRequest) request;
+                
+                // We segment all requests implementing AliasesRequest (which is mostly GetAliasRequest) this way:
+                // - The requested indices get into the main ActionRequestInfo object. This can also include data streams.
+                // - The requested aliases get into an additional ActionRequestInfo object with role ALIAS
 
                 return new ActionRequestInfo(indicesRequest.indices(), indicesRequest.indicesOptions(), IndicesRequestInfo.Scope.INDICES_DATA_STREAMS)//
-                        .additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES, aliasesRequest.aliases(),
+                        .additional(Action.AdditionalDimension.ALIASES, aliasesRequest.aliases(),
                                 aliasesRequest.expandAliasesWildcards() ? IndicesOptions.lenientExpandHidden() : EXACT,
                                 IndicesRequestInfo.Scope.ALIAS);
             } else if (request instanceof IndicesAliasesRequest) {
@@ -147,18 +151,18 @@ public class ActionRequestIntrospector {
                     switch (aliasAction.actionType()) {
                     case ADD:
                         result = result.with(aliasAction, IndicesRequestInfo.Scope.INDICES_DATA_STREAMS) //
-                                .additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES, aliasAction.aliases(), EXACT,
+                                .additional(Action.AdditionalDimension.ALIASES, aliasAction.aliases(), EXACT,
                                         IndicesRequestInfo.Scope.ALIAS);
                         break;
                     case REMOVE:
                         result = result.with(aliasAction, IndicesRequestInfo.Scope.INDICES_DATA_STREAMS) //
-                                .additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES, aliasAction.aliases(),
+                                .additional(Action.AdditionalDimension.ALIASES, aliasAction.aliases(),
                                         aliasAction.expandAliasesWildcards() ? IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN : EXACT,
                                         IndicesRequestInfo.Scope.ALIAS);
                         break;
                     case REMOVE_INDEX:
                         // This is the most weird part of IndicesAliasesRequest: You can delete an index - completely unrelated to aliases.
-                        result = result.additional(IndicesRequestInfo.AdditionalInfoRole.DELETE_INDEX, aliasAction, IndicesRequestInfo.Scope.INDICES_DATA_STREAMS);
+                        result = result.additional(Action.AdditionalDimension.DELETE_INDEX, aliasAction, IndicesRequestInfo.Scope.INDICES_DATA_STREAMS);
                         break;
                     }
                 }
@@ -171,7 +175,7 @@ public class ActionRequestIntrospector {
                     return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.ANY);
                 } else {
                     return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.ANY)//
-                            .additional(IndicesRequestInfo.AdditionalInfoRole.MANAGE_ALIASES,
+                            .additional(Action.AdditionalDimension.MANAGE_ALIASES,
                                     ImmutableList.of(createIndexRequest.aliases()).map(a -> a.name()), EXACT, IndicesRequestInfo.Scope.ALIAS);
                 }
             } else if (request instanceof PutMappingRequest) {
@@ -194,7 +198,7 @@ public class ActionRequestIntrospector {
                 ResizeRequest resizeRequest = (ResizeRequest) request;
 
                 return new ActionRequestInfo(resizeRequest.getSourceIndex(), EXACT, IndicesRequestInfo.Scope.ANY).additional(
-                        IndicesRequestInfo.AdditionalInfoRole.RESIZE_TARGET, ((ResizeRequest) request).getTargetIndexRequest(),
+                        Action.AdditionalDimension.RESIZE_TARGET, ((ResizeRequest) request).getTargetIndexRequest(),
                         IndicesRequestInfo.Scope.ANY);
             } else if (request instanceof ResolveIndexAction.Request) {
                 return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.ANY_DISTINCT);
@@ -261,7 +265,7 @@ public class ActionRequestIntrospector {
     }
 
     public PrivilegesEvaluationResult reduceIndices(Action action, Object request, ImmutableSet<String> keepIndices,
-            ImmutableMap<ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole, ImmutableSet<String>> additionalKeepIndices,
+            ImmutableMap<Action.AdditionalDimension, ImmutableSet<String>> additionalKeepIndices,
             ActionRequestInfo actionRequestInfo) throws PrivilegesEvaluationException {
 
         if (request instanceof AnalyzeAction.Request) {
@@ -293,7 +297,7 @@ public class ActionRequestIntrospector {
                     }
                 }
 
-                ImmutableSet<String> keepAliases = additionalKeepIndices.get(ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole.ALIASES);
+                ImmutableSet<String> keepAliases = additionalKeepIndices.get(Action.AdditionalDimension.ALIASES);
                 if (keepAliases != null) {
                     if (!keepAliases.isEmpty()) {
                         aliasesRequest.replaceAliases(toArray(keepAliases));
@@ -433,7 +437,7 @@ public class ActionRequestIntrospector {
             return actionRequestInfo;
         } else {
             return new ActionRequestInfo(indicesRequest,
-                    action.isDataStreamPrivilege() ? IndicesRequestInfo.Scope.DATA_STREAM : IndicesRequestInfo.Scope.ANY);
+                    action.scope() == Action.Scope.DATA_STREAM ? IndicesRequestInfo.Scope.DATA_STREAM : IndicesRequestInfo.Scope.ANY);
         }
     }
 
@@ -476,7 +480,7 @@ public class ActionRequestIntrospector {
         private boolean resolvedIndicesInitialized = false;
         private ResolvedIndices mainResolvedIndices;
         private ResolvedIndices allResolvedIndices;
-        private ImmutableMap<IndicesRequestInfo.AdditionalInfoRole, ResolvedIndices> additionalResolvedIndices;
+        private ImmutableMap<Action.AdditionalDimension, ResolvedIndices> additionalResolvedIndices;
 
         private Boolean containsWildcards;
 
@@ -531,12 +535,12 @@ public class ActionRequestIntrospector {
                     indicesOptions, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
         }
 
-        ActionRequestInfo additional(IndicesRequestInfo.AdditionalInfoRole role, IndicesRequest indices, IndicesRequestInfo.Scope scope) {
+        ActionRequestInfo additional(Action.AdditionalDimension role, IndicesRequest indices, IndicesRequestInfo.Scope scope) {
             return new ActionRequestInfo(unknown, indexRequest,
                     this.indices.with(new IndicesRequestInfo(role, indices, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
         }
 
-        ActionRequestInfo additional(IndicesRequestInfo.AdditionalInfoRole role, Collection<? extends IndicesRequest> requests,
+        ActionRequestInfo additional(Action.AdditionalDimension role, Collection<? extends IndicesRequest> requests,
                 IndicesRequestInfo.Scope scope) {
             Meta meta = metaDataSupplier.get();
             SystemIndexAccess systemIndexAccess = systemIndexAccessSupplier.get();
@@ -544,13 +548,13 @@ public class ActionRequestIntrospector {
                     .with(requests.stream().map(r -> new IndicesRequestInfo(role, r, scope, systemIndexAccess, meta)).collect(Collectors.toList())));
         }
 
-        ActionRequestInfo additional(IndicesRequestInfo.AdditionalInfoRole role, ImmutableList<String> indices, IndicesOptions indicesOptions,
+        ActionRequestInfo additional(Action.AdditionalDimension role, ImmutableList<String> indices, IndicesOptions indicesOptions,
                 IndicesRequestInfo.Scope scope) {
             return new ActionRequestInfo(unknown, indexRequest, this.indices
                     .with(new IndicesRequestInfo(role, indices, indicesOptions, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
         }
 
-        ActionRequestInfo additional(IndicesRequestInfo.AdditionalInfoRole role, String[] indices, IndicesOptions indicesOptions,
+        ActionRequestInfo additional(Action.AdditionalDimension role, String[] indices, IndicesOptions indicesOptions,
                 IndicesRequestInfo.Scope scope) {
             return this.additional(role, ImmutableList.ofArray(indices), indicesOptions, scope);
         }
@@ -603,7 +607,7 @@ public class ActionRequestIntrospector {
             return mainResolvedIndices;
         }
 
-        public ImmutableMap<IndicesRequestInfo.AdditionalInfoRole, ResolvedIndices> getAdditionalResolvedIndices() {
+        public ImmutableMap<Action.AdditionalDimension, ResolvedIndices> getAdditionalResolvedIndices() {
             if (!resolvedIndicesInitialized) {
                 initResolvedIndices();
                 resolvedIndicesInitialized = true;
@@ -652,7 +656,7 @@ public class ActionRequestIntrospector {
                 additionalResolvedIndices = ImmutableMap.empty();
             } else {
                 ResolvedIndices mainResolvedIndices = EMPTY;
-                ImmutableMap<IndicesRequestInfo.AdditionalInfoRole, ResolvedIndices> additionalResolvedIndicesMap = ImmutableMap.empty();
+                ImmutableMap<Action.AdditionalDimension, ResolvedIndices> additionalResolvedIndicesMap = ImmutableMap.empty();
 
                 for (IndicesRequestInfo info : indices) {
                     ResolvedIndices singleResolved = info.resolveIndices();
@@ -705,7 +709,7 @@ public class ActionRequestIntrospector {
         private final IndicesOptions indicesOptions;
         private final boolean allowsRemoteIndices;
         private final boolean includeDataStreams;
-        private final IndicesRequestInfo.AdditionalInfoRole role;
+        private final Action.AdditionalDimension role;
         private final boolean expandWildcards;
         private final boolean isAll;
         private final boolean containsWildcards;
@@ -718,7 +722,7 @@ public class ActionRequestIntrospector {
         private final ImmutableList<String> localIndices;
         private final Scope scope;
 
-        IndicesRequestInfo(IndicesRequestInfo.AdditionalInfoRole role, IndicesRequest indicesRequest, Scope scope,
+        IndicesRequestInfo(Action.AdditionalDimension role, IndicesRequest indicesRequest, Scope scope,
                 SystemIndexAccess systemIndexAccess, Meta indexMetadata) {
             this.indices = indicesRequest.indices() != null ? ImmutableList.ofArray(indicesRequest.indices()) : ImmutableList.empty();
             this.indicesArray = indicesRequest.indices();
@@ -742,7 +746,7 @@ public class ActionRequestIntrospector {
 
         }
 
-        IndicesRequestInfo(IndicesRequestInfo.AdditionalInfoRole role, String index, IndicesOptions indicesOptions, Scope scope,
+        IndicesRequestInfo(Action.AdditionalDimension role, String index, IndicesOptions indicesOptions, Scope scope,
                 SystemIndexAccess systemIndexAccess, Meta indexMetadata) {
             this.indices = ImmutableList.of(index);
             this.indicesArray = new String[] { index };
@@ -765,7 +769,7 @@ public class ActionRequestIntrospector {
             this.systemIndexAccess = systemIndexAccess;
         }
 
-        IndicesRequestInfo(IndicesRequestInfo.AdditionalInfoRole role, List<String> indices, IndicesOptions indicesOptions, Scope scope,
+        IndicesRequestInfo(Action.AdditionalDimension role, List<String> indices, IndicesOptions indicesOptions, Scope scope,
                 SystemIndexAccess systemIndexAccess, Meta indexMetadata) {
             this.indices = ImmutableList.of(indices);
             this.indicesArray = indices.toArray(new String[indices.size()]);
@@ -1010,58 +1014,6 @@ public class ActionRequestIntrospector {
             }
         }
 
-        public static class AdditionalInfoRole {
-            public static final AdditionalInfoRole ALIASES = new AdditionalInfoRole("aliases");
-            public static final AdditionalInfoRole RESIZE_TARGET = new AdditionalInfoRole("resize_target",
-                    ImmutableSet.ofArray("indices:admin/create"));
-            public static final AdditionalInfoRole MANAGE_ALIASES = new AdditionalInfoRole("manage_aliases",
-                    ImmutableSet.ofArray("indices:admin/aliases"));
-            public static final AdditionalInfoRole DELETE_INDEX = new AdditionalInfoRole("delete_index",
-                    ImmutableSet.ofArray("indices:admin/delete"));
-            
-            private final String id;
-            private final ImmutableSet<String> requiredPrivileges;
-
-            public AdditionalInfoRole(String id) {
-                this.id = id;
-                this.requiredPrivileges = null;
-            }
-
-            public AdditionalInfoRole(String id, ImmutableSet<String> requiredPrivileges) {
-                this.id = id;
-                this.requiredPrivileges = requiredPrivileges;
-            }
-
-            public ImmutableSet<Action> getRequiredPrivileges(ImmutableSet<Action> original, Actions actions) {
-                if (this.requiredPrivileges == null) {
-                    return original;
-                } else {
-                    return this.requiredPrivileges.map(a -> actions.get(a));
-                }
-            }
-
-            @Override
-            public int hashCode() {
-                return id.hashCode();
-            }
-
-            @Override
-            public boolean equals(Object other) {
-                if (this == other) {
-                    return true;
-                }
-                if (!(other instanceof AdditionalInfoRole)) {
-                    return false;
-                }
-                return (((AdditionalInfoRole) other).id.equals(this.id));
-            }
-
-            @Override
-            public String toString() {
-                return id;
-            }
-
-        }
     }
 
     private final ActionRequestInfo UNKNOWN = new ActionRequestInfo(true, false);
@@ -1354,7 +1306,7 @@ public class ActionRequestIntrospector {
             
                 return ImmutableSet.empty();
             }*/
-
+            
             public ImmutableSet<String> resolveDeep(ImmutableSet<? extends Meta.IndexCollection> aliasesAndDataStreams) {
                 // TODO think about moving to meta
                 if (aliasesAndDataStreams.size() == 0) {
@@ -1362,18 +1314,18 @@ public class ActionRequestIntrospector {
                 }
 
                 if (aliasesAndDataStreams.size() == 1) {
-                    return aliasesAndDataStreams.only().resolveDeepToNames();
+                    return aliasesAndDataStreams.only().resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL);
                 }
 
                 ImmutableSet.Builder<String> result = new ImmutableSet.Builder<>(aliasesAndDataStreams.size() * 20);
 
                 for (Meta.IndexCollection object : aliasesAndDataStreams) {
-                    result.addAll(object.resolveDeepToNames());
+                    result.addAll(object.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL));
                 }
 
                 return result.build();
             }
-
+    
             public boolean hasAliasOrDataStreamMembers() {
                 Boolean result = this.containsAliasOrDataStreamMembers;
 

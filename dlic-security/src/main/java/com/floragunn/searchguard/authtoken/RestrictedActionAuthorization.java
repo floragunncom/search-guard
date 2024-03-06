@@ -55,16 +55,16 @@ public class RestrictedActionAuthorization implements ActionAuthorization {
 
     @Override
     public PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, Action primaryAction, ImmutableSet<Action> actions,
-            ResolvedIndices resolvedIndices, AliasDataStreamHandling aliasDataStreamHandling) throws PrivilegesEvaluationException {
+            ResolvedIndices resolvedIndices, Action.Scope scope) throws PrivilegesEvaluationException {
         PrivilegesEvaluationResult restrictedPermission = restrictionSgRoles
-                .hasIndexPermission(context.mappedRoles(RequestedPrivileges.RESTRICTION_ROLES), primaryAction, actions, resolvedIndices, aliasDataStreamHandling);
+                .hasIndexPermission(context.mappedRoles(RequestedPrivileges.RESTRICTION_ROLES), primaryAction, actions, resolvedIndices, scope);
 
         if (restrictedPermission.getStatus() != PrivilegesEvaluationResult.Status.OK) {
             // Don't calculate base permission if we already know we will get an empty set
             return restrictedPermission.reason("Privilege was not requested for token");
         }
 
-        return base.hasIndexPermission(context, primaryAction, actions, resolvedIndices, aliasDataStreamHandling);
+        return base.hasIndexPermission(context, primaryAction, actions, resolvedIndices, scope);
     }
 
     @Override

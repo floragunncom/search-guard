@@ -33,8 +33,6 @@ import org.junit.Test;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.SystemIndexAccess;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.IndicesRequestInfo;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.IndicesRequestInfo.AdditionalInfoRole;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchsupport.meta.Meta;
 import com.floragunn.searchsupport.meta.Meta.IndexLikeObject;
@@ -54,7 +52,7 @@ public class ActionRequestIntrospectorTest {
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(GetAliasesAction.NAME), request);
         assertThat(requestInfo, resolved(//
                 main().hasIndices("index_a11", "index_a12", "index_a21", "index_a22").hasNoAliases().hasNoDataStreams(),
-                additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES).hasNoIndices().hasAliases("alias_a1", "alias_a2").hasNoDataStreams()));
+                additional(Action.AdditionalDimension.ALIASES).hasNoIndices().hasAliases("alias_a1", "alias_a2").hasNoDataStreams()));
     }
 
     @Test
@@ -63,7 +61,7 @@ public class ActionRequestIntrospectorTest {
                 .indicesOptions(IndicesOptions.strictSingleIndexNoExpandForbidClosed());
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(GetAliasesAction.NAME), request);
         assertThat(requestInfo, resolved(//
-                main().hasIndices("index_a1*").hasNoAliases().hasNoDataStreams(), additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES)
+                main().hasIndices("index_a1*").hasNoAliases().hasNoDataStreams(), additional(Action.AdditionalDimension.ALIASES)
                         .hasNoIndices().hasAliases("alias_a", "alias_a1", "alias_a2").hasNoDataStreams()));
     }
 
@@ -74,7 +72,7 @@ public class ActionRequestIntrospectorTest {
 
         assertThat(requestInfo, resolved(//
                 main().hasIndices("index_a11").hasNoAliases().hasNoDataStreams(),
-                additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES).hasNoIndices().hasAliases("alias_ax").hasNoDataStreams()));
+                additional(Action.AdditionalDimension.ALIASES).hasNoIndices().hasAliases("alias_ax").hasNoDataStreams()));
 
     }
 
@@ -85,7 +83,7 @@ public class ActionRequestIntrospectorTest {
 
         assertThat(requestInfo, resolved(//
                 main().hasIndices("index_a11").hasNoAliases().hasNoDataStreams(),
-                additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES).hasNoIndices().hasAliases("alias_a*").hasNoDataStreams()));
+                additional(Action.AdditionalDimension.ALIASES).hasNoIndices().hasAliases("alias_a*").hasNoDataStreams()));
 
     }
 
@@ -96,7 +94,7 @@ public class ActionRequestIntrospectorTest {
 
         assertThat(requestInfo, resolved(//
                 main().hasIndices("index_a11").hasNoAliases().hasNoDataStreams(), //
-                additional(IndicesRequestInfo.AdditionalInfoRole.ALIASES).hasNoIndices().hasAliases("alias_a", "alias_a1", "alias_a2")
+                additional(Action.AdditionalDimension.ALIASES).hasNoIndices().hasAliases("alias_a", "alias_a1", "alias_a2")
                         .hasNoDataStreams()));
 
     }
@@ -108,7 +106,7 @@ public class ActionRequestIntrospectorTest {
 
         assertThat(requestInfo, resolved(//
                 main().hasNoIndices().hasNoAliases().hasNoDataStreams(), //
-                additional(IndicesRequestInfo.AdditionalInfoRole.DELETE_INDEX).hasIndices("index_a11", "index_a12").hasNoAliases().hasNoDataStreams()));
+                additional(Action.AdditionalDimension.DELETE_INDEX).hasIndices("index_a11", "index_a12").hasNoAliases().hasNoDataStreams()));
     }
 
     @Test
@@ -159,17 +157,17 @@ public class ActionRequestIntrospectorTest {
         return new ResolvedIndicesMatcher(null, null, null, null);
     }
 
-    static ResolvedIndicesMatcher additional(AdditionalInfoRole role) {
+    static ResolvedIndicesMatcher additional(Action.AdditionalDimension role) {
         return new ResolvedIndicesMatcher(role, null, null, null);
     }
 
     static class ResolvedIndicesMatcher extends DiagnosingMatcher<ActionRequestInfo> {
-        private final IndicesRequestInfo.AdditionalInfoRole role;
+        private final Action.AdditionalDimension role;
         private final IndicesMatcher indicesMatcher;
         private final AliasesMatcher aliasesMatcher;
         private final DataStreamsMatcher dataStreamsMatcher;
 
-        ResolvedIndicesMatcher(AdditionalInfoRole role, IndicesMatcher indicesMatcher, AliasesMatcher aliasesMatcher,
+        ResolvedIndicesMatcher(Action.AdditionalDimension role, IndicesMatcher indicesMatcher, AliasesMatcher aliasesMatcher,
                 DataStreamsMatcher dataStreamsMatcher) {
             super();
             this.role = role;

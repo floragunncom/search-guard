@@ -73,9 +73,9 @@ public interface Meta extends Document<Meta> {
     interface IndexLikeObject extends Document<IndexLikeObject> {
         String name();
 
-        ImmutableSet<IndexOrNonExistent> resolveDeep();
+        ImmutableSet<IndexOrNonExistent> resolveDeep(Alias.ResolutionMode resolutionMode);
 
-        ImmutableSet<String> resolveDeepToNames();
+        ImmutableSet<String> resolveDeepToNames(Alias.ResolutionMode resolutionMode);
 
         ImmutableSet<Alias> parentAliases();
 
@@ -111,21 +111,21 @@ public interface Meta extends Document<Meta> {
     interface IndexCollection extends IndexLikeObject {
         UnmodifiableCollection<IndexLikeObject> members();
 
-        ImmutableSet<Index> resolveDeepAsIndex();
+        ImmutableSet<Index> resolveDeepAsIndex(Alias.ResolutionMode resolutionMode);
 
-        static ImmutableSet<Index> resolveDeep(ImmutableSet<? extends Meta.IndexCollection> aliasesAndDataStreams) {
+        static ImmutableSet<Index> resolveDeep(ImmutableSet<? extends Meta.IndexCollection> aliasesAndDataStreams, Alias.ResolutionMode resolutionMode) {
             if (aliasesAndDataStreams.size() == 0) {
                 return ImmutableSet.empty();
             }
 
             if (aliasesAndDataStreams.size() == 1) {
-                return aliasesAndDataStreams.only().resolveDeepAsIndex();
+                return aliasesAndDataStreams.only().resolveDeepAsIndex(resolutionMode);
             }
 
             ImmutableSet.Builder<Index> result = new ImmutableSet.Builder<>(aliasesAndDataStreams.size() * 20);
 
             for (Meta.IndexCollection object : aliasesAndDataStreams) {
-                result.addAll(object.resolveDeepAsIndex());
+                result.addAll(object.resolveDeepAsIndex(resolutionMode));
             }
 
             return result.build();
