@@ -534,7 +534,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
                 if (authzConfig.isAllowAliasesIfAllIndicesAllowed() && authzConfig.isIgnoreUnauthorizedIndices()
                         && authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action.name())
-                        && actionRequestIntrospector.isReduceIndicesAvailable(action, actionRequestInfo)) {
+                        && actionRequestIntrospector.isReduceIndicesAvailable(action, request)) {
                     // We only come here if no wildcard was requested and ignore_unavailable=false. Thus, normally we won't apply dnfof logic. However, we make
                     // an exception if enabled in the config: aliases.allow_if_all_indices_are_allowed
 
