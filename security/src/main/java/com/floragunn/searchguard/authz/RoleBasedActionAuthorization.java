@@ -58,7 +58,6 @@ import com.floragunn.searchsupport.meta.Meta;
 /**
  * TODO aliases create deep exclusions
  *
- * TODO resolve to write index
  */
 public class RoleBasedActionAuthorization implements ActionAuthorization, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(RoleBasedActionAuthorization.class);
@@ -201,8 +200,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     }
 
     @Override
-    public PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, ImmutableSet<Action> actions, ResolvedIndices resolved,
-            AliasDataStreamHandling aliasDataStreamHandling) throws PrivilegesEvaluationException {
+    public PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, Action primaryAction, ImmutableSet<Action> actions,
+            ResolvedIndices resolved, AliasDataStreamHandling aliasDataStreamHandling) throws PrivilegesEvaluationException {
         if (metricsLevel.basicEnabled()) {
             actions.forEach((action) -> {
                 indexActionTypes.increment();
@@ -232,7 +231,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 // If we have a query on all indices, first check for roles which give privileges for *. Thus, we avoid costly index resolutions
 
                 final Meta.IndexLikeObject rowKey = Meta.NonExistent.STAR;
-                
+
                 try (Meter subMeter = meter.basic("local_all")) {
                     CheckTable<Meta.IndexLikeObject, Action> checkTable = CheckTable.create(rowKey, actions);
 
@@ -403,7 +402,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     for (Meta.Alias alias : incompleteAliasesForDataStreams) {
                         int nonDataStreamMembers = 0;
 
-                        for (Meta.IndexLikeObject member : alias.members()) {
+                        for (Meta.IndexLikeObject member : alias.resolve(primaryAction.aliasResolutionMode())) {
                             if (member instanceof Meta.DataStream) {
                                 resolvedDataStreamsBuilder.add((Meta.DataStream) member);
                             } else {
@@ -429,9 +428,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                         if (semiDeepCheckTable.isComplete()) {
                             indexActionCheckResults_partially.increment();
-                            return PrivilegesEvaluationResult.OK_WHEN_RESOLVED.availableIndices(
-                                    semiDeepCheckTable.getCompleteRows(), semiDeepCheckTable.with(shallowCheckTable),
-                                    localContext.errors);
+                            return PrivilegesEvaluationResult.OK_WHEN_RESOLVED.availableIndices(semiDeepCheckTable.getCompleteRows(),
+                                    semiDeepCheckTable.with(shallowCheckTable), localContext.errors);
                         }
 
                         // Note: statefulIndex.hasPermission() modifies as a side effect the checkTable. 
@@ -455,9 +453,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                     if (semiDeepCheckTable.isComplete()) {
                         indexActionCheckResults_partially.increment();
-                        return PrivilegesEvaluationResult.OK_WHEN_RESOLVED.availableIndices(
-                                semiDeepCheckTable.getCompleteRows(), semiDeepCheckTable.with(shallowCheckTable),
-                                localContext.errors);
+                        return PrivilegesEvaluationResult.OK_WHEN_RESOLVED.availableIndices(semiDeepCheckTable.getCompleteRows(),
+                                semiDeepCheckTable.with(shallowCheckTable), localContext.errors);
                     }
 
                     prevCheckTable = semiDeepCheckTable;
@@ -486,8 +483,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                     if (deepCheckTable.isComplete()) {
                         indexActionCheckResults_partially.increment();
-                        return PrivilegesEvaluationResult.OK_WHEN_RESOLVED.availableIndices(
-                                deepCheckTable.getCompleteRows(), deepCheckTable, localContext.errors);
+                        return PrivilegesEvaluationResult.OK_WHEN_RESOLVED.availableIndices(deepCheckTable.getCompleteRows(), deepCheckTable,
+                                localContext.errors);
                     }
 
                     // Note: statefulIndex.hasPermission() modifies as a side effect the checkTable. 
