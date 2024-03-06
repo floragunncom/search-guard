@@ -156,17 +156,19 @@ public class PrivilegesEvaluationResult {
 
     public PrivilegesEvaluationResult availableIndices(ImmutableSet<Meta.IndexLikeObject> availableIndices,
             CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable, ImmutableList<Error> errors) {
-        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices.map(Meta.IndexLikeObject::name), this.additionalAvailableIndices,
-                indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, errors, this.additionalActionFilters);
-    }
-    
-    public PrivilegesEvaluationResult availableIndices(ImmutableSet<Meta.IndexLikeObject> availableIndices,
-            CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable) {
-        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices.map(Meta.IndexLikeObject::name), this.additionalAvailableIndices,
-                indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, errors, this.additionalActionFilters);
+        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices.map(Meta.IndexLikeObject::name),
+                this.additionalAvailableIndices, indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, errors,
+                this.additionalActionFilters);
     }
 
-/*
+    public PrivilegesEvaluationResult availableIndices(ImmutableSet<Meta.IndexLikeObject> availableIndices,
+            CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable) {
+        return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices.map(Meta.IndexLikeObject::name),
+                this.additionalAvailableIndices, indexToActionPrivilegeTable, this.additionalIndexToActionPrivilegeTables, errors,
+                this.additionalActionFilters);
+    }
+
+    /*
     public PrivilegesEvaluationResult availableIndices(ImmutableSet<String> availableIndices,
             CheckTable<Meta.IndexLikeObject, Action> indexToActionPrivilegeTable) {
         return new PrivilegesEvaluationResult(this.status, this.reason, availableIndices, this.additionalAvailableIndices,
@@ -339,7 +341,35 @@ public class PrivilegesEvaluationResult {
     }
 
     public static enum Status {
-        OK, PARTIALLY_OK, OK_WHEN_RESOLVED, EMPTY, INSUFFICIENT, PENDING;
+        /**
+         * The user has all necessary privileges for a action request
+         */
+        OK,
+
+        /**
+        * The user does not have privileges for all requested indices (or aliases or data streams), but for some of the requested indices (or aliases or data streams)
+        */
+        PARTIALLY_OK,
+
+        /**
+         * The user does not have privileges for the requested aliases, but for all indices requested by the aliases.
+         */
+        OK_WHEN_RESOLVED,
+
+        /**
+         * The user does not have any privileges for the requested indices. The user shall get an empty result as response.
+         */
+        EMPTY,
+
+        /**
+         * The user does not have any privileges for the requested indices. The user shall get an error as response.
+         */
+        INSUFFICIENT,
+
+        /**
+         * The current code could not finally determine the authorization status.
+         */
+        PENDING;
     }
 
     public static class Error {
@@ -475,10 +505,9 @@ public class PrivilegesEvaluationResult {
     private List<String> getFlattenedIndexToActionPrivilegeTable() {
         List<String> result = new ArrayList<>();
 
-        for (Object index : this.indexToActionPrivilegeTable.getRows()) {
+        for (Meta.IndexLikeObject index : this.indexToActionPrivilegeTable.getRows()) {
             for (Action action : this.indexToActionPrivilegeTable.getColumns()) {
-                // TODO
-                if (!((CheckTable) this.indexToActionPrivilegeTable).isChecked(index, action)) {
+                if (!this.indexToActionPrivilegeTable.isChecked(index, action)) {
                     result.add(index + ": " + action);
                 }
             }

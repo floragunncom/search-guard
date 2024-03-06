@@ -73,7 +73,6 @@ import org.elasticsearch.action.admin.cluster.storedscripts.PutStoredScriptActio
 import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
@@ -176,6 +175,7 @@ import com.floragunn.searchguard.configuration.api.BulkConfigApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
 import com.floragunn.searchguard.modules.api.GetComponentStateAction;
+import com.floragunn.searchsupport.meta.Meta;
 import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 import com.floragunn.searchsupport.xcontent.AttributeValueFromXContent;
 
@@ -197,7 +197,7 @@ public class Actions {
         //
         // Additionally, extended settings are applied for some actions, such as additionally needed privileges.
 
-        index(IndexAction.INSTANCE);
+        index(IndexAction.INSTANCE).aliasesResolveToWriteTarget();
         index(GetAction.INSTANCE);
         index(TermVectorsAction.INSTANCE);
         index(DeleteAction.INSTANCE);
@@ -606,6 +606,7 @@ public class Actions {
         private Function<RequestType, Collection<RequestItem>> requestItemFunction;
         private Function<RequestItem, RequestItemType> requestItemTypeFunction;
         private AliasDataStreamHandling aliasDataStreamHandling = AliasDataStreamHandling.RESOLVE_IF_NECESSARY;
+        private Meta.Alias.ResolutionMode aliasResolutionMode = Meta.Alias.ResolutionMode.NORMAL;
 
         ActionBuilder(String actionName, Scope scope) {
             this.actionName = actionName;
@@ -723,6 +724,11 @@ public class Actions {
             this.aliasDataStreamHandling = AliasDataStreamHandling.DO_NOT_RESOLVE;
             return this;
         }
+        
+        ActionBuilder<RequestType, RequestItem, RequestItemType> aliasesResolveToWriteTarget() {
+            this.aliasResolutionMode = Meta.Alias.ResolutionMode.TO_WRITE_TARGET;
+            return this;
+        }
 
         <PropertyType> ActionBuilder<RequestType, RequestItem, RequestItemType> setRequestProperty(String name, Class<PropertyType> type,
                 Function<PropertyType, PropertyType> function) {
@@ -748,7 +754,7 @@ public class Actions {
             return new Action.WellKnownAction<RequestType, RequestItem, RequestItemType>(actionName, scope, requestType, requestTypeName,
                     ImmutableList.of(additionalPrivileges),
                     additionalPrivilegesByItemType != null ? ImmutableMap.of(additionalPrivilegesByItemType) : ImmutableMap.empty(), requestItems,
-                    resources, this.aliasDataStreamHandling, Actions.this);
+                    resources, this.aliasDataStreamHandling, aliasResolutionMode, Actions.this);
         }
 
     }

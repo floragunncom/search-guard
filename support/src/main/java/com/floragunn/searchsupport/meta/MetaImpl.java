@@ -105,11 +105,13 @@ public abstract class MetaImpl implements Meta {
 
     public static class AliasImpl extends AbstractIndexCollection<AliasImpl> implements Meta.Alias {
         private final IndexLikeObject writeTarget;
+        private final ImmutableSet<IndexLikeObject> writeTargetAsSet;
 
         public AliasImpl(DefaultMetaImpl root, String name, UnmodifiableCollection<IndexLikeObject> members, boolean hidden,
                 IndexLikeObject writeTarget) {
             super(root, name, ImmutableSet.empty(), null, members, hidden);
             this.writeTarget = writeTarget;
+            this.writeTargetAsSet = writeTarget != null ? ImmutableSet.of(writeTarget) : null;
         }
 
         @Override
@@ -151,6 +153,15 @@ public abstract class MetaImpl implements Meta {
         @Override
         public IndexLikeObject writeTarget() {
             return writeTarget;
+        }
+
+        @Override
+        public UnmodifiableCollection<IndexLikeObject> resolve(ResolutionMode resolutionMode) {
+            if (resolutionMode == ResolutionMode.TO_WRITE_TARGET) {
+                return writeTargetAsSet;
+            } else {
+                return members();
+            }
         }
     }
 
@@ -928,6 +939,11 @@ public abstract class MetaImpl implements Meta {
         @Override
         public IndexLikeObject writeTarget() {
             return null;
+        }
+
+        @Override
+        public UnmodifiableCollection<IndexLikeObject> resolve(ResolutionMode resolutionMode) {
+            return ImmutableList.empty();
         }
 
     }
