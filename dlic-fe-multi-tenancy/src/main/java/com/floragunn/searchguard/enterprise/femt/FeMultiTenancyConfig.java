@@ -36,7 +36,7 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
     public static CType<FeMultiTenancyConfig> TYPE = new CType<FeMultiTenancyConfig>("frontend_multi_tenancy", "Frontend Multi-Tenancy", 10001,
             FeMultiTenancyConfig.class, FeMultiTenancyConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
 
-    static final FeMultiTenancyConfig DEFAULT = new FeMultiTenancyConfig(null, true,
+    static final FeMultiTenancyConfig DEFAULT = new FeMultiTenancyConfig(null, false,
             "kibanaserver", ".kibana", true, true, ImmutableList.empty());
 
     private final DocNode source;
