@@ -16,24 +16,23 @@ package com.floragunn.searchguard.enterprise.dlsfls;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.ConstantScoreQuery;
 import org.elasticsearch.index.query.ParsedQuery;
 import org.elasticsearch.index.shard.SearchOperationListener;
 import org.elasticsearch.search.internal.SearchContext;
 
-import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
-import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import com.floragunn.searchsupport.meta.Meta;
 
 public class DlsFlsSearchOperationListener implements SearchOperationListener, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(DlsFlsSearchOperationListener.class);
@@ -89,15 +88,18 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
                 throw new IllegalStateException("Authorization configuration is not yet initialized");
             }
 
-            String index = searchContext.indexShard().indexSettings().getIndex().getName();
+            Meta indexMetaData = dlsFlsBaseContext.getIndexMetaData();
+            
+            Meta.Index index = (Meta.Index) indexMetaData.getIndexOrLike(searchContext.indexShard().indexSettings().getIndex().getName());
 
             if (privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext() != null
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                documentAuthorization = new RoleBasedDocumentAuthorization(roles, ImmutableSet.of(index), MetricsLevel.NONE);
+                // TODO
+                //documentAuthorization = new RoleBasedDocumentAuthorization(roles, ImmutableSet.of(index), MetricsLevel.NONE);
             }
 
-            DlsRestriction dlsRestriction = documentAuthorization.getDlsRestriction(privilegesEvaluationContext, index, meter);
+            DlsRestriction dlsRestriction = documentAuthorization.getRestriction(privilegesEvaluationContext, index, meter);
             
             log.trace("DlsRestriction for {}: {}", index, dlsRestriction);
 

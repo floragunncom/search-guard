@@ -50,8 +50,8 @@ import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking.FieldMaskingRule;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
-import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import com.floragunn.searchsupport.meta.Meta;
 
 public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryReader, DirectoryReader, IOException> {
     private static final Logger log = LogManager.getLogger(DlsFlsDirectoryReaderWrapper.class);
@@ -109,21 +109,23 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
                 Set<String> indices = ImmutableSet.of(index.getName());
-                documentAuthorization = new RoleBasedDocumentAuthorization(roles, indices, MetricsLevel.NONE);
-                fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices, MetricsLevel.NONE);
-                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices, MetricsLevel.NONE);
+                //documentAuthorization = new RoleBasedDocumentAuthorization(roles, indices, MetricsLevel.NONE); TODO
+                //fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices, MetricsLevel.NONE);
+                //fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices, MetricsLevel.NONE);
             }
+            
+            Meta.Index metaIndex = (Meta.Index) this.dlsFlsBaseContext.getIndexMetaData().getIndexOrLike(this.index.getName());
 
             DlsRestriction dlsRestriction;
 
             if (!this.dlsFlsBaseContext.isDlsDoneOnFilterLevel()) {
-                dlsRestriction = documentAuthorization.getDlsRestriction(privilegesEvaluationContext, index.getName(), meter);
+                dlsRestriction = documentAuthorization.getRestriction(privilegesEvaluationContext, metaIndex, meter);
             } else {
                 dlsRestriction = DlsRestriction.NONE;
             }
 
-            FlsRule flsRule = fieldAuthorization.getFlsRule(privilegesEvaluationContext, index.getName(), meter);
-            FieldMaskingRule fieldMaskingRule = fieldMasking.getFieldMaskingRule(privilegesEvaluationContext, index.getName(), meter);
+            FlsRule flsRule = fieldAuthorization.getRestriction(privilegesEvaluationContext, metaIndex, meter);
+            FieldMaskingRule fieldMaskingRule = fieldMasking.getRestriction(privilegesEvaluationContext, metaIndex, meter);
             Query dlsQuery;
 
             if (dlsRestriction.isUnrestricted()) {

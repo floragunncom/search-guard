@@ -31,7 +31,7 @@ public interface Meta extends Document<Meta> {
      * Returns indices that are not contained in an alias or data stream
      */
     ImmutableSet<Index> indicesWithoutParents();
-    
+
     /**
      * Returns indices that are not hidden 
      */
@@ -100,12 +100,46 @@ public interface Meta extends Document<Meta> {
         boolean isHidden();
 
         boolean exists();
+
+        static ImmutableSet<Index> resolveDeep(ImmutableSet<? extends Meta.IndexLikeObject> objects) {
+            return resolveDeep(objects, Alias.ResolutionMode.NORMAL);
+        }
+
+        static ImmutableSet<Index> resolveDeep(ImmutableSet<? extends Meta.IndexLikeObject> objects, Alias.ResolutionMode resolutionMode) {
+            if (objects.size() == 0) {
+                return ImmutableSet.empty();
+            }
+
+            if (objects.size() == 1) {
+                Meta.IndexLikeObject object = objects.only();
+
+                if (object instanceof Meta.Index) {
+                    return ImmutableSet.of((Meta.Index) object);
+                } else if (object instanceof Meta.IndexCollection) {
+                    ((Meta.IndexCollection) object).resolveDeepAsIndex(resolutionMode);
+                }
+            }
+
+            ImmutableSet.Builder<Meta.Index> result = new ImmutableSet.Builder<>(objects.size() * 20);
+
+            for (Meta.IndexLikeObject object : objects) {
+                if (object instanceof Meta.Index) {
+                    result.add((Meta.Index) object);
+                } else if (object instanceof Meta.IndexCollection) {
+                    result.addAll(((Meta.IndexCollection) object).resolveDeepAsIndex(resolutionMode));
+                }
+            }
+
+            return result.build();
+        }
     }
 
     interface Index extends IndexOrNonExistent {
         boolean isOpen();
 
         boolean isSystem();
+
+        boolean isDataStreamBackingIndex();
     }
 
     interface IndexCollection extends IndexLikeObject {
@@ -113,7 +147,8 @@ public interface Meta extends Document<Meta> {
 
         ImmutableSet<Index> resolveDeepAsIndex(Alias.ResolutionMode resolutionMode);
 
-        static ImmutableSet<Index> resolveDeep(ImmutableSet<? extends Meta.IndexCollection> aliasesAndDataStreams, Alias.ResolutionMode resolutionMode) {
+        static ImmutableSet<Index> resolveDeep(ImmutableSet<? extends Meta.IndexCollection> aliasesAndDataStreams,
+                Alias.ResolutionMode resolutionMode) {
             if (aliasesAndDataStreams.size() == 0) {
                 return ImmutableSet.empty();
             }
@@ -134,11 +169,11 @@ public interface Meta extends Document<Meta> {
 
     interface Alias extends IndexCollection {
         IndexLikeObject writeTarget();
+
         UnmodifiableCollection<IndexLikeObject> resolve(ResolutionMode resolutionMode);
-        
+
         static enum ResolutionMode {
-            NORMAL,
-            TO_WRITE_TARGET
+            NORMAL, TO_WRITE_TARGET
         }
 
         static Alias nonExistent(String name) {
@@ -152,11 +187,11 @@ public interface Meta extends Document<Meta> {
         }
     }
 
-    interface NonExistent extends IndexOrNonExistent {      
+    interface NonExistent extends IndexOrNonExistent {
         static NonExistent of(String name) {
             return new MetaImpl.NonExistentImpl(name);
         }
-        
+
         static final NonExistent BLANK = of("_");
         static final NonExistent STAR = of("*");
     }

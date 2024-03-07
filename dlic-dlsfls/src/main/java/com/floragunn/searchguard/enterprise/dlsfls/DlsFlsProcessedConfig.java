@@ -14,6 +14,8 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls;
 
+import static java.util.stream.Collectors.joining;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -21,11 +23,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.codova.validation.errors.ValidationError;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigMap;
@@ -33,8 +35,7 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
-
-import static java.util.stream.Collectors.joining;
+import com.floragunn.searchsupport.meta.Meta;
 
 public class DlsFlsProcessedConfig {
     private static final Logger log = LogManager.getLogger(DlsFlsProcessedConfig.class);
@@ -65,7 +66,7 @@ public class DlsFlsProcessedConfig {
             rolesMappingValidationErrors);
     }
 
-    static DlsFlsProcessedConfig createFrom(ConfigMap configMap, ComponentState componentState, Set<String> indices) {
+    static DlsFlsProcessedConfig createFrom(ConfigMap configMap, ComponentState componentState, Meta indexMetadata) {
         try {
             SgDynamicConfiguration<DlsFlsConfig> dlsFlsConfigContainer = configMap.get(DlsFlsConfig.TYPE);
             DlsFlsConfig dlsFlsConfig = null;
@@ -82,9 +83,9 @@ public class DlsFlsProcessedConfig {
             SgDynamicConfiguration<Role> roleConfig = configMap.get(CType.ROLES);
             if (dlsFlsConfig.getEnabledImpl() == DlsFlsConfig.Impl.FLX) {
 
-                documentAuthorization = new RoleBasedDocumentAuthorization(roleConfig, indices, dlsFlsConfig.getMetricsLevel());
-                fieldAuthorization = new RoleBasedFieldAuthorization(roleConfig, indices, dlsFlsConfig.getMetricsLevel());
-                fieldMasking = new RoleBasedFieldMasking(roleConfig, dlsFlsConfig.getFieldMasking(), indices, dlsFlsConfig.getMetricsLevel());
+                documentAuthorization = new RoleBasedDocumentAuthorization(roleConfig, indexMetadata, dlsFlsConfig.getMetricsLevel());
+                fieldAuthorization = new RoleBasedFieldAuthorization(roleConfig, indexMetadata, dlsFlsConfig.getMetricsLevel());
+                fieldMasking = new RoleBasedFieldMasking(roleConfig, dlsFlsConfig.getFieldMasking(), indexMetadata, dlsFlsConfig.getMetricsLevel());
 
                 if (log.isDebugEnabled()) {
                     log.debug("Using FLX DLS/FLS implementation\ndocumentAuthorization: " + documentAuthorization + "\nfieldAuthorization: "
@@ -140,17 +141,17 @@ public class DlsFlsProcessedConfig {
         return dlsFlsConfig.getMetricsLevel();
     }
 
-    public void updateIndices(Set<String> indices) {
+    public void updateIndices(Meta indexMetadata) {
         if (documentAuthorization != null) {
-            documentAuthorization.updateIndices(indices);
+            documentAuthorization.updateIndices(indexMetadata);
         }
 
         if (fieldAuthorization != null) {
-            fieldAuthorization.updateIndices(indices);
+            fieldAuthorization.updateIndices(indexMetadata);
         }
 
         if (fieldMasking != null) {
-            fieldMasking.updateIndices(indices);
+            fieldMasking.updateIndices(indexMetadata);
         }
     }
     public boolean containsValidationError() {

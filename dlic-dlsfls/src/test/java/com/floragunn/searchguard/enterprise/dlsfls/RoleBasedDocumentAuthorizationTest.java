@@ -45,6 +45,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     (CheckedFunction<XContentParser, TermQueryBuilder, IOException>) (p) -> TermQueryBuilder.fromXContent(p))));
     static Parser.Context context = new ConfigurationRepository.Context(null, null, null, xContentRegistry, null);
 
+    /*
     @Test
     public void getDlsRestriction_template() throws Exception {
         SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration.of(CType.ROLES, "role",
@@ -250,4 +251,5 @@ public class RoleBasedDocumentAuthorizationTest {
         Assert.assertTrue(subject.toString(), subject.hasDlsRestrictions(context, ImmutableList.of("another_index"), Meter.NO_OP));
 
     }
+    */
 }

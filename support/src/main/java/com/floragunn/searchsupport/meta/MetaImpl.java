@@ -17,7 +17,6 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.fluent.collections.UnmodifiableCollection;
-import com.floragunn.searchsupport.meta.Meta.Alias;
 
 public abstract class MetaImpl implements Meta {
     private static final Logger log = LogManager.getLogger(MetaImpl.class);
@@ -100,6 +99,11 @@ public abstract class MetaImpl implements Meta {
         @Override
         public Object toBasicObject() {
             return DocNode.of("name", this.name(), "open", open, "system", isSystem(), "hidden", isHidden());
+        }
+
+        @Override
+        public boolean isDataStreamBackingIndex() {
+            return parentDataStreamName() != null;
         }
 
     }

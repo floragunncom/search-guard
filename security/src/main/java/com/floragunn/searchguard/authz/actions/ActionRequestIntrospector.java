@@ -262,7 +262,7 @@ public class ActionRequestIntrospector {
             return UNKNOWN;
         }
     }
-    
+
     public boolean isReduceIndicesAvailable(Action action, Object request) {
         return request instanceof AnalyzeAction.Request || request instanceof IndicesRequest.Replaceable;
     }
@@ -1368,6 +1368,11 @@ public class ActionRequestIntrospector {
 
             public boolean hasAliasesOnly() {
                 return !aliases.isEmpty() && this.dataStreams.isEmpty() && this.pureIndices.isEmpty();
+            }
+
+            public boolean hasNonExistingObjects() {
+                return !this.nonExistingIndices.isEmpty() || this.pureIndices.forAnyApplies(i -> !i.exists())
+                        || this.aliases.forAnyApplies(a -> !a.exists()) || this.dataStreams.forAnyApplies(d -> !d.exists());
             }
 
             @Override
