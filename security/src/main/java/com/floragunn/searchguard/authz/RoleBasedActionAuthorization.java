@@ -475,7 +475,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     .map(i -> i instanceof Meta.IndexCollection ? (Meta.IndexCollection) i : null);
 
             try (Meter subMeter = meter.basic("resolve_all_aliases")) {
-                ImmutableSet<Meta.Index> incompleteDeepResolved = Meta.IndexCollection.resolveDeep(incompleteAliasesAndDataStreams, primaryAction.aliasResolutionMode());
+                ImmutableSet<Meta.Index> incompleteDeepResolved = Meta.IndexCollection.resolveDeep(incompleteAliasesAndDataStreams,
+                        primaryAction.aliasResolutionMode());
                 ImmutableSet<Meta.IndexLikeObject> retainedIndices = prevCheckTable.getRows().without(incompleteAliasesAndDataStreams);
 
                 CheckTable<Meta.IndexLikeObject, Action> deepCheckTable = CheckTable.create(retainedIndices.with(incompleteDeepResolved), actions);
@@ -1484,8 +1485,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                             if (indexPattern != null) {
                                 for (Meta.IndexLikeObject index : checkTable.iterateCheckedRows(action)) {
-                                    if (indexPattern.matches(index.name(), user, context, subMeter)
-                                            || indexPattern.matches(index.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL), user, context, subMeter)) {
+                                    if (indexPattern.matches(index.name(), user, context, subMeter) || indexPattern
+                                            .matches(index.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL), user, context, subMeter)) {
                                         checkTable.uncheck(index, action);
                                     }
                                 }
@@ -1518,8 +1519,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                                     if (actionPattern.matches(action.name())) {
                                         for (Meta.IndexLikeObject index : checkTable.iterateCheckedRows(action)) {
-                                            if (indexPattern.matches(index.name(), user, context, subMeter)
-                                                    || indexPattern.matches(index.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL), user, context, subMeter)) {
+                                            if (indexPattern.matches(index.name(), user, context, subMeter) || indexPattern
+                                                    .matches(index.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL), user, context, subMeter)) {
                                                 checkTable.uncheck(index, action);
                                             }
                                         }
@@ -1556,6 +1557,13 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             this.indexMetadata = indexMetadata;
         }
 
+        /**
+         * Objects of this class collect permissions related to concrete, existing indices. These permissions are sourced from the roles configuration; in particular: the index_permissions attribute.
+         * In addition, the alias_permissions attribute is also used to source permissions for the concrete indices that are members of the aliases.
+         * 
+         * However, we do not hold here permissions for backing indices for data streams. As data streams backing indices are usually not supposed to directly used,
+         *s we do not need to have an ultra-fast solution for this. On the other hand, there might be many backing indices, which could lead to a blow up of required heap
+         */
         static class Index implements ComponentStateProvider {
             private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> actionToIndexToRoles;
             private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> excludedActionToIndexToRoles;
@@ -1819,6 +1827,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
         }
 
+        /**
+         * Objects of this class collect permissions related to concrete aliases. These permissions are sourced from the alias_permissions attribute of the roles configuration
+         */
         static class Alias implements ComponentStateProvider {
             private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> actionToAliasToRoles;
             private final Meta indexMetadata;
@@ -1967,6 +1978,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
         }
 
+        /**
+         * Objects of this class collect permissions related to concrete data streams. These permissions are sourced from the data_stream_permissions attribute of the roles configuration
+         */
         static class DataStream implements ComponentStateProvider {
             private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> actionToAliasToRoles;
             private final Meta indexMetadata;
