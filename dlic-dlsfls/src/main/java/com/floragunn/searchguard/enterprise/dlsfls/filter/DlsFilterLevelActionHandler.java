@@ -63,6 +63,7 @@ import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.Resolve
 import com.floragunn.searchguard.enterprise.dlsfls.DlsRestriction;
 import com.floragunn.searchguard.queries.QueryBuilderTraverser;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchsupport.meta.Meta;
 import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 
 public class DlsFilterLevelActionHandler {
@@ -352,15 +353,13 @@ public class DlsFilterLevelActionHandler {
 
         int queryCount = 0;
 
-        Set<String> indices = resolved.getLocalAndRemoteIndices();
-
-        for (String index : indices) {
+        for (Meta.IndexLikeObject index : resolved.getLocal().getUnion()) {
             String prefixedIndex;
 
             if (localClusterAlias != null) {
-                prefixedIndex = localClusterAlias + ":" + index;
+                prefixedIndex = localClusterAlias + ":" + index.name();
             } else {
-                prefixedIndex = index;
+                prefixedIndex = index.name();
             }
 
             DlsRestriction dlsRestriction = this.restrictionMap.getIndexMap().get(index);
@@ -394,6 +393,25 @@ public class DlsFilterLevelActionHandler {
 
                     documentWhitelist.add(termsQueryBuilder.termsLookup().index(), termsQueryBuilder.termsLookup().id());
                 }
+            }
+        }
+
+        if (requiresIndexScoping) {
+            // We also need to add remote indices to the query to let them pass
+
+            for (String remoteIndex : resolved.getRemoteIndices()) {
+                String prefixedIndex;
+
+                if (localClusterAlias != null) {
+                    prefixedIndex = localClusterAlias + ":" + remoteIndex;
+                } else {
+                    prefixedIndex = remoteIndex;
+                }
+
+                // This index has no DLS configured, thus it is unrestricted.
+                // To allow the index in a complex query, we need to add the query below to let the index pass.
+                dlsQueryBuilder.should(QueryBuilders.termQuery("_index", prefixedIndex));
+
             }
         }
 
