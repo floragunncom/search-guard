@@ -49,7 +49,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
     protected final StaticRules.DataStream<SingleRule> staticDataStreamQueries;
 
     private volatile StatefulRules<SingleRule> statefulRules;
-    
+
     private final Function<Role.Index, SingleRule> roleToRuleFunction;
 
     protected final ComponentState componentState = new ComponentState(this.componentName());
@@ -68,6 +68,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
             this.statefulRules = new StatefulRules<>(roles, indexMetadata, roleToRuleFunction);
         }
+
         this.componentState.addPart(this.staticIndexQueries.getComponentState());
         // this.componentState.addPart(this.statefulIndexQueries.getComponentState()); TODO
         this.componentState.setConfigVersion(roles.getDocVersion());

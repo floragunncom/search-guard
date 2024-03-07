@@ -221,7 +221,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
                 }
             }
 
-            if (doFilterLevelDls) {
+            if (doFilterLevelDls && !restrictionMap.isUnrestricted()) {
                 return DlsFilterLevelActionHandler.handle(context.getAction(), (ActionRequest) request, listener, restrictionMap,
                         context.getRequestInfo().getResolvedIndices(), nodeClient, clusterService, guiceDependencies.getIndicesService(), resolver,
                         threadContext);
