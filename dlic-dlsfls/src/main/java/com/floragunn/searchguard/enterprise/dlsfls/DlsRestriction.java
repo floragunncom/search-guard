@@ -29,6 +29,7 @@ import org.elasticsearch.index.query.TermsQueryBuilder;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.queries.QueryBuilderTraverser;
+import com.floragunn.searchsupport.meta.Meta;
 
 public class DlsRestriction {
 
@@ -110,9 +111,9 @@ public class DlsRestriction {
     public static class IndexMap {
         public static final DlsRestriction.IndexMap NONE = new DlsRestriction.IndexMap(null);
 
-        private final ImmutableMap<String, DlsRestriction> indexMap;
+        private final ImmutableMap<Meta.Index, DlsRestriction> indexMap;
 
-        IndexMap(ImmutableMap<String, DlsRestriction> indexMap) {
+        IndexMap(ImmutableMap<Meta.Index, DlsRestriction> indexMap) {
             this.indexMap = indexMap;
         }
 
@@ -120,7 +121,7 @@ public class DlsRestriction {
             return this.indexMap == null;
         }
 
-        public ImmutableMap<String, DlsRestriction> getIndexMap() {
+        public ImmutableMap<Meta.Index, DlsRestriction> getIndexMap() {
             return indexMap;
         }
 
