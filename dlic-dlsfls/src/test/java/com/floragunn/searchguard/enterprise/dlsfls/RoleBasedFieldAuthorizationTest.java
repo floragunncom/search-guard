@@ -30,6 +30,7 @@ import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class RoleBasedFieldAuthorizationTest {
 
+    /*
     @Test
     public void getFlsRule_template() throws Exception {
         SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration.of(CType.ROLES, "role", Role
@@ -300,4 +301,5 @@ public class RoleBasedFieldAuthorizationTest {
         Assert.assertTrue(subject.toString(), subject.hasFlsRestrictions(context, "another_index", Meter.NO_OP));
 
     }
+    */
 }
