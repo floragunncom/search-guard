@@ -258,9 +258,9 @@ public class RoleBasedActionAuthorizationTests {
         }
 
         final static Meta BASIC = indices("index_a11", "index_a12", "index_a21", "index_a22", "index_b1", "index_b2")//
-                .alias("alias_a").of("index_a11", "index_a12", "index_a21", "index_a22")//
-                .alias("alias_a1").of(">index_a11", "index_a12")//
-                .alias("alias_a2").of("index_a21", "index_a22")//
+                .alias("alias_a").of("index_a11", "index_a12", "index_a21", "index_a22") //
+                .alias("alias_a1").of(">index_a11", "index_a12") // index_a11 is the write index of the alias
+                .alias("alias_a2").of("index_a21", "index_a22") // 
                 .alias("alias_b").of("index_b1", "index_b2");
 
         @Parameters(name = "{0};  actions: {1};  {2}")

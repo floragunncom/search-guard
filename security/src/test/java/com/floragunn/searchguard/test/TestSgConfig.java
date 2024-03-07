@@ -337,7 +337,7 @@ public class TestSgConfig {
         writeOptionalConfigToIndex(client, "frontend_multi_tenancy", "sg_frontend_multi_tenancy.yml", null);
 
         System.out.println(DocNode.wrap(overrideRoleSettings).toYamlString());
-        
+
         if (authc != null) {
             writeConfigToIndex(client, CType.AUTHC, authc);
         } else {
@@ -574,7 +574,7 @@ public class TestSgConfig {
         }
     }
 
-    public static class User implements UserCredentialsHolder {        
+    public static class User implements UserCredentialsHolder {
         private String name;
         private UserPassword password;
         private Role[] roles;
@@ -589,7 +589,7 @@ public class TestSgConfig {
             this.name = name;
             this.password = UserPassword.of("secret");
         }
-        
+
         public User description(String description) {
             this.description = description;
             return this;
@@ -619,13 +619,13 @@ public class TestSgConfig {
             this.attributes.put(key, value);
             return this;
         }
-        
+
         public User restMatcher(BiFunction<String, List<String>, Matcher<HttpResponse>> restMatcher) {
             this.restMatcher = restMatcher;
             return this;
         }
 
-        public Matcher<HttpResponse> restMatcher(String jsonPath, String ... params) {
+        public Matcher<HttpResponse> restMatcher(String jsonPath, String... params) {
             return this.restMatcher.apply(jsonPath, ImmutableList.ofArray(params));
         }
 
@@ -633,17 +633,17 @@ public class TestSgConfig {
             this.indexMatchers.put(key, indexMatcher);
             return this;
         }
-        
+
         public IndexApiMatchers.IndexMatcher indexMatcher(String key) {
             IndexApiMatchers.IndexMatcher result = this.indexMatchers.get(key);
-            
+
             if (result != null) {
                 return result;
             } else {
                 throw new RuntimeException("Unknown index matcher " + key + " in user " + this.name);
             }
         }
-        
+
         public String getName() {
             return name;
         }
@@ -651,8 +651,7 @@ public class TestSgConfig {
         public String getPassword() {
             return password.loginPassword();
         }
-        
-        
+
         public Set<String> getRoleNames() {
             ImmutableSet<String> result = ImmutableSet.empty();
 
@@ -682,7 +681,7 @@ public class TestSgConfig {
 
     }
 
-    public static class TenantPermission {
+    public static class TenantPermission implements Document<TenantPermission> {
         private final List<String> tenantPatterns;//tenant_patterns
         private final List<String> allowedActions; //allowed_actions
 
@@ -694,9 +693,14 @@ public class TestSgConfig {
         NestedValueMap asNestedValueMap() {
             return NestedValueMap.of("tenant_patterns", tenantPatterns, "allowed_actions", allowedActions);
         }
+
+        @Override
+        public Object toBasicObject() {
+            return DocNode.of("tenant_patterns", tenantPatterns, "allowed_actions", allowedActions);
+        }
     }
 
-    public static class Role {
+    public static class Role implements Document<Role> {
         public static Role ALL_ACCESS = new Role("all_access").clusterPermissions("*").indexPermissions("*").on("*");
 
         private String name;
@@ -794,6 +798,15 @@ public class TestSgConfig {
             }
             return map;
         }
+
+        @Override
+        public Object toBasicObject() {
+            return ImmutableMap.ofNonNull("cluster_permissions", this.clusterPermissions, "index_permissions", this.indexPermissions,
+                    "alias_permissions", this.aliasPermissions, "exclude_cluster_permissions", this.excludedClusterPermissions,
+                    "exclude_index_permissions", this.excludedIndexPermissions)
+                    .with(ImmutableMap.ofNonNull("tenant_permissions", this.tenantPermissions));
+        }
+
     }
 
     public static class RoleMapping {
@@ -857,7 +870,7 @@ public class TestSgConfig {
         }
     }
 
-    public static class IndexLikePermission {
+    public static class IndexLikePermission implements Document<IndexLikePermission> {
         private List<String> allowedActions;
         private List<String> indexPatterns;
         private Role role;
@@ -919,6 +932,12 @@ public class TestSgConfig {
             }
 
             return result;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return ImmutableMap.ofNonNull(patternAttributeName, indexPatterns, "allowed_actions", allowedActions, "dls", dlsQuery, "fls", fls,
+                    "masked_files", maskedFields);
         }
 
     }
