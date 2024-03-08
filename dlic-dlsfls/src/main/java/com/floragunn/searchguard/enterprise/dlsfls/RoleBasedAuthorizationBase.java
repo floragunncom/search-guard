@@ -321,24 +321,19 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
     }
 
     protected JoinedRule getRestrictionImpl(PrivilegesEvaluationContext context, Meta.Index index) throws PrivilegesEvaluationException {
+        Meta.DataStream parentDataStream = index.parentDataStream();
+
         if (this.staticIndexQueries.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
             return unrestricted();
-            //return DlsRestriction.NONE;
         }
 
-        StatefulRules<SingleRule> statefulRules = this.statefulRules;
-
-        /* TODO
-        if (!statefulIndexQueries.covers(index)) {
-            // We get a request for an index unknown to this instance. Usually, this is the case because the index simply does not exist.
-            // For non-existing indices, it is safe to assume that no documents can be accessed.
-        
-            if (log.isDebugEnabled()) {
-                log.debug("Index {} does not exist. Assuming full document restriction.", index);
+        if (parentDataStream != null) {
+            if (this.staticDataStreamQueries.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
+                return unrestricted();
             }
+        }
         
-            return DlsRestriction.FULL;
-        }*/
+        StatefulRules<SingleRule> statefulRules = this.statefulRules;
 
         {
             ImmutableSet<String> roleWithoutQuery = statefulRules.index.indexToRoleWithoutRule.get(index);
@@ -347,8 +342,6 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 return unrestricted();
             }
         }
-
-        Meta.DataStream parentDataStream = index.parentDataStream();
 
         if (parentDataStream != null) {
             ImmutableSet<String> roleWithoutQuery = statefulRules.dataStream.dataStreamToRoleWithoutRule.get(parentDataStream);
@@ -367,26 +360,34 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
 
         for (String role : context.getMappedRoles()) {
             {
-                SingleRule query = this.staticIndexQueries.roleWithIndexWildcardToRule.get(role);
+                SingleRule rule = this.staticIndexQueries.roleWithIndexWildcardToRule.get(role);
 
-                if (query != null) {
-                    rules.add(query);
+                if (rule != null) {
+                    rules.add(rule);
+                }
+            }
+            
+            if (parentDataStream != null) {
+                SingleRule rule = this.staticDataStreamQueries.roleWithIndexWildcardToRule.get(role);
+                
+                if (rule != null) {
+                    rules.add(rule);
                 }
             }
 
             if (roleToQueryForIndex != null) {
-                SingleRule query = roleToQueryForIndex.get(role);
+                SingleRule rule = roleToQueryForIndex.get(role);
 
-                if (query != null) {
-                    rules.add(query);
+                if (rule != null) {
+                    rules.add(rule);
                 }
             }
 
             if (roleToQueryForDataStream != null) {
-                SingleRule query = roleToQueryForDataStream.get(role);
+                SingleRule rule = roleToQueryForDataStream.get(role);
 
-                if (query != null) {
-                    rules.add(query);
+                if (rule != null) {
+                    rules.add(rule);
                 }
 
             }
