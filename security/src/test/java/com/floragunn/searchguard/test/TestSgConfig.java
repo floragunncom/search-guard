@@ -801,10 +801,11 @@ public class TestSgConfig {
 
         @Override
         public Object toBasicObject() {
-            return ImmutableMap.ofNonNull("cluster_permissions", this.clusterPermissions, "index_permissions", this.indexPermissions,
-                    "alias_permissions", this.aliasPermissions, "exclude_cluster_permissions", this.excludedClusterPermissions,
-                    "exclude_index_permissions", this.excludedIndexPermissions)
-                    .with(ImmutableMap.ofNonNull("tenant_permissions", this.tenantPermissions));
+            return ImmutableMap
+                    .ofNonNull("cluster_permissions", this.clusterPermissions, "index_permissions", this.indexPermissions, "alias_permissions",
+                            this.aliasPermissions, "data_stream_permissions", this.dataStreamPermissions)
+                    .with(ImmutableMap.ofNonNull("tenant_permissions", this.tenantPermissions, "exclude_cluster_permissions",
+                            this.excludedClusterPermissions, "exclude_index_permissions", this.excludedIndexPermissions));
         }
 
     }
