@@ -5,11 +5,13 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.OptimisticLockException;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -22,10 +24,9 @@ import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.aMapWithSize;
-import static org.hamcrest.Matchers.anEmptyMap;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -70,24 +71,41 @@ public class AvailableTenantServiceTest {
     }
 
     @Test
-    public void shouldWorkWithDefaultConfigurationProvider() {
+    public void shouldThrowExceptionWhenMultiTenancyIsEnabledAndUserHaveAccessToZeroTenants() {
         User user = new User("user");
         TransportAddress remoteAddress = new TransportAddress(new InetSocketAddress(8901));
         when(threadContext.getTransient(ConfigConstants.SG_USER)).thenReturn(user);
         when(threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS)).thenReturn(remoteAddress);
         when(authorizationService.getMappedRoles(user, remoteAddress)).thenReturn(ImmutableSet.of("my_role"));
         when(repository.exists(any(String[].class))).thenAnswer(new TenantExistsAnswer(true));
-        this.service = new AvailableTenantService(MultiTenancyConfigurationProvider.DEFAULT, authorizationService, threadPool, repository);
+        when(configProvider.isMultiTenancyEnabled()).thenReturn(true);
+        this.service = new AvailableTenantService(configProvider, authorizationService, threadPool, repository);
+        when(configProvider.getTenantAccessMapper()).thenReturn(accessMapper);
 
-        AvailableTenantData data = service.findTenantAvailableForCurrentUser().orElseThrow();
+        assertThatThrown(() -> service.findTenantAvailableForCurrentUser(), instanceOf(DefaultTenantNotFoundException.class));
+    }
 
-        assertThat(data.multiTenancyEnabled(), equalTo(false));
-        assertThat(data.tenants(), anEmptyMap());
+    @Test
+    public void shouldNotThrowExceptionWhenMultiTenancyIsDisabledAndUserHaveAccessToZeroTenants() {
+        User user = User.forUser("user").requestedTenant("my_tenant").build();
+        when(threadContext.getTransient(ConfigConstants.SG_USER)).thenReturn(user);
+        when(configProvider.isMultiTenancyEnabled()).thenReturn(false);
+        this.service = new AvailableTenantService(configProvider, authorizationService, threadPool, repository);
+
+        AvailableTenantData tenantAvailableForCurrentUser = service.findTenantAvailableForCurrentUser().get();
+
+        assertThat(tenantAvailableForCurrentUser.multiTenancyEnabled(), equalTo(false));
+        assertThat(tenantAvailableForCurrentUser.tenants(), anEmptyMap());
+        assertThat(tenantAvailableForCurrentUser.defaultTenant(), nullValue());
+        assertThat(tenantAvailableForCurrentUser.username(), equalTo("user"));
+        assertThat(tenantAvailableForCurrentUser.userRequestedTenant(), equalTo("my_tenant"));
+
+
     }
 
     @Test
     public void shouldReturnInformationAboutTwoExistingTenantsWithWriteAccess() {
-        User user = new User("user");
+        User user = User.forUser("user").requestedTenant("my_tenant").build();
         TransportAddress remoteAddress = new TransportAddress(new InetSocketAddress(8901));
         when(threadContext.getTransient(ConfigConstants.SG_USER)).thenReturn(user);
         when(threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS)).thenReturn(remoteAddress);
@@ -101,6 +119,7 @@ public class AvailableTenantServiceTest {
         AvailableTenantData data = service.findTenantAvailableForCurrentUser().orElseThrow();
 
         assertThat(data.multiTenancyEnabled(), equalTo(true));
+        assertThat(data.userRequestedTenant(), equalTo("my_tenant"));
         Map<String, TenantAccessData> tenants = data.tenants();
         assertThat(tenants, aMapWithSize(2));
         TenantAccessData accessData = tenants.get(TENANT_1);
@@ -114,7 +133,7 @@ public class AvailableTenantServiceTest {
     }
 
     @Test
-    public void shouldReturnInformationAboutTreeTenantsWithVariousAccessLevelWhichDoesNotExist() {
+    public void shouldNotReturnInformationAboutTenantsWithReadOnlyAccessWhichDoesNotExist() {
         User user = new User("user");
         TransportAddress remoteAddress = new TransportAddress(new InetSocketAddress(8901));
         when(threadContext.getTransient(ConfigConstants.SG_USER)).thenReturn(user);
@@ -130,15 +149,12 @@ public class AvailableTenantServiceTest {
         AvailableTenantData data = service.findTenantAvailableForCurrentUser().orElseThrow();
 
         assertThat(data.multiTenancyEnabled(), equalTo(true));
+        assertThat(data.userRequestedTenant(), nullValue());
         Map<String, TenantAccessData> tenants = data.tenants();
-        assertThat(tenants, aMapWithSize(2));
+        assertThat(tenants, aMapWithSize(1));
         TenantAccessData accessData = tenants.get(TENANT_4);
         assertThat(accessData.readAccess(), equalTo(true));
         assertThat(accessData.writeAccess(), equalTo(true));
-        assertThat(accessData.exists(), equalTo(false));
-        accessData = tenants.get(TENANT_5);
-        assertThat(accessData.readAccess(), equalTo(true));
-        assertThat(accessData.writeAccess(), equalTo(false));
         assertThat(accessData.exists(), equalTo(false));
     }
 
@@ -195,25 +211,21 @@ public class AvailableTenantServiceTest {
         when(configProvider.isMultiTenancyEnabled()).thenReturn(true);
         var tenantWriteAccess = ImmutableMap.of(TENANT_1, false, TENANT_2, false, TENANT_3, false, TENANT_4, true, TENANT_5, true);
         when(accessMapper.mapTenantsAccess(user, userRoles)).thenReturn(tenantWriteAccess);
-        when(repository.exists(any(String[].class))).thenReturn(ImmutableSet.of(TENANT_4, TENANT_5));
+        when(repository.exists(any(String[].class))).thenReturn(ImmutableSet.of(TENANT_1, TENANT_2, TENANT_4));
 
         AvailableTenantData data = service.findTenantAvailableForCurrentUser().orElseThrow();
 
         assertThat(data.multiTenancyEnabled(), equalTo(true));
         Map<String, TenantAccessData> tenants = data.tenants();
-        assertThat(tenants, aMapWithSize(5));
+        assertThat(tenants, aMapWithSize(4));
         TenantAccessData accessData = tenants.get(TENANT_1);
         assertThat(accessData.readAccess(), equalTo(true));
         assertThat(accessData.writeAccess(), equalTo(false));
-        assertThat(accessData.exists(), equalTo(false));
+        assertThat(accessData.exists(), equalTo(true));
         accessData = tenants.get(TENANT_2);
         assertThat(accessData.readAccess(), equalTo(true));
         assertThat(accessData.writeAccess(), equalTo(false));
-        assertThat(accessData.exists(), equalTo(false));
-        accessData = tenants.get(TENANT_3);
-        assertThat(accessData.readAccess(), equalTo(true));
-        assertThat(accessData.writeAccess(), equalTo(false));
-        assertThat(accessData.exists(), equalTo(false));
+        assertThat(accessData.exists(), equalTo(true));
         accessData = tenants.get(TENANT_4);
         assertThat(accessData.readAccess(), equalTo(true));
         assertThat(accessData.writeAccess(), equalTo(true));
@@ -221,7 +233,7 @@ public class AvailableTenantServiceTest {
         accessData = tenants.get(TENANT_5);
         assertThat(accessData.readAccess(), equalTo(true));
         assertThat(accessData.writeAccess(), equalTo(true));
-        assertThat(accessData.exists(), equalTo(true));
+        assertThat(accessData.exists(), equalTo(false));
     }
 
     private static class TenantExistsAnswer implements Answer<ImmutableSet<String>> {

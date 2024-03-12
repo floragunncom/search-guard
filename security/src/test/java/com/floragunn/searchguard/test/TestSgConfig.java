@@ -25,7 +25,6 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -1398,6 +1397,9 @@ public class TestSgConfig {
         private boolean enabled;
         private String index;
         private String serverUser;
+        private boolean globalTenantEnabled = true;
+        private boolean privateTenantEnabled = true;
+        private List<String> preferredTenants = new ArrayList<>();
 
         public FrontendMultiTenancy(boolean enabled) {
             this.enabled = enabled;
@@ -1413,11 +1415,29 @@ public class TestSgConfig {
             return this;
         }
 
+        public FrontendMultiTenancy globalTenantEnabled(boolean globalTenantEnabled) {
+            this.globalTenantEnabled = globalTenantEnabled;
+            return this;
+        }
+
+        public FrontendMultiTenancy privateTenantEnabled(boolean privateTenantEnabled) {
+            this.privateTenantEnabled = privateTenantEnabled;
+            return this;
+        }
+
+        public FrontendMultiTenancy preferredTenants(String... preferredTenants) {
+            this.preferredTenants.addAll(asList(preferredTenants));
+            return this;
+        }
+
         NestedValueMap toJsonMap() {
             NestedValueMap result = new NestedValueMap();
             result.put("enabled", enabled);
             result.put("index", index);
             result.put("server_user", serverUser);
+            result.put("global_tenant_enabled", globalTenantEnabled);
+            result.put("private_tenant_enabled", privateTenantEnabled);
+            result.put("preferred_tenants", preferredTenants);
             return NestedValueMap.of("default", result);
         }
     }
