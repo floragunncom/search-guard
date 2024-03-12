@@ -23,9 +23,13 @@ import co.elastic.clients.elasticsearch.core.mget.MultiGetResponseItem;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.client.RestHighLevelClient;
+import com.floragunn.searchsupport.junit.matcher.DocNodeMatchers;
 import com.google.common.collect.ImmutableList;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
@@ -33,6 +37,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
+import org.hamcrest.MatcherAssert;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -51,6 +56,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 
 public class MultitenancyTests {
+
+    private static final Logger log = LogManager.getLogger(MultitenancyTests.class);
 
     private final static TestSgConfig.User USER_DEPT_01 = new TestSgConfig.User("user_dept_01").attr("dept_no", "01").roles("sg_tenant_user_attrs");
     private final static TestSgConfig.User USER_DEPT_02 = new TestSgConfig.User("user_dept_02").attr("dept_no", "02").roles("sg_tenant_user_attrs");
@@ -234,7 +241,7 @@ public class MultitenancyTests {
             String tenantName = "human_resources";
             String internalTenantName = tenantName.hashCode() + "_" + "humanresources";
             Client tc = cluster.getInternalNodeClient();
-            String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"human_resources\"}";
+            String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"" + internalTenantName + "\"}";
 
             tc.admin().indices().create(new CreateIndexRequest(".kibana_8.8.0_001").alias(new Alias(".kibana"))
                     .settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0))).actionGet();
@@ -296,7 +303,7 @@ public class MultitenancyTests {
             String tenant = "kibana_7_12_alias_test";
             String internalTenantName = tenant.hashCode() + "_" + "kibana712aliastest";
             Client tc = cluster.getInternalNodeClient();
-            String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"kibana_7_12_alias_test\"}";
+            String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"" + internalTenantName + "\"}";
 
             tc.admin().indices()
                     .create(new CreateIndexRequest(".kibana_7.12.0_001")
@@ -327,7 +334,9 @@ public class MultitenancyTests {
     @Test
     public void testMgetWithKibanaAlias() throws Exception {
         String indexName = ".kibana";
-        String testDoc = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"human_resources\"}";
+        String tenantName = "human_resources";
+        String internalTenantName = tenantName.hashCode() + "_" + "humanresources";
+        String testDoc = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"" + internalTenantName + "\"}";
 
         try (RestHighLevelClient restClient = cluster.getRestHighLevelClient("hr_employee", "hr_employee", "human_resources")) {
             Client client = cluster.getInternalNodeClient();
@@ -492,6 +501,46 @@ public class MultitenancyTests {
 
                 return null;
             });
+        }
+    }
+
+    @Test
+    public void testMultiSearchWithWildcard() throws Exception {
+        try {
+            String tenantName = "human_resources";
+            String internalTenantName = tenantName.hashCode() + "_" + "humanresources";
+            Client tc = cluster.getInternalNodeClient();
+            String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"" + internalTenantName + "\"}";
+
+            tc.admin().indices().create(new CreateIndexRequest(".kibana_8.8.0_001").alias(new Alias(".kibana"))
+                .settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0))).actionGet();
+            tc.admin().indices().create(new CreateIndexRequest(".kibana_analytics_8.8.0_001").alias(new Alias(".kibana_analytics"))
+                .settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0))).actionGet();
+
+            tc.index(new IndexRequest(".kibana_8.8.0_001").id("6.2.2__sg_ten__" + internalTenantName)
+                    .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                    .source(body, XContentType.JSON)).actionGet();
+
+            String requestBody = """
+                {"index" : ".kibana_8.8.0_001"}
+                {"query" : {"match_all" : {}}, "size":1000}
+                
+                """;
+            try (GenericRestClient client = cluster.getRestClient("hr_employee", "hr_employee")) {
+                GenericRestClient.HttpResponse res = client.postJson("_msearch", requestBody, new BasicHeader("sgtenant", tenantName));
+                log.debug("Msearch response status '{}' and body '{}'.",res.getStatusCode(), res.getBody());
+                Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
+                // id was unscoped, request is treated as MT request
+                MatcherAssert.assertThat(res.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.responses[0].hits.hits[0]._id", "6.2.2"));
+            }
+        } finally {
+            try {
+                Client tc = cluster.getInternalNodeClient();
+                tc.admin().indices().prepareAliases().removeAlias(".kibana_8.8.0_001", ".kibana").get();
+                tc.admin().indices().delete(new DeleteIndexRequest(".kibana_8.8.0_001")).actionGet();
+            } catch (Exception ignored) {
+                Assert.fail("Unexpected exception " + ignored);
+            }
         }
     }
 }

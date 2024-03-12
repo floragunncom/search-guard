@@ -1803,6 +1803,21 @@ public class MultiTenancyRequestMappingTest {
             );
         }
     }
+    @Test
+    public void searchRequest_indexNameWithStar() throws Exception {
+        String scopedId = scopedId(DOC_ID);
+        addDocumentToIndex(scopedId, DocNode.of("a", "a", "sg_tenant", internalTenantName()));
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            HttpResponse responseWithoutTenant = client.get("/" + KIBANA_INDEX + "*/_search/");
+            HttpResponse responseWithTenant = client.get("/" + KIBANA_INDEX + "*/_search/", tenantHeader());
+            assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(responseWithTenant.getBody(), responseWithTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(
+                unscopeResponseBody(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithoutTenant), DOC_ID),
+                equalTo(responseBodyWithoutFieldsWhichMayDifferForSearchRequests(responseWithTenant).toJsonString())
+            );
+        }
+    }
 
     @Test
     public void searchRequest_withPointInTimeQuery_success() throws Exception {

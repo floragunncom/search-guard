@@ -43,11 +43,14 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
+import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.IndexAbstraction;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import com.floragunn.fluent.collections.ImmutableList;
@@ -100,11 +103,12 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
     private final TenantManager tenantManager;
     private final ClusterService clusterService;
     private final IndicesService indicesService;
+    private final IndexNameExpressionResolver resolver;
 
     public MultiTenancyAuthorizationFilter(FeMultiTenancyConfig config, RoleBasedTenantAuthorization tenantAuthorization, TenantManager tenantManager,
                                            Actions actions, ThreadContext threadContext, Client nodeClient,
                                            RequestHandlerFactory requestHandlerFactory, ClusterService clusterService,
-                                           IndicesService indicesService) {
+                                           IndicesService indicesService, IndexNameExpressionResolver resolver) {
         this.enabled = config.isEnabled();
         this.kibanaServerUsername = config.getServerUsername();
         this.kibanaIndexName = config.getIndex();
@@ -122,6 +126,7 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
         this.tenantManager = tenantManager;
         this.clusterService = Objects.requireNonNull(clusterService, "Cluster services are required");
         this.indicesService = Objects.requireNonNull(indicesService, "Indices service is required");
+        this.resolver = Objects.requireNonNull(resolver, "IndexNameExpressionResolver is required");
         log.info("Filter which supports front-end multi tenancy created, enabled '{}'.", enabled);
     }
 
@@ -340,8 +345,8 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
         if (requestedResolved.isLocalAll()) {
             return Collections.emptyList();
         }
-        Set<String> allQueryIndices = getIndices(request);
-        List<IndexInfo> multiTenancyRelatedIndices = allQueryIndices//
+        Set<String> allQueryIndices = resolveWildcardInRequestIndices(clusterService.state(), request);
+        List<IndexInfo> multiTenancyRelatedIndices = allQueryIndices //
             .stream() //
             .map(this::checkForExclusivelyUsedKibanaIndexOrAlias) //
             .filter(Objects::nonNull) //
@@ -355,6 +360,20 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
                 requestedTenant);
         }
         return multiTenancyRelatedIndices;
+    }
+
+    private Set<String> resolveWildcardInRequestIndices(ClusterState state, ActionRequest request) {
+        final Set<String> indices = getIndices(request);
+        if (request instanceof IndicesRequest indicesRequest) {
+            boolean containsWildcard = indices.stream().filter(name -> name.contains("*")).count() > 0;
+            if (containsWildcard) {
+                log.debug("Wildcard in indices names will be resolved '{}'", indices);
+                IndicesOptions options = indicesRequest.indicesOptions();
+                return ImmutableSet.ofArray(resolver.concreteIndexNames(state, options, indices.toArray(String[]::new)));
+            }
+        }
+        log.debug("Wildcard resolving omitted '{}'", indices);
+        return indices;
     }
 
     private IndexInfo checkForExclusivelyUsedKibanaIndexOrAlias(String aliasOrIndex) {

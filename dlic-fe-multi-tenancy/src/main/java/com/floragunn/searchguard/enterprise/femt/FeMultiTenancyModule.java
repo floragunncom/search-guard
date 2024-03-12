@@ -157,7 +157,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
                 IndicesService indicesService = baseDependencies.getGuiceDependencies().getIndicesService();
                 multiTenancyAuthorizationFilter = new MultiTenancyAuthorizationFilter(feMultiTenancyConfig, tenantAuthorization, tenantManager, baseDependencies.getActions(),
                         baseDependencies.getThreadPool().getThreadContext(), baseDependencies.getLocalClient(), requestHandlerFactory,
-                    clusterService, indicesService);
+                    clusterService, indicesService, baseDependencies.getIndexNameExpressionResolver());
             } else {
                 enabled = false;
                 componentState.setState(State.SUSPENDED, "disabled_by_config");

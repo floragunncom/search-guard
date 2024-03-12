@@ -22,9 +22,15 @@ import org.elasticsearch.action.get.GetAction;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexAction;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.indices.IndicesService;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -36,6 +42,7 @@ import java.util.Optional;
 import static com.floragunn.searchguard.authz.PrivilegesEvaluationResult.INSUFFICIENT;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
@@ -85,6 +92,10 @@ public class MultiTenancyAuthorizationFilterTest {
     private Action action;
     @Mock
     private RequestHandler<ActionRequest> actionHandler;
+    @Mock
+    private IndexNameExpressionResolver resolver;
+    @Mock
+    private ClusterState clusterState;
 
     private MultiTenancyAuthorizationFilter filter;
 
@@ -95,7 +106,7 @@ public class MultiTenancyAuthorizationFilterTest {
         when(context.getUser()).thenReturn(user);
         when(config.getServerUsername()).thenReturn("frontend_server_user");
         this.filter = new MultiTenancyAuthorizationFilter(config, tenantAuthorization, tenantManager, new Actions(null),
-            threadContext, null, handlerFactory, clusterServices, indicesService);
+            threadContext, null, handlerFactory, clusterServices, indicesService, resolver);
     }
 
     @Test
@@ -121,6 +132,59 @@ public class MultiTenancyAuthorizationFilterTest {
         assertThat(result.getStatus(), equalTo(SyncAuthorizationFilter.Result.Status.OK));
         verify(actionHandler).handle(same(context), eq(INTERNAL_TEST_USER_1_PRIVATE_TENANT_NAME), same(request), same(listener));
         verifyNoInteractions(listener);
+        verifyNoInteractions(resolver);
+    }
+
+    @Test
+    public void shouldResolveWildcardInIndexName_multitenancyIndexOutcome() {
+        when(clusterServices.state()).thenReturn(clusterState);
+        when(context.getRequestInfo()).thenReturn(actionRequestInfo);
+        when(actionRequestInfo.getResolvedIndices()).thenReturn(resolvedIndices);
+        when(resolvedIndices.isLocalAll()).thenReturn(false);
+        SearchRequest request = new SearchRequest();
+        request.source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()));
+        request.indices(".kibana_alerting_cases_8.12.1_*", ".kibana_8.12.1_*");
+        when(context.getRequest()).thenReturn(request);
+        when(resolver.concreteIndexNames(clusterState, request.indicesOptions(), ".kibana_alerting_cases_8.12.1_*", ".kibana_8.12.1_*")).thenReturn(new String[]{".kibana_alerting_cases_8.12.1_001", ".kibana_8.12.1_001"});
+        when(context.getAction()).thenReturn(action);
+        when(action.name()).thenReturn("indices:data/read/search");
+        when(user.getName()).thenReturn(TEST_USER_NAME_1);
+        when(user.getRequestedTenant()).thenReturn(PRIVATE_TENANT_HEADER_VALUE);
+        when(tenantManager.isTenantHeaderValid(PRIVATE_TENANT_HEADER_VALUE)).thenReturn(true);
+        when(tenantManager.isUserTenantHeader(anyString())).thenCallRealMethod();
+        when(tenantManager.toInternalTenantName(context.getUser())).thenCallRealMethod();
+        when(handlerFactory.requestHandlerFor(request)).thenReturn(Optional.of(actionHandler));
+        when(actionHandler.handle(same(context), eq(INTERNAL_TEST_USER_1_PRIVATE_TENANT_NAME), same(request), same(listener))).thenReturn(SyncAuthorizationFilter.Result.INTERCEPTED);
+
+        SyncAuthorizationFilter.Result result = filter.apply(context, listener);
+
+        log.info("Filter response {}", result);
+        assertThat(result.getStatus(), equalTo(SyncAuthorizationFilter.Result.Status.INTERCEPTED));
+        verify(actionHandler).handle(same(context), eq(INTERNAL_TEST_USER_1_PRIVATE_TENANT_NAME), same(request), same(listener));
+        verifyNoInteractions(listener);
+        verify(resolver).concreteIndexNames(any(ClusterState.class), any(IndicesOptions.class), any(String[].class));
+    }
+
+    @Test
+    public void shouldResolveWildcardInIndexName_nonMultitenancyIndexOutcome() {
+        when(clusterServices.state()).thenReturn(clusterState);
+        when(context.getRequestInfo()).thenReturn(actionRequestInfo);
+        when(actionRequestInfo.getResolvedIndices()).thenReturn(resolvedIndices);
+        when(resolvedIndices.isLocalAll()).thenReturn(false);
+        SearchRequest request = new SearchRequest();
+        request.source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()));
+        request.indices(".kibana*");
+        when(context.getRequest()).thenReturn(request);
+        when(resolver.concreteIndexNames(clusterState, request.indicesOptions(), ".kibana*")).thenReturn(new String[]{".kibana_task_manager_8.12.1_001"});
+        when(user.getRequestedTenant()).thenReturn(PRIVATE_TENANT_HEADER_VALUE);
+
+        SyncAuthorizationFilter.Result result = filter.apply(context, listener);
+
+        log.info("Filter response {}", result);
+        assertThat(result.getStatus(), equalTo(SyncAuthorizationFilter.Result.Status.OK));
+        verifyNoInteractions(actionHandler);
+        verifyNoInteractions(listener);
+        verify(resolver).concreteIndexNames(any(ClusterState.class), any(IndicesOptions.class), anyString());
     }
 
     @Test
@@ -153,6 +217,7 @@ public class MultiTenancyAuthorizationFilterTest {
         verifyNoInteractions(listener);
         verify(tenantAuthorization).hasTenantPermission(context, readAction, HR_TENANT_NAME);
         verify(tenantAuthorization).hasTenantPermission(context, writeAction, HR_TENANT_NAME);
+        verifyNoInteractions(resolver);
     }
 
     @Test
@@ -182,6 +247,7 @@ public class MultiTenancyAuthorizationFilterTest {
         verifyNoInteractions(handlerFactory);
         verify(tenantAuthorization).hasTenantPermission(context, readAction, HR_TENANT_NAME);
         verify(tenantAuthorization).hasTenantPermission(context, writeAction, HR_TENANT_NAME);
+        verifyNoInteractions(resolver);
     }
 
     @Test
@@ -214,6 +280,7 @@ public class MultiTenancyAuthorizationFilterTest {
         verifyNoInteractions(listener);
         verify(tenantAuthorization).hasTenantPermission(context, readAction, IT_TENANT_NAME);
         verify(tenantAuthorization).hasTenantPermission(context, writeAction, IT_TENANT_NAME);
+        verifyNoInteractions(resolver);
     }
 
     @Test
@@ -243,6 +310,7 @@ public class MultiTenancyAuthorizationFilterTest {
         verifyNoInteractions(handlerFactory);
         verify(tenantAuthorization).hasTenantPermission(context, readAction, IT_TENANT_NAME);
         verify(tenantAuthorization).hasTenantPermission(context, writeAction, IT_TENANT_NAME);
+        verifyNoInteractions(resolver);
     }
 
 }
