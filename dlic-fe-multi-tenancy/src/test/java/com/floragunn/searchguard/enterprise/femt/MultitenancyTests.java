@@ -17,19 +17,16 @@ package com.floragunn.searchguard.enterprise.femt;
 import java.util.HashMap;
 import java.util.Map;
 
-import co.elastic.clients.elasticsearch._types.Result;
-import co.elastic.clients.elasticsearch.core.GetResponse;
-import co.elastic.clients.elasticsearch.core.IndexResponse;
 import co.elastic.clients.elasticsearch.core.MgetRequest;
 import co.elastic.clients.elasticsearch.core.MgetResponse;
 import co.elastic.clients.elasticsearch.core.mget.MultiGetResponseItem;
-import co.elastic.clients.elasticsearch.indices.UpdateAliasesResponse;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.client.RestHighLevelClient;
+import com.google.common.collect.ImmutableList;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.admin.indices.alias.Alias;
-import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
-import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
@@ -46,10 +43,22 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.google.common.collect.ImmutableMap;
 
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeSizeEqualTo;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
+
 public class MultitenancyTests {
 
     private final static TestSgConfig.User USER_DEPT_01 = new TestSgConfig.User("user_dept_01").attr("dept_no", "01").roles("sg_tenant_user_attrs");
     private final static TestSgConfig.User USER_DEPT_02 = new TestSgConfig.User("user_dept_02").attr("dept_no", "02").roles("sg_tenant_user_attrs");
+    private final static TestSgConfig.User USER_WITH_ACCESS_TO_GLOBAL_TENANT = new TestSgConfig.User("user_with_access_to_global_tenant")
+            .roles(new TestSgConfig.Role("access_to_global_tenant")
+                    .clusterPermissions("cluster:admin:searchguard:femt:user/available_tenants/get")
+                    .tenantPermission("SGS_KIBANA_ALL_WRITE").on(Tenant.GLOBAL_TENANT_ID)
+            );
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder()
@@ -57,7 +66,7 @@ public class MultitenancyTests {
             .sslEnabled()
             .resources("multitenancy")
             .enterpriseModulesEnabled()
-            .users(USER_DEPT_01, USER_DEPT_02).build();
+            .users(USER_DEPT_01, USER_DEPT_02, USER_WITH_ACCESS_TO_GLOBAL_TENANT).build();
 
     @Test
     public void testMt() throws Exception {
@@ -401,5 +410,88 @@ public class MultitenancyTests {
             }
         }
 
+    }
+
+    @Test
+    public void testMultitenancyConfigApi() throws Exception {
+        try (GenericRestClient userClient = cluster.getRestClient(USER_WITH_ACCESS_TO_GLOBAL_TENANT);
+             GenericRestClient adminCertClient = cluster.getAdminCertRestClient()) {
+            cluster.callAndRestoreConfig(FeMultiTenancyConfig.TYPE, () -> {
+                GenericRestClient.HttpResponse response = adminCertClient.get("/_searchguard/config/fe_multi_tenancy");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                DocNode config = DocNode.of(
+                        "enabled", true, "index", "kibana_index", "server_user", "kibana_user",
+                        "global_tenant_enabled", true, "private_tenant_enabled", false,
+                        "preferred_tenants", ImmutableList.of("tenant-1")
+                );
+
+                response = adminCertClient.putJson("/_searchguard/config/fe_multi_tenancy", config);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                response = adminCertClient.get("/_searchguard/config/frontend_multi_tenancy");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                config = response.getBodyAsDocNode();
+                assertThat(config, containsValue("$.content.enabled", true));
+                assertThat(config, containsValue("$.content.index", "kibana_index"));
+                assertThat(config, containsValue("$.content.server_user", "kibana_user"));
+                assertThat(config, containsValue("$.content.global_tenant_enabled", true));
+                assertThat(config, containsValue("$.content.private_tenant_enabled", false));
+                assertThat(config, docNodeSizeEqualTo("$.content.preferred_tenants", 1));
+                assertThat(config, containsValue("$.content.preferred_tenants[0]", "tenant-1"));
+
+                response = userClient.get("/_searchguard/current_user/tenants");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$.data.tenants", Tenant.GLOBAL_TENANT_ID));
+                assertThat(response.getBodyAsDocNode(), not(containsFieldPointedByJsonPath("$.data.tenants", USER_WITH_ACCESS_TO_GLOBAL_TENANT.getName())));
+
+                config = DocNode.of(
+                        "enabled", true, "index", "kibana_index_v2", "server_user", "kibana_user_v2",
+                        "global_tenant_enabled", false, "private_tenant_enabled", true,
+                        "preferred_tenants", ImmutableList.of()
+                );
+
+                response = adminCertClient.putJson("/_searchguard/config/frontend_multi_tenancy", config);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                response = adminCertClient.get("/_searchguard/config/fe_multi_tenancy");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                config = response.getBodyAsDocNode();
+                assertThat(config, containsValue("$.content.enabled", true));
+                assertThat(config, containsValue("$.content.index", "kibana_index_v2"));
+                assertThat(config, containsValue("$.content.server_user", "kibana_user_v2"));
+                assertThat(config, containsValue("$.content.global_tenant_enabled", false));
+                assertThat(config, containsValue("$.content.private_tenant_enabled", true));
+                assertThat(config, docNodeSizeEqualTo("$.content.preferred_tenants", 0));
+
+                response = userClient.get("/_searchguard/current_user/tenants");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                assertThat(response.getBodyAsDocNode(), not(containsFieldPointedByJsonPath("$.data.tenants", Tenant.GLOBAL_TENANT_ID)));
+                assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$.data.tenants", USER_WITH_ACCESS_TO_GLOBAL_TENANT.getName()));
+
+                config = DocNode.of(
+                        "enabled", true, "global_tenant_enabled", true, "preferred_tenants",
+                        ImmutableList.of("tenant-2")
+                );
+                response = adminCertClient.patchJsonMerge("/_searchguard/config/fe_multi_tenancy", config);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                response = adminCertClient.get("/_searchguard/config/fe_multi_tenancy");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                config = response.getBodyAsDocNode();
+                assertThat(config, containsValue("$.content.enabled", true));
+                assertThat(config, containsValue("$.content.index", "kibana_index_v2"));
+                assertThat(config, containsValue("$.content.server_user", "kibana_user_v2"));
+                assertThat(config, containsValue("$.content.global_tenant_enabled", true));
+                assertThat(config, containsValue("$.content.private_tenant_enabled", true));
+                assertThat(config, docNodeSizeEqualTo("$.content.preferred_tenants", 1));
+                assertThat(config, containsValue("$.content.preferred_tenants[0]", "tenant-2"));
+
+                return null;
+            });
+        }
     }
 }
