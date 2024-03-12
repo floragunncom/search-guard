@@ -59,7 +59,7 @@
     <bc.version>1.70</bc.version>
     <log4j.version>2.23.1</log4j.version>
     <jackson.version>2.16.2</jackson.version>
-    <cxf.version>4.0.2</cxf.version>
+    <cxf.version>4.0.4</cxf.version>
     <http.commons.version>4.5.14</http.commons.version>
     <opensaml.version>4.3.0</opensaml.version>
     <opensaml.patch.version>4.3.0-1.0.3</opensaml.patch.version>
