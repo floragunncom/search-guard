@@ -576,6 +576,28 @@ public class RoleBasedDocumentAuthorizationTest {
             }
             // TODO no roles
         }
+        
+        @Test
+        public void getDlsRestriction_wildcardOnIndices() throws Exception {
+            SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
+                    new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("*"),
+                    new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*"),
+                    new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("*"));
+            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+
+            DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
+
+            if (userSpec.roles.contains("non_dls_role")) {
+                assertThat(dlsRestriction, isUnrestricted());
+            } else if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
+                assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1"), termQuery("dept", "dept_r2")));
+            } else if (userSpec.roles.contains("dls_role_1")) {
+                assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
+            } else if (userSpec.roles.contains("dls_role_2")) {
+                assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r2")));
+            }
+            // TODO no roles
+        }
 
 
         @Parameters(name = "{0}; {1}")
