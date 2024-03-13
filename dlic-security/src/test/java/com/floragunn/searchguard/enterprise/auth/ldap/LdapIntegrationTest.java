@@ -183,12 +183,12 @@ public class LdapIntegrationTest {
 
     ).debug().userCacheEnabled(false);
 
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled().resources("ldap")//
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled().resources("ldap")//
             .roles(TestSgConfig.Role.ALL_ACCESS, INDEX_PATTERN_WITH_ATTR, INDEX_PATTERN_WITH_ATTR_FOR_RECURSIVE_GROUPS)//
             .roleToRoleMapping(TestSgConfig.Role.ALL_ACCESS, ALL_ACCESS_GROUP.getDn())//
             .roleToRoleMapping(INDEX_PATTERN_WITH_ATTR, STD_ACCESS_GROUP.getDn())//
             .roleToRoleMapping(INDEX_PATTERN_WITH_ATTR_FOR_RECURSIVE_GROUPS, RECURSIVE_GROUP_3.getDn())//
-            .authc(AUTHC).users(TILDA_ADDITIONAL_USER_INFORMATION_USER).var("ldapHost", () -> tlsLdapServer.hostAndPort()).build();
+            .authc(AUTHC).users(TILDA_ADDITIONAL_USER_INFORMATION_USER).var("ldapHost", () -> tlsLdapServer.hostAndPort()).embedded().build();
 
     @ClassRule
     public static TestRule serverChain = RuleChain.outerRule(tlsLdapServer).around(cluster);

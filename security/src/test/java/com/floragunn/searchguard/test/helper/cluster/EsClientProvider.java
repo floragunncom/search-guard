@@ -202,6 +202,11 @@ public interface EsClientProvider {
             public boolean isAdminCertUser() {
                 return true;
             }
+
+            @Override
+            public String toString() {
+                return getName();
+            }
         };
 
         static UserCredentialsHolder basic(String name, String password) {
@@ -215,6 +220,11 @@ public interface EsClientProvider {
                 @Override
                 public String getPassword() {
                     return password;
+                }
+
+                @Override
+                public String toString() {
+                    return getName();
                 }
             };
         }

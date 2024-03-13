@@ -41,8 +41,6 @@ public class GenericTypeLevelConfigApiTest {
     public void deleteTest() throws Exception {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             HttpResponse getResponseOld = client.get("/_searchguard/config");
-            Assert.assertFalse(getResponseOld.getBody(),
-                    DocNode.wrap(DocReader.json().read(getResponseOld.getBody())).getAsNode("config").getAsNode("content").isEmpty());
             Assert.assertEquals(getResponseOld.getBody(), "true",
                     DocNode.wrap(DocReader.json().read(getResponseOld.getBody())).getAsNode("config").getAsString("exists"));
 

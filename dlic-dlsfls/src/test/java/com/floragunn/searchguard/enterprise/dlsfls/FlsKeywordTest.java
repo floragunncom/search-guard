@@ -63,9 +63,9 @@ public class FlsKeywordTest {
 
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
         .roles(DOCUMENT_READER_ROLE, DOCUMENT_READER_EXCEPT_AUTHOR_ROLE, DOCUMENT_TITLE_READER_ROLE)
-        .users(DOCUMENT_READER_USER, DOCUMENT_READER_EXCEPT_AUTHOR_USER, DOCUMENT_TITLE_READER_USER).build();
+        .users(DOCUMENT_READER_USER, DOCUMENT_READER_EXCEPT_AUTHOR_USER, DOCUMENT_TITLE_READER_USER).embedded().build();
 
 
     @BeforeClass

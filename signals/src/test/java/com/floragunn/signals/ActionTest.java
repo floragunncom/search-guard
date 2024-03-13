@@ -223,9 +223,9 @@ public class ActionTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .nodeSettings("signals.enabled", true, "signals.enterprise.enabled", false).resources("sg_config/signals")
-            .enableModule(SignalsModule.class).build();
+            .enableModule(SignalsModule.class).waitForComponents("signals").embedded().build();
     
     private final TrustManagerRegistry trustManagerRegistry = Mockito.mock(TrustManagerRegistry.class);
     private final X509ExtendedTrustManager trustManager = Mockito.mock(X509ExtendedTrustManager.class);

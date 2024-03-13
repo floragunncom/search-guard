@@ -24,6 +24,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
@@ -44,15 +46,16 @@ import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableMap;
 
 public abstract class Action<RequestType extends Action.Request, ResponseType extends Action.Response> extends ActionType<ResponseType> {
+    private final static Logger log = LogManager.getLogger(Action.class);
 
     private final MessageParser<RequestType> requestParser;
     private final MessageParser<ResponseType> responseParser;
@@ -252,15 +255,23 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
                     if (response != null) {
                         listener.onResponse(response);
                     } else if (e instanceof Exception) {
+                        log.error("Error while executing {}", request, e);
                         listener.onFailure((Exception) e);
                     } else if (e != null) {
+                        log.error("Error while executing {}", request, e);
                         listener.onFailure(new Exception(e));
                     } else {
-                        listener.onFailure(new Exception("doExecute() of " + this + " did not provide a result"));
+                        Exception e2 = new Exception("doExecute() of " + this + " did not provide a result");
+                        log.error("Error while executing {}", request, e2);
+                        listener.onFailure(e2);
                     }
                 });
             } catch (Exception e) {
+                log.error("Error while executing {}", request, e);
                 listener.onFailure(e);
+            } catch (Throwable t) {
+                log.error("Error while executing {}", request, t);
+                listener.onFailure(new Exception(t));                
             }
         }
 

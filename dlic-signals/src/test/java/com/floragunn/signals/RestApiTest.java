@@ -31,9 +31,9 @@ public class RestApiTest {
     private static ThrottlePeriodParser throttlePeriodParser;
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log").enterpriseModulesEnabled()
-            .enableModule(SignalsModule.class).build();
+            .enableModule(SignalsModule.class).waitForComponents("signals").embedded().build();
 
     @BeforeClass
     public static void setupTestData() {

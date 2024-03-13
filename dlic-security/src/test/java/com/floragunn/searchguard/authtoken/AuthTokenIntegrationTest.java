@@ -46,7 +46,7 @@ import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.LocalEsCluster;
+import com.floragunn.searchguard.test.helper.cluster.JvmEmbeddedEsCluster;
 import com.google.common.io.BaseEncoding;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
@@ -114,8 +114,8 @@ public class AuthTokenIntegrationTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
-            .resources("authtoken").sslEnabled().sgConfig(sgConfig).enterpriseModulesEnabled().enableModule(AuthTokenModule.class).build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
+            .resources("authtoken").sslEnabled().sgConfig(sgConfig).enterpriseModulesEnabled().enableModule(AuthTokenModule.class).embedded().build();
 
     @BeforeClass
     public static void setupTestData() {
@@ -246,7 +246,7 @@ public class AuthTokenIntegrationTest {
                 assertThat(searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"), equalTo("not_allowed_from_token"));
             }
 
-            for (LocalEsCluster.Node node : cluster.nodes()) {
+            for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
                     SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
                             .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
@@ -305,7 +305,7 @@ public class AuthTokenIntegrationTest {
                 assertThat(searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"), equalTo("not_allowed_from_token"));
             }
 
-            for (LocalEsCluster.Node node : cluster.nodes()) {
+            for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
                     SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
                             .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
@@ -489,7 +489,7 @@ public class AuthTokenIntegrationTest {
             assertThat(token, notNullValue());
             assertThat(id, notNullValue());
 
-            for (LocalEsCluster.Node node : cluster.nodes()) {
+            for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
                     SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
                             .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
@@ -508,7 +508,7 @@ public class AuthTokenIntegrationTest {
             assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
             Thread.sleep(100);
 
-            for (LocalEsCluster.Node node : cluster.nodes()) {
+            for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
 
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
 
@@ -528,8 +528,8 @@ public class AuthTokenIntegrationTest {
         TestSgConfig sgConfig = AuthTokenIntegrationTest.sgConfig.clone()
                 .sgConfigSettings("sg_config.dynamic.auth_token_provider.exclude_cluster_permissions", Collections.emptyList());
 
-        try (LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin").resources("authtoken")
-                .sslEnabled().sgConfig(sgConfig).enterpriseModulesEnabled().enableModule(AuthTokenModule.class).start();
+        try (LocalCluster.Embedded cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin").resources("authtoken")
+                .sslEnabled().sgConfig(sgConfig).enterpriseModulesEnabled().enableModule(AuthTokenModule.class).embedded().start();
                 GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
 
             try (Client client = cluster.getInternalNodeClient()) {
@@ -551,7 +551,7 @@ public class AuthTokenIntegrationTest {
             assertThat(token, notNullValue());
             assertThat(id, notNullValue());
 
-            for (LocalEsCluster.Node node : cluster.nodes()) {
+            for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
                     SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
                             .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
@@ -565,7 +565,7 @@ public class AuthTokenIntegrationTest {
             assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
             Thread.sleep(100);
 
-            for (LocalEsCluster.Node node : cluster.nodes()) {
+            for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
                     ElasticsearchStatusException statusException = (ElasticsearchStatusException) assertThatThrown(
                             () -> client.search(new SearchRequest("pub_test_allow_because_from_token")
@@ -697,8 +697,8 @@ public class AuthTokenIntegrationTest {
 
         TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").sgConfigSettings("", TestSgConfig.fromYaml(sgConfigWithEncryption));
 
-        try (LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().singleNode().sgConfig(sgConfig)
-                .enterpriseModulesEnabled().enableModule(AuthTokenModule.class).start();
+        try (LocalCluster.Embedded cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().singleNode().sgConfig(sgConfig)
+                .enterpriseModulesEnabled().enableModule(AuthTokenModule.class).embedded().start();
                 GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
 
             try (Client client = cluster.getInternalNodeClient()) {
@@ -807,8 +807,8 @@ public class AuthTokenIntegrationTest {
 
         TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").sgConfigSettings("", TestSgConfig.fromYaml(sgConfigWithEncryption));
 
-        try (LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().singleNode().sgConfig(sgConfig)
-                .enterpriseModulesEnabled().enableModule(AuthTokenModule.class).start();
+        try (LocalCluster.Embedded cluster = new LocalCluster.Builder().resources("authtoken").sslEnabled().singleNode().sgConfig(sgConfig)
+                .enterpriseModulesEnabled().enableModule(AuthTokenModule.class).embedded().start();
                 GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
 
             try (Client client = cluster.getInternalNodeClient()) {

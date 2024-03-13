@@ -65,9 +65,9 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
     private static HttpProxyHostRegistry httpProxyHostRegistry;
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("sg_config/signals").nodeSettings("signals.enabled", true,
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().resources("sg_config/signals").nodeSettings("signals.enabled", true,
             "signals.index_names.log", "signals_main_log", "signals.enterprise.enabled", false, "signals.all_tenants_active_by_default", false)
-            .enableModule(SignalsModule.class).build();
+            .enableModule(SignalsModule.class).waitForComponents("signals").embedded().build();
 
     @BeforeClass
     public static void setupTestData() {

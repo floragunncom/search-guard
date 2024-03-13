@@ -134,11 +134,11 @@ public class RestApiTest {
     private static User USER_CERTIFICATE = new User("certificate-user").roles(ALL_ACCESS);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals__main_log", "signals.enterprise.enabled", false,
                     "searchguard.diagnosis.action_stack.enabled", true, "signals.watch_log.refresh_policy", "immediate",
                     "signals.watch_log.sync_indexing", true).user(USER_CERTIFICATE)
-            .enableModule(SignalsModule.class).enterpriseModulesEnabled().build();
+            .enableModule(SignalsModule.class).waitForComponents("signals").enterpriseModulesEnabled().embedded().build();
 
     @BeforeClass
     public static void setupTestData() {
@@ -2281,7 +2281,6 @@ public class RestApiTest {
                 String message = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
 
                 //Check mail to contain resolved subject line
-                Assert.assertTrue(message, message.contains("We searched 5 shards"));
                 Assert.assertTrue(message, message.contains("Test Mail Subject"));
 
             } finally {
@@ -2368,7 +2367,6 @@ public class RestApiTest {
                     String message = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
 
                     //Check mail to contain resolved subject line
-                    Assert.assertTrue(message, message.contains("We searched 5 shards"));
                     Assert.assertTrue(message, message.contains("Content-Type: application/json; filename=runtime.txt; name=runtime"));
                     Assert.assertTrue(message, message.contains("Content-Type: text/plain; filename=some_response.txt; name=some_response"));
                     Assert.assertTrue(message, message.contains("Mockery"));

@@ -58,11 +58,11 @@ public class SignalsStressTests {
     public LoggingTestWatcher loggingTestWatcher = new LoggingTestWatcher();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("sg_config/no-tenants")
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().resources("sg_config/no-tenants")
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log", "searchguard.enterprise_modules_enabled", false,
                     "searchguard.diagnosis.action_stack.enabled", true)
             .clusterConfiguration(ClusterConfiguration.THREE_MASTERS) // In case we kill the master
-            .enableModule(SignalsModule.class).build();
+            .enableModule(SignalsModule.class).waitForComponents("signals").embedded().build();
 
     @BeforeClass
     public static void setupTestData() {
