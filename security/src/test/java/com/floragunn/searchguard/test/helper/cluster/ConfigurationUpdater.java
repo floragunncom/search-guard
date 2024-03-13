@@ -19,10 +19,10 @@ import java.util.Objects;
  */
 public class ConfigurationUpdater {
 
-    private final LocalCluster localCluster;
+    private final LocalCluster.Embedded localCluster;
     private final User user;
 
-    public ConfigurationUpdater(LocalCluster localCluster, User user) {
+    public ConfigurationUpdater(LocalCluster.Embedded localCluster, User user) {
         this.localCluster = Objects.requireNonNull(localCluster, "Local cluster must not be null");
         this.user = Objects.requireNonNull(user, "User is required");
     }

@@ -126,6 +126,10 @@ public class JavaSecurityTestSetup extends ExternalResource {
 
         @Override
         public boolean implies(ProtectionDomain protectionDomain, Permission permission) {
+            if (protectionDomain == null) {
+                return true;
+            }
+            
             if (permission instanceof FilePermission) {
                 FilePermission filePermission = ((FilePermission) permission);
 
@@ -192,6 +196,10 @@ public class JavaSecurityTestSetup extends ExternalResource {
         }
 
         private String getProtectionDomainKey(ProtectionDomain protectionDomain) {
+            if (protectionDomain.getCodeSource() == null || protectionDomain.getCodeSource().getLocation() == null) {
+                return "test-classes";
+            }
+            
             String uri = protectionDomain.getCodeSource().getLocation().toExternalForm();
 
             if (uri.contains("/org/elasticsearch/") && uri.endsWith(".jar")) {

@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls;
 
+import java.io.IOException;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -90,8 +91,8 @@ public class FmIntTest {
             .users(ADMIN, HASHED_IP_USER, HASHED_LOC_USER).resources("dlsfls").build();
 
     @BeforeClass
-    public static void setupTestData() {
-        try (Client client = cluster.getInternalNodeClient()) {
+    public static void setupTestData() throws IOException {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             TEST_DATA.createIndex(client, INDEX, Settings.builder().put("index.number_of_shards", 5).build());
         }
     }

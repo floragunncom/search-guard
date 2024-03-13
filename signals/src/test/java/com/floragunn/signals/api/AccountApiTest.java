@@ -22,7 +22,7 @@ public class AccountApiTest {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode()
             .sslEnabled()
-            .enableModule(SignalsModule.class)
+            .enableModule(SignalsModule.class).waitForComponents("signals")
             .build();
 
     @Test

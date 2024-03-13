@@ -87,7 +87,7 @@ public class ResourceOwnerServiceTests {
             new TestSgConfig.Role("admin_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "indices:searchguard:async_search/_all_owners"));
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(SULU, EVIL_SULU, ADMIN)
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(SULU, EVIL_SULU, ADMIN).embedded()
             .plugin(MockActionPlugin.class).build();
 
     @Test

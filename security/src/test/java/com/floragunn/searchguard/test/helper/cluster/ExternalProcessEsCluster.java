@@ -1,0 +1,414 @@
+/*
+ * Copyright 2024 floragunn GmbH
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * 
+ */
+
+package com.floragunn.searchguard.test.helper.cluster;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Consumer;
+
+import org.apache.commons.io.FileUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.settings.Settings;
+
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.RequestInfo;
+import com.floragunn.searchguard.test.NodeSettingsSupplier;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
+import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration.NodeSettings;
+import com.floragunn.searchguard.test.helper.cluster.EsDownload.EsInstallationUnavailableException;
+
+public class ExternalProcessEsCluster extends LocalEsCluster {
+    private static final Logger log = LogManager.getLogger(ExternalProcessEsCluster.class);
+
+    private boolean started;
+    protected final File esDir;
+    private EsInstallation esInstallation;
+    private static final ExecutorService executorService = Executors.newCachedThreadPool();
+    private final List<Node> allNodes = new ArrayList<>();
+    private final List<Node> masterNodes = new ArrayList<>();
+    private final List<Node> dataNodes = new ArrayList<>();
+    private final List<Node> clientNodes = new ArrayList<>();
+    private final TestSgConfig testSgConfig;
+    private TestCertificates installedTestCertificates;
+
+    public ExternalProcessEsCluster(String clusterName, ClusterConfiguration clusterConfiguration, NodeSettingsSupplier nodeSettingsSupplier,
+            TestCertificates testCertificates, TestSgConfig testSgConfig) {
+        super(clusterName, clusterConfiguration, nodeSettingsSupplier, testCertificates);
+        this.esDir = new File(this.clusterHomeDir, "es");
+        this.testSgConfig = testSgConfig;
+    }
+
+    public void start() throws Exception {
+        String esVersion = this.getEsVersion();
+
+        CompletableFuture<EsInstallation> installationFuture = EsDownload.get(esVersion).extractAsync(esDir);
+        CompletableFuture<SgPluginPackage> pluginFuture = SgPluginPackage.get();
+
+        failFastAllOf(installationFuture, pluginFuture).get();
+
+        this.esInstallation = installationFuture.get();
+        this.esInstallation.ensureKeystore();
+        this.esInstallation.installPlugin(pluginFuture.get().getFile());
+
+        this.esInstallation.appendConfig("jvm.options", "-Xms1g");
+        this.esInstallation.appendConfig("jvm.options", "-Xmx1g");
+
+        this.esInstallation.appendConfig("elasticsearch.yml", "" //
+                + "cluster.routing.allocation.disk.threshold_enabled: false\n" //
+                + "ingest.geoip.downloader.enabled: false\n" //
+                + "xpack.security.enabled: false\n" //
+                + "searchguard.background_init_if_sgindex_not_exist: false");
+
+        this.installedTestCertificates = this.testCertificates.at(this.esInstallation.getConfigPath());
+
+        this.started = true;
+        
+        super.start();
+    }
+
+    @Override
+    protected CompletableFuture<Node> startNode(NodeSettings nodeSettings, int httpPort, int transportPort) {
+        CompletableFuture<Node> result = new CompletableFuture<>();
+
+        executorService.submit(() -> {
+            try {
+                File nodeHomeDir = new File(clusterHomeDir, nodeSettings.name);
+                nodeHomeDir.mkdir();
+                nodeHomeDir.deleteOnExit();
+
+                Settings settings = joinedSettings(this.nodeSettingsSupplier.get(0), this.installedTestCertificates.getSgSettings(),
+                        getMinimalEsSettings());
+
+                Process process = this.esInstallation.startProcess(httpPort, transportPort, nodeHomeDir, settings, nodeSettings);
+
+                try {
+                    new Node(nodeSettings, process, httpPort, transportPort, result, executorService, this);
+                } catch (Throwable t) {
+                    process.destroyForcibly();
+                    result.completeExceptionally(t);
+                }
+            } catch (EsInstallationUnavailableException e) {
+                result.completeExceptionally(e);
+            }
+        });
+
+        return result;
+    }
+
+    @Override
+    public boolean isStarted() {
+        return started;
+    }
+
+    @Override
+    public void destroy() {
+        stop();
+        clientNodes.clear();
+        dataNodes.clear();
+        masterNodes.clear();
+        allNodes.clear();
+
+        try {
+            FileUtils.deleteDirectory(clusterHomeDir);
+        } catch (IOException e) {
+            log.warn("Error while deleting " + clusterHomeDir, e);
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "external_process_cluster" + this.allNodes;
+    }
+    
+    private String getEsVersion() {
+        return org.elasticsearch.Version.CURRENT.toString();
+    }
+
+    public static class Node implements LocalEsCluster.Node {
+        private final NodeSettings nodeSettings;
+        private final Process process;
+        private final CompletableFuture<Node> onReady;
+        private boolean onReadyCompleted;
+        private final Instant started = Instant.now();
+        private final InetSocketAddress transportAddress;
+        private final InetSocketAddress httpAddress;
+        private final String name;
+        private final ExternalProcessEsCluster cluster;
+        
+        private boolean ready = false;
+
+        Node(NodeSettings nodeSettings, Process process, int httpPort, int transportPort, CompletableFuture<Node> onReady,
+                ExecutorService executorService, ExternalProcessEsCluster cluster) throws UnknownHostException {
+            this.nodeSettings = nodeSettings;
+            this.name = nodeSettings.name;
+            this.process = process;
+            this.onReady = onReady;
+            this.transportAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), transportPort);
+            this.httpAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), httpPort);
+            this.cluster = cluster;
+
+            executorService.submit(() -> {
+                try {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                    String line;
+
+                    while ((line = reader.readLine()) != null) {
+                        System.out.println(line);
+                        this.processLogLine(line);
+                    }
+
+                    if (!this.onReadyCompleted) {
+                        this.completeFutureExceptionally(new Exception("Startup has failed"));
+                    }
+
+                    this.stop();
+                } catch (Throwable t) {
+                    log.error("Error while monitoring output of " + this, t);
+                    this.completeFutureExceptionally(t);
+                    this.stop();
+                }
+            });
+
+            executorService.submit(() -> {
+                try {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+                    String line;
+
+                    while ((line = reader.readLine()) != null) {
+                        System.out.println(line);
+                    }
+
+                    if (!this.onReadyCompleted) {
+                        this.completeFutureExceptionally(new Exception("Startup has failed"));
+                    }
+
+                    this.stop();
+                } catch (Throwable t) {
+                    log.error("Error while monitoring output of " + this, t);
+                    this.completeFutureExceptionally(t);
+                    this.stop();
+                }
+            });
+
+            if (nodeSettings.masterNode) {
+                cluster.masterNodes.add(this);
+            } else if (nodeSettings.dataNode) {
+                cluster.dataNodes.add(this);
+            } else {
+                cluster.clientNodes.add(this);
+            }
+            cluster.allNodes.add(this);
+        }
+
+        @Override
+        public InetSocketAddress getTransportAddress() {
+            return transportAddress;
+        }
+
+        @Override
+        public InetSocketAddress getHttpAddress() {
+            return httpAddress;
+        }
+
+        @Override
+        public String getNodeName() {
+            return name;
+        }
+
+        @Override
+        public boolean isRunning() {
+            return ready;
+        }
+
+        @Override
+        public synchronized void stop() {
+            if (process.isAlive()) {
+                log.info("Stopping " + this);
+                process.destroyForcibly();
+            }
+
+            if (!this.onReadyCompleted) {
+                this.completeFutureExceptionally(new Exception("stop() was called"));
+            }
+        }
+
+        @Override
+        public String getClusterName() {
+            return cluster.clusterName;
+        }
+
+        @Override
+        public TestCertificates getTestCertificates() {
+            return cluster.testCertificates;
+        }
+
+        @Override
+        public Consumer<RequestInfo> getRequestInfoConsumer() {
+            // TODO Auto-generated method stub
+            return (r) -> {
+            };
+        }
+
+        private synchronized void completeFuture() {
+            if (!this.onReadyCompleted) {
+                this.onReady.complete(this);
+                this.onReadyCompleted = true;
+            }
+        }
+
+        private synchronized void completeFutureExceptionally(Throwable t) {
+            if (!this.onReadyCompleted) {
+                this.onReady.completeExceptionally(t);
+                this.onReadyCompleted = true;
+                if (process.isAlive()) {
+                    log.info("Stopping " + this);
+                    process.destroyForcibly();
+                }
+            }
+        }
+
+        private void processLogLine(String line) {
+            if (!this.ready) {
+                if (nodeSettings.masterNode && cluster.testSgConfig != null
+                        && line.contains(".searchguard index does not exist yet, use sgctl to initialize the cluster.")) {
+                    log.info("Setting initial Search Guard configuration");
+                    try (GenericRestClient client = getAdminCertRestClient()) {
+                        cluster.testSgConfig.initByConfigRestApi(client);
+                    } catch (Exception e) {
+                        this.completeFutureExceptionally(e);
+                        this.stop();
+                    }
+                } else if (line.contains("Search Guard configuration has been successfully initialized")) {
+                    executorService.submit(() -> {
+
+                        for (int i = 0; i < 10000; i++) {
+                            try {
+                                Thread.sleep(10);
+
+                                try (GenericRestClient client = getRestClient()) {
+                                    GenericRestClient.HttpResponse response = client.get("/");
+
+                                    if (response.getStatusCode() != 503) {
+                                        this.ready = true;
+                                        this.completeFuture();
+                                        return;
+                                    }
+                                } catch (Exception e) {
+                                    this.completeFutureExceptionally(e);
+                                    this.stop();
+                                    return;
+                                }
+                            } catch (InterruptedException e) {
+                                this.completeFutureExceptionally(e);
+                                this.stop();
+                                return;
+                            }
+                        }
+
+                        this.completeFutureExceptionally(new Exception("Node startup has timed out"));
+                    });
+                } else if (line.contains("BindHttpException")) {
+                    cluster.portCollisionDetected = true;
+                } else if (this.started.compareTo(Instant.now().minus(1, ChronoUnit.MINUTES)) < 0) {
+                    this.completeFutureExceptionally(new Exception("Node startup has timed out"));
+                }
+            }
+        }
+
+        @Override
+        public String toString() {
+            return cluster.clusterName + "/" + name;
+        }
+
+    }
+
+    @Override
+    public List<? extends com.floragunn.searchguard.test.helper.cluster.LocalEsCluster.Node> getAllNodes() {
+        return allNodes;
+    }
+
+    @Override
+    public List<? extends com.floragunn.searchguard.test.helper.cluster.LocalEsCluster.Node> clientNodes() {
+        return clientNodes;
+    }
+
+    @Override
+    public List<? extends com.floragunn.searchguard.test.helper.cluster.LocalEsCluster.Node> dataNodes() {
+        return dataNodes;
+    }
+
+    @Override
+    public List<? extends com.floragunn.searchguard.test.helper.cluster.LocalEsCluster.Node> masterNodes() {
+        return masterNodes;
+    }
+
+    @Override
+    public void waitForGreenCluster() throws Exception {
+        try (GenericRestClient client = masterNode().getAdminCertRestClient()) {
+            GenericRestClient.HttpResponse response = client.get("/_cluster/health?wait_for_status=green&timeout=30s");
+
+            if (response.getStatusCode() != 200) {
+                throw new Exception("/_cluster/health request failed: " + response);
+            }
+
+            if (!"green".equals(response.getBodyAsDocNode().getAsString("status"))) {
+                throw new Exception("Cluster is not green: " + response);
+            }
+        }
+    }
+
+    @Override
+    protected void destroyNodes() {
+        this.allNodes.clear();
+        this.masterNodes.clear();
+        this.dataNodes.clear();
+        this.clientNodes.clear();
+    }
+
+    private static CompletableFuture<?> failFastAllOf(CompletableFuture<?>... futures) {
+        CompletableFuture<?> failure = new CompletableFuture<>();
+        for (CompletableFuture<?> f : futures) {
+            f.exceptionally(ex -> {
+                failure.completeExceptionally(ex);
+                return null;
+            });
+        }
+        failure.exceptionally(ex -> {
+            for (CompletableFuture<?> future : futures) {
+                future.cancel(true);
+            }
+            return null;
+        });
+        return CompletableFuture.anyOf(failure, CompletableFuture.allOf(futures));
+    }
+
+}
