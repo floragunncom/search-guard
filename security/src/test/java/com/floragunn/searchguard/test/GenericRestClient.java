@@ -119,7 +119,7 @@ public class GenericRestClient implements AutoCloseable {
 
     public HttpResponse putJson(String path, String body, Header... headers) throws Exception {
         HttpPut uriRequest = new HttpPut(getHttpServerUri() + "/" + path);
-        uriRequest.setEntity(new StringEntity(body));
+        uriRequest.setEntity(new StringEntity(body, org.apache.http.entity.ContentType.APPLICATION_JSON));
 
         HttpResponse response = executeRequest(uriRequest, new RequestInfo().path(path).method("PUT").requestBody(body),
                 mergeHeaders(CONTENT_TYPE_JSON, headers));
@@ -160,7 +160,7 @@ public class GenericRestClient implements AutoCloseable {
             body.append("\n");
         }
 
-        uriRequest.setEntity(new StringEntity(body.toString()));
+        uriRequest.setEntity(new StringEntity(body.toString(), org.apache.http.entity.ContentType.APPLICATION_JSON));
 
         HttpResponse response = executeRequest(uriRequest, new RequestInfo().path(path).method("PUT").requestBody(body.toString()),
                 CONTENT_TYPE_NDJSON);
@@ -179,7 +179,7 @@ public class GenericRestClient implements AutoCloseable {
 
     public HttpResponse postJson(String path, String body, Header... headers) throws Exception {
         HttpPost uriRequest = new HttpPost(getHttpServerUri() + "/" + path);
-        uriRequest.setEntity(new StringEntity(body));
+        uriRequest.setEntity(new StringEntity(body, org.apache.http.entity.ContentType.APPLICATION_JSON));
         return executeRequest(uriRequest, new RequestInfo().path(path).method("POST").requestBody(body), mergeHeaders(CONTENT_TYPE_JSON, headers));
     }
 
@@ -209,7 +209,7 @@ public class GenericRestClient implements AutoCloseable {
 
     public HttpResponse patch(String path, DocPatch docPatch, Header... headers) throws Exception {
         HttpPatch uriRequest = new HttpPatch(getHttpServerUri() + "/" + path);
-        uriRequest.setEntity(new StringEntity(docPatch.toJsonString()));
+        uriRequest.setEntity(new StringEntity(docPatch.toJsonString(), org.apache.http.entity.ContentType.APPLICATION_JSON));
         return executeRequest(uriRequest, new RequestInfo().path(path).method("PATCH").requestBody(docPatch.toJsonString()),
                 mergeHeaders(new BasicHeader("Content-Type", docPatch.getMediaType()), headers));
     }
@@ -220,7 +220,7 @@ public class GenericRestClient implements AutoCloseable {
 
     public HttpResponse patchJsonMerge(String path, String body, Header... headers) throws Exception {
         HttpPatch uriRequest = new HttpPatch(getHttpServerUri() + "/" + path);
-        uriRequest.setEntity(new StringEntity(body));
+        uriRequest.setEntity(new StringEntity(body, org.apache.http.entity.ContentType.APPLICATION_JSON));
         return executeRequest(uriRequest, new RequestInfo().path(path).method("PUT").requestBody(body),
                 mergeHeaders(CONTENT_TYPE_JSON_MERGE, headers));
     }
@@ -599,5 +599,9 @@ public class GenericRestClient implements AutoCloseable {
             return result;
         }
 
+    }
+
+    public UserCredentialsHolder getUser() {
+        return user;
     }
 }

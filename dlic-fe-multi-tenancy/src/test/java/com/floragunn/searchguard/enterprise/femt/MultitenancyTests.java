@@ -89,8 +89,8 @@ public class MultitenancyTests {
     public static final String TENANT_NOT_WRITABLE = Boolean.toString(false);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("multitenancy").enterpriseModulesEnabled()
-            .users(USER_DEPT_01, USER_DEPT_02, HR_USER_READ_ONLY, HR_USER_READ_WRITE).build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().resources("multitenancy").enterpriseModulesEnabled()
+            .users(USER_DEPT_01, USER_DEPT_02, HR_USER_READ_ONLY, HR_USER_READ_WRITE).embedded().build();
 
     @Test
     public void testMt() throws Exception {

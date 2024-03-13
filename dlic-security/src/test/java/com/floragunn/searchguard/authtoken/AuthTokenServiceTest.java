@@ -78,8 +78,8 @@ public class AuthTokenServiceTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().resources("authtoken").singleNode().enterpriseModulesEnabled().sslEnabled()
-            .disableModule(AuthTokenModule.class).build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().resources("authtoken").singleNode().enterpriseModulesEnabled().sslEnabled()
+            .disableModule(AuthTokenModule.class).embedded().build();
 
     @BeforeClass
     public static void setupDependencies() {

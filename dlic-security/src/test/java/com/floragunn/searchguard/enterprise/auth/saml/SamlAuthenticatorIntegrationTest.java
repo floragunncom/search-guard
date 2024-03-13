@@ -67,7 +67,7 @@ public class SamlAuthenticatorIntegrationTest {
                                         "saml.idp.entity_id", "invalid")))//
                 .frontendAuthcDebug("invalid", true);
 
-        cluster = new LocalCluster.Builder().sslEnabled().singleNode().resources("saml").enterpriseModulesEnabled().sgConfig(testSgConfig).start();
+        cluster = new LocalCluster.Builder().sslEnabled().singleNode().resources("saml").enterpriseModulesEnabled().sgConfig(testSgConfig).embedded().start();
     }
 
     @AfterClass

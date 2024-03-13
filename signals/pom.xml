@@ -56,18 +56,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.wiremock</groupId>
-      <artifactId>wiremock</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>net.minidev</groupId>
-      <artifactId>json-smart</artifactId>
-      <version>2.5.0</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>dlic-search-guard-flx-fe-multi-tenancy</artifactId>
       <scope>test</scope>
@@ -76,6 +64,12 @@
     <dependency>
       <groupId>com.icegreen</groupId>
       <artifactId>greenmail</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>net.minidev</groupId>
+      <artifactId>json-smart</artifactId>
+      <version>2.5.0</version>
       <scope>test</scope>
     </dependency>
 
@@ -141,6 +135,12 @@
     <dependency>
       <groupId>org.powermock</groupId>
       <artifactId>powermock-module-junit4</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.wiremock</groupId>
+      <artifactId>wiremock</artifactId>
       <scope>test</scope>
     </dependency>
 

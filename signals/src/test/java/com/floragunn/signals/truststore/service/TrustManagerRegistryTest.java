@@ -71,11 +71,11 @@ public class TrustManagerRegistryTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().clusterConfiguration(ClusterConfiguration.DEFAULT).sslEnabled()//
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().clusterConfiguration(ClusterConfiguration.DEFAULT).sslEnabled()//
         .enableModule(SignalsModule.class)//
         .nodeSettings("signals.enabled", true)//
         .user(USER_ADMIN)//
-        .build();
+        .embedded().build();
 
     private TrustManagerRegistry trustManagerRegistryMaster;
     private TrustManagerRegistry trustManagerRegistryDataOne;

@@ -51,9 +51,7 @@ public class BulkConfigApiTest {
             HttpResponse response = client.get("/_searchguard/config");
             DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
 
-            Assert.assertEquals(response.getBody(), "config", responseDoc.getAsNode("config").getAsNode("content").getAsNode("_sg_meta").get("type"));
-            Assert.assertEquals(response.getBody(), "internalusers",
-                    responseDoc.getAsNode("internalusers").getAsNode("content").getAsNode("_sg_meta").get("type"));
+            Assert.assertEquals(response.getBody(), "basic/internal_users_db", responseDoc.getAsNode("authc").getAsNode("content").getAsListOfNodes("auth_domains").get(0).get("type"));
         }
     }
 
@@ -100,10 +98,6 @@ public class BulkConfigApiTest {
 
             response = client.get("/_searchguard/config");
             DocNode responseDoc = DocNode.wrap(DocReader.json().read(response.getBody()));
-
-            Assert.assertEquals(response.getBody(), "config", responseDoc.getAsNode("config").getAsNode("content").getAsNode("_sg_meta").get("type"));
-            Assert.assertEquals(response.getBody(), "internalusers",
-                    responseDoc.getAsNode("internalusers").getAsNode("content").getAsNode("_sg_meta").get("type"));
 
             Assert.assertEquals(response.getBody(), "bar", responseDoc.get("config_vars", "content", "bulk_test", "value"));
             Assert.assertNotNull(response.getBody(), responseDoc.get("config_vars", "content", "bulk_test_encrypted", "encrypted"));
@@ -318,7 +312,7 @@ public class BulkConfigApiTest {
     @Test
     public void getTestWithoutAdminCertWithAllowedAction() throws Exception {
         try (LocalCluster cluster = new LocalCluster.Builder().sslEnabled().user(ADMIN_USER)
-                .nodeSettings("searchguard.admin_only_actions", Collections.emptyList()).start()) {
+                .nodeSettings("searchguard.admin_only_actions", Collections.singletonList("x/x")).start()) {
             try (GenericRestClient client = cluster.getRestClient(ADMIN_USER)) {
 
                 HttpResponse updateResponse = client.get("/_searchguard/config");

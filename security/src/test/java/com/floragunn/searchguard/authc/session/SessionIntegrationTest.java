@@ -54,7 +54,7 @@ public class SessionIntegrationTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
-            .resources("session").sgConfig(TEST_SG_CONFIG).sslEnabled().build();
+            .resources("session").sgConfig(TEST_SG_CONFIG).sslEnabled().embedded().build();
 
     @Test
     public void startSession_basic() throws Exception {

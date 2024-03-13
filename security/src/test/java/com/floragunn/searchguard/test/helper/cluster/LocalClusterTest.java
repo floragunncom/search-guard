@@ -34,11 +34,11 @@ public class LocalClusterTest {
     private static final User USER_ADMIN = new User("admin").roles(ALL_ACCESS.getName());
     private static final String INDEX_NAME = "some-index";
     @ClassRule
-    public static LocalCluster CLUSTER = new LocalCluster.Builder().singleNode()//
+    public static LocalCluster.Embedded CLUSTER = new LocalCluster.Builder().singleNode()//
         .authc(new TestSgConfig.Authc(new Domain("basic/internal_users_db")))//
         .roles(ALL_ACCESS)//
         .user(USER_ADMIN).users(USER_LIMITED).user(USER_WITHOUT_ROLE)//
-        .sslEnabled().enterpriseModulesEnabled().build();
+        .sslEnabled().enterpriseModulesEnabled().embedded().build();
 
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();

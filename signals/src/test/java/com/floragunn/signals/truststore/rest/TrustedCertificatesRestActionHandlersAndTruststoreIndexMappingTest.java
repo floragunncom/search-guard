@@ -90,10 +90,10 @@ public class TrustedCertificatesRestActionHandlersAndTruststoreIndexMappingTest 
     private final static User READ_TRUSTSTORES_USER = new User("read-truststores-user").roles(READ_TRUSTSTORES_ROLE);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()//
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled()//
         .user(USER_ADMIN).user(READONLY_USER).user(READ_TRUSTSTORES_USER).enableModule(SignalsModule.class)//
-        .nodeSettings("signals.enabled", true)
-        .build();
+        .nodeSettings("signals.enabled", true).waitForComponents("signals")
+        .embedded().build();
 
     @After
     public void clearData() {

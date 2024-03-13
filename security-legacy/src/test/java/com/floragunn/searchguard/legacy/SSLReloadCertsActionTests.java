@@ -267,7 +267,7 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
         TestCertificates.TestCertificatesBuilder builder = TestCertificates.builder();
         builder.ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard");
         builder.addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard");
-        builder.addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard");
+        builder.addAdminClients("CN=admin-0.example.com;OU=SearchGuard;O=SearchGuard");
 
         IntStream.range(0, numberOfNodeCerts)
                 .forEach(i -> builder.addNodes(Collections.singletonList(String.format("CN=node-%s.example.com,OU=SearchGuard,O=SearchGuard", i)),
@@ -298,7 +298,7 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
                 .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMCERT_FILEPATH, httpCertificate.getCertificateFile().getAbsolutePath())
                 .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_FILEPATH, httpCertificate.getPrivateKeyFile().getAbsolutePath())
                 .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMTRUSTEDCAS_FILEPATH, rootCertificate.getCertificateFile().getAbsolutePath())
-                .nodeSettings(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, sslCertReload).start();
+                .nodeSettings(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, sslCertReload).embedded().start();
     }
 
     private GenericRestClient prepareRestClient(InetSocketAddress address, TestCertificate rootCertificate, TestCertificate clientCertificate,

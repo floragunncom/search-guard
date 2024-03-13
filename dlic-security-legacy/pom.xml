@@ -226,24 +226,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.wiremock</groupId>
-      <artifactId>wiremock</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>net.minidev</groupId>
-      <artifactId>json-smart</artifactId>
-      <version>2.5.0</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.floragunn</groupId>
-      <artifactId>search-guard-flx-support</artifactId>
-      <classifier>tests</classifier>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
       <version>${jackson.version}</version>
@@ -274,11 +256,23 @@
       <version>2.5</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>net.minidev</groupId>
+      <artifactId>json-smart</artifactId>
+      <version>2.5.0</version>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <version>5.11.0</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.wiremock</groupId>
+      <artifactId>wiremock</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -299,6 +293,12 @@
     <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-security-legacy</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.floragunn</groupId>
+      <artifactId>search-guard-flx-support</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>

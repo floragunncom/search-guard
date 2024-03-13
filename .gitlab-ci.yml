@@ -129,8 +129,9 @@ test_security:
   tags:
     - test-large
   script:
-    - find .
-    - mvn $MAVEN_CLI_OPTS -pl security test
+    - useradd es_test
+    - chown -R es_test .    
+    - su es_test -c "mvn $MAVEN_CLI_OPTS -pl security test -Dsg.tests.use_ep_cluster=true -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Dsg.tests.es_download_cache.dir=$(pwd)"
   artifacts:
     when: always
     reports:
@@ -154,8 +155,9 @@ test_security_legacy:
   tags:
     - test-large
   script:
-    - find .
-    - mvn $MAVEN_CLI_OPTS -pl security-legacy test
+    - useradd es_test
+    - chown -R es_test . 
+    - su es_test -c "mvn $MAVEN_CLI_OPTS -pl security-legacy test -Dsg.tests.use_ep_cluster=true -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Dsg.tests.es_download_cache.dir=$(pwd)"
   artifacts:
     when: always
     reports:
@@ -204,7 +206,9 @@ test_signals:
   tags:
     - test-large
   script:
-    - mvn $MAVEN_CLI_OPTS -pl signals test
+    - useradd es_test
+    - chown -R es_test . 
+    - su es_test -c "mvn $MAVEN_CLI_OPTS -pl signals test -Dsg.tests.use_ep_cluster=true -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Dsg.tests.es_download_cache.dir=$(pwd)"
   artifacts:
     when: always
     reports:
@@ -228,7 +232,9 @@ test_scheduler:
   tags:
     - test
   script:
-    - mvn $MAVEN_CLI_OPTS -pl scheduler test
+    - useradd es_test
+    - chown -R es_test . 
+    - su es_test -c "mvn $MAVEN_CLI_OPTS -pl scheduler test -Dsg.tests.use_ep_cluster=true -Dsg.tests.sg_plugin.file=$(echo ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Dsg.tests.es_download_cache.dir=$(pwd)"
   artifacts:
     when: always
     reports:
@@ -252,7 +258,9 @@ test_support:
   tags:
     - test
   script:
-    - mvn $MAVEN_CLI_OPTS -pl support test
+    - useradd es_test
+    - chown -R es_test . 
+    - su es_test -c "mvn $MAVEN_CLI_OPTS -pl support test -Dsg.tests.use_ep_cluster=true -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Dsg.tests.es_download_cache.dir=$(pwd)"
   artifacts:
     when: always
     reports:
@@ -276,7 +284,9 @@ test_dlic_security:
   tags:
     - test-large
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-security test
+    - useradd es_test
+    - chown -R es_test . 
+    - su es_test -c "mvn $MAVEN_CLI_OPTS -pl dlic-security test -Dsg.tests.use_ep_cluster=true -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Dsg.tests.es_download_cache.dir=$(pwd)"
   artifacts:
     when: always
     reports:
@@ -300,7 +310,9 @@ test_dlic_security_legacy:
   tags:
     - test-large
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-security-legacy test
+    - useradd es_test
+    - chown -R es_test . 
+    - su es_test -c "mvn $MAVEN_CLI_OPTS -pl dlic-security-legacy test -Dsg.tests.use_ep_cluster=true -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Dsg.tests.es_download_cache.dir=$(pwd)"
   artifacts:
     when: always
     reports:
@@ -324,7 +336,9 @@ test_dlic_dlsfls:
   tags:
     - test
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls test
+    - useradd es_test
+    - chown -R es_test . 
+    - su es_test -c "mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls test -Dsg.tests.use_ep_cluster=true -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Dsg.tests.es_download_cache.dir=$(pwd)"
   artifacts:
     when: always
     reports:
@@ -348,7 +362,9 @@ test_dlic_dlsfls_legacy:
   tags:
     - test
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls-legacy test
+    - useradd es_test
+    - chown -R es_test . 
+    - su es_test -c "mvn $MAVEN_CLI_OPTS -pl dlic-dlsfls-legacy test -Dsg.tests.use_ep_cluster=true -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Dsg.tests.es_download_cache.dir=$(pwd)"
   artifacts:
     when: always
     reports:
@@ -372,7 +388,9 @@ test_dlic_femt:
   tags:
     - test
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-fe-multi-tenancy test
+    - useradd es_test
+    - chown -R es_test . 
+    - su es_test -c "mvn $MAVEN_CLI_OPTS -pl dlic-fe-multi-tenancy test -Dsg.tests.use_ep_cluster=true -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Dsg.tests.es_download_cache.dir=$(pwd)"
   artifacts:
     when: always
     reports:
@@ -396,7 +414,9 @@ test_dlic_auditlog:
   tags:
     - test-large
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-auditlog test
+    - useradd es_test
+    - chown -R es_test . 
+    - su es_test -c "mvn $MAVEN_CLI_OPTS -pl dlic-auditlog test -Dsg.tests.use_ep_cluster=true -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Dsg.tests.es_download_cache.dir=$(pwd)"
   artifacts:
     when: always
     reports:
@@ -420,7 +440,9 @@ test_dlic_signals:
   tags:
     - test-large
   script:
-    - mvn $MAVEN_CLI_OPTS -pl dlic-signals test
+    - useradd es_test
+    - chown -R es_test . 
+    - su es_test -c "mvn $MAVEN_CLI_OPTS -pl dlic-signals test -Dsg.tests.use_ep_cluster=true -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Dsg.tests.es_download_cache.dir=$(pwd)"
   artifacts:
     when: always
     reports:

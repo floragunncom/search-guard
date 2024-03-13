@@ -53,7 +53,7 @@ public class DlsTermsLookupTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls_legacy").enterpriseModulesEnabled().build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls_legacy").enterpriseModulesEnabled().embedded().build();
 
     @BeforeClass
     public static void setupTestData() {
@@ -394,8 +394,8 @@ public class DlsTermsLookupTest {
     @Test
     public void testDlsWithTermsLookupGetTLQDisabled() throws Exception {
 
-        try (LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls_legacy").nodeSettings("searchguard.dls.mode", "lucene_level")
-                .enterpriseModulesEnabled().start()) {
+        try (LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls_legacy").nodeSettings("searchguard.dls.mode", "lucene_level")
+                .enterpriseModulesEnabled().embedded().start()) {
 
             try (Client client = cluster.getInternalNodeClient()) {
 
