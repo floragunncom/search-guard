@@ -24,8 +24,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.function.Consumer;
 
 import javax.net.ssl.SSLContext;
 
@@ -77,7 +76,13 @@ public interface EsClientProvider {
     }
 
     default GenericRestClient getRestClient(UserCredentialsHolder user, Header... headers) {
-        return getRestClient(user.getName(), user.getPassword(), headers);
+        ImmutableList<Header> headersList = ImmutableList.ofArray(headers);
+
+        if (user.isAdminCertUser()) {
+            return getAdminCertRestClient(user, headersList);
+        } else {
+            return getRestClient(user, headersList.with(getBasicAuthHeader(user.getName(), user.getPassword())));
+        }
     }
 
     default GenericRestClient getRestClient(String user, String password, String tenant) {
@@ -85,33 +90,31 @@ public interface EsClientProvider {
     }
 
     default GenericRestClient getRestClient(String user, String password, Header... headers) {
-        BasicHeader basicAuthHeader = getBasicAuthHeader(user, password);
-        if (headers != null && headers.length > 0) {
-            List<Header> concatenatedHeaders = Stream.concat(Stream.of(basicAuthHeader), Stream.of(headers)).collect(Collectors.toList());
-            return getRestClient(concatenatedHeaders);
-        }
-        return getRestClient(basicAuthHeader);
+        return getRestClient(UserCredentialsHolder.basic(user, password), headers);
     }
 
     default GenericRestClient getRestClient(Header... headers) {
-        return getRestClient(Arrays.asList(headers));
+        return getRestClient(null, Arrays.asList(headers));
     }
 
-    default GenericRestClient getRestClient(List<Header> headers) {
-        return new GenericRestClient(getHttpAddress(), headers, getAnyClientSslContextProvider().getSslContext(false));
+    default GenericRestClient getRestClient(UserCredentialsHolder user, List<Header> headers) {
+        return new GenericRestClient(getHttpAddress(), headers, getAnyClientSslContextProvider().getSslContext(false), user,
+                getRequestInfoConsumer());
     }
 
     default GenericRestClient getAdminCertRestClient() {
-        return getAdminCertRestClient(ImmutableList.empty());
+        return getAdminCertRestClient(UserCredentialsHolder.ADMIN, ImmutableList.empty());
     }
 
-    default GenericRestClient getAdminCertRestClient(List<Header> headers) {
-        return new GenericRestClient(getHttpAddress(), headers, getAdminClientSslContextProvider().getSslContext(true));
+    default GenericRestClient getAdminCertRestClient(UserCredentialsHolder user, List<Header> headers) {
+        return new GenericRestClient(getHttpAddress(), headers, getAdminClientSslContextProvider().getSslContext(true), user,
+                getRequestInfoConsumer());
     }
 
-    default GenericRestClient getUserCertRestClient(String subject, Header...headers) {
+    default GenericRestClient getUserCertRestClient(String subject, Header... headers) {
         SSLContext sslContext = getUserClientSslContextProvider(subject).getSslContext(true);
-        return new GenericRestClient(getHttpAddress(), Arrays.asList(headers), sslContext);
+        return new GenericRestClient(getHttpAddress(), Arrays.asList(headers), sslContext, UserCredentialsHolder.basic(subject, null),
+                getRequestInfoConsumer());
     }
 
     default RestHighLevelClient getRestHighLevelClient(UserCredentialsHolder user) {
@@ -155,8 +158,8 @@ public interface EsClientProvider {
 
     default RestClientBuilder getLowLevelRestClientBuilder(Header... headers) {
         InetSocketAddress httpAddress = getHttpAddress();
-        return RestClient.builder(new HttpHost(httpAddress.getHostString(), httpAddress.getPort(), "https"))
-                .setDefaultHeaders(headers).setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(
+        return RestClient.builder(new HttpHost(httpAddress.getHostString(), httpAddress.getPort(), "https")).setDefaultHeaders(headers)
+                .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(
                         new SSLIOSessionStrategy(getAnyClientSslContextProvider().getSslContext(false), null, null, NoopHostnameVerifier.INSTANCE)));
     }
 
@@ -164,25 +167,64 @@ public interface EsClientProvider {
         return getLowLevelRestClientBuilder(headers).build();
     }
 
-
-    default GenericRestClient createGenericClientRestClient(List<Header> headers) {
-        return new GenericRestClient(getHttpAddress(), headers, getAnyClientSslContextProvider().getSslContext(false));
-    }
-
-    default GenericRestClient createGenericAdminRestClient(List<Header> headers) {
-        //a client authentication is needed for admin because admin needs to authenticate itself (dn matching in config file)
-        return new GenericRestClient(getHttpAddress(), headers, getAdminClientSslContextProvider().getSslContext(true));
-    }
-
     default BasicHeader getBasicAuthHeader(String user, String password) {
         return new BasicHeader("Authorization",
                 "Basic " + Base64.getEncoder().encodeToString((user + ":" + Objects.requireNonNull(password)).getBytes(StandardCharsets.UTF_8)));
     }
 
+    Consumer<GenericRestClient.RequestInfo> getRequestInfoConsumer();
+
     public interface UserCredentialsHolder {
         String getName();
 
         String getPassword();
+
+        default boolean isAdminCertUser() {
+            return false;
+        }
+
+        static final UserCredentialsHolder ADMIN = new UserCredentialsHolder() {
+
+            @Override
+            public String getName() {
+                return "<admin cert user>";
+            }
+
+            @Override
+            public String getPassword() {
+                return null;
+            }
+
+            @Override
+            public boolean isAdminCertUser() {
+                return true;
+            }
+
+            @Override
+            public String toString() {
+                return getName();
+            }
+        };
+
+        static UserCredentialsHolder basic(String name, String password) {
+            return new UserCredentialsHolder() {
+
+                @Override
+                public String getName() {
+                    return name;
+                }
+
+                @Override
+                public String getPassword() {
+                    return password;
+                }
+
+                @Override
+                public String toString() {
+                    return getName();
+                }
+            };
+        }
     }
 
 }

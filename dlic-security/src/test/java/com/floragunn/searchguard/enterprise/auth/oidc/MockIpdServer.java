@@ -178,7 +178,11 @@ public class MockIpdServer implements Closeable {
         }).setExceptionLogger(new ExceptionLogger() {
             @Override
             public void log(Exception ex) {
-                log.error("Error in MockIdpServer", ex);
+                if (ex instanceof org.apache.http.ConnectionClosedException) {
+                    log.debug("Error in MockIdpServer", ex);                                        
+                } else {
+                    log.error("Error in MockIdpServer", ex);                    
+                }
             }            
         });
 

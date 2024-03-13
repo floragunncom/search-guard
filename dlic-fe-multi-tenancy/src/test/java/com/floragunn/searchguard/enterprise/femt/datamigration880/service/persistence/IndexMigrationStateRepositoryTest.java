@@ -63,10 +63,11 @@ public class IndexMigrationStateRepositoryTest {
     public static final String BACKUP_INDEX_NAME = "backup index name";
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder()
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder()
         .sslEnabled()
         .resources("multitenancy")
         .enterpriseModulesEnabled()
+        .embedded()
         .build();
 
     private IndexMigrationStateRepository repository;

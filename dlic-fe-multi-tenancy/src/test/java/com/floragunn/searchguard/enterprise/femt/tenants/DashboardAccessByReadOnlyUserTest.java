@@ -60,13 +60,14 @@ public class DashboardAccessByReadOnlyUserTest {
             .on(HR_TENANT.getName()));
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled() //
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled() //
         .nodeSettings("action.destructive_requires_name", false, "searchguard.unsupported.single_index_mt_enabled", true) //
         .enterpriseModulesEnabled() //
         .roleMapping(new RoleMapping("SGS_KIBANA_USER").users(USER_READ_ONLY_TENANT.getName())) //
         .users(USER_READ_ONLY_TENANT) //
         .frontendMultiTenancy(new FrontendMultiTenancy(true).index(FRONTEND_INDEX).serverUser(FRONTEND_SERVER_USER.getName())) //
         .tenants(HR_TENANT) //
+        .embedded()
         .build();
 
     @BeforeClass

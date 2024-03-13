@@ -44,7 +44,7 @@ public class MigrateConfigIndexApiIntegrationTest {
 
     @Test
     public void test() throws Exception {
-        try (LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()//
+        try (LocalCluster.Embedded cluster = new LocalCluster.Builder().embedded().singleNode().sslEnabled()//
                 .configIndexName("searchguard")//
                 .users(TEST_USER_A, TEST_USER_B)//
                 .indices(index_a1, index_b1)//

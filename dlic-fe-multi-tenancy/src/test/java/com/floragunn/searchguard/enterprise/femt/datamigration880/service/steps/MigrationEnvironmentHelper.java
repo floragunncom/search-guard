@@ -104,14 +104,14 @@ public class MigrationEnvironmentHelper extends ExternalResource {
     public static final DoubleAliasIndex
         PRIVATE_USER_LUKASZ_3_INDEX = new DoubleAliasIndex(".kibana_-1091714203_luksz_8.7.0_001", ".kibana_-1091714203_luksz_8.7.0", ".kibana_-1091714203_luksz");//luk@sz
 
-    private final LocalCluster cluster;
+    private final LocalCluster.Embedded cluster;
     private final Clock clock;
 
     private final List<DeletableIndex> createdIndices = new ArrayList<>();
 
     private PrivilegedConfigClient privilegedConfigClient;
 
-    public MigrationEnvironmentHelper(LocalCluster cluster, Clock clock) {
+    public MigrationEnvironmentHelper(LocalCluster.Embedded cluster, Clock clock) {
         this.cluster = Objects.requireNonNull(cluster, "Local cluster is required");
         this.clock =Objects.requireNonNull(clock, "Clock is required");
     }
