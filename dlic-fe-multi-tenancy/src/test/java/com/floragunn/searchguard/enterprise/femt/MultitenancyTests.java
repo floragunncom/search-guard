@@ -522,7 +522,7 @@ public class MultitenancyTests {
                     .source(body, XContentType.JSON)).actionGet();
 
             String requestBody = """
-                {"index" : ".kibana_8.8.0_001"}
+                {"index" : ".kibana_8.8.0_00*"}
                 {"query" : {"match_all" : {}}, "size":1000}
                 
                 """;
@@ -531,7 +531,7 @@ public class MultitenancyTests {
                 log.debug("Msearch response status '{}' and body '{}'.",res.getStatusCode(), res.getBody());
                 Assert.assertEquals(HttpStatus.SC_OK, res.getStatusCode());
                 // id was unscoped, request is treated as MT request
-                MatcherAssert.assertThat(res.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.responses[0].hits.hits[0]._id", "6.2.2"));
+                MatcherAssert.assertThat(res.getBodyAsDocNode(), containsValue("$.responses[0].hits.hits[0]._id", "6.2.2"));
             }
         } finally {
             try {
