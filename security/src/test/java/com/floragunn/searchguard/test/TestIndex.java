@@ -38,6 +38,16 @@ public class TestIndex {
             testData.createIndex(client, name, settings);
         }
     }
+    
+    public void create(GenericRestClient client) throws Exception {
+        GenericRestClient.HttpResponse response = client.head(name);
+        
+        if (response.getStatusCode() == 200) {
+            return;
+        }
+        
+        testData.createIndex(client, name, settings);        
+    }
 
     public String getName() {
         return name;

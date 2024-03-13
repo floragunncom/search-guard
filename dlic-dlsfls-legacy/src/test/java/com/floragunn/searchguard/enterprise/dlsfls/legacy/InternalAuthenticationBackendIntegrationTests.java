@@ -23,7 +23,7 @@ public class InternalAuthenticationBackendIntegrationTests {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("internal_user_db").enterpriseModulesEnabled().build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("internal_user_db").enterpriseModulesEnabled().embedded().build();
 
     @Test
     public void dlsIntegrationTest() throws Exception {

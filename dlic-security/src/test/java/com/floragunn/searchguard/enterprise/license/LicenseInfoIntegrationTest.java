@@ -38,7 +38,7 @@ public class LicenseInfoIntegrationTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).users(ADMIN)
-            .build();
+            .embedded().build();
 
     @Test
     public void basicTest() throws Exception {

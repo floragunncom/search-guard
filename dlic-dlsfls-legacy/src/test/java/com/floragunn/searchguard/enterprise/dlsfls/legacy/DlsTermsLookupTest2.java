@@ -65,7 +65,7 @@ public class DlsTermsLookupTest2 {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled().ignoreUnauthorizedIndices(true)
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled().ignoreUnauthorizedIndices(true)
             .roles(new Role("sg_dls_tlq_lookup").clusterPermissions("*").indexPermissions("*").on("tlqdummy").indexPermissions("*").dls(
                     "{ \"terms\": { \"access_codes\": { \"index\": \"user_access_codes\", \"id\": \"${user.name}\", \"path\": \"access_codes\" } } }")
                     .on("tlqdocuments")
@@ -73,7 +73,7 @@ public class DlsTermsLookupTest2 {
             ).user("tlq_1337", "password", "sg_dls_tlq_lookup").user("tlq_42", "password", "sg_dls_tlq_lookup")
             .user("tlq_1337_42", "password", "sg_dls_tlq_lookup").user("tlq_999", "password", "sg_dls_tlq_lookup")
             .user("tlq_empty_access_codes", "password", "sg_dls_tlq_lookup").user("tlq_no_codes", "password", "sg_dls_tlq_lookup")
-            .user("tlq_no_entry_in_user_index", "password", "sg_dls_tlq_lookup").build();
+            .user("tlq_no_entry_in_user_index", "password", "sg_dls_tlq_lookup").embedded().build();
 
     @BeforeClass
     public static void setupTestData() {

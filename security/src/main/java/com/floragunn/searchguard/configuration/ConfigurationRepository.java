@@ -43,6 +43,7 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -393,7 +394,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                     LOGGER.debug("Thread was interrupted so we cancel initialization");
                     break;
                 }
-
+                
                 try {
 
                     final ImmutableOpenMap<String, List<AliasMetadata>> aliasMetadata = client.admin().indices().getAliases(new GetAliasesRequest(searchguardIndex)).actionGet().getAliases();
@@ -404,11 +405,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
                         LOGGER.info("Resolved alias '{}' to index '{}' for looking up doc count", searchguardIndex, indexName);
 
+                        client.admin().indices().refresh(new RefreshRequest(indexName)).get();
                         docCount = client.admin().indices().stats(new IndicesStatsRequest().indices(indexName).docs(true)).actionGet()
                                 .getIndex(indexName).getTotal().docs.getCount();
 
                     } else {
-
+                        client.admin().indices().refresh(new RefreshRequest(searchguardIndex)).get();
                         docCount = client.admin().indices().stats(new IndicesStatsRequest().indices(searchguardIndex).docs(true)).actionGet()
                                 .getIndex(searchguardIndex).getTotal().docs.getCount();
                     }
@@ -636,11 +638,13 @@ public class ConfigurationRepository implements ComponentStateProvider {
         try {
             ConfigMap loadedConfig = mainConfigLoader.load(configTypes, reason, parserContext.withExternalResources()).get();
             ConfigMap discardedConfig;
+            boolean initialLoad = false;
 
             componentState.setConfigProperty("effective_main_config_index", loadedConfig.getSourceIndex());
 
             if (this.currentConfig == null) {
                 this.currentConfig = loadedConfig;
+                initialLoad = true;
                 discardedConfig = null;
             } else {
                 ConfigMap oldConfig = this.currentConfig;
@@ -652,6 +656,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
             notifyAboutChanges(this.currentConfig);
 
+            if (initialLoad) {
+                LOGGER.info("Search Guard configuration has been successfully initialized");
+            }
+            
             if (discardedConfig != null && !discardedConfig.isEmpty()) {
                 this.threadPool.schedule(() -> {
                     LOGGER.debug("Destroying old configuration: " + discardedConfig);

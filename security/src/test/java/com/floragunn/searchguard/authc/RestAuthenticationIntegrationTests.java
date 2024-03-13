@@ -118,9 +118,9 @@ public class RestAuthenticationIntegrationTests {
     ).trustedProxies("127.0.0.12/30");
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .users(ALL_ACCESS, USER_WITH_ATTRIBUTES, USER_WITH_ATTRIBUTES2, SUBJECT_PATTERN_USER_TEST, ADDITIONAL_USER_INFORMATION_USER).authc(AUTHC)
-            .build();
+            .embedded().build();
 
     @BeforeClass
     public static void initTestData() {

@@ -150,6 +150,7 @@
       <scope>test</scope>
     </dependency>
 
+
     <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-security</artifactId>

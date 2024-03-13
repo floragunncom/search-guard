@@ -45,8 +45,6 @@ import static org.hamcrest.Matchers.not;
 
 @NotThreadSafe
 public class RestApiTestMultiTenancyOff {
-    private static final Logger log = LogManager.getLogger(RestApiTestMultiTenancyOff.class);
-
     private static ScriptService scriptService;
     private static ThrottlePeriodParser throttlePeriodParser;
 
@@ -54,8 +52,8 @@ public class RestApiTestMultiTenancyOff {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals-no-mt")
-            .nodeSettings("signals.enabled", true, "searchguard.enterprise_modules_enabled", false).enableModule(SignalsModule.class).build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals-no-mt")
+            .nodeSettings("signals.enabled", true, "searchguard.enterprise_modules_enabled", false).enableModule(SignalsModule.class).waitForComponents("signals").embedded().build();
 
     @BeforeClass
     public static void setupTestData() {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2024 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -81,7 +81,7 @@ public class TestSgConfig {
     private NestedValueMap overrideFrontendConfigSettings;
     private Authc authc;
     private DlsFls dlsFls;
-    private Privileges privileges;
+    private Authz privileges;
     private Sessions sessions;
     private AuthTokenService authTokenService;
     private String indexName = ".searchguard";
@@ -281,7 +281,7 @@ public class TestSgConfig {
 
     public TestSgConfig ignoreUnauthorizedIndices(boolean ignoreUnauthorizedIndices) {
         if (this.privileges == null) {
-            this.privileges = new Privileges();
+            this.privileges = new Authz();
         }
 
         this.privileges.ignoreUnauthorizedIndices(ignoreUnauthorizedIndices);
@@ -290,7 +290,7 @@ public class TestSgConfig {
 
     public TestSgConfig authzDebug(boolean debug) {
         if (this.privileges == null) {
-            this.privileges = new Privileges();
+            this.privileges = new Authz();
         }
 
         this.privileges.debug(debug);
@@ -344,8 +344,6 @@ public class TestSgConfig {
 
         if (privileges != null) {
             writeConfigToIndex(client, CType.AUTHZ, privileges);
-        } else {
-            writeOptionalConfigToIndex(client, CType.AUTHZ, "sg_privileges.yml", null);
         }
 
         if (sessions != null) {
@@ -369,6 +367,38 @@ public class TestSgConfig {
 
         if (configUpdateResponse.hasFailures()) {
             throw new RuntimeException("ConfigUpdateResponse produced failures: " + configUpdateResponse.failures());
+        }
+    }
+
+    public void initByConfigRestApi(GenericRestClient client) throws Exception {
+
+        DocNode request = DocNode.EMPTY;
+
+        request = request.with(getConfigDocNode(CType.CONFIG, "sg_config.yml", overrideSgConfigSettings));
+        request = request.with(getConfigDocNode(CType.ROLES, "sg_roles.yml", overrideRoleSettings));
+        request = request.with(getConfigDocNode(CType.INTERNALUSERS, "sg_internal_users.yml", overrideUserSettings));
+        request = request.with(getConfigDocNode(CType.ROLESMAPPING, "sg_roles_mapping.yml", overrideRoleMappingSettings));
+        request = request.with(getConfigDocNode(CType.ACTIONGROUPS, "sg_action_groups.yml", null));
+        request = request.with(getConfigDocNode(CType.TENANTS, "sg_tenants.yml", null));
+        request = request.with(getConfigDocNode(CType.BLOCKS, "sg_blocks.yml", null));
+        request = request.with(getConfigDocNode(CType.FRONTEND_AUTHC, "sg_frontend_authc.yml", overrideFrontendConfigSettings));
+        
+        request = request.with(ConfigDocument.bulkUpdateMap(authc != null ? authc : Authc.DEFAULT, privileges, sessions, dlsFls, authTokenService));
+ 
+        if (variableSuppliers.size() != 0) {
+            Map<String, Object> values = new HashMap<>();
+            
+            for (Map.Entry<String, Supplier<Object>> entry : variableSuppliers.entrySet()) {
+                values.put(entry.getKey(), DocNode.of("value", entry.getValue().get()));
+            }
+            
+            request = request.with("config_vars", DocNode.of("content", values));
+        }
+        
+        GenericRestClient.HttpResponse response = client.putJson("/_searchguard/config", request);
+        
+        if (response.getStatusCode() != 200) {
+            throw new RuntimeException("Config update failed: " + response + " (using " + client.getUser() + ")");
         }
     }
 
@@ -405,6 +435,20 @@ public class TestSgConfig {
 
     private void writeOptionalConfigToIndex(Client client, CType<?> configType, String file, NestedValueMap overrides) {
         try {
+            DocNode config = getMergedConfig(configType, file, overrides);
+
+            log.info("Writing SearchGuard configuration of type " + configType + " to index:\n" + config.toYamlString());
+
+            client.index(new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                    .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
+                    .actionGet();
+        } catch (Exception e) {
+            throw new RuntimeException("Error while initializing config for " + indexName, e);
+        }
+    }
+
+    private DocNode getMergedConfig(CType<?> configType, String file, NestedValueMap overrides) {
+        try {
             DocNode config = null;
 
             if (resourceFolder != null) {
@@ -416,21 +460,21 @@ public class TestSgConfig {
             }
 
             if (config == null) {
-                config = DocNode.of("_sg_meta.type", configType.toLCString(), "_sg_meta.config_version", 2);
+                config = DocNode.EMPTY;
             }
 
             if (overrides != null) {
                 config = new MergePatch(DocNode.wrap(overrides)).apply(config);
             }
 
-            log.info("Writing SearchGuard configuration of type " + configType + " to index:\n" + config.toYamlString());
-
-            client.index(new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                    .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
-                    .actionGet();
+            return config;
         } catch (Exception e) {
             throw new RuntimeException("Error while initializing config for " + indexName, e);
         }
+    }
+
+    private DocNode getConfigDocNode(CType<?> configType, String file, NestedValueMap overrides) {
+        return DocNode.of(configType.getName(), DocNode.of("content", getMergedConfig(configType, file, overrides)));
     }
 
     private void writeOptionalConfigToIndex(Client client, String configType, String file, NestedValueMap overrides) {
@@ -467,8 +511,9 @@ public class TestSgConfig {
         try {
             log.info("Writing " + configType + ":\n" + document.toYamlString());
 
-            client.index(new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                    .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(document.toJsonString().getBytes("utf-8")))))
+            client.index(
+                    new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(configType.toLCString(),
+                            BytesReference.fromByteBuffer(ByteBuffer.wrap(DocNode.of("default", document).toJsonString().getBytes("utf-8")))))
                     .actionGet();
         } catch (Exception e) {
             throw new RuntimeException("Error while initializing config for " + indexName, e);
@@ -480,7 +525,7 @@ public class TestSgConfig {
             log.info("Writing " + configType + ":\n" + document.toYamlString());
 
             client.index(new IndexRequest(indexName).id(configType).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(configType,
-                    BytesReference.fromByteBuffer(ByteBuffer.wrap(document.toJsonString().getBytes("utf-8"))))).actionGet();
+                    BytesReference.fromByteBuffer(ByteBuffer.wrap(DocNode.of("default", document).toJsonString().getBytes("utf-8"))))).actionGet();
         } catch (Exception e) {
             throw new RuntimeException("Error while initializing config for " + indexName, e);
         }
@@ -869,7 +914,9 @@ public class TestSgConfig {
 
     }
 
-    public static class Authc implements Document<Authc> {
+    public static class Authc extends ConfigDocument<Authc> {
+        
+        public static final Authc DEFAULT = new Authc(new Authc.Domain("basic/internal_users_db"));
 
         private List<Domain> domains;
         private List<String> trustedProxies;
@@ -1221,8 +1268,13 @@ public class TestSgConfig {
             if (!userCacheEnabled) {
                 result.put("user_cache", ImmutableMap.of("enabled", false));
             }
-            
-            return ImmutableMap.of("default", result);
+
+            return ImmutableMap.of(result);
+        }
+
+        @Override
+        public String configType() {
+            return "authc";
         }
     }
 
@@ -1313,7 +1365,7 @@ public class TestSgConfig {
         }
     }
 
-    public static class DlsFls implements Document<DlsFls> {
+    public static class DlsFls extends ConfigDocument<DlsFls> {
 
         private Boolean debug;
         private String metrics;
@@ -1335,8 +1387,13 @@ public class TestSgConfig {
 
         @Override
         public Object toBasicObject() {
-            return ImmutableMap.of("default", ImmutableMap.ofNonNull("debug", debug, "metrics", metrics, "use_impl", useImpl, "dls",
-                    ImmutableMap.ofNonNull("allow_now", dlsAllowNow)));
+            return ImmutableMap.ofNonNull("debug", debug, "metrics", metrics, "use_impl", useImpl, "dls",
+                    ImmutableMap.ofNonNull("allow_now", dlsAllowNow));
+        }
+
+        @Override
+        public String configType() {
+            return "authz_dlsfls";
         }
     }
 
@@ -1457,7 +1514,7 @@ public class TestSgConfig {
         }
     }
 
-    public static class AuthTokenService implements Document<AuthTokenService> {
+    public static class AuthTokenService extends ConfigDocument<AuthTokenService> {
 
         private Boolean enabled;
         private String metrics;
@@ -1483,8 +1540,12 @@ public class TestSgConfig {
 
         @Override
         public Object toBasicObject() {
-            return ImmutableMap.of("default",
-                    ImmutableMap.ofNonNull("enabled", enabled, "metrics", metrics, "jwt_signing_key_hs512", jwtSigningKeyHs512));
+            return ImmutableMap.ofNonNull("enabled", enabled, "metrics", metrics, "jwt_signing_key_hs512", jwtSigningKeyHs512);
+        }
+
+        @Override
+        public String configType() {
+            return "auth_token_service";
         }
     }
 
@@ -1518,11 +1579,11 @@ public class TestSgConfig {
         }
     }
 
-    public static class Privileges implements Document<Privileges> {
+    public static class Authz extends ConfigDocument<Authz> {
         private boolean ignoreUnauthorizedIndices = true;
         private boolean debug = false;
 
-        public Privileges() {
+        public Authz() {
 
         }
 
@@ -1530,26 +1591,28 @@ public class TestSgConfig {
             return ignoreUnauthorizedIndices;
         }
 
-        public Privileges ignoreUnauthorizedIndices(boolean ignoreUnauthorizedIndices) {
+        public Authz ignoreUnauthorizedIndices(boolean ignoreUnauthorizedIndices) {
             this.ignoreUnauthorizedIndices = ignoreUnauthorizedIndices;
             return this;
         }
 
-        public Privileges debug(boolean debug) {
+        public Authz debug(boolean debug) {
             this.debug = debug;
             return this;
         }
 
         @Override
         public Object toBasicObject() {
-            return ImmutableMap.of("default", ImmutableMap.of(
-                    "ignore_unauthorized_indices.enabled", ignoreUnauthorizedIndices,
-                    "debug", debug
-            ));
+            return ImmutableMap.of("ignore_unauthorized_indices.enabled", ignoreUnauthorizedIndices, "debug", debug);
+        }
+
+        @Override
+        public String configType() {
+            return "authz";
         }
     }
 
-    public static class Sessions implements Document<Sessions> {
+    public static class Sessions extends ConfigDocument<Sessions> {
 
         private Duration inactivityTimeout;
         private Boolean refreshSessionActivityIndex;
@@ -1578,13 +1641,32 @@ public class TestSgConfig {
 
         @Override
         public Object toBasicObject() {
-            // jwt_audience
-            return ImmutableMap.of("default",
-                    ImmutableMap.ofNonNull("inactivity_timeout", inactivityTimeout != null ? DurationFormat.INSTANCE.format(inactivityTimeout) : null,
-                            "refresh_session_activity_index", refreshSessionActivityIndex, "jwt_signing_key_hs512", jwtSigningKeyHs512,
-                            "jwt_audience", jwtAudience));
+            return ImmutableMap.ofNonNull("inactivity_timeout", inactivityTimeout != null ? DurationFormat.INSTANCE.format(inactivityTimeout) : null,
+                    "refresh_session_activity_index", refreshSessionActivityIndex, "jwt_signing_key_hs512", jwtSigningKeyHs512, "jwt_audience",
+                    jwtAudience);
         }
 
+        @Override
+        public String configType() {
+            return "sessions";
+        }
+
+    }
+
+    public static abstract class ConfigDocument<C> implements Document<C> {
+        public abstract String configType();
+        
+        public static DocNode bulkUpdateMap(ConfigDocument<?> ...configDocuments) {
+            DocNode result = DocNode.EMPTY;
+            
+            for (ConfigDocument<?> configDocument : configDocuments) {
+                if (configDocument != null) {
+                    result = result.with(configDocument.configType(), DocNode.of("content", configDocument.toDeepBasicObject()));
+                }
+            }
+            
+            return result;
+        }
     }
 
     private static String hash(final char[] clearTextPassword) {

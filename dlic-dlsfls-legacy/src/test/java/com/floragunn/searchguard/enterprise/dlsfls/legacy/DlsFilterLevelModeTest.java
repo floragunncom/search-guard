@@ -29,8 +29,8 @@ import com.google.common.collect.ImmutableSet;
 
 public class DlsFilterLevelModeTest {
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls_legacy")
-            .nodeSettings(ConfigConstants.SEARCHGUARD_DLS_MODE, "filter_level").enterpriseModulesEnabled().build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls_legacy")
+            .nodeSettings(ConfigConstants.SEARCHGUARD_DLS_MODE, "filter_level").enterpriseModulesEnabled().embedded().build();
 
     @BeforeClass
     public static void setupTestData() {
