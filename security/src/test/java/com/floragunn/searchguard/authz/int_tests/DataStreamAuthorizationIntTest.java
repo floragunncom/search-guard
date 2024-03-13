@@ -53,7 +53,7 @@ public class DataStreamAuthorizationIntTest {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(LIMITED_USER_A, UNLIMITED_USER)//
             .indices(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3)//
-            .plugin(MockActionPlugin.class).build();
+            .build();
 
     @Test
     public void create() throws Exception {
