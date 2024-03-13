@@ -20,7 +20,43 @@ SGS_ALL_ACCESS:
       allowed_actions:
         - "*"
 
-SGS_KIBANA_USER:
+SGS_KIBANA_USER_NO_GLOBAL_TENANT:
+  reserved: true
+  hidden: false
+  static: true
+  description: "Provide the minimum permissions for a kibana user in environment with enabled multi-tenancy, but without Global Tenant"
+  cluster_permissions:
+    - "SGS_CLUSTER_COMPOSITE_OPS"
+    - "SGS_PERSONAL_SESSIONS"
+    - "cluster:admin:searchguard:femt:user/available_tenants/get"
+  index_permissions:
+    - index_patterns:
+        - ".tasks"
+        - ".management-beats"
+        - "*:.tasks"
+        - "*:.management-beats"
+      allowed_actions:
+        - "SGS_INDICES_ALL"
+    - index_patterns:
+        - ".kibana"
+        - ".kibana-6"
+        - ".kibana_"
+        - '/\.kibana_[0-9]+/'
+        - '/\.kibana_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
+        - ".kibana_task_manager"
+        - '/\.kibana_task_manager_[0-9]+/'
+        - ".kibana_analytics"
+        - '/\.kibana_analytics_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
+        - ".kibana_ingest"
+        - '/\.kibana_ingest_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
+        - ".kibana_security_solution"
+        - '/\.kibana_security_solution_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
+        - ".kibana_alerting_cases"
+        - '/\.kibana_alerting_cases_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
+      allowed_actions:
+        - "indices:data/read/open_point_in_time"
+
+SGS_KIBANA_USER_NO_MT:
   reserved: true
   hidden: false
   description: "Provide the minimum permissions for a kibana user who does not use front-end multi-tenancy"
@@ -56,23 +92,6 @@ SGS_KIBANA_USER:
         - "*:.management-beats"
       allowed_actions:
         - "SGS_INDICES_ALL"
-   
-SGS_KIBANA_USER_NO_GLOBAL_TENANT:
-  reserved: true
-  hidden: false
-  description: "Deprecated. Use SGS_KIBANA_USER or SGS_KIBANA_MT_USER instead"
-  cluster_permissions:
-    - "SGS_CLUSTER_COMPOSITE_OPS"
-    - "SGS_PERSONAL_SESSIONS"
-  index_permissions:
-    - index_patterns:
-        - ".tasks"
-        - ".management-beats"
-        - "*:.tasks"
-        - "*:.management-beats"
-      allowed_actions:
-        - "SGS_INDICES_ALL"
-
 
 SGS_KIBANA_USER_NO_DEFAULT_TENANT:
   reserved: true
@@ -90,7 +109,7 @@ SGS_KIBANA_USER_NO_DEFAULT_TENANT:
       allowed_actions:
         - "SGS_INDICES_ALL"
 
-SGS_KIBANA_MT_USER:
+SGS_KIBANA_USER:
   reserved: true
   hidden: false
   static: true

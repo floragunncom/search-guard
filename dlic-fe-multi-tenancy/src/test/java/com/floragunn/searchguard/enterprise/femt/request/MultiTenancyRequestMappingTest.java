@@ -93,7 +93,7 @@ public class MultiTenancyRequestMappingTest {
         .clusterPermissions("SGS_CLUSTER_MONITOR");
 
     private static final TestSgConfig.User LIMITED_USER = new TestSgConfig.User("limited_user")
-        .roles("SGS_KIBANA_MT_USER", LIMITED_ROLE.getName());
+        .roles("SGS_KIBANA_USER_NO_GLOBAL_TENANT", LIMITED_ROLE.getName());
 
     private final TenantManager tenantManager = new TenantManager(ImmutableSet.of(HR_TENANT.getName()));
 

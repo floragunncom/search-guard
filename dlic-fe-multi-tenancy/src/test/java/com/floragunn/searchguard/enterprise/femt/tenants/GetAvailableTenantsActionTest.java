@@ -103,7 +103,7 @@ public class GetAvailableTenantsActionTest {
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled() //
         .nodeSettings("action.destructive_requires_name", false, "searchguard.unsupported.single_index_mt_enabled", true) //
         .enterpriseModulesEnabled() //
-        .roleMapping(new RoleMapping("SGS_KIBANA_MT_USER").users(USER_SINGLE_TENANT.getName(), USER_EACH_TENANT_READ.getName(),
+        .roleMapping(new RoleMapping("SGS_KIBANA_USER").users(USER_SINGLE_TENANT.getName(), USER_EACH_TENANT_READ.getName(),
             USER_EACH_TENANT_WRITE.getName(), USER_SOME_TENANT_ACCESS.getName()),//
             new RoleMapping("SGS_KIBANA_SERVER").users(FRONTEND_SERVER_USER.getName())) //
         .users(FRONTEND_SERVER_USER, USER_SINGLE_TENANT, USER_EACH_TENANT_READ, USER_EACH_TENANT_WRITE, USER_SOME_TENANT_ACCESS, USER_WITHOUT_ACCESS_TO_ANY_TENANT) //
@@ -157,7 +157,7 @@ public class GetAvailableTenantsActionTest {
             assertThat(body, containsValue("$.data.tenants.user_single_tenant.read_access", true));
             assertThat(body, containsValue("$.data.tenants.user_single_tenant.write_access", true));
             assertThat(body, containsValue("$.data.tenants.user_single_tenant.exists", false));
-            // user with role SGS_KIBANA_MT_USER has write access to global tenant
+            // user with role SGS_KIBANA_USER has write access to global tenant
             assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.read_access", true));
             assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.write_access", true));
             assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.exists", false));
@@ -195,7 +195,7 @@ public class GetAvailableTenantsActionTest {
             //user should always have access to its private tenant
             assertThat(body, containsValue("$.data.tenants.user_each_tenant_read.write_access", true));
             assertThat(body, containsValue("$.data.tenants.user_each_tenant_read.exists", true));
-            // user with role SGS_KIBANA_MT_USER has write access to global tenant
+            // user with role SGS_KIBANA_USER has write access to global tenant
             assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.read_access", true));
             assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.write_access", true));
             assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.exists", false));
@@ -285,7 +285,7 @@ public class GetAvailableTenantsActionTest {
             assertThat(body, containsValue("$.data.tenants.sales_tenant.exists", false));
             assertThat(body, containsValue("$.data.tenants.user_some_tenant_access.write_access", true));
             assertThat(body, containsValue("$.data.tenants.user_some_tenant_access.exists", false));
-            // user with role SGS_KIBANA_MT_USER has write access to global tenant
+            // user with role SGS_KIBANA_USER has write access to global tenant
             assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.read_access", true));
             assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.write_access", true));
             assertThat(body, containsValue("$.data.tenants.SGS_GLOBAL_TENANT.exists", false));
