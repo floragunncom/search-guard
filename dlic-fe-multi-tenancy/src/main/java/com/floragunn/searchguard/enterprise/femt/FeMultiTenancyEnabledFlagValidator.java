@@ -85,7 +85,7 @@ class FeMultiTenancyEnabledFlagValidator extends ConfigModificationValidator<FeM
     private Optional<ValidationError> validateEntryEnabledFlag(
             String attribute, FeMultiTenancyConfig newConfig, FeMultiTenancyConfig currentConfig) {
 
-        if (currentConfig.isEnabled() != newConfig.isEnabled()) {
+        if (currentConfig.isEnabled() != newConfig.isEnabled() && true) { //todo && any .kibana* index exists
             String msg = String.format(
                     "Cannot change value of `enabled` flag to %s. It may cause data loss since some Kibana indices exist.",
                     newConfig.isEnabled()
