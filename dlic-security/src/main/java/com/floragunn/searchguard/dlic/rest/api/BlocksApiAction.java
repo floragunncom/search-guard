@@ -17,6 +17,7 @@ package com.floragunn.searchguard.dlic.rest.api;
 import java.nio.file.Path;
 import java.util.List;
 
+import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -43,12 +44,12 @@ public class BlocksApiAction extends PatchableResourceApiAction {
 
     @Inject
     public BlocksApiAction(Settings settings, final Path configPath, RestController controller, Client client, AdminDNs adminDNs,
-            ConfigurationRepository cl, StaticSgConfig staticSgConfig, ClusterService cs, final PrincipalExtractor principalExtractor,
-            AuthorizationService authorizationService,
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
-            AuditLog auditLog) {
+                           ConfigurationRepository cl, StaticSgConfig staticSgConfig, ClusterService cs, final PrincipalExtractor principalExtractor,
+                           AuthorizationService authorizationService,
+                           SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
+                           AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
         super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, authorizationService,
-                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog);
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators);
     }
 
     @Override

@@ -34,7 +34,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 import com.floragunn.codova.config.templates.PipeExpression;
-import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -64,7 +64,6 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.XContentHelper;
@@ -173,11 +172,11 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final Context parserContext;
 
     private final IndexNameExpressionResolver resolver;
-    private final ConfigsRelationsValidator configsRelationsValidator;
+    private final ConfigModificationValidators configModificationValidators;
 
     public ConfigurationRepository(StaticSettings settings, ThreadPool threadPool, Client client, ClusterService clusterService,
-            ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
-            NamedXContentRegistry xContentRegistry, Environment environment, IndexNameExpressionResolver resolver) {
+                                   ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
+                                   NamedXContentRegistry xContentRegistry, Environment environment, IndexNameExpressionResolver resolver, ConfigModificationValidators configModificationValidators) {
         this.configuredSearchguardIndexOld = settings.get(OLD_INDEX_NAME);
         this.configuredSearchguardIndexNew = settings.get(NEW_INDEX_NAME);
         this.configuredSearchguardIndices = Pattern.createUnchecked(this.configuredSearchguardIndexNew, this.configuredSearchguardIndexOld);
@@ -209,7 +208,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         });
 
         this.resolver = resolver;
-        this.configsRelationsValidator = new ConfigsRelationsValidator(this);
+        this.configModificationValidators = configModificationValidators;
     }
 
     public void initOnNodeStart() {
@@ -704,7 +703,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             throws ConfigUpdateException, ConcurrentConfigUpdateException, ConfigValidationException {
         try {
             ValidationErrors validationErrors = new ValidationErrors();
-            validationErrors.add(configsRelationsValidator.validateConfigEntryRelations(entry));
+            validationErrors.add(configModificationValidators.validateConfigEntry(entry));
 
             validationErrors.throwExceptionForPresentErrors();
 
@@ -829,7 +828,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             
             try {
                 ValidationErrors validationErrors = new ValidationErrors();
-                validationErrors.add(configsRelationsValidator.validateConfigEntryRelations(newEntry));
+                validationErrors.add(configModificationValidators.validateConfigEntry(newEntry));
 
                 validationErrors.throwExceptionForPresentErrors();
 
@@ -897,11 +896,11 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
     private  <T> void update(CType<T> ctype, SgDynamicConfiguration<T> configInstance, String matchETag,
-                             boolean validateConfigRelations) throws ConfigUpdateException, ConcurrentConfigUpdateException, ConfigValidationException {
+                             boolean runValidations) throws ConfigUpdateException, ConcurrentConfigUpdateException, ConfigValidationException {
 
-        if (validateConfigRelations) {
+        if (runValidations) {
             ValidationErrors validationErrors = new ValidationErrors();
-            validationErrors.add(configsRelationsValidator.validateConfigRelations(configInstance));
+            validationErrors.add(configModificationValidators.validateConfig(configInstance));
             validationErrors.throwExceptionForPresentErrors();
         }
 
@@ -1050,7 +1049,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             }
         }
 
-        validationErrors.add(configsRelationsValidator.validateConfigsRelations(parsedConfigs));
+        validationErrors.add(configModificationValidators.validateConfigs(parsedConfigs));
 
         parsedConfigs.forEach(SgDynamicConfiguration::close);
 
@@ -1312,10 +1311,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
         String configuredSearchguardIndexOld = staticSettings.get(NEW_INDEX_NAME);
         String configuredSearchguardIndexNew = staticSettings.get(OLD_INDEX_NAME);
         return ImmutableSet.of(configuredSearchguardIndexOld, configuredSearchguardIndexNew);
-    }
-
-    public ConfigsRelationsValidator getConfigsRelationsValidator() {
-        return configsRelationsValidator;
     }
 
     public enum PatchDefaultHandling {

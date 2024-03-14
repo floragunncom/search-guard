@@ -25,6 +25,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import com.floragunn.searchguard.configuration.validation.ConfigModificationValidator;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -146,6 +147,10 @@ public interface SearchGuardModule {
     }
 
     default ImmutableList<ActionFilter> getActionFilters() {
+        return ImmutableList.empty();
+    }
+
+    default ImmutableList<ConfigModificationValidator<?>> getConfigModificationValidators() {
         return ImmutableList.empty();
     }
 

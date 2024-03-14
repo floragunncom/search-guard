@@ -48,6 +48,9 @@ import java.util.stream.Stream;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.MultiTenancyChecker.IndexRepository;
+import com.floragunn.searchguard.configuration.*;
+import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
+import com.floragunn.searchguard.configuration.validation.RoleRelationsValidator;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -81,7 +84,6 @@ import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.CheckedFunction;
 import org.elasticsearch.env.Environment;
-import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.http.HttpServerTransport.Dispatcher;
@@ -112,7 +114,6 @@ import org.elasticsearch.transport.TransportRequestHandler;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportResponseHandler;
-import org.elasticsearch.watcher.ResourceWatcherService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.codova.config.text.Pattern;
@@ -146,11 +147,6 @@ import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.config.AuthorizationConfigApi;
 import com.floragunn.searchguard.authz.indices.SearchGuardDirectoryReaderWrapper;
 import com.floragunn.searchguard.compliance.ComplianceConfig;
-import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.configuration.ClusterInfoHolder;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
-import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.configuration.api.BulkConfigApi;
 import com.floragunn.searchguard.configuration.api.GenericTypeLevelConfigApi;
 import com.floragunn.searchguard.configuration.api.MigrateConfigIndexApi;
@@ -837,9 +833,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             services.threadPool(), protectedConfigIndexService, new EncryptionKeys(settings));
         moduleRegistry.addComponentStateProvider(configVarService);
 
+        ConfigModificationValidators configModificationValidators = new ConfigModificationValidators();
+        components.add(configModificationValidators);
+
         cr = new ConfigurationRepository(staticSettings,
             services.threadPool(), services.client(), services.clusterService(), configVarService, moduleRegistry, staticSgConfig,
-            services.xContentRegistry(), services.environment(), services.indexNameExpressionResolver());
+            services.xContentRegistry(), services.environment(), services.indexNameExpressionResolver(), configModificationValidators);
         moduleRegistry.addComponentStateProvider(cr);
 
         licenseRepository = new LicenseRepository(settings, services.client(), services.clusterService(), cr);
@@ -940,6 +939,9 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         components.add(searchGuardRestFilter);
 
         evaluator.setMultiTenancyConfigurationProvider(moduleRegistry.getMultiTenancyConfigurationProvider());
+
+        configModificationValidators.register(new RoleRelationsValidator(cr));
+        configModificationValidators.register(moduleRegistry.getConfigModificationValidators());
 
         moduleRegistry.addComponentStateProvider(searchGuardRestFilter);
 

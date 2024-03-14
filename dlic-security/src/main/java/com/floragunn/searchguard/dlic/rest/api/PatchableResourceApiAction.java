@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteResponse;
@@ -70,9 +71,9 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
     public PatchableResourceApiAction(Settings settings, Path configPath, RestController controller, Client client, AdminDNs adminDNs,
             ConfigurationRepository cl, StaticSgConfig staticSgConfig, ClusterService cs, PrincipalExtractor principalExtractor,
             AuthorizationService authorizationService, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
-            ThreadPool threadPool, AuditLog auditLog) {
+            ThreadPool threadPool, AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
         super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, authorizationService,
-                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog);
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators);
     }
 
     protected List<Route> getStandardResourceRoutes(String resourceName) {
@@ -178,7 +179,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
                 existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get();) {
 
             ValidationErrors validationErrors = new ValidationErrors();
-            validationErrors.add(configsRelationsValidator.validateConfigRelations(mdc));
+            validationErrors.add(configModificationValidators.validateConfig(mdc));
 
             validationErrors.throwExceptionForPresentErrors();
 
@@ -266,7 +267,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
                 existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get()) {
 
             ValidationErrors validationErrors = new ValidationErrors();
-            validationErrors.add(configsRelationsValidator.validateConfigRelations(mdc));
+            validationErrors.add(configModificationValidators.validateConfig(mdc));
 
             validationErrors.throwExceptionForPresentErrors();
 

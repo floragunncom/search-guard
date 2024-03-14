@@ -24,13 +24,13 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigUnavailableException;
-import com.floragunn.searchguard.configuration.ConfigsRelationsValidator;
 import com.floragunn.searchguard.configuration.ConfigurationLoader;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Hideable;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.StaticDefinable;
 import com.floragunn.searchguard.configuration.StaticSgConfig;
+import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -90,13 +90,13 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	protected final Settings settings;
 	protected final StaticSgConfig staticSgConfig;
     protected final ConfigurationLoader configLoader;
-	protected final ConfigsRelationsValidator configsRelationsValidator;
+	protected final ConfigModificationValidators configModificationValidators;
 
     protected AbstractApiAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
             final AdminDNs adminDNs, final ConfigurationRepository configRepository, StaticSgConfig staticSgConfig, final ClusterService cs,
             final PrincipalExtractor principalExtractor, AuthorizationService authorizationService,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
-            AuditLog auditLog) {
+            AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
 		super();
 		this.settings = settings;
 		this.acceptInvalidLicense = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTAPI_ACCEPT_INVALID_LICENSE, Boolean.FALSE);
@@ -109,7 +109,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		this.auditLog = auditLog;
 		this.staticSgConfig = staticSgConfig;
         this.configLoader = new ConfigurationLoader(client, configRepository);
-		this.configsRelationsValidator = configRepository.getConfigsRelationsValidator();
+		this.configModificationValidators = configModificationValidators;
 	}
 
 	protected abstract AbstractConfigurationValidator getValidator(RestRequest request, BytesReference ref, Object... params);
@@ -223,7 +223,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         try {
 			ValidationErrors validationErrors = validatedConfig.getValidationErrors();
 			Object configEntry = validatedConfig.peek();
-			validationErrors.add(configsRelationsValidator.validateConfigEntryRelations(configEntry));
+			validationErrors.add(configModificationValidators.validateConfigEntry(configEntry));
 
 			//validationErrors.throwExceptionForPresentErrors() is not explicitly called, since validatedConfig.get() calls it anyway
             existingConfiguration = existingConfiguration.with(name, validatedConfig.get());
