@@ -18,7 +18,7 @@
 
   <properties>
     <jjwt.version>0.10.5</jjwt.version>
-    <ldaptive.version>2.3.0</ldaptive.version>
+    <ldaptive.version>2.3.1</ldaptive.version>
 
     <unboundid-ldapsdk.version>6.0.11</unboundid-ldapsdk.version>
   </properties>
@@ -131,7 +131,7 @@
       <!-- Replacement dependency for com.onelogin:java-saml (see above) -->
       <groupId>org.apache.santuario</groupId>
       <artifactId>xmlsec</artifactId>
-      <version>4.0.1</version>
+      <version>4.0.2</version>
     </dependency>
     <dependency>
       <!-- Replacement for bcprov-jdk18on (see above)  -->
@@ -298,7 +298,7 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <version>5.10.0</version>
+      <version>5.11.0</version>
       <scope>test</scope>
     </dependency>
 
