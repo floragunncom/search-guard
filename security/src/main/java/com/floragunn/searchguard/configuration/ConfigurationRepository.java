@@ -679,7 +679,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private synchronized void notifyAboutChanges(ConfigMap configMap) {
         for (ConfigurationChangeListener listener : configurationChangedListener) {
             try {
-                LOGGER.debug("Notify {} listener about change configuration with type {}", listener);
+                LOGGER.debug("Notify {} listener about change configuration with type {}", listener, configMap.getTypes());
                 listener.onChange(configMap);
             } catch (Exception e) {
                 LOGGER.error("{} listener errored: " + e, listener, e);
