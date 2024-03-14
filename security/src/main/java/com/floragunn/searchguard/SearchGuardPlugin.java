@@ -48,7 +48,11 @@ import java.util.stream.Stream;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.MultiTenancyChecker.IndexRepository;
-import com.floragunn.searchguard.configuration.*;
+import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.configuration.ClusterInfoHolder;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
+import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
 import com.floragunn.searchguard.configuration.validation.RoleRelationsValidator;
 import org.apache.lucene.index.DirectoryReader;
@@ -224,6 +228,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private LicenseRepository licenseRepository;
     private Actions actions;
     private NamedXContentRegistry xContentRegistry;
+    private ConfigModificationValidators configModificationValidators;
 
     @Override
     public void close() throws IOException {
@@ -496,7 +501,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
                 handlers.addAll(ReflectionHelper.instantiateMngtRestApiHandler(settings, configPath, restController, localClient, adminDns, cr,
                         staticSgConfig, clusterService, Objects.requireNonNull(principalExtractor), authorizationService, specialPrivilegesEvaluationContextProviderRegistry,
-                        threadPool, Objects.requireNonNull(auditLog)));
+                        threadPool, Objects.requireNonNull(auditLog), Objects.requireNonNull(configModificationValidators)));
 
                 handlers.add(new SSLReloadCertAction(sgks, Objects.requireNonNull(threadPool), adminDns, sslCertReloadEnabled));
                 handlers.add(new ComponentStateRestAction());
@@ -833,7 +838,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             services.threadPool(), protectedConfigIndexService, new EncryptionKeys(settings));
         moduleRegistry.addComponentStateProvider(configVarService);
 
-        ConfigModificationValidators configModificationValidators = new ConfigModificationValidators();
+        configModificationValidators = new ConfigModificationValidators();
         components.add(configModificationValidators);
 
         cr = new ConfigurationRepository(staticSettings,
