@@ -18,6 +18,9 @@ import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidator;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.cluster.service.ClusterService;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,10 +31,16 @@ import java.util.stream.Collectors;
 
 class FeMultiTenancyEnabledFlagValidator extends ConfigModificationValidator<FeMultiTenancyConfig> {
 
+    private static final Logger log = LogManager.getLogger(FeMultiTenancyEnabledFlagValidator.class);
     private static final String CONFIG_ENTRY_DEFAULT_KEY = "default";
 
-    FeMultiTenancyEnabledFlagValidator(ConfigurationRepository configurationRepository) {
+    private final FeMultiTenancyConfigurationProvider feMultiTenancyConfigurationProvider;
+    private final ClusterService clusterService;
+
+    FeMultiTenancyEnabledFlagValidator(FeMultiTenancyConfigurationProvider feMultiTenancyConfigurationProvider, ClusterService clusterService, ConfigurationRepository configurationRepository) {
         super(FeMultiTenancyConfig.TYPE, configurationRepository);
+        this.feMultiTenancyConfigurationProvider = feMultiTenancyConfigurationProvider;
+        this.clusterService = clusterService;
     }
 
     @Override
@@ -58,9 +67,7 @@ class FeMultiTenancyEnabledFlagValidator extends ConfigModificationValidator<FeM
 
             if (FeMultiTenancyConfig.class.isAssignableFrom(newConfigEntry.getClass())) {
 
-                FeMultiTenancyConfig currentConfig = findCurrentConfiguration(FeMultiTenancyConfig.TYPE)
-                        .map(currentCfg -> currentCfg.getCEntry("default"))
-                        .orElse(FeMultiTenancyConfig.DEFAULT);
+                FeMultiTenancyConfig currentConfig = getCurrentConfiguration();
 
                 validateEntryEnabledFlag(null, (FeMultiTenancyConfig) newConfigEntry, currentConfig);
             }
@@ -72,12 +79,9 @@ class FeMultiTenancyEnabledFlagValidator extends ConfigModificationValidator<FeM
 
     private Optional<ValidationError> validateMultiTenancyEnabledFlag(SgDynamicConfiguration<FeMultiTenancyConfig> feMtConfig) {
 
-        FeMultiTenancyConfig currentCfg = findCurrentConfiguration(FeMultiTenancyConfig.TYPE)
-                .map(currentConfig -> currentConfig.getCEntry("default"))
-                .orElse(FeMultiTenancyConfig.DEFAULT);
+        FeMultiTenancyConfig currentCfg = getCurrentConfiguration();
 
         return Optional.of(feMtConfig)
-                .filter(config -> FeMultiTenancyConfig.class.isAssignableFrom(config.getImplementingClass()))
                 .map(config -> config.getCEntry(CONFIG_ENTRY_DEFAULT_KEY))
                 .flatMap(config -> validateEntryEnabledFlag(CONFIG_ENTRY_DEFAULT_KEY, config, currentCfg));
     }
@@ -85,7 +89,7 @@ class FeMultiTenancyEnabledFlagValidator extends ConfigModificationValidator<FeM
     private Optional<ValidationError> validateEntryEnabledFlag(
             String configEntryKey, FeMultiTenancyConfig newConfig, FeMultiTenancyConfig currentConfig) {
 
-        if (currentConfig.isEnabled() != newConfig.isEnabled() && true) { //todo && any .kibana* index exists
+        if (currentConfig.isEnabled() != newConfig.isEnabled() && anyKibanaIndexExists()) { //todo && any .kibana* index exists
             String msg = String.format(
                     "Cannot change value of `enabled` flag to %s. It may cause data loss since some Kibana indices exist.",
                     newConfig.isEnabled()
@@ -94,5 +98,23 @@ class FeMultiTenancyEnabledFlagValidator extends ConfigModificationValidator<FeM
         } else {
             return Optional.empty();
         }
+    }
+
+    private boolean anyKibanaIndexExists() {
+        String kibanaIndexNamePrefix = Objects.requireNonNullElse(
+                feMultiTenancyConfigurationProvider.getKibanaIndex(), FeMultiTenancyConfig.DEFAULT.getIndex()
+        );
+        return clusterService.state().metadata().getIndicesLookup().keySet()
+                .stream().anyMatch(name -> name.startsWith(kibanaIndexNamePrefix));
+    }
+
+
+    private FeMultiTenancyConfig getCurrentConfiguration() {
+        return findCurrentConfiguration(FeMultiTenancyConfig.TYPE)
+                .map(currentConfig -> currentConfig.getCEntry("default"))
+                .orElseGet(() -> {
+                    log.warn("{} config is unavailable, default config will be used instead", FeMultiTenancyConfig.TYPE.getName());
+                    return FeMultiTenancyConfig.DEFAULT;
+                });
     }
 }

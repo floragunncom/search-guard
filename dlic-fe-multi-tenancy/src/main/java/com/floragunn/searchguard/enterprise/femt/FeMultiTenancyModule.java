@@ -104,10 +104,14 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     @Override
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
 
+        FeMultiTenancyConfigurationProvider feMultiTenancyConfigurationProvider = new FeMultiTenancyConfigurationProvider(this);
         this.threadPool = baseDependencies.getThreadPool();
         this.clusterService = baseDependencies.getClusterService();
         this.adminDns = new AdminDNs(baseDependencies.getSettings());
-        this.feMultiTenancyEnabledFlagValidator = new FeMultiTenancyEnabledFlagValidator(baseDependencies.getConfigurationRepository());
+        this.feMultiTenancyEnabledFlagValidator = new FeMultiTenancyEnabledFlagValidator(
+                feMultiTenancyConfigurationProvider, baseDependencies.getClusterService(),
+                baseDependencies.getConfigurationRepository()
+        );
 
         baseDependencies.getConfigurationRepository().subscribeOnChange((ConfigMap configMap) -> {
             SgDynamicConfiguration<FeMultiTenancyConfig> config = configMap.get(FeMultiTenancyConfig.TYPE);
@@ -176,9 +180,9 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
         });
 
         var tenantAvailabilityRepository = new TenantAvailabilityRepository(PrivilegedConfigClient.adapt(baseDependencies.getLocalClient()));
-        var availableTenantService = new AvailableTenantService(new FeMultiTenancyConfigurationProvider(this),
+        var availableTenantService = new AvailableTenantService(feMultiTenancyConfigurationProvider,
             baseDependencies.getAuthorizationService(), threadPool, tenantAvailabilityRepository);
-        return Arrays.asList(new FeMultiTenancyConfigurationProvider(this), tenantAccessMapper, availableTenantService);
+        return Arrays.asList(feMultiTenancyConfigurationProvider, tenantAccessMapper, availableTenantService);
     }
 
     private final TenantAccessMapper tenantAccessMapper = new TenantAccessMapper() {
