@@ -23,6 +23,7 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchsupport.junit.matcher.DocNodeMatchers;
 import org.apache.logging.log4j.LogManager;
@@ -43,6 +44,7 @@ import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.Optional;
 
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static org.apache.http.HttpStatus.SC_NOT_FOUND;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -71,6 +73,7 @@ public class MigrationApiTest {
         .sslEnabled()
         .resources("multitenancy")
         .enterpriseModulesEnabled()
+        .frontendMultiTenancy(new TestSgConfig.FrontendMultiTenancy(false))
         .build();
 
     @Rule
@@ -111,6 +114,8 @@ public class MigrationApiTest {
             GetIndexResponse getIndexResponse = environmentHelper.findHiddenIndexByName("backup_fe_migration_to_8_8_0_*")
                 .orElseThrow();
             assertThat(getIndexResponse.getIndices(), arrayWithSize(1));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.data.stages[14].name", "Enable multitenancy"));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.data.stages[14].status", "ok"));
         }
     }
 
@@ -298,20 +303,20 @@ public class MigrationApiTest {
             HttpResponse response = client.get("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0");
 
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("status", 200));
+            assertThat(response.getBodyAsDocNode(), containsValue("status", 200));
             assertThat(response.getBodyAsDocNode(), DocNodeMatchers.docNodeSizeEqualTo("$.data", 5));
-            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.start_time", "2023-10-06T10:10:10.00000001Z"));
-            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.status", "in_progress"));
-            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.temp_index_name", "temp-index"));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.data.start_time", "2023-10-06T10:10:10.00000001Z"));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.data.status", "in_progress"));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.data.temp_index_name", "temp-index"));
             assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsFieldPointedByJsonPath("$.data", "stages"));
             assertThat(response.getBodyAsDocNode(), DocNodeMatchers.docNodeSizeEqualTo("$.data.stages", 1));
             assertThat(response.getBodyAsDocNode(), DocNodeMatchers.docNodeSizeEqualTo("$.data.stages[0]", 6));
-            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.stages[0].start_time", "2023-10-06T10:12:10.00000001Z"));
-            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.stages[0].name", "step-name"));
-            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.stages[0].status", "ok"));
-            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.stages[0].message", "msg"));
-            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.stages[0].number", 1));
-            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.data.stages[0].details", "details"));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.data.stages[0].start_time", "2023-10-06T10:12:10.00000001Z"));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.data.stages[0].name", "step-name"));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.data.stages[0].status", "ok"));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.data.stages[0].message", "msg"));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.data.stages[0].number", 1));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.data.stages[0].details", "details"));
         }
     }
 

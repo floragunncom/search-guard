@@ -14,6 +14,7 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
@@ -24,10 +25,15 @@ public class StepsFactory {
     private final PrivilegedConfigClient client;
 
     private final FeMultiTenancyConfigurationProvider configurationProvider;
+    private final ConfigurationRepository configurationRepository;
 
-    public StepsFactory(PrivilegedConfigClient privilegedConfigClient, FeMultiTenancyConfigurationProvider provider) {
+    public StepsFactory(
+        PrivilegedConfigClient privilegedConfigClient,
+        FeMultiTenancyConfigurationProvider provider,
+        ConfigurationRepository configurationRepository) {
         this.client = Objects.requireNonNull(privilegedConfigClient, "Privileged config client is required");
         this.configurationProvider = Objects.requireNonNull(provider, "Multi-tenancy configuration provider is required");
+        this.configurationRepository = Objects.requireNonNull(configurationRepository, "Configuration repository is required");
     }
 
     public ImmutableList<MigrationStep> createSteps() {
@@ -46,6 +52,7 @@ public class StepsFactory {
             new DeleteGlobalIndexContentStep(repository),
             new CopyDataToGlobalIndexStep(repository),
             new UnblockDataIndicesStep(repository),
-            new DeleteTempIndexStep(repository));
+            new DeleteTempIndexStep(repository),
+            new EnableMultitenancyStep(configurationProvider, configurationRepository));
     }
 }

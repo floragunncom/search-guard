@@ -17,6 +17,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationService;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationConfig;
@@ -80,13 +81,13 @@ class StartDataMigrationAction extends Action<StartDataMigrationAction.StartData
 
         @Inject
         public StartDataMigrationHandler(HandlerDependencies handlerDependencies, NodeClient client,
-            FeMultiTenancyConfigurationProvider provider) {
+            FeMultiTenancyConfigurationProvider provider, ConfigurationRepository repository) {
             super(INSTANCE, handlerDependencies);
             Objects.requireNonNull(client, "Client is required");
             Objects.requireNonNull(provider, "Multi-tenancy configuration provider is required");
             PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
             MigrationStateRepository migrationStateRepository = new IndexMigrationStateRepository(privilegedConfigClient);
-            StepsFactory stepsFactory = new StepsFactory(privilegedConfigClient, provider);
+            StepsFactory stepsFactory = new StepsFactory(privilegedConfigClient, provider, repository);
             this.dataMigrationService = new DataMigrationService(migrationStateRepository, stepsFactory);
         }
 
@@ -96,7 +97,7 @@ class StartDataMigrationAction extends Action<StartDataMigrationAction.StartData
                 try {
                     return dataMigrationService.migrateData(request.getConfig());
                 } catch (Exception ex) {
-                    log.error("Unexpected error during multi-tenancy data migration occured.", ex);
+                    log.error("Unexpected error during multi-tenancy data migration occurred.", ex);
                     return new StandardResponse(500).error("Unexpected error during data migration: " + ex.getMessage());
                 }
             });

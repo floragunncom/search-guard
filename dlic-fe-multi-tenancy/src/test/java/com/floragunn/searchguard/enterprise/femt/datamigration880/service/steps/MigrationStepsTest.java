@@ -176,21 +176,6 @@ public class MigrationStepsTest {
     }
 
     @Test
-    public void shouldReportErrorWhenMultiTenancyIsDisabled() {
-        when(feMultiTenancyConfig.isEnabled()).thenReturn(false);
-        when(multiTenancyConfigurationProvider.getConfig()).thenReturn(Optional.of(feMultiTenancyConfig));
-        when(multiTenancyConfigurationProvider.getTenantNames()).thenReturn(ImmutableSet.empty());
-        Client client = cluster.getInternalNodeClient();
-        StepRepository repository = new StepRepository(adapt(client));
-        PopulateTenantsStep populateTenantsStep = new PopulateTenantsStep(multiTenancyConfigurationProvider, repository);
-
-        StepResult result = populateTenantsStep.execute(context);
-
-        assertThat(result.isSuccess(), equalTo(false));
-        assertThat(result.status(), equalTo(MULTI_TENANCY_DISABLED_ERROR));
-    }
-
-    @Test
     public void shouldFindGlobalTenantIndexForVersion8_7_0() {
         DoubleAliasIndex
             taskManagerIndex = new DoubleAliasIndex(".kibana_task_manager_8.7.0_001", ".kibana_task_manager_8.7.0", "kibana_task_manager");
@@ -476,7 +461,6 @@ public class MigrationStepsTest {
         environmentHelper.createIndex(indexNamePrefix, 0, null, globalTenantIndex);
         environmentHelper.createIndex(indexNamePrefix, 0, null, privateUserTenant);
         when(feMultiTenancyConfig.getIndex()).thenReturn(indexNamePrefix);
-        when(feMultiTenancyConfig.isEnabled()).thenReturn(true);
         when(multiTenancyConfigurationProvider.getConfig()).thenReturn(Optional.of(feMultiTenancyConfig));
         when(multiTenancyConfigurationProvider.getTenantNames()).thenReturn(ImmutableSet.empty());
         Client client = cluster.getInternalNodeClient();
