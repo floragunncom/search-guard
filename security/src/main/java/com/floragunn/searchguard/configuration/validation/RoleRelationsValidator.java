@@ -30,7 +30,13 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class RoleRelationsValidator extends ConfigModificationValidator<Role> {
@@ -44,7 +50,8 @@ public class RoleRelationsValidator extends ConfigModificationValidator<Role> {
 
     @Override
     public List<ValidationError> validateConfigs(List<SgDynamicConfiguration<?>> newConfigs) {
-        List<SgDynamicConfiguration<?>> notNullConfigs = newConfigs.stream().filter(Objects::nonNull).collect(Collectors.toList());
+        List<SgDynamicConfiguration<?>> notNullConfigs = Optional.ofNullable(newConfigs).orElse(new ArrayList<>())
+                .stream().filter(Objects::nonNull).collect(Collectors.toList());
 
         List<ValidationError> errors = new ArrayList<>();
 

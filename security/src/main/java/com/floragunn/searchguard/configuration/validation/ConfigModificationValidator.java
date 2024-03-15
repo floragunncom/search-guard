@@ -35,12 +35,16 @@ public abstract class ConfigModificationValidator<T> {
     protected ConfigModificationValidator(CType<T> configType, ConfigurationRepository configurationRepository) {
         this.configType = Objects.requireNonNull(configType, "configType is required");
         Objects.requireNonNull(configurationRepository, "Configuration repository is required");
-        configurationRepository.subscribeOnChange(this::onConfigurationChange);
+        configurationRepository.subscribeOnChange(this::setConfigMap);
     }
 
     public abstract List<ValidationError> validateConfigs(List<SgDynamicConfiguration<?>> newConfigs);
     public abstract List<ValidationError> validateConfig(SgDynamicConfiguration<?> newConfig);
     public abstract <T> List<ValidationError> validateConfigEntry(T newConfigEntry);
+
+    public void setConfigMap(ConfigMap configMap) {
+        this.configMap = configMap;
+    }
 
     protected <T> Optional<SgDynamicConfiguration<T>> findCurrentConfiguration(CType<T> typeToLoad) {
         return Optional.ofNullable(configMap)
@@ -57,10 +61,6 @@ public abstract class ConfigModificationValidator<T> {
     protected ValidationError toValidationError(String configEntryKey, String message) {
         String attribute = Objects.nonNull(configEntryKey)? String.format("%s.%s", configType.toLCString(), configEntryKey) : null;
         return new ValidationError(attribute, message);
-    }
-
-    protected void onConfigurationChange(ConfigMap configMap) {
-        this.configMap = configMap;
     }
 
 }

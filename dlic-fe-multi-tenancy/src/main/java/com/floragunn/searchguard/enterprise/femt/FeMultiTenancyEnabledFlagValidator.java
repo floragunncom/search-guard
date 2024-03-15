@@ -45,7 +45,8 @@ class FeMultiTenancyEnabledFlagValidator extends ConfigModificationValidator<FeM
 
     @Override
     public List<ValidationError> validateConfigs(List<SgDynamicConfiguration<?>> newConfigs) {
-        List<SgDynamicConfiguration<?>> notNullConfigs = newConfigs.stream().filter(Objects::nonNull).collect(Collectors.toList());
+        List<SgDynamicConfiguration<?>> notNullConfigs = Optional.ofNullable(newConfigs).orElse(new ArrayList<>())
+                .stream().filter(Objects::nonNull).collect(Collectors.toList());
 
         List<ValidationError> errors = new ArrayList<>();
 
@@ -69,7 +70,7 @@ class FeMultiTenancyEnabledFlagValidator extends ConfigModificationValidator<FeM
 
                 FeMultiTenancyConfig currentConfig = getCurrentConfiguration();
 
-                validateEntryEnabledFlag(null, (FeMultiTenancyConfig) newConfigEntry, currentConfig);
+                validateEntryEnabledFlag(null, (FeMultiTenancyConfig) newConfigEntry, currentConfig).ifPresent(errors::add);
             }
 
             return errors;
@@ -91,7 +92,7 @@ class FeMultiTenancyEnabledFlagValidator extends ConfigModificationValidator<FeM
 
         if (currentConfig.isEnabled() != newConfig.isEnabled() && anyKibanaIndexExists()) { //todo && any .kibana* index exists
             String msg = String.format(
-                    "Cannot change value of `enabled` flag to %s. It may cause data loss since some Kibana indices exist.",
+                    "Cannot change the value of the 'enabled' flag to '%s'. This may result in data loss as there are some Kibana indexes. Please read the multi tenancy migration guide.",
                     newConfig.isEnabled()
             );
             return Optional.of(toValidationError(configEntryKey, msg));

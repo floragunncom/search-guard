@@ -36,9 +36,9 @@ public class RoleRelationsValidatorTest {
     }
 
     @Test
-    public void shouldValidateRoleEntryRelations_noTenantMatchesGivenPattern() throws Exception {
+    public void configEntry_shouldValidateRelations_noTenantMatchesGivenPattern() throws Exception {
         //there is no tenant
-        roleRelationsValidator.onConfigurationChange(null);
+        roleRelationsValidator.setConfigMap(null);
         Role role = Role.parse(DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", "fake"))), null).get();
         List<ValidationError> validationErrors = roleRelationsValidator.validateConfigEntry(role);
         assertThat(validationErrors, hasSize(1));
@@ -50,7 +50,7 @@ public class RoleRelationsValidatorTest {
                 SgDynamicConfiguration.of(CType.TENANTS,
                         "fake1", Tenant.parse(DocNode.of("description", "test tenant"), null).get())
         );
-        roleRelationsValidator.onConfigurationChange(configMap);
+        roleRelationsValidator.setConfigMap(configMap);
         role = Role.parse(DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", "fake"))), null).get();
         validationErrors = roleRelationsValidator.validateConfigEntry(role);
         assertThat(validationErrors, hasSize(1));
@@ -59,24 +59,48 @@ public class RoleRelationsValidatorTest {
     }
 
     @Test
-    public void shouldValidateRoleEntryRelations_tenantMatchingGivenPatternExists() throws Exception {
+    public void configEntry_shouldValidateRelations_tenantMatchingGivenPatternExists() throws Exception {
         ConfigMap configMap = configMapWithConfig(
                 SgDynamicConfiguration.of(CType.TENANTS,
                         "exists", Tenant.parse(DocNode.of("description", "test tenant"), null).get())
         );
-        roleRelationsValidator.onConfigurationChange(configMap);
+        roleRelationsValidator.setConfigMap(configMap);
         Role role = Role.parse(DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", "exist*"))), null).get();
         List<ValidationError> validationErrors = roleRelationsValidator.validateConfigEntry(role);
         assertThat(validationErrors, empty());
     }
 
     @Test
-    public void shouldValidateRoleConfigRelations_noTenantMatchesOneOfGivenPatterns() throws Exception {
+    public void configEntry_shouldDoNothing_configTypeNotSupported() throws Exception {
         ConfigMap configMap = configMapWithConfig(
                 SgDynamicConfiguration.of(CType.TENANTS,
                         "exists", Tenant.parse(DocNode.of("description", "test tenant"), null).get())
         );
-        roleRelationsValidator.onConfigurationChange(configMap);
+        roleRelationsValidator.setConfigMap(configMap);
+        Tenant tenant = new Tenant(null, false, false, false, null);
+        List<ValidationError> validationErrors = roleRelationsValidator.validateConfigEntry(tenant);
+        assertThat(validationErrors, empty());
+    }
+
+    @Test
+    public void configEntry_shouldDoNothing_configIsNull() throws Exception {
+        ConfigMap configMap = configMapWithConfig(
+                SgDynamicConfiguration.of(CType.TENANTS,
+                        "exists", Tenant.parse(DocNode.of("description", "test tenant"), null).get())
+        );
+        roleRelationsValidator.setConfigMap(configMap);
+        Tenant tenant = new Tenant(null, false, false, false, null);
+        List<ValidationError> validationErrors = roleRelationsValidator.validateConfigEntry(tenant);
+        assertThat(validationErrors, empty());
+    }
+
+    @Test
+    public void config_shouldValidateRelations_noTenantMatchesOneOfGivenPatterns() throws Exception {
+        ConfigMap configMap = configMapWithConfig(
+                SgDynamicConfiguration.of(CType.TENANTS,
+                        "exists", Tenant.parse(DocNode.of("description", "test tenant"), null).get())
+        );
+        roleRelationsValidator.setConfigMap(configMap);
         Role roleOne = Role.parse(DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", "fake"))), null).get();
         Role roleTwo = Role.parse(DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", "exists"))), null).get();
         SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration.of(CType.ROLES, "role1", roleOne, "role2", roleTwo);
@@ -87,13 +111,13 @@ public class RoleRelationsValidatorTest {
     }
 
     @Test
-    public void shouldValidateRoleConfigRelations_tenantsMatchingAllOfGivenPatternsExist() throws Exception {
+    public void config_shouldValidateRelations_tenantsMatchingAllOfGivenPatternsExist() throws Exception {
         ConfigMap configMap = configMapWithConfig(
                 SgDynamicConfiguration.of(CType.TENANTS,
                         "first", Tenant.parse(DocNode.of("description", "first test tenant"), null).get(),
                         "second", Tenant.parse(DocNode.of("description", "second test tenant"), null).get())
         );
-        roleRelationsValidator.onConfigurationChange(configMap);
+        roleRelationsValidator.setConfigMap(configMap);
         Role roleOne = Role.parse(DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", "firs*"))), null).get();
         Role roleTwo = Role.parse(DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", "se*nd"))), null).get();
         SgDynamicConfiguration<Role> roleConfig = SgDynamicConfiguration.of(CType.ROLES, "role1", roleOne, "role2", roleTwo);
@@ -102,13 +126,39 @@ public class RoleRelationsValidatorTest {
     }
 
     @Test
-    public void shouldValidateConfigsRelations_newRolesAndTenantsConfigsArePresent_noTenantMatchesOneOfGivenPatterns() throws Exception {
+    public void config_shouldDoNothing_configTypeNotSupported() throws Exception {
         ConfigMap configMap = configMapWithConfig(
                 SgDynamicConfiguration.of(CType.TENANTS,
                         "first", Tenant.parse(DocNode.of("description", "first test tenant"), null).get(),
                         "second", Tenant.parse(DocNode.of("description", "second test tenant"), null).get())
         );
-        roleRelationsValidator.onConfigurationChange(configMap);
+        roleRelationsValidator.setConfigMap(configMap);
+        Tenant tenant = new Tenant(null, false, false, false, null);
+        SgDynamicConfiguration<Tenant> config = SgDynamicConfiguration.of(CType.TENANTS, "a", tenant);
+        List<ValidationError> validationErrors = roleRelationsValidator.validateConfig(config);
+        assertThat(validationErrors, hasSize(0));
+    }
+
+    @Test
+    public void config_shouldDoNothing_configIsNull() throws Exception {
+        ConfigMap configMap = configMapWithConfig(
+                SgDynamicConfiguration.of(CType.TENANTS,
+                        "first", Tenant.parse(DocNode.of("description", "first test tenant"), null).get(),
+                        "second", Tenant.parse(DocNode.of("description", "second test tenant"), null).get())
+        );
+        roleRelationsValidator.setConfigMap(configMap);
+        List<ValidationError> validationErrors = roleRelationsValidator.validateConfig(null);
+        assertThat(validationErrors, hasSize(0));
+    }
+
+    @Test
+    public void configList_shouldValidateRelations_newRolesAndTenantsConfigsArePresent_noTenantMatchesOneOfGivenPatterns() throws Exception {
+        ConfigMap configMap = configMapWithConfig(
+                SgDynamicConfiguration.of(CType.TENANTS,
+                        "first", Tenant.parse(DocNode.of("description", "first test tenant"), null).get(),
+                        "second", Tenant.parse(DocNode.of("description", "second test tenant"), null).get())
+        );
+        roleRelationsValidator.setConfigMap(configMap);
 
         Role roleOne = Role.parse(DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", "firs*"))), null).get();
         Role roleTwo = Role.parse(DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", "se*nd"))), null).get();
@@ -125,13 +175,13 @@ public class RoleRelationsValidatorTest {
     }
 
     @Test
-    public void shouldValidateConfigsRelations_newRolesAndTenantsConfigsArePresent_tenantsMatchingAllOfGivenPatternsExist() throws Exception {
+    public void configList_shouldValidateRelations_newRolesAndTenantsConfigsArePresent_tenantsMatchingAllOfGivenPatternsExist() throws Exception {
         ConfigMap configMap = configMapWithConfig(
                 SgDynamicConfiguration.of(CType.TENANTS,
                         "first", Tenant.parse(DocNode.of("description", "first test tenant"), null).get(),
                         "second", Tenant.parse(DocNode.of("description", "second test tenant"), null).get())
         );
-        roleRelationsValidator.onConfigurationChange(configMap);
+        roleRelationsValidator.setConfigMap(configMap);
 
         Role roleOne = Role.parse(DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", "thi*"))), null).get();
         Role roleTwo = Role.parse(DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", "fo*th"))), null).get();
@@ -146,13 +196,13 @@ public class RoleRelationsValidatorTest {
     }
 
     @Test
-    public void shouldValidateConfigsRelations_onlyNewRolesConfigIsPresent_noTenantMatchesOneOfGivenPatterns() throws Exception {
+    public void configList_shouldValidateRelations_onlyNewRolesConfigIsPresent_noTenantMatchesOneOfGivenPatterns() throws Exception {
         ConfigMap configMap = configMapWithConfig(
                 SgDynamicConfiguration.of(CType.TENANTS,
                         "first", Tenant.parse(DocNode.of("description", "first test tenant"), null).get(),
                         "second", Tenant.parse(DocNode.of("description", "second test tenant"), null).get())
         );
-        roleRelationsValidator.onConfigurationChange(configMap);
+        roleRelationsValidator.setConfigMap(configMap);
 
         Role roleOne = Role.parse(DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", "firs*"))), null).get();
         Role roleTwo = Role.parse(DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", "se*nds"))), null).get();
@@ -165,19 +215,45 @@ public class RoleRelationsValidatorTest {
     }
 
     @Test
-    public void shouldValidateConfigsRelations_onlyNewRolesConfigIsPresent_tenantsMatchingAllOfGivenPatternsExist() throws Exception {
+    public void configList_shouldValidateRelations_onlyNewRolesConfigIsPresent_tenantsMatchingAllOfGivenPatternsExist() throws Exception {
         ConfigMap configMap = configMapWithConfig(
                 SgDynamicConfiguration.of(CType.TENANTS,
                         "first", Tenant.parse(DocNode.of("description", "first test tenant"), null).get(),
                         "second", Tenant.parse(DocNode.of("description", "second test tenant"), null).get())
         );
-        roleRelationsValidator.onConfigurationChange(configMap);
+        roleRelationsValidator.setConfigMap(configMap);
 
         Role roleOne = Role.parse(DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", "f*"))), null).get();
         Role roleTwo = Role.parse(DocNode.of("tenant_permissions", DocNode.array(DocNode.of("tenant_patterns", "s*"))), null).get();
         SgDynamicConfiguration<Role> newRoleConfig = SgDynamicConfiguration.of(CType.ROLES, "role1", roleOne, "role2", roleTwo);
 
         List<ValidationError> validationErrors = roleRelationsValidator.validateConfigs(ImmutableList.of(newRoleConfig));
+        assertThat(validationErrors, hasSize(0));
+    }
+
+    @Test
+    public void configList_shouldValidateRelations_shouldDoNothing_listIsNull() throws Exception {
+        ConfigMap configMap = configMapWithConfig(
+                SgDynamicConfiguration.of(CType.TENANTS,
+                        "first", Tenant.parse(DocNode.of("description", "first test tenant"), null).get(),
+                        "second", Tenant.parse(DocNode.of("description", "second test tenant"), null).get())
+        );
+        roleRelationsValidator.setConfigMap(configMap);
+
+        List<ValidationError> validationErrors = roleRelationsValidator.validateConfigs(null);
+        assertThat(validationErrors, hasSize(0));
+    }
+
+    @Test
+    public void configList_shouldValidateRelations_shouldDoNothing_listContainsOnlyNullElement() throws Exception {
+        ConfigMap configMap = configMapWithConfig(
+                SgDynamicConfiguration.of(CType.TENANTS,
+                        "first", Tenant.parse(DocNode.of("description", "first test tenant"), null).get(),
+                        "second", Tenant.parse(DocNode.of("description", "second test tenant"), null).get())
+        );
+        roleRelationsValidator.setConfigMap(configMap);
+
+        List<ValidationError> validationErrors = roleRelationsValidator.validateConfigs(ImmutableList.of(null));
         assertThat(validationErrors, hasSize(0));
     }
 
