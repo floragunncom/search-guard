@@ -54,6 +54,11 @@ public abstract class ConfigModificationValidator<T> {
                 .map(config -> (SgDynamicConfiguration<T>) config);
     }
 
+    protected ValidationError toValidationError(String configEntryKey, String message) {
+        String attribute = Objects.nonNull(configEntryKey)? String.format("%s.%s", configType.toLCString(), configEntryKey) : null;
+        return new ValidationError(attribute, message);
+    }
+
     protected void onConfigurationChange(ConfigMap configMap) {
         this.configMap = configMap;
     }

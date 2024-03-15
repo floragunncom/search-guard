@@ -79,18 +79,18 @@ class FeMultiTenancyEnabledFlagValidator extends ConfigModificationValidator<FeM
         return Optional.of(feMtConfig)
                 .filter(config -> FeMultiTenancyConfig.class.isAssignableFrom(config.getImplementingClass()))
                 .map(config -> config.getCEntry(CONFIG_ENTRY_DEFAULT_KEY))
-                .flatMap(config -> validateEntryEnabledFlag(FeMultiTenancyConfig.TYPE.toLCString() + "." + CONFIG_ENTRY_DEFAULT_KEY, config, currentCfg));
+                .flatMap(config -> validateEntryEnabledFlag(CONFIG_ENTRY_DEFAULT_KEY, config, currentCfg));
     }
 
     private Optional<ValidationError> validateEntryEnabledFlag(
-            String attribute, FeMultiTenancyConfig newConfig, FeMultiTenancyConfig currentConfig) {
+            String configEntryKey, FeMultiTenancyConfig newConfig, FeMultiTenancyConfig currentConfig) {
 
         if (currentConfig.isEnabled() != newConfig.isEnabled() && true) { //todo && any .kibana* index exists
             String msg = String.format(
                     "Cannot change value of `enabled` flag to %s. It may cause data loss since some Kibana indices exist.",
                     newConfig.isEnabled()
             );
-            return Optional.of(new ValidationError(attribute, msg));
+            return Optional.of(toValidationError(configEntryKey, msg));
         } else {
             return Optional.empty();
         }

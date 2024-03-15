@@ -84,14 +84,13 @@ public class RoleRelationsValidator extends ConfigModificationValidator<Role> {
                 .orElse(existingTenantsConfig);
 
         newRolesConfig.getCEntries().forEach((roleName, role) -> {
-            String attribute = String.format("%s.%s", CType.ROLES.getName(), roleName);
-            errors.addAll(validateRoleEntryRelations(attribute, role, newTenantsConfig));
+            errors.addAll(validateRoleEntryRelations(roleName, role, newTenantsConfig));
         });
 
         return errors;
     }
 
-    private List<ValidationError> validateRoleEntryRelations(String attribute, Role roleConfig, SgDynamicConfiguration<Tenant> tenantsConfig) {
+    private List<ValidationError> validateRoleEntryRelations(String configEntryKey, Role roleConfig, SgDynamicConfiguration<Tenant> tenantsConfig) {
         List<ValidationError> errors = new ArrayList<>();
 
         ImmutableSet<String> tenantNames = tenantsConfig.getCEntries().keySet().with(Tenant.GLOBAL_TENANT_ID);
@@ -99,7 +98,7 @@ public class RoleRelationsValidator extends ConfigModificationValidator<Role> {
         roleConfig.getTenantPermissions().forEach(tenant -> tenant.getTenantPatterns().forEach(tenantPattern -> {
             if (! tenantPatternMatchesAnyTenant(tenantPattern, tenantNames)) {
                 String msg = String.format("Tenant pattern: '%s' does not match any tenant", tenantPattern.getSource());
-                errors.add(new ValidationError(attribute, msg));
+                errors.add(toValidationError(configEntryKey, msg));
             }
         }));
 
