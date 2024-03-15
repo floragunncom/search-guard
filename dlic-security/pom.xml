@@ -20,7 +20,7 @@
     <jjwt.version>0.10.5</jjwt.version>
     <ldaptive.version>2.3.1</ldaptive.version>
 
-    <unboundid-ldapsdk.version>5.0.1</unboundid-ldapsdk.version>
+    <unboundid-ldapsdk.version>7.0.0</unboundid-ldapsdk.version>
   </properties>
 
   <dependencies>
