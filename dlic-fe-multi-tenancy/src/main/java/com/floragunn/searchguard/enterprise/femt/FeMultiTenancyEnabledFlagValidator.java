@@ -39,8 +39,10 @@ class FeMultiTenancyEnabledFlagValidator extends ConfigModificationValidator<FeM
 
     FeMultiTenancyEnabledFlagValidator(FeMultiTenancyConfigurationProvider feMultiTenancyConfigurationProvider, ClusterService clusterService, ConfigurationRepository configurationRepository) {
         super(FeMultiTenancyConfig.TYPE, configurationRepository);
-        this.feMultiTenancyConfigurationProvider = feMultiTenancyConfigurationProvider;
-        this.clusterService = clusterService;
+        this.feMultiTenancyConfigurationProvider = Objects.requireNonNull(
+                feMultiTenancyConfigurationProvider, "Fe multi tenancy configuration provider is required"
+        );
+        this.clusterService = Objects.requireNonNull(clusterService, "Cluster service is required");
     }
 
     @Override
