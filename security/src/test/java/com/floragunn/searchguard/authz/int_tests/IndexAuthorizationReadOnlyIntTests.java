@@ -220,11 +220,11 @@ public class IndexAuthorizationReadOnlyIntTests {
             UNLIMITED_USER, SUPER_UNLIMITED_USER);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
             .indices(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden, index_hidden_dot, index_system)//
             .aliases(alias_ab1, alias_c1)//
             .authzDebug(true)//
-            .plugin(TestSystemIndexPlugin.class)//
+            .embedded().plugin(TestSystemIndexPlugin.class)//
             .logRequests()//
             .build();
     
