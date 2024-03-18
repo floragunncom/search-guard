@@ -236,19 +236,27 @@ public class BulkConfigApiTest {
     public void putTestValidationError5_rolesWhichAssignsPermsToNoExistentTenantsShouldBeRejected() throws Exception {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
 
-            String tenantName = "missing1";
+            String existingTenant = "existing-tenant";
+            String missingTenant = "missing-tenant";
             HttpResponse response = client.get("/_searchguard/config");
             DocNode responseDoc = response.getBodyAsDocNode();
 
             Map<String, Object> roles = new LinkedHashMap<>(responseDoc.getAsNode("roles").getAsNode("content"));
 
-            roles.put("my-role", ImmutableMap.of("tenant_permissions", ImmutableMap.of(
-                    "tenant_patterns", Collections.singletonList(tenantName + "*"), "allowed_actions", Collections.singletonList("*"))
+            roles.put("my-correct-role", ImmutableMap.of("tenant_permissions", ImmutableMap.of(
+                    "tenant_patterns", Collections.singletonList(existingTenant + "*"), "allowed_actions", Collections.singletonList("*"))
             ));
 
-            DocNode updateRequestDoc = DocNode.of("roles.content", roles);
+            roles.put("my-invalid-role", ImmutableMap.of("tenant_permissions", ImmutableMap.of(
+                    "tenant_patterns", Collections.singletonList(missingTenant + "*"), "allowed_actions", Collections.singletonList("*"))
+            ));
 
-            //update roles
+            Map<String, Object> tenants = new LinkedHashMap<>(responseDoc.getAsNode("tenants").getAsNode("content"));
+            tenants.put(existingTenant, ImmutableMap.of("description", existingTenant));
+
+            DocNode updateRequestDoc = DocNode.of("roles.content", roles, "tenants.content", tenants);
+
+            //try to update
             HttpResponse updateResponse = client.putJson("/_searchguard/config", updateRequestDoc);
 
             Assert.assertEquals(updateResponse.getBody(), HttpStatus.SC_BAD_REQUEST, updateResponse.getStatusCode());
@@ -256,18 +264,21 @@ public class BulkConfigApiTest {
             DocNode updateResponseDoc = updateResponse.getBodyAsDocNode();
 
             Assert.assertEquals(
-                    updateResponse.getBody(), "Tenant pattern: '" + tenantName + "*' does not match any tenant",
-                    updateResponseDoc.getAsNode("error").getAsNode("details").getAsListOfNodes("roles.my-role").get(0).get("error")
+                    updateResponse.getBody(), 1,
+                    updateResponseDoc.getAsNode("error").getAsNode("details").size()
+            );
+            Assert.assertEquals(
+                    updateResponse.getBody(), "Tenant pattern: '" + missingTenant + "*' does not match any tenant",
+                    updateResponseDoc.getAsNode("error").getAsNode("details").getAsListOfNodes("roles.my-invalid-role").get(0).get("error")
             );
 
-            //add tenant
-            Map<String, Object> tenants = new LinkedHashMap<>(responseDoc.getAsNode("tenants").getAsNode("content"));
-            tenants.put(tenantName, ImmutableMap.of("description", "tenant"));
+            //add missing tenant
+            tenants.put(missingTenant, ImmutableMap.of("description", "tenant added to fix role"));
             response = client.putJson("/_searchguard/config", DocNode.of("tenants.content", tenants));
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
             //update roles
-            updateResponse = client.putJson("/_searchguard/config", updateRequestDoc);
+            updateResponse = client.putJson("/_searchguard/config", DocNode.of("roles.content", roles));
             Assert.assertEquals(updateResponse.getBody(), HttpStatus.SC_OK, updateResponse.getStatusCode());
         }
     }

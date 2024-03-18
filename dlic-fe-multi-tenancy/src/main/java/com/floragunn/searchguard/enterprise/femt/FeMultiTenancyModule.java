@@ -25,6 +25,11 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.authz.TenantManager;
+import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigMap;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import com.floragunn.searchguard.configuration.validation.ConfigModificationValidator;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.DataMigrationApi;
 import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandlerFactory;
 import com.floragunn.searchguard.enterprise.femt.tenants.AvailableTenantService;
@@ -58,10 +63,6 @@ import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.authz.config.Tenant;
-import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.configuration.CType;
-import com.floragunn.searchguard.configuration.ConfigMap;
-import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
@@ -94,6 +95,8 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     private ClusterService clusterService;
     private AdminDNs adminDns;
 
+    private FeMultiTenancyEnabledFlagValidator feMultiTenancyEnabledFlagValidator;
+
     // XXX Hack to trigger early initialization of FeMultiTenancyConfig
     @SuppressWarnings("unused")
     private static final CType<FeMultiTenancyConfig> TYPE = FeMultiTenancyConfig.TYPE;
@@ -101,9 +104,14 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     @Override
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
 
+        FeMultiTenancyConfigurationProvider feMultiTenancyConfigurationProvider = new FeMultiTenancyConfigurationProvider(this);
         this.threadPool = baseDependencies.getThreadPool();
         this.clusterService = baseDependencies.getClusterService();
         this.adminDns = new AdminDNs(baseDependencies.getSettings());
+        this.feMultiTenancyEnabledFlagValidator = new FeMultiTenancyEnabledFlagValidator(
+                feMultiTenancyConfigurationProvider, baseDependencies.getClusterService(),
+                baseDependencies.getConfigurationRepository()
+        );
 
         baseDependencies.getConfigurationRepository().subscribeOnChange((ConfigMap configMap) -> {
             SgDynamicConfiguration<FeMultiTenancyConfig> config = configMap.get(FeMultiTenancyConfig.TYPE);
@@ -172,9 +180,9 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
         });
 
         var tenantAvailabilityRepository = new TenantAvailabilityRepository(PrivilegedConfigClient.adapt(baseDependencies.getLocalClient()));
-        var availableTenantService = new AvailableTenantService(new FeMultiTenancyConfigurationProvider(this),
+        var availableTenantService = new AvailableTenantService(feMultiTenancyConfigurationProvider,
             baseDependencies.getAuthorizationService(), threadPool, tenantAvailabilityRepository);
-        return Arrays.asList(new FeMultiTenancyConfigurationProvider(this), tenantAccessMapper, availableTenantService);
+        return Arrays.asList(feMultiTenancyConfigurationProvider, tenantAccessMapper, availableTenantService);
     }
 
     private final TenantAccessMapper tenantAccessMapper = new TenantAccessMapper() {
@@ -248,5 +256,10 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     @Override
     public StaticSettings.AttributeSet getSettings() {
         return StaticSettings.AttributeSet.of(UNSUPPORTED_SINGLE_INDEX_MT_ENABLED);
+    }
+
+    @Override
+    public ImmutableList<ConfigModificationValidator<?>> getConfigModificationValidators() {
+        return ImmutableList.of(feMultiTenancyEnabledFlagValidator);
     }
 }

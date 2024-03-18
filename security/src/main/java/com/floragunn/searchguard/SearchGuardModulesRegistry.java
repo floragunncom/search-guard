@@ -32,6 +32,7 @@ import java.util.function.Supplier;
 
 import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
+import com.floragunn.searchguard.configuration.validation.ConfigModificationValidator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.DirectoryReader;
@@ -94,6 +95,7 @@ public class SearchGuardModulesRegistry {
     private MultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
     private TenantAccessMapper tenantAccessMapper;
     private Set<String> moduleNames = new HashSet<>();
+    private ImmutableList<ConfigModificationValidator<?>> configModificationValidators;
     private final Set<String> disabledModules;
     private final Settings settings;
 
@@ -276,6 +278,22 @@ public class SearchGuardModulesRegistry {
             }
 
             this.actionFilters = result;
+        }
+
+        return result;
+    }
+
+    public List<ConfigModificationValidator<?>> getConfigModificationValidators() {
+        ImmutableList<ConfigModificationValidator<?>> result = this.configModificationValidators;
+
+        if (result == null) {
+            result = ImmutableList.empty();
+
+            for (SearchGuardModule module : modules) {
+                result = result.with(module.getConfigModificationValidators());
+            }
+
+            this.configModificationValidators = result;
         }
 
         return result;

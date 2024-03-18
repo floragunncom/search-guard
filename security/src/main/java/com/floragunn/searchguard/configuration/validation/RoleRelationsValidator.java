@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 floragunn GmbH
+ * Copyright 2024 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchguard.configuration;
+package com.floragunn.searchguard.configuration.validation;
 
 import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.config.text.Pattern;
@@ -23,6 +23,10 @@ import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.authz.config.Tenant;
+import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigMap;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -35,47 +39,46 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class ConfigsRelationsValidator {
+public class RoleRelationsValidator extends ConfigModificationValidator<Role> {
 
-    private static final Logger log = LogManager.getLogger(ConfigsRelationsValidator.class);
+    private static final Logger log = LogManager.getLogger(RoleRelationsValidator.class);
     private ConfigMap configMap;
 
-    ConfigsRelationsValidator(ConfigurationRepository configurationRepository) {
-        Objects.requireNonNull(configurationRepository, "Configuration repository is required");
-        configurationRepository.subscribeOnChange(this::onCofigurationChange);
+    public RoleRelationsValidator(ConfigurationRepository configurationRepository) {
+        super(CType.ROLES, configurationRepository);
     }
 
-    public List<ValidationError> validateConfigsRelations(List<SgDynamicConfiguration<?>> newConfigs) {
-        List<SgDynamicConfiguration<?>> notNullConfigs = newConfigs.stream().filter(Objects::nonNull).collect(Collectors.toList());
+    @Override
+    public List<ValidationError> validateConfigs(List<SgDynamicConfiguration<?>> newConfigs) {
+        List<SgDynamicConfiguration<?>> notNullConfigs = Optional.ofNullable(newConfigs).orElse(new ArrayList<>())
+                .stream().filter(Objects::nonNull).collect(Collectors.toList());
 
         List<ValidationError> errors = new ArrayList<>();
 
-        Optional<SgDynamicConfiguration<Role>> newRolesConfig = findConfigOfType(CType.ROLES.getType(), notNullConfigs);
+        Optional<SgDynamicConfiguration<Role>> newRolesConfig = findConfigOfType(Role.class, notNullConfigs);
         errors.addAll(newRolesConfig.map(roles -> validateRolesRelations(roles, notNullConfigs)).orElse(Collections.emptyList()));
 
         return errors;
     }
 
-    public List<ValidationError> validateConfigRelations(SgDynamicConfiguration<?> config) {
-        return validateConfigsRelations(Collections.singletonList(config));
+    @Override
+    public List<ValidationError> validateConfig(SgDynamicConfiguration<?> newConfig) {
+        return validateConfigs(Collections.singletonList(newConfig));
     }
 
-    public <T> List<ValidationError> validateConfigEntryRelations(T entry) {
-        if (Objects.nonNull(entry)) {
+    @Override
+    public <T> List<ValidationError> validateConfigEntry(T newConfigEntry) {
+        if (Objects.nonNull(newConfigEntry)) {
             List<ValidationError> errors = new ArrayList<>();
 
-            if (CType.ROLES.getType().isAssignableFrom(entry.getClass())) {
+            if (Role.class.isAssignableFrom(newConfigEntry.getClass())) {
                 SgDynamicConfiguration<Tenant> tenantsConfig = getConfigFromMap(CType.TENANTS);
-                errors.addAll(validateRoleEntryRelations(null, (Role) entry, tenantsConfig));
+                errors.addAll(validateRoleEntryRelations(null, (Role) newConfigEntry, tenantsConfig));
             }
 
             return errors;
         }
         return Collections.emptyList();
-    }
-
-    void onCofigurationChange(ConfigMap configMap) {
-        this.configMap = configMap;
     }
 
     private List<ValidationError> validateRolesRelations(SgDynamicConfiguration<Role> newRolesConfig, List<SgDynamicConfiguration<?>> newConfigs) {
@@ -88,14 +91,13 @@ public class ConfigsRelationsValidator {
                 .orElse(existingTenantsConfig);
 
         newRolesConfig.getCEntries().forEach((roleName, role) -> {
-            String attribute = String.format("%s.%s", CType.ROLES.getName(), roleName);
-            errors.addAll(validateRoleEntryRelations(attribute, role, newTenantsConfig));
+            errors.addAll(validateRoleEntryRelations(roleName, role, newTenantsConfig));
         });
 
         return errors;
     }
 
-    private List<ValidationError> validateRoleEntryRelations(String attribute, Role roleConfig, SgDynamicConfiguration<Tenant> tenantsConfig) {
+    private List<ValidationError> validateRoleEntryRelations(String configEntryKey, Role roleConfig, SgDynamicConfiguration<Tenant> tenantsConfig) {
         List<ValidationError> errors = new ArrayList<>();
 
         ImmutableSet<String> tenantNames = tenantsConfig.getCEntries().keySet().with(Tenant.GLOBAL_TENANT_ID);
@@ -103,23 +105,15 @@ public class ConfigsRelationsValidator {
         roleConfig.getTenantPermissions().forEach(tenant -> tenant.getTenantPatterns().forEach(tenantPattern -> {
             if (! tenantPatternMatchesAnyTenant(tenantPattern, tenantNames)) {
                 String msg = String.format("Tenant pattern: '%s' does not match any tenant", tenantPattern.getSource());
-                errors.add(new ValidationError(attribute, msg));
+                errors.add(toValidationError(configEntryKey, msg));
             }
         }));
 
         return errors;
     }
 
-    @SuppressWarnings("unchecked")
-    private <T> Optional<SgDynamicConfiguration<T>> findConfigOfType(Class<T> type, List<SgDynamicConfiguration<?>> newConfigs) {
-        return newConfigs.stream().filter(config -> config.getCType().getType().isAssignableFrom(type))
-                .findFirst()
-                .map(config -> (SgDynamicConfiguration<T>) config);
-    }
-
     private <T> SgDynamicConfiguration<T> getConfigFromMap(CType<T> typeToLoad) {
-        return Optional.ofNullable(configMap)
-                .map(confMap -> confMap.get(typeToLoad))
+        return findCurrentConfiguration(typeToLoad)
                 .orElseGet(() -> {
                     log.warn("Config of type {} is unavailable, an empty config will be used instead", typeToLoad.getName());
                     return SgDynamicConfiguration.empty(typeToLoad);

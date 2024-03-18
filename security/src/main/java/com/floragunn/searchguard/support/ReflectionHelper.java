@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 
+import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -72,10 +73,10 @@ public class ReflectionHelper {
     }
 
     public static Collection<RestHandler> instantiateMngtRestApiHandler(final Settings settings, final Path configPath,
-            final RestController restController, final Client localClient, final AdminDNs adminDns, final ConfigurationRepository cr,
-            StaticSgConfig staticSgConfig, final ClusterService cs, final PrincipalExtractor principalExtractor, AuthorizationService authorizationService,
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, final ThreadPool threadPool,
-            final AuditLog auditlog) {
+                                                                        final RestController restController, final Client localClient, final AdminDNs adminDns, final ConfigurationRepository cr,
+                                                                        StaticSgConfig staticSgConfig, final ClusterService cs, final PrincipalExtractor principalExtractor, AuthorizationService authorizationService,
+                                                                        SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, final ThreadPool threadPool,
+                                                                        final AuditLog auditlog, ConfigModificationValidators configModificationValidators) {
 
         if (enterpriseModulesDisabled()) {
             return Collections.emptyList();
@@ -83,7 +84,7 @@ public class ReflectionHelper {
 
         return instantiateRestApiHandler("com.floragunn.searchguard.dlic.rest.api.SearchGuardRestApiActions", settings, configPath, restController,
                 localClient, adminDns, cr, staticSgConfig, cs, principalExtractor, authorizationService, specialPrivilegesEvaluationContextProviderRegistry,
-                threadPool, auditlog);
+                threadPool, auditlog, configModificationValidators);
     }
 
     @SuppressWarnings("unchecked")
@@ -91,7 +92,7 @@ public class ReflectionHelper {
             final RestController restController, final Client localClient, final AdminDNs adminDns, final ConfigurationRepository cr,
             StaticSgConfig staticSgConfig, final ClusterService cs, final PrincipalExtractor principalExtractor, AuthorizationService authorizationService,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, final ThreadPool threadPool,
-            final AuditLog auditlog) {
+            final AuditLog auditlog, ConfigModificationValidators configModificationValidators) {
 
         try {
             final Class<?> clazz = Class.forName(className);
@@ -100,22 +101,23 @@ public class ReflectionHelper {
                 result = (Collection<RestHandler>) clazz
                         .getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class, Client.class, AdminDNs.class,
                                 ConfigurationRepository.class, StaticSgConfig.class, ClusterService.class, PrincipalExtractor.class,
-                                AuthorizationService.class, SpecialPrivilegesEvaluationContextProviderRegistry.class, ThreadPool.class, AuditLog.class)
+                                AuthorizationService.class, SpecialPrivilegesEvaluationContextProviderRegistry.class, ThreadPool.class, AuditLog.class,
+                                ConfigModificationValidators.class)
                         .invoke(null, settings, configPath, restController, localClient, adminDns, cr, staticSgConfig, cs, principalExtractor,
-                                authorizationService, specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditlog);
+                                authorizationService, specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditlog, configModificationValidators);
             } catch (NoSuchMethodException e) {
                 try {
                     result = (Collection<RestHandler>) clazz.getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class,
                             Client.class, AdminDNs.class, ConfigurationRepository.class, StaticSgConfig.class, ClusterService.class,
-                            PrincipalExtractor.class, AuthorizationService.class, ThreadPool.class, AuditLog.class).invoke(null, settings, configPath,
+                            PrincipalExtractor.class, AuthorizationService.class, ThreadPool.class, AuditLog.class, ConfigModificationValidators.class).invoke(null, settings, configPath,
                                     restController, localClient, adminDns, cr, staticSgConfig, cs, principalExtractor, authorizationService, threadPool,
-                                    auditlog);
+                                    auditlog, configModificationValidators);
                 } catch (NoSuchMethodException e1) {
                     try {
                         result = (Collection<RestHandler>) clazz.getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class,
                                 Client.class, AdminDNs.class, ConfigurationRepository.class, ClusterService.class, PrincipalExtractor.class,
-                                AuthorizationService.class, ThreadPool.class, AuditLog.class).invoke(null, settings, configPath, restController,
-                                        localClient, adminDns, cr, cs, principalExtractor, authorizationService, threadPool, auditlog);
+                                AuthorizationService.class, ThreadPool.class, AuditLog.class, ConfigModificationValidators.class).invoke(null, settings, configPath, restController,
+                                        localClient, adminDns, cr, cs, principalExtractor, authorizationService, threadPool, auditlog, configModificationValidators);
                     } catch (NoSuchMethodException e2) {
                         result = (Collection<RestHandler>) clazz.getDeclaredMethod("getHandler", Settings.class, Path.class, RestController.class,
                                 Client.class, ClusterService.class, ThreadPool.class)
