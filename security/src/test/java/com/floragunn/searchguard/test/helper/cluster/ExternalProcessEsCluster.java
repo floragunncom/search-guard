@@ -190,10 +190,23 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
                         this.completeFutureExceptionally(new Exception("Startup has failed"));
                     }
 
-                    this.stop();
+                } catch (IOException e) {
+                    if ("Stream closed".equals(e.getMessage())) {
+                        if (this.onReadyCompleted) {
+                            // This is probably a normal shutdown
+                            log.info("Output stream of " + this + " was closed");
+                        } else {
+                            log.error("Output stream of " + this + " was closed before startup was finished", e);
+                            this.completeFutureExceptionally(e);
+                        }
+                    } else {
+                        log.error("Error while monitoring output of " + this, e);
+                        this.completeFutureExceptionally(e);
+                    }
                 } catch (Throwable t) {
                     log.error("Error while monitoring output of " + this, t);
                     this.completeFutureExceptionally(t);
+                } finally {
                     this.stop();
                 }
             });
@@ -212,9 +225,23 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
                     }
 
                     this.stop();
+                } catch (IOException e) {
+                    if ("Stream closed".equals(e.getMessage())) {
+                        if (this.onReadyCompleted) {
+                            // This is probably a normal shutdown
+                            log.info("Error stream of " + this + " was closed");
+                        } else {
+                            log.error("Error stream of " + this + " was closed before startup was finished", e);
+                            this.completeFutureExceptionally(e);
+                        }
+                    } else {
+                        log.error("Error while monitoring output of " + this, e);
+                        this.completeFutureExceptionally(e);
+                    }
                 } catch (Throwable t) {
                     log.error("Error while monitoring output of " + this, t);
                     this.completeFutureExceptionally(t);
+                } finally {
                     this.stop();
                 }
             });

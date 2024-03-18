@@ -965,6 +965,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     public Map<CType<?>, ConfigUpdateResult> update(Map<CType<?>, ConfigWithMetadata> configTypeToConfigMap)
             throws ConfigUpdateException, ConfigValidationException, ConcurrentConfigUpdateException {
+        LOGGER.info("Updating configuration {}", configTypeToConfigMap.keySet());
+        
         ValidationErrors validationErrors = new ValidationErrors();
         BulkRequest bulkRequest = new BulkRequest();
         List<SgDynamicConfiguration<?>> parsedConfigs = new ArrayList<>();
@@ -1112,8 +1114,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
                     throw new ConfigUpdateException("Updating the configuration failed", bulkResponse).updateResult(result);
                 }
             } else {
-                LOGGER.info("Index update done:\n" + Strings.toString(bulkResponse));
-
+                LOGGER.info("Index update done:\n{}", Strings.toString(bulkResponse));
+                LOGGER.info("Sending config update request");
+                
                 try {
                     ConfigUpdateRequest configUpdateRequest = new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]));
 
