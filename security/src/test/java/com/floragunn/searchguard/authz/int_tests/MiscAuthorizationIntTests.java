@@ -24,7 +24,6 @@ import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 
@@ -59,26 +58,26 @@ public class MiscAuthorizationIntTests {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
+    public static LocalCluster.Embedded anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
             .user("resolve_test_user", "secret", new Role("resolve_test_user_role").indexPermissions("*").on("resolve_test_allow_*"))//
-            .build();
+            .embedded().build();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).remote("my_remote", anotherCluster)
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).remote("my_remote", anotherCluster)
             .user("resolve_test_user", "secret",
                     new Role("resolve_test_user_role").indexPermissions("*").on("resolve_test_allow_*").indexPermissions("*")
                             .on("/alias_resolve_test_index_allow_.*/")) //
             .user("admin", "admin", new Role("admin_role").clusterPermissions("*"))//
             .user("permssion_rest_api_user", "secret", new Role("permssion_rest_api_user_role").clusterPermissions("indices:data/read/mtv"))//
-            .users().build();
+            .users().embedded().build();
 
     @ClassRule
-    public static LocalCluster clusterFof = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
+    public static LocalCluster.Embedded clusterFof = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
             .remote("my_remote", anotherCluster).ignoreUnauthorizedIndices(false)
             .user("resolve_test_user", "secret",
                     new Role("resolve_test_user_role").indexPermissions("*").on("resolve_test_allow_*").indexPermissions("*")
                             .on("/alias_resolve_test_index_allow_.*/")) //            
-            .build();
+            .embedded().build();
 
     @BeforeClass
     public static void setupTestData() {

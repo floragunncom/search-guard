@@ -557,6 +557,13 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             }
             return this;
         }
+        
+        public Builder users(List<TestSgConfig.User> users) {
+            for (TestSgConfig.User user : users) {
+                testSgConfig.user(user);
+            }
+            return this;
+        }
 
         public Builder user(TestSgConfig.User user) {
             testSgConfig.user(user);
