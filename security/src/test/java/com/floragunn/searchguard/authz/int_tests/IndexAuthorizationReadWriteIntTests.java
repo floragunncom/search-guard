@@ -363,11 +363,11 @@ public class IndexAuthorizationReadWriteIntTests {
             INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS, UNLIMITED_USER, SUPER_UNLIMITED_USER);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
             .indices(index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_br2, index_bw1, index_bw2, index_cr1, index_cw1, index_hidden)//
             .aliases(alias_ab1r, alias_ab1w, alias_ab1w_nowriteindex, alias_c1)//
             .authzDebug(true)//
-            .build();
+            .embedded().build();
 
     final TestSgConfig.User user;
 
