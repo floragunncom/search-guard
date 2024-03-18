@@ -38,10 +38,8 @@ public class ConfigModificationValidators {
 
         List<ValidationError> validationErrors = new ArrayList<>();
 
-        newConfigs.forEach(config -> {
-            validators.forEach(validator -> {
-                validationErrors.addAll(validator.validateConfig(config));
-            });
+        validators.forEach(validator -> {
+            validationErrors.addAll(validator.validateConfigs(newConfigs));
         });
 
         return validationErrors;
