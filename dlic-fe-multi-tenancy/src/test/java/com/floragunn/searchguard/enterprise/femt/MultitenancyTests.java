@@ -31,17 +31,19 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
 
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.google.common.collect.ImmutableMap;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Ignore;
+import org.junit.Test;
 
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
@@ -63,10 +65,18 @@ public class MultitenancyTests {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder()
             .nodeSettings("searchguard.unsupported.single_index_mt_enabled", true)
+            .nodeSettings("action.destructive_requires_name", false)
             .sslEnabled()
             .resources("multitenancy")
             .enterpriseModulesEnabled()
             .users(USER_DEPT_01, USER_DEPT_02, USER_WITH_ACCESS_TO_GLOBAL_TENANT).build();
+
+    @Before
+    public void setUp() {
+        Client client = cluster.getInternalNodeClient();
+        AcknowledgedResponse response = client.admin().indices().delete(new DeleteIndexRequest("*")).actionGet();
+        assertThat(response.isAcknowledged(), equalTo(true));
+    }
 
     @Test
     public void testMt() throws Exception {
@@ -413,7 +423,7 @@ public class MultitenancyTests {
     }
 
     @Test
-    public void testMultitenancyConfigApi() throws Exception {
+    public void testMultitenancyConfigApi_configShouldGetUpdated() throws Exception {
         try (GenericRestClient userClient = cluster.getRestClient(USER_WITH_ACCESS_TO_GLOBAL_TENANT);
              GenericRestClient adminCertClient = cluster.getAdminCertRestClient()) {
             cluster.callAndRestoreConfig(FeMultiTenancyConfig.TYPE, () -> {
@@ -489,6 +499,102 @@ public class MultitenancyTests {
                 assertThat(config, containsValue("$.content.private_tenant_enabled", true));
                 assertThat(config, docNodeSizeEqualTo("$.content.preferred_tenants", 1));
                 assertThat(config, containsValue("$.content.preferred_tenants[0]", "tenant-2"));
+
+                return null;
+            });
+        }
+    }
+
+    @Test
+    public void testMultitenancyConfigApi_shouldNotAllowToChangeEnabledFlag_whenThereAreKibanaIndices() throws Exception {
+        try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient()) {
+            cluster.callAndRestoreConfig(FeMultiTenancyConfig.TYPE, () -> {
+                GenericRestClient.HttpResponse response = adminCertClient.get("/_searchguard/config/fe_multi_tenancy");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                //no kibana index exists
+                DocNode config = DocNode.of("enabled", true);
+
+                //FeMultiTenancyConfig API
+                response = adminCertClient.putJson("/_searchguard/config/fe_multi_tenancy", config);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                config = DocNode.of("enabled", false);
+
+                response = adminCertClient.patchJsonMerge("/_searchguard/config/fe_multi_tenancy", config);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                //BulkConfig API
+                config = DocNode.of("enabled", true);
+                DocNode bulkBody = DocNode.of("frontend_multi_tenancy.content", config);
+
+                response = adminCertClient.putJson("/_searchguard/config", bulkBody);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                config = DocNode.of("enabled", false);
+                bulkBody = DocNode.of("frontend_multi_tenancy.content", config);
+
+                response = adminCertClient.putJson("/_searchguard/config", bulkBody);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                //create kibana index
+                response = adminCertClient.put("/.kibana");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                //FeMultiTenancyConfig API
+                //try to change enabled flag
+                config = DocNode.of("enabled", true);
+
+                response = adminCertClient.putJson("/_searchguard/config/fe_multi_tenancy", config);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+                assertThat(response.getBodyAsDocNode(),
+                        containsValue("$.error.details.['frontend_multi_tenancy.default'].[0].error",
+                                "Cannot change the value of the 'enabled' flag to 'true'. This may result in data loss as there are some Kibana indexes. Please read the multi tenancy migration guide."
+                        )
+                );
+
+                config = DocNode.of("enabled", true);
+
+                response = adminCertClient.patchJsonMerge("/_searchguard/config/fe_multi_tenancy", config);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+                assertThat(response.getBodyAsDocNode(),
+                        containsValue("error.details._.[0].error",
+                                "Cannot change the value of the 'enabled' flag to 'true'. This may result in data loss as there are some Kibana indexes. Please read the multi tenancy migration guide."
+                        )
+                );
+
+                //send the same value that is already configured
+                config = DocNode.of("enabled", false);
+
+                response = adminCertClient.putJson("/_searchguard/config/fe_multi_tenancy", config);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                config = DocNode.of("enabled", false);
+
+                response = adminCertClient.patchJsonMerge("/_searchguard/config/fe_multi_tenancy", config);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                //BulkConfig API
+                //try to change enabled flag
+                config = DocNode.of("enabled", true);
+
+                bulkBody = DocNode.of("frontend_multi_tenancy.content", config);
+
+                response = adminCertClient.putJson("/_searchguard/config", bulkBody);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+                assertThat(response.getBodyAsDocNode(),
+                        containsValue("$.error.details.['frontend_multi_tenancy.default'].[0].error",
+                                "Cannot change the value of the 'enabled' flag to 'true'. This may result in data loss as there are some Kibana indexes. Please read the multi tenancy migration guide."
+                        )
+                );
+
+                //send the same value that is already configured
+                config = DocNode.of("enabled", false);
+
+                bulkBody = DocNode.of("frontend_multi_tenancy.content", config);
+
+                response = adminCertClient.putJson("/_searchguard/config", bulkBody);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
                 return null;
             });

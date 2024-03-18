@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.client.internal.Client;
@@ -61,9 +62,9 @@ public class InternalUsersApiAction extends PatchableResourceApiAction {
             final AdminDNs adminDNs, final ConfigurationRepository cl, StaticSgConfig staticSgConfig, final ClusterService cs,
             final PrincipalExtractor principalExtractor, AuthorizationService authorizationService,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
-            AuditLog auditLog) {
+            AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
         super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, authorizationService,
-                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog);
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators);
     }
     
     @Override

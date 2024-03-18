@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
+import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -55,9 +56,9 @@ public class SgConfigAction extends PatchableResourceApiAction {
             final AdminDNs adminDNs, final ConfigurationRepository cl, StaticSgConfig staticSgConfig, final ClusterService cs,
             final PrincipalExtractor principalExtractor, AuthorizationService authorizationService,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
-            AuditLog auditLog) {
+            AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
         super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, authorizationService,
-                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog);
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators);
 
         allowPutOrPatch = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTAPI_ALLOW_SGCONFIG_MODIFICATION, false);
     }
