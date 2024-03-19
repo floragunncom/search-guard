@@ -88,6 +88,10 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
                 + "xpack.security.enabled: false\n" //
                 + "searchguard.background_init_if_sgindex_not_exist: false");
 
+       // this.esInstallation.writeConfig("log4j2.properties", FileHelper.loadFile("log4j2-test.properties"));
+        this.esInstallation.appendConfig("log4j2.properties", "logger.sg.name = com.floragunn.searchguard\n"
+                + "logger.sg.level = trace");
+        
         this.installedTestCertificates = this.testCertificates.at(this.esInstallation.getConfigPath());
 
         this.started = true;
@@ -330,7 +334,9 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
                     log.info("Setting initial Search Guard configuration");
                     try (GenericRestClient client = getAdminCertRestClient()) {
                         cluster.testSgConfig.initByConfigRestApi(client);
+                        log.info("Configuration initialized");
                     } catch (Exception e) {
+                        log.error("Error while initializing configuration", e);
                         this.completeFutureExceptionally(e);
                         this.stop();
                     }
