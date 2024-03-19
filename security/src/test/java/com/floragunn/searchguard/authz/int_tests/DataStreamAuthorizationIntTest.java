@@ -91,7 +91,7 @@ public class DataStreamAuthorizationIntTest {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_a*"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("ds_a*"))//
             .indexMatcher("read", limitedTo(ds_a1, ds_a2, ds_a3, index_ax))//
             .indexMatcher("read_top_level", limitedTo(ds_a1, ds_a2, ds_a3))//
             .indexMatcher("get_alias", limitedToNone());
@@ -101,7 +101,7 @@ public class DataStreamAuthorizationIntTest {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_b*"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("ds_b*"))//
             .indexMatcher("read", limitedTo(ds_b1, ds_b2, ds_b3))//
             .indexMatcher("read_top_level", limitedTo(ds_b1, ds_b2, ds_b3))//
             .indexMatcher("get_alias", limitedToNone());
@@ -111,7 +111,7 @@ public class DataStreamAuthorizationIntTest {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_b1"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("ds_b1"))//
             .indexMatcher("read", limitedTo(ds_b1))//
             .indexMatcher("read_top_level", limitedTo(ds_b1))//
             .indexMatcher("get_alias", limitedToNone());
@@ -151,7 +151,7 @@ public class DataStreamAuthorizationIntTest {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_a*", "index_hidden*", ".index_hidden*"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("ds_a*", "index_hidden*", ".index_hidden*"))//
             .indexMatcher("read", limitedTo(ds_a1, ds_a2, ds_a3, index_ax, index_hidden))//
             .indexMatcher("read_top_level", limitedTo(ds_a1, ds_a2, ds_a3, index_ax, index_hidden))//
             .indexMatcher("get_alias", limitedToNone());
