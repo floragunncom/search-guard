@@ -106,7 +106,7 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
                 + "searchguard.background_init_if_sgindex_not_exist: false");
 
        // this.esInstallation.writeConfig("log4j2.properties", FileHelper.loadFile("log4j2-test.properties"));
-        this.esInstallation.appendConfig("log4j2.properties", "logger.sg.name = com.floragunn.searchguard\n"
+        this.esInstallation.appendConfig("log4j2.properties", "logger.sg.name = com.floragunn.searchguard.authz\n"
                 + "logger.sg.level = trace");
 
         this.installedTestCertificates = this.testCertificates.at(this.esInstallation.getConfigPath());

@@ -723,7 +723,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                     if (actionToAliasPattern != null || actionToDataStreamPattern != null) {
                         for (Action action : checkTable.iterateUncheckedColumns(index)) {
-                            if (index.parentDataStreamName() != null) {
+                            if (index.parentDataStreamName() != null && actionToDataStreamPattern != null) {
                                 IndexPattern indexPattern = actionToDataStreamPattern.get(action);
 
                                 if (indexPattern != null) {
@@ -742,7 +742,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                             }
 
                             Collection<String> ancestorAliasNames = index.ancestorAliasNames();
-                            if (!ancestorAliasNames.isEmpty()) {
+                            if (!ancestorAliasNames.isEmpty() && actionToAliasPattern != null ) {
                                 IndexPattern indexPattern = actionToAliasPattern.get(action);
 
                                 if (indexPattern != null) {
