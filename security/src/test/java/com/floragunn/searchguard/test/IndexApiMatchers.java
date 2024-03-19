@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -42,6 +43,8 @@ import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 
 public class IndexApiMatchers {
+    private static final Pattern DS_BACKING_INDEX_PATTERN = Pattern.compile("\\.ds-(.+)-[0-9\\.]+-[0-9]+");
+
     public static IndexMatcher containsExactly(TestIndexLike... testIndices) {
         Map<String, TestIndexLike> indexNameMap = new HashMap<>();
         boolean containsSearchGuardIndices = false;
@@ -212,6 +215,15 @@ public class IndexApiMatchers {
 
                 if (containsSearchGuardIndices && (index.startsWith(".searchguard") || index.equals("searchguard"))) {
                     seenSearchGuardIndicesBuilder.add(index);
+                } else if (index.startsWith(".ds-")) {
+                    // We do a special treatment for data stream backing indices. We convert these to the normal data streams if expected indices contains these.
+                    java.util.regex.Matcher matcher = DS_BACKING_INDEX_PATTERN.matcher(index);
+
+                    if (matcher.matches() && expectedIndices.contains(matcher.group(1))) {
+                        seenIndicesBuilder.add(matcher.group(1));
+                    } else {
+                        seenIndicesBuilder.add(index);
+                    }
                 } else {
                     seenIndicesBuilder.add(index);
                 }
