@@ -324,16 +324,23 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
         }
 
         private void processLogLine(String line) {
+            // Note: This runs on the log consumption thread. Be careful on what you are executing synchronously. If it blocks, you might also block the ES execution, which can lead to deadlocks.
+            
             if (!this.ready) {
                 if (nodeSettings.masterNode && cluster.testSgConfig != null
                         && line.contains(".searchguard index does not exist yet, use sgctl to initialize the cluster.")) {
-                    log.info("Setting initial Search Guard configuration");
-                    try (GenericRestClient client = getAdminCertRestClient()) {
-                        cluster.testSgConfig.initByConfigRestApi(client);
-                    } catch (Exception e) {
-                        this.completeFutureExceptionally(e);
-                        this.stop();
-                    }
+                    executorService.submit(() -> {
+                        log.info("Setting initial Search Guard configuration");
+                        try (GenericRestClient client = getAdminCertRestClient()) {
+                            cluster.testSgConfig.initByConfigRestApi(client);
+                            log.info("Configuration initialized");
+                        } catch (Exception e) {
+                            log.error("Error while initializing configuration", e);
+                            this.completeFutureExceptionally(e);
+                            this.stop();
+                        }
+ 
+                    });                    
                 } else if (line.contains("Search Guard configuration has been successfully initialized")) {
                     executorService.submit(() -> {
 
