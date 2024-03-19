@@ -83,7 +83,6 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.GLOBAL_TENANT_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INDICES_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_CONFIG_NOT_AVAILABLE_ERROR;
-import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_DISABLED_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.UNHEALTHY_INDICES_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.MarkerNodeRemoval.withoutMigrationMarker;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.MigrationEnvironmentHelper.DoubleAliasIndex.LEGACY_VERSION;
@@ -192,6 +191,58 @@ public class MigrationStepsTest {
         ImmutableList<TenantIndex> tenants = context.getTenantIndices();
         assertThat(tenants, hasSize(1));
         assertThat(tenants.get(0).belongsToGlobalTenant(), equalTo(true));
+    }
+
+    @Test
+    public void shouldNotUseIndicesInLegacyVersion() {
+        // indices with without up-to-date versions but with three aliases e.g.
+        // .kibana_1593390681_performancedata_8.6.0_001 <- index name
+        // .kibana_1593390681_performancedata_8.6.0 <- long alias
+        // .kibana_1593390681_performancedata <- short alias name, this alias may cause that the index is recognized as up-to-date
+
+        // The above alias can exist if user performs the following steps
+        // 1. Add tenant performance_data to SG configuration in version 8.6.0
+        // 2. Delete tenant from SG configuration
+        // 3. Perform upgrade to version 8.7.0
+
+        // Example of up-to-date index:
+        // .kibana_-1992298040_financemanagement_8.7.0_001 <- index name
+        // .kibana_-1992298040_financemanagement_8.7.0 <- long alias
+        // .kibana_-1992298040_financemanagement <- short alias
+        // Therefore only indices in version 8.7.x should be migrated
+        DoubleAliasIndex legacyPerformanceData = DoubleAliasIndex
+            .forTenantWithPrefix(MULTITENANCY_INDEX_PREFIX, "performance_data", "8.6.0");
+        DoubleAliasIndex legacyEnterpriseTenant = DoubleAliasIndex
+            .forTenantWithPrefix(MULTITENANCY_INDEX_PREFIX, "enterprise_tenant", "8.6.0");
+        DoubleAliasIndex legacyUserTenant = DoubleAliasIndex
+            .forTenantWithPrefix(MULTITENANCY_INDEX_PREFIX, "james_bond", "8.4.0");
+        DoubleAliasIndex indexWithVersionMissMatch = DoubleAliasIndex
+            .forTenantWithPrefix(MULTITENANCY_INDEX_PREFIX, "command_tenant", "8.7.159");
+        DoubleAliasIndex modernFinanceManagement = environmentHelper.doubleAliasForTenant("finance_management");
+        DoubleAliasIndex modernBusinessIntelligence = environmentHelper.doubleAliasForTenant("business_intelligence");
+        LegacyIndex olderBusinessIntelligence = modernBusinessIntelligence.toLegacyIndex("8.6.0");
+        LegacyIndex oldestBusinessIntelligence = modernBusinessIntelligence.toLegacyIndex("8.4.0");
+        environmentHelper.createIndex(GLOBAL_TENANT_INDEX, legacyPerformanceData, legacyEnterpriseTenant, legacyUserTenant,
+            modernFinanceManagement, modernBusinessIntelligence, indexWithVersionMissMatch, PRIVATE_USER_LUKASZ_1_INDEX);
+        environmentHelper.createLegacyIndex(olderBusinessIntelligence, oldestBusinessIntelligence);
+        PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
+
+        populateTenantsStep.execute(context);
+
+        ImmutableList<TenantIndex> tenants = context.getTenantIndices();
+        assertThat(tenants, hasSize(4));
+        assertThat(tenants.get(0).belongsToGlobalTenant(), equalTo(true));
+        Set<String> tenantNames = tenants.stream() //
+            .filter(tenantIndex -> ! tenantIndex.belongsToUserPrivateTenant()) //
+            .filter(tenantIndex -> ! tenantIndex.belongsToGlobalTenant()) //
+            .map(TenantIndex::tenantName).collect(Collectors.toSet());
+        assertThat(tenantNames, containsInAnyOrder("finance_management", "business_intelligence"));
+        List<String> privateUserTenantIndexNames = tenants.stream() //
+            .filter(TenantIndex::belongsToUserPrivateTenant) //
+            .map(TenantIndex::indexName) //
+            .toList();
+        assertThat(privateUserTenantIndexNames, hasSize(1));
+        assertThat(privateUserTenantIndexNames, containsInAnyOrder(PRIVATE_USER_LUKASZ_1_INDEX.indexName()));
     }
 
     @Test
