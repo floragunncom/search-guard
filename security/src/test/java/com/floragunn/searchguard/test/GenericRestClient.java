@@ -337,7 +337,7 @@ public class GenericRestClient implements AutoCloseable {
             clientBuilder.setSSLSocketFactory(sslsf);
         }
 
-        clientBuilder.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(60 * 10000).build());
+        clientBuilder.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(20 * 1000).build());
 
         if (requestConfig != null) {
             clientBuilder.setDefaultRequestConfig(requestConfig);
