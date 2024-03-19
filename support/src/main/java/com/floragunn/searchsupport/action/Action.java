@@ -35,12 +35,12 @@ import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
-import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.DocNode;
@@ -161,7 +161,7 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
 
     }
 
-    public static abstract class Response extends ActionResponse implements Document<Object>, ToXContentObject {
+    public static abstract class Response extends ActionResponse implements Document<Object>, StatusToXContentObject {
 
         private int restStatus = 200;
         private String concurrencyControlEntityTag;
@@ -184,6 +184,7 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
             out.writeByteArray(this.toSmile());
         }
 
+        @Override
         public final RestStatus status() {
             RestStatus result = RestStatus.fromCode(restStatus);
 
@@ -240,7 +241,7 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
         private final Executor executor;
 
         protected Handler(Action<RequestType, ResponseType> action, HandlerDependencies handlerDependencies) {
-            super(action.name(), handlerDependencies.transportService, handlerDependencies.actionFilters, (in) -> parse(in, action.requestParser), handlerDependencies.threadPool.generic());
+            super(action.name(), handlerDependencies.transportService, handlerDependencies.actionFilters, (in) -> parse(in, action.requestParser));
             this.executor = handlerDependencies.threadPool.generic();
         }
 

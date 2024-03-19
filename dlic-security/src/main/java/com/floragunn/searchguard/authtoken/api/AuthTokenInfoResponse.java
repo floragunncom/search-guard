@@ -19,11 +19,11 @@ import java.io.IOException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-public class AuthTokenInfoResponse extends ActionResponse implements ToXContentObject {
+public class AuthTokenInfoResponse extends ActionResponse implements StatusToXContentObject {
 
     private boolean enabled;
     private boolean initialized;
@@ -64,6 +64,7 @@ public class AuthTokenInfoResponse extends ActionResponse implements ToXContentO
         return builder;
     }
 
+    @Override
     public RestStatus status() {
         return RestStatus.OK;
     }

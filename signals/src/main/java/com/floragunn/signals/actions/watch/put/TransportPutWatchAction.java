@@ -3,7 +3,6 @@ package com.floragunn.signals.actions.watch.put;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.ActionFilters;
@@ -60,8 +59,8 @@ public class TransportPutWatchAction extends HandledTransportAction<PutWatchRequ
             threadPool.generic().submit(threadPool.getThreadContext().preserveContext(() -> {
                 try {
                     DiagnosticContext.fixupLoggingContext(threadContext);
-
-                    DocWriteResponse response = signalsTenant.addWatch(request.getWatchId(), request.getBody().utf8ToString(), user, STRICT);
+                    
+                    IndexResponse response = signalsTenant.addWatch(request.getWatchId(), request.getBody().utf8ToString(), user, STRICT);
 
                     listener.onResponse(
                             new PutWatchResponse(request.getWatchId(), response.getVersion(), response.getResult(), response.status(), null, null));

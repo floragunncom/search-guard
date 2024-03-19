@@ -53,10 +53,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
@@ -714,7 +714,7 @@ public class SessionService {
         try (XContentBuilder xContentBuilder = XContentFactory.jsonBuilder(); Meter subMeter = meter.basic("index_update")) {
             sessionToken.toXContent(xContentBuilder, ToXContent.EMPTY_PARAMS);
 
-            DocWriteResponse indexResponse = privilegedConfigClient
+            IndexResponse indexResponse = privilegedConfigClient
                     .index(new IndexRequest(indexName).id(sessionToken.getId()).source(xContentBuilder).setRefreshPolicy(RefreshPolicy.IMMEDIATE))
                     .actionGet();
 

@@ -18,10 +18,10 @@ import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
@@ -337,7 +337,7 @@ public class GetAvailableTenantsActionTest {
         try(Client client = cluster.getInternalNodeClient()) {
             for(String currentTenant : tenantNames) {
                 ImmutableMap<String, ?> source = ImmutableMap.of("sg_tenant", TenantManager.toInternalTenantName(currentTenant));
-                DocWriteResponse response = client.index(new IndexRequest(indexName).source(source).setRefreshPolicy(IMMEDIATE)).actionGet();
+                IndexResponse response = client.index(new IndexRequest(indexName).source(source).setRefreshPolicy(IMMEDIATE)).actionGet();
                 assertThat(response.status(), equalTo(CREATED));
             }
         }

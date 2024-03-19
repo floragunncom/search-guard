@@ -19,11 +19,11 @@ import java.io.IOException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-public class RevokeAuthTokenResponse extends ActionResponse implements ToXContentObject {
+public class RevokeAuthTokenResponse extends ActionResponse implements StatusToXContentObject {
 
     private String info;
     private RestStatus restStatus;
@@ -73,6 +73,7 @@ public class RevokeAuthTokenResponse extends ActionResponse implements ToXConten
         return builder;
     }
 
+    @Override
     public RestStatus status() {
         return restStatus;
     }

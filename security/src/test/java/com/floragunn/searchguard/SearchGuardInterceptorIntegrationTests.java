@@ -18,6 +18,7 @@
 package com.floragunn.searchguard;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -42,6 +43,7 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
+import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestController;
@@ -53,7 +55,6 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
-import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -152,7 +153,7 @@ public class SearchGuardInterceptorIntegrationTests {
 
     }
 
-    public static class MockActionResponse extends ActionResponse implements ToXContentObject {
+    public static class MockActionResponse extends ActionResponse implements StatusToXContentObject {
 
         private Map<String, String> headers;
 
@@ -177,6 +178,7 @@ public class SearchGuardInterceptorIntegrationTests {
             out.writeMap(headers, StreamOutput::writeString, StreamOutput::writeString);
         }
 
+        @Override
         public RestStatus status() {
             return RestStatus.OK;
         }

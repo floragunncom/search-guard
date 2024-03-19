@@ -1,15 +1,15 @@
 /*
  * Copyright 2017 by floragunn GmbH - All rights reserved
- * 
+ *
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
- * This software is free of charge for non-commercial and academic use. 
- * For commercial use in a production environment you have to obtain a license 
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
 package com.floragunn.searchguard.dlic.rest.api;
 
@@ -18,7 +18,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
-import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -55,10 +55,10 @@ public class LicenseApiAction extends AbstractApiAction {
     public final static String CONFIG_LICENSE_KEY = "searchguard.dynamic.license";
 
     protected LicenseApiAction(Settings settings, Path configPath, RestController controller, Client client, AdminDNs adminDNs,
-            ConfigurationRepository cl, StaticSgConfig staticSgConfig, ClusterService cs, PrincipalExtractor principalExtractor,
-            AuthorizationService authorizationService,
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
-            AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
+                               ConfigurationRepository cl, StaticSgConfig staticSgConfig, ClusterService cs, PrincipalExtractor principalExtractor,
+                               AuthorizationService authorizationService,
+                               SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
+                               AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
         super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators);
     }
@@ -98,7 +98,7 @@ public class LicenseApiAction extends AbstractApiAction {
         SearchGuardLicense license = new SearchGuardLicense(XContentHelper.convertToMap(XContentType.JSON.xContent(), plaintextLicense, true));
         license.dynamicValidate(cs);
 
-        // check if license is valid at all, honor unsupported switch in es.yml 
+        // check if license is valid at all, honor unsupported switch in es.yml
         if (!license.isValid() && !acceptInvalidLicense) {
             badRequestResponse(channel, "License invalid due to: " + String.join(",", license.getMsgs()));
             return;
@@ -109,10 +109,10 @@ public class LicenseApiAction extends AbstractApiAction {
         try {
             SgDynamicConfiguration<SearchGuardLicenseKey> newConfig = SgDynamicConfiguration.of(CType.LICENSE_KEY, "default", key.get());
 
-            saveAnUpdateConfigs(client, request, CType.LICENSE_KEY, newConfig, new OnSucessActionListener<DocWriteResponse>(channel) {
+            saveAnUpdateConfigs(client, request, CType.LICENSE_KEY, newConfig, new OnSucessActionListener<IndexResponse>(channel) {
 
                 @Override
-                public void onResponse(DocWriteResponse response) {
+                public void onResponse(IndexResponse response) {
                     successResponse(channel, "License updated.");
                 }
             });

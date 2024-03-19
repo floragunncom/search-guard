@@ -1,7 +1,6 @@
 package com.floragunn.signals.actions.account.put;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.ActionFilters;
@@ -80,9 +79,9 @@ public class TransportPutAccountAction extends HandledTransportAction<PutAccount
                 account.toXContent(xContentBuilder, ToXContent.EMPTY_PARAMS);
 
                 client.prepareIndex().setIndex(this.signals.getSignalsSettings().getStaticSettings().getIndexNames().getAccounts()).setId(scopedId)
-                        .setSource(xContentBuilder).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute(new ActionListener<DocWriteResponse>() {
+                        .setSource(xContentBuilder).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute(new ActionListener<IndexResponse>() {
                             @Override
-                            public void onResponse(DocWriteResponse response) {
+                            public void onResponse(IndexResponse response) {
                                 if (response.getResult() == Result.CREATED || response.getResult() == Result.UPDATED) {
                                     DestinationConfigUpdateAction.send(client);
                                 }

@@ -14,7 +14,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -197,15 +196,6 @@ public class ObjectTreeXContent implements XContent {
         @Override
         public void writeEndArray() throws IOException {
             pop();
-        }
-
-        @Override
-        public void writeStringArray(String[] stringArray) throws IOException {
-            writeStartArray();
-            for (String currentString : stringArray) {
-                writeString(currentString);
-            }
-            writeEndArray();
         }
 
         @Override
