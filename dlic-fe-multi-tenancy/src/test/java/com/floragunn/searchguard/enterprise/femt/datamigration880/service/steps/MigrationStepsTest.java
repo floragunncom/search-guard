@@ -513,21 +513,22 @@ public class MigrationStepsTest {
         PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
         DoubleAliasIndex index = environmentHelper.doubleAliasForTenant(TENANT_MANAGEMENT);
         String additionalIndex = index.indexName() + "_another_index";
-        Client client = cluster.getInternalNodeClient();
-        client.admin().indices().create(new CreateIndexRequest(index.indexName())).actionGet();
-        environmentHelper.addCreatedIndex(index);
-        client.admin().indices().create(new CreateIndexRequest(additionalIndex)).actionGet();
-        try {
-            AliasActions aliasAction = new AliasActions(AliasActions.Type.ADD) //
-                .alias(index.shortAlias()) //
-                .indices(index.indexName(), additionalIndex);
-            client.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(aliasAction)).actionGet();
+        try(Client client = cluster.getInternalNodeClient()) {
+            client.admin().indices().create(new CreateIndexRequest(index.indexName())).actionGet();
+            environmentHelper.addCreatedIndex(index);
+            client.admin().indices().create(new CreateIndexRequest(additionalIndex)).actionGet();
+            try {
+                AliasActions aliasAction = new AliasActions(AliasActions.Type.ADD) //
+                    .alias(index.shortAlias()) //
+                    .indices(index.indexName(), additionalIndex);
+                client.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(aliasAction)).actionGet();
 
-            var ex = (StepException) assertThatThrown(() -> populateTenantsStep.execute(context), instanceOf(StepException.class));
+                var ex = (StepException) assertThatThrown(() -> populateTenantsStep.execute(context), instanceOf(StepException.class));
 
-            assertThat(ex.getStatus(), equalTo(CANNOT_RESOLVE_INDEX_BY_ALIAS_ERROR));
-        } finally {
-            client.admin().indices().delete(new DeleteIndexRequest(additionalIndex));
+                assertThat(ex.getStatus(), equalTo(CANNOT_RESOLVE_INDEX_BY_ALIAS_ERROR));
+            } finally {
+                client.admin().indices().delete(new DeleteIndexRequest(additionalIndex));
+            }
         }
     }
 

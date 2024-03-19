@@ -33,7 +33,7 @@ public class TransportAuthTokenInfoAction extends HandledTransportAction<AuthTok
     @Inject
     public TransportAuthTokenInfoAction(TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             AuthTokenService authTokenService, AuthInfoService authInfoService, PrivilegesEvaluator privilegesEvaluator) {
-        super(AuthTokenInfoAction.NAME, transportService, actionFilters, AuthTokenInfoRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
+        super(AuthTokenInfoAction.NAME, transportService, actionFilters, AuthTokenInfoRequest::new);
 
         this.authTokenService = authTokenService;
 

@@ -114,6 +114,7 @@ public class SSLTest extends SingleClusterTest {
                 .put("searchguard.ssl.http.enabled_ciphers","SSL_RSA_EXPORT_WITH_RC4_40_MD5")
                  //WEAK and insecure protocol, do NOT use this, its here for unittesting only!!!
                 .put("searchguard.ssl.http.enabled_protocols","SSLv3")
+                .put("client.type","node")
                 .put("path.home",".")
                 .build();
         
@@ -133,6 +134,7 @@ public class SSLTest extends SingleClusterTest {
                     .put("searchguard.ssl.transport.enabled_ciphers","SSL_RSA_EXPORT_WITH_RC4_40_MD5")
                      //WEAK and insecure protocol, do NOT use this, its here for unittesting only!!!
                     .put("searchguard.ssl.transport.enabled_protocols","SSLv3")
+                    .put("client.type","node")
                     .put("path.home",".")
                     .build();
             

@@ -97,27 +97,28 @@ public class SignalsTenantTest {
         trustManagerRegistry =  cluster.getInjectable(Signals.class).getTruststoreRegistry();
         httpProxyHostRegistry =  cluster.getInjectable(Signals.class).getHttpProxyHostRegistry();
 
-        Client privilegedConfigClient = PrivilegedConfigClient.adapt(cluster.getInternalNodeClient());
-        Client client = cluster.getInternalNodeClient();
-        Watch watch = new WatchBuilder("test").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
-                .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").name("testsink").throttledFor("5s").build();
+        try (Client client = cluster.getInternalNodeClient();
+             Client privilegedConfigClient = PrivilegedConfigClient.adapt(cluster.getInternalNodeClient())) {
+            Watch watch = new WatchBuilder("test").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").name("testsink").throttledFor("5s").build();
 
-        watch.setTenant("test");
+            watch.setTenant("test");
 
-        XContentBuilder xContentBuilder = XContentFactory.jsonBuilder();
+            XContentBuilder xContentBuilder = XContentFactory.jsonBuilder();
 
-        watch.toXContent(xContentBuilder, ToXContent.EMPTY_PARAMS);
+            watch.toXContent(xContentBuilder, ToXContent.EMPTY_PARAMS);
 
-        privilegedConfigClient.index(
-                new IndexRequest(".signals_watches").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(xContentBuilder).id("test/test_watch"))
-                .actionGet();
+            privilegedConfigClient.index(
+                            new IndexRequest(".signals_watches").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(xContentBuilder).id("test/test_watch"))
+                    .actionGet();
 
-        client.index(new IndexRequest("testsource").source(XContentType.JSON, "key1", "val1", "key2", "val2")).actionGet();
+            client.index(new IndexRequest("testsource").source(XContentType.JSON, "key1", "val1", "key2", "val2")).actionGet();
 
-        client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
-                .actionGet();
-        client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
-                .actionGet();
+            client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
+                    .actionGet();
+            client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
+                    .actionGet();
+        }
 
     }
 
@@ -125,16 +126,18 @@ public class SignalsTenantTest {
     @Test
     public void initializationTest() throws Exception {
 
-        Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
-        Settings settings = Settings.builder().build();
+            Settings settings = Settings.builder().build();
 
-        try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext, //
-                Mockito.mock(ThreadPool.class), trustManagerRegistry, httpProxyHostRegistry)) {
-            tenant.init();
-            Assert.assertEquals(1, tenant.getLocalWatchCount());
-            Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
+            try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
+                    internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext, //
+                    Mockito.mock(ThreadPool.class), trustManagerRegistry, httpProxyHostRegistry)) {
+                tenant.init();
+
+                Assert.assertEquals(1, tenant.getLocalWatchCount());
+                Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
+            }
         }
     }
 
@@ -142,18 +145,19 @@ public class SignalsTenantTest {
     @Test
     public void nodeFilterTest() throws Exception {
 
-        Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
-        SignalsSettings settings = Mockito.mock(SignalsSettings.class, Mockito.RETURNS_DEEP_STUBS);
-        Mockito.when(settings.getTenant("test").getNodeFilter()).thenReturn("unknown_attr:true");
+            SignalsSettings settings = Mockito.mock(SignalsSettings.class, Mockito.RETURNS_DEEP_STUBS);
+            Mockito.when(settings.getTenant("test").getNodeFilter()).thenReturn("unknown_attr:true");
 
-        try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                internalAuthTokenProvider, settings, null, diagnosticContext, Mockito.mock(ThreadPool.class),
-                trustManagerRegistry, httpProxyHostRegistry)) {
-            tenant.init();
+            try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
+                    internalAuthTokenProvider, settings, null, diagnosticContext, Mockito.mock(ThreadPool.class),
+                    trustManagerRegistry, httpProxyHostRegistry)) {
+                tenant.init();
 
-            Assert.assertEquals(0, tenant.getLocalWatchCount());
-            Assert.assertFalse(tenant.runsWatchLocally("test_watch"));
+                Assert.assertEquals(0, tenant.getLocalWatchCount());
+                Assert.assertFalse(tenant.runsWatchLocally("test_watch"));
+            }
         }
     }
 
@@ -161,64 +165,65 @@ public class SignalsTenantTest {
     public void failoverTest() throws Exception {
         Ack ackedTime1;
 
-        Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
-        Settings settings = Settings.builder().build();
+            Settings settings = Settings.builder().build();
 
-        try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext, Mockito.mock(ThreadPool.class),
-                trustManagerRegistry, httpProxyHostRegistry)) {
-            tenant.init();
+            try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
+                    internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext, Mockito.mock(ThreadPool.class),
+                    trustManagerRegistry, httpProxyHostRegistry)) {
+                tenant.init();
 
-            Watch watch = new WatchBuilder("test_watch").atInterval("100ms").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
-                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").name("testsink").build();
+                Watch watch = new WatchBuilder("test_watch").atInterval("100ms").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                        .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").name("testsink").build();
 
-            tenant.addWatch(watch, UHURA, STRICT);
+                tenant.addWatch(watch, UHURA, STRICT);
 
-            for (int i = 0; i < 20; i++) {
-                Thread.sleep(100);
+                for (int i = 0; i < 20; i++) {
+                    Thread.sleep(100);
 
-                if (tenant.getLocalWatchCount() != 0) {
-                    break;
+                    if (tenant.getLocalWatchCount() != 0) {
+                        break;
+                    }
                 }
+
+                Assert.assertEquals(1, tenant.getLocalWatchCount());
+                Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
+
+                Thread.sleep(500);
+
+                List<String> ackedActions = new ArrayList<>(tenant.ack("test_watch", new User("horst")).keySet());
+                Assert.assertEquals(Arrays.asList("testsink"), ackedActions);
+
+                ackedTime1 = tenant.getWatchStateManager().getWatchState("test_watch").getActionState("testsink").getAcked();
+
+                Assert.assertNotNull(ackedTime1);
+
+                Thread.sleep(500);
             }
 
-            Assert.assertEquals(1, tenant.getLocalWatchCount());
-            Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
+            Thread.sleep(1000);
 
-            Thread.sleep(500);
+            try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
+                    internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext, Mockito.mock(ThreadPool.class),
+                    trustManagerRegistry, httpProxyHostRegistry)) {
+                tenant.init();
 
-            List<String> ackedActions = new ArrayList<>(tenant.ack("test_watch", new User("horst")).keySet());
-            Assert.assertEquals(Arrays.asList("testsink"), ackedActions);
+                for (int i = 0; i < 20; i++) {
+                    Thread.sleep(100);
 
-            ackedTime1 = tenant.getWatchStateManager().getWatchState("test_watch").getActionState("testsink").getAcked();
-
-            Assert.assertNotNull(ackedTime1);
-
-            Thread.sleep(500);
-        }
-
-        Thread.sleep(1000);
-
-        try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext, Mockito.mock(ThreadPool.class),
-                trustManagerRegistry, httpProxyHostRegistry)) {
-            tenant.init();
-
-            for (int i = 0; i < 20; i++) {
-                Thread.sleep(100);
-
-                if (tenant.getLocalWatchCount() != 0) {
-                    break;
+                    if (tenant.getLocalWatchCount() != 0) {
+                        break;
+                    }
                 }
+
+                Assert.assertEquals(1, tenant.getLocalWatchCount());
+                Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
+
+                Ack ackedTime2 = tenant.getWatchStateManager().getWatchState("test_watch").getActionState("testsink").getAcked();
+
+                Assert.assertEquals(ackedTime1, ackedTime2);
             }
-
-            Assert.assertEquals(1, tenant.getLocalWatchCount());
-            Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
-
-            Ack ackedTime2 = tenant.getWatchStateManager().getWatchState("test_watch").getActionState("testsink").getAcked();
-
-            Assert.assertEquals(ackedTime1, ackedTime2);
         }
 
     }
@@ -226,58 +231,59 @@ public class SignalsTenantTest {
     @Test
     public void failoverWhileRunningTest() throws Exception {
 
-        Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
-        Settings settings = Settings.builder().build();
+            Settings settings = Settings.builder().build();
 
-        try (SignalsTenant tenant = new SignalsTenant("failover_while_running_test", client, clusterService, nodeEnvironment, scriptService,
-                xContentRegistry, internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext,//
-                Mockito.mock(ThreadPool.class), trustManagerRegistry, httpProxyHostRegistry)) {
-            tenant.init();
+            try (SignalsTenant tenant = new SignalsTenant("failover_while_running_test", client, clusterService, nodeEnvironment, scriptService,
+                    xContentRegistry, internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext,//
+                    Mockito.mock(ThreadPool.class), trustManagerRegistry, httpProxyHostRegistry)) {
+                tenant.init();
 
-            Watch watch = new WatchBuilder("test_watch").atInterval("100ms").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
-                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().act(new SleepAction(Duration.ofSeconds(4))).name("sleep").and()
-                    .index("failover_while_running_testsink").name("testsink").build();
+                Watch watch = new WatchBuilder("test_watch").atInterval("100ms").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                        .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().act(new SleepAction(Duration.ofSeconds(4))).name("sleep").and()
+                        .index("failover_while_running_testsink").name("testsink").build();
 
-            tenant.addWatch(watch, UHURA, STRICT);
+                tenant.addWatch(watch, UHURA, STRICT);
 
-            for (int i = 0; i < 20; i++) {
-                Thread.sleep(100);
+                for (int i = 0; i < 20; i++) {
+                    Thread.sleep(100);
 
-                if (tenant.getLocalWatchCount() != 0) {
-                    break;
+                    if (tenant.getLocalWatchCount() != 0) {
+                        break;
+                    }
                 }
+
+                Assert.assertEquals(1, tenant.getLocalWatchCount());
+                Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
+
+                Thread.sleep(500);
+
+                tenant.shutdownHard();
             }
 
-            Assert.assertEquals(1, tenant.getLocalWatchCount());
-            Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
+            //System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
-            Thread.sleep(500);
+            Thread.sleep(1000);
 
-            tenant.shutdownHard();
-        }
+            //System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
-        //System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            try (SignalsTenant tenant = new SignalsTenant("failover_while_running_test", client, clusterService, nodeEnvironment, scriptService,
+                    xContentRegistry, internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext,
+                    Mockito.mock(ThreadPool.class), trustManagerRegistry, httpProxyHostRegistry)) {
+                tenant.init();
 
-        Thread.sleep(1000);
+                for (int i = 0; i < 20; i++) {
+                    Thread.sleep(100);
 
-        //System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-
-        try (SignalsTenant tenant = new SignalsTenant("failover_while_running_test", client, clusterService, nodeEnvironment, scriptService,
-                xContentRegistry, internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext,
-                Mockito.mock(ThreadPool.class), trustManagerRegistry, httpProxyHostRegistry)) {
-            tenant.init();
-
-            for (int i = 0; i < 20; i++) {
-                Thread.sleep(100);
-
-                if (tenant.getLocalWatchCount() != 0) {
-                    break;
+                    if (tenant.getLocalWatchCount() != 0) {
+                        break;
+                    }
                 }
-            }
 
-            Assert.assertEquals(1, tenant.getLocalWatchCount());
-            Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
+                Assert.assertEquals(1, tenant.getLocalWatchCount());
+                Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
+            }
         }
 
     }
@@ -288,19 +294,19 @@ public class SignalsTenantTest {
         String tenantName = "test_tenant";
         String watchId = "tls_execution_test";
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/tls_endpoint", true, false)) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient();
+             MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/tls_endpoint", true, false)) {
             webhookProvider.uploadMockServerCertificateAsTruststore(cluster, USER_CERTIFICATE, UPLOADED_TRUSTSTORE_ID);
 
             Watch watch = new WatchBuilder(watchId).atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
-                .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
-                .postWebhook(webhookProvider.getUri()).truststoreId(UPLOADED_TRUSTSTORE_ID).throttledFor("0").name("send-http-request")
-                .build();
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
+                    .postWebhook(webhookProvider.getUri()).truststoreId(UPLOADED_TRUSTSTORE_ID).throttledFor("0").name("send-http-request")
+                    .build();
 
             Settings settings = Settings.builder().build();
             try (SignalsTenant tenant = new SignalsTenant(tenantName, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext, Mockito.mock(ThreadPool.class),
-                trustManagerRegistry, httpProxyHostRegistry)) {
+                    internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext, Mockito.mock(ThreadPool.class),
+                    trustManagerRegistry, httpProxyHostRegistry)) {
                 tenant.init();
 
                 tenant.addWatch(watch, UHURA, STRICT);
@@ -317,8 +323,8 @@ public class SignalsTenantTest {
             final int requestCountBeforeSecondClusterStart = webhookProvider.getRequestCount();
 
             try (SignalsTenant tenant = new SignalsTenant(tenantName, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext, Mockito.mock(ThreadPool.class),
-                trustManagerRegistry, httpProxyHostRegistry)) {
+                    internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext, Mockito.mock(ThreadPool.class),
+                    trustManagerRegistry, httpProxyHostRegistry)) {
                 tenant.init();
                 Awaitility.await().until(() -> tenant.getLocalWatchCount() != 0);
                 Assert.assertEquals(1, tenant.getLocalWatchCount());
@@ -378,3 +384,4 @@ public class SignalsTenantTest {
     }
 
 }
+

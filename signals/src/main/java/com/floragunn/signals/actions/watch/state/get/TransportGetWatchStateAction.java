@@ -37,7 +37,7 @@ public class TransportGetWatchStateAction extends HandledTransportAction<GetWatc
     @Inject
     public TransportGetWatchStateAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(GetWatchStateAction.NAME, transportService, actionFilters, GetWatchStateRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
+        super(GetWatchStateAction.NAME, transportService, actionFilters, GetWatchStateRequest::new);
 
         this.signals = signals;
         this.threadPool = threadPool;

@@ -114,26 +114,28 @@ public class GetAvailableTenantsActionTest {
 
     @BeforeClass
     public static void createIndex() {
-        Client client = cluster.getInternalNodeClient();
-        DocNode indexMappings = DocNode.of("_doc", DocNode.of("properties", DocNode.of("sg_tenant", DocNode.of("type", "keyword"))));
-        CreateIndexRequest request = new CreateIndexRequest(FRONTEND_INDEX) //
-            .settings(Settings.builder().put("index.hidden", true)) //
-            .mapping(indexMappings);
-        CreateIndexResponse response = client.admin().indices().create(request).actionGet();
-        assertThat(response.isAcknowledged(), equalTo(true));
+        try(Client client = cluster.getInternalNodeClient()) {
+            DocNode indexMappings = DocNode.of("_doc", DocNode.of("properties", DocNode.of("sg_tenant", DocNode.of("type", "keyword"))));
+            CreateIndexRequest request = new CreateIndexRequest(FRONTEND_INDEX) //
+                .settings(Settings.builder().put("index.hidden", true)) //
+                .mapping(indexMappings);
+            CreateIndexResponse response = client.admin().indices().create(request).actionGet();
+            assertThat(response.isAcknowledged(), equalTo(true));
+        }
     }
 
     @After
     public void clearIndices() {
-        Client client = cluster.getInternalNodeClient();
-        DeleteByQueryRequest request = new DeleteByQueryRequest(FRONTEND_INDEX);
-        request.setQuery(QueryBuilders.matchAllQuery());
-        request.setRefresh(true);
-        request.setBatchSize(100);
-        request.setScroll(TimeValue.timeValueMinutes(1));
-        BulkByScrollResponse response = client.execute(DeleteByQueryAction.INSTANCE, request).actionGet();
-        assertThat(response.getSearchFailures(), empty());
-        assertThat(response.getBulkFailures(), empty());
+        try(Client client = cluster.getInternalNodeClient()) {
+            DeleteByQueryRequest request = new DeleteByQueryRequest(FRONTEND_INDEX);
+            request.setQuery(QueryBuilders.matchAllQuery());
+            request.setRefresh(true);
+            request.setBatchSize(100);
+            request.setScroll(TimeValue.timeValueMinutes(1));
+            BulkByScrollResponse response = client.execute(DeleteByQueryAction.INSTANCE, request).actionGet();
+            assertThat(response.getSearchFailures(), empty());
+            assertThat(response.getBulkFailures(), empty());
+        }
     }
 
     @Test
@@ -332,11 +334,12 @@ public class GetAvailableTenantsActionTest {
     }
 
     public void createTenants(String indexName, String...tenantNames) {
-        Client client = cluster.getInternalNodeClient();
-        for(String currentTenant : tenantNames) {
-            ImmutableMap<String, ?> source = ImmutableMap.of("sg_tenant", TenantManager.toInternalTenantName(currentTenant));
-            DocWriteResponse response = client.index(new IndexRequest(indexName).source(source).setRefreshPolicy(IMMEDIATE)).actionGet();
-            assertThat(response.status(), equalTo(CREATED));
+        try(Client client = cluster.getInternalNodeClient()) {
+            for(String currentTenant : tenantNames) {
+                ImmutableMap<String, ?> source = ImmutableMap.of("sg_tenant", TenantManager.toInternalTenantName(currentTenant));
+                DocWriteResponse response = client.index(new IndexRequest(indexName).source(source).setRefreshPolicy(IMMEDIATE)).actionGet();
+                assertThat(response.status(), equalTo(CREATED));
+            }
         }
     }
 

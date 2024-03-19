@@ -75,17 +75,18 @@ public class SnapshotRestoreTests extends SingleClusterTest {
     
         setup(settings, currentClusterConfig);
     
-        Client tc = getPrivilegedInternalNodeClient();
-        tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        try (Client tc = getPrivilegedInternalNodeClient()) {    
+            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-        tc.admin().cluster().preparePutRepository("vulcangov").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/vulcangov")).get();
-        tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("vulcangov", "vulcangov_1").indices("vulcangov").includeGlobalState(true).waitForCompletion(true)).actionGet();
+            tc.admin().cluster().preparePutRepository("vulcangov").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/vulcangov")).get();
+            tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("vulcangov", "vulcangov_1").indices("vulcangov").includeGlobalState(true).waitForCompletion(true)).actionGet();
 
-        tc.admin().cluster().preparePutRepository("searchguard").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/searchguard")).get();
-        tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("searchguard", "searchguard_1").indices("searchguard").includeGlobalState(false).waitForCompletion(true)).actionGet();
+            tc.admin().cluster().preparePutRepository("searchguard").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/searchguard")).get();
+            tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("searchguard", "searchguard_1").indices("searchguard").includeGlobalState(false).waitForCompletion(true)).actionGet();
 
-        tc.admin().cluster().preparePutRepository("all").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/all")).get();
-        tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("all", "all_1").indices("*").includeGlobalState(false).waitForCompletion(true)).actionGet();
+            tc.admin().cluster().preparePutRepository("all").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/all")).get();
+            tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("all", "all_1").indices("*").includeGlobalState(false).waitForCompletion(true)).actionGet();
+        }
     
         RestHelper rh = nonSslRestHelper();
         Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("_snapshot/vulcangov", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
@@ -136,18 +137,19 @@ public class SnapshotRestoreTests extends SingleClusterTest {
     
         setup(settings, currentClusterConfig);
     
-        Client tc = getPrivilegedInternalNodeClient();
-        tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        try (Client tc = getPrivilegedInternalNodeClient()) {    
+            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-        tc.admin().cluster().preparePutRepository("vulcangov").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/vulcangov")).get();
-        tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("vulcangov", "vulcangov_1").indices("vulcangov").includeGlobalState(true).waitForCompletion(true)).actionGet();
+            tc.admin().cluster().preparePutRepository("vulcangov").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/vulcangov")).get();
+            tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("vulcangov", "vulcangov_1").indices("vulcangov").includeGlobalState(true).waitForCompletion(true)).actionGet();
 
-        tc.admin().cluster().preparePutRepository("searchguard").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/searchguard")).get();
-        tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("searchguard", "searchguard_1").indices("searchguard").includeGlobalState(false).waitForCompletion(true)).actionGet();
+            tc.admin().cluster().preparePutRepository("searchguard").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/searchguard")).get();
+            tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("searchguard", "searchguard_1").indices("searchguard").includeGlobalState(false).waitForCompletion(true)).actionGet();
 
-        tc.admin().cluster().preparePutRepository("all").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/all")).get();
-        tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("all", "all_1").indices("*").includeGlobalState(false).waitForCompletion(true)).actionGet();
-
+            tc.admin().cluster().preparePutRepository("all").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/all")).get();
+            tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("all", "all_1").indices("*").includeGlobalState(false).waitForCompletion(true)).actionGet();
+        }
+    
         RestHelper rh = nonSslRestHelper();
         Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("_snapshot/vulcangov", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("_snapshot/vulcangov/vulcangov_1", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
@@ -190,23 +192,24 @@ public class SnapshotRestoreTests extends SingleClusterTest {
     
         setup(settings, currentClusterConfig);
     
-        Client tc = getPrivilegedInternalNodeClient();
-        tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        try (Client tc = getPrivilegedInternalNodeClient()) {
+            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-        tc.admin().cluster().preparePutRepository("vulcangov").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/vulcangov")).get();
-        tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("vulcangov", "vulcangov_1").indices("vulcangov").includeGlobalState(true).waitForCompletion(true)).actionGet();
+            tc.admin().cluster().preparePutRepository("vulcangov").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/vulcangov")).get();
+            tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("vulcangov", "vulcangov_1").indices("vulcangov").includeGlobalState(true).waitForCompletion(true)).actionGet();
 
-        tc.admin().cluster().preparePutRepository("searchguard").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/searchguard")).get();
-        tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("searchguard", "searchguard_1").indices("searchguard").includeGlobalState(false).waitForCompletion(true)).actionGet();
+            tc.admin().cluster().preparePutRepository("searchguard").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/searchguard")).get();
+            tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("searchguard", "searchguard_1").indices("searchguard").includeGlobalState(false).waitForCompletion(true)).actionGet();
 
-        tc.admin().cluster().preparePutRepository("all").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/all")).get();
-        tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("all", "all_1").indices("*").includeGlobalState(false).waitForCompletion(true)).actionGet();
-
-        ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config","roles","rolesmapping","internalusers","actiongroups"})).actionGet();
-        Assert.assertFalse(cur.hasFailures());
-        Assert.assertEquals(currentClusterConfig.getNodes(), cur.getNodes().size());
-        //System.out.println(cur.getNodesMap());
-
+            tc.admin().cluster().preparePutRepository("all").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/all")).get();
+            tc.admin().cluster().createSnapshot(new CreateSnapshotRequest("all", "all_1").indices("*").includeGlobalState(false).waitForCompletion(true)).actionGet();
+    
+            ConfigUpdateResponse cur = tc.execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(new String[]{"config","roles","rolesmapping","internalusers","actiongroups"})).actionGet();
+            Assert.assertFalse(cur.hasFailures());
+            Assert.assertEquals(currentClusterConfig.getNodes(), cur.getNodes().size());
+            //System.out.println(cur.getNodesMap());
+        }
+    
         RestHelper rh = nonSslRestHelper();
         Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("_snapshot/vulcangov", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
         Assert.assertEquals(HttpStatus.SC_OK, rh.executeGetRequest("_snapshot/vulcangov/vulcangov_1", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
@@ -256,16 +259,17 @@ public class SnapshotRestoreTests extends SingleClusterTest {
     
         setup(Settings.EMPTY, new DynamicSgConfig().setSgActionGroups("sg_action_groups_packaged.yml"), settings, true, currentClusterConfig);
     
-        Client tc = getPrivilegedInternalNodeClient();
-        tc.index(new IndexRequest("testsnap1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("testsnap2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("testsnap3").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("testsnap4").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("testsnap5").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("testsnap6").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        try (Client tc = getPrivilegedInternalNodeClient()) {    
+            tc.index(new IndexRequest("testsnap1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("testsnap2").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("testsnap3").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("testsnap4").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("testsnap5").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("testsnap6").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-        tc.admin().cluster().preparePutRepository("bckrepo").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/bckrepo")).get();
-
+            tc.admin().cluster().preparePutRepository("bckrepo").setType("fs").setSettings(Settings.builder().put("location", repositoryPath.getRoot().getAbsolutePath() + "/bckrepo")).get();
+        }
+    
         RestHelper rh = nonSslRestHelper();        
         String putSnapshot =
         "{"+
