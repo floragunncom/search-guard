@@ -34,12 +34,12 @@ import com.floragunn.fluent.collections.ImmutableSet;
 public class TestAlias implements TestIndexLike {
 
     private final String name;
-    private final ImmutableSet<TestIndex> indices;
+    private final ImmutableSet<TestIndexLike> indices;
     private Set<String> documentIds;
     private Map<String, Map<String, ?>> documents;
     private TestIndex writeIndex;
 
-    public TestAlias(String name, TestIndex... indices) {
+    public TestAlias(String name, TestIndexLike... indices) {
         this.name = name;
         this.indices = ImmutableSet.ofArray(indices);
     }
@@ -73,7 +73,7 @@ public class TestAlias implements TestIndexLike {
         return name;
     }
 
-    public ImmutableSet<TestIndex> getIndices() {
+    public ImmutableSet<TestIndexLike> getIndices() {
         return indices;
     }
 
@@ -87,7 +87,7 @@ public class TestAlias implements TestIndexLike {
 
         if (result == null) {
             result = new HashSet<>();
-            for (TestIndex testIndex : this.indices) {
+            for (TestIndexLike testIndex : this.indices) {
                 result.addAll(testIndex.getDocumentIds());
             }
 
@@ -104,7 +104,7 @@ public class TestAlias implements TestIndexLike {
 
         if (result == null) {
             result = new HashMap<>();
-            for (TestIndex testIndex : this.indices) {
+            for (TestIndexLike testIndex : this.indices) {
                 result.putAll(testIndex.getDocuments());
             }
 
