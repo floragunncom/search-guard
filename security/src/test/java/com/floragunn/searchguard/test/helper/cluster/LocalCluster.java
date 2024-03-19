@@ -71,7 +71,10 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.RequestInfo;
 import com.floragunn.searchguard.test.TestAlias;
+import com.floragunn.searchguard.test.TestComponentTemplate;
+import com.floragunn.searchguard.test.TestDataStream;
 import com.floragunn.searchguard.test.TestIndex;
+import com.floragunn.searchguard.test.TestIndexTemplate;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.AuthTokenService;
 import com.floragunn.searchguard.test.TestSgConfig.Authc;
@@ -137,7 +140,7 @@ import com.google.common.base.Strings;
  */
 public class LocalCluster extends ExternalResource implements AutoCloseable, EsClientProvider {
 
-    static final boolean USE_EXTERNAL_PROCESS_CLUSTER_BY_DEFAULT = true || "true".equalsIgnoreCase(System.getProperty("sg.tests.use_ep_cluster"));
+    static final boolean USE_EXTERNAL_PROCESS_CLUSTER_BY_DEFAULT = "true".equalsIgnoreCase(System.getProperty("sg.tests.use_ep_cluster"));
 
     private static final Logger log = LogManager.getLogger(LocalCluster.class);
 
@@ -161,7 +164,10 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     private final List<LocalCluster> clusterDependencies;
     private final Map<String, LocalCluster> remotes;
     private final List<TestIndex> testIndices;
+    private final List<TestDataStream> testDataStreams;
     private final List<TestAlias> testAliases;
+    private final List<TestComponentTemplate> componentTemplates;
+    private final List<TestIndexTemplate> indexTemplates;
     private final List<GenericRestClient.RequestInfo> executedRequests;
     private final boolean externalProcessCluster;
     private final ImmutableList<String> waitForComponents;
@@ -170,8 +176,9 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
     private LocalCluster(String clusterName, String resourceFolder, TestSgConfig testSgConfig, Settings nodeOverride,
             ClusterConfiguration clusterConfiguration, List<Class<? extends Plugin>> plugins, TestCertificates testCertificates,
-            List<LocalCluster> clusterDependencies, Map<String, LocalCluster> remotes, List<TestIndex> testIndices, List<TestAlias> testAliases,
-            boolean logRequests, boolean externalProcessCluster, ImmutableList<String> waitForComponents) {
+            List<LocalCluster> clusterDependencies, Map<String, LocalCluster> remotes, List<TestIndex> testIndices,
+            List<TestDataStream> testDataStreams, List<TestAlias> testAliases, List<TestComponentTemplate> componentTemplates,
+            List<TestIndexTemplate> indexTemplates, boolean logRequests, boolean externalProcessCluster, ImmutableList<String> waitForComponents) {
         this.resourceFolder = resourceFolder;
         this.plugins = plugins;
         this.clusterConfiguration = clusterConfiguration;
@@ -183,7 +190,10 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         this.remotes = remotes;
         this.clusterDependencies = clusterDependencies;
         this.testIndices = testIndices;
+        this.testDataStreams = testDataStreams;
         this.testAliases = testAliases;
+        this.componentTemplates = componentTemplates;
+        this.indexTemplates = indexTemplates;
         this.executedRequests = logRequests ? new ArrayList<>(1000) : null;
         this.externalProcessCluster = externalProcessCluster || USE_EXTERNAL_PROCESS_CLUSTER_BY_DEFAULT;
         this.waitForComponents = waitForComponents;
@@ -331,10 +341,13 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
             this.localEsCluster = result;
 
+            createTemplates();
+
             try (Client client = result.clientNode().getInternalNodeClient()) {
                 for (TestIndex index : this.testIndices) {
                     index.create(client);
                 }
+                // DataStreams are not available on the embedded cluster
                 for (TestAlias alias : this.testAliases) {
                     alias.create(client);
                 }
@@ -360,9 +373,14 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
             this.localEsCluster = result;
 
+            createTemplates();
+
             try (GenericRestClient client = getAdminCertRestClient()) {
                 for (TestIndex index : this.testIndices) {
                     index.create(client);
+                }
+                for (TestDataStream dataStream : this.testDataStreams) {
+                    dataStream.create(client);
                 }
                 for (TestAlias alias : this.testAliases) {
                     alias.create(client);
@@ -373,6 +391,18 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         } catch (Exception e) {
             log.error("Local ES cluster start failed", e);
             throw new RuntimeException(e);
+        }
+    }
+
+    protected void createTemplates() throws Exception {
+        try (GenericRestClient client = getAdminCertRestClient()) {
+            for (TestComponentTemplate testComponentTemplate : this.componentTemplates) {
+                testComponentTemplate.create(client);
+            }
+
+            for (TestIndexTemplate testIndexTemplate : this.indexTemplates) {
+                testIndexTemplate.create(client);
+            }
         }
     }
 
@@ -442,7 +472,10 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         private Map<String, LocalCluster> remoteClusters = new HashMap<>();
         private List<LocalCluster> clusterDependencies = new ArrayList<>();
         private List<TestIndex> testIndices = new ArrayList<>();
+        private List<TestDataStream> testDataStreams = new ArrayList<>();
         private List<TestAlias> testAliases = new ArrayList<>();
+        private List<TestComponentTemplate> testComponentTemplates = new ArrayList<>();
+        private List<TestIndexTemplate> testIndexTemplates = new ArrayList<>();
         private String resourceFolder;
         private ClusterConfiguration clusterConfiguration = ClusterConfiguration.DEFAULT;
         private TestSgConfig testSgConfig = new TestSgConfig().resources("/");
@@ -546,8 +579,32 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return this;
         }
 
+        public Builder dataStreams(TestDataStream... dataStreams) {
+            this.testDataStreams.addAll(Arrays.asList(dataStreams));
+            return this;
+        }
+
         public Builder aliases(TestAlias... aliases) {
             this.testAliases.addAll(Arrays.asList(aliases));
+            return this;
+        }
+
+        public Builder componentTemplates(TestComponentTemplate... templates) {
+            this.testComponentTemplates.addAll(Arrays.asList(templates));
+            return this;
+        }
+
+        public Builder indexTemplates(TestIndexTemplate... templates) {
+            for (TestIndexTemplate template : templates) {
+                this.testIndexTemplates.add(template);
+
+                for (TestComponentTemplate componentTemplate : template.getComposedOf()) {
+                    if (!this.testComponentTemplates.contains(componentTemplate)) {
+                        this.testComponentTemplates.add(componentTemplate);
+                    }
+                }
+            }
+
             return this;
         }
 
@@ -557,7 +614,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             }
             return this;
         }
-        
+
         public Builder users(List<TestSgConfig.User> users) {
             for (TestSgConfig.User user : users) {
                 testSgConfig.user(user);
@@ -644,8 +701,8 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                 preBuild();
 
                 return new LocalCluster(clusterName, resourceFolder, testSgConfig, nodeOverrideSettingsBuilder.build(), clusterConfiguration,
-                        ImmutableList.empty(), testCertificates, clusterDependencies, remoteClusters, testIndices, testAliases, logRequests,
-                        externalProcessCluster, waitForComponents);
+                        ImmutableList.empty(), testCertificates, clusterDependencies, remoteClusters, testIndices, testDataStreams, testAliases,
+                        testComponentTemplates, testIndexTemplates, logRequests, externalProcessCluster, waitForComponents);
             } catch (Exception e) {
                 log.error("Failed to build LocalCluster", e);
                 throw new RuntimeException(e);
@@ -657,7 +714,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             localCluster.start();
             return localCluster;
         }
-
 
         private void preBuild() {
             nodeOverrideSettingsBuilder.put("searchguard.enterprise_modules_enabled", enterpriseModulesEnabled);
@@ -693,21 +749,21 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
                     return new LocalCluster.Embedded(delegate.clusterName, delegate.resourceFolder, delegate.testSgConfig,
                             delegate.nodeOverrideSettingsBuilder.build(), delegate.clusterConfiguration, this.plugins, delegate.testCertificates,
-                            delegate.clusterDependencies, delegate.remoteClusters, delegate.testIndices, delegate.testAliases, delegate.logRequests,
+                            delegate.clusterDependencies, delegate.remoteClusters, delegate.testIndices, delegate.testDataStreams,
+                            delegate.testAliases, delegate.testComponentTemplates, delegate.testIndexTemplates, delegate.logRequests,
                             delegate.waitForComponents);
                 } catch (Exception e) {
                     log.error("Failed to build LocalCluster", e);
                     throw new RuntimeException(e);
                 }
             }
-            
 
             public LocalCluster.Embedded start() {
                 LocalCluster.Embedded localCluster = build();
                 localCluster.start();
                 return localCluster;
             }
-            
+
             // ===============================
             // Only delegate methods hereafter
             // ===============================
@@ -869,10 +925,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
         public Embedded(String clusterName, String resourceFolder, TestSgConfig testSgConfig, Settings nodeOverride,
                 ClusterConfiguration clusterConfiguration, List<Class<? extends Plugin>> plugins, TestCertificates testCertificates,
-                List<LocalCluster> clusterDependencies, Map<String, LocalCluster> remotes, List<TestIndex> testIndices, List<TestAlias> testAliases,
-                boolean logRequests, ImmutableList<String> waitForComponents) {
+                List<LocalCluster> clusterDependencies, Map<String, LocalCluster> remotes, List<TestIndex> testIndices,
+                List<TestDataStream> testDataStreams, List<TestAlias> testAliases, List<TestComponentTemplate> componentTemplates,
+                List<TestIndexTemplate> indexTemplates, boolean logRequests, ImmutableList<String> waitForComponents) {
             super(clusterName, resourceFolder, testSgConfig, nodeOverride, clusterConfiguration, plugins, testCertificates, clusterDependencies,
-                    remotes, testIndices, testAliases, logRequests, true, waitForComponents);
+                    remotes, testIndices, testDataStreams, testAliases, componentTemplates, indexTemplates, logRequests, true, waitForComponents);
         }
 
         @Override
