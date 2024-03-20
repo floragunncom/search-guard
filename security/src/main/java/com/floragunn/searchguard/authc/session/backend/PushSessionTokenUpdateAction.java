@@ -193,7 +193,7 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
         public TransportAction(Settings settings, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                 ActionFilters actionFilters, SessionService sessionService) {
             super(PushSessionTokenUpdateAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new, NodeRequest::new,
-                    ThreadPool.Names.MANAGEMENT);
+                    ThreadPool.Names.MANAGEMENT, NodeResponse.class);
 
             this.sessionService = sessionService;
         }

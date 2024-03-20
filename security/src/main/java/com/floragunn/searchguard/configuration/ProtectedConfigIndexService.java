@@ -793,7 +793,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
             public TransportAction(Settings settings, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                     ActionFilters actionFilters, ProtectedConfigIndexService protectedConfigIndexService) {
                 super(TriggerConfigIndexCreationAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new,
-                        NodeRequest::new, ThreadPool.Names.MANAGEMENT);
+                        NodeRequest::new, ThreadPool.Names.MANAGEMENT, NodeResponse.class);
 
                 this.protectedConfigIndexService = protectedConfigIndexService;
             }

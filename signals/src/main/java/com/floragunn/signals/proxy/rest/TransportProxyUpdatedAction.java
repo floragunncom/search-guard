@@ -55,7 +55,7 @@ public class TransportProxyUpdatedAction extends
     public TransportProxyUpdatedAction(ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                                        ActionFilters actionFilters, Signals signals) {
         super(ProxyUpdatedActionType.NAME,threadPool, clusterService, transportService, actionFilters, ProxyUpdatedRequest::new, NodeRequest::new,
-                ThreadPool.Names.MANAGEMENT);
+                ThreadPool.Names.MANAGEMENT, NodeResponse.class);
         this.httpProxyHostRegistry = Objects.requireNonNull(signals.getHttpProxyHostRegistry(), "Http proxy host registry is required");
     }
 
@@ -213,7 +213,7 @@ public class TransportProxyUpdatedAction extends
         }
 
         public ProxyUpdatedResponse(
-            ClusterName clusterName, List<NodeResponse> nodes, List<FailedNodeException> failures) {
+                ClusterName clusterName, List<NodeResponse> nodes, List<FailedNodeException> failures) {
             super(clusterName, nodes, failures);
         }
 

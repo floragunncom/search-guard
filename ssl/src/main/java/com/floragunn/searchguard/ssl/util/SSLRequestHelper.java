@@ -17,7 +17,6 @@
 
 package com.floragunn.searchguard.ssl.util;
 
-import com.floragunn.searchsupport.rest.AttributedHttpRequest;
 import io.netty.handler.ssl.SslHandler;
 
 import java.io.File;
@@ -34,7 +33,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Map.Entry;
-import java.util.Optional;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLPeerUnverifiedException;
@@ -48,6 +46,7 @@ import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.env.Environment;
+import org.elasticsearch.http.netty4.Netty4HttpChannel;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
@@ -106,13 +105,13 @@ public class SSLRequestHelper {
     }
 
     public static SSLInfo getSSLInfo(final Settings settings, final Path configPath, final RestRequest request, PrincipalExtractor principalExtractor) throws SSLPeerUnverifiedException {
-        final SslHandler sslhandler = Optional.ofNullable(request.getHttpRequest())
-            .filter(AttributedHttpRequest.class::isInstance)
-            .map(AttributedHttpRequest.class::cast)
-            .flatMap(attributeRequest -> attributeRequest.getAttribute("sg_ssl_handler"))
-            .filter(SslHandler.class::isInstance)
-            .map(SslHandler.class::cast)
-            .orElse(null);
+        
+        if(request == null || request.getHttpChannel() == null || !(request.getHttpChannel() instanceof Netty4HttpChannel)) {
+            return null;
+        }
+
+        final SslHandler sslhandler = (SslHandler) ((Netty4HttpChannel)request.getHttpChannel()).getNettyChannel().pipeline().get("ssl_http");
+        
         if(sslhandler == null) {
             return null;
         }

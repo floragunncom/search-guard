@@ -46,7 +46,7 @@
   </distributionManagement>
 
   <properties>
-    <elasticsearch.version>8.10.4</elasticsearch.version>
+    <elasticsearch.version>8.9.2</elasticsearch.version>
     <sg-suite.version>master-SNAPSHOT</sg-suite.version>
     <revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
 
@@ -289,12 +289,6 @@
       <dependency>
         <groupId>org.elasticsearch</groupId>
         <artifactId>elasticsearch-ssl-config</artifactId>
-        <version>${elasticsearch.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.elasticsearch.plugin</groupId>
-        <artifactId>rest-root</artifactId>
         <version>${elasticsearch.version}</version>
       </dependency>
 
