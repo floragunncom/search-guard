@@ -1619,8 +1619,8 @@ public class ActionRequestIntrospector {
                         pureIndices = indexMetadata.indicesWithoutParents();
                     }
 
-                    aliases = includeHidden ? indexMetadata.aliases() : indexMetadata.aliases().matching(e -> !e.isHidden());
-                    dataStreams = indexMetadata.dataStreams();
+                    aliases = includeHidden ? indexMetadata.aliases() : indexMetadata.nonHiddenAliases();
+                    dataStreams = includeHidden ? indexMetadata.dataStreams() : indexMetadata.nonHiddenDataStreams();
                 } else {
                     if (!includeIndices) {
                         pureIndices = ImmutableSet.empty();
@@ -1632,9 +1632,9 @@ public class ActionRequestIntrospector {
                         pureIndices = indexMetadata.indices();
                     }
 
-                    aliases = includeAliases ? (includeHidden ? indexMetadata.aliases() : indexMetadata.aliases().matching(e -> !e.isHidden()))
+                    aliases = includeAliases ? (includeHidden ? indexMetadata.aliases() : indexMetadata.nonHiddenAliases()) : ImmutableSet.empty();
+                    dataStreams = includeDataStreams ? (includeHidden ? indexMetadata.dataStreams() : indexMetadata.nonHiddenDataStreams())
                             : ImmutableSet.empty();
-                    dataStreams = includeDataStreams ? indexMetadata.dataStreams() : ImmutableSet.empty();
 
                     if (scope != IndicesRequestInfo.Scope.ANY_DISTINCT) {
                         if (!dataStreams.isEmpty()) {

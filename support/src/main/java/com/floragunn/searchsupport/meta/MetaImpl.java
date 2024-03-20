@@ -1,3 +1,20 @@
+/*
+ * Copyright 2024 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.searchsupport.meta;
 
 import java.util.ArrayList;
@@ -461,6 +478,8 @@ public abstract class MetaImpl implements Meta {
         private final ImmutableSet<Index> nonSystemIndices;
         private final ImmutableSet<Index> nonSystemIndicesWithoutParents;
         private final ImmutableSet<IndexCollection> indexCollections;
+        private final ImmutableSet<Alias> nonHiddenAliases;
+        private final ImmutableSet<DataStream> nonHiddenDataStreams;
         private final ImmutableMap<String, Meta.IndexLikeObject> nameMap;
         private final org.elasticsearch.cluster.metadata.Metadata esMetadata;
 
@@ -482,6 +501,8 @@ public abstract class MetaImpl implements Meta {
             this.nonHiddenIndices = this.indices.matching(e -> !e.isHidden());
             this.nonSystemIndices = this.indices.matching(e -> !e.isSystem());
             this.nonSystemIndicesWithoutParents = this.indicesWithoutParents.matching(e -> !e.isSystem());
+            this.nonHiddenAliases = this.aliases.matching(e -> !e.isHidden());
+            this.nonHiddenDataStreams = this.dataStreams.matching(e -> !e.isHidden());
 
             this.nameMap = ImmutableMap
                     .<String, IndexLikeObject>of(ImmutableMap.<Index, String, Index>map(indices, e -> ImmutableMap.entry(e.name(), e)))
@@ -531,7 +552,7 @@ public abstract class MetaImpl implements Meta {
             ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> dataStreamAliasToIndicesMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>()
                     .defaultValue((k) -> new ArrayList<IndexLikeObject>());
             ImmutableSet.Builder<Alias> aliases = new ImmutableSet.Builder<>(64);
-            ImmutableSet.Builder<DataStream> datastreams = new ImmutableSet.Builder<>(64);
+            ImmutableSet.Builder<DataStream> datastreams = new ImmutableSet.Builder<>(esMetadata.dataStreams().size());
             this.esMetadata = esMetadata;
 
             Map<String, org.elasticsearch.cluster.metadata.DataStreamAlias> dataStreamsAliases = esMetadata.dataStreamAliases();
@@ -637,6 +658,8 @@ public abstract class MetaImpl implements Meta {
             this.nonHiddenIndices = this.indices.matching(e -> !e.isHidden());
             this.nonSystemIndices = this.indices.matching(e -> !e.isSystem());
             this.nonSystemIndicesWithoutParents = this.indicesWithoutParents.matching(e -> !e.isSystem());
+            this.nonHiddenAliases = this.aliases.matching(e -> !e.isHidden());
+            this.nonHiddenDataStreams = this.dataStreams.matching(e -> !e.isHidden());
             this.nameMap = nameMap.build();
         }
 
@@ -694,7 +717,19 @@ public abstract class MetaImpl implements Meta {
         public ImmutableSet<Index> nonSystemIndicesWithoutParents() {
             return this.nonSystemIndicesWithoutParents;
         }
+        
+        
+        @Override
+        public ImmutableSet<Alias> nonHiddenAliases() {
+            return nonHiddenAliases;
+        }
 
+        @Override
+        public ImmutableSet<DataStream> nonHiddenDataStreams() {
+            return nonHiddenDataStreams;
+        }
+
+        
         @Override
         public Iterable<String> namesOfIndices() {
             // TODO optimize or remove
