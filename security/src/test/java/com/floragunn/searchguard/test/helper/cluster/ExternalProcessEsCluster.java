@@ -86,6 +86,8 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
                 + "cluster.routing.allocation.disk.threshold_enabled: false\n" //
                 + "ingest.geoip.downloader.enabled: false\n" //
                 + "xpack.security.enabled: false\n" //
+                + "indices.lifecycle.history_index_enabled: false\n" //
+                + "slm.history_index_enabled: false\n" //
                 + "searchguard.background_init_if_sgindex_not_exist: false");
 
        // this.esInstallation.writeConfig("log4j2.properties", FileHelper.loadFile("log4j2-test.properties"));

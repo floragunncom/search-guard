@@ -18,14 +18,14 @@
 package com.floragunn.searchguard.authz.int_tests;
 
 import static com.floragunn.searchguard.test.IndexApiMatchers.containsExactly;
+import static com.floragunn.searchguard.test.IndexApiMatchers.esInternalIndices;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedTo;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedToNone;
 import static com.floragunn.searchguard.test.IndexApiMatchers.searchGuardIndices;
-import static com.floragunn.searchguard.test.IndexApiMatchers.unlimited;
+import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncludingEsInternalIndices;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncludingSearchGuardIndices;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
-import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.ArrayList;
@@ -44,7 +44,6 @@ import org.junit.runners.Parameterized.Parameters;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.IndexApiMatchers.IndexMatcher;
 import com.floragunn.searchguard.test.TestAlias;
 import com.floragunn.searchguard.test.TestComponentTemplate;
 import com.floragunn.searchguard.test.TestDataStream;
@@ -64,14 +63,14 @@ public class DataStreamAuthorizationIntTest {
     static TestDataStream ds_b1 = TestDataStream.name("ds_b1").documentCount(51).rolloverAfter(10).seed(4).attr("prefix", "b").build();
     static TestDataStream ds_b2 = TestDataStream.name("ds_b2").documentCount(52).rolloverAfter(10).seed(5).attr("prefix", "b").build();
     static TestDataStream ds_b3 = TestDataStream.name("ds_b3").documentCount(53).rolloverAfter(10).seed(6).attr("prefix", "b").build();
+    static TestDataStream ds_hidden = TestDataStream.name("ds_hidden").documentCount(55).seed(8).attr("prefix", "h").build();
     static TestIndex index_c1 = TestIndex.name("index_c1").documentCount(5).seed(7).attr("prefix", "c").build();
-    static TestIndex index_hidden = TestIndex.name("index_hidden").hidden().documentCount(1).seed(8).attr("prefix", "h").build();
 
     static TestAlias alias_ab1 = new TestAlias("alias_ab1", ds_a1, ds_a2, ds_a3, ds_b1);
     static TestAlias alias_c1 = new TestAlias("alias_c1", index_c1);
 
     static TestSgConfig.User LIMITED_USER_A = new TestSgConfig.User("limited_user_A")//
-            .description("index_a*")//
+            .description("ds_a*")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
@@ -81,7 +80,7 @@ public class DataStreamAuthorizationIntTest {
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_B = new TestSgConfig.User("limited_user_B")//
-            .description("index_b*")//
+            .description("ds_b*")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
@@ -91,7 +90,7 @@ public class DataStreamAuthorizationIntTest {
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_B1 = new TestSgConfig.User("limited_user_B1")//
-            .description("index_b1")//
+            .description("ds_b1")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
@@ -101,7 +100,7 @@ public class DataStreamAuthorizationIntTest {
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_C = new TestSgConfig.User("limited_user_C")//
-            .description("index_c*")//
+            .description("ds_c*")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
@@ -131,13 +130,13 @@ public class DataStreamAuthorizationIntTest {
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_A_HIDDEN = new TestSgConfig.User("limited_user_A_hidden")//
-            .description("index_a*, index_hidden*")//
+            .description("ds_a*, ds_hidden*")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("ds_a*", "index_hidden*", ".index_hidden*"))//
-            .indexMatcher("read", limitedTo(ds_a1, ds_a2, ds_a3, ds_ax, index_hidden))//
-            .indexMatcher("read_top_level", limitedTo(ds_a1, ds_a2, ds_a3, ds_ax, index_hidden))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("ds_a*", "ds_hidden*"))//
+            .indexMatcher("read", limitedTo(ds_a1, ds_a2, ds_a3, ds_ax, ds_hidden))//
+            .indexMatcher("read_top_level", limitedTo(ds_a1, ds_a2, ds_a3, ds_ax, ds_hidden))//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_NONE = new TestSgConfig.User("limited_user_none")//
@@ -145,7 +144,7 @@ public class DataStreamAuthorizationIntTest {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_CRUD", "SGS_INDICES_MONITOR").on("index_does_not_exist_*"))//
+                            .dataStreamPermissions("SGS_CRUD", "SGS_INDICES_MONITOR").on("ds_does_not_exist_*"))//
             .indexMatcher("read", limitedToNone())//
             .indexMatcher("read_top_level", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
@@ -169,9 +168,9 @@ public class DataStreamAuthorizationIntTest {
                             .aliasPermissions("*").on("*")
 
             )//
-            .indexMatcher("read", unlimited())//
-            .indexMatcher("read_top_level", unlimited())//
-            .indexMatcher("get_alias", unlimited());
+            .indexMatcher("read", unlimitedIncludingEsInternalIndices())//
+            .indexMatcher("read_top_level", unlimitedIncludingEsInternalIndices())//
+            .indexMatcher("get_alias", unlimitedIncludingEsInternalIndices());
 
     /**
      * The SUPER_UNLIMITED_USER authenticates with an admin cert, which will cause all access control code to be skipped.
@@ -191,7 +190,9 @@ public class DataStreamAuthorizationIntTest {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
             .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
-            .dataStreams(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3)//
+            .indexTemplates(new TestIndexTemplate("ds_hidden", "ds_hidden*").priority(10).dataStream("hidden", true)
+                    .composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
+            .dataStreams(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, ds_hidden)//
             .indices(index_c1)//
             .aliases(alias_ab1, alias_c1)//
             .authzDebug(true)//
@@ -250,7 +251,7 @@ public class DataStreamAuthorizationIntTest {
     public void search_all_includeHidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_all/_search?size=1000&expand_wildcards=all");
-            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, index_hidden, searchGuardIndices())
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, ds_hidden, searchGuardIndices())
                     .at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
@@ -260,7 +261,7 @@ public class DataStreamAuthorizationIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_all/_search?size=1000&expand_wildcards=all",
                     new BasicHeader(Task.X_ELASTIC_PRODUCT_ORIGIN_HTTP_HEADER, "origin-with-allowed-system-indices"));
-            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, index_hidden, searchGuardIndices())
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, ds_hidden, searchGuardIndices())
                     .at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
@@ -286,7 +287,7 @@ public class DataStreamAuthorizationIntTest {
     public void search_wildcard_includeHidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/*/_search?size=1000&expand_wildcards=all");
-            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, index_hidden, searchGuardIndices())
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, ds_hidden, searchGuardIndices())
                     .at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
@@ -324,8 +325,8 @@ public class DataStreamAuthorizationIntTest {
     @Test
     public void search_staticIndicies_hidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("index_hidden/_search?size=1000");
-            assertThat(httpResponse, containsExactly(index_hidden).at("hits.hits[*]._index").butForbiddenIfIncomplete(user.indexMatcher("read")));
+            HttpResponse httpResponse = restClient.get("ds_hidden/_search?size=1000");
+            assertThat(httpResponse, containsExactly(ds_hidden).at("hits.hits[*]._index").butForbiddenIfIncomplete(user.indexMatcher("read")));
         }
     }
 
@@ -357,7 +358,6 @@ public class DataStreamAuthorizationIntTest {
         }
     }
 
-    
     @Test
     public void search_indexPattern_nonExistingIndex_ignoreUnavailable() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
@@ -488,11 +488,11 @@ public class DataStreamAuthorizationIntTest {
     public void cat_all_includeHidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_cat/indices?format=json&expand_wildcards=all");
-            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, index_hidden, searchGuardIndices())
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, ds_hidden, searchGuardIndices())
                     .at("$[*].index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
-    
+
     @Test
     public void index_stats_all() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
@@ -516,7 +516,7 @@ public class DataStreamAuthorizationIntTest {
             HttpResponse httpResponse = restClient.get("_alias");
             assertThat(httpResponse,
                     containsExactly(alias_ab1, alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
-            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, index_hidden, searchGuardIndices())
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, ds_hidden, searchGuardIndices())
                     .at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
         }
     }
@@ -563,6 +563,55 @@ public class DataStreamAuthorizationIntTest {
     }
 
     @Test
+    public void getDataStream_all() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("_data_stream");
+            // TODO
+            assertThat(httpResponse,
+                    containsExactly(alias_ab1, alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, ds_hidden, searchGuardIndices())
+                    .at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+        }
+    }
+    
+    @Test
+    public void getDataStream_wildcard() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("_data_stream/*");
+            // TODO
+            assertThat(httpResponse,
+                    containsExactly(alias_ab1, alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, ds_hidden, searchGuardIndices())
+                    .at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void getDataStream_pattern() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("_data_stream/ds_a*");
+            // TODO
+            assertThat(httpResponse,
+                    containsExactly(alias_ab1, alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, ds_hidden, searchGuardIndices())
+                    .at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+        }
+    }
+    
+
+    @Test
+    public void getDataStream_static() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("_data_stream/ds_a1,ds_a2");
+            // TODO
+            assertThat(httpResponse,
+                    containsExactly(alias_ab1, alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, ds_hidden, searchGuardIndices())
+                    .at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+        }
+    }
+    
+    @Test
     public void resolve_wildcard() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_resolve/index/*");
@@ -575,9 +624,8 @@ public class DataStreamAuthorizationIntTest {
     public void resolve_wildcard_includeHidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_resolve/index/*?expand_wildcards=all");
-            assertThat(httpResponse,
-                    containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, alias_ab1, alias_c1, index_hidden, searchGuardIndices())
-                            .at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, alias_ab1, alias_c1, ds_hidden,
+                    searchGuardIndices(), esInternalIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
