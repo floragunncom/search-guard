@@ -52,7 +52,6 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
-import org.elasticsearch.common.xcontent.StatusToXContentObject;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestController;
@@ -63,6 +62,7 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
+import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -305,7 +305,7 @@ public class ResourceOwnerServiceTests {
         }
     }
 
-    public static class MockActionResponse extends ActionResponse implements StatusToXContentObject {
+    public static class MockActionResponse extends ActionResponse implements ToXContentObject {
 
         private String id;
         private RestStatus restStatus;
@@ -365,7 +365,6 @@ public class ResourceOwnerServiceTests {
             out.writeEnum(restStatus);
         }
 
-        @Override
         public RestStatus status() {
             return restStatus;
         }
