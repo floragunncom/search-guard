@@ -24,7 +24,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
 @RunWith(Parameterized.class)
-public class TenantIndexInVersionTestTest {
+public class TenantIndexInVersionTest {
 
     private final String indexName;
 
@@ -32,7 +32,7 @@ public class TenantIndexInVersionTestTest {
 
     private final boolean matches;
 
-    public TenantIndexInVersionTestTest(String indexName, String version, boolean matches) {
+    public TenantIndexInVersionTest(String indexName, String version, boolean matches) {
         this.indexName = indexName;
         this.version = version;
         this.matches = matches;
@@ -92,7 +92,7 @@ public class TenantIndexInVersionTestTest {
     }
 
     @Test
-    public void shouldExtractVersion() {
+    public void shouldCompareVersions() {
         TenantIndex tenantIndex = new TenantIndex(indexName, "my tenant");
 
         boolean sameVersion = tenantIndex.isInVersion(version);

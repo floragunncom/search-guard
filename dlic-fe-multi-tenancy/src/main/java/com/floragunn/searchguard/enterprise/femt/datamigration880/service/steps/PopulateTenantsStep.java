@@ -98,10 +98,10 @@ class PopulateTenantsStep implements MigrationStep {
             return new StepResult(GLOBAL_TENANT_NOT_FOUND_ERROR, message, "List of global tenants: " + globalTenantsString);
         }
         String globalTenantIndexVersion = globalTenants.get(0).getVersion();
-        List<TenantIndex> finalTenantIndices = tenants.stream() //
-            .filter(indexName -> indexName.isInVersion(globalTenantIndexVersion)) //
+        tenants = tenants.stream() //
+            .filter(tenantIndex -> tenantIndex.isInVersion(globalTenantIndexVersion)) //
             .collect(Collectors.toList());
-        dataMigrationContext.setTenantIndices(ImmutableList.of(finalTenantIndices));
+        dataMigrationContext.setTenantIndices(ImmutableList.of(tenants));
         String stringTenantList = tenants.stream() //
             .map(data -> "tenant " + (data.belongsToUserPrivateTenant() ? "__user__" : data.tenantName()) + " -> " + data.indexName()) //
             .collect(Collectors.joining(", "));

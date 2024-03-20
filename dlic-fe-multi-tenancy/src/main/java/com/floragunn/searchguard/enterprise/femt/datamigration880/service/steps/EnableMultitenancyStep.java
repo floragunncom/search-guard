@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 by floragunn GmbH - All rights reserved
+ * Copyright 2024 by floragunn GmbH - All rights reserved
  *
  *
  * Unless required by applicable law or agreed to in writing, software
