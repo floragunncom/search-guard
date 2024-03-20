@@ -29,6 +29,7 @@ public class TestIndexTemplate implements Document<TestIndexTemplate> {
     private ImmutableList<String> indexPatterns;
     private DocNode dataStream;
     private ImmutableList<TestComponentTemplate> composedOf = ImmutableList.empty();
+    private int priority = 0;
 
     public TestIndexTemplate(String name, String... indexPatterns) {
         this.name = name;
@@ -50,9 +51,15 @@ public class TestIndexTemplate implements Document<TestIndexTemplate> {
         return this;
     }
 
+    public TestIndexTemplate priority(int priority) {
+        this.priority = priority;
+        return this;
+    }
+
     @Override
     public Object toBasicObject() {
-        return DocNode.of("index_patterns", indexPatterns, "data_stream", dataStream, "composed_of", composedOf.map(TestComponentTemplate::getName));
+        return DocNode.of("index_patterns", indexPatterns, "priority", priority, "data_stream", dataStream, "composed_of",
+                composedOf.map(TestComponentTemplate::getName));
     }
 
     public String getName() {

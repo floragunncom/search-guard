@@ -48,16 +48,19 @@ public class IndexApiMatchers {
     public static IndexMatcher containsExactly(TestIndexLike... testIndices) {
         Map<String, TestIndexLike> indexNameMap = new HashMap<>();
         boolean containsSearchGuardIndices = false;
+        boolean containsEsInternalIndices = false;
 
         for (TestIndexLike testIndex : testIndices) {
             if (testIndex == SEARCH_GUARD_INDICES) {
                 containsSearchGuardIndices = true;
+            } else if (testIndex == ES_INTERNAL_INDICES) {
+                containsEsInternalIndices = true;
             } else {
                 indexNameMap.put(testIndex.getName(), testIndex);
             }
         }
 
-        return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices);
+        return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices);
     }
 
     public static IndexMatcher limitedTo(TestIndexLike... testIndices) {
@@ -74,8 +77,12 @@ public class IndexApiMatchers {
         return new UnlimitedMatcher();
     }
 
+    public static IndexMatcher unlimitedIncludingEsInternalIndices() {
+        return new UnlimitedMatcher(false, true);
+    }
+
     public static IndexMatcher unlimitedIncludingSearchGuardIndices() {
-        return new UnlimitedMatcher(true);
+        return new UnlimitedMatcher(true, true);
     }
 
     public static IndexMatcher limitedToNone() {
@@ -83,10 +90,17 @@ public class IndexApiMatchers {
     }
 
     /**
-     * This returns a magic TestIndexLike object which matches all internal search guard indices.
+     * This returns a magic TestIndexLike object which matches all internal Search Guard indices.
      */
     public static TestIndexLike searchGuardIndices() {
         return SEARCH_GUARD_INDICES;
+    }
+
+    /**
+     * This returns a magic TestIndexLike object which matches all internal ES indices like ilm-history*, deprecation logs, etc.
+     */
+    public static TestIndexLike esInternalIndices() {
+        return ES_INTERNAL_INDICES;
     }
 
     private final static TestIndexLike SEARCH_GUARD_INDICES = new TestIndexLike() {
@@ -107,15 +121,34 @@ public class IndexApiMatchers {
         }
     };
 
-    public static class ContainsExactlyMatcher extends AbstractIndexMatcher implements IndexMatcher {
+    private final static TestIndexLike ES_INTERNAL_INDICES = new TestIndexLike() {
 
-        public ContainsExactlyMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices) {
-            super(indexNameMap, containsSearchGuardIndices);
+        @Override
+        public String getName() {
+            return ".es-internal*";
         }
 
-        public ContainsExactlyMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices, String jsonPath,
-                int statusCodeWhenEmpty) {
-            super(indexNameMap, containsSearchGuardIndices, jsonPath, statusCodeWhenEmpty);
+        @Override
+        public Map<String, Map<String, ?>> getDocuments() {
+            return null;
+        }
+
+        @Override
+        public Set<String> getDocumentIds() {
+            return null;
+        }
+    };
+
+    public static class ContainsExactlyMatcher extends AbstractIndexMatcher implements IndexMatcher {
+
+        public ContainsExactlyMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices,
+                boolean containsEsInternalIndices) {
+            super(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices);
+        }
+
+        public ContainsExactlyMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices, boolean containsEsInternalIndices,
+                String jsonPath, int statusCodeWhenEmpty) {
+            super(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCodeWhenEmpty);
         }
 
         @Override
@@ -208,13 +241,15 @@ public class IndexApiMatchers {
         protected boolean matchesByIndices(Collection<?> collection, Description mismatchDescription, GenericRestClient.HttpResponse response) {
             ImmutableSet<String> expectedIndices = this.getExpectedIndices();
             ImmutableSet.Builder<String> seenIndicesBuilder = new ImmutableSet.Builder<String>(expectedIndices.size());
-            ImmutableSet.Builder<String> seenSearchGuardIndicesBuilder = new ImmutableSet.Builder<String>(expectedIndices.size());
+            ImmutableSet.Builder<String> seenSearchGuardIndicesBuilder = new ImmutableSet.Builder<String>();
 
             for (Object object : collection) {
                 String index = object.toString();
 
                 if (containsSearchGuardIndices && (index.startsWith(".searchguard") || index.equals("searchguard"))) {
                     seenSearchGuardIndicesBuilder.add(index);
+                } else if (containsEsInternalIndices && (index.startsWith(".logs-deprecation") || index.startsWith(".ds-.logs-deprecation"))) {
+                    // We will just ignore these, as they actually might not exist on embedded clusters
                 } else if (index.startsWith(".ds-")) {
                     // We do a special treatment for data stream backing indices. We convert these to the normal data streams if expected indices contains these.
                     java.util.regex.Matcher matcher = DS_BACKING_INDEX_PATTERN.matcher(index);
@@ -275,15 +310,18 @@ public class IndexApiMatchers {
             if (other instanceof LimitedToMatcher) {
                 return new ContainsExactlyMatcher(ImmutableMap.of(this.indexNameMap).intersection(((LimitedToMatcher) other).getExpectedIndices()), //
                         this.containsSearchGuardIndices && other.containsSearchGuardIndices(), //
+                        this.containsEsInternalIndices && other.containsEsInternalIndices(), //
                         this.jsonPath, this.statusCodeWhenEmpty);
             } else if (other instanceof ContainsExactlyMatcher) {
                 return new ContainsExactlyMatcher(
                         ImmutableMap.of(this.indexNameMap).intersection(((ContainsExactlyMatcher) other).getExpectedIndices()), //
                         this.containsSearchGuardIndices && other.containsSearchGuardIndices(), //
+                        this.containsEsInternalIndices && other.containsEsInternalIndices(), //
                         this.jsonPath, this.statusCodeWhenEmpty);
             } else if (other instanceof UnlimitedMatcher) {
                 return new ContainsExactlyMatcher(this.indexNameMap, //
                         this.containsSearchGuardIndices && other.containsSearchGuardIndices(), //
+                        this.containsEsInternalIndices && other.containsEsInternalIndices(), //
                         this.jsonPath, this.statusCodeWhenEmpty);
             } else {
                 throw new RuntimeException("Unexpected argument " + other);
@@ -316,12 +354,12 @@ public class IndexApiMatchers {
 
         @Override
         public IndexMatcher at(String jsonPath) {
-            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, jsonPath, statusCodeWhenEmpty);
+            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCodeWhenEmpty);
         }
 
         @Override
         public IndexMatcher whenEmpty(int statusCode) {
-            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, jsonPath, statusCode);
+            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCode);
         }
 
     }
@@ -329,11 +367,11 @@ public class IndexApiMatchers {
     public static class LimitedToMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
         public LimitedToMatcher(Map<String, TestIndexLike> indexNameMap) {
-            super(indexNameMap, false);
+            super(indexNameMap, false, false);
         }
 
         public LimitedToMatcher(Map<String, TestIndexLike> indexNameMap, String jsonPath, int statusCodeWhenEmpty) {
-            super(indexNameMap, false, jsonPath, statusCodeWhenEmpty);
+            super(indexNameMap, false, false, jsonPath, statusCodeWhenEmpty);
         }
 
         @Override
@@ -382,7 +420,7 @@ public class IndexApiMatchers {
                         this.jsonPath, this.statusCodeWhenEmpty);
             } else if (other instanceof ContainsExactlyMatcher) {
                 return new ContainsExactlyMatcher(
-                        ImmutableMap.of(this.indexNameMap).intersection(((ContainsExactlyMatcher) other).getExpectedIndices()), false, this.jsonPath,
+                        ImmutableMap.of(this.indexNameMap).intersection(((ContainsExactlyMatcher) other).getExpectedIndices()), false, false, this.jsonPath,
                         this.statusCodeWhenEmpty);
             } else if (other instanceof UnlimitedMatcher) {
                 return this;
@@ -450,12 +488,12 @@ public class IndexApiMatchers {
 
         @Override
         public IndexMatcher at(String jsonPath) {
-            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, jsonPath, statusCodeWhenEmpty);
+            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCodeWhenEmpty);
         }
 
         @Override
         public IndexMatcher whenEmpty(int statusCode) {
-            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, jsonPath, statusCode);
+            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCode);
         }
 
     }
@@ -463,13 +501,16 @@ public class IndexApiMatchers {
     public static class UnlimitedMatcher extends DiagnosingMatcher<Object> implements IndexMatcher {
 
         private final boolean containsSearchGuardIndices;
+        private final boolean containsEsInternalIndices;
 
         public UnlimitedMatcher() {
             this.containsSearchGuardIndices = false;
+            this.containsEsInternalIndices = false;
         }
 
-        public UnlimitedMatcher(boolean containsSearchGuardIndices) {
+        public UnlimitedMatcher(boolean containsSearchGuardIndices, boolean containsEsInternalIndices) {
             this.containsSearchGuardIndices = containsSearchGuardIndices;
+            this.containsEsInternalIndices = containsEsInternalIndices;
         }
 
         @Override
@@ -529,6 +570,11 @@ public class IndexApiMatchers {
         @Override
         public boolean containsSearchGuardIndices() {
             return containsSearchGuardIndices;
+        }
+        
+        @Override
+        public boolean containsEsInternalIndices() {
+            return containsEsInternalIndices;
         }
 
         @Override
@@ -613,6 +659,11 @@ public class IndexApiMatchers {
             return 0;
         }
 
+        @Override
+        public boolean containsEsInternalIndices() {
+            return true;
+        }
+
     }
 
     public static interface IndexMatcher extends Matcher<Object> {
@@ -635,6 +686,8 @@ public class IndexApiMatchers {
         }
 
         boolean containsSearchGuardIndices();
+        
+        boolean containsEsInternalIndices();
 
     }
 
@@ -643,19 +696,23 @@ public class IndexApiMatchers {
         protected final String jsonPath;
         protected final int statusCodeWhenEmpty;
         protected final boolean containsSearchGuardIndices;
+        protected final boolean containsEsInternalIndices;
 
-        AbstractIndexMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices) {
+        AbstractIndexMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices, boolean containsEsInternalIndices) {
             this.indexNameMap = indexNameMap;
             this.jsonPath = null;
             this.statusCodeWhenEmpty = 200;
             this.containsSearchGuardIndices = containsSearchGuardIndices;
+            this.containsEsInternalIndices = containsEsInternalIndices;
         }
 
-        AbstractIndexMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices, String jsonPath, int statusCodeWhenEmpty) {
+        AbstractIndexMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices, boolean containsEsInternalIndices,
+                String jsonPath, int statusCodeWhenEmpty) {
             this.indexNameMap = indexNameMap;
             this.jsonPath = jsonPath;
             this.statusCodeWhenEmpty = statusCodeWhenEmpty;
             this.containsSearchGuardIndices = containsSearchGuardIndices;
+            this.containsEsInternalIndices = containsEsInternalIndices;
         }
 
         @Override
@@ -741,6 +798,11 @@ public class IndexApiMatchers {
         @Override
         public boolean containsSearchGuardIndices() {
             return containsSearchGuardIndices;
+        }
+        
+        @Override
+        public boolean containsEsInternalIndices() {
+            return containsEsInternalIndices;
         }
 
     }
