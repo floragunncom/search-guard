@@ -516,8 +516,9 @@ public class DataStreamAuthorizationIntTest {
             HttpResponse httpResponse = restClient.get("_alias");
             assertThat(httpResponse,
                     containsExactly(alias_ab1, alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
-            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, ds_hidden, searchGuardIndices())
-                    .at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+            // Interestingly, this API does not return data streams without aliases - while it returns indices without aliases
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, index_c1, searchGuardIndices()).at("$.keys()")
+                    .but(user.indexMatcher("get_alias")).whenEmpty(200));
         }
     }
 
@@ -573,7 +574,7 @@ public class DataStreamAuthorizationIntTest {
                     .at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
         }
     }
-    
+
     @Test
     public void getDataStream_wildcard() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
@@ -597,7 +598,6 @@ public class DataStreamAuthorizationIntTest {
                     .at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
         }
     }
-    
 
     @Test
     public void getDataStream_static() throws Exception {
@@ -610,7 +610,7 @@ public class DataStreamAuthorizationIntTest {
                     .at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
         }
     }
-    
+
     @Test
     public void resolve_wildcard() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
