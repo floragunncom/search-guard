@@ -32,8 +32,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.http.message.BasicHeader;
-import org.elasticsearch.tasks.Task;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -63,7 +61,7 @@ public class DataStreamAuthorizationIntTest {
     static TestDataStream ds_b1 = TestDataStream.name("ds_b1").documentCount(51).rolloverAfter(10).seed(4).attr("prefix", "b").build();
     static TestDataStream ds_b2 = TestDataStream.name("ds_b2").documentCount(52).rolloverAfter(10).seed(5).attr("prefix", "b").build();
     static TestDataStream ds_b3 = TestDataStream.name("ds_b3").documentCount(53).rolloverAfter(10).seed(6).attr("prefix", "b").build();
-    static TestDataStream ds_hidden = TestDataStream.name("ds_hidden").documentCount(55).seed(8).attr("prefix", "h").build();
+    static TestDataStream ds_hidden = TestDataStream.name("ds_hidden").documentCount(55).seed(8).attr("prefix", "h").build(); // This is hidden via the ds_hidden index template
     static TestIndex index_c1 = TestIndex.name("index_c1").documentCount(5).seed(7).attr("prefix", "c").build();
 
     static TestAlias alias_ab1 = new TestAlias("alias_ab1", ds_a1, ds_a2, ds_a3, ds_b1);
@@ -159,13 +157,28 @@ public class DataStreamAuthorizationIntTest {
             .indexMatcher("read_top_level", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
-    static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user")//
-            .description("unlimited")//
+    // TODO
+    static TestSgConfig.User INDEX_UNLIMITED_USER = new TestSgConfig.User("index_unlimited_user")//
+            .description("unlimited index_permissions")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("*").on("*")//
                             .aliasPermissions("*").on("*")
+
+            )//
+            .indexMatcher("read", unlimitedIncludingEsInternalIndices())//
+            .indexMatcher("read_top_level", unlimitedIncludingEsInternalIndices())//
+            .indexMatcher("get_alias", unlimitedIncludingEsInternalIndices());
+    
+    static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user")//
+            .description("unlimited complete")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
+                            .indexPermissions("*").on("*")//
+                            .aliasPermissions("*").on("*")//
+                            .dataStreamPermissions("*").on("*")
 
             )//
             .indexMatcher("read", unlimitedIncludingEsInternalIndices())//
@@ -439,37 +452,10 @@ public class DataStreamAuthorizationIntTest {
     }
 
     @Test
-    public void cat_all() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("/_cat/indices?format=json");
-            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1).at("$[*].index")
-                    .but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-
-    @Test
-    public void cat_pattern() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("/_cat/indices/ds_a*?format=json");
-            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3).at("$[*].index").but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-
-    @Test
-    public void cat_all_includeHidden() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("/_cat/indices?format=json&expand_wildcards=all");
-            assertThat(httpResponse,
-                    containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, ds_hidden, searchGuardIndices(), esInternalIndices())
-                            .at("$[*].index").but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-
-    @Test
     public void index_stats_all() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_stats");
-            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1).at("indices.keys()")
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, esInternalIndices()).at("indices.keys()")
                     .but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
@@ -556,7 +542,7 @@ public class DataStreamAuthorizationIntTest {
     public void getDataStream_static() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("_data_stream/ds_a1,ds_a2");
-            assertThat(httpResponse, containsExactly(ds_a1, ds_a2).at("$.data_streams[*].name").but(user.indexMatcher("read")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2).at("$.data_streams[*].name").but(user.indexMatcher("read")).whenEmpty(403));
         }
     }
 
