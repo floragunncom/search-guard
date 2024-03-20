@@ -178,6 +178,7 @@ SGS_INDICES_MONITOR:
   hidden: false
   allowed_actions:
   - "indices:monitor/*"
+  - "indices:admin/data_stream/get"
   type: "index"
   description: "Allow monitoring indices"
 SGS_SUGGEST:
