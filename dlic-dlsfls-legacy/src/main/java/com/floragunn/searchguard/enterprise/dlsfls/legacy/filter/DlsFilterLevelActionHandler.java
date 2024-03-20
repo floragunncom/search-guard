@@ -39,7 +39,6 @@ import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchScrollAction;
-import org.elasticsearch.action.search.SearchShardsRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -167,8 +166,6 @@ public class DlsFilterLevelActionHandler {
                 return handle((MultiGetRequest) request, ctx);
             } else if (request instanceof ClusterSearchShardsRequest) {
                 return handle((ClusterSearchShardsRequest) request, ctx);
-            } else if (request instanceof SearchShardsRequest) {
-                return handle((SearchShardsRequest) request, ctx);
             } else {
                 log.error("Unsupported request type for filter level DLS: " + request);
                 return SyncAuthorizationFilter.Result.DENIED
@@ -334,12 +331,6 @@ public class DlsFilterLevelActionHandler {
     }
 
     private SyncAuthorizationFilter.Result handle(ClusterSearchShardsRequest request, StoredContext ctx) {
-        listener.onFailure(new ElasticsearchSecurityException(
-                "Filter-level DLS via cross cluster search is not available for scrolling and minimize_roundtrips=true"));
-        return SyncAuthorizationFilter.Result.INTERCEPTED;
-    }
-
-    private SyncAuthorizationFilter.Result handle(SearchShardsRequest request, StoredContext ctx) {
         listener.onFailure(new ElasticsearchSecurityException(
                 "Filter-level DLS via cross cluster search is not available for scrolling and minimize_roundtrips=true"));
         return SyncAuthorizationFilter.Result.INTERCEPTED;

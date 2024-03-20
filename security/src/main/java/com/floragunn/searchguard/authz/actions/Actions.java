@@ -131,11 +131,11 @@ import org.elasticsearch.action.ingest.DeletePipelineAction;
 import org.elasticsearch.action.ingest.GetPipelineAction;
 import org.elasticsearch.action.ingest.PutPipelineAction;
 import org.elasticsearch.action.ingest.SimulatePipelineAction;
+import org.elasticsearch.action.main.MainAction;
 import org.elasticsearch.action.search.ClearScrollAction;
 import org.elasticsearch.action.search.MultiSearchAction;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchScrollAction;
-import org.elasticsearch.action.search.SearchShardsAction;
 import org.elasticsearch.action.termvectors.MultiTermVectorsAction;
 import org.elasticsearch.action.termvectors.TermVectorsAction;
 import org.elasticsearch.action.update.UpdateAction;
@@ -148,7 +148,6 @@ import org.elasticsearch.persistent.RemovePersistentTaskAction;
 import org.elasticsearch.persistent.StartPersistentTaskAction;
 import org.elasticsearch.persistent.UpdatePersistentTaskStatusAction;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
-import org.elasticsearch.rest.root.MainAction;
 import org.elasticsearch.xcontent.ToXContent;
 
 import com.floragunn.fluent.collections.ImmutableList;
@@ -209,8 +208,6 @@ public class Actions {
                 .requiresAdditionalPrivilegesForItemType(DocWriteRequest.OpType.UPDATE, "indices:data/write/index");
 
         index(ClusterSearchShardsAction.INSTANCE) //
-                .requiresAdditionalPrivileges(always(), "indices:data/read/search");
-        index(SearchShardsAction.INSTANCE) //
                 .requiresAdditionalPrivileges(always(), "indices:data/read/search");
 
         cluster(MultiGetAction.INSTANCE);

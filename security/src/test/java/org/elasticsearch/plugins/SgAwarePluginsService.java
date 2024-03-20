@@ -3,12 +3,10 @@ package org.elasticsearch.plugins;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Stream;
 
 import org.elasticsearch.Version;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.jdk.ModuleQualifiedExportsService;
 import org.elasticsearch.join.ParentJoinPlugin;
 import org.elasticsearch.percolator.PercolatorPlugin;
 import org.elasticsearch.reindex.ReindexPlugin;
@@ -32,7 +30,6 @@ public class SgAwarePluginsService extends PluginsService {
         super(settings, null, null, null);
 
         loadSearchGuardPlugin(settings);
-        loadMainRestPlugin();
         loadPainlessPluginIfAvailable();
 
         for(Class<? extends Plugin> plugin: Stream.concat(STANDARD_PLUGINS.stream(), additionalPlugins.stream()).toList()) {
@@ -46,15 +43,6 @@ public class SgAwarePluginsService extends PluginsService {
 
     private void loadSearchGuardPlugin(Settings settings) {
         loadedPlugins.add(createLoadedPlugin(new SearchGuardPlugin(settings, null)));
-    }
-
-    private void loadMainRestPlugin() {
-        try {
-            Class<? extends Plugin> mainRestPlugin = (Class<? extends Plugin>) Class.forName("org.elasticsearch.rest.root.MainRestPlugin");
-            loadedPlugins.add(createLoadedPlugin(mainRestPlugin));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
     private void loadPainlessPluginIfAvailable() {
@@ -94,10 +82,5 @@ public class SgAwarePluginsService extends PluginsService {
                 false,
                 true,
                 false);
-    }
-
-    @Override
-    protected void addServerExportsService(Map<String, List<ModuleQualifiedExportsService>> qualifiedExports) {
-        // tests don't run modular
     }
 }

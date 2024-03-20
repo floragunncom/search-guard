@@ -61,7 +61,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.SpecialPermission;
-import org.elasticsearch.TransportVersion;
+import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.search.SearchScrollAction;
@@ -759,7 +759,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         if (transportSSLEnabled) {
             transports.put("com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyTransport",
-                    () -> new SearchGuardSSLNettyTransport(settings, TransportVersion.current(), threadPool, networkService, pageCacheRecycler,
+                    () -> new SearchGuardSSLNettyTransport(settings, Version.CURRENT, threadPool, networkService, pageCacheRecycler,
                             namedWriteableRegistry, circuitBreakerService, sharedGroupFactory, sgks, evaluateSslExceptionHandler()));
         }
         return transports;
