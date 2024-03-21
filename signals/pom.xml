@@ -85,12 +85,12 @@
       <scope>test</scope>
     </dependency>
 
-<!--    <dependency>-->
-<!--      <groupId>org.antlr</groupId>-->
-<!--      <artifactId>antlr4-runtime</artifactId>-->
-<!--      <version>4.9</version>-->
-<!--      <scope>test</scope>-->
-<!--    </dependency>-->
+    <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4-runtime</artifactId>
+      <version>4.9.3</version>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.awaitility</groupId>
       <artifactId>awaitility</artifactId>
