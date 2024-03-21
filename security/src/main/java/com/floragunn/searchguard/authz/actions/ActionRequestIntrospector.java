@@ -1425,7 +1425,11 @@ public class ActionRequestIntrospector {
                 try {
                     if (request.scope == IndicesRequestInfo.Scope.DATA_STREAM) {
                         if (request.isAll) {
-                            return new Local(ImmutableSet.empty(), ImmutableSet.empty(), indexMetadata.dataStreams(), ImmutableSet.empty());
+                            return new Local(ImmutableSet.empty(), ImmutableSet.empty(), //
+                                    request.indicesOptions().expandWildcardsHidden() //
+                                            ? indexMetadata.dataStreams()//
+                                            : indexMetadata.nonHiddenDataStreams(), //
+                                    ImmutableSet.empty());
                         } else if (request.expandWildcards) {
                             return resolveWithPatterns(request, indexMetadata);
                         } else if (request.createIndexRequest) {
