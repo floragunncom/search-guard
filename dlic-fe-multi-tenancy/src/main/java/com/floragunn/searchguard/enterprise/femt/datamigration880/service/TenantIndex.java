@@ -32,4 +32,13 @@ public record TenantIndex(String indexName, @Nullable String tenantName) {
     public boolean belongsToUserPrivateTenant() {
         return Strings.isNullOrEmpty(tenantName);
     }
+
+    public String getVersion() {
+        String removedPostfix = indexName.substring(0, indexName.length() - 4);
+        return removedPostfix.substring(removedPostfix.lastIndexOf("_") + 1);
+    }
+
+    public boolean isInVersion(String version) {
+        return getVersion().equals(version);
+    }
 }

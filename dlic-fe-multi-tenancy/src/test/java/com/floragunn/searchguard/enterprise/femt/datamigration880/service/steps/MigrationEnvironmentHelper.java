@@ -436,11 +436,15 @@ public class MigrationEnvironmentHelper extends ExternalResource {
             requireNonEmpty(longAlias, "Long alias name is required");
         }
 
-        public static DoubleAliasIndex forTenantWithPrefix(String indexNamePrefix, String tenantName) {
+        public static DoubleAliasIndex forTenantWithPrefix(String indexNamePrefix, String tenantName, String version) {
             String baseAndShortAlias = tenantNameToIndexName(indexNamePrefix, tenantName);
-            String fullIndexName = createIndexName(baseAndShortAlias, LAST_VERSION_BEFORE_MIGRATION);
-            String aliasWithVersionAndSeqNo = createLongAlias(baseAndShortAlias, LAST_VERSION_BEFORE_MIGRATION);
+            String fullIndexName = createIndexName(baseAndShortAlias, version);
+            String aliasWithVersionAndSeqNo = createLongAlias(baseAndShortAlias, version);
             return new DoubleAliasIndex(fullIndexName, baseAndShortAlias, aliasWithVersionAndSeqNo);
+        }
+
+        public static DoubleAliasIndex forTenantWithPrefix(String indexNamePrefix, String tenantName) {
+            return forTenantWithPrefix(indexNamePrefix, tenantName, LAST_VERSION_BEFORE_MIGRATION);
         }
 
         private static String createLongAlias(String baseIndexName, String version) {
