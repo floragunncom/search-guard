@@ -85,7 +85,6 @@ build:
     - when: always
   script:
     - | 
-       echo "185.11.255.132 maven.search-guard.com" >> /etc/hosts
        SNAPSHOT_REVISION="$CI_COMMIT_REF_NAME-SNAPSHOT"
        mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
@@ -109,7 +108,7 @@ deploy_release:
   interruptible: false
   stage: release
   rules:
-    - if: '$DOCKEsearch-guard-suite-enterpriseR_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
       when: always
