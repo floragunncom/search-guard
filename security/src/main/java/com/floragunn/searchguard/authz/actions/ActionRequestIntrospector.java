@@ -84,6 +84,11 @@ import com.floragunn.searchsupport.meta.Meta;
 import com.floragunn.searchsupport.queries.DateMathExpressionResolver;
 import com.floragunn.searchsupport.queries.WildcardExpressionResolver;
 
+
+/**
+ * TODO do not resolve data streams for write requests
+ *
+ */
 public class ActionRequestIntrospector {
 
     private static final IndicesOptions EXACT = new IndicesOptions(EnumSet.noneOf(IndicesOptions.Option.class),

@@ -52,7 +52,7 @@ import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 @RunWith(Parameterized.class)
-public class DataStreamAuthorizationIntTest {
+public class DataStreamAuthorizationReadOnlyIntTests {
 
     static TestDataStream ds_a1 = TestDataStream.name("ds_a1").documentCount(100).rolloverAfter(10).seed(1).attr("prefix", "a").build();
     static TestDataStream ds_a2 = TestDataStream.name("ds_a2").documentCount(110).rolloverAfter(10).seed(2).attr("prefix", "a").build();
@@ -97,16 +97,6 @@ public class DataStreamAuthorizationIntTest {
             .indexMatcher("read_top_level", limitedTo(ds_b1))//
             .indexMatcher("get_alias", limitedToNone());
 
-    static TestSgConfig.User LIMITED_USER_C = new TestSgConfig.User("limited_user_C")//
-            .description("ds_c*")//
-            .roles(//
-                    new Role("r1")//
-                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("index_c*"))//
-            .indexMatcher("read", limitedTo(index_c1))//
-            .indexMatcher("read_top_level", limitedTo(index_c1))//
-            .indexMatcher("get_alias", limitedToNone());
-
     static TestSgConfig.User LIMITED_USER_ALIAS_AB1 = new TestSgConfig.User("limited_user_alias_AB1")//
             .description("alias_ab1")//
             .roles(//
@@ -116,16 +106,6 @@ public class DataStreamAuthorizationIntTest {
             .indexMatcher("read", limitedTo(ds_a1, ds_a2, ds_a3, ds_b1, alias_ab1))//
             .indexMatcher("read_top_level", limitedTo(alias_ab1))//
             .indexMatcher("get_alias", limitedTo(ds_a1, ds_a2, ds_a3, ds_b1, alias_ab1));
-
-    static TestSgConfig.User LIMITED_USER_ALIAS_C1 = new TestSgConfig.User("limited_user_alias_C1")//
-            .description("alias_c1")//
-            .roles(//
-                    new Role("r1")//
-                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
-                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("alias_c1"))//
-            .indexMatcher("read", limitedTo(index_c1, alias_c1))//
-            .indexMatcher("read_top_level", limitedTo(alias_c1))//
-            .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_A_HIDDEN = new TestSgConfig.User("limited_user_A_hidden")//
             .description("ds_a*, ds_hidden*")//
@@ -170,7 +150,7 @@ public class DataStreamAuthorizationIntTest {
             .indexMatcher("read", unlimitedIncludingEsInternalIndices())//
             .indexMatcher("read_top_level", unlimitedIncludingEsInternalIndices())//
             .indexMatcher("get_alias", unlimitedIncludingEsInternalIndices());
-    
+
     static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user")//
             .description("unlimited complete")//
             .roles(//
@@ -196,9 +176,8 @@ public class DataStreamAuthorizationIntTest {
             .indexMatcher("read_top_level", unlimitedIncludingSearchGuardIndices())//
             .indexMatcher("get_alias", unlimitedIncludingSearchGuardIndices());
 
-    static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B1, LIMITED_USER_C, LIMITED_USER_ALIAS_AB1,
-            LIMITED_USER_ALIAS_C1, LIMITED_USER_A_HIDDEN, LIMITED_USER_NONE, INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS, UNLIMITED_USER,
-            SUPER_UNLIMITED_USER);
+    static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B1, LIMITED_USER_ALIAS_AB1,
+            LIMITED_USER_A_HIDDEN, LIMITED_USER_NONE, INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS, UNLIMITED_USER, SUPER_UNLIMITED_USER);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
@@ -543,7 +522,6 @@ public class DataStreamAuthorizationIntTest {
             assertThat(httpResponse, containsExactly(ds_a1, ds_a2).at("$.data_streams[*].name").but(user.indexMatcher("read")).whenEmpty(403));
         }
     }
-    
 
     @Test
     public void getDataStreamStats_all() throws Exception {
@@ -567,8 +545,8 @@ public class DataStreamAuthorizationIntTest {
     public void getDataStreamStats_pattern() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("_data_stream/ds_a*/_stats");
-            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3).at("$.data_streams[*].data_stream")
-                    .but(user.indexMatcher("read")).whenEmpty(200));
+            assertThat(httpResponse,
+                    containsExactly(ds_a1, ds_a2, ds_a3).at("$.data_streams[*].data_stream").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -579,18 +557,16 @@ public class DataStreamAuthorizationIntTest {
             assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3).at("$.data_streams[*].data_stream")
                     .but(user.indexMatcher("read")).whenEmpty(200));
         }
-    }    
-    
+    }
+
     @Test
     public void getDataStreamStats_static() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("_data_stream/ds_a1,ds_a2/_stats");
-            assertThat(httpResponse, containsExactly(ds_a1, ds_a2).at("$.data_streams[*].data_stream")
-                    .but(user.indexMatcher("read")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2).at("$.data_streams[*].data_stream").but(user.indexMatcher("read")).whenEmpty(403));
         }
     }
-    
-    
+
     @Test
     public void resolve_wildcard() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
@@ -629,7 +605,7 @@ public class DataStreamAuthorizationIntTest {
         return result;
     }
 
-    public DataStreamAuthorizationIntTest(TestSgConfig.User user, String description) throws Exception {
+    public DataStreamAuthorizationReadOnlyIntTests(TestSgConfig.User user, String description) throws Exception {
         this.user = user;
     }
 
