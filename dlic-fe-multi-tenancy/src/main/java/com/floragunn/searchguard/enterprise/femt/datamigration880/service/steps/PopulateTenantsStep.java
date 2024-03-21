@@ -30,7 +30,6 @@ import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,11 +43,13 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.GLOBAL_TENANT_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INDICES_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_CONFIG_NOT_AVAILABLE_ERROR;
-import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_DISABLED_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
 import static java.util.Objects.requireNonNull;
 
 class PopulateTenantsStep implements MigrationStep {
+
+    public static final String INDEX_VERSION_PATTERN = "_8\\.7\\.\\d+_\\d{3}\\b";
+    public static final String ALIAS_VERSION_PATTERN = "_8\\.7\\.\\d+\\b";
 
     private static final Logger log = LogManager.getLogger(PopulateTenantsStep.class);
     private final FeMultiTenancyConfigurationProvider configurationProvider;
@@ -96,6 +97,10 @@ class PopulateTenantsStep implements MigrationStep {
             String globalTenantsString = globalTenants.stream().map(Object::toString).collect(Collectors.joining(", "));
             return new StepResult(GLOBAL_TENANT_NOT_FOUND_ERROR, message, "List of global tenants: " + globalTenantsString);
         }
+        String globalTenantIndexVersion = globalTenants.get(0).getVersion();
+        tenants = tenants.stream() //
+            .filter(tenantIndex -> tenantIndex.isInVersion(globalTenantIndexVersion)) //
+            .collect(Collectors.toList());
         dataMigrationContext.setTenantIndices(ImmutableList.of(tenants));
         String stringTenantList = tenants.stream() //
             .map(data -> "tenant " + (data.belongsToUserPrivateTenant() ? "__user__" : data.tenantName()) + " -> " + data.indexName()) //
@@ -106,8 +111,8 @@ class PopulateTenantsStep implements MigrationStep {
     }
 
     private static List<TenantAlias> extractGlobalTenantIndexName(String configuredFrontendIndexName, GetIndexResponse allExistingIndices) {
-        var globalTenantIndexNamePattern = Pattern.compile(Pattern.quote(configuredFrontendIndexName) + "_8\\.7\\.\\d+_\\d{3}\\b");
-        var globalTenantAliasNamePattern = Pattern.compile(Pattern.quote(configuredFrontendIndexName) + "_8\\.7\\.\\d+\\b");
+        var globalTenantIndexNamePattern = Pattern.compile(Pattern.quote(configuredFrontendIndexName) + INDEX_VERSION_PATTERN);
+        var globalTenantAliasNamePattern = Pattern.compile(Pattern.quote(configuredFrontendIndexName) + ALIAS_VERSION_PATTERN);
         return allExistingIndices.aliases()//
                 .entrySet()//
                 .stream() //
