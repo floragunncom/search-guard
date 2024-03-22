@@ -68,7 +68,7 @@ public class DataStreamAuthorizationReadWriteIntTests {
     static TestAlias alias_bwx = new TestAlias("alias_bwx"); // not initially created
 
     static TestSgConfig.User LIMITED_USER_A = new TestSgConfig.User("limited_user_A")//
-            .description("index_a*")//
+            .description("ds_a*")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
@@ -82,12 +82,33 @@ public class DataStreamAuthorizationReadWriteIntTests {
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_B = new TestSgConfig.User("limited_user_B")//
-            .description("index_b*")//
+            .description("ds_b*")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
                             .dataStreamPermissions("SGS_WRITE").on("ds_bw*"))//
+            .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("create_index", limitedToNone())//
+            .indexMatcher("manage_index", limitedToNone())//
+            .indexMatcher("manage_alias", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
+
+    /**
+     * This is an artificial user - in the sense that in real life it would likely not exist this way. 
+     * It has privileges to write on ds_b*, but privileges for indices:admin/mapping/auto_put on all data streams.
+     * The reason is that some indexing operations are two phase - first auto put, then indexing. To be able to test both
+     * phases, we need which user which always allows the first phase to pass.
+     */
+    static TestSgConfig.User LIMITED_USER_B_AUTO_PUT_ON_ALL = new TestSgConfig.User("limited_user_B_auto_put_on_all")//
+            .description("ds_b* with full auto put")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
+                            .dataStreamPermissions("indices:admin/mapping/auto_put").on("*"))//
             .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
             .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
             .indexMatcher("create_index", limitedToNone())//
@@ -315,10 +336,10 @@ public class DataStreamAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", unlimitedIncludingSearchGuardIndices())//
             .indexMatcher("get_alias", unlimitedIncludingSearchGuardIndices());
 
-    static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B_CREATE_INDEX, LIMITED_USER_B_MANAGE_INDEX,
-            LIMITED_USER_B_MANAGE_INDEX_ALIAS, LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS, LIMITED_USER_AB_MANAGE_INDEX, LIMITED_USER_C,
-            LIMITED_USER_AB1_ALIAS, LIMITED_USER_AB1_ALIAS_READ_ONLY, LIMITED_READ_ONLY_ALL, LIMITED_READ_ONLY_A, LIMITED_USER_NONE,
-            INVALID_USER_INDEX_PERMISSIONS_FOR_DATA_STREAM, UNLIMITED_USER, SUPER_UNLIMITED_USER);
+    static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B_AUTO_PUT_ON_ALL,
+            LIMITED_USER_B_CREATE_INDEX, LIMITED_USER_B_MANAGE_INDEX, LIMITED_USER_B_MANAGE_INDEX_ALIAS, LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS,
+            LIMITED_USER_AB_MANAGE_INDEX, LIMITED_USER_C, LIMITED_USER_AB1_ALIAS, LIMITED_USER_AB1_ALIAS_READ_ONLY, LIMITED_READ_ONLY_ALL,
+            LIMITED_READ_ONLY_A, LIMITED_USER_NONE, INVALID_USER_INDEX_PERMISSIONS_FOR_DATA_STREAM, UNLIMITED_USER, SUPER_UNLIMITED_USER);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
@@ -343,62 +364,55 @@ public class DataStreamAuthorizationReadWriteIntTests {
 
     @Test
     public void deleteByQuery_indexPattern() throws Exception {
-        try (GenericRestClient adminRestClient = cluster.getAdminCertRestClient()) {
-            try (GenericRestClient restClient = cluster.getRestClient(user)) {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            try (GenericRestClient adminRestClient = cluster.getAdminCertRestClient()) {
                 // Init test data
-                {
-                    DocNode testDoc = DocNode.of("test_name", "deleteByQuery_indexPattern", "@timestamp", Instant.now().toString());
+                DocNode testDoc = DocNode.of("test", "deleteByQuery_indexPattern", "@timestamp", Instant.now().toString());
 
-                    HttpResponse httpResponse = adminRestClient.putJson("/ds_bw1/_create/put_delete_delete_by_query_b1?refresh=true",
-                            testDoc.with("delete_by_query_test_delete", "yes"));
-                    assertThat(httpResponse, isCreated());
-                    httpResponse = adminRestClient.putJson("/ds_bw1/_create/put_delete_delete_by_query_b2?refresh=true",
-                            testDoc.with("delete_by_query_test_delete", "no"));
-                    assertThat(httpResponse, isCreated());
-                    httpResponse = adminRestClient.putJson("/ds_aw1/_create/put_delete_delete_by_query_a1?refresh=true",
-                            testDoc.with("delete_by_query_test_delete", "yes"));
-                    assertThat(httpResponse, isCreated());
-                    httpResponse = adminRestClient.putJson("/ds_aw1/_create/put_delete_delete_by_query_a2?refresh=true",
-                            testDoc.with("delete_by_query_test_delete", "no"));
-                    assertThat(httpResponse, isCreated());
-                }
-
-                HttpResponse httpResponse = restClient.postJson("/ds_aw*,ds_bw*/_delete_by_query?refresh=true&wait_for_completion=true",
-                        DocNode.of("query.term.delete_by_query_test_delete", "yes"));
-
-                // TODO test where I can search some but not delete all
-                if (containsExactly(ds_aw1, ds_aw2, ds_bw1, ds_bw2).at("_index").but(user.indexMatcher("write")).isEmpty()) {
-                    assertThat(httpResponse, isForbidden());
-                } else {
-                    assertThat(httpResponse, isOk());
-                    int expectedDeleteCount = containsExactly(ds_aw1, ds_bw1).at("_index").but(user.indexMatcher("write")).size();
-                    assertThat(httpResponse, json(nodeAt("deleted", equalTo(expectedDeleteCount))));
-                }
-            } finally {
-                // Delete test data
-                adminRestClient.postJson("/ds_aw*,ds_bw*/_delete_by_query?refresh=true&wait_for_completion=true",
-                        DocNode.of("query.term", ImmutableMap.of("test_name.keyword", "deleteByQuery_indexPattern")));
-
+                HttpResponse httpResponse = adminRestClient.putJson("/ds_bw1/_create/put_delete_delete_by_query_b1?refresh=true",
+                        testDoc.with("delete_by_query_test_delete", "yes"));
+                assertThat(httpResponse, isCreated());
+                httpResponse = adminRestClient.putJson("/ds_bw1/_create/put_delete_delete_by_query_b2?refresh=true",
+                        testDoc.with("delete_by_query_test_delete", "no"));
+                assertThat(httpResponse, isCreated());
+                httpResponse = adminRestClient.putJson("/ds_aw1/_create/put_delete_delete_by_query_a1?refresh=true",
+                        testDoc.with("delete_by_query_test_delete", "yes"));
+                assertThat(httpResponse, isCreated());
+                httpResponse = adminRestClient.putJson("/ds_aw1/_create/put_delete_delete_by_query_a2?refresh=true",
+                        testDoc.with("delete_by_query_test_delete", "no"));
+                assertThat(httpResponse, isCreated());
             }
+
+            HttpResponse httpResponse = restClient.postJson("/ds_aw*,ds_bw*/_delete_by_query?refresh=true&wait_for_completion=true",
+                    DocNode.of("query.term.delete_by_query_test_delete", "yes"));
+
+            // TODO test where I can search some but not delete all
+            if (containsExactly(ds_aw1, ds_aw2, ds_bw1, ds_bw2).at("_index").but(user.indexMatcher("write")).isEmpty()) {
+                assertThat(httpResponse, isForbidden());
+            } else {
+                assertThat(httpResponse, isOk());
+                int expectedDeleteCount = containsExactly(ds_aw1, ds_bw1).at("_index").but(user.indexMatcher("write")).size();
+                assertThat(httpResponse, json(nodeAt("deleted", equalTo(expectedDeleteCount))));
+            }
+        } finally {
+            deleteTestDocs("deleteByQuery_indexPattern", "ds_aw*,ds_bw*");
         }
 
     }
 
     @Test
     public void putDocument_bulk() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
-            restClient.deleteWhenClosed("/ds_aw1/_doc/d1", "/ds_bw1/_doc/d1", "/index_cw1/_doc/d1");
-
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.putNdJson("/_bulk?refresh=true", //
-                    DocNode.of("index._index", "ds_aw1", "index._id", "d1"), DocNode.of("a", 1), //
-                    DocNode.of("index._index", "ds_bw1", "index._id", "d1"), DocNode.of("b", 1), //
-                    DocNode.of("index._index", "index_cw1", "index._id", "d1"), DocNode.of("c", 1)//
-            );
+                    DocNode.of("create._index", "ds_aw1", "create._id", "d1"),
+                    DocNode.of("a", 1, "test", "putDocument_bulk", "@timestamp", Instant.now().toString()), //
+                    DocNode.of("create._index", "ds_bw1", "create._id", "d1"),
+                    DocNode.of("b", 1, "test", "putDocument_bulk", "@timestamp", Instant.now().toString()));
 
-            assertThat(httpResponse, containsExactly(ds_aw1, ds_bw1, index_cw1).at("items[*].index[?(@.result == 'created')]._index")
+            assertThat(httpResponse, containsExactly(ds_aw1, ds_bw1).at("items[*].create[?(@.result == 'created')]._index")
                     .but(user.indexMatcher("write")).whenEmpty(200));
-
-            // TODO test for absense of docs
+        } finally {
+            deleteTestDocs("putDocument_bulk", "ds_aw*,ds_bw*");
         }
     }
 
@@ -559,6 +573,15 @@ public class DataStreamAuthorizationReadWriteIntTests {
 
     public DataStreamAuthorizationReadWriteIntTests(TestSgConfig.User user, String description) throws Exception {
         this.user = user;
+    }
+
+    private void deleteTestDocs(String testName, String indices) {
+        try (GenericRestClient adminRestClient = cluster.getAdminCertRestClient()) {
+            adminRestClient.postJson("/" + indices + "/_delete_by_query?refresh=true&wait_for_completion=true",
+                    DocNode.of("query.term", ImmutableMap.of("test.keyword", testName)));
+        } catch (Exception e) {
+            throw new RuntimeException("Error while cleaning up test docs", e);
+        }
     }
 
 }

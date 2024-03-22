@@ -1020,6 +1020,37 @@ public abstract class MetaImpl implements Meta {
 
     }
 
+    public static class NonExistentIndexImpl extends AbstractNonExistentImpl implements Meta.Index {
+        public NonExistentIndexImpl(String name) {
+            super(name);
+        }
+
+        @Override
+        public ImmutableSet<Meta.IndexOrNonExistent> resolveDeep(Alias.ResolutionMode resolutionMode) {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public ImmutableSet<String> resolveDeepToNames(Alias.ResolutionMode resolutionMode) {
+            return ImmutableSet.empty();
+        }
+
+        @Override
+        public boolean isOpen() {
+            return true;
+        }
+
+        @Override
+        public boolean isSystem() {
+            return false;
+        }
+
+        @Override
+        public boolean isDataStreamBackingIndex() {
+            return false;
+        }
+    }
+    
     public static class NonExistentAliasImpl extends AbstractNonExistentImpl implements Meta.Alias {
         public NonExistentAliasImpl(String name) {
             super(name);
