@@ -58,6 +58,14 @@ SGS_CREATE_INDEX:
   - "indices:admin/auto_create"
   type: "index"
   description: "Allow creating new indices"
+SGS_CREATE_DATA_STREAM:
+  reserved: true
+  hidden: false
+  allowed_actions:
+  - SGS_CREATE_INDEX
+  - "indices:admin/data_stream/create"
+  type: "index"
+  description: "Allow creating new data streams"  
 SGS_WRITE:
   reserved: true
   hidden: false

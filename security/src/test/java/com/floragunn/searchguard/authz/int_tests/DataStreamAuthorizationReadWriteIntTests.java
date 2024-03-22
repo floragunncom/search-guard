@@ -5,6 +5,7 @@ import static com.floragunn.searchguard.test.IndexApiMatchers.limitedTo;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedToNone;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimited;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncludingSearchGuardIndices;
+import static com.floragunn.searchguard.test.RestMatchers.isBadRequest;
 import static com.floragunn.searchguard.test.RestMatchers.isCreated;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
@@ -62,8 +63,8 @@ public class DataStreamAuthorizationReadWriteIntTests {
 
     static TestAlias alias_c1 = new TestAlias("alias_c1", index_cr1);
 
-    static TestIndex index_bwx1 = TestIndex.name("index_bwx1").documentCount(0).build(); // not initially created
-    static TestIndex index_bwx2 = TestIndex.name("index_bwx2").documentCount(0).build(); // not initially created
+    static TestIndex ds_bwx1 = TestIndex.name("ds_bwx1").documentCount(0).build(); // not initially created
+    static TestIndex ds_bwx2 = TestIndex.name("ds_bwx2").documentCount(0).build(); // not initially created
 
     static TestAlias alias_bwx = new TestAlias("alias_bwx"); // not initially created
 
@@ -76,8 +77,8 @@ public class DataStreamAuthorizationReadWriteIntTests {
                             .dataStreamPermissions("SGS_WRITE").on("ds_aw*"))//
             .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2))//
             .indexMatcher("write", limitedTo(ds_aw1, ds_aw2))//
-            .indexMatcher("create_index", limitedToNone())//
-            .indexMatcher("manage_index", limitedToNone())//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
@@ -88,10 +89,10 @@ public class DataStreamAuthorizationReadWriteIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
                             .dataStreamPermissions("SGS_WRITE").on("ds_bw*"))//
-            .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("create_index", limitedToNone())//
-            .indexMatcher("manage_index", limitedToNone())//
+            .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
@@ -109,45 +110,45 @@ public class DataStreamAuthorizationReadWriteIntTests {
                             .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
                             .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
                             .dataStreamPermissions("indices:admin/mapping/auto_put").on("*"))//
-            .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("create_index", limitedToNone())//
-            .indexMatcher("manage_index", limitedToNone())//
+            .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_B_CREATE_INDEX = new TestSgConfig.User("limited_user_B_create_index")//
-            .description("index_b* with create index privs")//
+            .description("ds_b* with create ds privs")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
                             .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
-                            .dataStreamPermissions("SGS_CREATE_INDEX").on("ds_bw*"))//
-            .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("create_index", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("manage_index", limitedToNone())//
+                            .dataStreamPermissions("SGS_CREATE_DATA_STREAM").on("ds_bw*"))//
+            .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_B_MANAGE_INDEX = new TestSgConfig.User("limited_user_B_manage_index")//
-            .description("index_b* with manage privs")//
+            .description("ds_b* with manage privs")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
                             .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
                             .dataStreamPermissions("SGS_MANAGE").on("ds_bw*"))//
-            .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("create_index", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("manage_index", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("manage_alias", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("manage_data_stream", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("manage_alias", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("get_alias", limitedTo());
 
     static TestSgConfig.User LIMITED_USER_B_MANAGE_INDEX_ALIAS = new TestSgConfig.User("limited_user_B_manage_index_alias")//
-            .description("index_b*, alias_bwx* with manage privs")//
+            .description("ds_b*, alias_bwx* with manage privs")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
@@ -155,31 +156,31 @@ public class DataStreamAuthorizationReadWriteIntTests {
                             .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
                             .dataStreamPermissions("SGS_MANAGE").on("ds_bw*")//
                             .aliasPermissions("SGS_MANAGE_ALIASES").on("alias_bwx*"))//
-            .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("create_index", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("manage_index", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2, alias_bwx))//
-            .indexMatcher("manage_alias", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2, alias_bwx))//
+            .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("manage_data_stream", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2, alias_bwx))//
+            .indexMatcher("manage_alias", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2, alias_bwx))//
             .indexMatcher("get_alias", limitedTo(alias_bwx));
 
     static TestSgConfig.User LIMITED_USER_B_CREATE_INDEX_MANAGE_ALIAS = new TestSgConfig.User("limited_user_B_create_index")//
-            .description("index_b* with create index privs and manage alias privs, alias_bwx* with manage alias privs")//
+            .description("ds_b* with create ds privs and manage alias privs, alias_bwx* with manage alias privs")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
                             .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
-                            .dataStreamPermissions("SGS_CREATE_INDEX", "SGS_MANAGE_ALIASES").on("ds_bw*")//
+                            .dataStreamPermissions("SGS_CREATE_DATA_STREAM", "SGS_MANAGE_ALIASES").on("ds_bw*")//
                             .aliasPermissions("SGS_MANAGE_ALIASES").on("alias_bwx*"))//
-            .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("create_index", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("manage_index", limitedToNone())//
-            .indexMatcher("manage_alias", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2, alias_bwx))//
+            .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("manage_data_stream", limitedToNone())//
+            .indexMatcher("manage_alias", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2, alias_bwx))//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS = new TestSgConfig.User("limited_user_B_HIDDEN_anage_index_alias")//
-            .description("index_b*, ds_hidden*, alias_bwx* with manage privs")//
+            .description("ds_b*, ds_hidden*, alias_bwx* with manage privs")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
@@ -187,25 +188,25 @@ public class DataStreamAuthorizationReadWriteIntTests {
                             .dataStreamPermissions("SGS_WRITE").on("ds_bw*", "ds_hidden*")//
                             .dataStreamPermissions("SGS_MANAGE").on("ds_bw*", "ds_hidden*")//
                             .aliasPermissions("SGS_MANAGE_ALIASES").on("alias_bwx*"))//
-            .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, index_bwx1, index_bwx2, ds_hidden))//
-            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2, ds_hidden))//
-            .indexMatcher("create_index", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2, ds_hidden))//
-            .indexMatcher("manage_index", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2, alias_bwx, ds_hidden))//
-            .indexMatcher("manage_alias", limitedTo(ds_bw1, ds_bw2, index_bwx1, index_bwx2, alias_bwx, ds_hidden))//
+            .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2, ds_hidden))//
+            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2, ds_hidden))//
+            .indexMatcher("create_data_stream", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2, ds_hidden))//
+            .indexMatcher("manage_data_stream", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2, alias_bwx, ds_hidden))//
+            .indexMatcher("manage_alias", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2, alias_bwx, ds_hidden))//
             .indexMatcher("get_alias", limitedTo(alias_bwx));
 
     static TestSgConfig.User LIMITED_USER_AB_MANAGE_INDEX = new TestSgConfig.User("limited_user_AB_manage_index")//
-            .description("index_a*, index_b* with manage index privs")//
+            .description("ds_a*, ds_b* with manage index privs")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_a*", "ds_b*")//
                             .dataStreamPermissions("SGS_WRITE").on("ds_aw*", "ds_bw*")//
                             .dataStreamPermissions("SGS_MANAGE").on("ds_aw*", "ds_bw*"))//
-            .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2, ds_br1, ds_br2, ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("write", limitedTo(ds_aw1, ds_aw2, ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("create_index", limitedTo(ds_aw1, ds_aw2, ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
-            .indexMatcher("manage_index", limitedTo(ds_aw1, ds_aw2, ds_bw1, ds_bw2, index_bwx1, index_bwx2))//
+            .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2, ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_aw1, ds_aw2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedTo(ds_aw1, ds_aw2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("manage_data_stream", limitedTo(ds_aw1, ds_aw2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
@@ -218,8 +219,8 @@ public class DataStreamAuthorizationReadWriteIntTests {
                             .indexPermissions("SGS_WRITE").on("index_cw*"))//
             .indexMatcher("read", limitedTo(index_cr1, index_cw1))//
             .indexMatcher("write", limitedTo(index_cw1))//
-            .indexMatcher("create_index", limitedToNone())//
-            .indexMatcher("manage_index", limitedToNone())//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
@@ -233,8 +234,8 @@ public class DataStreamAuthorizationReadWriteIntTests {
                             .on("alias_ab1w*"))//
             .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2, ds_br1, ds_bw1, alias_ab1r, alias_ab1w_nowriteindex))//
             .indexMatcher("write", limitedTo(ds_aw1, ds_aw2, ds_bw1, alias_ab1w_nowriteindex))//
-            .indexMatcher("create_index", limitedTo(ds_aw1, ds_aw2, ds_bw1))//
-            .indexMatcher("manage_index", limitedToNone())//
+            .indexMatcher("create_data_stream", limitedTo(ds_aw1, ds_aw2, ds_bw1))//
+            .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2, ds_br1, ds_bw1, alias_ab1r));
 
@@ -247,8 +248,8 @@ public class DataStreamAuthorizationReadWriteIntTests {
                             .aliasPermissions("SGS_READ").on("alias_ab1w"))//
             .indexMatcher("read", limitedTo(ds_aw1, ds_aw2, ds_bw1))//
             .indexMatcher("write", limitedTo(ds_aw1)) // alias_ab1w is included because ds_aw1 is the write index of alias_ab1w
-            .indexMatcher("create_index", limitedToNone())//
-            .indexMatcher("manage_index", limitedToNone())//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_READ_ONLY_ALL = new TestSgConfig.User("limited_read_only_all")//
@@ -259,21 +260,21 @@ public class DataStreamAuthorizationReadWriteIntTests {
                             .dataStreamPermissions("SGS_READ").on("*"))//
             .indexMatcher("read", unlimited())//
             .indexMatcher("write", limitedToNone())//
-            .indexMatcher("create_index", limitedToNone())//
-            .indexMatcher("manage_index", limitedToNone())//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_READ_ONLY_A = new TestSgConfig.User("limited_read_only_A")//
-            .description("read/only on index_a*")//
+            .description("read/only on ds_a*")//
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .dataStreamPermissions("SGS_READ").on("ds_a*"))//
             .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2))//
             .indexMatcher("write", limitedToNone())//
-            .indexMatcher("create_index", limitedToNone())//
-            .indexMatcher("manage_index", limitedToNone())//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
@@ -285,8 +286,8 @@ public class DataStreamAuthorizationReadWriteIntTests {
                             .dataStreamPermissions("SGS_CRUD", "SGS_INDICES_MONITOR").on("ds_does_not_exist_*"))//
             .indexMatcher("read", limitedToNone())//
             .indexMatcher("write", limitedToNone())//
-            .indexMatcher("create_index", limitedToNone())//
-            .indexMatcher("manage_index", limitedToNone())//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
@@ -295,11 +296,11 @@ public class DataStreamAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_CRUD", "SGS_INDICES_MONITOR", "SGS_CREATE_INDEX").on("ds_*"))//
+                            .indexPermissions("SGS_CRUD", "SGS_INDICES_MONITOR", "SGS_CREATE_DATA_STREAM").on("ds_*"))//
             .indexMatcher("read", limitedToNone())//
             .indexMatcher("write", limitedToNone())//
-            .indexMatcher("create_index", limitedToNone())//
-            .indexMatcher("manage_index", limitedToNone())//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
@@ -317,8 +318,8 @@ public class DataStreamAuthorizationReadWriteIntTests {
             )//
             .indexMatcher("read", unlimited())//
             .indexMatcher("write", unlimited())//
-            .indexMatcher("create_index", unlimited())//
-            .indexMatcher("manage_index", unlimited())//
+            .indexMatcher("create_data_stream", unlimited())//
+            .indexMatcher("manage_data_stream", unlimited())//
             .indexMatcher("manage_alias", unlimited())//
             .indexMatcher("get_alias", unlimited());
 
@@ -331,8 +332,8 @@ public class DataStreamAuthorizationReadWriteIntTests {
             .adminCertUser()//
             .indexMatcher("read", unlimitedIncludingSearchGuardIndices())//
             .indexMatcher("write", unlimitedIncludingSearchGuardIndices())//
-            .indexMatcher("create_index", unlimitedIncludingSearchGuardIndices())//
-            .indexMatcher("manage_index", unlimitedIncludingSearchGuardIndices())//
+            .indexMatcher("create_data_stream", unlimitedIncludingSearchGuardIndices())//
+            .indexMatcher("manage_data_stream", unlimitedIncludingSearchGuardIndices())//
             .indexMatcher("manage_alias", unlimitedIncludingSearchGuardIndices())//
             .indexMatcher("get_alias", unlimitedIncludingSearchGuardIndices());
 
@@ -417,21 +418,11 @@ public class DataStreamAuthorizationReadWriteIntTests {
     }
 
     @Test
-    public void createIndex() throws Exception {
+    public void createDataStream() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
-            HttpResponse httpResponse = restClient.putJson("/index_bwx1", DocNode.EMPTY);
-            assertThat(httpResponse, containsExactly(index_bwx1).at("index").but(user.indexMatcher("create_index")).whenEmpty(403));
-        }
-    }
+            HttpResponse httpResponse = restClient.put("/_data_stream/ds_bwx1");
 
-    @Test
-    public void createIndex_deleteIndex() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
-            HttpResponse httpResponse = restClient.putJson("/index_bwx1", DocNode.EMPTY);
-            assertThat(httpResponse, containsExactly(index_bwx1).at("index").but(user.indexMatcher("create_index")).whenEmpty(403));
-            httpResponse = restClient.delete("/index_bwx1");
-
-            if (user.indexMatcher("manage_index").isEmpty()) {
+            if (containsExactly(ds_bwx1).but(user.indexMatcher("create_data_stream")).isEmpty()) {
                 assertThat(httpResponse, isForbidden());
             } else {
                 assertThat(httpResponse, isOk());
@@ -440,14 +431,36 @@ public class DataStreamAuthorizationReadWriteIntTests {
     }
 
     @Test
-    public void createIndex_withAlias() throws Exception {
+    public void putDataStream() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
-            HttpResponse httpResponse = restClient.putJson("/index_bwx1", DocNode.of("aliases.alias_bwx", DocNode.EMPTY));
+            HttpResponse httpResponse = restClient.putJson("/ds_bwx1/", DocNode.EMPTY);
 
-            if (containsExactly(alias_bwx).but(user.indexMatcher("manage_alias")).isEmpty()) {
+            if (user == UNLIMITED_USER || user == SUPER_UNLIMITED_USER || user == INVALID_USER_INDEX_PERMISSIONS_FOR_DATA_STREAM) {
+                // This will fail because we try to create an index under a name of a data stream
+                assertThat(httpResponse, isBadRequest());
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
+        }
+    }
+
+    @Test
+    public void deleteDataStream() throws Exception {
+        try (GenericRestClient adminRestClient = cluster.getAdminCertRestClient().trackResources();
+                GenericRestClient restClient = cluster.getRestClient(user)) {
+
+            // Init test data
+            {
+                HttpResponse httpResponse = adminRestClient.put("/_data_stream/ds_bwx1");
+                assertThat(httpResponse, isOk());
+            }
+
+            HttpResponse httpResponse = restClient.delete("/_data_stream/ds_bwx1");
+
+            if (user.indexMatcher("manage_data_stream").isEmpty()) {
                 assertThat(httpResponse, isForbidden());
             } else {
-                assertThat(httpResponse, containsExactly(index_bwx1).at("index").but(user.indexMatcher("create_index")).whenEmpty(403));
+                assertThat(httpResponse, isOk());
             }
         }
     }
@@ -473,53 +486,7 @@ public class DataStreamAuthorizationReadWriteIntTests {
             restClient.deleteWhenClosed("/*/_alias/alias_bwx");
 
             HttpResponse httpResponse = restClient.postJson("/_aliases",
-                    DocNode.of("actions", DocNode.array(DocNode.of("add.indices", DocNode.array("index_bw*"), "add.alias", "alias_bwx"))));
-            if (containsExactly(ds_bw1, ds_bw2, alias_bwx).isCoveredBy(user.indexMatcher("manage_alias"))) {
-                assertThat(httpResponse, isOk());
-            } else {
-                assertThat(httpResponse, isForbidden());
-            }
-        }
-    }
-
-    @Test
-    public void aliases_deleteAlias_staticIndex() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user);
-                GenericRestClient adminRestClient = cluster.getAdminCertRestClient().trackResources()) {
-            adminRestClient.deleteWhenClosed("/*/_alias/alias_bwx");
-
-            // Initialization
-            {
-                HttpResponse httpResponse = adminRestClient.postJson("/_aliases",
-                        DocNode.of("actions", DocNode.array(DocNode.of("add.index", "ds_bw1", "add.alias", "alias_bwx"))));
-                assertThat(httpResponse, isOk());
-            }
-
-            HttpResponse httpResponse = restClient.postJson("/_aliases",
-                    DocNode.of("actions", DocNode.array(DocNode.of("remove.index", "ds_bw1", "remove.alias", "alias_bwx"))));
-            if (containsExactly(ds_bw1, alias_bwx).isCoveredBy(user.indexMatcher("manage_alias"))) {
-                assertThat(httpResponse, isOk());
-            } else {
-                assertThat(httpResponse, isForbidden());
-            }
-        }
-    }
-
-    @Test
-    public void aliases_deleteAlias_wildcard() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user);
-                GenericRestClient adminRestClient = cluster.getAdminCertRestClient().trackResources()) {
-            adminRestClient.deleteWhenClosed("/*/_alias/alias_bwx");
-
-            // Initialization
-            {
-                HttpResponse httpResponse = adminRestClient.postJson("/_aliases",
-                        DocNode.of("actions", DocNode.array(DocNode.of("add.indices", DocNode.array("ds_bw1", "ds_bw2"), "add.alias", "alias_bwx"))));
-                assertThat(httpResponse, isOk());
-            }
-
-            HttpResponse httpResponse = restClient.postJson("/_aliases",
-                    DocNode.of("actions", DocNode.array(DocNode.of("remove.index", "*", "remove.alias", "alias_bwx"))));
+                    DocNode.of("actions", DocNode.array(DocNode.of("add.indices", DocNode.array("ds_bw*"), "add.alias", "alias_bwx"))));
             if (containsExactly(ds_bw1, ds_bw2, alias_bwx).isCoveredBy(user.indexMatcher("manage_alias"))) {
                 assertThat(httpResponse, isOk());
             } else {
@@ -536,16 +503,19 @@ public class DataStreamAuthorizationReadWriteIntTests {
 
             // Initialization
             {
-                HttpResponse httpResponse = adminRestClient.putJson("/index_bwx1", DocNode.of("aliases.alias_bwx", DocNode.EMPTY));
+                HttpResponse httpResponse = adminRestClient.put("/_data_stream/ds_bwx1");
                 assertThat(httpResponse, isOk());
-                httpResponse = adminRestClient.putJson("/index_bwx2", DocNode.of("aliases.alias_bwx", DocNode.EMPTY));
+                httpResponse = adminRestClient.put("/_data_stream/ds_bwx2");
+                assertThat(httpResponse, isOk());
+                httpResponse = restClient.postJson("/_aliases",
+                        DocNode.of("actions", DocNode.array(DocNode.of("add.indices", DocNode.array("ds_bwx1", "ds_bwx2"), "add.alias", "alias_bwx"))));
                 assertThat(httpResponse, isOk());
             }
 
             HttpResponse httpResponse = restClient.postJson("/_aliases",
-                    DocNode.of("actions", DocNode.array(DocNode.of("remove_index.index", "index_bwx1"))));
+                    DocNode.of("actions", DocNode.array(DocNode.of("remove_index.index", "ds_bwx1"))));
 
-            if (containsExactly(index_bwx2).isCoveredBy(user.indexMatcher("manage_index"))) {
+            if (containsExactly(ds_bwx2).isCoveredBy(user.indexMatcher("manage_data_stream"))) {
                 assertThat(httpResponse, isOk());
             } else {
                 assertThat(httpResponse, isForbidden());
