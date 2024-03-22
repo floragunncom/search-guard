@@ -33,7 +33,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class EsDownload {
+class EsDownload {
     private static final Logger log = LogManager.getLogger(EsDownload.class);
 
     private static final Map<String, EsDownload> instancesByVersion = Collections.synchronizedMap(new HashMap<>());
@@ -50,7 +50,7 @@ public class EsDownload {
         this.esVersion = esVersion;
     }
 
-    public synchronized File getReleaseArchive() throws EsInstallationUnavailableException {
+    synchronized File getReleaseArchive() throws EsInstallationUnavailableException {
         // This mirrors the directory scheme used by setup_test_instance.sh
         File downloadDirectory;
 
@@ -100,11 +100,11 @@ public class EsDownload {
         return downloadFile;
     }
 
-    public EsInstallation extract(File targetDir) throws EsInstallationUnavailableException {
+    EsInstallation extract(File targetDir) throws EsInstallationUnavailableException {
         return extract(targetDir, 0);
     }
 
-    public CompletableFuture<EsInstallation> extractAsync(File targetDir) {
+    CompletableFuture<EsInstallation> extractAsync(File targetDir) {
         CompletableFuture<EsInstallation> future = new CompletableFuture<EsInstallation>();
 
         executorService.submit(() -> {
@@ -160,19 +160,19 @@ public class EsDownload {
         }
     }
 
-    public static class EsInstallationUnavailableException extends Exception {
+    static class EsInstallationUnavailableException extends Exception {
 
         private static final long serialVersionUID = 1L;
 
-        public EsInstallationUnavailableException(String message, Throwable cause) {
+        EsInstallationUnavailableException(String message, Throwable cause) {
             super(message, cause);
         }
 
-        public EsInstallationUnavailableException(String message) {
+        EsInstallationUnavailableException(String message) {
             super(message);
         }
 
-        public EsInstallationUnavailableException(Throwable cause) {
+        EsInstallationUnavailableException(Throwable cause) {
             super(cause);
         }
 
