@@ -25,7 +25,12 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
+import org.elasticsearch.action.bulk.BulkItemRequest;
+import org.elasticsearch.action.bulk.BulkShardRequest;
+import org.elasticsearch.action.bulk.TransportShardBulkAction;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.hamcrest.Description;
 import org.hamcrest.DiagnosingMatcher;
 import org.junit.Test;
@@ -41,6 +46,7 @@ public class ActionRequestIntrospectorTest {
 
     static final Actions ACTIONS = new Actions(null);
     static final Meta META = indices("index_a11", "index_a12", "index_a21", "index_a22", "index_b1", "index_b2")//
+            .dataStream("ds_d11").of(".ds-ds_d11-2024.03.22-000001", ".ds-ds_d11-2024.03.22-000002")//
             .alias("alias_a").of("index_a11", "index_a12", "index_a21", "index_a22")//
             .alias("alias_a1").of("index_a11", "index_a12")//
             .alias("alias_a2").of("index_a21", "index_a22")//
@@ -61,8 +67,8 @@ public class ActionRequestIntrospectorTest {
                 .indicesOptions(IndicesOptions.strictSingleIndexNoExpandForbidClosed());
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(GetAliasesAction.NAME), request);
         assertThat(requestInfo, resolved(//
-                main().hasIndices("index_a1*").hasNoAliases().hasNoDataStreams(), additional(Action.AdditionalDimension.ALIASES)
-                        .hasNoIndices().hasAliases("alias_a", "alias_a1", "alias_a2").hasNoDataStreams()));
+                main().hasIndices("index_a1*").hasNoAliases().hasNoDataStreams(),
+                additional(Action.AdditionalDimension.ALIASES).hasNoIndices().hasAliases("alias_a", "alias_a1", "alias_a2").hasNoDataStreams()));
     }
 
     @Test
@@ -94,8 +100,7 @@ public class ActionRequestIntrospectorTest {
 
         assertThat(requestInfo, resolved(//
                 main().hasIndices("index_a11").hasNoAliases().hasNoDataStreams(), //
-                additional(Action.AdditionalDimension.ALIASES).hasNoIndices().hasAliases("alias_a", "alias_a1", "alias_a2")
-                        .hasNoDataStreams()));
+                additional(Action.AdditionalDimension.ALIASES).hasNoIndices().hasAliases("alias_a", "alias_a1", "alias_a2").hasNoDataStreams()));
 
     }
 
@@ -117,6 +122,14 @@ public class ActionRequestIntrospectorTest {
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(IndicesAliasesAction.NAME), request);
 
         assertThat(requestInfo, main().hasIndices("index_a11", "index_a12").hasNoAliases().hasNoDataStreams());
+    }
+
+    @Test
+    public void bulkShardRequest_create_datastream() {
+        BulkShardRequest request = new BulkShardRequest(null, RefreshPolicy.NONE,
+                new BulkItemRequest[] { new BulkItemRequest(1, new IndexRequest("ds_d11")) });
+        ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(TransportShardBulkAction.ACTION_NAME), request);
+        assertThat(requestInfo, main().hasNoIndices().hasNoAliases().hasDataStreams("ds_d11"));
     }
 
     static ActionRequestIntrospector simple() {

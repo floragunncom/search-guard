@@ -84,7 +84,6 @@ import com.floragunn.searchsupport.meta.Meta;
 import com.floragunn.searchsupport.queries.DateMathExpressionResolver;
 import com.floragunn.searchsupport.queries.WildcardExpressionResolver;
 
-
 /**
  * TODO do not resolve data streams for write requests
  *
@@ -1672,31 +1671,53 @@ public class ActionRequestIntrospector {
                 ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
                 ImmutableSet.Builder<Meta.DataStream> dataStreams = new ImmutableSet.Builder<>();
 
-                boolean includeDataStreams = request.includeDataStreams && scope.includeDataStreams;
-                boolean includeIndices = scope.includeIndices;
-                boolean includeAliases = (scope.includeAliases && !request.indicesOptions.ignoreAliases()) || scope == IndicesRequestInfo.Scope.ALIAS;
-
                 for (String index : request.localIndices) {
                     String resolved = DateMathExpressionResolver.resolveExpression(index);
 
                     Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolved);
 
-                    if (indexLike == null) {
-                        nonExistingIndices.add(Meta.NonExistent.of(resolved));
-                    } else if (indexLike instanceof Meta.Alias) {
-                        if (includeAliases) {
-                            aliases.add((Meta.Alias) indexLike);
+                    if (scope == IndicesRequestInfo.Scope.INDEX) {
+                        if (indexLike instanceof Meta.Index) {
+                            indices.add((Meta.Index) indexLike);
+                        } else {
+                            indices.add(Meta.Index.nonExistent(resolved));
                         }
-                        // TODO check whether we need to add NonExistent elements when we have an alias but we want to ignore it
-                    } else if (indexLike instanceof Meta.DataStream) {
-                        if (includeDataStreams) {
+                    } else if (scope == IndicesRequestInfo.Scope.ALIAS) {
+                        if (indexLike instanceof Meta.Alias) {
+                            aliases.add((Meta.Alias) indexLike);
+                        } else {
+                            aliases.add(Meta.Alias.nonExistent(resolved));
+                        }
+                    } else if (scope == IndicesRequestInfo.Scope.DATA_STREAM) {
+                        if (indexLike instanceof Meta.DataStream) {
                             dataStreams.add((Meta.DataStream) indexLike);
+                        } else {
+                            dataStreams.add(Meta.DataStream.nonExistent(resolved));
                         }
                     } else {
-                        if (includeIndices) {
-                            indices.add((Meta.Index) indexLike);
+                        if (indexLike == null) {
+                            nonExistingIndices.add(Meta.NonExistent.of(resolved));
+                        } else if (indexLike instanceof Meta.Alias) {
+                            if (scope.includeAliases) {
+                                aliases.add((Meta.Alias) indexLike);
+                            } else {
+                                nonExistingIndices.add(Meta.NonExistent.of(resolved));
+                            }
+                        } else if (indexLike instanceof Meta.DataStream) {
+                            if (scope.includeDataStreams) {
+                                dataStreams.add((Meta.DataStream) indexLike);
+                            } else {
+                                nonExistingIndices.add(Meta.NonExistent.of(resolved));
+                            }
+                        } else {
+                            if (scope.includeIndices) {
+                                indices.add((Meta.Index) indexLike);
+                            } else {
+                                nonExistingIndices.add(Meta.NonExistent.of(resolved));
+                            }
                         }
                     }
+
                 }
 
                 ImmutableSet<Meta.Index> pureIndices = indices.build();
