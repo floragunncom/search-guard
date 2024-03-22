@@ -19,7 +19,6 @@ import java.util.Collection;
 import java.util.List;
 
 import org.joda.time.Instant;
-import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -96,6 +95,20 @@ public class DataStreamAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
+    static TestSgConfig.User LIMITED_USER_B_READ_ONLY_A = new TestSgConfig.User("limited_user_B_read_only_A")//
+            .description("ds_b*; read only on ds_a*")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_a*", "ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*"))//
+            .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2, ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
+            .indexMatcher("manage_alias", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
+
     /**
      * This is an artificial user - in the sense that in real life it would likely not exist this way. 
      * It has privileges to write on ds_b*, but privileges for indices:admin/mapping/auto_put on all data streams.
@@ -117,7 +130,7 @@ public class DataStreamAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
-    static TestSgConfig.User LIMITED_USER_B_CREATE_INDEX = new TestSgConfig.User("limited_user_B_create_index")//
+    static TestSgConfig.User LIMITED_USER_B_CREATE_DS = new TestSgConfig.User("limited_user_B_create_ds")//
             .description("ds_b* with create ds privs")//
             .roles(//
                     new Role("r1")//
@@ -132,7 +145,7 @@ public class DataStreamAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
-    static TestSgConfig.User LIMITED_USER_B_MANAGE_INDEX = new TestSgConfig.User("limited_user_B_manage_index")//
+    static TestSgConfig.User LIMITED_USER_B_MANAGE_DS = new TestSgConfig.User("limited_user_B_manage_ds")//
             .description("ds_b* with manage privs")//
             .roles(//
                     new Role("r1")//
@@ -337,10 +350,11 @@ public class DataStreamAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", unlimitedIncludingSearchGuardIndices())//
             .indexMatcher("get_alias", unlimitedIncludingSearchGuardIndices());
 
-    static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B_AUTO_PUT_ON_ALL,
-            LIMITED_USER_B_CREATE_INDEX, LIMITED_USER_B_MANAGE_INDEX, LIMITED_USER_B_MANAGE_INDEX_ALIAS, LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS,
-            LIMITED_USER_AB_MANAGE_INDEX, LIMITED_USER_C, LIMITED_USER_AB1_ALIAS, LIMITED_USER_AB1_ALIAS_READ_ONLY, LIMITED_READ_ONLY_ALL,
-            LIMITED_READ_ONLY_A, LIMITED_USER_NONE, INVALID_USER_INDEX_PERMISSIONS_FOR_DATA_STREAM, UNLIMITED_USER, SUPER_UNLIMITED_USER);
+    static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B_READ_ONLY_A,
+            LIMITED_USER_B_AUTO_PUT_ON_ALL, LIMITED_USER_B_CREATE_DS, LIMITED_USER_B_MANAGE_DS, LIMITED_USER_B_MANAGE_INDEX_ALIAS,
+            LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS, LIMITED_USER_AB_MANAGE_INDEX, LIMITED_USER_C, LIMITED_USER_AB1_ALIAS,
+            LIMITED_USER_AB1_ALIAS_READ_ONLY, LIMITED_READ_ONLY_ALL, LIMITED_READ_ONLY_A, LIMITED_USER_NONE,
+            INVALID_USER_INDEX_PERMISSIONS_FOR_DATA_STREAM, UNLIMITED_USER, SUPER_UNLIMITED_USER);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
@@ -387,7 +401,6 @@ public class DataStreamAuthorizationReadWriteIntTests {
             HttpResponse httpResponse = restClient.postJson("/ds_aw*,ds_bw*/_delete_by_query?refresh=true&wait_for_completion=true",
                     DocNode.of("query.term.delete_by_query_test_delete", "yes"));
 
-            // TODO test where I can search some but not delete all
             if (containsExactly(ds_aw1, ds_aw2, ds_bw1, ds_bw2).at("_index").but(user.indexMatcher("write")).isEmpty()) {
                 assertThat(httpResponse, isForbidden());
             } else {
@@ -398,7 +411,6 @@ public class DataStreamAuthorizationReadWriteIntTests {
         } finally {
             deleteTestDocs("deleteByQuery_indexPattern", "ds_aw*,ds_bw*");
         }
-
     }
 
     @Test
@@ -507,8 +519,8 @@ public class DataStreamAuthorizationReadWriteIntTests {
                 assertThat(httpResponse, isOk());
                 httpResponse = adminRestClient.put("/_data_stream/ds_bwx2");
                 assertThat(httpResponse, isOk());
-                httpResponse = restClient.postJson("/_aliases",
-                        DocNode.of("actions", DocNode.array(DocNode.of("add.indices", DocNode.array("ds_bwx1", "ds_bwx2"), "add.alias", "alias_bwx"))));
+                httpResponse = restClient.postJson("/_aliases", DocNode.of("actions",
+                        DocNode.array(DocNode.of("add.indices", DocNode.array("ds_bwx1", "ds_bwx2"), "add.alias", "alias_bwx"))));
                 assertThat(httpResponse, isOk());
             }
 
@@ -516,18 +528,12 @@ public class DataStreamAuthorizationReadWriteIntTests {
                     DocNode.of("actions", DocNode.array(DocNode.of("remove_index.index", "ds_bwx1"))));
 
             if (containsExactly(ds_bwx2).isCoveredBy(user.indexMatcher("manage_data_stream"))) {
-                assertThat(httpResponse, isOk());
+                // Not supported by ES for data streams
+                assertThat(httpResponse, isBadRequest());
             } else {
                 assertThat(httpResponse, isForbidden());
             }
         }
-    }
-
-    @After
-    public void refresh() {
-        // try (Client client = cluster.getInternalNodeClient()) {
-        //     client.admin().indices().refresh(new RefreshRequest("*")).actionGet();
-        //  } TODO
     }
 
     @Parameters(name = "{1}")
