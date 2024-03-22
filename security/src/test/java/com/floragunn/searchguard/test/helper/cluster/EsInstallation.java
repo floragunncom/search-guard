@@ -39,7 +39,7 @@ import com.floragunn.searchguard.test.helper.cluster.EsDownload.EsInstallationUn
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 
-public class EsInstallation {
+class EsInstallation {
     private static final Logger log = LogManager.getLogger(EsInstallation.class);
 
     private final File path;
@@ -54,7 +54,7 @@ public class EsInstallation {
         this.executorService = executorService;
     }
 
-    public void installPlugin(File plugin) throws EsInstallationUnavailableException {
+    void installPlugin(File plugin) throws EsInstallationUnavailableException {
         try {
             ProcessBuilder processBuilder = new ProcessBuilder();
 
@@ -79,7 +79,7 @@ public class EsInstallation {
         }
     }
 
-    public synchronized void ensureKeystore() throws EsInstallationUnavailableException {
+    synchronized void ensureKeystore() throws EsInstallationUnavailableException {
         try {
             if (new File(configPath, "elasticsearch.keystore").exists()) {
                 return;
@@ -92,7 +92,7 @@ public class EsInstallation {
         }
     }
 
-    public void appendConfig(String name, String content) throws EsInstallationUnavailableException {
+    void appendConfig(String name, String content) throws EsInstallationUnavailableException {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(new File(configPath, name), true))) {
             writer.newLine();
             writer.write(content);
@@ -102,7 +102,7 @@ public class EsInstallation {
         }
     }
 
-    public void writeConfig(String name, String content) throws EsInstallationUnavailableException {
+    void writeConfig(String name, String content) throws EsInstallationUnavailableException {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(new File(configPath, name)))) {
             writer.write(content);
         } catch (IOException e) {
@@ -110,7 +110,7 @@ public class EsInstallation {
         }
     }
 
-    public void writeConfig(String name, File file) throws EsInstallationUnavailableException {
+    void writeConfig(String name, File file) throws EsInstallationUnavailableException {
         try {
             writeConfig(name, Files.asCharSource(file, Charsets.UTF_8).read());
         } catch (IOException e) {
@@ -118,7 +118,7 @@ public class EsInstallation {
         }
     }
 
-    public void initSgConfig(Map<String, Document<?>> config) throws EsInstallationUnavailableException {
+    void initSgConfig(Map<String, Document<?>> config) throws EsInstallationUnavailableException {
         File sgConfigDir = new File(path, "plugins/search-guard-flx/sgconfig/");
 
         for (File file : sgConfigDir.listFiles()) {
@@ -138,7 +138,7 @@ public class EsInstallation {
         }
     }
 
-    public Process startProcess(int httpPort, int transportPort, File workingDir, Settings settings, NodeSettings nodeSettings)
+    Process startProcess(int httpPort, int transportPort, File workingDir, Settings settings, NodeSettings nodeSettings)
             throws EsInstallationUnavailableException {
         try {
             ProcessBuilder processBuilder = new ProcessBuilder();
@@ -193,7 +193,7 @@ public class EsInstallation {
         return "EsInstallation [path=" + path + ", esVersion=" + esVersion + "]";
     }
 
-    public File getConfigPath() {
+    File getConfigPath() {
         return configPath;
     }
 

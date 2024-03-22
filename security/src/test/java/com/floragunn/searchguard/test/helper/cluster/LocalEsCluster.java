@@ -285,7 +285,7 @@ public abstract class LocalEsCluster {
         }
     }
 
-    public static interface Node extends EsClientProvider {
+    public interface Node extends EsClientProvider {
         InetSocketAddress getTransportAddress();
 
         InetSocketAddress getHttpAddress();
