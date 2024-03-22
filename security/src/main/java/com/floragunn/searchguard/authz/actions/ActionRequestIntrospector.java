@@ -69,7 +69,6 @@ import org.elasticsearch.cluster.metadata.IndexAbstraction.Alias;
 import org.elasticsearch.cluster.metadata.IndexAbstraction.DataStream;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.metadata.Metadata;
-import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.index.reindex.ReindexRequest;
 import org.elasticsearch.snapshots.SnapshotInfo;
 import org.elasticsearch.snapshots.SnapshotUtils;
@@ -589,18 +588,6 @@ public class ActionRequestIntrospector {
             }
         }
 
-        /*
-        public ActionRequestInfo reducedIndices(ImmutableSet<String> newLocalResolvedIndices) {
-            if (!resolvedIndicesInitialized) {
-                initResolvedIndices();
-                resolvedIndicesInitialized = true;
-            }
-        
-            return new ActionRequestInfo(unknown, indexRequest, indices, resolvedIndices.localIndices(newLocalResolvedIndices),
-                    additionalResolvedIndices, newLocalResolvedIndices);
-        }
-        */
-
         public ResolvedIndices getResolvedIndices() {
             if (!resolvedIndicesInitialized) {
                 initResolvedIndices();
@@ -725,7 +712,6 @@ public class ActionRequestIntrospector {
         private final boolean expandWildcards;
         private final boolean isAll;
         private final boolean containsWildcards;
-        private final boolean containsNegation;
         private final boolean writeRequest;
         private final boolean createIndexRequest;
         private final SystemIndexAccess systemIndexAccess;
@@ -748,7 +734,6 @@ public class ActionRequestIntrospector {
             this.remoteIndices = ImmutableSet.of(this.indices.matching((i) -> i.contains(":")));
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, indicesRequest);
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(this.indices) : false;
-            this.containsNegation = this.containsWildcards && !this.isAll && containsNegation(this.indices);
             this.writeRequest = indicesRequest instanceof DocWriteRequest;
             this.createIndexRequest = indicesRequest instanceof IndexRequest
                     || indicesRequest instanceof org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -772,7 +757,6 @@ public class ActionRequestIntrospector {
             this.remoteIndices = ImmutableSet.of(this.indices.matching((i) -> i.contains(":")));
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, null);
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(index) : false;
-            this.containsNegation = false;
             this.writeRequest = false;
             this.createIndexRequest = false;
             this.indexMetadata = indexMetadata;
@@ -795,7 +779,6 @@ public class ActionRequestIntrospector {
             this.remoteIndices = ImmutableSet.of(this.indices.matching((i) -> i.contains(":")));
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, null);
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(this.indices) : false;
-            this.containsNegation = this.containsWildcards && !this.isAll && containsNegation(this.indices);
             this.writeRequest = false;
             this.createIndexRequest = false;
             this.indexMetadata = indexMetadata;
@@ -1460,11 +1443,6 @@ public class ActionRequestIntrospector {
                             return resolveIsAll(request, indexMetadata);
                         } else if (request.expandWildcards) {
                             return resolveWithPatterns(request, indexMetadata);
-                            //} else if (request.writeRequest) { TODO
-                            //    return request.resolveWriteIndex();
-                            //   } else if (request.createIndexRequest) {
-                            //     return new Local(ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty(),
-                            //             request.resolveDateMathExpressions().map(Meta.NonExistent::of));
                         } else {
                             // No wildcards, no write request, no create index request
                             return resolveWithoutPatterns(request, indexMetadata);
@@ -1674,6 +1652,10 @@ public class ActionRequestIntrospector {
                 for (String index : request.localIndices) {
                     String resolved = DateMathExpressionResolver.resolveExpression(index);
 
+                    if (containsWildcard(resolved)) {
+                        continue;
+                    }
+
                     Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolved);
 
                     if (scope == IndicesRequestInfo.Scope.INDEX) {
@@ -1745,6 +1727,10 @@ public class ActionRequestIntrospector {
                 for (String index : request.localIndices) {
                     String resolved = DateMathExpressionResolver.resolveExpression(index);
 
+                    if (containsWildcard(resolved)) {
+                        continue;
+                    }
+
                     Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolved);
 
                     if (indexLike == null) {
@@ -1762,6 +1748,10 @@ public class ActionRequestIntrospector {
 
                 for (String index : request.localIndices) {
                     String resolved = DateMathExpressionResolver.resolveExpression(index);
+
+                    if (containsWildcard(resolved)) {
+                        continue;
+                    }
 
                     Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolved);
 
@@ -1840,35 +1830,7 @@ public class ActionRequestIntrospector {
     }
 
     private static boolean containsWildcard(String index) {
-        return index == null || index.contains("*");
-    }
-
-    private static boolean containsWildcard(IndicesRequest request) {
-        String[] indices = request.indices();
-
-        if (indices == null || indices.length == 0) {
-            return true;
-        }
-
-        if (!request.indicesOptions().expandWildcardsOpen() && !request.indicesOptions().expandWildcardsClosed()) {
-            return false;
-        }
-
-        for (int i = 0; i < indices.length; i++) {
-            if (indices[i].equals("_all") || indices[i].equals("*")) {
-                return true;
-            }
-
-            if (Regex.isSimpleMatchPattern(indices[i])) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static boolean containsNegation(ImmutableList<String> indices) {
-        return indices != null && indices.forAnyApplies((i) -> i.startsWith("-"));
+        return index == null || index.contains("*") || index.equals("_all");
     }
 
     private static boolean equals(IndicesRequest a, IndicesRequest b) {
