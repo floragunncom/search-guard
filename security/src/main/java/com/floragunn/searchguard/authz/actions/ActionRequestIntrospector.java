@@ -157,10 +157,24 @@ public class ActionRequestIntrospector {
                                 .additional(Action.AdditionalDimension.ALIASES, aliasAction.aliases(), EXACT, IndicesRequestInfo.Scope.ALIAS);
                         break;
                     case REMOVE:
-                        result = result.with(aliasAction, IndicesRequestInfo.Scope.INDICES_DATA_STREAMS) //
-                                .additional(Action.AdditionalDimension.ALIASES, aliasAction.aliases(),
-                                        aliasAction.expandAliasesWildcards() ? IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN : EXACT,
-                                        IndicesRequestInfo.Scope.ALIAS);
+                        // We do some more heavy lifting here. The wildcard in the index attribute of the AliasActions calls shall only 
+                        // refer to indices that are member of the aliases. Thus, we resolve early and determine the intersection.
+                        IndicesRequestInfo aliasesRequestInfo = new IndicesRequestInfo(Action.AdditionalDimension.ALIASES,
+                                ImmutableList.ofArray(aliasAction.aliases()),
+                                aliasAction.expandAliasesWildcards() ? IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN : EXACT,
+                                IndicesRequestInfo.Scope.ALIAS, systemIndexAccessSupplier.get(), metaDataSupplier.get());
+                        ImmutableSet<Meta.Alias> aliases = aliasesRequestInfo.resolveIndices().getLocal().getAliases();
+
+                        IndicesRequestInfo indicesRequestInfo = new IndicesRequestInfo(null, aliasAction,
+                                IndicesRequestInfo.Scope.INDICES_DATA_STREAMS, systemIndexAccessSupplier.get(), metaDataSupplier.get());
+                        ImmutableSet<Meta.IndexLikeObject> indices = indicesRequestInfo.resolveIndices().getLocal().getUnion();
+                        ImmutableSet<Meta.IndexLikeObject> indicesThatAreMembersOfSpecifiedAliases = indices
+                                .matching(i -> i.parentAliases().containsAny(aliases));
+
+                        result = result
+                                .with(indicesThatAreMembersOfSpecifiedAliases.map(Meta.IndexLikeObject::name), EXACT,
+                                        IndicesRequestInfo.Scope.INDICES_DATA_STREAMS) //
+                                .additional(aliasesRequestInfo);
                         break;
                     case REMOVE_INDEX:
                         // This is the most weird part of IndicesAliasesRequest: You can delete an index - completely unrelated to aliases.
@@ -547,6 +561,11 @@ public class ActionRequestIntrospector {
                     indicesOptions, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
         }
 
+        ActionRequestInfo with(Collection<String> indices, IndicesOptions indicesOptions, IndicesRequestInfo.Scope scope) {
+            return new ActionRequestInfo(unknown, indexRequest, this.indices.with(new IndicesRequestInfo(null, ImmutableList.of(indices),
+                    indicesOptions, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
+        }
+
         ActionRequestInfo additional(Action.AdditionalDimension role, IndicesRequest indices, IndicesRequestInfo.Scope scope) {
             return new ActionRequestInfo(unknown, indexRequest,
                     this.indices.with(new IndicesRequestInfo(role, indices, scope, systemIndexAccessSupplier.get(), metaDataSupplier.get())));
@@ -568,6 +587,10 @@ public class ActionRequestIntrospector {
         ActionRequestInfo additional(Action.AdditionalDimension role, String[] indices, IndicesOptions indicesOptions,
                 IndicesRequestInfo.Scope scope) {
             return this.additional(role, ImmutableList.ofArray(indices), indicesOptions, scope);
+        }
+
+        ActionRequestInfo additional(IndicesRequestInfo indexRequestInfo) {
+            return new ActionRequestInfo(unknown, indexRequest, this.indices.with(indexRequestInfo));
         }
 
         public boolean isUnknown() {
