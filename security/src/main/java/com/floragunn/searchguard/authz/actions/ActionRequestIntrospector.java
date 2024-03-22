@@ -1499,7 +1499,9 @@ public class ActionRequestIntrospector {
                 ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
                 ImmutableSet.Builder<Meta.DataStream> dataStreams = new ImmutableSet.Builder<>();
                 Set<String> excludeNames = new HashSet<>();
+                Set<String> partiallyExcludedObjects = new HashSet<>();
 
+                // Note: We are going backwards through the list of indices in order to get negated patterns before the patterns they apply to
                 for (int i = request.localIndices.size() - 1; i >= 0; i--) {
                     String index = request.localIndices.get(i);
 
@@ -1511,9 +1513,11 @@ public class ActionRequestIntrospector {
                             Map<String, IndexAbstraction> matchedAbstractions = WildcardExpressionResolver.matches(metadata, indicesLookup, index,
                                     request.indicesOptions, includeDataStreams);
 
-                            excludeNames.addAll(matchedAbstractions.keySet());
+                            for (String resolvedIndex : matchedAbstractions.keySet()) {
+                                resolveNegationUpAndDown(resolvedIndex, excludeNames, partiallyExcludedObjects, indexMetadata);
+                            }
                         } else {
-                            excludeNames.add(index);
+                            resolveNegationUpAndDown(index, excludeNames, partiallyExcludedObjects, indexMetadata);
                         }
                     } else {
                         index = DateMathExpressionResolver.resolveExpression(index);
@@ -1528,24 +1532,64 @@ public class ActionRequestIntrospector {
                                     continue;
                                 }
 
-                                IndexAbstraction indexAbstraction = entry.getValue();
+                                if (!partiallyExcludedObjects.contains(entry.getKey()) || scope == IndicesRequestInfo.Scope.ALIAS
+                                        || scope == IndicesRequestInfo.Scope.DATA_STREAM || scope == IndicesRequestInfo.Scope.INDICES_DATA_STREAMS) {
+                                    // This is the happy case, just include the object
+                                    IndexAbstraction indexAbstraction = entry.getValue();
 
-                                if (indexAbstraction instanceof DataStream) {
-                                    if (includeDataStreams) {
-                                        dataStreams.add((Meta.DataStream) indexMetadata.getIndexOrLike(entry.getKey()));
-                                    }
-                                } else if (indexAbstraction instanceof Alias) {
-                                    if (includeAliases) {
-                                        aliases.add((Meta.Alias) indexMetadata.getIndexOrLike(entry.getKey()));
-                                    }
-                                } else {
-                                    if (includeIndices) {
-                                        Meta.Index indexMeta = (Meta.Index) indexMetadata.getIndexOrLike(entry.getKey());
+                                    if (indexAbstraction instanceof DataStream) {
+                                        if (includeDataStreams) {
+                                            dataStreams.add((Meta.DataStream) indexMetadata.getIndexOrLike(entry.getKey()));
+                                        }
+                                    } else if (indexAbstraction instanceof Alias) {
+                                        if (includeAliases) {
+                                            aliases.add((Meta.Alias) indexMetadata.getIndexOrLike(entry.getKey()));
+                                        }
+                                    } else {
+                                        if (includeIndices) {
+                                            Meta.Index indexMeta = (Meta.Index) indexMetadata.getIndexOrLike(entry.getKey());
 
-                                        if (!indexMeta.isSystem() || request.systemIndexAccess.isAllowed(entry.getKey())) {
-                                            indices.add(indexMeta);
+                                            if (!indexMeta.isSystem() || request.systemIndexAccess.isAllowed(entry.getKey())) {
+                                                indices.add(indexMeta);
+                                            }
                                         }
                                     }
+                                } else {
+                                    // Oh dear, one of the negated elements is a member of this. Now we have to resolve this to perform the exclusion
+
+                                    Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(entry.getKey());
+
+                                    if (indexLike instanceof Meta.IndexCollection) {
+                                        for (Meta.IndexLikeObject member : ((Meta.IndexCollection) indexLike).members()) {
+                                            if (!excludeNames.contains(entry.getKey())) {
+                                                if (member instanceof Meta.Index) {
+                                                    if (includeIndices) {
+                                                        Meta.Index indexMeta = (Meta.Index) member;
+                                                        if (!indexMeta.isSystem() || request.systemIndexAccess.isAllowed(entry.getKey())) {
+                                                            indices.add(indexMeta);
+                                                        }
+                                                    }
+                                                } else if (member instanceof Meta.DataStream) {
+                                                    if (includeDataStreams) {
+                                                        Meta.DataStream dataStream = (Meta.DataStream) member;
+                                                        if (dataStream.members().stream()
+                                                                .anyMatch(dsMember -> excludeNames.contains(dsMember.name()))) {
+                                                            for (Meta.IndexLikeObject dsMember : dataStream.members()) {
+                                                                if (!excludeNames.contains(dsMember.name())) {
+                                                                    indices.add((Meta.Index) dsMember);
+                                                                }
+                                                            }
+                                                        } else {
+                                                            dataStreams.add(dataStream);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        indices.add((Meta.Index) indexLike);
+                                    }
+
                                 }
                             }
                         } else {
@@ -1807,6 +1851,26 @@ public class ActionRequestIntrospector {
                     return this.union.equals(((Local) obj).union);
                 } else {
                     return false;
+                }
+            }
+
+            private static void resolveNegationUpAndDown(String index, Set<String> excludeNames, Set<String> partiallyExcludedObjects,
+                    Meta indexMetadata) {
+                excludeNames.add(index);
+                Meta.IndexLikeObject indexLikeObject = indexMetadata.getIndexOrLike(index);
+
+                if (indexLikeObject != null) {
+                    if (indexLikeObject.parentDataStreamName() != null) {
+                        partiallyExcludedObjects.add(indexLikeObject.parentDataStreamName());
+                    }
+                    partiallyExcludedObjects.addAll(indexLikeObject.parentAliasNames());
+                    if (indexLikeObject instanceof Meta.IndexCollection) {
+                        excludeNames.addAll(((Meta.IndexCollection) indexLikeObject).resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL));
+                        if (indexLikeObject instanceof Meta.Alias) {
+                            excludeNames.addAll(
+                                    ((Meta.Alias) indexLikeObject).members().stream().map(Meta.IndexLikeObject::name).collect(Collectors.toList()));
+                        }
+                    }
                 }
             }
 
