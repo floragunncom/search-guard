@@ -161,6 +161,10 @@ public interface Meta extends Document<Meta> {
         boolean isSystem();
 
         boolean isDataStreamBackingIndex();
+        
+        static Index nonExistent(String name) {
+            return new MetaImpl.NonExistentIndexImpl(name);
+        }
     }
 
     interface IndexCollection extends IndexLikeObject {
