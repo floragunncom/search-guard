@@ -271,6 +271,7 @@
         <groupId>org.elasticsearch</groupId>
         <artifactId>elasticsearch</artifactId>
         <version>${elasticsearch.version}</version>
+        <scope>provided</scope>
         <exclusions>
           <exclusion>
             <groupId>org.elasticsearch</groupId>
@@ -485,7 +486,6 @@
     <dependency>
       <groupId>org.elasticsearch</groupId>
       <artifactId>elasticsearch</artifactId>
-      <scope>provided</scope>
     </dependency>
 
     <dependency>
