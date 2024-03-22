@@ -33,7 +33,7 @@ veracode_build:
       when: always
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: manual
-      allow_failure: true
+      allow_failure: true #Prevents the pipeline from ending in a "Blocked" status.
   needs: []
   interruptible: true
   tags:
