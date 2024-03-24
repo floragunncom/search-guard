@@ -68,6 +68,7 @@ import com.floragunn.searchguard.authz.actions.Action;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.actions.ResolvedIndices;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.AuthorizationConfig;
 import com.floragunn.searchguard.authz.config.Role;
@@ -500,7 +501,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 actionRequestInfo.getMainResolvedIndices(), action.scope());
 
         if (!actionRequestInfo.getAdditionalResolvedIndices().isEmpty()) {
-            for (Map.Entry<Action.AdditionalDimension, ActionRequestIntrospector.ResolvedIndices> entry : actionRequestInfo
+            for (Map.Entry<Action.AdditionalDimension, ResolvedIndices> entry : actionRequestInfo
                     .getAdditionalResolvedIndices().entrySet()) {
                 ImmutableSet<Action> additionalIndexPermissions = entry.getKey().getRequiredPrivileges(allIndexPermsRequired, actions);
 
