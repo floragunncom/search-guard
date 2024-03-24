@@ -33,7 +33,6 @@ import java.util.Collection;
 import java.util.List;
 
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -284,7 +283,8 @@ public class DataStreamAuthorizationReadOnlyIntTests {
     }
 
     @Test
-    public void search_staticIndicies_hidden() throws Exception {
+    public void search_staticIndicies_hidden() throws Exception {   // @Ignore
+
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_hidden/_search?size=1000");
             assertThat(httpResponse, containsExactly(ds_hidden).at("hits.hits[*]._index").butForbiddenIfIncomplete(user.indexMatcher("read")));
@@ -301,12 +301,12 @@ public class DataStreamAuthorizationReadOnlyIntTests {
     }
 
     @Test
-    @Ignore // Elasticsearch does not handle the expression ds_a*,ds_b*,-ds_b2,-ds_b3 in a way that excludes the data streams. See search_indexPattern_minus_backingIndices for an alternative.
     public void search_indexPattern_minus() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a*,ds_b*,-ds_b2,-ds_b3/_search?size=1000");
+            // Elasticsearch does not handle the expression ds_a*,ds_b*,-ds_b2,-ds_b3 in a way that excludes the data streams. See search_indexPattern_minus_backingIndices for an alternative.
             assertThat(httpResponse,
-                    containsExactly(ds_a1, ds_a2, ds_a3, ds_b1).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+                    containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -511,6 +511,14 @@ public class DataStreamAuthorizationReadOnlyIntTests {
     public void getDataStream_pattern() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("_data_stream/ds_a*");
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3).at("$.data_streams[*].name").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+    
+    @Test
+    public void getDataStream_pattern_negation() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("_data_stream/ds_*,-ds_b*");
             assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3).at("$.data_streams[*].name").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
