@@ -114,7 +114,7 @@
     <dependency>
       <groupId>org.ow2.asm</groupId>
       <artifactId>asm-analysis</artifactId>
-      <version>7.2</version>
+      <version>9.7</version>
       <scope>test</scope>
     </dependency>
 
