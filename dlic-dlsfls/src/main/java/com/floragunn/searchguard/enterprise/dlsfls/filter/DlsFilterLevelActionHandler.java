@@ -59,7 +59,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import com.floragunn.searchguard.authz.DocumentWhitelist;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.authz.actions.Action;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
+import com.floragunn.searchguard.authz.actions.ResolvedIndices;
 import com.floragunn.searchguard.enterprise.dlsfls.DlsRestriction;
 import com.floragunn.searchguard.queries.QueryBuilderTraverser;
 import com.floragunn.searchguard.support.ConfigConstants;

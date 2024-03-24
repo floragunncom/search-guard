@@ -35,12 +35,9 @@ import org.hamcrest.Description;
 import org.hamcrest.DiagnosingMatcher;
 import org.junit.Test;
 
-import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.SystemIndexAccess;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ResolvedIndices;
 import com.floragunn.searchsupport.meta.Meta;
-import com.floragunn.searchsupport.meta.Meta.IndexLikeObject;
 
 public class ActionRequestIntrospectorTest {
 
@@ -136,14 +133,14 @@ public class ActionRequestIntrospectorTest {
         return new ActionRequestIntrospector(() -> META, () -> SystemIndexAccess.DISALLOWED, () -> false, null);
     }
 
-    static DiagnosingMatcher<ActionRequestInfo> resolved(ResolvedIndicesMatcher... matchers) {
+    static DiagnosingMatcher<ActionRequestInfo> resolved(ActionRequestInfoResolvedIndicesMatcher... matchers) {
         return new DiagnosingMatcher<ActionRequestInfo>() {
 
             @Override
             public void describeTo(Description description) {
                 description.appendText("An ActionRequestInfo object where:\n");
 
-                for (ResolvedIndicesMatcher matcher : matchers) {
+                for (ActionRequestInfoResolvedIndicesMatcher matcher : matchers) {
                     description.appendDescriptionOf(matcher);
                     description.appendText("\n");
                 }
@@ -154,7 +151,7 @@ public class ActionRequestIntrospectorTest {
             protected boolean matches(Object item, Description mismatchDescription) {
                 boolean result = true;
 
-                for (ResolvedIndicesMatcher matcher : matchers) {
+                for (ActionRequestInfoResolvedIndicesMatcher matcher : matchers) {
                     if (!matcher.matches(item, mismatchDescription)) {
                         mismatchDescription.appendText("\n");
                         result = false;
@@ -166,23 +163,22 @@ public class ActionRequestIntrospectorTest {
         };
     }
 
-    static ResolvedIndicesMatcher main() {
-        return new ResolvedIndicesMatcher(null, null, null, null);
+    static ActionRequestInfoResolvedIndicesMatcher main() {
+        return new ActionRequestInfoResolvedIndicesMatcher(null, null, null, null);
     }
 
-    static ResolvedIndicesMatcher additional(Action.AdditionalDimension role) {
-        return new ResolvedIndicesMatcher(role, null, null, null);
+    static ActionRequestInfoResolvedIndicesMatcher additional(Action.AdditionalDimension role) {
+        return new ActionRequestInfoResolvedIndicesMatcher(role, null, null, null);
     }
 
-    static class ResolvedIndicesMatcher extends DiagnosingMatcher<ActionRequestInfo> {
+    static class ActionRequestInfoResolvedIndicesMatcher extends DiagnosingMatcher<ActionRequestInfo> {
         private final Action.AdditionalDimension role;
-        private final IndicesMatcher indicesMatcher;
-        private final AliasesMatcher aliasesMatcher;
-        private final DataStreamsMatcher dataStreamsMatcher;
+        private final ResolvedIndicesMatcher.IndicesMatcher indicesMatcher;
+        private final ResolvedIndicesMatcher.AliasesMatcher aliasesMatcher;
+        private final ResolvedIndicesMatcher.DataStreamsMatcher dataStreamsMatcher;
 
-        ResolvedIndicesMatcher(Action.AdditionalDimension role, IndicesMatcher indicesMatcher, AliasesMatcher aliasesMatcher,
-                DataStreamsMatcher dataStreamsMatcher) {
-            super();
+        ActionRequestInfoResolvedIndicesMatcher(Action.AdditionalDimension role, ResolvedIndicesMatcher.IndicesMatcher indicesMatcher, ResolvedIndicesMatcher.AliasesMatcher aliasesMatcher,
+                ResolvedIndicesMatcher.DataStreamsMatcher dataStreamsMatcher) {
             this.role = role;
             this.indicesMatcher = indicesMatcher;
             this.aliasesMatcher = aliasesMatcher;
@@ -253,153 +249,32 @@ public class ActionRequestIntrospectorTest {
             return match;
         }
 
-        public ResolvedIndicesMatcher hasIndices(String... expected) {
-            return new ResolvedIndicesMatcher(role, new IndicesMatcher(expected), aliasesMatcher, dataStreamsMatcher);
+        public ActionRequestInfoResolvedIndicesMatcher hasIndices(String... expected) {
+            return new ActionRequestInfoResolvedIndicesMatcher(role, new ResolvedIndicesMatcher.IndicesMatcher(expected), aliasesMatcher, dataStreamsMatcher);
         }
 
-        public ResolvedIndicesMatcher hasAliases(String... expected) {
-            return new ResolvedIndicesMatcher(role, indicesMatcher, new AliasesMatcher(expected), dataStreamsMatcher);
+        public ActionRequestInfoResolvedIndicesMatcher hasAliases(String... expected) {
+            return new ActionRequestInfoResolvedIndicesMatcher(role, indicesMatcher, new ResolvedIndicesMatcher.AliasesMatcher(expected), dataStreamsMatcher);
         }
 
-        public ResolvedIndicesMatcher hasDataStreams(String... expected) {
-            return new ResolvedIndicesMatcher(role, indicesMatcher, aliasesMatcher, new DataStreamsMatcher(expected));
+        public ActionRequestInfoResolvedIndicesMatcher hasDataStreams(String... expected) {
+            return new ActionRequestInfoResolvedIndicesMatcher(role, indicesMatcher, aliasesMatcher, new ResolvedIndicesMatcher.DataStreamsMatcher(expected));
         }
 
-        public ResolvedIndicesMatcher hasNoIndices() {
-            return new ResolvedIndicesMatcher(role, new IndicesMatcher(), aliasesMatcher, dataStreamsMatcher);
+        public ActionRequestInfoResolvedIndicesMatcher hasNoIndices() {
+            return new ActionRequestInfoResolvedIndicesMatcher(role, new ResolvedIndicesMatcher.IndicesMatcher(), aliasesMatcher, dataStreamsMatcher);
         }
 
-        public ResolvedIndicesMatcher hasNoAliases() {
-            return new ResolvedIndicesMatcher(role, indicesMatcher, new AliasesMatcher(), dataStreamsMatcher);
+        public ActionRequestInfoResolvedIndicesMatcher hasNoAliases() {
+            return new ActionRequestInfoResolvedIndicesMatcher(role, indicesMatcher, new ResolvedIndicesMatcher.AliasesMatcher(), dataStreamsMatcher);
         }
 
-        public ResolvedIndicesMatcher hasNoDataStreams() {
-            return new ResolvedIndicesMatcher(role, indicesMatcher, aliasesMatcher, new DataStreamsMatcher());
-        }
-
-    }
-
-    static class IndicesMatcher extends AbstractResolvedIndicesMatcher {
-
-        IndicesMatcher(String... expected) {
-            super(expected);
-        }
-
-        @Override
-        protected String objectType() {
-            return "indices";
-        }
-
-        @Override
-        protected ImmutableSet<? extends IndexLikeObject> getObjects(ResolvedIndices resolvedIndices) {
-            return resolvedIndices.getLocal().getPureIndices();
-        }
-    }
-
-    static class AliasesMatcher extends AbstractResolvedIndicesMatcher {
-
-        AliasesMatcher(String... expected) {
-            super(expected);
-        }
-
-        @Override
-        protected String objectType() {
-            return "aliases";
-        }
-
-        @Override
-        protected ImmutableSet<? extends IndexLikeObject> getObjects(ResolvedIndices resolvedIndices) {
-            return resolvedIndices.getLocal().getAliases();
-        }
-    }
-
-    static class DataStreamsMatcher extends AbstractResolvedIndicesMatcher {
-
-        DataStreamsMatcher(String... expected) {
-            super(expected);
-        }
-
-        @Override
-        protected String objectType() {
-            return "data streams";
-        }
-
-        @Override
-        protected ImmutableSet<? extends IndexLikeObject> getObjects(ResolvedIndices resolvedIndices) {
-            return resolvedIndices.getLocal().getDataStreams();
-        }
-    }
-
-    abstract static class AbstractResolvedIndicesMatcher extends DiagnosingMatcher<ResolvedIndices> {
-
-        protected final ImmutableSet<String> expected;
-
-        AbstractResolvedIndicesMatcher(String... expected) {
-            this.expected = ImmutableSet.ofArray(expected);
-        }
-
-        AbstractResolvedIndicesMatcher(ImmutableSet<String> expected) {
-            this.expected = expected;
-        }
-
-        abstract protected String objectType();
-
-        abstract protected ImmutableSet<? extends Meta.IndexLikeObject> getObjects(ResolvedIndices resolvedIndices);
-
-        @Override
-        public void describeTo(Description description) {
-            if (expected.isEmpty()) {
-                description.appendText(objectType() + " are empty");
-            } else {
-                description.appendText(objectType() + " are " + expected);
-            }
-        }
-
-        @Override
-        protected boolean matches(Object item, Description mismatchDescription) {
-            if (!(item instanceof ResolvedIndices)) {
-                mismatchDescription.appendValue(item).appendText(" is not an ResolvedIndices object");
-                return false;
-            }
-
-            ResolvedIndices resolvedIndices = (ResolvedIndices) item;
-
-            return match(getObjects(resolvedIndices), mismatchDescription);
-        }
-
-        protected boolean match(ImmutableSet<? extends Meta.IndexLikeObject> resolved, Description mismatchDescription) {
-            String objectType = objectType();
-
-            ImmutableSet<String> present = resolved.map(Meta.IndexLikeObject::name);
-
-            if (expected.equals(present)) {
-                return true;
-            } else {
-                ImmutableSet<String> missing = expected.without(present);
-                ImmutableSet<String> unexpected = present.without(expected);
-
-                if (expected.isEmpty()) {
-                    mismatchDescription.appendText(objectType + " are not empty; unexpected: ").appendValue(unexpected);
-                } else {
-                    if (!missing.isEmpty() && !unexpected.isEmpty()) {
-                        mismatchDescription.appendText(objectType + " ").appendValue(resolved)
-                                .appendText(" do not match expected " + objectType + " ").appendValue(expected).appendText("; missing: ")
-                                .appendValue(missing).appendText("; unexpected: ").appendValue(unexpected);
-                    } else if (!missing.isEmpty()) {
-                        mismatchDescription.appendText(objectType + " do not match expected " + objectType + "; missing: ").appendValue(missing);
-                    } else {
-                        // !unexpected.isEmpty()
-
-                        mismatchDescription.appendText(objectType + " do not match expected " + objectType + "; unexpected: ")
-                                .appendValue(unexpected);
-                    }
-
-                }
-
-                return false;
-            }
+        public ActionRequestInfoResolvedIndicesMatcher hasNoDataStreams() {
+            return new ActionRequestInfoResolvedIndicesMatcher(role, indicesMatcher, aliasesMatcher, new ResolvedIndicesMatcher.DataStreamsMatcher());
         }
 
     }
+
+   
 
 }
