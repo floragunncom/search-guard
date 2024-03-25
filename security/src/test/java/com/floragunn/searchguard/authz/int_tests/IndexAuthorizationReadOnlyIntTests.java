@@ -23,10 +23,9 @@ import static com.floragunn.searchguard.test.IndexApiMatchers.limitedToNone;
 import static com.floragunn.searchguard.test.IndexApiMatchers.searchGuardIndices;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimited;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncludingSearchGuardIndices;
-import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
-import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
-import static com.floragunn.searchguard.test.RestMatchers.isOk;
+import static com.floragunn.searchguard.test.RestMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 
 import java.util.ArrayList;
@@ -343,6 +342,24 @@ public class IndexAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void search_staticIndicies_negation() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            // On static indices, negation does not have an effect
+            HttpResponse httpResponse = restClient.get("index_a1,index_a2,index_b1,-index_b1/_search?size=1000");
+
+            if (httpResponse.getStatusCode() == 404) {
+                // The pecularities of index resolution, chapter 634:
+                // A 404 error is also acceptable if we get ES complaining about -index_b1. This will be the case for users with full permissions
+                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
+                assertThat(httpResponse, json(nodeAt("error.reason", equalTo("no such index [-index_b1]"))));
+            } else {
+                assertThat(httpResponse,
+                        containsExactly(index_a1, index_a2, index_b1).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(403));
+            }
+        }
+    }
+
+    @Test
     public void search_staticIndicies_hidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("index_hidden/_search?size=1000");
@@ -384,7 +401,7 @@ public class IndexAuthorizationReadOnlyIntTests {
             assertThat(httpResponse, containsExactly().at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
-    
+
     @Test
     public void search_indexPatternAndStatic_noWildcards() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
@@ -392,7 +409,16 @@ public class IndexAuthorizationReadOnlyIntTests {
             assertThat(httpResponse, containsExactly(index_b1).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
-    
+
+    @Test
+    public void search_indexPatternAndStatic_negation() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            // If there is a wildcard, negation will also affect indices specified without a wildcard
+            HttpResponse httpResponse = restClient.get("index_a*,index_b1,index_b2,-index_b2/_search?size=1000");
+            assertThat(httpResponse,
+                    containsExactly(index_a1, index_a2, index_a3, index_b1).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
 
     @Test
     public void search_alias_ignoreUnavailable() throws Exception {
@@ -413,11 +439,20 @@ public class IndexAuthorizationReadOnlyIntTests {
     }
 
     @Test
-    public void search_aliasPattern() throws Exception {
+    public void search_alias_pattern() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("alias_ab1*/_search?size=1000");
             assertThat(httpResponse,
                     containsExactly(index_a1, index_a2, index_a3, index_b1).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void search_alias_pattern_negation() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("alias_*,-alias_ab1/_search?size=1000");
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_c1).at("hits.hits[*]._index")
+                    .but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
