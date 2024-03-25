@@ -422,6 +422,10 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                         lastErrorResponse = response;
                     }
                 }
+                
+                if (componentsCheckList.isComplete()) {
+                    break;
+                }
 
                 if (Instant.now().isAfter(timeoutReachedAt)) {
                     throw new RuntimeException("Component did not become initialized:\n" + componentsCheckList + "\n" + lastErrorResponse);
