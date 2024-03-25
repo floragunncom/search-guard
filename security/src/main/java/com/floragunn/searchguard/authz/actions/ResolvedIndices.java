@@ -495,7 +495,7 @@ public class ResolvedIndices {
             IndicesRequestInfo.Scope scope = request.scope;
             boolean includeDataStreams = request.includeDataStreams && scope.includeDataStreams;
             boolean includeIndices = scope.includeIndices;
-            boolean includeAliases = (scope.includeAliases && !request.indicesOptions.ignoreAliases()) || scope == IndicesRequestInfo.Scope.ALIAS; // An explict ALIAS scope overrides ignoreAliases
+            boolean includeAliases = (scope.includeAliases && !request.indicesOptions().ignoreAliases()) || scope == IndicesRequestInfo.Scope.ALIAS; // An explict ALIAS scope overrides ignoreAliases
 
             SortedMap<String, IndexAbstraction> indicesLookup = metadata.getIndicesLookup();
 
@@ -516,13 +516,13 @@ public class ResolvedIndices {
 
                     if (index.contains("*")) {
                         Map<String, IndexAbstraction> matchedAbstractions = WildcardExpressionResolver.matches(metadata, indicesLookup, index,
-                                request.indicesOptions, includeDataStreams);
+                                request.indicesOptions(), includeDataStreams);
 
                         for (String resolvedIndex : matchedAbstractions.keySet()) {
-                            resolveNegationUpAndDown(resolvedIndex, excludeNames, partiallyExcludedObjects, indexMetadata);
+                            resolveNegationUpAndDown(resolvedIndex, excludeNames, partiallyExcludedObjects, request, indexMetadata);
                         }
                     } else {
-                        resolveNegationUpAndDown(index, excludeNames, partiallyExcludedObjects, indexMetadata);
+                        resolveNegationUpAndDown(index, excludeNames, partiallyExcludedObjects, request, indexMetadata);
                     }
                 } else {
                     index = DateMathExpressionResolver.resolveExpression(index);
@@ -530,7 +530,7 @@ public class ResolvedIndices {
                     if (index.contains("*")) {
 
                         Map<String, IndexAbstraction> matchedAbstractions = WildcardExpressionResolver.matches(metadata, indicesLookup, index,
-                                request.indicesOptions, includeDataStreams);
+                                request.indicesOptions(), includeDataStreams);
 
                         for (Map.Entry<String, IndexAbstraction> entry : matchedAbstractions.entrySet()) {
                             if (excludeNames.contains(entry.getKey())) {
@@ -654,11 +654,11 @@ public class ResolvedIndices {
         static ResolvedIndices.Local resolveIsAll(IndicesRequestInfo request, Meta indexMetadata) {
             IndicesRequestInfo.Scope scope = request.scope;
 
-            boolean includeHidden = request.indicesOptions.expandWildcardsHidden();
+            boolean includeHidden = request.indicesOptions().expandWildcardsHidden();
             boolean excludeSystem = request.systemIndexAccess.isNotAllowed();
             boolean includeDataStreams = request.includeDataStreams && scope.includeDataStreams;
             boolean includeIndices = scope.includeIndices;
-            boolean includeAliases = (scope.includeAliases && !request.indicesOptions.ignoreAliases()) || scope == IndicesRequestInfo.Scope.ALIAS;
+            boolean includeAliases = (scope.includeAliases && !request.indicesOptions().ignoreAliases()) || scope == IndicesRequestInfo.Scope.ALIAS;
 
             ImmutableSet<Meta.Index> pureIndices;
             ImmutableSet<Meta.Alias> aliases;
@@ -704,7 +704,7 @@ public class ResolvedIndices {
                 }
             }
 
-            Predicate<Boolean> excludeStatePredicate = WildcardExpressionResolver.excludeStatePredicate(request.indicesOptions);
+            Predicate<Boolean> excludeStatePredicate = WildcardExpressionResolver.excludeStatePredicate(request.indicesOptions());
             if (excludeStatePredicate != null) {
                 pureIndices = pureIndices.matching(e -> !excludeStatePredicate.test(e.isOpen()));
             }
@@ -869,10 +869,18 @@ public class ResolvedIndices {
         }
 
         private static void resolveNegationUpAndDown(String index, Set<String> excludeNames, Set<String> partiallyExcludedObjects,
-                Meta indexMetadata) {
-            excludeNames.add(index);
+                IndicesRequestInfo request, Meta indexMetadata) {
             Meta.IndexLikeObject indexLikeObject = indexMetadata.getIndexOrLike(index);
 
+            if (request.isNegationOnlyEffectiveForIndices() && !(indexLikeObject instanceof Meta.Index)) {
+                // Negation is implemented in ES inconsistently:
+                // Some actions (like search) only perform it properly on indicies, but not on aliases and data streams. Thus /my_datastreams_*,-my_datastream_1/ does not have the effect one might expect.
+                // Other actions do implement it properly. The flag request.isNegationOnlyEffectiveForIndices() indicated the way we need to use
+                return;                
+            }   
+
+            excludeNames.add(index);
+            
             if (indexLikeObject != null) {
                 if (indexLikeObject.parentDataStreamName() != null) {
                     partiallyExcludedObjects.add(indexLikeObject.parentDataStreamName());
