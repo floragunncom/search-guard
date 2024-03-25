@@ -719,7 +719,7 @@ public class ActionRequestIntrospector {
 
         private final ImmutableList<String> indices;
         private final String[] indicesArray;
-        final IndicesOptions indicesOptions;
+        private final IndicesOptions indicesOptions;
         private final boolean allowsRemoteIndices;
         final boolean includeDataStreams;
         private final Action.AdditionalDimension role;
@@ -733,6 +733,7 @@ public class ActionRequestIntrospector {
         private final ImmutableSet<String> remoteIndices;
         final ImmutableList<String> localIndices;
         final Scope scope;
+        private final boolean negationOnlyEffectiveForIndices;
 
         IndicesRequestInfo(Action.AdditionalDimension role, IndicesRequest indicesRequest, Scope scope, SystemIndexAccess systemIndexAccess,
                 Meta indexMetadata) {
@@ -754,7 +755,7 @@ public class ActionRequestIntrospector {
             this.indexMetadata = indexMetadata;
             this.scope = scope;
             this.systemIndexAccess = systemIndexAccess;
-
+            this.negationOnlyEffectiveForIndices = scope != Scope.DATA_STREAM && scope != Scope.ALIAS;
         }
 
         IndicesRequestInfo(Action.AdditionalDimension role, String index, IndicesOptions indicesOptions, Scope scope,
@@ -777,6 +778,7 @@ public class ActionRequestIntrospector {
 
             this.scope = scope;
             this.systemIndexAccess = systemIndexAccess;
+            this.negationOnlyEffectiveForIndices = scope != Scope.DATA_STREAM && scope != Scope.ALIAS;
         }
 
         IndicesRequestInfo(Action.AdditionalDimension role, List<String> indices, IndicesOptions indicesOptions, Scope scope,
@@ -799,6 +801,7 @@ public class ActionRequestIntrospector {
 
             this.scope = scope;
             this.systemIndexAccess = systemIndexAccess;
+            this.negationOnlyEffectiveForIndices = scope != Scope.DATA_STREAM && scope != Scope.ALIAS;
         }
 
         IndicesRequestInfo(List<String> indices, IndicesOptions indicesOptions, Scope scope, SystemIndexAccess systemIndexAccess,
@@ -928,6 +931,11 @@ public class ActionRequestIntrospector {
         public IndicesOptions indicesOptions() {
             return indicesOptions;
         }
+        
+        boolean isNegationOnlyEffectiveForIndices() {
+            return negationOnlyEffectiveForIndices;
+        }
+
 
         public IndicesRequest.Replaceable asIndicesRequestWithoutRemoteIndices() {
             return new IndicesRequest.Replaceable() {
@@ -1017,6 +1025,7 @@ public class ActionRequestIntrospector {
                 return includeDataStreams;
             }
         }
+
 
     }
 
