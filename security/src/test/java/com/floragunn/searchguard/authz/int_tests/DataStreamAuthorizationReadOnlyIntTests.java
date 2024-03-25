@@ -282,9 +282,25 @@ public class DataStreamAuthorizationReadOnlyIntTests {
         }
     }
 
-    @Test
-    public void search_staticIndicies_hidden() throws Exception {   // @Ignore
 
+    @Test
+    public void search_staticIndicies_negation() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1,-ds_b1/_search?size=1000");
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_b1).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void search_staticIndicies_negation_backingIndices() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1,-.ds-ds_b1*/_search?size=1000");
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_b1).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+    
+    @Test
+    public void search_staticIndicies_hidden() throws Exception {  
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_hidden/_search?size=1000");
             assertThat(httpResponse, containsExactly(ds_hidden).at("hits.hits[*]._index").butForbiddenIfIncomplete(user.indexMatcher("read")));
