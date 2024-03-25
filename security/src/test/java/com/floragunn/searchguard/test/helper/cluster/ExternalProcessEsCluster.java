@@ -38,6 +38,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Settings;
 
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.RequestInfo;
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
@@ -330,6 +331,8 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
                 if (nodeSettings.masterNode && cluster.testSgConfig != null
                         && line.contains(".searchguard index does not exist yet, use sgctl to initialize the cluster.")) {
                     executorService.submit(() -> {
+                        log.info("Wating for components");
+                        LocalCluster.waitForComponents(ImmutableSet.of("config_var_storage"), this);
                         log.info("Setting initial Search Guard configuration");
                         try (GenericRestClient client = getAdminCertRestClient()) {
                             cluster.testSgConfig.initByConfigRestApi(client);

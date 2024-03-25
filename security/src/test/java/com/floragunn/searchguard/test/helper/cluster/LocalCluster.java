@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -137,7 +138,7 @@ import com.google.common.base.Strings;
  */
 public class LocalCluster extends ExternalResource implements AutoCloseable, EsClientProvider {
 
-    static final boolean USE_EXTERNAL_PROCESS_CLUSTER_BY_DEFAULT = true || "true".equalsIgnoreCase(System.getProperty("sg.tests.use_ep_cluster"));
+    static final boolean USE_EXTERNAL_PROCESS_CLUSTER_BY_DEFAULT = "true".equalsIgnoreCase(System.getProperty("sg.tests.use_ep_cluster"));
 
     private static final Logger log = LogManager.getLogger(LocalCluster.class);
 
@@ -378,16 +379,32 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
     protected void waitForComponents() {
         log.debug("waitForComponents: {}", this.waitForComponents);
+        waitForComponents(waitForComponents, this);
+    }
 
-        if (this.waitForComponents.isEmpty()) {
+    private void initSearchGuardIndex(JvmEmbeddedEsCluster jvmEmbeddedEsCluster, TestSgConfig testSgConfig) {
+        log.info("Initializing Search Guard index");
+
+        try (Client client = PrivilegedConfigClient.adapt(jvmEmbeddedEsCluster.clientNode().getInternalNodeClient())) {
+            testSgConfig.initIndex(client);
+        }
+    }
+
+    @Override
+    public Consumer<RequestInfo> getRequestInfoConsumer() {
+        return this.executedRequests != null ? (r) -> this.executedRequests.add(r) : null;
+    }
+
+    public static void waitForComponents(Collection<String> waitForComponents, EsClientProvider esClientProvider) {
+        if (waitForComponents.isEmpty()) {
             return;
         }
 
         Instant timeoutReachedAt = Instant.now().plus(Duration.ofSeconds(30));
         GenericRestClient.HttpResponse lastErrorResponse = null;
 
-        try (GenericRestClient client = this.getAdminCertRestClient()) {
-            CheckList<String> componentsCheckList = CheckList.create(ImmutableSet.of(this.waitForComponents));
+        try (GenericRestClient client = esClientProvider.getAdminCertRestClient()) {
+            CheckList<String> componentsCheckList = CheckList.create(ImmutableSet.of(waitForComponents));
 
             while (!componentsCheckList.isComplete()) {
                 for (String component : componentsCheckList.getUncheckedElements()) {
@@ -420,19 +437,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             throw new RuntimeException(e);
         }
 
-    }
-
-    private void initSearchGuardIndex(JvmEmbeddedEsCluster jvmEmbeddedEsCluster, TestSgConfig testSgConfig) {
-        log.info("Initializing Search Guard index");
-
-        try (Client client = PrivilegedConfigClient.adapt(jvmEmbeddedEsCluster.clientNode().getInternalNodeClient())) {
-            testSgConfig.initIndex(client);
-        }
-    }
-
-    @Override
-    public Consumer<RequestInfo> getRequestInfoConsumer() {
-        return this.executedRequests != null ? (r) -> this.executedRequests.add(r) : null;
     }
 
     public static class Builder {
@@ -651,7 +655,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return localCluster;
         }
 
-
         private void preBuild() {
             nodeOverrideSettingsBuilder.put("searchguard.enterprise_modules_enabled", enterpriseModulesEnabled);
 
@@ -693,14 +696,13 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                     throw new RuntimeException(e);
                 }
             }
-            
 
             public LocalCluster.Embedded start() {
                 LocalCluster.Embedded localCluster = build();
                 localCluster.start();
                 return localCluster;
             }
-            
+
             // ===============================
             // Only delegate methods hereafter
             // ===============================
