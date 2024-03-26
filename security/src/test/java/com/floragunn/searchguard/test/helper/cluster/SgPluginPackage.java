@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.maven.cli.MavenCli;
 
 public class SgPluginPackage {
-    private static CompletableFuture<SgPluginPackage> result = new CompletableFuture<>();
+    private static final CompletableFuture<SgPluginPackage> result = new CompletableFuture<>();
     private static boolean building = false;
 
     public synchronized static CompletableFuture<SgPluginPackage> get() {
