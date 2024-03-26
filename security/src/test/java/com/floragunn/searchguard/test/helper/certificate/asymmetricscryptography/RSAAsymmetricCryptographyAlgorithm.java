@@ -33,7 +33,7 @@ public class RSAAsymmetricCryptographyAlgorithm implements AsymmetricCryptograph
     public RSAAsymmetricCryptographyAlgorithm(Provider securityProvider, int keySize) {
         try {
             this.generator = KeyPairGenerator.getInstance("RSA", securityProvider);
-            log.info("Initialize key pair generator with keySize: {}", keySize);
+            log.debug("Initialize key pair generator with keySize: {}", keySize);
             this.generator.initialize(keySize);
         } catch (NoSuchAlgorithmException e) {
             log.error("Error while initializing", e);
@@ -48,7 +48,6 @@ public class RSAAsymmetricCryptographyAlgorithm implements AsymmetricCryptograph
 
     @Override
     public KeyPair generateKeyPair() {
-        log.info("Create key pair");
         return generator.generateKeyPair();
     }
 }

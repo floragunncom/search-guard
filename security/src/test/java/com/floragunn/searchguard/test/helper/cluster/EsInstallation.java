@@ -172,7 +172,7 @@ class EsInstallation {
             command.add("-Epath.data=" + dataDir.getAbsolutePath());
             command.add("-Epath.logs=" + logsDir.getAbsolutePath());
 
-            log.info("Executing {}", command);
+            log.debug("Executing {}", command);
 
             processBuilder.command(command);
             processBuilder.directory(path);
