@@ -180,7 +180,7 @@ class EsInstallation {
 
             return process;
         } catch (Exception e) {
-            throw new EsInstallationUnavailableException("Error while stating " + this, e);
+            throw new EsInstallationUnavailableException("Error while starting " + this, e);
         }
     }
 
