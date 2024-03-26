@@ -421,7 +421,7 @@ public class TestSgConfig {
                 config.overrideLeafs(overrides);
             }
 
-            log.info("Writing " + configType + ":\n" + config.toYamlString());
+            log.debug("Writing " + configType + ":\n" + config.toYamlString());
 
             client.index(new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
@@ -437,7 +437,7 @@ public class TestSgConfig {
         try {
             DocNode config = getMergedConfig(configType, file, overrides);
 
-            log.info("Writing SearchGuard configuration of type " + configType + " to index:\n" + config.toYamlString());
+            log.debug("Writing SearchGuard configuration of type " + configType + " to index:\n" + config.toYamlString());
 
             client.index(new IndexRequest(indexName).id(configType.toLCString()).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source(configType.toLCString(), BytesReference.fromByteBuffer(ByteBuffer.wrap(config.toJsonString().getBytes("utf-8")))))
