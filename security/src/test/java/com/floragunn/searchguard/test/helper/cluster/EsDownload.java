@@ -117,7 +117,7 @@ class EsDownload {
     }
 
     CompletableFuture<EsInstallation> extractAsync(File targetDir) {
-        CompletableFuture<EsInstallation> future = new CompletableFuture<EsInstallation>();
+        CompletableFuture<EsInstallation> future = new CompletableFuture<>();
 
         executorService.submit(() -> {
             try {

@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -88,8 +87,9 @@ class EsInstallation {
                 return;
             }
 
-            KeyStoreWrapper keyStoreWrapper = KeyStoreWrapper.create();
-            keyStoreWrapper.save(configPath.toPath(), new char[0]);
+            try (KeyStoreWrapper keyStoreWrapper = KeyStoreWrapper.create()) {
+                keyStoreWrapper.save(configPath.toPath(), new char[0]);
+            }
         } catch (Exception e) {
             throw new EsInstallationUnavailableException("Error while creating default key store", e);
         }
@@ -158,14 +158,7 @@ class EsInstallation {
             command.add("-Etransport.tcp.port=" + transportPort);
 
             for (String key : settings.keySet()) {
-                List<String> asList = settings.getAsList(key);
-
-                if (asList.size() == 1) {
-                    command.add("-E" + key + "=" + asList.get(0));
-                } else {
-                    command.add("-E" + key + "=" + asList.stream().collect(Collectors.joining(",")));
-                }
-
+                command.add("-E" + key + "=" + String.join(",", settings.getAsList(key)));
             }
 
             if (nodeSettings.masterNode && nodeSettings.dataNode) {
