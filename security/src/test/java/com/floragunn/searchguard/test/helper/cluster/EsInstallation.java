@@ -67,6 +67,9 @@ class EsInstallation {
             executorService.submit(() -> {
                 new BufferedReader(new InputStreamReader(process.getInputStream())).lines().forEach((l) -> result.append(l).append("\n"));
             });
+            executorService.submit(() -> {
+                new BufferedReader(new InputStreamReader(process.getErrorStream())).lines().forEach((l) -> result.append(l).append("\n"));
+            });
 
             int rc = process.waitFor();
 

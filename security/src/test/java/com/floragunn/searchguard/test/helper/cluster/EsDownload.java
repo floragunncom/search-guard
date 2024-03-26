@@ -27,7 +27,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
@@ -38,7 +40,13 @@ class EsDownload {
 
     private static final Map<String, EsDownload> instancesByVersion = Collections.synchronizedMap(new HashMap<>());
 
-    private static final ExecutorService executorService = Executors.newCachedThreadPool();
+    /**
+     * This thread pool is used for
+     * 
+     * - Extracting the archive (one thread plus two threads for log consumption = 3 threads per extraction)
+     * - Installing the Search Guard plugin
+     */
+    private static final ExecutorService executorService = new ThreadPoolExecutor(0, 12, 1, TimeUnit.MINUTES, new SynchronousQueue<>());
 
     static EsDownload get(String version) {
         return instancesByVersion.computeIfAbsent(version, (k) -> new EsDownload(version));
