@@ -215,13 +215,6 @@
     </dependency>
 
     <dependency>
-      <groupId>net.minidev</groupId>
-      <artifactId>json-smart</artifactId>
-      <version>2.5.1</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>dlic-search-guard-flx-dlsfls</artifactId>
       <scope>test</scope>
@@ -270,6 +263,13 @@
       <groupId>javax.servlet</groupId>
       <artifactId>servlet-api</artifactId>
       <version>2.5</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>net.minidev</groupId>
+      <artifactId>json-smart</artifactId>
+      <version>2.5.1</version>
       <scope>test</scope>
     </dependency>
 
