@@ -125,10 +125,11 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
                 Settings settings = joinedSettings(this.nodeSettingsSupplier.get(0), this.installedTestCertificates.getSgSettings(),
                         getMinimalEsSettings());
 
+                long startupTime = System.currentTimeMillis();
                 Process process = this.esInstallation.startProcess(httpPort, transportPort, nodeHomeDir, settings, nodeSettings);
 
                 try {
-                    new Node(nodeSettings, process, httpPort, transportPort, result, this);
+                    new Node(nodeSettings, process, httpPort, transportPort, result, this, startupTime);
                 } catch (Throwable t) {
                     process.destroyForcibly();
                     result.completeExceptionally(t);
@@ -180,11 +181,12 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
         private final InetSocketAddress httpAddress;
         private final String name;
         private final ExternalProcessEsCluster cluster;
+        private final long startupTime;
 
         private boolean ready = false;
 
         Node(NodeSettings nodeSettings, Process process, int httpPort, int transportPort, CompletableFuture<Node> onReady,
-                ExternalProcessEsCluster cluster) throws UnknownHostException {
+                ExternalProcessEsCluster cluster, long startupTime) throws UnknownHostException {
             this.nodeSettings = nodeSettings;
             this.name = nodeSettings.name;
             this.process = process;
@@ -192,6 +194,7 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
             this.transportAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), transportPort);
             this.httpAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), httpPort);
             this.cluster = cluster;
+            this.startupTime = startupTime;
 
             logConsumptionExecutorService.submit(() -> {
                 try {
@@ -371,6 +374,7 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
 
                                     if (response.getStatusCode() != 503) {
                                         this.ready = true;
+                                        log.info("Startup of {} completed after {} seconds", this, (System.currentTimeMillis() - startupTime) / 1000);
                                         this.completeFuture();
                                         return;
                                     }

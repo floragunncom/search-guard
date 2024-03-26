@@ -87,14 +87,18 @@ class EsDownload {
             try {
                 URL url = new URL("https://artifacts.elastic.co/downloads/elasticsearch/" + esArchive);
 
+                long start = System.currentTimeMillis();
+
                 try {
                     log.info("Downloading {}", url);
                     FileUtils.copyURLToFile(url, downloadFile);
+                    log.info("Downloading {} took {} seconds", url, (System.currentTimeMillis() - start) / 1000);
                     // Avoid weird issues with truncated archives:
                     try {
                         Thread.sleep(10);
                     } catch (InterruptedException e) {
                     }
+
                 } catch (IOException e) {
                     throw new EsInstallationUnavailableException("Error while downloading " + url, e);
                 }
@@ -125,14 +129,15 @@ class EsDownload {
 
         return future;
     }
-    
+
     private EsInstallation extract(File targetDir, int retry) throws EsInstallationUnavailableException {
         File releaseArchive = this.getReleaseArchive();
 
         targetDir.mkdirs();
 
         try {
-            log.info("Extracting " + releaseArchive + " to " + targetDir);
+            log.info("Extracting {} to {}", releaseArchive, targetDir);
+            long start = System.currentTimeMillis();
 
             Process process = Runtime.getRuntime().exec(
                     new String[] { "tar", "xfz", releaseArchive.getAbsolutePath(), "-C", targetDir.getAbsolutePath(), "--strip-components", "1" });
@@ -149,7 +154,7 @@ class EsDownload {
 
             if (rc != 0) {
                 log.error("Command failed with rc {}\n{}", rc, result);
-                
+
                 if (result.indexOf("Unexpected EOF in archive") != -1) {
                     if (retry <= 3) {
                         releaseArchive.delete();
@@ -158,9 +163,11 @@ class EsDownload {
                         throw new Exception("Invalid archive: Unexpected EOF");
                     }
                 } else {
-                    throw new Exception("Command failed with rc " + rc);                    
-                }                
+                    throw new Exception("Command failed with rc " + rc);
+                }
             }
+
+            log.info("Extracting {} took {} seconds", releaseArchive, (System.currentTimeMillis() - start) / 1000);
 
             return new EsInstallation(targetDir, esVersion, executorService);
         } catch (Exception e) {
