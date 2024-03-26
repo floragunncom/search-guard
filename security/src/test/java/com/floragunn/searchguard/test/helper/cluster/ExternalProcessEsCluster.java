@@ -31,6 +31,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import org.apache.commons.io.FileUtils;
@@ -50,10 +53,23 @@ import com.floragunn.searchguard.test.helper.cluster.EsDownload.EsInstallationUn
 public class ExternalProcessEsCluster extends LocalEsCluster {
     private static final Logger log = LogManager.getLogger(ExternalProcessEsCluster.class);
 
+    /**
+     * This thread pool provides threads for consuming logs from ES nodes. One node needs two threads, thus a cluster with 3 nodes needs 6 threads. 
+     * As we even could run several clusters in paralle, this executor service is unbounded.
+     * 
+     * Note: If there's a way to reduce the number of threads without performance impact that would be ofcourse cool. But it seems Java process interfaces 
+     * do not really support async io.
+     */
+    private static final ExecutorService logConsumptionExecutorService = Executors.newCachedThreadPool();
+
+    /**
+     * This thread pool is for more or less quick (less than 10 seconds) async actions.
+     */
+    private static final ExecutorService quickActionExecutorService = new ThreadPoolExecutor(0, 10, 5, TimeUnit.MINUTES, new SynchronousQueue<>());
+
     private boolean started;
     protected final File esDir;
     private EsInstallation esInstallation;
-    private static final ExecutorService executorService = Executors.newCachedThreadPool();
     private final List<Node> allNodes = new ArrayList<>();
     private final List<Node> masterNodes = new ArrayList<>();
     private final List<Node> dataNodes = new ArrayList<>();
@@ -92,7 +108,7 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
         this.installedTestCertificates = this.testCertificates.at(this.esInstallation.getConfigPath());
 
         this.started = true;
-        
+
         super.start();
     }
 
@@ -100,7 +116,7 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
     protected CompletableFuture<Node> startNode(NodeSettings nodeSettings, int httpPort, int transportPort) {
         CompletableFuture<Node> result = new CompletableFuture<>();
 
-        executorService.submit(() -> {
+        quickActionExecutorService.submit(() -> {
             try {
                 File nodeHomeDir = new File(clusterHomeDir, nodeSettings.name);
                 nodeHomeDir.mkdir();
@@ -112,7 +128,7 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
                 Process process = this.esInstallation.startProcess(httpPort, transportPort, nodeHomeDir, settings, nodeSettings);
 
                 try {
-                    new Node(nodeSettings, process, httpPort, transportPort, result, executorService, this);
+                    new Node(nodeSettings, process, httpPort, transportPort, result, this);
                 } catch (Throwable t) {
                     process.destroyForcibly();
                     result.completeExceptionally(t);
@@ -149,7 +165,7 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
     public String toString() {
         return "external_process_cluster" + this.allNodes;
     }
-    
+
     private String getEsVersion() {
         return org.elasticsearch.Version.CURRENT.toString();
     }
@@ -164,11 +180,11 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
         private final InetSocketAddress httpAddress;
         private final String name;
         private final ExternalProcessEsCluster cluster;
-        
+
         private boolean ready = false;
 
         Node(NodeSettings nodeSettings, Process process, int httpPort, int transportPort, CompletableFuture<Node> onReady,
-                ExecutorService executorService, ExternalProcessEsCluster cluster) throws UnknownHostException {
+                ExternalProcessEsCluster cluster) throws UnknownHostException {
             this.nodeSettings = nodeSettings;
             this.name = nodeSettings.name;
             this.process = process;
@@ -177,7 +193,7 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
             this.httpAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), httpPort);
             this.cluster = cluster;
 
-            executorService.submit(() -> {
+            logConsumptionExecutorService.submit(() -> {
                 try {
                     BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                     String line;
@@ -212,7 +228,7 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
                 }
             });
 
-            executorService.submit(() -> {
+            logConsumptionExecutorService.submit(() -> {
                 try {
                     BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
                     String line;
@@ -326,11 +342,11 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
 
         private void processLogLine(String line) {
             // Note: This runs on the log consumption thread. Be careful on what you are executing synchronously. If it blocks, you might also block the ES execution, which can lead to deadlocks.
-            
+
             if (!this.ready) {
                 if (nodeSettings.masterNode && cluster.testSgConfig != null
                         && line.contains(".searchguard index does not exist yet, use sgctl to initialize the cluster.")) {
-                    executorService.submit(() -> {
+                    quickActionExecutorService.submit(() -> {
                         log.info("Wating for components");
                         LocalCluster.waitForComponents(ImmutableSet.of("config_var_storage"), this);
                         log.info("Setting initial Search Guard configuration");
@@ -342,11 +358,10 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
                             this.completeFutureExceptionally(e);
                             this.stop();
                         }
- 
-                    });                    
-                } else if (line.contains("Search Guard configuration has been successfully initialized")) {
-                    executorService.submit(() -> {
 
+                    });
+                } else if (line.contains("Search Guard configuration has been successfully initialized")) {
+                    quickActionExecutorService.submit(() -> {
                         for (int i = 0; i < 10000; i++) {
                             try {
                                 Thread.sleep(10);
