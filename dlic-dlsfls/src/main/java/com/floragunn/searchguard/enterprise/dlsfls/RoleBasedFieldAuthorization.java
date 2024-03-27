@@ -56,11 +56,11 @@ public class RoleBasedFieldAuthorization
     protected FlsRule fullyRestricted() {
         return FlsRule.DENY_ALL;
     }
-    
+
     @Override
     protected FlsRule compile(PrivilegesEvaluationContext context, Collection<FlsRule> rules) throws PrivilegesEvaluationException {
         if (rules.isEmpty()) {
-            return FlsRule.ALLOW_ALL;
+            return FlsRule.DENY_ALL;
         } else {
             return FlsRule.merge(rules);
         }
@@ -120,15 +120,12 @@ public class RoleBasedFieldAuthorization
         public abstract boolean isAllowAll();
 
         static class SingleRole extends FlsRule {
-
-            //final Role sourceRole;
             final Role.Index sourceIndex;
             final ImmutableList<Role.Index.FlsPattern> patterns;
             final Map<String, Boolean> cache;
             final boolean allowAll;
 
-            SingleRole(/*Role sourceRole,*/ Role.Index sourceIndex) {
-                //this.sourceRole = sourceRole;
+            SingleRole(Role.Index sourceIndex) {
                 this.sourceIndex = sourceIndex;
 
                 int exclusions = 0;
@@ -169,7 +166,6 @@ public class RoleBasedFieldAuthorization
             public SingleRole(ImmutableList<Role.Index.FlsPattern> patterns) {
                 this.patterns = patterns;
                 this.sourceIndex = null;
-                // this.sourceRole = null;
                 this.allowAll = patterns.isEmpty()
                         || (patterns.size() == 1 && patterns.get(0).getPattern().isWildcard() && !patterns.get(0).isExcluded());
                 this.cache = null;
