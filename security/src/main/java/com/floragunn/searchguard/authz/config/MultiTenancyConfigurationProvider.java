@@ -18,6 +18,10 @@ public interface MultiTenancyConfigurationProvider {
 
     TenantAccessMapper getTenantAccessMapper();
 
+    boolean isGlobalTenantEnabled();
+
+    boolean isPrivateTenantEnabled();
+
     List<String> getPreferredTenants();
 
     MultiTenancyConfigurationProvider DEFAULT = new MultiTenancyConfigurationProvider() {
@@ -41,6 +45,16 @@ public interface MultiTenancyConfigurationProvider {
         @Override
         public TenantAccessMapper getTenantAccessMapper() {
             return TenantAccessMapper.NO_OP;
+        }
+
+        @Override
+        public boolean isGlobalTenantEnabled() {
+            return true;
+        }
+
+        @Override
+        public boolean isPrivateTenantEnabled() {
+            return false;
         }
 
         @Override

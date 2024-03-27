@@ -1,3 +1,16 @@
+/*
+ * Copyright 2023-2024 by floragunn GmbH - All rights reserved
+ *
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed here is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * This software is free of charge for non-commercial and academic use.
+ * For commercial use in a production environment you have to obtain a license
+ * from https://floragunn.com
+ *
+ */
 package com.floragunn.searchguard.enterprise.femt;
 
 import com.floragunn.codova.documents.DocNode;
@@ -37,10 +50,10 @@ import static org.hamcrest.Matchers.notNullValue;
 public class MultiTenancyMigrationTest {
 
     public static final String ID_DASHBOARD = "dashboard:20a2f580-c03e-11ee-9cfc-b76b5a069927__sg_ten__-152937574_admintenant";
-    public static final String ID_CASES = "cases-telemetry:cases-telemetry__sg_ten__-1216324346_sgsglobaltenant";
+    public static final String ID_CASES = "cases-telemetry:cases-telemetry";
     public static final String ID_SPACE = "space:20a2f580-c03e-11ee-9cfc-b76b5a069927__sg_ten__-152937574_admintenant";
     public static final String ID_ENDPOINT = "exception-list-agnostic:endpoint_list__sg_ten__-152937574_admintenant";
-    public static final String ID_INGEST = "ingest__sg_ten__-1216324346_sgsglobaltenant";
+    public static final String ID_INGEST = "ingest";
 
     private static final Logger log = LogManager.getLogger(MultiTenancyMigrationTest.class);
 
@@ -929,7 +942,7 @@ public class MultiTenancyMigrationTest {
             GetResponse documentResponse = client.get(new GetRequest(indexName, scopedId)).actionGet();
             assertThat(documentResponse.isExists(), equalTo(true));
             DocNode document = DocNode.wrap(documentResponse.getSource());
-            assertThat(document, containsValue("sg_tenant", "-1216324346_sgsglobaltenant"));
+            assertThat(document, not(containsFieldPointedByJsonPath("$", "sg_tenant")));
         }
     }
 
@@ -1032,7 +1045,7 @@ public class MultiTenancyMigrationTest {
             response = client.get(new GetRequest(indexName, ID_CASES)).actionGet();
             assertThat(response.isExists(), equalTo(true));
             document = DocNode.wrap(response.getSource());
-            assertThat(document, containsValue("sg_tenant", "-1216324346_sgsglobaltenant"));
+            assertThat(document, not(containsFieldPointedByJsonPath("$", "sg_tenant")));
 
             response = client.get(new GetRequest(indexName, ID_SPACE)).actionGet();
             assertThat(response.isExists(), equalTo(true));
@@ -1052,7 +1065,7 @@ public class MultiTenancyMigrationTest {
             response = client.get(new GetRequest(indexName, ID_INGEST)).actionGet();
             assertThat(response.isExists(), equalTo(true));
             document = DocNode.wrap(response.getSource());
-            assertThat(document, containsValue("sg_tenant", "-1216324346_sgsglobaltenant"));
+            assertThat(document, not(containsFieldPointedByJsonPath("$", "sg_tenant")));
         }
     }
 
@@ -1153,7 +1166,7 @@ public class MultiTenancyMigrationTest {
             response = client.get(new GetRequest(indexName, ID_CASES)).actionGet();
             assertThat(response.isExists(), equalTo(true));
             document = DocNode.wrap(response.getSource());
-            assertThat(document, containsValue("sg_tenant", "-1216324346_sgsglobaltenant"));
+            assertThat(document, not(containsFieldPointedByJsonPath("$", "sg_tenant")));
 
             response = client.get(new GetRequest(indexName, ID_SPACE)).actionGet();
             assertThat(response.isExists(), equalTo(true));
@@ -1173,7 +1186,7 @@ public class MultiTenancyMigrationTest {
             response = client.get(new GetRequest(indexName, ID_INGEST)).actionGet();
             assertThat(response.isExists(), equalTo(true));
             document = DocNode.wrap(response.getSource());
-            assertThat(document, containsValue("sg_tenant", "-1216324346_sgsglobaltenant"));
+            assertThat(document, not(containsFieldPointedByJsonPath("$", "sg_tenant")));
         }
     }
 

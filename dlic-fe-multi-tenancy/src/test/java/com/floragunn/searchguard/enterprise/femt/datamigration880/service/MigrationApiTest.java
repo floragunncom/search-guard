@@ -203,14 +203,13 @@ public class MigrationApiTest {
             log.info("First migration run response '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex();
-            String spaceId = null;
             Client nodeClient = cluster.getInternalNodeClient();
             FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(nodeClient));
             // remove data migration marker form the global index. First delete index and create new one and insert required data
             // this should cause backup index creation when the migration process is run 2nd time.
             environmentHelper.deleteIndex(GLOBAL_TENANT_INDEX.indexName());
             environmentHelper.createIndex(GLOBAL_TENANT_INDEX);
-            spaceId = catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "global_default").get(0);
+            String spaceId = catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "global_default").get(0);
 
             response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
 
@@ -224,8 +223,7 @@ public class MigrationApiTest {
                 log.debug("Backup indices created when migration process is run twice '{}'", indices);
             }
             assertThat(getIndexResponse.getIndices(), arrayWithSize(2));
-            String migratedSpaceId = spaceId + "__sg_ten__-1216324346_sgsglobaltenant";
-            String spaceSource = environmentHelper.getDocumentSource(GLOBAL_TENANT_INDEX.indexName(), migratedSpaceId).orElseThrow();
+            String spaceSource = environmentHelper.getDocumentSource(GLOBAL_TENANT_INDEX.indexName(), spaceId).orElseThrow();
             for (String backupIndex : getIndexResponse.getIndices()) {
                 environmentHelper.assertThatDocumentExists(backupIndex, spaceId);
                 String backupSource = environmentHelper.getDocumentSource(backupIndex, spaceId).orElseThrow();
@@ -322,7 +320,7 @@ public class MigrationApiTest {
 
     private void assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex() {
         assertThat(environmentHelper.countDocumentInIndex(GLOBAL_TENANT_INDEX.indexName()), equalTo(32L));
-        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:global_default__sg_ten__-1216324346_sgsglobaltenant");
+        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:global_default");
         environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__191795427_performancereviews");
         environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-738948632_performancereviews");
         environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-634608247_abcdef22");

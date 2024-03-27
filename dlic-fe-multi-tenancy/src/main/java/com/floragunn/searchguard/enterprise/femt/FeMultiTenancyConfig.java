@@ -38,7 +38,7 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
             FeMultiTenancyConfig.class, FeMultiTenancyConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
 
     public static final FeMultiTenancyConfig DEFAULT = new FeMultiTenancyConfig(null, false,
-            "kibanaserver", ".kibana", true, true, ImmutableList.empty());
+            "kibanaserver", ".kibana", true, ImmutableList.empty());
 
     private final DocNode source;
     private final boolean enabled;
@@ -47,17 +47,16 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
     private final boolean globalTenantEnabled;
     private final boolean privateTenantEnabled;
     private final List<String> preferredTenants;
-    // TODO
     private final MetricsLevel metricsLevel = MetricsLevel.DETAILED;
 
     FeMultiTenancyConfig(DocNode source, boolean enabled, String serverUsername, String index,
-                         boolean globalTenantEnabled, boolean privateTenantEnabled, List<String> preferredTenants) {
+                         boolean globalTenantEnabled, List<String> preferredTenants) {
         this.source = source;
         this.enabled = enabled;
         this.serverUsername = serverUsername;
         this.index = index;
         this.globalTenantEnabled = globalTenantEnabled;
-        this.privateTenantEnabled = privateTenantEnabled;
+        this.privateTenantEnabled = false;
         this.preferredTenants = preferredTenants;
     }
 
@@ -69,10 +68,10 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
         String index = vNode.get("index").withDefault(DEFAULT.getIndex()).asString();
         String serverUsername = vNode.get("server_user").withDefault(DEFAULT.getServerUsername()).asString();
         boolean globalTenantEnabled = vNode.get("global_tenant_enabled").withDefault(DEFAULT.isGlobalTenantEnabled()).asBoolean();
-        boolean privateTenantEnabled = vNode.get("private_tenant_enabled").withDefault(DEFAULT.isPrivateTenantEnabled()).asBoolean();
         List<String> preferredTenants = vNode.get("preferred_tenants").asList().withEmptyListAsDefault().ofStrings();
 
-        return new ValidationResult<>(new FeMultiTenancyConfig(docNode, enabled, serverUsername, index, globalTenantEnabled, privateTenantEnabled, preferredTenants), validationErrors);
+        vNode.checkForUnusedAttributes();
+        return new ValidationResult<>(new FeMultiTenancyConfig(docNode, enabled, serverUsername, index, globalTenantEnabled, preferredTenants), validationErrors);
     }
 
     public static FeMultiTenancyConfig parseLegacySgConfig(DocNode docNode, Parser.Context context) throws ConfigValidationException {
@@ -83,16 +82,20 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
         String index = vNode.get("dynamic.kibana.index").withDefault(DEFAULT.getIndex()).asString();
         String serverUsername = vNode.get("dynamic.kibana.server_username").withDefault(DEFAULT.getServerUsername()).asString();
         boolean globalTenantEnabled = vNode.get("dynamic.kibana.global_tenant_enabled").withDefault(DEFAULT.isGlobalTenantEnabled()).asBoolean();
-        boolean privateTenantEnabled = vNode.get("dynamic.kibana.private_tenant_enabled").withDefault(DEFAULT.isPrivateTenantEnabled()).asBoolean();
         List<String> preferredTenants = vNode.get("dynamic.kibana.preferred_tenants").asList().withEmptyListAsDefault().ofStrings();
 
+        vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
-        return new FeMultiTenancyConfig(null, enabled, serverUsername, index, globalTenantEnabled, privateTenantEnabled, preferredTenants);
+        return new FeMultiTenancyConfig(null, enabled, serverUsername, index, globalTenantEnabled, preferredTenants);
     }
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    public boolean isDisabled() {
+        return ! isEnabled();
     }
 
     public String getIndex() {
@@ -122,8 +125,7 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
         } else {
             return ImmutableMap.of(
                     "enabled", enabled, "index", index, "server_user", serverUsername,
-                    "global_tenant_enabled", globalTenantEnabled, "private_tenant_enabled", privateTenantEnabled,
-                    "preferred_tenants", preferredTenants
+                    "global_tenant_enabled", globalTenantEnabled, "preferred_tenants", preferredTenants
             );
         }
     }
@@ -132,8 +134,7 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
     public String toString() {
         return "FeMultiTenancyConfig [source=" + source + ", enabled=" + enabled +
                 ", index=" + index + ", serverUsername=" + serverUsername +
-                ", globalTenantEnabled=" + globalTenantEnabled + ", privateTenantEnabled=" + privateTenantEnabled +
-                ", preferredTenants=(" + String.join(", ", preferredTenants) + ")]";
+                ", globalTenantEnabled=" + globalTenantEnabled + ", preferredTenants=(" + String.join(", ", preferredTenants) + ")]";
     }
 
     @Override
@@ -146,6 +147,7 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
     }
 
     public FeMultiTenancyConfig withEnabled(boolean enabled) {
-        return new FeMultiTenancyConfig(source, enabled, serverUsername, index, globalTenantEnabled, privateTenantEnabled, preferredTenants);
+        DocNode updatedSources = source == null ? null : source.with("enabled", enabled);
+        return new FeMultiTenancyConfig(updatedSources, enabled, serverUsername, index, globalTenantEnabled, preferredTenants);
     }
 }
