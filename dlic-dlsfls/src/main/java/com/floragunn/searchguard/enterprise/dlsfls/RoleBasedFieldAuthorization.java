@@ -53,6 +53,11 @@ public class RoleBasedFieldAuthorization
     }
 
     @Override
+    protected FlsRule fullyRestricted() {
+        return FlsRule.DENY_ALL;
+    }
+    
+    @Override
     protected FlsRule compile(PrivilegesEvaluationContext context, Collection<FlsRule> rules) throws PrivilegesEvaluationException {
         if (rules.isEmpty()) {
             return FlsRule.ALLOW_ALL;

@@ -53,6 +53,12 @@ public class RoleBasedDocumentAuthorization extends RoleBasedAuthorizationBase<R
         return DlsRestriction.NONE;
     }
 
+
+    @Override
+    protected DlsRestriction fullyRestricted() {
+        return DlsRestriction.FULL;
+    }
+
     @Override
     protected DlsRestriction compile(PrivilegesEvaluationContext context, Collection<DlsQuery> rules) throws PrivilegesEvaluationException {
         ImmutableList.Builder<com.floragunn.searchsupport.queries.Query> renderedQueries = new ImmutableList.Builder<>(rules.size());
@@ -86,7 +92,7 @@ public class RoleBasedDocumentAuthorization extends RoleBasedAuthorizationBase<R
     public DlsRestriction.IndexMap getRestriction(PrivilegesEvaluationContext context, Collection<Meta.Index> indices, Meter meter)
             throws PrivilegesEvaluationException {
         try (Meter subMeter = meter.detail("evaluate_dls")) {
-            if (this.staticIndexQueries.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
+            if (this.staticIndexRules.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
                 return DlsRestriction.IndexMap.NONE;
             }
 

@@ -64,7 +64,13 @@ public class RoleBasedFieldMasking
     }
 
     @Override
-    protected FieldMaskingRule compile(PrivilegesEvaluationContext context, Collection<FieldMaskingRule.SingleRole> rules) throws PrivilegesEvaluationException {
+    protected FieldMaskingRule fullyRestricted() {
+        return FieldMaskingRule.MASK_ALL;
+    }
+
+    @Override
+    protected FieldMaskingRule compile(PrivilegesEvaluationContext context, Collection<FieldMaskingRule.SingleRole> rules)
+            throws PrivilegesEvaluationException {
         return new FieldMaskingRule.MultiRole(rules);
     }
 

@@ -20,6 +20,8 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -56,6 +58,7 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
+import com.floragunn.searchguard.authz.actions.ResolvedIndices;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
@@ -67,7 +70,9 @@ import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.meta.Meta;
 
 @RunWith(Suite.class)
-@Suite.SuiteClasses({ RoleBasedDocumentAuthorizationTest.IndicesAndAliases.class,  RoleBasedDocumentAuthorizationTest.DataStreams.class })
+@Suite.SuiteClasses({ RoleBasedDocumentAuthorizationTest.IndicesAndAliases_getRestriction.class,
+        RoleBasedDocumentAuthorizationTest.IndicesAndAliases_hasRestriction.class,
+        RoleBasedDocumentAuthorizationTest.DataStreams_getRestriction.class })
 public class RoleBasedDocumentAuthorizationTest {
 
     static NamedXContentRegistry xContentRegistry = new NamedXContentRegistry(
@@ -76,7 +81,7 @@ public class RoleBasedDocumentAuthorizationTest {
     static Parser.Context parserContext = new ConfigurationRepository.Context(null, null, null, xContentRegistry, null);
 
     @RunWith(Parameterized.class)
-    public static class IndicesAndAliases {
+    public static class IndicesAndAliases_getRestriction {
         final static Meta BASIC = indices("index_a1", "index_a2", "index_b1", "index_b2")//
                 .alias("alias_a").of("index_a1", "index_a2");
 
@@ -91,7 +96,7 @@ public class RoleBasedDocumentAuthorizationTest {
         final PrivilegesEvaluationContext context;
 
         @Test
-        public void getDlsRestriction_wildcard() throws Exception {
+        public void wildcard() throws Exception {
             SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
                     new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("*"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*"),
@@ -108,12 +113,15 @@ public class RoleBasedDocumentAuthorizationTest {
                 assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
             } else if (userSpec.roles.contains("dls_role_2")) {
                 assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r2")));
+            } else if (userSpec.roles.isEmpty()) {
+                assertThat(dlsRestriction, isFullyRestricted());
+            } else {
+                fail("Missing case for " + userSpec);
             }
-            // TODO no roles
         }
 
         @Test
-        public void getDlsRestriction_wildcard_negation() throws Exception {
+        public void wildcard_negation() throws Exception {
             SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
                     new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("*", "-index_b*"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*", "-index_a*"),
@@ -124,23 +132,25 @@ public class RoleBasedDocumentAuthorizationTest {
 
             if (userSpec.roles.contains("non_dls_role")) {
                 assertThat(dlsRestriction, isUnrestricted());
+            } else if (userSpec.roles.isEmpty()) {
+                assertThat(dlsRestriction, isFullyRestricted());
             } else if (index == index_a1 || index == index_a2) {
                 if (userSpec.roles.contains("dls_role_1")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
                 } else {
-                    assertThat(dlsRestriction, isUnrestricted());
+                    assertThat(dlsRestriction, isFullyRestricted());
                 }
             } else if (index == index_b1) {
                 if (userSpec.roles.contains("dls_role_2")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r2")));
                 } else {
-                    assertThat(dlsRestriction, isUnrestricted());
+                    assertThat(dlsRestriction, isFullyRestricted());
                 }
             }
         }
 
         @Test
-        public void getDlsRestriction_indexPattern() throws Exception {
+        public void indexPattern() throws Exception {
             SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
                     new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("index_a*"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_b*"),
@@ -151,24 +161,25 @@ public class RoleBasedDocumentAuthorizationTest {
 
             if (userSpec.roles.contains("non_dls_role")) {
                 assertThat(dlsRestriction, isUnrestricted());
+            } else if (userSpec.roles.isEmpty()) {
+                assertThat(dlsRestriction, isFullyRestricted());
             } else if (index == index_a1 || index == index_a2) {
                 if (userSpec.roles.contains("dls_role_1")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
                 } else {
-                    assertThat(dlsRestriction, isUnrestricted());
+                    assertThat(dlsRestriction, isFullyRestricted());
                 }
             } else if (index == index_b1) {
                 if (userSpec.roles.contains("dls_role_2")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r2")));
                 } else {
-                    assertThat(dlsRestriction, isUnrestricted());
+                    assertThat(dlsRestriction, isFullyRestricted());
                 }
             }
-            // TODO no roles
         }
 
         @Test
-        public void getDlsRestriction_indexPattern_negation() throws Exception {
+        public void indexPattern_negation() throws Exception {
             SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
                     new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("index_*",
                             "-index_b*"),
@@ -181,39 +192,42 @@ public class RoleBasedDocumentAuthorizationTest {
 
             if (userSpec.roles.contains("non_dls_role")) {
                 assertThat(dlsRestriction, isUnrestricted());
+            } else if (userSpec.roles.isEmpty()) {
+                assertThat(dlsRestriction, isFullyRestricted());
             } else if (index == index_a1 || index == index_a2) {
                 if (userSpec.roles.contains("dls_role_1")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
                 } else {
-                    assertThat(dlsRestriction, isUnrestricted());
+                    assertThat(dlsRestriction, isFullyRestricted());
                 }
             } else if (index == index_b1) {
                 if (userSpec.roles.contains("dls_role_2")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r2")));
                 } else {
-                    assertThat(dlsRestriction, isUnrestricted());
+                    assertThat(dlsRestriction, isFullyRestricted());
                 }
             }
-            // TODO no roles
         }
 
         @Test
-        public void getDlsRestriction_template() throws Exception {
+        public void template() throws Exception {
             SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
                     new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1"))
-                            .on("index_${user.attrs.attr_a}"),
+                            .on("index_${user.attrs.attr_a}1"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a*"),
-                    new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("index_${user.attrs.attr_a}"));
+                    new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("index_${user.attrs.attr_a}1"));
 
             RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
 
             try {
                 DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
-                if (userSpec.roles.contains("non_dls_role")) {
-                    assertThat(dlsRestriction, isUnrestricted());
+                if (userSpec.roles.isEmpty()) {
+                    assertThat(dlsRestriction, isFullyRestricted());
                 } else if (index == index_a1) {
-                    if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
+                    if (userSpec.roles.contains("non_dls_role")) {
+                        assertThat(dlsRestriction, isUnrestricted());
+                    } else if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
                         assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1"), termQuery("dept", "dept_r2")));
                     } else if (userSpec.roles.contains("dls_role_1")) {
                         assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
@@ -221,13 +235,15 @@ public class RoleBasedDocumentAuthorizationTest {
                         assertThat(dlsRestriction, isUnrestricted());
                     }
                 } else if (index == index_a2) {
-                    if (userSpec.roles.contains("dls_role_2")) {
+                    if (userSpec.roles.contains("non_dls_role")) {
+                        assertThat(dlsRestriction, isFullyRestricted());
+                    } else if (userSpec.roles.contains("dls_role_2")) {
                         assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r2")));
                     } else {
-                        assertThat(dlsRestriction, isUnrestricted());
+                        assertThat(dlsRestriction, isFullyRestricted());
                     }
                 } else if (index == index_b1) {
-                    assertThat(dlsRestriction, isUnrestricted());
+                    assertThat(dlsRestriction, isFullyRestricted());
                 }
             } catch (PrivilegesEvaluationException e) {
                 if ((userSpec.roles.contains("non_dls_role") || userSpec.roles.contains("dls_role_1"))
@@ -240,7 +256,7 @@ public class RoleBasedDocumentAuthorizationTest {
         }
 
         @Test
-        public void getDlsRestriction_alias_static() throws Exception {
+        public void alias_static() throws Exception {
             SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
                     new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("alias_a"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
@@ -249,16 +265,20 @@ public class RoleBasedDocumentAuthorizationTest {
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
-            if (userSpec.roles.contains("non_dls_role")) {
-                assertThat(dlsRestriction, isUnrestricted());
+            if (userSpec.roles.isEmpty()) {
+                assertThat(dlsRestriction, isFullyRestricted());
             } else if (index == index_a1) {
-                if (userSpec.roles.contains("dls_role_1")) {
+                if (userSpec.roles.contains("non_dls_role")) {
+                    assertThat(dlsRestriction, isUnrestricted());
+                } else if (userSpec.roles.contains("dls_role_1")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
                 } else {
                     assertThat(dlsRestriction, isUnrestricted());
                 }
             } else if (index == index_a2) {
-                if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
+                if (userSpec.roles.contains("non_dls_role")) {
+                    assertThat(dlsRestriction, isUnrestricted());
+                } else if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1"), termQuery("dept", "dept_r2")));
                 } else if (userSpec.roles.contains("dls_role_1")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
@@ -268,13 +288,12 @@ public class RoleBasedDocumentAuthorizationTest {
                     assertThat(dlsRestriction, isUnrestricted());
                 }
             } else if (index == index_b1) {
-                assertThat(dlsRestriction, isUnrestricted());
+                assertThat(dlsRestriction, isFullyRestricted());
             }
-            // TODO no roles
         }
 
         @Test
-        public void getDlsRestriction_alias_static_wildcardNonDls() throws Exception {
+        public void alias_static_wildcardNonDls() throws Exception {
             SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
                     new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("alias_a"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
@@ -283,16 +302,20 @@ public class RoleBasedDocumentAuthorizationTest {
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
-            if (userSpec.roles.contains("non_dls_role")) {
-                assertThat(dlsRestriction, isUnrestricted());
+            if (userSpec.roles.isEmpty()) {
+                assertThat(dlsRestriction, isFullyRestricted());
             } else if (index == index_a1) {
-                if (userSpec.roles.contains("dls_role_1")) {
+                if (userSpec.roles.contains("non_dls_role")) {
+                    assertThat(dlsRestriction, isUnrestricted());
+                } else if (userSpec.roles.contains("dls_role_1")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
                 } else {
                     assertThat(dlsRestriction, isUnrestricted());
                 }
             } else if (index == index_a2) {
-                if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
+                if (userSpec.roles.contains("non_dls_role")) {
+                    assertThat(dlsRestriction, isUnrestricted());
+                } else if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1"), termQuery("dept", "dept_r2")));
                 } else if (userSpec.roles.contains("dls_role_1")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
@@ -302,13 +325,12 @@ public class RoleBasedDocumentAuthorizationTest {
                     assertThat(dlsRestriction, isUnrestricted());
                 }
             } else if (index == index_b1) {
-                assertThat(dlsRestriction, isUnrestricted());
+                assertThat(dlsRestriction, isFullyRestricted());
             }
-            // TODO no roles
         }
 
         @Test
-        public void getDlsRestriction_alias_wildcard() throws Exception {
+        public void alias_wildcard() throws Exception {
             SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
                     new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("alias_a*"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
@@ -317,16 +339,20 @@ public class RoleBasedDocumentAuthorizationTest {
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
-            if (userSpec.roles.contains("non_dls_role")) {
-                assertThat(dlsRestriction, isUnrestricted());
+            if (userSpec.roles.isEmpty()) {
+                assertThat(dlsRestriction, isFullyRestricted());
             } else if (index == index_a1) {
-                if (userSpec.roles.contains("dls_role_1")) {
+                if (userSpec.roles.contains("non_dls_role")) {
+                    assertThat(dlsRestriction, isUnrestricted());
+                } else if (userSpec.roles.contains("dls_role_1")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
                 } else {
                     assertThat(dlsRestriction, isUnrestricted());
                 }
             } else if (index == index_a2) {
-                if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
+                if (userSpec.roles.contains("non_dls_role")) {
+                    assertThat(dlsRestriction, isUnrestricted());
+                } else if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1"), termQuery("dept", "dept_r2")));
                 } else if (userSpec.roles.contains("dls_role_1")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
@@ -336,9 +362,56 @@ public class RoleBasedDocumentAuthorizationTest {
                     assertThat(dlsRestriction, isUnrestricted());
                 }
             } else if (index == index_b1) {
-                assertThat(dlsRestriction, isUnrestricted());
+                assertThat(dlsRestriction, isFullyRestricted());
             }
-            // TODO no roles
+        }
+
+        @Test
+        public void alias_template() throws Exception {
+            SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
+                    new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1"))
+                            .on("alias_${user.attrs.attr_a}"),
+                    new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
+                    new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("alias_${user.attrs.attr_a}"));
+
+            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+
+            try {
+                DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
+
+                if (userSpec.roles.isEmpty()) {
+                    assertThat(dlsRestriction, isFullyRestricted());
+                } else if (index == index_a1) {
+                    if (userSpec.roles.contains("non_dls_role")) {
+                        assertThat(dlsRestriction, isUnrestricted());
+                    } else if (userSpec.roles.contains("dls_role_1")) {
+                        assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
+                    } else {
+                        fail("Unhandled case " + userSpec);
+                    }
+                } else if (index == index_a2) {
+                    if (userSpec.roles.contains("non_dls_role")) {
+                        assertThat(dlsRestriction, isUnrestricted());
+                    } else if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
+                        assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1"), termQuery("dept", "dept_r2")));
+                    } else if (userSpec.roles.contains("dls_role_1")) {
+                        assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
+                    } else if (userSpec.roles.contains("dls_role_2")) {
+                        assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r2")));
+                    } else {
+                        fail("Unhandled case " + userSpec);
+                    }
+                } else if (index == index_b1) {
+                    assertThat(dlsRestriction, isFullyRestricted());
+                }
+            } catch (PrivilegesEvaluationException e) {
+                if ((userSpec.roles.contains("non_dls_role") || userSpec.roles.contains("dls_role_1"))
+                        && !userSpec.attributes.containsKey("attr_a")) {
+                    assertThat(e.getCause(), is(instanceOf((ExpressionEvaluationException.class))));
+                } else {
+                    fail("Unexpected exception: " + e);
+                }
+            }
         }
 
         @Parameters(name = "{0}; {1}")
@@ -350,10 +423,10 @@ public class RoleBasedDocumentAuthorizationTest {
                     new UserSpec("dls_role_1", "dls_role_1"), //
                     new UserSpec("dls_role_1 and dls_role_2", "dls_role_1", "dls_role_2"), //
                     new UserSpec("dls_role_1 and non_dls_role", "dls_role_1", "non_dls_role"), //
-                    new UserSpec("non_dls_role, attributes", "non_dls_role").attribute("attr_a", "a1"), //
-                    new UserSpec("dls_role_1, attributes", "dls_role_1").attribute("attr_a", "a1"), //
-                    new UserSpec("dls_role_1 and dls_role_2, attributes", "dls_role_1", "dls_role_2").attribute("attr_a", "a1"), //
-                    new UserSpec("dls_role_1 and non_dls_role, attributes", "dls_role", "non_dls_role").attribute("attr_a", "a1"), //
+                    new UserSpec("non_dls_role, attributes", "non_dls_role").attribute("attr_a", "a"), //
+                    new UserSpec("dls_role_1, attributes", "dls_role_1").attribute("attr_a", "a"), //
+                    new UserSpec("dls_role_1 and dls_role_2, attributes", "dls_role_1", "dls_role_2").attribute("attr_a", "a"), //
+                    new UserSpec("dls_role_1 and non_dls_role, attributes", "dls_role", "non_dls_role").attribute("attr_a", "a"), //
                     new UserSpec("no roles")//
             )) {
                 for (IndexSpec indexSpec : Arrays.asList(//
@@ -366,7 +439,7 @@ public class RoleBasedDocumentAuthorizationTest {
             return result;
         }
 
-        public IndicesAndAliases(UserSpec userSpec, IndexSpec indexSpec) {
+        public IndicesAndAliases_getRestriction(UserSpec userSpec, IndexSpec indexSpec) {
             this.userSpec = userSpec;
             this.indexSpec = indexSpec;
             this.user = userSpec.buildUser();
@@ -375,9 +448,245 @@ public class RoleBasedDocumentAuthorizationTest {
         }
 
     }
-    
+
     @RunWith(Parameterized.class)
-    public static class DataStreams {
+    public static class IndicesAndAliases_hasRestriction {
+        final static Meta BASIC = indices("index_a1", "index_a2", "index_b1", "index_b2")//
+                .alias("alias_a").of("index_a1", "index_a2");
+
+        final static Meta.Index index_a1 = (Meta.Index) BASIC.getIndexOrLike("index_a1");
+        final static Meta.Index index_a2 = (Meta.Index) BASIC.getIndexOrLike("index_a2");
+        final static Meta.Index index_b1 = (Meta.Index) BASIC.getIndexOrLike("index_b1");
+        final static Meta.Alias alias_a = (Meta.Alias) BASIC.getIndexOrLike("alias_a");
+
+        final UserSpec userSpec;
+        final User user;
+        final IndicesSpec indicesSpec;
+        final ResolvedIndices resolvedIndices;
+        final PrivilegesEvaluationContext context;
+
+        @Test
+        public void wildcard() throws Exception {
+            SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
+                    new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("*"),
+                    new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*"),
+                    new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("*"));
+            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+
+            boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
+
+            if (userSpec.roles.contains("non_dls_role")) {
+                assertFalse(result);
+            } else {
+                assertTrue(result);
+            }
+        }
+
+        @Test
+        public void wildcard_negation() throws Exception {
+            SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
+                    new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("*", "-index_b*"),
+                    new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*", "-index_a*"),
+                    new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("*"));
+            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+
+            boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
+
+            if (userSpec.roles.contains("non_dls_role")) {
+                assertFalse(result);
+            } else {
+                assertTrue(result);
+            }
+        }
+
+        @Test
+        public void indexPattern() throws Exception {
+            SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
+                    new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("index_a*"),
+                    new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_b*"),
+                    new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("*"));
+            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+
+            boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
+
+            if (userSpec.roles.contains("non_dls_role")) {
+                assertFalse(result);
+            } else {
+                assertTrue(result);
+            }
+        }
+
+        @Test
+        public void indexPattern_negation() throws Exception {
+            SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
+                    new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("index_*",
+                            "-index_b*"),
+                    new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_*",
+                            "-index_a*"),
+                    new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("*"));
+            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+
+            boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
+
+            if (userSpec.roles.contains("non_dls_role")) {
+                assertFalse(result);
+            } else {
+                assertTrue(result);
+            }
+        }
+
+        @Test
+        public void template() throws Exception {
+            SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
+                    new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1"))
+                            .on("index_${user.attrs.attr_a}1"),
+                    new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a*"),
+                    new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("index_${user.attrs.attr_a}1"));
+
+            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+
+            try {
+                boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
+
+                if (userSpec.roles.contains("non_dls_role") && resolvedIndices.getLocal().getUnion().equals(ImmutableSet.of(index_a1))
+                        && userSpec.attributes.containsKey("attr_a")) {
+                    assertFalse(result);
+                } else {
+                    assertTrue(result);
+                }
+            } catch (PrivilegesEvaluationException e) {
+                if ((userSpec.roles.contains("non_dls_role") || userSpec.roles.contains("dls_role_1"))
+                        && !userSpec.attributes.containsKey("attr_a")) {
+                    assertThat(e.getCause(), is(instanceOf((ExpressionEvaluationException.class))));
+                } else {
+                    fail("Unexpected exception: " + e);
+                }
+            }
+        }
+
+        @Test
+        public void alias_static() throws Exception {
+            SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
+                    new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("alias_a"),
+                    new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
+                    new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("alias_a"));
+            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+
+            boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
+
+            if (userSpec.roles.contains("non_dls_role")
+                    && resolvedIndices.getLocal().getUnion().forAllApplies(i -> i instanceof Meta.Alias || !i.parentAliases().isEmpty())) {
+                assertFalse(result);
+            } else {
+                assertTrue(result);
+            }
+        }
+
+        @Test
+        public void alias_static_wildcardNonDls() throws Exception {
+            SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
+                    new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("alias_a"),
+                    new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
+                    new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("*"));
+            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+
+            boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
+
+            if (userSpec.roles.contains("non_dls_role") && resolvedIndices.getLocal().getUnion().forAllApplies(i -> !i.parentAliases().isEmpty())) {
+                assertFalse(result);
+            } else {
+                assertTrue(result);
+            }
+        }
+
+        @Test
+        public void alias_wildcard() throws Exception {
+            SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
+                    new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("alias_a*"),
+                    new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
+                    new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("alias_a*"));
+            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+
+            boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
+
+            if (userSpec.roles.contains("non_dls_role")
+                    && resolvedIndices.getLocal().getUnion().forAllApplies(i -> i == alias_a || i.parentAliases().contains(alias_a))) {
+                assertFalse(result);
+            } else {
+                assertTrue(result);
+            }
+        }
+
+        @Test
+        public void alias_template() throws Exception {
+            SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
+                    new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1"))
+                            .on("alias_${user.attrs.attr_a}"),
+                    new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
+                    new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("alias_${user.attrs.attr_a}"));
+
+            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+
+            try {
+                boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
+
+                if (userSpec.roles.contains("non_dls_role") && userSpec.attributes.containsKey("attr_a")
+                        && resolvedIndices.getLocal().getUnion().forAllApplies(i -> i == alias_a || i.parentAliases().contains(alias_a))) {
+                    assertFalse(result);
+                } else {
+                    assertTrue(result);
+                }
+            } catch (PrivilegesEvaluationException e) {
+                if ((userSpec.roles.contains("non_dls_role") || userSpec.roles.contains("dls_role_1"))
+                        && !userSpec.attributes.containsKey("attr_a")) {
+                    assertThat(e.getCause(), is(instanceOf((ExpressionEvaluationException.class))));
+                } else {
+                    fail("Unexpected exception: " + e);
+                }
+            }
+        }
+
+        @Parameters(name = "{0}; {1}")
+        public static Collection<Object[]> params() {
+            List<Object[]> result = new ArrayList<>();
+
+            for (UserSpec userSpec : Arrays.asList(//
+                    new UserSpec("non_dls_role", "non_dls_role"), //
+                    new UserSpec("dls_role_1", "dls_role_1"), //
+                    new UserSpec("dls_role_1 and dls_role_2", "dls_role_1", "dls_role_2"), //
+                    new UserSpec("dls_role_1 and non_dls_role", "dls_role_1", "non_dls_role"), //
+                    new UserSpec("non_dls_role, attributes", "non_dls_role").attribute("attr_a", "a"), //
+                    new UserSpec("dls_role_1, attributes", "dls_role_1").attribute("attr_a", "a"), //
+                    new UserSpec("dls_role_1 and dls_role_2, attributes", "dls_role_1", "dls_role_2").attribute("attr_a", "a"), //
+                    new UserSpec("dls_role_1 and non_dls_role, attributes", "dls_role", "non_dls_role").attribute("attr_a", "a"), //
+                    new UserSpec("no roles")//
+            )) {
+                for (IndicesSpec indicesSpec : Arrays.asList(//
+                        new IndicesSpec("index_a1"), //
+                        new IndicesSpec("index_a2"), //
+                        new IndicesSpec("index_b1"), //
+                        new IndicesSpec("alias_a"), //
+                        new IndicesSpec("index_a1", "index_a2"), //
+                        new IndicesSpec("index_a1", "index_b1"), //
+                        new IndicesSpec("alias_a", "index_b1"))) {
+                    result.add(new Object[] { userSpec, indicesSpec });
+                }
+            }
+            return result;
+        }
+
+        public IndicesAndAliases_hasRestriction(UserSpec userSpec, IndicesSpec indicesSpec) {
+            this.userSpec = userSpec;
+            this.indicesSpec = indicesSpec;
+            this.user = userSpec.buildUser();
+            this.resolvedIndices = ResolvedIndices.of(BASIC, indicesSpec.indices.toArray(new String[0]));
+            this.context = new PrivilegesEvaluationContext(this.user, ImmutableSet.of(userSpec.roles), null, null, true, null, null);
+        }
+
+    }
+
+    @RunWith(Parameterized.class)
+    public static class DataStreams_getRestriction {
         final static Meta BASIC = dataStream("datastream_a1").of(".ds-datastream_a1_backing_0001", ".ds-datastream_a1_backing_0002")//
                 .dataStream("datastream_a2").of(".ds-datastream_a2_backing_0001", ".ds-datastream_a2_backing_0002")//
                 .dataStream("datastream_b1").of(".ds-datastream_b1_backing_0001", ".ds-datastream_b1_backing_0002")//
@@ -395,7 +704,7 @@ public class RoleBasedDocumentAuthorizationTest {
         final PrivilegesEvaluationContext context;
 
         @Test
-        public void getDlsRestriction_wildcard() throws Exception {
+        public void wildcard() throws Exception {
             SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
                     new TestSgConfig.Role("dls_role_1").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("*"),
                     new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*"),
@@ -406,21 +715,26 @@ public class RoleBasedDocumentAuthorizationTest {
 
             if (userSpec.roles.contains("non_dls_role")) {
                 assertThat(dlsRestriction, isUnrestricted());
+            } else if (userSpec.roles.isEmpty()) {
+                assertThat(dlsRestriction, isFullyRestricted());
             } else if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
                 assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1"), termQuery("dept", "dept_r2")));
             } else if (userSpec.roles.contains("dls_role_1")) {
                 assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
             } else if (userSpec.roles.contains("dls_role_2")) {
                 assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r2")));
+            } else {
+                fail("Unhandled case " + userSpec);
             }
-            // TODO no roles
         }
-        
+
         @Test
-        public void getDlsRestriction_wildcard_negation() throws Exception {
+        public void wildcard_negation() throws Exception {
             SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
-                    new TestSgConfig.Role("dls_role_1").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("*", "-datastream_b*"),
-                    new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*", "-datastream_a*"),
+                    new TestSgConfig.Role("dls_role_1").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("*",
+                            "-datastream_b*"),
+                    new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*",
+                            "-datastream_a*"),
                     new TestSgConfig.Role("non_dls_role").dataStreamPermissions("*").on("*"));
             RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
 
@@ -428,24 +742,25 @@ public class RoleBasedDocumentAuthorizationTest {
 
             if (userSpec.roles.contains("non_dls_role")) {
                 assertThat(dlsRestriction, isUnrestricted());
+            } else if (userSpec.roles.isEmpty()) {
+                assertThat(dlsRestriction, isFullyRestricted());
             } else if (index == datastream_a1_backing || index == datastream_a2_backing) {
                 if (userSpec.roles.contains("dls_role_1")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
                 } else {
-                    assertThat(dlsRestriction, isUnrestricted());
+                    assertThat(dlsRestriction, isFullyRestricted());
                 }
             } else if (index == datastream_b1_backing) {
                 if (userSpec.roles.contains("dls_role_2")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r2")));
                 } else {
-                    assertThat(dlsRestriction, isUnrestricted());
+                    assertThat(dlsRestriction, isFullyRestricted());
                 }
             }
-            // TODO no roles
         }
-        
+
         @Test
-        public void getDlsRestriction_indexPattern() throws Exception {
+        public void indexPattern() throws Exception {
             SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
                     new TestSgConfig.Role("dls_role_1").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("datastream_a*"),
                     new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("datastream_b*"),
@@ -456,27 +771,30 @@ public class RoleBasedDocumentAuthorizationTest {
 
             if (userSpec.roles.contains("non_dls_role")) {
                 assertThat(dlsRestriction, isUnrestricted());
+            } else if (userSpec.roles.isEmpty()) {
+                assertThat(dlsRestriction, isFullyRestricted());
             } else if (index == datastream_a1_backing || index == datastream_a2_backing) {
                 if (userSpec.roles.contains("dls_role_1")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
                 } else {
-                    assertThat(dlsRestriction, isUnrestricted());
+                    assertThat(dlsRestriction, isFullyRestricted());
                 }
             } else if (index == datastream_b1_backing) {
                 if (userSpec.roles.contains("dls_role_2")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r2")));
                 } else {
-                    assertThat(dlsRestriction, isUnrestricted());
+                    assertThat(dlsRestriction, isFullyRestricted());
                 }
             }
-            // TODO no roles
         }
-                
+
         @Test
-        public void getDlsRestriction_indexPattern_negation() throws Exception {
+        public void indexPattern_negation() throws Exception {
             SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
-                    new TestSgConfig.Role("dls_role_1").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("datastream_*", "-datastream_b*"),
-                    new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("datastream_*", "-datastream_a*"),
+                    new TestSgConfig.Role("dls_role_1").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("datastream_*",
+                            "-datastream_b*"),
+                    new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("datastream_*",
+                            "-datastream_a*"),
                     new TestSgConfig.Role("non_dls_role").dataStreamPermissions("*").on("*"));
             RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
 
@@ -484,53 +802,56 @@ public class RoleBasedDocumentAuthorizationTest {
 
             if (userSpec.roles.contains("non_dls_role")) {
                 assertThat(dlsRestriction, isUnrestricted());
+            } else if (userSpec.roles.isEmpty()) {
+                assertThat(dlsRestriction, isFullyRestricted());
             } else if (index == datastream_a1_backing || index == datastream_a2_backing) {
                 if (userSpec.roles.contains("dls_role_1")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
                 } else {
-                    assertThat(dlsRestriction, isUnrestricted());
+                    assertThat(dlsRestriction, isFullyRestricted());
                 }
             } else if (index == datastream_b1_backing) {
                 if (userSpec.roles.contains("dls_role_2")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r2")));
                 } else {
-                    assertThat(dlsRestriction, isUnrestricted());
+                    assertThat(dlsRestriction, isFullyRestricted());
                 }
             }
-            // TODO no roles
         }
-        
+
         @Test
-        public void getDlsRestriction_template() throws Exception {
+        public void template() throws Exception {
             SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
                     new TestSgConfig.Role("dls_role_1").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1"))
-                            .on("datastream_${user.attrs.attr_a}"),
+                            .on("datastream_${user.attrs.attr_a}1"),
                     new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("datastream_a*"),
-                    new TestSgConfig.Role("non_dls_role").dataStreamPermissions("*").on("datastream_${user.attrs.attr_a}"));
+                    new TestSgConfig.Role("non_dls_role").dataStreamPermissions("*").on("datastream_${user.attrs.attr_a}1"));
 
             RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
 
             try {
                 DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
-                if (userSpec.roles.contains("non_dls_role")) {
-                    assertThat(dlsRestriction, isUnrestricted());
+                if (userSpec.roles.isEmpty()) {
+                    assertThat(dlsRestriction, isFullyRestricted());
                 } else if (index == datastream_a1_backing) {
-                    if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
+                    if (userSpec.roles.contains("non_dls_role")) {
+                        assertThat(dlsRestriction, isUnrestricted());
+                    } else if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
                         assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1"), termQuery("dept", "dept_r2")));
                     } else if (userSpec.roles.contains("dls_role_1")) {
                         assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
                     } else {
-                        assertThat(dlsRestriction, isUnrestricted());
+                        assertThat(dlsRestriction, isFullyRestricted());
                     }
                 } else if (index == datastream_a2_backing) {
                     if (userSpec.roles.contains("dls_role_2")) {
                         assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r2")));
                     } else {
-                        assertThat(dlsRestriction, isUnrestricted());
+                        assertThat(dlsRestriction, isFullyRestricted());
                     }
                 } else if (index == datastream_b1_backing) {
-                    assertThat(dlsRestriction, isUnrestricted());
+                    assertThat(dlsRestriction, isFullyRestricted());
                 }
             } catch (PrivilegesEvaluationException e) {
                 if ((userSpec.roles.contains("non_dls_role") || userSpec.roles.contains("dls_role_1"))
@@ -542,9 +863,8 @@ public class RoleBasedDocumentAuthorizationTest {
             }
         }
 
-
         @Test
-        public void getDlsRestriction_alias_static() throws Exception {
+        public void alias_static() throws Exception {
             SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
                     new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("alias_a"),
                     new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("datastream_a2"),
@@ -553,16 +873,20 @@ public class RoleBasedDocumentAuthorizationTest {
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
-            if (userSpec.roles.contains("non_dls_role")) {
-                assertThat(dlsRestriction, isUnrestricted());
+            if (userSpec.roles.isEmpty()) {
+                assertThat(dlsRestriction, isFullyRestricted());
             } else if (index == datastream_a1_backing) {
-                if (userSpec.roles.contains("dls_role_1")) {
+                if (userSpec.roles.contains("non_dls_role")) {
+                    assertThat(dlsRestriction, isUnrestricted());
+                } else if (userSpec.roles.contains("dls_role_1")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
                 } else {
                     assertThat(dlsRestriction, isUnrestricted());
                 }
             } else if (index == datastream_a2_backing) {
-                if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
+                if (userSpec.roles.contains("non_dls_role")) {
+                    assertThat(dlsRestriction, isUnrestricted());
+                } else if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1"), termQuery("dept", "dept_r2")));
                 } else if (userSpec.roles.contains("dls_role_1")) {
                     assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
@@ -572,13 +896,60 @@ public class RoleBasedDocumentAuthorizationTest {
                     assertThat(dlsRestriction, isUnrestricted());
                 }
             } else if (index == datastream_b1_backing) {
-                assertThat(dlsRestriction, isUnrestricted());
+                assertThat(dlsRestriction, isFullyRestricted());
             }
-            // TODO no roles
         }
-        
+
         @Test
-        public void getDlsRestriction_wildcardOnIndices() throws Exception {
+        public void alias_template() throws Exception {
+            SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
+                    new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1"))
+                            .on("alias_${user.attrs.attr_a}"),
+                    new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("datastream_a2"),
+                    new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("alias_${user.attrs.attr_a}"));
+
+            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+
+            try {
+                DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
+
+                if (userSpec.roles.isEmpty()) {
+                    assertThat(dlsRestriction, isFullyRestricted());
+                } else if (index == datastream_a1_backing) {
+                    if (userSpec.roles.contains("non_dls_role")) {
+                        assertThat(dlsRestriction, isUnrestricted());
+                    } else if (userSpec.roles.contains("dls_role_1")) {
+                        assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
+                    } else {
+                        fail("Unhandled case " + userSpec);
+                    }
+                } else if (index == datastream_a2_backing) {
+                    if (userSpec.roles.contains("non_dls_role")) {
+                        assertThat(dlsRestriction, isUnrestricted());
+                    } else if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
+                        assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1"), termQuery("dept", "dept_r2")));
+                    } else if (userSpec.roles.contains("dls_role_1")) {
+                        assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1")));
+                    } else if (userSpec.roles.contains("dls_role_2")) {
+                        assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r2")));
+                    } else {
+                        fail("Unhandled case " + userSpec);
+                    }
+                } else if (index == datastream_b1_backing) {
+                    assertThat(dlsRestriction, isFullyRestricted());
+                }
+            } catch (PrivilegesEvaluationException e) {
+                if ((userSpec.roles.contains("non_dls_role") || userSpec.roles.contains("dls_role_1"))
+                        && !userSpec.attributes.containsKey("attr_a")) {
+                    assertThat(e.getCause(), is(instanceOf((ExpressionEvaluationException.class))));
+                } else {
+                    fail("Unexpected exception: " + e);
+                }
+            }
+        }
+
+        @Test
+        public void wildcardOnIndices() throws Exception {
             SgDynamicConfiguration<Role> roleConfig = roleConfig(//                    
                     new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("*"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*"),
@@ -587,7 +958,9 @@ public class RoleBasedDocumentAuthorizationTest {
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
-            if (userSpec.roles.contains("non_dls_role")) {
+            if (userSpec.roles.isEmpty()) {
+                assertThat(dlsRestriction, isFullyRestricted());
+            } else if (userSpec.roles.contains("non_dls_role")) {
                 assertThat(dlsRestriction, isUnrestricted());
             } else if (userSpec.roles.contains("dls_role_1") && userSpec.roles.contains("dls_role_2")) {
                 assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r1"), termQuery("dept", "dept_r2")));
@@ -596,9 +969,7 @@ public class RoleBasedDocumentAuthorizationTest {
             } else if (userSpec.roles.contains("dls_role_2")) {
                 assertThat(dlsRestriction, isRestricted(termQuery("dept", "dept_r2")));
             }
-            // TODO no roles
         }
-
 
         @Parameters(name = "{0}; {1}")
         public static Collection<Object[]> params() {
@@ -609,10 +980,10 @@ public class RoleBasedDocumentAuthorizationTest {
                     new UserSpec("dls_role_1", "dls_role_1"), //
                     new UserSpec("dls_role_1 and dls_role_2", "dls_role_1", "dls_role_2"), //
                     new UserSpec("dls_role_1 and non_dls_role", "dls_role_1", "non_dls_role"), //
-                    new UserSpec("non_dls_role, attributes", "non_dls_role").attribute("attr_a", "a1"), //
-                    new UserSpec("dls_role_1, attributes", "dls_role_1").attribute("attr_a", "a1"), //
-                    new UserSpec("dls_role_1 and dls_role_2, attributes", "dls_role_1", "dls_role_2").attribute("attr_a", "a1"), //
-                    new UserSpec("dls_role_1 and non_dls_role, attributes", "dls_role", "non_dls_role").attribute("attr_a", "a1"), //
+                    new UserSpec("non_dls_role, attributes", "non_dls_role").attribute("attr_a", "a"), //
+                    new UserSpec("dls_role_1, attributes", "dls_role_1").attribute("attr_a", "a"), //
+                    new UserSpec("dls_role_1 and dls_role_2, attributes", "dls_role_1", "dls_role_2").attribute("attr_a", "a"), //
+                    new UserSpec("dls_role_1 and non_dls_role, attributes", "dls_role", "non_dls_role").attribute("attr_a", "a"), //
                     new UserSpec("no roles")//
             )) {
                 for (IndexSpec indexSpec : Arrays.asList(//
@@ -625,7 +996,7 @@ public class RoleBasedDocumentAuthorizationTest {
             return result;
         }
 
-        public DataStreams(UserSpec userSpec, IndexSpec indexSpec) {
+        public DataStreams_getRestriction(UserSpec userSpec, IndexSpec indexSpec) {
             this.userSpec = userSpec;
             this.indexSpec = indexSpec;
             this.user = userSpec.buildUser();
@@ -680,6 +1051,19 @@ public class RoleBasedDocumentAuthorizationTest {
         @Override
         public String toString() {
             return this.index;
+        }
+    }
+
+    public static class IndicesSpec {
+        final ImmutableList<String> indices;
+
+        IndicesSpec(String... indices) {
+            this.indices = ImmutableList.ofArray(indices);
+        }
+
+        @Override
+        public String toString() {
+            return this.indices.toString();
         }
     }
 
@@ -795,6 +1179,42 @@ public class RoleBasedDocumentAuthorizationTest {
             }
 
         };
+    }
+
+    static DiagnosingMatcher<DlsRestriction> isFullyRestricted() {
+        return new DiagnosingMatcher<DlsRestriction>() {
+
+            @Override
+            public void describeTo(Description description) {
+                description.appendText("A DlsRestriction object that has full restrictions");
+            }
+
+            @Override
+            protected boolean matches(Object item, Description mismatchDescription) {
+                if (!(item instanceof DlsRestriction)) {
+                    mismatchDescription.appendValue(item).appendText(" is not a DlsRestriction object");
+                    return false;
+                }
+
+                DlsRestriction dlsRestriction = (DlsRestriction) item;
+
+                if (dlsRestriction.getQueries().size() != 0) {
+                    for (com.floragunn.searchsupport.queries.Query query : dlsRestriction.getQueries()) {
+                        if (!query.getQueryBuilder().equals(com.floragunn.searchsupport.queries.Query.MATCH_NONE.getQueryBuilder())) {
+                            mismatchDescription.appendText("The DlsRestriction object is not fully restricted:").appendValue(dlsRestriction);
+                            return false;
+                        }
+                    }
+
+                    return true;
+                } else {
+                    mismatchDescription.appendText("The DlsRestriction object is not fully restricted:").appendValue(dlsRestriction);
+                    return false;
+                }
+            }
+
+        };
+
     }
 
     static BaseMatcher<QueryBuilder> termQuery(String field, Object value) {
