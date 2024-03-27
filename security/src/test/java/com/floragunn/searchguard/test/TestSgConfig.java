@@ -57,7 +57,9 @@ import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.documents.patch.MergePatch;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -65,6 +67,8 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
 import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction.Response;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
@@ -757,7 +761,7 @@ public class TestSgConfig {
         private List<IndexLikePermission> aliasPermissions = new ArrayList<>();
         private List<IndexLikePermission> dataStreamPermissions = new ArrayList<>();
 
-        private List<TenantPermission> tenantPermissions = new ArrayList<>();//tenant_permissions
+        private List<TenantPermission> tenantPermissions = new ArrayList<>();
 
         public Role(String name) {
             this.name = name;
@@ -844,6 +848,14 @@ public class TestSgConfig {
             return map;
         }
 
+        public com.floragunn.searchguard.authz.config.Role toActualRole() throws ConfigValidationException {
+            return toActualRole(new ConfigurationRepository.Context(null, null, null, null, null));
+        }
+
+        public com.floragunn.searchguard.authz.config.Role toActualRole(Parser.Context parserContext) throws ConfigValidationException {
+            return com.floragunn.searchguard.authz.config.Role.parse(DocNode.wrap(this.toDeepBasicObject()), parserContext).get();
+        }
+
         @Override
         public Object toBasicObject() {
             return ImmutableMap
@@ -851,6 +863,23 @@ public class TestSgConfig {
                             this.aliasPermissions, "data_stream_permissions", this.dataStreamPermissions)
                     .with(ImmutableMap.ofNonNull("tenant_permissions", this.tenantPermissions, "exclude_cluster_permissions",
                             this.excludedClusterPermissions, "exclude_index_permissions", this.excludedIndexPermissions));
+        }
+
+        public static SgDynamicConfiguration<com.floragunn.searchguard.authz.config.Role> toActualRole(Parser.Context parserContext,
+                TestSgConfig.Role... roles) throws ConfigValidationException {
+            Map<String, com.floragunn.searchguard.authz.config.Role> parsedRoles = new HashMap<>();
+
+            for (TestSgConfig.Role role : roles) {
+                parsedRoles.put(role.getName(),
+                        com.floragunn.searchguard.authz.config.Role.parse(DocNode.wrap(role.toDeepBasicObject()), parserContext).get());
+            }
+
+            return SgDynamicConfiguration.of(CType.ROLES, parsedRoles);
+        }
+
+        public static SgDynamicConfiguration<com.floragunn.searchguard.authz.config.Role> toActualRole(TestSgConfig.Role... roles)
+                throws ConfigValidationException {
+            return toActualRole(new ConfigurationRepository.Context(null, null, null, null, null), roles);
         }
 
     }
