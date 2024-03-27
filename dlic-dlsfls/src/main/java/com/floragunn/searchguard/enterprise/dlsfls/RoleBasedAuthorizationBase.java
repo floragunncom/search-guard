@@ -105,7 +105,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
             if (this.staticIndexRules.roleWithIndexWildcardToRule.keySet().containsAny(context.getMappedRoles())) {
                 return true;
             }
-            
+
             // The logic is here a bit tricky: For each index/alias/data stream we assume restrictions until we found an unrestricted role.
             // If we found an unrestricted role, we continue with the next index/alias/data stream. If we found a restricted role, we abort 
             // early and return true.
@@ -202,7 +202,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 return false;
             }
         }
-        
+
         if (!index.parentAliases().isEmpty()) {
             if (!hasRestrictions(context, statefulRules, index.parentAliases())) {
                 return false;
@@ -219,37 +219,38 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         return true;
     }
 
-    private boolean hasRestrictions(PrivilegesEvaluationContext context, StatefulRules<SingleRule> statefulRules, Collection<Meta.Alias> aliases) throws PrivilegesEvaluationException {
+    private boolean hasRestrictions(PrivilegesEvaluationContext context, StatefulRules<SingleRule> statefulRules, Collection<Meta.Alias> aliases)
+            throws PrivilegesEvaluationException {
         if (aliases.isEmpty()) {
             return true;
         }
-        
+
         if (this.staticAliasRules.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
-            return false;        
+            return false;
         }
-       
+
         for (Meta.Alias alias : aliases) {
             ImmutableSet<String> roleWithoutRule = statefulRules.alias.aliasToRoleWithoutRule.get(alias);
 
             if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
                 return false;
             }
-            
+
             if (this.staticAliasRules.hasUnrestrictedPatternTemplates(context, alias)) {
                 return false;
             }
         }
-        
+
         // If we found no roles without restriction, we assume a restriction
         return true;
     }
 
-    
-    private boolean hasRestrictions(PrivilegesEvaluationContext context, StatefulRules<SingleRule> statefulRules, Meta.DataStream dataStream) throws PrivilegesEvaluationException {
+    private boolean hasRestrictions(PrivilegesEvaluationContext context, StatefulRules<SingleRule> statefulRules, Meta.DataStream dataStream)
+            throws PrivilegesEvaluationException {
         if (this.staticDataStreamRules.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
-            return false;        
+            return false;
         }
-        
+
         {
             ImmutableSet<String> roleWithoutRule = statefulRules.dataStream.dataStreamToRoleWithoutRule.get(dataStream);
 
@@ -268,7 +269,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 return false;
             }
         }
-        
+
         // If we found no roles without restriction, we assume a restriction
         return true;
     }
@@ -591,18 +592,6 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                             } else {
                                 roleWithIndexWildcardToRule.put(roleName, singleRule);
                             }
-
-                            /*
-                            ImmutableList<Role.Index.FlsPattern> flsPatterns = rolePermissions.getFls();
-                            
-                            if (flsPatterns == null || flsPatterns.isEmpty()) {
-                                rolesWithIndexWildcardWithoutRule.add(roleName);
-                            } else {
-                                FlsRule flsRule = new FlsRule.SingleRole(role, rolePermissions);
-                                roleWithIndexWildcardToRule.put(roleName, flsRule);
-                            }
-                            */
-
                         } else {
                             for (Role.IndexPatterns.IndexPatternTemplate indexPatternTemplate : rolePermissions.getIndexPatterns()
                                     .getPatternTemplates()) {
@@ -613,22 +602,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                                 } else {
                                     rolesToIndexPatternTemplateToRule.get(roleName).put(indexPatternTemplate, singleRule);
                                 }
-
-                                /*
-                                ImmutableList<Role.Index.FlsPattern> flsPatterns = rolePermissions.getFls();
-                                
-                                if (flsPatterns == null || flsPatterns.isEmpty()) {
-                                    continue;
-                                }
-                                
-                                FlsRule flsRule = new FlsRule.SingleRole(role, rolePermissions);
-                                
-                                rolesToIndexPatternTemplateToRule.get(roleName).put(indexPatternTemplate, flsRule);
-                                */
                             }
-
                         }
-
                     }
                 } catch (Exception e) {
                     log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
@@ -678,13 +653,6 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                         }
                     }
                 }
-
-                if (!indexLike.parentAliases().isEmpty()) {
-
-                }
-
-                // TODO do i also have to check containing aliases or data streams?
-
             }
 
             // If we found no roles without restriction, we assume a restriction
@@ -763,16 +731,6 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                                     indexToRoleWithoutRule.get(index).add(roleName);
                                 }
                             }
-
-                            /*
-                            Template<Query> dlsQueryTemplate = indexPermissions.getDls();
-                            
-                            if (dlsQueryTemplate != null) {
-                                DlsQuery dlsConfig = new DlsQuery(dlsQueryTemplate);
-                            
-                            } else {
-                            
-                            }*/
                         }
 
                         for (Role.Index aliasPermissions : role.getAliasPermissions()) {
@@ -804,27 +762,6 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                                     });
                                 }
                             }
-
-                            /*
-                            Template<Query> dlsQueryTemplate = aliasPermissions.getDls();
-                            
-                            if (dlsQueryTemplate != null) {
-                                DlsQuery dlsConfig = new DlsQuery(dlsQueryTemplate);
-                            
-                                for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::name)) {
-                                    alias.resolveDeepAsIndex(Meta.Alias.ResolutionMode.NORMAL).forEach((index) -> {
-                                        // TODO this also puts data stream backing indices here in case we have a alias to a data stream
-                                        // CHECK
-                                        indexToRoleToQuery.get(index).put(roleName, dlsConfig);
-                                    });
-                                }
-                            } else {
-                                for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::name)) {
-                                    alias.resolveDeepAsIndex(Meta.Alias.ResolutionMode.NORMAL).forEach((index) -> {
-                                        indexToRoleWithoutQuery.get(index).add(roleName);
-                                    });
-                                }
-                            }*/
                         }
 
                     } catch (Exception e) {
@@ -1014,7 +951,6 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                                         if (member instanceof Meta.DataStream) {
                                             indexToRoleToQuery.get((Meta.DataStream) member).put(roleName, rule);
                                         }
-                                        // DataStreams are handled in the DataStream object
                                     });
                                 }
                             } else {
@@ -1023,11 +959,9 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                                         if (member instanceof Meta.DataStream) {
                                             indexToRoleWithoutQuery.get((Meta.DataStream) member).add(roleName);
                                         }
-                                        // DataStreams are handled in the DataStream object
                                     });
                                 }
                             }
-
                         }
 
                     } catch (Exception e) {
