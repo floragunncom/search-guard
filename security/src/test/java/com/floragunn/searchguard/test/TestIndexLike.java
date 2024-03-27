@@ -17,8 +17,13 @@
 
 package com.floragunn.searchguard.test;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
+
+import com.floragunn.codova.documents.DocNode;
 
 public interface TestIndexLike {
     String getName();
@@ -26,4 +31,79 @@ public interface TestIndexLike {
     Set<String> getDocumentIds();
 
     Map<String, Map<String, ?>> getDocuments();
+
+    default TestIndexLike.Filtered filteredBy(Predicate<DocNode> filter) {
+        return new Filtered(this, filter);
+    }
+
+    default TestIndexLike intersection(TestIndexLike other) {
+        if (other == this) {
+            return this;
+        }
+
+        if (!this.getName().equals(other.getName())) {
+            throw new IllegalArgumentException("Cannot intersect different indices: " + this + " vs " + other);
+        }
+
+        if (other instanceof TestIndexLike.Filtered) {
+            return ((TestIndexLike.Filtered) other).intersection(this);
+        }
+
+        return this;
+    }
+
+    public static class Filtered implements TestIndexLike {
+        final TestIndexLike testIndexLike;
+        final Predicate<DocNode> filter;
+        Map<String, Map<String, ?>> cachedDocuments;
+
+        Filtered(TestIndexLike testIndexLike, Predicate<DocNode> filter) {
+            this.testIndexLike = testIndexLike;
+            this.filter = filter;
+        }
+
+        @Override
+        public String getName() {
+            return testIndexLike + " [filtered]";
+        }
+
+        @Override
+        public Set<String> getDocumentIds() {
+            return getDocuments().keySet();
+        }
+
+        @Override
+        public Map<String, Map<String, ?>> getDocuments() {
+            Map<String, Map<String, ?>> result = this.cachedDocuments;
+
+            if (result == null) {
+                result = new HashMap<>();
+
+                for (Map.Entry<String, Map<String, ?>> entry : this.testIndexLike.getDocuments().entrySet()) {
+                    if (this.filter.test(DocNode.wrap(entry.getValue()))) {
+                        result.put(entry.getKey(), entry.getValue());
+                    }
+                }
+
+                this.cachedDocuments = Collections.unmodifiableMap(result);
+            }
+
+            return result;
+        }
+
+        @Override
+        public TestIndexLike intersection(TestIndexLike other) {
+            if (other == this) {
+                return this;
+            }
+
+            if (other instanceof Filtered) {
+                return new Filtered(this.testIndexLike, node -> this.filter.test(node) && ((Filtered) other).filter.test(node));
+            } else {
+                return this;
+            }
+        }
+
+    }
+
 }

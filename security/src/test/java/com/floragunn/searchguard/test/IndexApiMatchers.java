@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -308,13 +309,12 @@ public class IndexApiMatchers {
         @Override
         public IndexMatcher but(IndexMatcher other) {
             if (other instanceof LimitedToMatcher) {
-                return new ContainsExactlyMatcher(ImmutableMap.of(this.indexNameMap).intersection(((LimitedToMatcher) other).getExpectedIndices()), //
+                return new ContainsExactlyMatcher(intersection(this.indexNameMap, ((LimitedToMatcher) other).indexNameMap), //
                         this.containsSearchGuardIndices && other.containsSearchGuardIndices(), //
                         this.containsEsInternalIndices && other.containsEsInternalIndices(), //
                         this.jsonPath, this.statusCodeWhenEmpty);
             } else if (other instanceof ContainsExactlyMatcher) {
-                return new ContainsExactlyMatcher(
-                        ImmutableMap.of(this.indexNameMap).intersection(((ContainsExactlyMatcher) other).getExpectedIndices()), //
+                return new ContainsExactlyMatcher(intersection(this.indexNameMap, ((ContainsExactlyMatcher) other).indexNameMap), //
                         this.containsSearchGuardIndices && other.containsSearchGuardIndices(), //
                         this.containsEsInternalIndices && other.containsEsInternalIndices(), //
                         this.jsonPath, this.statusCodeWhenEmpty);
@@ -326,6 +326,24 @@ public class IndexApiMatchers {
             } else {
                 throw new RuntimeException("Unexpected argument " + other);
             }
+        }
+
+        private Map<String, TestIndexLike> intersection(Map<String, TestIndexLike> map1, Map<String, TestIndexLike> map2) {
+            Map<String, TestIndexLike> result = new HashMap<>();
+
+            for (Map.Entry<String, TestIndexLike> entry : map1.entrySet()) {
+                String key = entry.getKey();
+                TestIndexLike index1 = entry.getValue();
+                TestIndexLike index2 = map2.get(key);
+
+                if (index2 == null) {
+                    continue;
+                }
+
+                result.put(key, index1.intersection(index2));
+            }
+
+            return Collections.unmodifiableMap(result);
         }
 
         @Override
@@ -420,8 +438,8 @@ public class IndexApiMatchers {
                         this.jsonPath, this.statusCodeWhenEmpty);
             } else if (other instanceof ContainsExactlyMatcher) {
                 return new ContainsExactlyMatcher(
-                        ImmutableMap.of(this.indexNameMap).intersection(((ContainsExactlyMatcher) other).getExpectedIndices()), false, false, this.jsonPath,
-                        this.statusCodeWhenEmpty);
+                        ImmutableMap.of(this.indexNameMap).intersection(((ContainsExactlyMatcher) other).getExpectedIndices()), false, false,
+                        this.jsonPath, this.statusCodeWhenEmpty);
             } else if (other instanceof UnlimitedMatcher) {
                 return this;
             } else {
@@ -571,7 +589,7 @@ public class IndexApiMatchers {
         public boolean containsSearchGuardIndices() {
             return containsSearchGuardIndices;
         }
-        
+
         @Override
         public boolean containsEsInternalIndices() {
             return containsEsInternalIndices;
@@ -686,7 +704,7 @@ public class IndexApiMatchers {
         }
 
         boolean containsSearchGuardIndices();
-        
+
         boolean containsEsInternalIndices();
 
     }
@@ -799,7 +817,7 @@ public class IndexApiMatchers {
         public boolean containsSearchGuardIndices() {
             return containsSearchGuardIndices;
         }
-        
+
         @Override
         public boolean containsEsInternalIndices() {
             return containsEsInternalIndices;
