@@ -19,9 +19,9 @@ import static com.floragunn.searchsupport.meta.Meta.Mock.indices;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.fail;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -60,7 +60,6 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.actions.ResolvedIndices;
 import com.floragunn.searchguard.authz.config.Role;
-import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.test.TestSgConfig;
@@ -1007,13 +1006,7 @@ public class RoleBasedDocumentAuthorizationTest {
     }
 
     static SgDynamicConfiguration<Role> roleConfig(TestSgConfig.Role... roles) throws ConfigValidationException {
-        Map<String, Role> parsedRoles = new HashMap<>();
-
-        for (TestSgConfig.Role role : roles) {
-            parsedRoles.put(role.getName(), Role.parse(DocNode.wrap(role.toDeepBasicObject()), parserContext).get());
-        }
-
-        return SgDynamicConfiguration.of(CType.ROLES, parsedRoles);
+        return TestSgConfig.Role.toActualRole(parserContext, roles);
     }
 
     public static class UserSpec {
