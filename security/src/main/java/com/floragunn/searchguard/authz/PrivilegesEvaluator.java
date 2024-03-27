@@ -183,10 +183,10 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                         ? new ActionGroup.FlattenedIndex(configMap.get(CType.ACTIONGROUPS))
                         : ActionGroup.FlattenedIndex.EMPTY;
 
-                tenantManager = new TenantManager(tenants.getCEntries().keySet());
+                tenantManager = new TenantManager(tenants.getCEntries().keySet(), multiTenancyConfigurationProvider);
                 actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions,
                         clusterService.state().metadata().indices().keySet(), tenants.getCEntries().keySet(), adminOnlyIndices,
-                        authzConfig.getMetricsLevel());
+                        authzConfig.getMetricsLevel(), multiTenancyConfigurationProvider);
 
                 componentState.setConfigVersion(configMap.getVersionsAsString());
                 componentState.replacePart(actionAuthorization.getComponentState());

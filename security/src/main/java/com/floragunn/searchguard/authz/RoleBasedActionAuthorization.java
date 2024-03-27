@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -89,16 +90,17 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
     public RoleBasedActionAuthorization(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions,
             Set<String> indices, Set<String> tenants) {
-        this(roles, actionGroups, actions, indices, tenants, Pattern.blank(), MetricsLevel.NONE);
+        this(roles, actionGroups, actions, indices, tenants, Pattern.blank(), MetricsLevel.NONE, MultiTenancyConfigurationProvider.DEFAULT);
     }
 
     public RoleBasedActionAuthorization(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions,
-            Set<String> indices, Set<String> tenants, Pattern universallyDeniedIndices, MetricsLevel metricsLevel) {
+                                        Set<String> indices, Set<String> tenants, Pattern universallyDeniedIndices, MetricsLevel metricsLevel,
+                                        MultiTenancyConfigurationProvider multiTenancyConfigurationProvider) {
         this.roles = roles;
         this.actionGroups = actionGroups;
         this.actions = actions;
         this.metricsLevel = metricsLevel;
-        this.tenantManager = new TenantManager(tenants);
+        this.tenantManager = new TenantManager(tenants, multiTenancyConfigurationProvider);
 
         this.cluster = new ClusterPermissions(roles, actionGroups, actions, metricsLevel);
         this.clusterExclusions = new ClusterPermissionExclusions(roles, actionGroups, actions);

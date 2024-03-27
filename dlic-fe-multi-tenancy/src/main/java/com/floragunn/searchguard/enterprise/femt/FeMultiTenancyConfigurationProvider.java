@@ -48,6 +48,18 @@ public class FeMultiTenancyConfigurationProvider implements MultiTenancyConfigur
     }
 
     @Override
+    public boolean isGlobalTenantEnabled() {
+        return getConfig().map(FeMultiTenancyConfig::isGlobalTenantEnabled)
+                .orElse(true);
+    }
+
+    @Override
+    public boolean isPrivateTenantEnabled() {
+        return getConfig().map(FeMultiTenancyConfig::isPrivateTenantEnabled)
+                .orElse(false);
+    }
+
+    @Override
     public List<String> getPreferredTenants() {
         return getConfig().map(FeMultiTenancyConfig::getPreferredTenants)
                 .orElse(Collections.emptyList());

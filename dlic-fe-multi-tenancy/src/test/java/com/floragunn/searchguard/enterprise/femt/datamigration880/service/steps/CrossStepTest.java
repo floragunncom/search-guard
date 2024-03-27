@@ -101,7 +101,7 @@ public class CrossStepTest {
         // documents from global tenant index not included (~100 documents)
         String tempIndex = context.getTempIndexName();
         assertThat(environmentHelper.countDocumentInIndex(tempIndex), equalTo(3L));
-        environmentHelper.assertThatDocumentExists(tempIndex, "space:backup-1-tenant-space__sg_ten__-1216324346_sgsglobaltenant");
+        environmentHelper.assertThatDocumentExists(tempIndex, "space:backup-1-tenant-space");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:management-tenant-space__sg_ten__-1799980989_management");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
     }
@@ -142,7 +142,7 @@ public class CrossStepTest {
         // documents from global tenant index not included (~100 documents)
         String tempIndex = context.getTempIndexName();
         assertThat(environmentHelper.countDocumentInIndex(tempIndex), equalTo(3L));
-        environmentHelper.assertThatDocumentExists(tempIndex, "space:backup-2-tenant-space__sg_ten__-1216324346_sgsglobaltenant");
+        environmentHelper.assertThatDocumentExists(tempIndex, "space:backup-2-tenant-space");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:management-tenant-space__sg_ten__-1799980989_management");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
     }
@@ -184,7 +184,7 @@ public class CrossStepTest {
         // documents from global tenant index not included (~100 documents)
         String tempIndex = context.getTempIndexName();
         assertThat(environmentHelper.countDocumentInIndex(tempIndex), equalTo(3L));
-        environmentHelper.assertThatDocumentExists(tempIndex, "space:backup-3-tenant-space__sg_ten__-1216324346_sgsglobaltenant");
+        environmentHelper.assertThatDocumentExists(tempIndex, "space:backup-3-tenant-space");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:management-tenant-space__sg_ten__-1799980989_management");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
     }
@@ -227,7 +227,7 @@ public class CrossStepTest {
         // documents from global tenant index not included (~100 documents)
         String tempIndex = context.getTempIndexName();
         assertThat(environmentHelper.countDocumentInIndex(tempIndex), equalTo(3L));
-        environmentHelper.assertThatDocumentExists(tempIndex, "space:backup-4-tenant-space__sg_ten__-1216324346_sgsglobaltenant");
+        environmentHelper.assertThatDocumentExists(tempIndex, "space:backup-4-tenant-space");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:management-tenant-space__sg_ten__-1799980989_management");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
     }
@@ -270,7 +270,7 @@ public class CrossStepTest {
         assertThat(result.isSuccess(), equalTo(true));
         // documents from global tenant index not included (~100 documents)
         assertThat(environmentHelper.countDocumentInIndex(context.getTempIndexName()), equalTo(3L));
-        environmentHelper.assertThatDocumentExists(context.getTempIndexName(), "space:backup-5-tenant-space__sg_ten__-1216324346_sgsglobaltenant");
+        environmentHelper.assertThatDocumentExists(context.getTempIndexName(), "space:backup-5-tenant-space");
         environmentHelper.assertThatDocumentExists(context.getTempIndexName(), "space:management-tenant-space__sg_ten__-1799980989_management");
         environmentHelper.assertThatDocumentExists(context.getTempIndexName(), "space:kirk-tenant-space__sg_ten__3292183_kirk");
     }
@@ -343,7 +343,7 @@ public class CrossStepTest {
         // documents from global tenant index not included (~100 documents)
         assertThat(environmentHelper.countDocumentInIndex(context.getTempIndexName()), equalTo(3L));
         String tempIndex = context.getTempIndexName();
-        environmentHelper.assertThatDocumentExists(tempIndex, "space:backup-1-tenant-space__sg_ten__-1216324346_sgsglobaltenant");
+        environmentHelper.assertThatDocumentExists(tempIndex, "space:backup-1-tenant-space");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:management-tenant-space__sg_ten__-1799980989_management");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
     }
@@ -403,7 +403,7 @@ public class CrossStepTest {
         // documents from global tenant index not included (~100 documents)
         String tempIndex = context.getTempIndexName();
         assertThat(environmentHelper.countDocumentInIndex(tempIndex), equalTo(3L));
-        environmentHelper.assertThatDocumentExists(tempIndex, "space:should-be-moved-to-backup-space__sg_ten__-1216324346_sgsglobaltenant");
+        environmentHelper.assertThatDocumentExists(tempIndex, "space:should-be-moved-to-backup-space");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:management-tenant-space__sg_ten__-1799980989_management");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
     }

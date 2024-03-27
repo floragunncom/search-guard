@@ -14,8 +14,11 @@
 
 package com.floragunn.searchguard.enterprise.femt;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import co.elastic.clients.elasticsearch.core.MgetRequest;
 import co.elastic.clients.elasticsearch.core.MgetResponse;
@@ -26,13 +29,18 @@ import com.floragunn.searchguard.client.RestHighLevelClient;
 import com.google.common.collect.ImmutableList;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.searchguard.test.GenericRestClient;
@@ -42,7 +50,6 @@ import com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
@@ -53,6 +60,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 
 public class MultitenancyTests {
+
+    private static final Logger log = LogManager.getLogger(MultitenancyTests.class);
 
     private final static TestSgConfig.User USER_DEPT_01 = new TestSgConfig.User("user_dept_01").attr("dept_no", "01").roles("sg_tenant_user_attrs");
     private final static TestSgConfig.User USER_DEPT_02 = new TestSgConfig.User("user_dept_02").attr("dept_no", "02").roles("sg_tenant_user_attrs");
@@ -122,7 +131,7 @@ public class MultitenancyTests {
     @Test
     public void testMt_search() throws Exception {
 
-        try (GenericRestClient client = cluster.getRestClient("hr_employee", "hr_employee"); GenericRestClient adminClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+        try (GenericRestClient client = cluster.getRestClient("hr_employee", "hr_employee")) {
             String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
 
             GenericRestClient.HttpResponse response = client.putJson(".kibana/_doc/5.6.0?pretty", body, new BasicHeader("sgtenant", "blafasel"));
@@ -152,89 +161,76 @@ public class MultitenancyTests {
         }
     }
 
-    @Ignore
     @Test
-    public void testMtMulti() throws Exception {
-
+    public void shouldFilterTenantDocumentsDuringSearching() throws Exception {
         Client tc = cluster.getInternalNodeClient();
-        String body = "{" + "\"type\" : \"index-pattern\"," + "\"updated_at\" : \"2018-09-29T08:56:59.066Z\"," + "\"index-pattern\" : {"
-                + "\"title\" : \"humanresources\"" + "}}";
+        DocNode indexMappings = DocNode.of("_doc", DocNode.of("properties", DocNode.of("sg_tenant", DocNode.of("type", "keyword"))));
+        ImmutableMap<String, Integer> settings = ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0);
+        tc.admin().indices().create(new CreateIndexRequest(".kibana").settings(settings).mapping(indexMappings)).actionGet();
 
-        tc.admin().indices().create(
-                new CreateIndexRequest(".kibana").settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0)))
-                .actionGet();
+        DocNode body = DocNode.of("type", "custom-saved-object", "updated_at", "2018-09-29T08:56:59.066Z",
+                "details.title", "humanresources", "sg_tenant", "1592542611_humanresources");
+        tc.index(new IndexRequest(".kibana").id("custom:hr__sg_ten__1592542611_humanresources")
+                .setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body)).actionGet();
 
-        tc.index(new IndexRequest(".kibana").id("index-pattern:9fbbd1a0-c3c5-11e8-a13f-71b8ea5a4f7b__sg_ten__human_resources")
-                .setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON)).actionGet();
+        body = DocNode.of("type", "custom-saved-object", "updated_at", "2018-09-29T08:56:59.066Z","details.title", "global tenant");
+
+        tc.index(new IndexRequest(".kibana").id("custom-saved-object:global")
+            .setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body)).actionGet();
+
+        body = DocNode.of("query.term", ImmutableMap.of("type.keyword", "custom-saved-object"));
+        try (GenericRestClient client = cluster.getRestClient("admin", "admin", "SGS_GLOBAL_TENANT")) {
+            GenericRestClient.HttpResponse response = client.postJson(".kibana/_search/?pretty", body);
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.hits.total.value", 1));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.hits.hits[0]._id", "custom-saved-object:global"));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.hits.hits[0]._source.details.title", "global tenant"));
+        }
+
+        try (GenericRestClient client = cluster.getRestClient("hr_employee", "hr_employee", "human_resources")) {
+            GenericRestClient.HttpResponse response = client.postJson(".kibana/_search/?pretty", body);
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.hits.total.value", 1));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.hits.hits[0]._id", "custom:hr"));
+            assertThat(response.getBodyAsDocNode(), containsValue("$.hits.hits[0]._source.details.title", "humanresources"));
+        }
+    }
+
+    @Test
+    public void shouldChooseCorrectTenantDuringDocumentGet() throws Exception {
+        Client tc = cluster.getInternalNodeClient();
+        DocNode indexMappings = DocNode.of("_doc", DocNode.of("properties", DocNode.of("sg_tenant", DocNode.of("type", "keyword"))));
+        ImmutableMap<String, Integer> settings = ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0);
+        tc.admin().indices().create(new CreateIndexRequest(".kibana").settings(settings).mapping(indexMappings)).actionGet();
+
+        String body = "{" + "\"type\" : \"custom-saved-object\"," + "\"updated_at\" : \"2018-09-29T08:56:59.066Z\"," + "\"details\" : {"
+            + "\"title\" : \"humanresources\"}," + "\"sg_tenant\":\"1592542611_humanresources\"" + "}";
+        tc.index(new IndexRequest(".kibana").id("custom:hr__sg_ten__1592542611_humanresources")
+            .setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON)).actionGet();
+
+        body = "{" + "\"type\" : \"custom-saved-object\"," + "\"updated_at\" : \"2018-09-29T08:56:59.066Z\"," + "\"details\" : {"
+            + "\"title\" : \"global tenant\"" + "}}";
+        tc.index(new IndexRequest(".kibana").id("custom-saved-object:global")
+            .setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON)).actionGet();
 
         try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
+            BasicHeader header = new BasicHeader("sgtenant", "SGS_GLOBAL_TENANT");
+            GenericRestClient.HttpResponse response = client.get(".kibana/_doc/custom-saved-object:global?pretty", header);
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
-            //System.out.println("#### search");
-            GenericRestClient.HttpResponse res;
-            body = "{\"query\" : {\"term\" : { \"_id\" : \"index-pattern:9fbbd1a0-c3c5-11e8-a13f-71b8ea5a4f7b\"}}}";
-            Assert.assertEquals(HttpStatus.SC_OK,
-                    (res = client.postJson(".kibana/_search/?pretty", body, new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-            ////System.out.println(res.getBody());
-            Assert.assertFalse(res.getBody().contains("exception"));
-            Assert.assertTrue(res.getBody().contains("humanresources"));
-            Assert.assertTrue(res.getBody().contains("\"value\" : 1"));
-            Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));
+            assertThat(response.getBodyAsDocNode(), containsValue("$._source.details.title", "global tenant"));
+        }
 
-            //System.out.println("#### msearch");
-            body = "{\"index\":\".kibana\", \"ignore_unavailable\": false}" + System.lineSeparator()
-                    + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}" + System.lineSeparator();
+        try (GenericRestClient client = cluster.getRestClient("hr_employee", "hr_employee")) {
+            BasicHeader header = new BasicHeader("sgtenant", "human_resources");
+            GenericRestClient.HttpResponse response = client.get(".kibana/_doc/custom:hr?pretty", header);
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
-            Assert.assertEquals(HttpStatus.SC_OK,
-                    (res = client.postJson("_msearch/?pretty", body, new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-            ////System.out.println(res.getBody());
-            Assert.assertFalse(res.getBody().contains("exception"));
-            Assert.assertTrue(res.getBody().contains("humanresources"));
-            Assert.assertTrue(res.getBody().contains("\"value\" : 1"));
-            Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));
-
-            //System.out.println("#### get");
-            Assert.assertEquals(HttpStatus.SC_OK, (res = client.get(".kibana/_doc/index-pattern:9fbbd1a0-c3c5-11e8-a13f-71b8ea5a4f7b?pretty",
-                    new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-            ////System.out.println(res.getBody());
-            Assert.assertFalse(res.getBody().contains("exception"));
-            Assert.assertTrue(res.getBody().contains("humanresources"));
-            Assert.assertTrue(res.getBody().contains("\"found\" : true"));
-            Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));
-
-            //System.out.println("#### mget");
-            body = "{\"docs\" : [{\"_index\" : \".kibana\",\"_id\" : \"index-pattern:9fbbd1a0-c3c5-11e8-a13f-71b8ea5a4f7b\"}]}";
-            Assert.assertEquals(HttpStatus.SC_OK,
-                    (res = client.postJson("_mget/?pretty", body, new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-            ////System.out.println(res.getBody());
-            Assert.assertFalse(res.getBody().contains("exception"));
-            Assert.assertTrue(res.getBody().contains("humanresources"));
-            Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));
-
-            //System.out.println("#### index");
-            body = "{" + "\"type\" : \"index-pattern\"," + "\"updated_at\" : \"2017-09-29T08:56:59.066Z\"," + "\"index-pattern\" : {"
-                    + "\"title\" : \"xyz\"" + "}}";
-            Assert.assertEquals(HttpStatus.SC_CREATED,
-                    (res = client.putJson(".kibana/_doc/abc?pretty", body, new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-            ////System.out.println(res.getBody());
-            Assert.assertFalse(res.getBody().contains("exception"));
-            Assert.assertTrue(res.getBody().contains("\"result\" : \"created\""));
-            Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));
-
-            //System.out.println("#### bulk");
-            body = "{ \"index\" : { \"_index\" : \".kibana\", \"_id\" : \"b1\" } }" + System.lineSeparator() + "{ \"field1\" : \"value1\" }"
-                    + System.lineSeparator() + "{ \"index\" : { \"_index\" : \".kibana\",\"_id\" : \"b2\" } }" + System.lineSeparator()
-                    + "{ \"field2\" : \"value2\" }" + System.lineSeparator();
-
-            Assert.assertEquals(HttpStatus.SC_OK,
-                    (res = client.putJson("_bulk?pretty", body, new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-            ////System.out.println(res.getBody());
-            Assert.assertFalse(res.getBody().contains("exception"));
-            Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));
-            Assert.assertTrue(res.getBody().contains("\"errors\" : false"));
-            Assert.assertTrue(res.getBody().contains("\"result\" : \"created\""));
-
-            Assert.assertEquals(HttpStatus.SC_OK, (res = client.get("_cat/indices")).getStatusCode());
-            Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));            
+            assertThat(response.getBodyAsDocNode(), containsValue("$._source.details.title", "humanresources"));
         }
     }
 
@@ -285,10 +281,8 @@ public class MultitenancyTests {
             try (GenericRestClient client = cluster.getRestClient("kibanaro", "kibanaro")) {
 
                 GenericRestClient.HttpResponse res;
-                Assert.assertEquals(HttpStatus.SC_OK,
+                Assert.assertEquals(HttpStatus.SC_FORBIDDEN, //private tenants are not enabled
                         (res = client.get(".kibana/_doc/6.2.2?pretty", new BasicHeader("sgtenant", "__user__"))).getStatusCode());
-                Assert.assertTrue(res.getBody().contains(".kibana_1"));
-                Assert.assertTrue(res.getBody().contains("15460"));
             }
         } finally {
             try {
@@ -437,6 +431,12 @@ public class MultitenancyTests {
                 );
 
                 response = adminCertClient.putJson("/_searchguard/config/fe_multi_tenancy", config);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
+                assertThat(response.getBodyAsDocNode(), containsValue("error.details.private_tenant_enabled.[0].error", "Unsupported attribute"));
+
+                config = config.without("private_tenant_enabled");
+
+                response = adminCertClient.putJson("/_searchguard/config/fe_multi_tenancy", config);
                 assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
                 response = adminCertClient.get("/_searchguard/config/frontend_multi_tenancy");
@@ -447,7 +447,7 @@ public class MultitenancyTests {
                 assertThat(config, containsValue("$.content.index", "kibana_index"));
                 assertThat(config, containsValue("$.content.server_user", "kibana_user"));
                 assertThat(config, containsValue("$.content.global_tenant_enabled", true));
-                assertThat(config, containsValue("$.content.private_tenant_enabled", false));
+                assertThat(config, not(containsFieldPointedByJsonPath("$.content", "private_tenant_enabled")));
                 assertThat(config, docNodeSizeEqualTo("$.content.preferred_tenants", 1));
                 assertThat(config, containsValue("$.content.preferred_tenants[0]", "tenant-1"));
 
@@ -458,8 +458,7 @@ public class MultitenancyTests {
 
                 config = DocNode.of(
                         "enabled", true, "index", "kibana_index_v2", "server_user", "kibana_user_v2",
-                        "global_tenant_enabled", false, "private_tenant_enabled", true,
-                        "preferred_tenants", ImmutableList.of()
+                        "global_tenant_enabled", false, "preferred_tenants", ImmutableList.of()
                 );
 
                 response = adminCertClient.putJson("/_searchguard/config/frontend_multi_tenancy", config);
@@ -473,13 +472,12 @@ public class MultitenancyTests {
                 assertThat(config, containsValue("$.content.index", "kibana_index_v2"));
                 assertThat(config, containsValue("$.content.server_user", "kibana_user_v2"));
                 assertThat(config, containsValue("$.content.global_tenant_enabled", false));
-                assertThat(config, containsValue("$.content.private_tenant_enabled", true));
+                assertThat(config, not(containsFieldPointedByJsonPath("$.content", "private_tenant_enabled")));
                 assertThat(config, docNodeSizeEqualTo("$.content.preferred_tenants", 0));
 
                 response = userClient.get("/_searchguard/current_user/tenants");
-                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
-                assertThat(response.getBodyAsDocNode(), not(containsFieldPointedByJsonPath("$.data.tenants", Tenant.GLOBAL_TENANT_ID)));
-                assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$.data.tenants", USER_WITH_ACCESS_TO_GLOBAL_TENANT.getName()));
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_UNAUTHORIZED));
+                assertThat(response.getBodyAsDocNode(), containsValue("$.message", "Cannot determine default tenant for current user"));
 
                 config = DocNode.of(
                         "enabled", true, "global_tenant_enabled", true, "preferred_tenants",
@@ -496,7 +494,7 @@ public class MultitenancyTests {
                 assertThat(config, containsValue("$.content.index", "kibana_index_v2"));
                 assertThat(config, containsValue("$.content.server_user", "kibana_user_v2"));
                 assertThat(config, containsValue("$.content.global_tenant_enabled", true));
-                assertThat(config, containsValue("$.content.private_tenant_enabled", true));
+                assertThat(config, not(containsFieldPointedByJsonPath("$.content", "private_tenant_enabled")));
                 assertThat(config, docNodeSizeEqualTo("$.content.preferred_tenants", 1));
                 assertThat(config, containsValue("$.content.preferred_tenants[0]", "tenant-2"));
 
@@ -549,7 +547,7 @@ public class MultitenancyTests {
                 assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
                 assertThat(response.getBodyAsDocNode(),
                         containsValue("$.error.details.['frontend_multi_tenancy.default'].[0].error",
-                                "Cannot change the value of the 'enabled' flag to 'true'. This may result in data loss as there are some Kibana indexes. Please read the multi tenancy migration guide."
+                                "You try to enable multitenancy. This operation cannot be undone. Please use the 'sgctl.sh special enable-mt' command if you are sure that you want to proceed."
                         )
                 );
 
@@ -559,7 +557,7 @@ public class MultitenancyTests {
                 assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
                 assertThat(response.getBodyAsDocNode(),
                         containsValue("error.details._.[0].error",
-                                "Cannot change the value of the 'enabled' flag to 'true'. This may result in data loss as there are some Kibana indexes. Please read the multi tenancy migration guide."
+                                "You try to enable multitenancy. This operation cannot be undone. Please use the 'sgctl.sh special enable-mt' command if you are sure that you want to proceed."
                         )
                 );
 
@@ -584,7 +582,7 @@ public class MultitenancyTests {
                 assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_BAD_REQUEST));
                 assertThat(response.getBodyAsDocNode(),
                         containsValue("$.error.details.['frontend_multi_tenancy.default'].[0].error",
-                                "Cannot change the value of the 'enabled' flag to 'true'. This may result in data loss as there are some Kibana indexes. Please read the multi tenancy migration guide."
+                                "You try to enable multitenancy. This operation cannot be undone. Please use the 'sgctl.sh special enable-mt' command if you are sure that you want to proceed."
                         )
                 );
 
@@ -596,6 +594,81 @@ public class MultitenancyTests {
                 response = adminCertClient.putJson("/_searchguard/config", bulkBody);
                 assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
+                return null;
+            });
+        }
+    }
+
+    @Test
+    public void shouldExtendsMappingsWhenMultiTenancyIsEnabled() throws Exception {
+        try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient()) {
+            cluster.callAndRestoreConfig(FeMultiTenancyConfig.TYPE, () -> {
+                GenericRestClient.HttpResponse response = adminCertClient.get("/_searchguard/config/fe_multi_tenancy");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                Client client = cluster.getInternalNodeClient();
+                List<String> indices = Arrays
+                    .asList(".kibana", ".kibana_analytics", ".kibana_ingest", ".kibana_security_solution", ".kibana_alerting_cases");
+                // disable MT
+                DocNode config = DocNode.of("enabled", false);
+                response = adminCertClient.putJson("/_searchguard/config/fe_multi_tenancy", config);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                // create all frontend indices
+                for(String indexName : indices) {
+                    response = adminCertClient.put("/" + indexName);
+                    assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                }
+
+                // enable MT
+                response = adminCertClient.put("/_searchguard/config/fe_multi_tenancy/activation");
+
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                GetMappingsRequest request = new GetMappingsRequest().indices(indices.toArray(String[]::new));
+                GetMappingsResponse mappingsResponse = client.admin().indices().getMappings(request).actionGet();
+                Map<String, MappingMetadata> mappings = mappingsResponse.getMappings();
+                long numberOfIndicesWithExtendedMappings = indices.stream() //
+                    .map(indexName -> mappings.get(indexName)) //
+                    .filter(Objects::nonNull) //
+                    .map(metadata -> metadata.sourceAsMap()) //
+                    .map(mappingsMap -> (Map<String, Object>) mappingsMap.get("properties")) //
+                    .filter(Objects::nonNull) //
+                    .map(mappingProperties -> (Map<String, Object>) mappingProperties.get("sg_tenant")) //
+                    .filter(Objects::nonNull) //
+                    .map(fieldMappings -> fieldMappings.get("type")) //
+                    .filter(fieldType -> "keyword".equals(fieldType)) //
+                    .count();
+                assertThat(numberOfIndicesWithExtendedMappings, equalTo((long)indices.size()));
+                return null;
+            });
+        }
+    }
+
+    @Test
+    public void shouldEnableMultitenancy() throws Exception {
+        try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient()) {
+            cluster.callAndRestoreConfig(FeMultiTenancyConfig.TYPE, () -> {
+                // disable MT
+                DocNode config = DocNode.of("enabled", false);
+                GenericRestClient.HttpResponse response = adminCertClient.putJson("/_searchguard/config/fe_multi_tenancy", config);
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                response = adminCertClient.get("/_searchguard/config/fe_multi_tenancy");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                assertThat(response.getBodyAsDocNode(), containsValue("$.content.enabled", false));
+                List<String> indices = Arrays
+                    .asList(".kibana", ".kibana_analytics", ".kibana_ingest", ".kibana_security_solution", ".kibana_alerting_cases");
+                // create all frontend indices
+                for(String indexName : indices) {
+                    response = adminCertClient.put("/" + indexName);
+                    assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                }
+
+                // enable MT
+                response = adminCertClient.put("/_searchguard/config/fe_multi_tenancy/activation");
+
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                response = adminCertClient.get("/_searchguard/config/fe_multi_tenancy");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                assertThat(response.getBodyAsDocNode(), containsValue("$.content.enabled", true));
                 return null;
             });
         }

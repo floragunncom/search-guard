@@ -19,13 +19,13 @@ import com.floragunn.codova.documents.Format;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.TenantManager;
+import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.junit.matcher.DocNodeMatchers;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
@@ -95,7 +95,7 @@ public class MultiTenancyRequestMappingTest {
     private static final TestSgConfig.User LIMITED_USER = new TestSgConfig.User("limited_user")
         .roles("SGS_KIBANA_USER_NO_GLOBAL_TENANT", LIMITED_ROLE.getName());
 
-    private final TenantManager tenantManager = new TenantManager(ImmutableSet.of(HR_TENANT.getName()));
+    private final TenantManager tenantManager = new TenantManager(ImmutableSet.of(HR_TENANT.getName()), MultiTenancyConfigurationProvider.DEFAULT);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled()
