@@ -59,7 +59,7 @@ veracode_sandbox_scan:
       APP_VERSION_SUFFIX="$(date "+%Y-%m-%d_%H:%M:%S")"
       case "$CI_PIPELINE_SOURCE" in
           "schedule")
-              SANDBOX_NAME="night-build"
+              SANDBOX_NAME="schedule"
               APP_VERSION_PREFIX="$SANDBOX_NAME-ci-build-$CI_PIPELINE_ID"
               ;;
           "merge_request_event")
