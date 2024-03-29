@@ -31,6 +31,7 @@ import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
+import org.mockito.Mockito;
 
 public class PrivilegesInterceptorImplTest {
 
@@ -38,8 +39,8 @@ public class PrivilegesInterceptorImplTest {
             SgDynamicConfiguration.empty(CType.ACTIONGROUPS));
     private static final Actions actions = new Actions(null);
 
-    private static final ClusterService clusterService = null;
-    public static final IndicesService indicesService = null;
+    private static final ClusterService clusterService = Mockito.mock(ClusterService.class);
+    public static final IndicesService indicesService = Mockito.mock(IndicesService.class);
 
     @Test
     public void wildcardTenantMapping() throws Exception {
