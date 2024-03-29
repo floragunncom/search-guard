@@ -298,9 +298,10 @@ public class SearchGuardFilter implements ActionFilter {
             PrivilegesEvaluationContext privilegesEvaluationContext = new PrivilegesEvaluationContext(user, mappedRoles, action, request,
                     eval.isDebugEnabled(), this.actionRequestIntrospector, specialPrivilegesEvaluationContext);
             PrivilegesEvaluationResult privilegesEvaluationResult = eval.evaluate(user, mappedRoles, actionName, request, task,
-                    privilegesEvaluationContext, specialPrivilegesEvaluationContext);
-
-            if (privilegesEvaluationResult.isOk()) {
+                    privilegesEvaluationContext, specialPrivilegesEvaluationContext, listener);
+            if(privilegesEvaluationResult == PrivilegesEvaluationResult.INTERCEPTED) {
+                return;
+            } else if (privilegesEvaluationResult.isOk()) {
                 auditLog.logGrantedPrivileges(actionName, request, task);
                 // save username fo later use on current node
                 // XXX is this used anywhere?

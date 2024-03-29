@@ -38,6 +38,7 @@ import static com.floragunn.searchguard.enterprise.femt.TenantAccessMatcher.Acti
 import static com.floragunn.searchguard.enterprise.femt.TenantAccessMatcher.Action.UPDATE_INDEX;
 import static com.floragunn.searchguard.enterprise.femt.TenantAccessMatcher.canPerformFollowingActions;
 import static com.floragunn.searchguard.legacy.test.AbstractSGUnitTest.encodeBasicHeader;
+import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
@@ -82,10 +83,20 @@ public class MultitenancyTests {
     private final static TestSgConfig.User HR_USER_READ_WRITE = new TestSgConfig.User("hr_user_read_write").roles("hr_tenant_read_write_access");
     public static final String TENANT_WRITABLE = Boolean.toString(true);
     public static final String TENANT_NOT_WRITABLE = Boolean.toString(false);
+    public static final TestSgConfig.Role TEST_ROLE =new TestSgConfig.Role("test_role")
+            .clusterPermissions("SGS_CLUSTER_ALL")
+            .indexPermissions("SGS_READ").on("*")
+            .tenantPermission("SGS_KIBANA_ALL_READ").on("test_tenant");
+    public final static TestSgConfig.User READ_ONLY_TENANT = new TestSgConfig
+            .User("test_user").password("test_user").roles("SGS_KIBANA_USER", "test_role");
+    public static final TestSgConfig.Tenant TENANT = new TestSgConfig.Tenant("test_tenant");
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("multitenancy").enterpriseModulesEnabled()
-            .users(USER_DEPT_01, USER_DEPT_02, HR_USER_READ_ONLY, HR_USER_READ_WRITE).build();
+            .users(USER_DEPT_01, USER_DEPT_02, HR_USER_READ_ONLY, HR_USER_READ_WRITE, READ_ONLY_TENANT)
+            .roles(TEST_ROLE)
+            .tenants(TENANT)
+            .build();
 
     @Test
     public void testMt() throws Exception {
@@ -199,7 +210,7 @@ public class MultitenancyTests {
             Assert.assertTrue(res.getBody().contains("\"result\" : \"created\""));
 
             Assert.assertEquals(HttpStatus.SC_OK, (res = client.get("_cat/indices")).getStatusCode());
-            Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));            
+            Assert.assertTrue(res.getBody().contains(".kibana_92668751_admin"));
         }
     }
 
@@ -426,6 +437,20 @@ public class MultitenancyTests {
             assertAdminCanCreateTenantIndex(restClient, tenant);
             assertTenantWriteable(restClient, tenant, TENANT_NOT_WRITABLE);
             assertThat(restClient, canPerformFollowingActions(EnumSet.noneOf(Action.class)));
+        }
+    }
+
+    @Test
+    public void shouldHavePermissionToLegacyUriAliasUpdate() throws Exception {
+        BasicHeader basicHeader = new BasicHeader("sgtenant", "test_tenant");
+
+        try (GenericRestClient restClient = cluster.getRestClient(READ_ONLY_TENANT, basicHeader)) {
+            String body = """
+                    {"update":{"_id":"legacy-url-alias:default:dashboard:8aee3c30-732f-11ee-9463-735e937661a5","_index":".kibana_8.7.2","_source":true}}
+                    {"script":{"source":"\\n            if (ctx._source[params.type].disabled != true) {\\n              if (ctx._source[params.type].resolveCounter == null) {\\n                ctx._source[params.type].resolveCounter = 1;\\n              }\\n              else {\\n                ctx._source[params.type].resolveCounter += 1;\\n              }\\n              ctx._source[params.type].lastResolved = params.time;\\n              ctx._source.updated_at = params.time;\\n            }\\n          ","lang":"painless","params":{"type":"legacy-url-alias","time":"2024-02-27T15:46:14.031Z"}}}
+                    """;
+            GenericRestClient.HttpResponse response = restClient.postJson("/.kibana_8.7.2/_bulk", body);
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
         }
     }
 

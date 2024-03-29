@@ -586,6 +586,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return this;
         }
 
+        public Builder tenants(TestSgConfig.Tenant... tenants) {
+            testSgConfig.tenants(tenants);
+            return this;
+        }
+
         public Builder roleToRoleMapping(Role role, String... backendRoles) {
             testSgConfig.roleToRoleMapping(role, backendRoles);
             return this;

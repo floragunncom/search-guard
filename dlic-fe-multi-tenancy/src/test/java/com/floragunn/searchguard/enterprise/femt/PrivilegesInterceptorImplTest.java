@@ -16,6 +16,8 @@ package com.floragunn.searchguard.enterprise.femt;
 
 import java.util.Arrays;
 
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.indices.IndicesService;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -36,6 +38,9 @@ public class PrivilegesInterceptorImplTest {
             SgDynamicConfiguration.empty(CType.ACTIONGROUPS));
     private static final Actions actions = new Actions(null);
 
+    private static final ClusterService clusterService = null;
+    public static final IndicesService indicesService = null;
+
     @Test
     public void wildcardTenantMapping() throws Exception {
         SgDynamicConfiguration<Role> roles = SgDynamicConfiguration
@@ -49,7 +54,7 @@ public class PrivilegesInterceptorImplTest {
         ImmutableSet<String> tenants = ImmutableSet.of("my_tenant", "test");
 
         RoleBasedActionAuthorization actionAuthorization = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, tenants);
-        PrivilegesInterceptorImpl subject = new PrivilegesInterceptorImpl(FeMultiTenancyConfig.DEFAULT, tenants, actions);
+        PrivilegesInterceptorImpl subject = new PrivilegesInterceptorImpl(FeMultiTenancyConfig.DEFAULT, tenants, actions, clusterService, indicesService);
 
         User user = User.forUser("test").searchGuardRoles("all_access").build();
 
