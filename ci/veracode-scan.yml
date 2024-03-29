@@ -8,7 +8,7 @@
     - veracode_build
   variables:
     APP_NAME: "Search Guard FLX 7"   
-    DOCKER_VERACODE: "veracode/api-wrapper-java:latest" 
+    DOCKER_VERACODE: "veracode/api-wrapper-java:23.8.12.0.1" 
   image: ${DOCKER_VERACODE}
   before_script:
     - export JAVA_CMD="java -jar /opt/veracode/api-wrapper.jar
