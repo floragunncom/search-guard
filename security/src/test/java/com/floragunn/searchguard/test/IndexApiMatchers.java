@@ -17,10 +17,12 @@
 
 package com.floragunn.searchguard.test;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -852,7 +854,7 @@ public class IndexApiMatchers {
 
         @Override
         public IndexMatcher aggregateTerm(String term) {
-            return new TermAggregationMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, this);
+            return new TermAggregationMatcher(term, indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, this);
         }
 
     }
@@ -860,10 +862,12 @@ public class IndexApiMatchers {
     static class TermAggregationMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
         private IndexMatcher base;
+        private final String term;
         
-        public TermAggregationMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices,
+        public TermAggregationMatcher(String term, Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices,
                 boolean containsEsInternalIndices, AbstractIndexMatcher base) {
             super(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices);
+            this.term = term;
             this.base = base;
         }
 
@@ -875,6 +879,19 @@ public class IndexApiMatchers {
         @Override
         protected boolean matchesImpl(Collection<?> collection, Description mismatchDescription, GenericRestClient.HttpResponse response) {
 
+            HashMap<String, List<String>> aggregatedDocIds = new HashMap<>();
+            
+            for (TestIndexLike indexLike : indexNameMap.values()) {
+                for (Map.Entry<String, Map<String, ?>> entry : indexLike.getDocuments().entrySet()) {
+                    String id = entry.getKey();
+                    Map<String, ?> doc = entry.getValue();
+                    String termValue = String.valueOf(doc.get(term));                    
+                    aggregatedDocIds.computeIfAbsent(termValue, k -> new ArrayList<>()).add(id);
+                }
+            }
+            
+            
+            
             boolean checkDocs = false;
 
             // Flatten the collection
