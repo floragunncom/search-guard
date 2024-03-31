@@ -501,8 +501,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 actionRequestInfo.getMainResolvedIndices(), action.scope());
 
         if (!actionRequestInfo.getAdditionalResolvedIndices().isEmpty()) {
-            for (Map.Entry<Action.AdditionalDimension, ResolvedIndices> entry : actionRequestInfo
-                    .getAdditionalResolvedIndices().entrySet()) {
+            for (Map.Entry<Action.AdditionalDimension, ResolvedIndices> entry : actionRequestInfo.getAdditionalResolvedIndices().entrySet()) {
                 ImmutableSet<Action> additionalIndexPermissions = entry.getKey().getRequiredPrivileges(allIndexPermsRequired, actions);
 
                 PrivilegesEvaluationResult subResult = actionAuthorization.hasIndexPermission(context, action, additionalIndexPermissions,
@@ -718,7 +717,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         // this does not really matter        
         ImmutableSet<String> mappedRoles = this.authorizationService.getMappedRoles(user, caller);
         String requestedTenant = getRequestedTenant(user);
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, null, null, authzConfig.isDebugEnabled(),
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, false, mappedRoles, null, null, authzConfig.isDebugEnabled(),
                 actionRequestIntrospector, null);
 
         Map<String, Boolean> result = new HashMap<>();
@@ -809,7 +808,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         Action action = this.actions.get(actionName);
 
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, action, null, authzConfig.isDebugEnabled(),
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, false, mappedRoles, action, null, authzConfig.isDebugEnabled(),
                 actionRequestIntrospector, specialPrivilegesEvaluationContext);
 
         PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasClusterPermission(context, action);
@@ -841,7 +840,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             actionAuthorization = specialPrivilegesEvaluationContext.getActionAuthorization();
         }
 
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, mappedRoles, null, null, authzConfig.isDebugEnabled(),
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, false, mappedRoles, null, null, authzConfig.isDebugEnabled(),
                 actionRequestIntrospector, null);
 
         for (String permission : permissions) {

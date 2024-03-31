@@ -443,7 +443,7 @@ public class RoleBasedDocumentAuthorizationTest {
             this.indexSpec = indexSpec;
             this.user = userSpec.buildUser();
             this.index = (Meta.Index) BASIC.getIndexOrLike(indexSpec.index);
-            this.context = new PrivilegesEvaluationContext(this.user, ImmutableSet.of(userSpec.roles), null, null, true, null, null);
+            this.context = new PrivilegesEvaluationContext(this.user, false, ImmutableSet.of(userSpec.roles), null, null, true, null, null);
         }
 
     }
@@ -679,7 +679,7 @@ public class RoleBasedDocumentAuthorizationTest {
             this.indicesSpec = indicesSpec;
             this.user = userSpec.buildUser();
             this.resolvedIndices = ResolvedIndices.of(BASIC, indicesSpec.indices.toArray(new String[0]));
-            this.context = new PrivilegesEvaluationContext(this.user, ImmutableSet.of(userSpec.roles), null, null, true, null, null);
+            this.context = new PrivilegesEvaluationContext(this.user, false, ImmutableSet.of(userSpec.roles), null, null, true, null, null);
         }
 
     }
@@ -1000,7 +1000,7 @@ public class RoleBasedDocumentAuthorizationTest {
             this.indexSpec = indexSpec;
             this.user = userSpec.buildUser();
             this.index = (Meta.Index) BASIC.getIndexOrLike(indexSpec.index);
-            this.context = new PrivilegesEvaluationContext(this.user, ImmutableSet.of(userSpec.roles), null, null, true, null, null);
+            this.context = new PrivilegesEvaluationContext(this.user, false, ImmutableSet.of(userSpec.roles), null, null, true, null, null);
         }
 
     }

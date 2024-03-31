@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -197,11 +196,19 @@ public class IndexApiMatchers {
 
         protected boolean matchesByDocs(Collection<?> collection, Description mismatchDescription, GenericRestClient.HttpResponse response) {
             Set<String> pendingDocuments = this.getExpectedDocuments();
+            ImmutableSet.Builder<String> seenSearchGuardIndicesBuilder = new ImmutableSet.Builder<String>();
 
             for (Object object : collection) {
-
                 DocNode docNode = DocNode.wrap(object);
-                TestIndexLike index = indexNameMap.get(docNode.getAsString("_index"));
+                String indexName = docNode.getAsString("_index");
+                
+                if (containsSearchGuardIndices && (indexName.startsWith(".searchguard") || indexName.equals("searchguard"))) {
+                    seenSearchGuardIndicesBuilder.add(indexName);   
+                    continue;
+                }
+                
+                
+                TestIndexLike index = indexNameMap.get(indexName);
 
                 if (index == null) {
                     mismatchDescription.appendText("result contains unknown index: ").appendValue(docNode.getAsString("_index"))
@@ -233,6 +240,11 @@ public class IndexApiMatchers {
 
             if (!pendingDocuments.isEmpty()) {
                 mismatchDescription.appendText("result does not contain expected documents: ").appendValue(pendingDocuments);
+                return false;
+            }
+            
+            if (containsSearchGuardIndices && seenSearchGuardIndicesBuilder.size() == 0) {
+                mismatchDescription.appendText("result does not contain expected .searchguard index");
                 return false;
             }
 
@@ -599,6 +611,11 @@ public class IndexApiMatchers {
         public int size() {
             throw new IllegalStateException("The UnlimitedMatcher cannot specify a size");
         }
+
+        @Override
+        public IndexMatcher aggregateTerm(String term) {
+            return null;
+        }
     }
 
     public static class StatusCodeMatcher extends DiagnosingMatcher<Object> implements IndexMatcher {
@@ -681,6 +698,12 @@ public class IndexApiMatchers {
         public boolean containsEsInternalIndices() {
             return true;
         }
+        
+        @Override
+        public IndexMatcher aggregateTerm(String term) {
+            return null;
+        }
+
 
     }
 
@@ -693,6 +716,8 @@ public class IndexApiMatchers {
 
         IndexMatcher whenEmpty(int statusCode);
 
+        IndexMatcher aggregateTerm(String term);
+        
         boolean isEmpty();
 
         int size();
@@ -758,6 +783,8 @@ public class IndexApiMatchers {
                     mismatchDescription.appendText("Unable to parse body: ").appendValue(e.getMessage());
                     return false;
                 }
+            } else if (item instanceof DocNode) {
+                item = ((DocNode) item).toDeepBasicObject();
             }
 
             if (jsonPath != null) {
@@ -795,7 +822,7 @@ public class IndexApiMatchers {
             if (!unmatched.isEmpty()) {
                 return new StatusCodeMatcher(statusCode);
             } else {
-                return this;
+                return this.but(other);
             }
         }
 
@@ -823,7 +850,101 @@ public class IndexApiMatchers {
             return containsEsInternalIndices;
         }
 
+        @Override
+        public IndexMatcher aggregateTerm(String term) {
+            return new TermAggregationMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, this);
+        }
+
     }
+    
+    static class TermAggregationMatcher extends AbstractIndexMatcher implements IndexMatcher {
+
+        private IndexMatcher base;
+        
+        public TermAggregationMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices,
+                boolean containsEsInternalIndices, AbstractIndexMatcher base) {
+            super(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices);
+            this.base = base;
+        }
+
+        @Override
+        public void describeTo(Description description) {
+            base.describeTo(description);
+        }
+
+        @Override
+        protected boolean matchesImpl(Collection<?> collection, Description mismatchDescription, GenericRestClient.HttpResponse response) {
+
+            boolean checkDocs = false;
+
+            // Flatten the collection
+            collection = collection.stream().flatMap(e -> e instanceof Collection ? ((Collection<?>) e).stream() : Stream.of(e))
+                    .collect(Collectors.toSet());
+
+            for (Object object : collection) {
+                if (object instanceof String) {
+                    checkDocs = false;
+                    break;
+                } else if (object instanceof Map && ((Map<?, ?>) object).containsKey("_index")) {
+                    checkDocs = true;
+                    break;
+                } else {
+                    mismatchDescription.appendText("unexpected value ").appendValue(collection);
+                    return false;
+                }
+            }
+            
+            /*
+    TODO
+            if (checkDocs) {
+                return matchesByDocs(collection, mismatchDescription, response);
+            } else {
+                return matchesByIndices(collection, mismatchDescription, response);
+            }
+            */
+            return false;
+        }
+
+
+        private Set<String> getExpectedDocuments() {
+            Set<String> pendingDocuments = new HashSet<>();
+
+            for (Map.Entry<String, TestIndexLike> entry : indexNameMap.entrySet()) {
+                for (String id : entry.getValue().getDocumentIds()) {
+                    pendingDocuments.add(entry.getKey() + "/" + id);
+                }
+            }
+
+            return pendingDocuments;
+        }
+
+        private ImmutableSet<String> getExpectedIndices() {
+            return ImmutableSet.of(indexNameMap.keySet());
+        }
+
+        @Override
+        public IndexMatcher but(IndexMatcher other) {
+            base = base.but(other);
+            return this;
+        }
+
+        @Override
+        public boolean isCoveredBy(IndexMatcher other) {
+            return base.isCoveredBy(other);
+        }
+
+        @Override
+        public IndexMatcher at(String jsonPath) {
+            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCodeWhenEmpty);
+        }
+
+        @Override
+        public IndexMatcher whenEmpty(int statusCode) {
+            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCode);
+        }
+
+    }
+
 
     private static String formatResponse(GenericRestClient.HttpResponse response) {
         if (response == null) {

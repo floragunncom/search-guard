@@ -295,7 +295,7 @@ public class SearchGuardFilter implements ActionFilter {
             }
 
             ImmutableSet<String> mappedRoles = this.authorizationService.getMappedRoles(user, specialPrivilegesEvaluationContext);
-            PrivilegesEvaluationContext privilegesEvaluationContext = new PrivilegesEvaluationContext(user, mappedRoles, action, request,
+            PrivilegesEvaluationContext privilegesEvaluationContext = new PrivilegesEvaluationContext(user, false, mappedRoles, action, request,
                     eval.isDebugEnabled(), this.actionRequestIntrospector, specialPrivilegesEvaluationContext);
             PrivilegesEvaluationResult privilegesEvaluationResult = eval.evaluate(user, mappedRoles, actionName, request, task,
                     privilegesEvaluationContext, specialPrivilegesEvaluationContext);

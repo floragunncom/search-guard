@@ -985,7 +985,7 @@ public class RoleBasedActionAuthorizationTests {
     }
 
     private static PrivilegesEvaluationContext ctx(User user, String... roles) {
-        return new PrivilegesEvaluationContext(user, ImmutableSet.ofArray(roles), null, roles, true, null, null);
+        return new PrivilegesEvaluationContext(user, false, ImmutableSet.ofArray(roles), null, roles, true, null, null);
     }
 
     static class IndexSpec {
