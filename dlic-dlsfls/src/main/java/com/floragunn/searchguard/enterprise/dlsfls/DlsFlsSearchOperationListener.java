@@ -72,7 +72,7 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
             log.trace("DlsFlsSearchOperationListener.onPreQueryPhase()\nisuggest: " + searchContext.suggest());
             return;
         }
-
+        
         PrivilegesEvaluationContext privilegesEvaluationContext = dlsFlsBaseContext.getPrivilegesEvaluationContext();
 
         if (privilegesEvaluationContext == null) {
@@ -80,6 +80,11 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
             return;
         }
 
+        if (privilegesEvaluationContext.isUserAdmin()) {
+            log.trace("DlsFlsSearchOperationListener.onPreQueryPhase()\nUser is admin. Giving full access");
+            return;
+        }
+        
         try (Meter meter = Meter.detail(config.getMetricsLevel(), onPreQueryPhaseAggregation)) {
 
             RoleBasedDocumentAuthorization documentAuthorization = config.getDocumentAuthorization();
