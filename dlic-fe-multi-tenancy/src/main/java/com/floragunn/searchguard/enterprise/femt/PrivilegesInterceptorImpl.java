@@ -507,7 +507,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         ImmutableMap.Builder<String, Boolean> result = new ImmutableMap.Builder<>(roles.size());
         result.put(user.getName(), true);
 
-        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, roles, null, null, false, null, null);
+        PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, false, roles, null, null, false, null, null);
         
         for (String tenant : this.tenantNames) {
             try {

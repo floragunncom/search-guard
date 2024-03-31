@@ -644,16 +644,9 @@ public class ActionRequestIntrospector {
         }
 
         private void initResolvedIndices() {
-            if (unknown) {
+            if (unknown || !indexRequest) {
                 allResolvedIndices = ResolvedIndices.LOCAL_ALL;
                 mainResolvedIndices = ResolvedIndices.LOCAL_ALL;
-                additionalResolvedIndices = ImmutableMap.empty();
-                return;
-            }
-
-            if (!indexRequest) {
-                allResolvedIndices = null;
-                mainResolvedIndices = null;
                 additionalResolvedIndices = ImmutableMap.empty();
                 return;
             }

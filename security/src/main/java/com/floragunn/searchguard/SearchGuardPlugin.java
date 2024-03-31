@@ -855,7 +855,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         
         Actions actions = new Actions(moduleRegistry);
         
-        this.authInfoService = new AuthInfoService(threadPool, specialPrivilegesEvaluationContextProviderRegistry);
+        this.authInfoService = new AuthInfoService(threadPool, specialPrivilegesEvaluationContextProviderRegistry, this.adminDns);
         this.authorizationService = new AuthorizationService(cr, staticSettings, authInfoService);
         evaluator = new PrivilegesEvaluator(localClient, clusterService, threadPool, cr, authorizationService, indexNameExpressionResolver, auditLog, staticSettings, cih,
                 actions, actionRequestIntrospector, specialPrivilegesEvaluationContextProviderRegistry, guiceDependencies, xContentRegistry,
