@@ -64,7 +64,7 @@ public interface TestIndexLike {
 
         @Override
         public String getName() {
-            return testIndexLike + " [filtered]";
+            return testIndexLike.getName();
         }
 
         @Override
@@ -102,6 +102,11 @@ public interface TestIndexLike {
             } else {
                 return this;
             }
+        }
+
+        @Override
+        public String toString() {
+            return testIndexLike + " [filtered]";
         }
 
     }

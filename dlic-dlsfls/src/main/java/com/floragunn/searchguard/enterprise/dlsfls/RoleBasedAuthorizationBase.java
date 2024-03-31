@@ -91,6 +91,10 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
 
             StatefulRules<SingleRule> statefulRules = this.statefulRules;
 
+            if (resolved == null) {
+                return true;
+            }
+            
             if (resolved.getLocal().hasNonExistingObjects()) {
                 // We get a request for an index unknown to this instance. Usually, this is the case because the index simply does not exist.
                 // For non-existing indices, it is safe to assume that no documents can be accessed.

@@ -203,7 +203,7 @@ public class RoleBasedFieldAuthorizationTest {
         }
 
         private static PrivilegesEvaluationContext ctx(String... roles) {
-            return new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(), ImmutableSet.ofArray(roles), null, null, true, null,
+            return new PrivilegesEvaluationContext(new User.Builder().name("test_user").build(), false, ImmutableSet.ofArray(roles), null, null, true, null,
                     null);
         }
     }
