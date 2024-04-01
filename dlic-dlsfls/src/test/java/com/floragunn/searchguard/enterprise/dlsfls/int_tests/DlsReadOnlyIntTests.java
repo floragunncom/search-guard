@@ -22,13 +22,13 @@ import static com.floragunn.searchguard.test.IndexApiMatchers.limitedTo;
 import static com.floragunn.searchguard.test.IndexApiMatchers.searchGuardIndices;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimited;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncludingSearchGuardIndices;
+import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,11 +40,11 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestAlias;
+import com.floragunn.searchguard.test.TestData.TestDocument;
 import com.floragunn.searchguard.test.TestIndex;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import static com.floragunn.searchguard.test.RestMatchers.isOk;
 
 /**
  * TODO negation auf static: aa,-a*
@@ -339,69 +339,81 @@ public class DlsReadOnlyIntTests {
             assertThat(hits, containsExactly(index_1, index_2, index_3).but(user.indexMatcher("read")));
         }
     }
-    
-    
+
+    @Test
+    public void search_aggregation_terms_all() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(user)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_all/_search",
+                    DocNode.of("query.match_all", DocNode.EMPTY, "aggs.test_agg.terms.field", "dept.keyword"));
+
+            assertThat(response, containsExactly(index_1, index_2, index_3).aggregateTerm("dept").at("aggregations.test_agg.buckets")
+                    .but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void search_aggregation_terms_static_index() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(user)) {
+            GenericRestClient.HttpResponse response = client.postJson("/index_1/_search",
+                    DocNode.of("query.match_all", DocNode.EMPTY, "aggs.test_agg.terms.field", "dept.keyword"));
+
+            assertThat(response,
+                    containsExactly(index_1).aggregateTerm("dept").at("aggregations.test_agg.buckets").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void search_aggregation_terms_static_alias() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(user)) {
+            GenericRestClient.HttpResponse response = client.postJson("/alias_12/_search?ignore_unavailable=true",
+                    DocNode.of("query.match_all", DocNode.EMPTY, "aggs.test_agg.terms.field", "dept.keyword"));
+
+            assertThat(response, containsExactly(index_1, index_2).aggregateTerm("dept").at("aggregations.test_agg.buckets")
+                    .but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void msearch_staticIndices() throws Exception {
+        String msearchBody = "{\"index\":\"index_1\"}\n" //
+                + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n" //
+                + "{\"index\":\"index_2\"}\n" //
+                + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n";
+
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.postJson("/_msearch", msearchBody);
+            assertThat(httpResponse, containsExactly(index_1, index_2).at("responses[*].hits.hits[*]").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void mget() throws Exception {
+        TestDocument testDocument1a = index_1.getTestData().anyDocument();
+        TestDocument testDocument1b = index_1.getTestData().anyDocument();
+        TestDocument testDocument1c = index_1.getTestData().anyDocument();
+        TestDocument testDocument2a = index_2.getTestData().anyDocument();
+        TestDocument testDocument2b = index_2.getTestData().anyDocument();
+        TestDocument testDocument2c = index_2.getTestData().anyDocument();
+
+        DocNode mget = DocNode.of("docs", DocNode.array(//
+                DocNode.of("_index", "index_1", "_id", testDocument1a.getId()), //
+                DocNode.of("_index", "index_1", "_id", testDocument1b.getId()), //
+                DocNode.of("_index", "index_1", "_id", testDocument1c.getId()), //
+                DocNode.of("_index", "index_2", "_id", testDocument2a.getId()), //
+                DocNode.of("_index", "index_2", "_id", testDocument2b.getId()), //
+                DocNode.of("_index", "index_2", "_id", testDocument2c.getId())));
+
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.postJson("/_mget", mget);
+            // TODO
+          //  assertThat(httpResponse, containsExactly(index_a1, index_b1, index_b2).at("docs[?(@.found == true)]._index")
+           //         .but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
 
     /*
     
     
-    
-    
-    @Test
-    public void search_termsAggregation_index() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.postJson("/_search",
-                    "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":1000}}}}");
-    
-            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1)
-                    .at("aggregations.indices.buckets[*].key").but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-    
-    @Test
-    public void search_protectedIndex() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("/.searchguard/_search");
-    
-            if (user == SUPER_UNLIMITED_USER) {
-                assertThat(httpResponse, isOk());
-            } else {
-                assertThat(httpResponse, isForbidden());
-            }
-        }
-    }
-    
-    @Test
-    public void msearch_staticIndices() throws Exception {
-        String msearchBody = "{\"index\":\"index_b1\"}\n" //
-                + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n" //
-                + "{\"index\":\"index_b2\"}\n" //
-                + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n";
-    
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.postJson("/_msearch", msearchBody);
-            assertThat(httpResponse,
-                    containsExactly(index_b1, index_b2).at("responses[*].hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-    
-    @Test
-    public void mget() throws Exception {
-        TestDocument testDocumentA1 = index_a1.getTestData().anyDocument();
-        TestDocument testDocumentB1 = index_b1.getTestData().anyDocument();
-        TestDocument testDocumentB2 = index_b2.getTestData().anyDocument();
-    
-        DocNode mget = DocNode.of("docs", DocNode.array(//
-                DocNode.of("_index", "index_a1", "_id", testDocumentA1.getId()), //
-                DocNode.of("_index", "index_b1", "_id", testDocumentB1.getId()), //
-                DocNode.of("_index", "index_b2", "_id", testDocumentB2.getId())));
-    
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.postJson("/_mget", mget);
-            assertThat(httpResponse, containsExactly(index_a1, index_b1, index_b2).at("docs[?(@.found == true)]._index")
-                    .but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
     
     @Test
     public void mget_alias() throws Exception {
