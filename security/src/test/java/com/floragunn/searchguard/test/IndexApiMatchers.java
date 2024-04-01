@@ -38,6 +38,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format.UnknownDocTypeException;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.jayway.jsonpath.Configuration;
@@ -203,13 +204,12 @@ public class IndexApiMatchers {
             for (Object object : collection) {
                 DocNode docNode = DocNode.wrap(object);
                 String indexName = docNode.getAsString("_index");
-                
+
                 if (containsSearchGuardIndices && (indexName.startsWith(".searchguard") || indexName.equals("searchguard"))) {
-                    seenSearchGuardIndicesBuilder.add(indexName);   
+                    seenSearchGuardIndicesBuilder.add(indexName);
                     continue;
                 }
-                
-                
+
                 TestIndexLike index = indexNameMap.get(indexName);
 
                 if (index == null) {
@@ -244,7 +244,7 @@ public class IndexApiMatchers {
                 mismatchDescription.appendText("result does not contain expected documents: ").appendValue(pendingDocuments);
                 return false;
             }
-            
+
             if (containsSearchGuardIndices && seenSearchGuardIndicesBuilder.size() == 0) {
                 mismatchDescription.appendText("result does not contain expected .searchguard index");
                 return false;
@@ -700,12 +700,11 @@ public class IndexApiMatchers {
         public boolean containsEsInternalIndices() {
             return true;
         }
-        
+
         @Override
         public IndexMatcher aggregateTerm(String term) {
             return null;
         }
-
 
     }
 
@@ -719,7 +718,7 @@ public class IndexApiMatchers {
         IndexMatcher whenEmpty(int statusCode);
 
         IndexMatcher aggregateTerm(String term);
-        
+
         boolean isEmpty();
 
         int size();
@@ -858,15 +857,22 @@ public class IndexApiMatchers {
         }
 
     }
-    
+
     static class TermAggregationMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
         private IndexMatcher base;
         private final String term;
-        
-        public TermAggregationMatcher(String term, Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices,
+
+        TermAggregationMatcher(String term, Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices,
                 boolean containsEsInternalIndices, AbstractIndexMatcher base) {
             super(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices);
+            this.term = term;
+            this.base = base;
+        }
+
+        TermAggregationMatcher(String term, Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices,
+                boolean containsEsInternalIndices, String jsonPath, int statusCodeWhenEmpty, AbstractIndexMatcher base) {
+            super(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCodeWhenEmpty);
             this.term = term;
             this.base = base;
         }
@@ -880,69 +886,70 @@ public class IndexApiMatchers {
         protected boolean matchesImpl(Collection<?> collection, Description mismatchDescription, GenericRestClient.HttpResponse response) {
 
             HashMap<String, List<String>> aggregatedDocIds = new HashMap<>();
-            
+
             for (TestIndexLike indexLike : indexNameMap.values()) {
                 for (Map.Entry<String, Map<String, ?>> entry : indexLike.getDocuments().entrySet()) {
                     String id = entry.getKey();
                     Map<String, ?> doc = entry.getValue();
-                    String termValue = String.valueOf(doc.get(term));                    
+                    String termValue = String.valueOf(doc.get(term));
                     aggregatedDocIds.computeIfAbsent(termValue, k -> new ArrayList<>()).add(id);
                 }
             }
-            
-            
-            
-            boolean checkDocs = false;
 
             // Flatten the collection
             collection = collection.stream().flatMap(e -> e instanceof Collection ? ((Collection<?>) e).stream() : Stream.of(e))
                     .collect(Collectors.toSet());
 
+            int errors = 0;
+
             for (Object object : collection) {
-                if (object instanceof String) {
-                    checkDocs = false;
-                    break;
-                } else if (object instanceof Map && ((Map<?, ?>) object).containsKey("_index")) {
-                    checkDocs = true;
-                    break;
-                } else {
-                    mismatchDescription.appendText("unexpected value ").appendValue(collection);
-                    return false;
+                DocNode docNode = DocNode.wrap(object);
+                String key = docNode.getAsString("key");
+
+                if (key == null) {
+                    mismatchDescription.appendText("Unexpected value ").appendValue(docNode).appendText("\n");
+                    errors++;
+                    continue;
+                }
+
+                int docCount;
+
+                try {
+                    docCount = docNode.getNumber("doc_count").intValue();
+                } catch (Exception e1) {
+                    mismatchDescription.appendText("Error while reading ").appendValue(key).appendText(" ").appendValue(e1.toString())
+                            .appendText("\n");
+                    errors++;
+                    continue;
+                }
+
+                List<String> reference = aggregatedDocIds.remove(key);
+
+                if (reference == null) {
+                    mismatchDescription.appendText("Unexpected key ").appendValue(key).appendText("\n");
+                    errors++;
+                } else if (reference.size() != docCount) {
+                    mismatchDescription.appendText("doc_count mismatch for ").appendValue(key).appendText("; got: ").appendValue(docCount)
+                            .appendText("; expected: ").appendValue(reference.size());
+                    errors++;
                 }
             }
-            
-            /*
-    TODO
-            if (checkDocs) {
-                return matchesByDocs(collection, mismatchDescription, response);
-            } else {
-                return matchesByIndices(collection, mismatchDescription, response);
-            }
-            */
-            return false;
-        }
 
-
-        private Set<String> getExpectedDocuments() {
-            Set<String> pendingDocuments = new HashSet<>();
-
-            for (Map.Entry<String, TestIndexLike> entry : indexNameMap.entrySet()) {
-                for (String id : entry.getValue().getDocumentIds()) {
-                    pendingDocuments.add(entry.getKey() + "/" + id);
+            if (!aggregatedDocIds.isEmpty()) {
+                for (String key : aggregatedDocIds.keySet()) {
+                    mismatchDescription.appendText("Missing expected key ").appendValue(key).appendText("\n");
+                    errors++;
                 }
             }
 
-            return pendingDocuments;
-        }
-
-        private ImmutableSet<String> getExpectedIndices() {
-            return ImmutableSet.of(indexNameMap.keySet());
+            return errors == 0;
         }
 
         @Override
         public IndexMatcher but(IndexMatcher other) {
-            base = base.but(other);
-            return this;
+            AbstractIndexMatcher base = (AbstractIndexMatcher) this.base.but(other);
+            return new TermAggregationMatcher(this.term, base.indexNameMap, base.containsSearchGuardIndices, base.containsEsInternalIndices,
+                    base.jsonPath, base.statusCodeWhenEmpty, base);
         }
 
         @Override
@@ -952,16 +959,19 @@ public class IndexApiMatchers {
 
         @Override
         public IndexMatcher at(String jsonPath) {
-            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCodeWhenEmpty);
+            AbstractIndexMatcher base = (AbstractIndexMatcher) this.base.at(jsonPath);
+            return new TermAggregationMatcher(this.term, base.indexNameMap, base.containsSearchGuardIndices, base.containsEsInternalIndices, jsonPath,
+                    base.statusCodeWhenEmpty, base);
         }
 
         @Override
         public IndexMatcher whenEmpty(int statusCode) {
-            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCode);
+            AbstractIndexMatcher base = (AbstractIndexMatcher) this.base.whenEmpty(statusCode);
+            return new TermAggregationMatcher(this.term, base.indexNameMap, base.containsSearchGuardIndices, base.containsEsInternalIndices,
+                    base.jsonPath, statusCode, base);
         }
 
     }
-
 
     private static String formatResponse(GenericRestClient.HttpResponse response) {
         if (response == null) {
