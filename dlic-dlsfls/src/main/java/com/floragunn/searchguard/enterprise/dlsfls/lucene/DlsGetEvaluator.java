@@ -66,6 +66,7 @@ class DlsGetEvaluator {
             log.trace("Creating DlsGetEvaluator\ndlsQuery: {}\napplyDlsHere: {}", dlsQuery, applyDlsHere);
             
             if (dlsQuery != null && applyDlsHere) {
+                dlsQuery = dlsQuery.rewrite(filterLeafReader);
                 final IndexSearcher searcher = new IndexSearcher(filterLeafReader);
                 searcher.setQueryCache(null);
                 final Weight preserveWeight = searcher.createWeight(dlsQuery, ScoreMode.COMPLETE_NO_SCORES, 1f);

@@ -112,7 +112,7 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
                     return;
                 }
                                 
-                BooleanQuery.Builder queryBuilder = dlsRestriction.toQueryBuilder(searchContext.getSearchExecutionContext(),
+                BooleanQuery.Builder queryBuilder = dlsRestriction.toBooleanQueryBuilder(searchContext.getSearchExecutionContext(),
                         (q) -> new ConstantScoreQuery(q));
 
                 queryBuilder.add(searchContext.parsedQuery().query(), Occur.MUST);

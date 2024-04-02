@@ -55,12 +55,16 @@ public class DlsRestriction {
         return this.queries.isEmpty();
     }
 
-    public BooleanQuery.Builder toQueryBuilder(SearchExecutionContext searchExecutionContext, Function<Query, Query> queryMapFunction) {
+    public BooleanQuery.Builder toBooleanQueryBuilder(SearchExecutionContext searchExecutionContext, Function<Query, Query> queryMapFunction) {
         if (this.queries.isEmpty()) {
             return null;
         }
 
         boolean hasNestedMapping = searchExecutionContext.hasNested();
+        
+        if (!hasNestedMapping && this.queries.size() == 1) {
+            
+        }
 
         BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
         queryBuilder.setMinimumNumberShouldMatch(1);
@@ -82,6 +86,44 @@ public class DlsRestriction {
         return queryBuilder;
     }
 
+    public Query toQuery(SearchExecutionContext searchExecutionContext, Function<Query, Query> queryMapFunction) {
+        if (this.queries.isEmpty()) {
+            return null;
+        }
+
+        boolean hasNestedMapping = searchExecutionContext.hasNested();
+        
+        if (!hasNestedMapping && this.queries.size() == 1) {
+            Query luceneQuery = searchExecutionContext.toQuery(this.queries.get(0).getQueryBuilder()).query();
+
+            if (queryMapFunction != null) {
+                luceneQuery = queryMapFunction.apply(luceneQuery);
+            }
+
+            return luceneQuery;
+        }
+
+        BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
+        queryBuilder.setMinimumNumberShouldMatch(1);
+
+        for (com.floragunn.searchsupport.queries.Query dlsQuery : this.queries) {
+            Query luceneQuery = searchExecutionContext.toQuery(dlsQuery.getQueryBuilder()).query();
+
+            if (queryMapFunction != null) {
+                luceneQuery = queryMapFunction.apply(luceneQuery);
+            }
+
+            queryBuilder.add(luceneQuery, Occur.SHOULD);
+
+            if (hasNestedMapping) {
+                handleNested(searchExecutionContext, queryBuilder, luceneQuery);
+            }
+        }
+
+        return queryBuilder.build();
+    }
+
+    
     boolean containsTermLookupQuery() {
         for (com.floragunn.searchsupport.queries.Query query : this.queries) {
             if (QueryBuilderTraverser.exists(query.getQueryBuilder(),
