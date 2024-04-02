@@ -14,11 +14,14 @@
 
 package com.floragunn.searchguard.authtoken;
 
+import java.io.IOException;
+import java.io.Reader;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 
 import com.floragunn.codova.config.net.CacheConfig;
+import io.jsonwebtoken.security.Keys;
 import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
@@ -66,11 +69,24 @@ public class AuthTokenServiceTest {
     private static PrivilegedConfigClient privilegedConfigClient;
     private static StaticSgConfig staticSgConfig;
     private static ClusterService clusterService;
-    private static Deserializer<Map<String, ?>> jsonDeserializer = bytes -> {
-        try {
-            return DocReader.json().readObject(bytes);
-        } catch (DocumentParseException | UnexpectedDocumentStructureException e) {
-            throw new DeserializationException(e.getMessage(), e);
+    private static Deserializer<Map<String, ?>> jsonDeserializer = new Deserializer<Map<String,?>>() {
+
+        @Override
+        public Map<String, ?> deserialize(byte[] bytes) throws DeserializationException {
+            try {
+                return DocReader.json().readObject(bytes);
+            } catch (DocumentParseException | UnexpectedDocumentStructureException e) {
+                throw new DeserializationException(e.getMessage(), e);
+            }
+        }
+
+        @Override
+        public Map<String, ?> deserialize(Reader reader) throws DeserializationException {
+            try {
+                return DocReader.json().readObject(reader);
+            } catch (DocumentParseException | UnexpectedDocumentStructureException | IOException e) {
+                throw new DeserializationException(e.getMessage(), e);
+            }
         }
     };
     
@@ -118,14 +134,15 @@ public class AuthTokenServiceTest {
 
             CreateAuthTokenResponse response = authTokenService.createJwt(testUser, request);
 
-            JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K)).deserializeJsonWith(jsonDeserializer);
+            JwtParser jwtParser = Jwts.parser().verifyWith(Keys.hmacShaKeyFor(Decoders.BASE64URL.decode(TestJwk.OCT_1_K))).json(jsonDeserializer).build();
             
-            Claims claims = jwtParser.parseClaimsJws(response.getJwt()).getBody();
+            Claims claims = jwtParser.parseSignedClaims(response.getJwt()).getPayload();
 
             Assert.assertEquals(testUser.getName(), claims.getSubject());
             Assert.assertEquals(requestedPrivileges.getClusterPermissions(), ((Map<?, ?>) claims.get("requested")).get("cluster_permissions"));
             Assert.assertEquals(Collections.singletonList("r1"), ((Map<?, ?>) claims.get("base")).get("r_be"));
-            Assert.assertEquals(config.getJwtAud(), claims.getAudience());
+            Assert.assertEquals(1, claims.getAudience().size());
+            Assert.assertTrue(claims.getAudience().contains(config.getJwtAud()));
 
             AuthToken authToken = authTokenService.getByClaims(claims);
 
@@ -164,14 +181,15 @@ public class AuthTokenServiceTest {
 
             CreateAuthTokenResponse response = authTokenService.createJwt(testUser, request);
 
-            JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K)).deserializeJsonWith(jsonDeserializer);
+            JwtParser jwtParser = Jwts.parser().verifyWith(Keys.hmacShaKeyFor(Decoders.BASE64URL.decode(TestJwk.OCT_1_K))).json(jsonDeserializer).build();
 
-            Claims claims = jwtParser.parseClaimsJws(response.getJwt()).getBody();
+            Claims claims = jwtParser.parseSignedClaims(response.getJwt()).getPayload();
 
             Assert.assertEquals(testUser.getName(), claims.getSubject());
             Assert.assertEquals(requestedPrivileges.getClusterPermissions(), ((Map<?, ?>) claims.get("requested")).get("cluster_permissions"));
             Assert.assertEquals(Collections.singletonList("r1"), ((Map<?, ?>) claims.get("base")).get("r_be"));
-            Assert.assertEquals(config.getJwtAud(), claims.getAudience());
+            Assert.assertEquals(1, claims.getAudience().size());
+            Assert.assertTrue(claims.getAudience().contains(config.getJwtAud()));
 
             AuthToken authToken = authTokenService.getByClaims(claims);
 
@@ -209,14 +227,15 @@ public class AuthTokenServiceTest {
             CreateAuthTokenRequest request = new CreateAuthTokenRequest(requestedPrivileges);
             CreateAuthTokenResponse response = authTokenService.createJwt(testUser, request);
 
-            JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K)).deserializeJsonWith(jsonDeserializer);
+            JwtParser jwtParser = Jwts.parser().verifyWith(Keys.hmacShaKeyFor(Decoders.BASE64URL.decode(TestJwk.OCT_1_K))).json(jsonDeserializer).build();
 
-            Claims claims = jwtParser.parseClaimsJws(response.getJwt()).getBody();
+            Claims claims = jwtParser.parseSignedClaims(response.getJwt()).getPayload();
 
             Assert.assertEquals(testUser.getName(), claims.getSubject());
             Assert.assertEquals(requestedPrivileges.getClusterPermissions(), ((Map<?, ?>) claims.get("requested")).get("cluster_permissions"));
             Assert.assertEquals(Collections.singletonList("r1"), ((Map<?, ?>) claims.get("base")).get("r_be"));
-            Assert.assertEquals(config.getJwtAud(), claims.getAudience());
+            Assert.assertEquals(1, claims.getAudience().size());
+            Assert.assertTrue(claims.getAudience().contains(config.getJwtAud()));
 
             AuthToken authToken = authTokenService.getByClaims(claims);
 
@@ -272,15 +291,16 @@ public class AuthTokenServiceTest {
 
             CreateAuthTokenResponse response = authTokenService.createJwt(testUser, request);
 
-            JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K)).deserializeJsonWith(jsonDeserializer);
+            JwtParser jwtParser = Jwts.parser().verifyWith(Keys.hmacShaKeyFor(Decoders.BASE64URL.decode(TestJwk.OCT_1_K))).json(jsonDeserializer).build();
 
-            Claims claims = jwtParser.parseClaimsJws(response.getJwt()).getBody();
+            Claims claims = jwtParser.parseSignedClaims(response.getJwt()).getPayload();
             String id = claims.get(JwtConstants.CLAIM_JWT_ID).toString();
 
             Assert.assertEquals(testUser.getName(), claims.getSubject());
             Assert.assertEquals(requestedPrivileges.getClusterPermissions(), ((Map<?, ?>) claims.get("requested")).get("cluster_permissions"));
             Assert.assertEquals(Collections.singletonList("r1"), ((Map<?, ?>) claims.get("base")).get("r_be"));
-            Assert.assertEquals(config.getJwtAud(), claims.getAudience());
+            Assert.assertEquals(1, claims.getAudience().size());
+            Assert.assertTrue(claims.getAudience().contains(config.getJwtAud()));
             Assert.assertTrue(
                     response.getAuthToken().getCreationTime().plusSeconds(11) + " <= " + claims.getExpiration().getTime() + "\n" + claims.toString(),
                     response.getAuthToken().getCreationTime().plusSeconds(11).toEpochMilli() > claims.getExpiration().getTime());
@@ -334,9 +354,9 @@ public class AuthTokenServiceTest {
 
                 CreateAuthTokenResponse createAuthTokenResponse = authTokenService.createJwt(testUser, request);
 
-                JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K)).deserializeJsonWith(jsonDeserializer);
+                JwtParser jwtParser = Jwts.parser().setSigningKey(Decoders.BASE64URL.decode(TestJwk.OCT_1_K)).json(jsonDeserializer).build();
 
-                Claims claims = jwtParser.parseClaimsJws(createAuthTokenResponse.getJwt()).getBody();
+                Claims claims = jwtParser.parseSignedClaims(createAuthTokenResponse.getJwt()).getPayload();
 
                 Assert.assertEquals(testUser.getName(), claims.getSubject());
                 Assert.assertEquals(requestedPrivileges.getClusterPermissions(), ((Map<?, ?>) claims.get("requested")).get("cluster_permissions"));
@@ -358,14 +378,14 @@ public class AuthTokenServiceTest {
 
                 createAuthTokenResponse = authTokenService.createJwt(authTokenTestUser, request);
 
-                claims = jwtParser.parseClaimsJws(createAuthTokenResponse.getJwt()).getBody();
+                claims = jwtParser.parseSignedClaims(createAuthTokenResponse.getJwt()).getPayload();
 
                 AuthToken authTokenBasedOnAuthToken = authTokenService.getByClaims(claims);
                 Assert.assertEquals(baseAuthToken.getBase(), authTokenBasedOnAuthToken.getBase());
 
                 request.setTokenName("auth_token_with_fresh_base");
                 createAuthTokenResponse = authTokenService.createJwt(testUser, request);
-                claims = jwtParser.parseClaimsJws(createAuthTokenResponse.getJwt()).getBody();
+                claims = jwtParser.parseSignedClaims(createAuthTokenResponse.getJwt()).getPayload();
 
                 AuthToken authTokenWithFreshBase = authTokenService.getByClaims(claims);
                 Assert.assertNotEquals(baseAuthToken.getBase(), authTokenWithFreshBase.getBase());
