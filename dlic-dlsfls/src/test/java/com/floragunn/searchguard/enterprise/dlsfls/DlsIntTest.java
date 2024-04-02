@@ -136,6 +136,16 @@ public class DlsIntTest {
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("docs[?(@._source.dept =~ /dept_d.*/)]").size() == 1);
         }
+        
+        try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER)) {
+            GenericRestClient.HttpResponse response = client.postJson("/logs/_mget",
+                    DocNode.of("docs", DocNode.array(DocNode.of("_id", testDocumentA1.getId()), DocNode.of("_id", testDocumentD.getId()))));
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("docs[?(@._source.dept =~ /dept_a.*/)]").size() == 1);
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("docs[?(@._source.dept =~ /dept_d.*/)]").size() == 0);
+        }
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
             GenericRestClient.HttpResponse response = client.postJson("/logs/_mget",
