@@ -61,11 +61,7 @@ public class DlsRestriction {
         }
 
         boolean hasNestedMapping = searchExecutionContext.hasNested();
-        
-        if (!hasNestedMapping && this.queries.size() == 1) {
-            
-        }
-
+     
         BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
         queryBuilder.setMinimumNumberShouldMatch(1);
 
