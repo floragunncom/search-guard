@@ -349,7 +349,7 @@ public class TestData {
 
         return new TestDocument(entry.getKey(), entry.getValue());
     }
-
+    
     public TestDocument anyDocumentForDepartment(String dept) {
         Map<String, Map<String, ?>> docs = this.documentsByDepartment.get(dept);
 
