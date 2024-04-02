@@ -388,23 +388,20 @@ public class DlsReadOnlyIntTests {
 
     @Test
     public void mget() throws Exception {
-        TestDocument testDocument1a = index_1.getTestData().anyDocument();
-        TestDocument testDocument1b = index_1.getTestData().anyDocument();
-        TestDocument testDocument1c = index_1.getTestData().anyDocument();
-        TestDocument testDocument2a = index_2.getTestData().anyDocument();
-        TestDocument testDocument2b = index_2.getTestData().anyDocument();
-        TestDocument testDocument2c = index_2.getTestData().anyDocument();
+        TestDocument testDocument1a1 = index_1.getTestData().anyDocumentForDepartment("dept_a_1");
+        TestDocument testDocument1b1 = index_1.getTestData().anyDocumentForDepartment("dept_b_1");
+        TestDocument testDocument2a1 = index_2.getTestData().anyDocumentForDepartment("dept_a_1");
+        TestDocument testDocument2b1 = index_2.getTestData().anyDocumentForDepartment("dept_b_1");
 
         DocNode mget = DocNode.of("docs", DocNode.array(//
-                DocNode.of("_index", "index_1", "_id", testDocument1a.getId()), //
-                DocNode.of("_index", "index_1", "_id", testDocument1b.getId()), //
-                DocNode.of("_index", "index_1", "_id", testDocument1c.getId()), //
-                DocNode.of("_index", "index_2", "_id", testDocument2a.getId()), //
-                DocNode.of("_index", "index_2", "_id", testDocument2b.getId()), //
-                DocNode.of("_index", "index_2", "_id", testDocument2c.getId())));
+                DocNode.of("_index", "index_1", "_id", testDocument1a1.getId()), //
+                DocNode.of("_index", "index_1", "_id", testDocument1b1.getId()), //
+                DocNode.of("_index", "index_2", "_id", testDocument2a1.getId()), //
+                DocNode.of("_index", "index_2", "_id", testDocument2b1.getId())));
 
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.postJson("/_mget", mget);
+            System.out.println(httpResponse.getBody());
             // TODO
           //  assertThat(httpResponse, containsExactly(index_a1, index_b1, index_b2).at("docs[?(@.found == true)]._index")
            //         .but(user.indexMatcher("read")).whenEmpty(200));
