@@ -14,6 +14,8 @@
 
 package com.floragunn.dlic.auth.http.jwt;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
@@ -60,7 +62,7 @@ public class HTTPJwtAuthenticatorTest {
     public void testNoKey() throws Exception {
         Settings settings = Settings.builder().build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer).setSubject("Leonard McCoy").signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        String jwsToken = Jwts.builder().json(jwtSerializer).subject("Leonard McCoy").signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth =new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -74,7 +76,7 @@ public class HTTPJwtAuthenticatorTest {
     public void testEmptyKey() throws Exception {
         Settings settings = Settings.builder().put("signing_key", "").build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer).setSubject("Leonard McCoy").signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        String jwsToken = Jwts.builder().json(jwtSerializer).subject("Leonard McCoy").signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -88,7 +90,7 @@ public class HTTPJwtAuthenticatorTest {
     public void testBadKey() throws Exception {
         Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(new byte[]{1,3,3,4,3,6,7,8,3,10})).build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer).setSubject("Leonard McCoy").signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        String jwsToken = Jwts.builder().json(jwtSerializer).subject("Leonard McCoy").signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -127,7 +129,7 @@ public class HTTPJwtAuthenticatorTest {
     public void testBearer() throws Exception {
         Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(secretKey)).build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer).setSubject("Leonard McCoy").setAudience("myaud").signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        String jwsToken = Jwts.builder().json(jwtSerializer).subject("Leonard McCoy").audience().add("myaud").and().signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -144,7 +146,7 @@ public class HTTPJwtAuthenticatorTest {
     public void testBearerWrongPosition() throws Exception {
         Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(secretKey)).build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer).setSubject("Leonard McCoy").signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        String jwsToken = Jwts.builder().json(jwtSerializer).subject("Leonard McCoy").signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -158,8 +160,8 @@ public class HTTPJwtAuthenticatorTest {
     public void testNonBearer() throws Exception {
         Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(secretKey)).build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer).setSubject("Leonard McCoy").signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
-        
+        String jwsToken = Jwts.builder().json(jwtSerializer).subject("Leonard McCoy").signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
+
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
         headers.put("Authorization", jwsToken);
@@ -177,10 +179,10 @@ public class HTTPJwtAuthenticatorTest {
                 .put("roles_key", "roles")
                 .build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
-                .setSubject("Leonard McCoy")
+        String jwsToken = Jwts.builder().json(jwtSerializer)
+                .subject("Leonard McCoy")
                 .claim("roles", "role1,role2")
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -199,10 +201,10 @@ public class HTTPJwtAuthenticatorTest {
                 .put("roles_key", "roles")
                 .build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
-                .setSubject("Leonard McCoy")
+        String jwsToken = Jwts.builder().json(jwtSerializer)
+                .subject("Leonard McCoy")
                 .claim("roles", "role1,role2")
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         
@@ -220,10 +222,10 @@ public class HTTPJwtAuthenticatorTest {
                 .put("roles_key", "roles")
                 .build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
-                .setSubject("Leonard McCoy")
+        String jwsToken = Jwts.builder().json(jwtSerializer)
+                .subject("Leonard McCoy")
                 .claim("roles", null)
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -242,10 +244,10 @@ public class HTTPJwtAuthenticatorTest {
                 .put("roles_key", "roles")
                 .build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
-                .setSubject("Leonard McCoy")
+        String jwsToken = Jwts.builder().json(jwtSerializer)
+                .subject("Leonard McCoy")
                 .claim("roles", 123L)
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -265,9 +267,9 @@ public class HTTPJwtAuthenticatorTest {
                 .put("roles_key", "roles")
                 .build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
-                .setSubject("Leonard McCoy")                
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        String jwsToken = Jwts.builder().json(jwtSerializer)
+                .subject("Leonard McCoy")
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -286,10 +288,10 @@ public class HTTPJwtAuthenticatorTest {
                 .put("subject_key", "missing")
                 .build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
+        String jwsToken = Jwts.builder().json(jwtSerializer)
                 .claim("roles", "role1,role2")
                 .claim("asub", "Dr. Who")
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -306,11 +308,11 @@ public class HTTPJwtAuthenticatorTest {
                 .put("subject_key", "asub")
                 .build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
-                .setSubject("Leonard McCoy")
+        String jwsToken = Jwts.builder().json(jwtSerializer)
+                .subject("Leonard McCoy")
                 .claim("roles", "role1,role2")
                 .claim("asub", "Dr. Who")
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -329,11 +331,11 @@ public class HTTPJwtAuthenticatorTest {
                 .put("subject_key", "asub")
                 .build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
-                .setSubject("Leonard McCoy")
+        String jwsToken = Jwts.builder().json(jwtSerializer)
+                .subject("Leonard McCoy")
                 .claim("roles", "role1,role2")
                 .claim("asub", false)
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -352,9 +354,9 @@ public class HTTPJwtAuthenticatorTest {
                 .put("jwt_url_parameter", "abc")
                 .build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
-                .setSubject("Leonard McCoy")
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        String jwsToken = Jwts.builder().json(jwtSerializer)
+                .subject("Leonard McCoy")
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -373,10 +375,10 @@ public class HTTPJwtAuthenticatorTest {
                 .put("signing_key", BaseEncoding.base64().encode(secretKey))
                 .build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
-                .setSubject("Expired")
-                .setExpiration(new Date(100))
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        String jwsToken = Jwts.builder().json(jwtSerializer)
+                .subject("Expired")
+                .expiration(new Date(100))
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -392,10 +394,10 @@ public class HTTPJwtAuthenticatorTest {
                 .put("signing_key", BaseEncoding.base64().encode(secretKey))
                 .build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
-                .setSubject("Expired")
-                .setNotBefore(new Date(System.currentTimeMillis()+(1000*36000)))
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        String jwsToken = Jwts.builder().json(jwtSerializer)
+                .subject("Expired")
+                .notBefore(new Date(System.currentTimeMillis()+(1000*36000)))
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -413,7 +415,7 @@ public class HTTPJwtAuthenticatorTest {
         PrivateKey priv = pair.getPrivate();
         PublicKey pub = pair.getPublic();
     
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer).setSubject("Leonard McCoy").signWith(priv, SignatureAlgorithm.RS256).compact();
+        String jwsToken = Jwts.builder().json(jwtSerializer).subject("Leonard McCoy").signWith(priv, Jwts.SIG.RS256).compact();
         Settings settings = Settings.builder().put("signing_key", "-----BEGIN PUBLIC KEY-----\n"+BaseEncoding.base64().encode(pub.getEncoded())+"-----END PUBLIC KEY-----").build();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
@@ -429,12 +431,12 @@ public class HTTPJwtAuthenticatorTest {
     @Test
     public void testES512() throws Exception {
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("EC");
-        keyGen.initialize(571);
+        keyGen.initialize(521);
         KeyPair pair = keyGen.generateKeyPair();
         PrivateKey priv = pair.getPrivate();
         PublicKey pub = pair.getPublic();
     
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer).setSubject("Leonard McCoy").signWith(priv, SignatureAlgorithm.ES512).compact();
+        String jwsToken = Jwts.builder().json(jwtSerializer).subject("Leonard McCoy").signWith(priv, Jwts.SIG.ES512).compact();
         Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(pub.getEncoded())).build();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
@@ -454,12 +456,12 @@ public class HTTPJwtAuthenticatorTest {
                 .put("roles_key", "roles")
                 .build();
         
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
-                .setPayload("{"+
+        String jwsToken = Jwts.builder().json(jwtSerializer)
+                .content("{"+
                     "\"sub\": \"John Doe\","+
                     "\"roles\": [\"a\",\"b\",\"3rd\"]"+
                   "}")
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -489,9 +491,9 @@ public class HTTPJwtAuthenticatorTest {
         values.put("roles", "some role a, another role b");
         user.put("user", values);
 
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
+        String jwsToken = Jwts.builder().json(jwtSerializer)
                 .claim("some_claim_name", user)
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -518,9 +520,9 @@ public class HTTPJwtAuthenticatorTest {
         values.put("roles", "some role a");
         user.put("user", values);
 
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
+        String jwsToken = Jwts.builder().json(jwtSerializer)
                 .claim("some_claim_name", user)
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -547,9 +549,9 @@ public class HTTPJwtAuthenticatorTest {
         values.put("roles", Arrays.asList("some role a, some role b", "some role c"));
         user.put("user", values);
 
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
+        String jwsToken = Jwts.builder().json(jwtSerializer)
                 .claim("some_claim_name", user)
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -576,9 +578,9 @@ public class HTTPJwtAuthenticatorTest {
         values.put("roles", "some role a");
         user.put("user", values);
 
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer).serializeToJsonWith(jwtSerializer)
+        String jwsToken = Jwts.builder().json(jwtSerializer)
                 .claim("some_claim_name", user)
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -605,9 +607,9 @@ public class HTTPJwtAuthenticatorTest {
         values.put("roles", Arrays.asList("some role a", "another role b"));
         user.put("user", values);
 
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
+        String jwsToken = Jwts.builder().json(jwtSerializer)
                 .claim("some_claim_name", user)
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -633,9 +635,9 @@ public class HTTPJwtAuthenticatorTest {
         user.put("user", values);
 
         @SuppressWarnings("unused")
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
+        String jwsToken = Jwts.builder().json(jwtSerializer)
                 .claim("some_claim_name", user)
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
 
         thrown.expect(IllegalStateException.class);
         new HTTPJwtAuthenticator(settings, null);
@@ -656,9 +658,9 @@ public class HTTPJwtAuthenticatorTest {
         user.put("user", values);
 
         @SuppressWarnings("unused")
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
+        String jwsToken = Jwts.builder().json(jwtSerializer)
                 .claim("some_claim_name", user)
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
 
         thrown.expect(IllegalStateException.class);
         new HTTPJwtAuthenticator(settings, null);
@@ -671,13 +673,13 @@ public class HTTPJwtAuthenticatorTest {
                 .put("map_claims_to_user_attrs.attr_3", "claimsarray_object").put("map_claims_to_user_attrs.attr_4", "claimsarray_mixed")
                 .put("map_claims_to_user_attrs.attr_5", "claimsarray_empty").build();
 
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer).setPayload("{" + "\"sub\": \"John Doe\"," //
+        String jwsToken = Jwts.builder().json(jwtSerializer).content("{" + "\"sub\": \"John Doe\"," //
                 + "\"claimsarray_string\": [\"a\",\"b\",\"c\"],"//
                 + "\"claimsarray_int\": [1,2,3],"//
                 + "\"claimsarray_object\": { \"objectarray\": []},"//
                 + "\"claimsarray_mixed\": [\"a\",\"b\",1],"//
                 + "\"claimsarray_empty\": []"//
-                + "}").signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                + "}").signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -699,8 +701,8 @@ public class HTTPJwtAuthenticatorTest {
         Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(secretKey)).put("subject_pattern", "^(.+)@(?:.+)$")
                 .build();
 
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer).setSubject("leonard@mccoy.com").setAudience("myaud")
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        String jwsToken = Jwts.builder().json(jwtSerializer).subject("leonard@mccoy.com").audience().add("myaud").and()
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -726,9 +728,9 @@ public class HTTPJwtAuthenticatorTest {
         values.put("roles", "some role a, another role b");
         user.put("user", values);
 
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
+        String jwsToken = Jwts.builder().json(jwtSerializer)
                 .claim("some_claim_name", user)
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -755,9 +757,9 @@ public class HTTPJwtAuthenticatorTest {
         values.put("roles", "some role a, another role b");
         user.put("user", values);
 
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer)
+        String jwsToken = Jwts.builder().json(jwtSerializer)
                 .claim("some_claim_name", user)
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -772,8 +774,8 @@ public class HTTPJwtAuthenticatorTest {
         Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(secretKey)).put("required_audience", "test_audience")
                 .build();
 
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer).setSubject("Leonard McCoy").setAudience("test_audience")
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        String jwsToken = Jwts.builder().json(jwtSerializer).subject("Leonard McCoy").audience().add("test_audience").and()
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -783,8 +785,8 @@ public class HTTPJwtAuthenticatorTest {
         Assert.assertNotNull(creds);
         Assert.assertEquals("Leonard McCoy", creds.getUsername());
 
-        jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer).setSubject("Leonard McCoy").setAudience("wrong_audience")
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        jwsToken = Jwts.builder().json(jwtSerializer).subject("Leonard McCoy").audience().add("wrong_audience").and()
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         headers.put("Authorization", jwsToken);
 
         creds = jwtAuth.extractCredentials(new FakeRestRequest(headers, new HashMap<>()), null);
@@ -797,8 +799,8 @@ public class HTTPJwtAuthenticatorTest {
         Settings settings = Settings.builder().put("signing_key", BaseEncoding.base64().encode(secretKey)).put("required_issuer", "test_issuer")
                 .build();
 
-        String jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer).setSubject("Leonard McCoy").setIssuer("test_issuer")
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        String jwsToken = Jwts.builder().json(jwtSerializer).subject("Leonard McCoy").issuer("test_issuer")
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
 
         HTTPJwtAuthenticator jwtAuth = new HTTPJwtAuthenticator(settings, null);
         Map<String, String> headers = new HashMap<>();
@@ -808,8 +810,8 @@ public class HTTPJwtAuthenticatorTest {
         Assert.assertNotNull(creds);
         Assert.assertEquals("Leonard McCoy", creds.getUsername());
 
-        jwsToken = Jwts.builder().serializeToJsonWith(jwtSerializer).setSubject("Leonard McCoy").setAudience("wrong_issuer")
-                .signWith(Keys.hmacShaKeyFor(secretKey), SignatureAlgorithm.HS512).compact();
+        jwsToken = Jwts.builder().json(jwtSerializer).subject("Leonard McCoy").audience().add("wrong_issuer").and()
+                .signWith(Keys.hmacShaKeyFor(secretKey), Jwts.SIG.HS512).compact();
         headers.put("Authorization", jwsToken);
 
         creds = jwtAuth.extractCredentials(new FakeRestRequest(headers, new HashMap<>()), null);
@@ -822,6 +824,15 @@ public class HTTPJwtAuthenticatorTest {
         @Override
         public byte[] serialize(Map<String, ?> t) throws SerializationException {
             return DocWriter.json().writeAsBytes(t);
+        }
+
+        @Override
+        public void serialize(Map<String, ?> stringMap, OutputStream out) throws SerializationException {
+            try {
+                out.write(DocWriter.json().writeAsBytes(stringMap));
+            } catch (IOException e) {
+                throw new SerializationException(e.getMessage(), e);
+            }
         }
     };
 }

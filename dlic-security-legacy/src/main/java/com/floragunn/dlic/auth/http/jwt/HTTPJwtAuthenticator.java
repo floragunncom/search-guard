@@ -14,6 +14,8 @@
 
 package com.floragunn.dlic.auth.http.jwt;
 
+import java.io.IOException;
+import java.io.Reader;
 import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.Key;
@@ -31,6 +33,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import io.jsonwebtoken.JwtParserBuilder;
+import io.jsonwebtoken.security.Keys;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -94,12 +98,12 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
         
         subjectPattern = getSubjectPattern(settings);
 
-        JwtParser _jwtParser = null;
+        JwtParserBuilder _jwtParser = null;
         
         try {
             String signingKey = settings.get("signing_key");
             
-            if(signingKey == null || signingKey.length() == 0) {
+            if(signingKey == null || signingKey.isEmpty()) {
                 log.error("signingKey must not be null or empty. JWT authentication will not work");
             } else {
 
@@ -107,7 +111,7 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
                 signingKey = signingKey.replace("-----END PUBLIC KEY-----", "");
 
                 byte[] decoded = Decoders.BASE64.decode(signingKey);
-                Key key = null;
+                PublicKey key = null;
 
                 try {
                     key = getPublicKey(decoded, "RSA");
@@ -122,9 +126,9 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
                 }
 
                 if(key != null) {
-                    _jwtParser = Jwts.parser().setSigningKey(key).deserializeJsonWith(jsonDeserializer);
+                    _jwtParser = Jwts.parser().verifyWith(key).json(jsonDeserializer);
                 } else {
-                    _jwtParser = Jwts.parser().setSigningKey(decoded).deserializeJsonWith(jsonDeserializer);
+                    _jwtParser = Jwts.parser().verifyWith(Keys.hmacShaKeyFor(decoded)).json(jsonDeserializer);
                 }
 
             }  
@@ -141,15 +145,15 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
         requireAudience = settings.get("required_audience");
         requireIssuer = settings.get("required_issuer");
         
-        if (requireAudience != null) {
+        if (_jwtParser != null && requireAudience != null) {
             _jwtParser.requireAudience(requireAudience);
         }
-        
-        if (requireIssuer != null) {
+
+        if (_jwtParser != null && requireIssuer != null) {
             _jwtParser.requireIssuer(requireIssuer);
         }
-        
-        jwtParser = _jwtParser;
+
+        jwtParser = _jwtParser != null ? _jwtParser.build() : null;
         attributeMapping = Attributes.getAttributeMapping(settings.getAsSettings("map_claims_to_user_attrs"));
 
         if ((subjectKey != null && jsonSubjectPath != null) || (rolesKey != null && jsonRolesPath != null)) {
@@ -198,7 +202,7 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
             request.param(jwtUrlParameter);
         }
         
-        if (jwtToken == null || jwtToken.length() == 0) {
+        if (jwtToken == null || jwtToken.isEmpty()) {
             if(log.isDebugEnabled()) {
                 log.debug("No JWT token found in '{}' {} header", jwtUrlParameter==null?jwtHeaderName:jwtUrlParameter, jwtUrlParameter==null?"header":"url parameter");
             }
@@ -229,7 +233,7 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
             Claims claims;
             
             try {
-                claims = AccessController.doPrivileged((PrivilegedExceptionAction<Claims>) () -> jwtParser.parseClaimsJws(jwtToken).getBody());
+                claims = AccessController.doPrivileged((PrivilegedExceptionAction<Claims>) () -> jwtParser.parseSignedClaims(jwtToken).getPayload());
             } catch (PrivilegedActionException e) {
                 if (e.getCause() instanceof Exception) {
                     throw (Exception) e.getCause();
@@ -293,7 +297,7 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
                 if (subjectObject instanceof Collection) {
                     Collection<?> subjectCollection = (Collection<?>) subjectObject;
 
-                    if (subjectCollection.size() == 0) {
+                    if (subjectCollection.isEmpty()) {
                         log.error("The subject is empty: " + jsonSubjectPath);
                         return null;
                     }
@@ -398,6 +402,15 @@ public class HTTPJwtAuthenticator implements LegacyHTTPAuthenticator, ApiAuthent
                 return DocReader.json().readObject(bytes);
             } catch (DocumentParseException | UnexpectedDocumentStructureException e) {
                throw new DeserializationException(e.getMessage(), e);
+            }
+        }
+
+        @Override
+        public Map<String, ?> deserialize(Reader reader) throws DeserializationException {
+            try {
+                return DocReader.json().readObject(reader);
+            } catch (DocumentParseException | UnexpectedDocumentStructureException | IOException e) {
+                throw new DeserializationException(e.getMessage(), e);
             }
         }
     };
