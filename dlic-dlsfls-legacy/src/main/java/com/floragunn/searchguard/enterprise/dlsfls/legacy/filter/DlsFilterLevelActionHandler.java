@@ -400,7 +400,7 @@ public class DlsFilterLevelActionHandler {
         Map<String, Set<String>> filterLevelQueries = evaluatedDlsFlsConfig.getDlsQueriesByIndex();
 
         BoolQueryBuilder dlsQueryBuilder = QueryBuilders.boolQuery().minimumShouldMatch(1);
-        DocumentWhitelist documentWhitelist = new DocumentWhitelist();
+        DocumentWhitelist.Builder documentWhitelist = new DocumentWhitelist.Builder();
 
         int queryCount = 0;
 
@@ -466,7 +466,7 @@ public class DlsFilterLevelActionHandler {
             return false;
         } else {
             this.filterLevelQueryBuilder = dlsQueryBuilder;
-            this.documentWhitelist = documentWhitelist;
+            this.documentWhitelist = documentWhitelist.build();
             return true;
         }
     }

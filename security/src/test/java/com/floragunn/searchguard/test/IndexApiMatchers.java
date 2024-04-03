@@ -38,7 +38,6 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format.UnknownDocTypeException;
-import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.jayway.jsonpath.Configuration;
@@ -216,6 +215,8 @@ public class IndexApiMatchers {
                     mismatchDescription.appendText("result contains unknown index: ").appendValue(docNode.getAsString("_index"))
                             .appendText("; expected: ").appendValue(indexNameMap.keySet()).appendText("\ndocument: ")
                             .appendText(docNode.toJsonString());
+                    mismatchDescription.appendText("\n\n").appendValue(formatResponse(response));
+
                     return false;
                 }
 
@@ -225,6 +226,8 @@ public class IndexApiMatchers {
                     mismatchDescription.appendText("result contains unknown document id ").appendValue(docNode.getAsString("_id"))
                             .appendText(" for index ").appendValue(docNode.getAsString("_index")).appendText("\ndocument: ")
                             .appendText(docNode.toJsonString());
+                    mismatchDescription.appendText("\n\n").appendValue(formatResponse(response));
+
                     return false;
                 }
 
@@ -233,6 +236,8 @@ public class IndexApiMatchers {
                             .appendValue(docNode.getAsString("_index")).appendText(" does not match expected document:\n")
                             .appendText(docNode.getAsNode("_source").toJsonString()).appendText("\n")
                             .appendText(DocNode.wrap(document).toJsonString());
+                    mismatchDescription.appendText("\n\n").appendValue(formatResponse(response));
+
                     return false;
                 }
 
@@ -242,11 +247,15 @@ public class IndexApiMatchers {
 
             if (!pendingDocuments.isEmpty()) {
                 mismatchDescription.appendText("result does not contain expected documents: ").appendValue(pendingDocuments);
+                mismatchDescription.appendText("\n\n").appendValue(formatResponse(response));
+
                 return false;
             }
 
             if (containsSearchGuardIndices && seenSearchGuardIndicesBuilder.size() == 0) {
                 mismatchDescription.appendText("result does not contain expected .searchguard index");
+                mismatchDescription.appendText("\n\n").appendValue(formatResponse(response));
+
                 return false;
             }
 
@@ -618,6 +627,11 @@ public class IndexApiMatchers {
         public IndexMatcher aggregateTerm(String term) {
             return null;
         }
+
+        @Override
+        public boolean containsDocument(String id) {
+            return true;
+        }
     }
 
     public static class StatusCodeMatcher extends DiagnosingMatcher<Object> implements IndexMatcher {
@@ -706,6 +720,11 @@ public class IndexApiMatchers {
             return null;
         }
 
+        @Override
+        public boolean containsDocument(String id) {
+            return false;
+        }
+
     }
 
     public static interface IndexMatcher extends Matcher<Object> {
@@ -732,6 +751,8 @@ public class IndexApiMatchers {
         boolean containsSearchGuardIndices();
 
         boolean containsEsInternalIndices();
+        
+        boolean containsDocument(String id);
 
     }
 
@@ -854,6 +875,17 @@ public class IndexApiMatchers {
         @Override
         public IndexMatcher aggregateTerm(String term) {
             return new TermAggregationMatcher(term, indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, this);
+        }
+
+        @Override
+        public boolean containsDocument(String id) {
+            for (TestIndexLike indexLike : this.indexNameMap.values()) {
+                if (indexLike.getDocumentIds().contains(id)) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
     }

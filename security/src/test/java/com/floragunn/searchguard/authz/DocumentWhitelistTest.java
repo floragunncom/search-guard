@@ -20,18 +20,17 @@ package com.floragunn.searchguard.authz;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.floragunn.searchguard.authz.DocumentWhitelist;
-
 public class DocumentWhitelistTest {
     @Test
     public void basicTest() throws Exception {
-        DocumentWhitelist documentWhitelist = new DocumentWhitelist();
-        documentWhitelist.add("test", "foo");
-        documentWhitelist.add("test", "x/y");
-        documentWhitelist.add("test", "a|b");
-        documentWhitelist.add("test", "$\\#");
-        documentWhitelist.add("test", "o\\/p");
-
+        DocumentWhitelist.Builder builder = new DocumentWhitelist.Builder();
+        builder.add("test", "foo");
+        builder.add("test", "x/y");
+        builder.add("test", "a|b");
+        builder.add("test", "$\\#");
+        builder.add("test", "o\\/p");
+        
+        DocumentWhitelist documentWhitelist = builder.build();
         Assert.assertTrue(documentWhitelist.toString(), documentWhitelist.isWhitelisted("test", "foo"));
         Assert.assertFalse(documentWhitelist.toString(), documentWhitelist.isWhitelisted("test", "bar"));
         Assert.assertFalse(documentWhitelist.toString(), documentWhitelist.isWhitelisted("test2", "foo"));
@@ -44,13 +43,14 @@ public class DocumentWhitelistTest {
 
     @Test
     public void parseTest() throws Exception {
-        DocumentWhitelist documentWhitelist = new DocumentWhitelist();
-        documentWhitelist.add("test", "foo");
-        documentWhitelist.add("test", "x/y");
-        documentWhitelist.add("test", "a|b");
-        documentWhitelist.add("test", "$\\#");
-        documentWhitelist.add("test", "o\\/p");
+        DocumentWhitelist.Builder builder = new DocumentWhitelist.Builder();
+        builder.add("test", "foo");
+        builder.add("test", "x/y");
+        builder.add("test", "a|b");
+        builder.add("test", "$\\#");
+        builder.add("test", "o\\/p");
 
+        DocumentWhitelist documentWhitelist = builder.build();
         Assert.assertTrue(documentWhitelist.toString(), documentWhitelist.isWhitelisted("test", "foo"));
         Assert.assertFalse(documentWhitelist.toString(), documentWhitelist.isWhitelisted("test", "bar"));
         Assert.assertFalse(documentWhitelist.toString(), documentWhitelist.isWhitelisted("test2", "foo"));

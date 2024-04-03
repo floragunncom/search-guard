@@ -35,6 +35,7 @@ import org.elasticsearch.index.shard.ShardUtils;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authz.DocumentWhitelist;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.config.Role;
@@ -94,7 +95,7 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
             log.trace("DlsFlsDirectoryReaderWrapper.apply(): No PrivilegesEvaluationContext");           
             return reader;
         }
-
+        
         try (Meter meter = Meter.detail(config.getMetricsLevel(), directoryReaderWrapperApplyAggregation)) {
 
             DlsFlsLicenseInfo licenseInfo = this.licenseInfo.get();
@@ -104,6 +105,7 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
             RoleBasedDocumentAuthorization documentAuthorization = config.getDocumentAuthorization();
             RoleBasedFieldAuthorization fieldAuthorization = config.getFieldAuthorization();
             RoleBasedFieldMasking fieldMasking = config.getFieldMasking();
+            DocumentWhitelist documentWhitelist = DocumentWhitelist.get(threadContext);
 
             if (privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext() != null
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
@@ -138,11 +140,17 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
                 dlsQuery = new ConstantScoreQuery(dlsRestriction.toQuery(queryShardContext, null));
             }
 
+            if (documentWhitelist.isWhitelistForIndexPresent(index.getName()) && (!flsRule.isAllowAll() || !fieldMaskingRule.isAllowAll())) {
+                log.debug("Lifting FLS/FM for {} due to present document whitelist");
+                flsRule = FlsRule.ALLOW_ALL;
+                fieldMaskingRule = FieldMaskingRule.ALLOW_ALL;
+            }
+            
             if (log.isDebugEnabled()) {
                 log.debug("Applying DLS/FLS:\nIndex: {}\ndlsRestriction: {}\ndlsQuery: {}\nfls: {}\nfieldMasking: {}", indexService.index().getName(),
                         dlsRestriction, dlsQuery, flsRule, fieldMaskingRule);
             }
-
+            
             DlsFlsActionContext dlsFlsContext = new DlsFlsActionContext(dlsQuery, flsRule, fieldMaskingRule, indexService, threadContext, licenseInfo, auditlog,
                     shardId);
 

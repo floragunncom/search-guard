@@ -169,6 +169,35 @@ public class RestMatchers {
 
         };
     }
+    
+    public static DiagnosingMatcher<HttpResponse> isInternalServerError() {
+        return new DiagnosingMatcher<HttpResponse>() {
+
+            @Override
+            public void describeTo(Description description) {
+                description.appendText("Response has status 500 Internal Server Error");
+            }
+
+            @Override
+            protected boolean matches(Object item, Description mismatchDescription) {
+                if (!(item instanceof HttpResponse)) {
+                    mismatchDescription.appendValue(item).appendText(" is not a HttpResponse");
+                    return false;
+                }
+
+                HttpResponse response = (HttpResponse) item;
+
+                if (response.getStatusCode() == 400) {
+                    return true;
+                } else {
+                    mismatchDescription.appendText("Status is not 500 Internal Server Error: ").appendValue(item);
+                    return false;
+                }
+
+            }
+
+        };
+    }
 
     public static DiagnosingMatcher<HttpResponse> json(BaseMatcher<?>... subMatchers) {
         return new DiagnosingMatcher<HttpResponse>() {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2024 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,27 +17,38 @@
 
 package com.floragunn.searchguard.authz;
 
-import java.util.HashSet;
-import java.util.Set;
-
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.support.ConfigConstants;
 
 public class DocumentWhitelist {
+    private static final Logger log = LogManager.getLogger(DocumentWhitelist.class);
 
-    private final Set<Entry> entries = new HashSet<>();
+    public static DocumentWhitelist get(ThreadContext threadContext) {
+        String docWhitelistHeader = threadContext.getHeader(ConfigConstants.SG_DOC_WHITELST_HEADER);
 
-    public DocumentWhitelist() {
+        if (docWhitelistHeader == null) {
+            return EMPTY;
+        } else {
+            try {
 
+                return DocumentWhitelist.parse(docWhitelistHeader);
+            } catch (Exception e) {
+                log.error("Error while handling document whitelist: " + docWhitelistHeader, e);
+                return EMPTY;
+            }
+        }
     }
 
-    public void add(String index, String id) {
-        this.add(new Entry(index, id));
-    }
+    private static final DocumentWhitelist EMPTY = new DocumentWhitelist(ImmutableSet.empty());
 
-    public void add(Entry entry) {
-        this.entries.add(entry);
+    private final ImmutableSet<Entry> entries;
+
+    public DocumentWhitelist(ImmutableSet<DocumentWhitelist.Entry> entries) {
+        this.entries = entries;
     }
 
     public boolean isEmpty() {
@@ -53,6 +64,16 @@ public class DocumentWhitelist {
     public boolean isWhitelisted(String index, String id) {
         for (Entry entry : entries) {
             if (entry.index.equals(index) && entry.id.equals(id)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    
+    public boolean isWhitelistForIndexPresent(String index) {
+        for (Entry entry : entries) {
+            if (entry.index.equals(index)) {
                 return true;
             }
         }
@@ -78,13 +99,13 @@ public class DocumentWhitelist {
     }
 
     public static DocumentWhitelist parse(String string) {
-        DocumentWhitelist result = new DocumentWhitelist();
-
         int length = string.length();
 
         if (length == 0) {
-            return result;
+            return EMPTY;
         }
+
+        ImmutableSet.Builder<Entry> entries = new ImmutableSet.Builder<>();
 
         int entryStart = 0;
         String index = null;
@@ -113,7 +134,7 @@ public class DocumentWhitelist {
 
                 String id = unescapeId(string.substring(entryStart, i));
 
-                result.add(index, id);
+                entries.add(new Entry(index, id));
                 index = null;
                 entryStart = i + 1;
             }
@@ -123,7 +144,7 @@ public class DocumentWhitelist {
             }
         }
 
-        return result;
+        return new DocumentWhitelist(entries.build());
     }
 
     private static String escapeId(String id) {
@@ -186,6 +207,36 @@ public class DocumentWhitelist {
         return result.toString();
     }
 
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((entries == null) ? 0 : entries.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        DocumentWhitelist other = (DocumentWhitelist) obj;
+        if (entries == null) {
+            if (other.entries != null) {
+                return false;
+            }
+        } else if (!entries.equals(other.entries)) {
+            return false;
+        }
+        return true;
+    }
+
     public static class Entry {
         private final String index;
         private final String id;
@@ -194,7 +245,7 @@ public class DocumentWhitelist {
             if (index.indexOf('/') != -1 || index.indexOf('|') != -1) {
                 throw new IllegalArgumentException("Invalid index name: " + index);
             }
-            
+
             this.index = index;
             this.id = id;
         }
@@ -243,33 +294,20 @@ public class DocumentWhitelist {
         }
     }
 
-    @Override
-    public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((entries == null) ? 0 : entries.hashCode());
-        return result;
+    public static class Builder {
+        private ImmutableSet.Builder<Entry> entries = new ImmutableSet.Builder<>();
+
+        public void add(String index, String id) {
+            this.add(new Entry(index, id));
+        }
+
+        public void add(Entry entry) {
+            this.entries.add(entry);
+        }
+
+        public DocumentWhitelist build() {
+            return new DocumentWhitelist(this.entries.build());
+        }
     }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        DocumentWhitelist other = (DocumentWhitelist) obj;
-        if (entries == null) {
-            if (other.entries != null) {
-                return false;
-            }
-        } else if (!entries.equals(other.entries)) {
-            return false;
-        }
-        return true;
-    }
 }
