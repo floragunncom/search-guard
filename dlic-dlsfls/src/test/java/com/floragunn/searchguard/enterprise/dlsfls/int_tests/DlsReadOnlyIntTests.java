@@ -22,13 +22,20 @@ import static com.floragunn.searchguard.test.IndexApiMatchers.limitedTo;
 import static com.floragunn.searchguard.test.IndexApiMatchers.searchGuardIndices;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimited;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncludingSearchGuardIndices;
+import static com.floragunn.searchguard.test.RestMatchers.*;
+import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,21 +49,20 @@ import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestAlias;
 import com.floragunn.searchguard.test.TestData.TestDocument;
 import com.floragunn.searchguard.test.TestIndex;
+import com.floragunn.searchguard.test.TestIndexLike;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
-/**
- * TODO negation auf static: aa,-a*
- *
- */
 @RunWith(Parameterized.class)
 public class DlsReadOnlyIntTests {
     static TestIndex index_1 = TestIndex.name("index_1").documentCount(100).seed(1).attr("prefix", "a").setting("index.number_of_shards", 5).build();
     static TestIndex index_2 = TestIndex.name("index_2").documentCount(110).seed(2).attr("prefix", "a").setting("index.number_of_shards", 5).build();
     static TestIndex index_3 = TestIndex.name("index_3").documentCount(51).seed(4).attr("prefix", "b").setting("index.number_of_shards", 5).build();
     static TestIndex index_hidden = TestIndex.name("index_hidden").documentCount(52).hidden().seed(8).attr("prefix", "h").build();
+    static TestIndex user_dept_terms_lookup = TestIndex.name("user_dept_terms_lookup").hidden().build();
 
+    static TestAlias alias_1 = new TestAlias("alias_1", index_1);
     static TestAlias alias_12 = new TestAlias("alias_12", index_1, index_2);
 
     static TestSgConfig.User LIMITED_USER_INDEX_1_DEPT_A = new TestSgConfig.User("limited_user_index_1_dept_A")//
@@ -94,6 +100,15 @@ public class DlsReadOnlyIntTests {
             .indexMatcher("read", limitedTo(index_1.filteredBy(node -> node.getAsString("dept").startsWith("dept_a")),
                     index_2.filteredBy(node -> node.getAsString("dept").startsWith("dept_d"))));
 
+    static TestSgConfig.User LIMITED_USER_ALIAS_1_DEPT_A = new TestSgConfig.User("limited_user_alias_1_dept_A")//
+            .description("dept_a in alias_1")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
+                            .aliasPermissions("SGS_READ").dls(DocNode.of("prefix.dept.value", "dept_a")).on("alias_1"))//
+            .indexMatcher("read", limitedTo(alias_1.filteredBy(node -> node.getAsString("dept").startsWith("dept_a")),
+                    index_1.filteredBy(node -> node.getAsString("dept").startsWith("dept_a"))));
+
     static TestSgConfig.User LIMITED_USER_ALIAS_12_DEPT_D = new TestSgConfig.User("limited_user_alias_12_dept_D")//
             .description("dept_d in alias_12")//
             .roles(//
@@ -116,6 +131,17 @@ public class DlsReadOnlyIntTests {
                             index_1.filteredBy(
                                     node -> node.getAsString("dept").startsWith("dept_d") || node.getAsString("dept").startsWith("dept_a")),
                             index_2.filteredBy(node -> node.getAsString("dept").startsWith("dept_d"))));
+
+    static TestSgConfig.User LIMITED_USER_INDEX_1_DEPT_D_TERMS_LOOKUP = new TestSgConfig.User("limited_user_index_1_dept_D_terms_lookup")//
+            .description("dept_d in index_1 with terms lookup")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
+                            .indexPermissions("SGS_READ")
+                            .dls(DocNode.of("terms",
+                                    DocNode.of("dept", DocNode.of("index", "user_dept_terms_lookup", "id", "${user.name}", "path", "dept"))))
+                            .on("index_1"))//
+            .indexMatcher("read", limitedTo(index_1.filteredBy(node -> node.getAsString("dept").startsWith("dept_d"))));
 
     /*
     static TestSgConfig.User LIMITED_USER_B1 = new TestSgConfig.User("limited_user_B1")//
@@ -224,20 +250,28 @@ public class DlsReadOnlyIntTests {
             .indexMatcher("get_alias", unlimitedIncludingSearchGuardIndices());
 
     static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_INDEX_1_DEPT_A, LIMITED_USER_INDEX_1_DEPT_D,
-            LIMITED_USER_INDEX_1_HIDDEN_DEPT_A, LIMITED_USER_INDEX_1_DEPT_A_INDEX_2_DEPT_D, LIMITED_USER_ALIAS_12_DEPT_D,
-            LIMITED_USER_ALIAS_12_DEPT_D_INDEX_1_DEPT_A, UNLIMITED_USER, SUPER_UNLIMITED_USER);
+            LIMITED_USER_INDEX_1_HIDDEN_DEPT_A, LIMITED_USER_INDEX_1_DEPT_A_INDEX_2_DEPT_D, LIMITED_USER_ALIAS_1_DEPT_A, LIMITED_USER_ALIAS_12_DEPT_D,
+            LIMITED_USER_ALIAS_12_DEPT_D_INDEX_1_DEPT_A, LIMITED_USER_INDEX_1_DEPT_D_TERMS_LOOKUP, UNLIMITED_USER, SUPER_UNLIMITED_USER);
 
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().useImpl("flx").metrics("detailed");
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().users(USERS)//
             .indices(index_1, index_2, index_3, index_hidden)//
-            .aliases(alias_12)//
+            .aliases(alias_1, alias_12)//
             .authzDebug(true)//
             .logRequests()//
             .dlsFls(DLSFLS)//
             // .useExternalProcessCluster()//
             .build();
+
+    @BeforeClass
+    public static void setupTestData() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+            client.putJson("/user_dept_terms_lookup", DocNode.of("settings.index.hidden", true));
+            client.putJson("/user_dept_terms_lookup/_doc/limited_user_index_1_dept_D_terms_lookup?refresh=true", DocNode.of("dept", "dept_d"));
+        }
+    }
 
     final TestSgConfig.User user;
 
@@ -387,6 +421,82 @@ public class DlsReadOnlyIntTests {
     }
 
     @Test
+    public void get() throws Exception {
+        TestDocument testDocument1a1 = index_1.getTestData().anyDocumentForDepartment("dept_a_1");
+
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/index_1/_doc/" + testDocument1a1.getId());
+            if (containsExactly(index_1).isCoveredBy(user.indexMatcher("read"))) {
+                if (containsExactly(index_1).but(user.indexMatcher("read")).containsDocument(testDocument1a1.getId())) {
+                    assertThat(httpResponse, isOk());
+                } else {
+                    assertThat(httpResponse, isNotFound());
+                }
+
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
+        }
+    }
+
+    @Test
+    public void get2() throws Exception {
+        TestDocument testDocument1d = index_1.getTestData().anyDocumentForDepartment("dept_d");
+
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/index_1/_doc/" + testDocument1d.getId());
+            if (containsExactly(index_1).isCoveredBy(user.indexMatcher("read"))) {
+                if (containsExactly(index_1).but(user.indexMatcher("read")).containsDocument(testDocument1d.getId())) {
+                    assertThat(httpResponse, isOk());
+                } else {
+                    assertThat(httpResponse, isNotFound());
+                }
+
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
+        }
+    }
+
+    @Test
+    public void get_alias() throws Exception {
+        TestDocument testDocument1a1 = index_1.getTestData().anyDocumentForDepartment("dept_a_1");
+
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/alias_1/_doc/" + testDocument1a1.getId());
+            if (containsExactly(index_1).isCoveredBy(user.indexMatcher("read")) && user != LIMITED_USER_ALIAS_12_DEPT_D) {
+                if (containsExactly(index_1).but(user.indexMatcher("read")).containsDocument(testDocument1a1.getId())) {
+                    assertThat(httpResponse, isOk());
+                } else {
+                    assertThat(httpResponse, isNotFound());
+                }
+
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
+        }
+    }
+
+    @Test
+    public void get_alias2() throws Exception {
+        TestDocument testDocument1d = index_1.getTestData().anyDocumentForDepartment("dept_d");
+
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/alias_1/_doc/" + testDocument1d.getId());
+            if (containsExactly(index_1).isCoveredBy(user.indexMatcher("read")) && user != LIMITED_USER_ALIAS_12_DEPT_D) {
+                if (containsExactly(index_1).but(user.indexMatcher("read")).containsDocument(testDocument1d.getId())) {
+                    assertThat(httpResponse, isOk());
+                } else {
+                    assertThat(httpResponse, isNotFound());
+                }
+
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
+        }
+    }
+
+    @Test
     public void mget() throws Exception {
         TestDocument testDocument1a1 = index_1.getTestData().anyDocumentForDepartment("dept_a_1");
         TestDocument testDocument1b1 = index_1.getTestData().anyDocumentForDepartment("dept_b_1");
@@ -400,213 +510,84 @@ public class DlsReadOnlyIntTests {
                 DocNode.of("_index", "index_2", "_id", testDocument2b1.getId())));
 
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.postJson("/_mget", mget);
-            System.out.println(httpResponse.getBody());
-            // TODO
-          //  assertThat(httpResponse, containsExactly(index_a1, index_b1, index_b2).at("docs[?(@.found == true)]._index")
-           //         .but(user.indexMatcher("read")).whenEmpty(200));
+            HttpResponse response = restClient.postJson("/_mget", mget);
+            assertThat(response, isOk());
+            DocNode body = response.getBodyAsDocNode();
+
+            checkMgetDocument(response, body, index_1, testDocument1a1);
+            checkMgetDocument(response, body, index_1, testDocument1b1);
+            checkMgetDocument(response, body, index_2, testDocument2a1);
+            checkMgetDocument(response, body, index_2, testDocument2b1);
         }
     }
 
-    /*
-    
-    
-    
     @Test
     public void mget_alias() throws Exception {
-        TestDocument testDocumentC1a = index_c1.getTestData().anyDocument();
-        TestDocument testDocumentC1b = index_c1.getTestData().anyDocument();
-    
+        TestDocument testDocument1a1 = index_1.getTestData().anyDocumentForDepartment("dept_a_1");
+        TestDocument testDocument1b1 = index_1.getTestData().anyDocumentForDepartment("dept_b_1");
+
         DocNode mget = DocNode.of("docs", DocNode.array(//
-                DocNode.of("_index", "alias_c1", "_id", testDocumentC1a.getId()), //
-                DocNode.of("_index", "alias_c1", "_id", testDocumentC1b.getId())));
-    
+                DocNode.of("_index", "alias_1", "_id", testDocument1a1.getId()), //
+                DocNode.of("_index", "alias_1", "_id", testDocument1b1.getId())));
+
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.postJson("/_mget", mget);
-            assertThat(httpResponse, containsExactly(index_c1).at("docs[?(@.found == true)]._index").but(user.indexMatcher("read")).whenEmpty(200));
+            HttpResponse response = restClient.postJson("/_mget", mget);
+            assertThat(response, isOk());
+            DocNode body = response.getBodyAsDocNode();
+
+            checkMgetDocument(response, body, index_1, testDocument1a1);
+            checkMgetDocument(response, body, index_1, testDocument1b1);
         }
     }
-    
-    @Test
-    public void get() throws Exception {
-        TestDocument testDocumentB1 = index_b1.getTestData().anyDocument();
-    
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("/index_b1/_doc/" + testDocumentB1.getId());
-            assertThat(httpResponse, containsExactly(index_b1).at("_index").but(user.indexMatcher("read")).whenEmpty(403));
-        }
-    }
-    
-    @Test
-    public void get_alias() throws Exception {
-        TestDocument testDocumentC1 = index_c1.getTestData().anyDocument();
-    
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("/alias_c1/_doc/" + testDocumentC1.getId());
-            assertThat(httpResponse, containsExactly(index_c1).at("_index").but(user.indexMatcher("read")).whenEmpty(403));
-        }
-    }
-    
-    @Test
-    public void cat_all() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("/_cat/indices?format=json");
-            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1).at("$[*].index")
-                    .but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-    
-    @Test
-    public void cat_pattern() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("/_cat/indices/index_a*?format=json");
-            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3).at("$[*].index").but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-    
-    @Test
-    public void cat_all_includeHidden() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("/_cat/indices?format=json&expand_wildcards=all");
-            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden,
-                    index_hidden_dot, searchGuardIndices()).at("$[*].index").but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-    
-    @Test
-    public void cat_all_includeHidden_origin() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("/_cat/indices?format=json&expand_wildcards=all",
-                    new BasicHeader(Task.X_ELASTIC_PRODUCT_ORIGIN_HTTP_HEADER, "origin-with-allowed-system-indices"));
-            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden,
-                    index_hidden_dot, index_system, searchGuardIndices()).at("$[*].index").but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-    
-    @Test
-    public void index_stats_all() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("/_stats");
-            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1).at("indices.keys()")
-                    .but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-    
-    @Test
-    public void index_stats_pattern() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("index_b* /_stats");
-            assertThat(httpResponse,
-                    containsExactly(index_b1, index_b2, index_b3).at("indices.keys()").but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-    
-    @Test
-    public void getAlias_all() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("_alias");
-            assertThat(httpResponse,
-                    containsExactly(alias_ab1, alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
-            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden,
-                    index_hidden_dot, searchGuardIndices()).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
-        }
-    }
-    
-    @Test
-    public void getAlias_staticAlias() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("_alias/alias_c1");
-            // RestGetAliasesAction does some further post processing on the results, thus we get 404 errors in case a non wildcard alias was removed
-            assertThat(httpResponse, containsExactly(alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(404));
-            assertThat(httpResponse, containsExactly(index_c1).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(404));
-        }
-    }
-    
-    @Test
-    public void getAlias_aliasPattern() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("_alias/alias_ab*");
-            assertThat(httpResponse, containsExactly(alias_ab1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
-            assertThat(httpResponse,
-                    containsExactly(index_a1, index_a2, index_a3, index_b1).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
-        }
-    }
-    
-    @Test
-    public void getAlias_aliasPattern_noWildcards() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("_alias/alias_ab*?expand_wildcards=none");
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse.getBodyAsDocNode(), equalTo(DocNode.EMPTY));
-        }
-    }
-    
-    @Test
-    public void getAlias_mixed() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("_alias/alias_ab1,alias_c*");
-            // RestGetAliasesAction does some further post processing on the results, thus we get 404 errors in case a non wildcard alias was removed
-    
-            assertThat(httpResponse,
-                    containsExactly(alias_ab1, alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(404));
-            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_c1).at("$.keys()")
-                    .but(user.indexMatcher("get_alias")).whenEmpty(404));
-        }
-    }
-    
-    @Test
-    public void analyze_noIndex() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.postJson("_analyze", "{\"text\": \"sample text\"}");
-    
-            if (user.indexMatcher("read").isEmpty()) {
-                assertThat(httpResponse, isForbidden());
+
+    private void checkMgetDocument(HttpResponse response, DocNode body, TestIndexLike testIndex, TestDocument testDocument) throws Exception {
+        DocNode foundDocument = body.findSingleNodeByJsonPath("docs[?(@._id == \"" + testDocument.getId() + "\")]").toListOfNodes().get(0);
+        assertNotNull(response.getBody(), foundDocument);
+
+        if (containsExactly(testIndex).isCoveredBy(user.indexMatcher("read"))) {
+            Boolean found = foundDocument.getBoolean("found");
+            
+            if (found == null) {
+                fail("No found attribute " + foundDocument.toString());
+            }
+            
+            if (containsExactly(testIndex).but(user.indexMatcher("read")).containsDocument(testDocument.getId())) {
+                assertTrue(response.getBody(), found);
             } else {
-                assertThat(httpResponse, isOk());
+                assertFalse(response.getBody(), found);
+            }
+        } else {
+            assertEquals(response.getBody(), "Insufficient permissions", foundDocument.get("error", "reason"));
+        }
+    }
+
+    @Test
+    public void termvectors() throws Exception {
+        TestDocument testDocument1a1 = index_1.getTestData().anyDocumentForDepartment("dept_a_1");
+
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/index_1/_termvectors/" + testDocument1a1.getId());
+
+            if (user == LIMITED_USER_INDEX_1_DEPT_D_TERMS_LOOKUP) {
+                // termverctors is not supported for terms lookup DLS
+                assertThat(httpResponse, isInternalServerError());
+                assertTrue(httpResponse.getBody(),
+                        httpResponse.getBodyAsDocNode().getAsString("reason").startsWith("Unsupported request type for filter level DLS"));
+            } else {
+                if (containsExactly(index_1).isCoveredBy(user.indexMatcher("read"))) {
+                    assertThat(httpResponse, isOk());
+
+                    if (containsExactly(index_1).but(user.indexMatcher("read")).containsDocument(testDocument1a1.getId())) {
+                        assertEquals(httpResponse.getBody(), true, httpResponse.getBodyAsDocNode().get("found"));
+                    } else {
+                        assertEquals(httpResponse.getBody(), false, httpResponse.getBodyAsDocNode().get("found"));
+                    }
+                } else {
+                    assertThat(httpResponse, isForbidden());
+                }
             }
         }
     }
-    
-    @Test
-    public void analyze_staticIndex() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.postJson("index_a1/_analyze", "{\"text\": \"sample text\"}");
-            IndexMatcher matcher = containsExactly(index_a1).but(user.indexMatcher("read"));
-    
-            if (matcher.isEmpty()) {
-                assertThat(httpResponse, isForbidden());
-            } else {
-                assertThat(httpResponse, isOk());
-            }
-        }
-    }
-    
-    @Test
-    public void resolve_wildcard() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("/_resolve/index/*");
-            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, alias_ab1, alias_c1)
-                    .at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-    
-    @Test
-    public void resolve_wildcard_includeHidden() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("/_resolve/index/*?expand_wildcards=all");
-            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, alias_ab1, alias_c1,
-                    index_hidden, index_hidden_dot, searchGuardIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-    
-    @Test
-    public void resolve_indexPattern() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("/_resolve/index/index_a*,index_b*");
-            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3).at("$.*[*].name")
-                    .but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }*/
 
     @Parameters(name = "{1}")
     public static Collection<Object[]> params() {
