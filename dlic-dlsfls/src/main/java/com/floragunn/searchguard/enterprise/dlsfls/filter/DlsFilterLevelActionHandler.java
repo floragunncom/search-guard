@@ -192,6 +192,10 @@ public class DlsFilterLevelActionHandler {
 
         searchRequest.source().query(filterLevelQueryBuilder);
 
+        if (log.isTraceEnabled()) {
+            log.trace("Executing search request {}", searchRequest);
+        }
+        
         nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
             @Override
             public void onResponse(SearchResponse response) {
@@ -209,6 +213,7 @@ public class DlsFilterLevelActionHandler {
 
             @Override
             public void onFailure(Exception e) {
+                log.error("XXX", e);
                 listener.onFailure(e);
             }
         });
@@ -349,7 +354,7 @@ public class DlsFilterLevelActionHandler {
 
     private boolean createQueryExtension(String localClusterAlias) throws IOException {
         BoolQueryBuilder dlsQueryBuilder = QueryBuilders.boolQuery().minimumShouldMatch(1);
-        DocumentWhitelist documentWhitelist = new DocumentWhitelist();
+        DocumentWhitelist.Builder documentWhitelist = new DocumentWhitelist.Builder();
 
         int queryCount = 0;
 
@@ -420,7 +425,7 @@ public class DlsFilterLevelActionHandler {
             return false;
         } else {
             this.filterLevelQueryBuilder = dlsQueryBuilder;
-            this.documentWhitelist = documentWhitelist;
+            this.documentWhitelist = documentWhitelist.build();
             return true;
         }
     }
