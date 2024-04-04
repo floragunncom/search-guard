@@ -4,18 +4,8 @@ test_security:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
-      when: always
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never    
     - when: always
   script:
     - UUID=$(uuidgen)
@@ -41,18 +31,8 @@ test_security_legacy:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
-      when: always
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never   
     - when: always
   script:
     - UUID=$(uuidgen)
@@ -78,18 +58,8 @@ test_ssl:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
-      when: always
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never   
     - when: always
   script:
     - UUID=$(uuidgen)
@@ -115,18 +85,8 @@ test_signals:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
-      when: always
     - when: always
   script:
     - UUID=$(uuidgen)
@@ -152,18 +112,8 @@ test_scheduler:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
-      when: always
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never      
     - when: always
   script:
     - UUID=$(uuidgen)
@@ -189,18 +139,8 @@ test_support:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
-      when: always
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never    
     - when: always
   script:
     - UUID=$(uuidgen)
@@ -226,18 +166,8 @@ test_dlic_security:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
-      when: always
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never      
     - when: always
   script:
     - UUID=$(uuidgen)
@@ -263,18 +193,8 @@ test_dlic_security_legacy:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
-      when: always
     - when: always
   script:
     - UUID=$(uuidgen)
@@ -300,18 +220,8 @@ test_dlic_dlsfls:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
-      when: always
     - when: always
   script:
     - UUID=$(uuidgen)
@@ -337,18 +247,8 @@ test_dlic_dlsfls_legacy:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
-      when: always
     - when: always
   script:
     - UUID=$(uuidgen)
@@ -374,18 +274,8 @@ test_dlic_femt:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
-      when: always
     - when: always
   script:
     - UUID=$(uuidgen)
@@ -411,18 +301,8 @@ test_dlic_auditlog:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
-      when: always
     - when: always
   script:
     - UUID=$(uuidgen)
@@ -448,18 +328,8 @@ test_dlic_signals:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/'
-      when: never
-    - if: '$CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
-      when: always
     - when: always
   script:
     - UUID=$(uuidgen)
