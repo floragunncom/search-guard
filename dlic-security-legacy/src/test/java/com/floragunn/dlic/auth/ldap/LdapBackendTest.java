@@ -266,7 +266,7 @@ public class LdapBackendTest {
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper.getAbsoluteFilePathFromClassPath("ldap/truststore.jks"))
                 .put("verify_hostnames", false)
                 .putList("enabled_ssl_protocols", "TLSv1.2")
-                .putList("enabled_ssl_ciphers", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA")
+                .putList("enabled_ssl_ciphers", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256")
                 .put("path.home", ".")
                 .build();
 
