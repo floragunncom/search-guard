@@ -282,7 +282,7 @@ public class LdapBackendTestNewStyleConfig2 {
                 .put("searchguard.ssl.transport.truststore_filepath",
                         FileHelper.getAbsoluteFilePathFromClassPath("ldap/truststore.jks"))
                 .put("verify_hostnames", false).putList("enabled_ssl_protocols", "TLSv1.2")
-                .putList("enabled_ssl_ciphers", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA").put("path.home", ".").build();
+                .putList("enabled_ssl_ciphers", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256").put("path.home", ".").build();
 
         final LdapUser user = (LdapUser) new LDAPAuthenticationBackend2(settings, null)
                 .authenticate(AuthCredentials.forUser("jacksonm").password("secret").build());
