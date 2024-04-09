@@ -21,9 +21,14 @@ import java.security.PrivilegedExceptionAction;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
-import org.apache.http.client.HttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.HttpClients;
+import net.shibboleth.shared.component.ComponentInitializationException;
+import net.shibboleth.shared.resolver.ResolverException;
+import net.shibboleth.shared.xml.impl.BasicParserPool;
+import org.apache.hc.client5.http.classic.HttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
 import org.opensaml.saml.metadata.resolver.impl.HTTPMetadataResolver;
@@ -31,9 +36,6 @@ import org.opensaml.saml.metadata.resolver.impl.HTTPMetadataResolver;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator;
 import com.floragunn.dlic.util.SettingsBasedSSLConfigurator.SSLConfigException;
 
-import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
-import net.shibboleth.utilities.java.support.resolver.ResolverException;
-import net.shibboleth.utilities.java.support.xml.BasicParserPool;
 
 @Deprecated
 public class SamlHTTPMetadataResolver extends HTTPMetadataResolver {
@@ -107,7 +109,13 @@ public class SamlHTTPMetadataResolver extends HTTPMetadataResolver {
         SettingsBasedSSLConfigurator.SSLConfig sslConfig = getSSLConfig(settings, configPath);
 
         if (sslConfig != null) {
-            builder.setSSLSocketFactory(sslConfig.toSSLConnectionSocketFactory());
+            PoolingHttpClientConnectionManagerBuilder clientConnectionManagerBuilder = PoolingHttpClientConnectionManagerBuilder.create();
+            SSLConnectionSocketFactory sslConnectionSocketFactory = new SSLConnectionSocketFactory(
+                    sslConfig.getUnrestrictedSslContext(), sslConfig.getSupportedProtocols(),
+                    sslConfig.getSupportedCipherSuites(), sslConfig.getHostnameVerifier()
+            );
+            clientConnectionManagerBuilder.setSSLSocketFactory(sslConnectionSocketFactory);
+            builder.setConnectionManager(clientConnectionManagerBuilder.build());
         }
 
         return builder.build();

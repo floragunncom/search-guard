@@ -29,6 +29,9 @@ import java.util.Map;
 
 import javax.xml.xpath.XPathExpressionException;
 
+import net.shibboleth.shared.component.ComponentInitializationException;
+import net.shibboleth.shared.component.DestructableComponent;
+import net.shibboleth.shared.resolver.ResolverException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.SpecialPermission;
@@ -68,9 +71,7 @@ import com.onelogin.saml2.settings.Saml2Settings;
 import com.onelogin.saml2.util.Constants;
 import com.onelogin.saml2.util.Util;
 
-import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
-import net.shibboleth.utilities.java.support.component.DestructableComponent;
-import net.shibboleth.utilities.java.support.resolver.ResolverException;
+
 
 public class SamlAuthenticator implements ApiAuthenticationFrontend, AutoCloseable {
     private static final String SSO_CONTEXT_PREFIX = "saml_request_id:";

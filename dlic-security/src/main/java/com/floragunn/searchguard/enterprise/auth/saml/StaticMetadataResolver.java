@@ -19,6 +19,9 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
+import net.shibboleth.shared.component.ComponentInitializationException;
+import net.shibboleth.shared.resolver.ResolverException;
+import net.shibboleth.shared.xml.impl.BasicParserPool;
 import org.elasticsearch.SpecialPermission;
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.io.UnmarshallingException;
@@ -28,9 +31,7 @@ import org.opensaml.saml.metadata.resolver.impl.AbstractBatchMetadataResolver;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.google.common.base.Charsets;
 
-import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
-import net.shibboleth.utilities.java.support.resolver.ResolverException;
-import net.shibboleth.utilities.java.support.xml.BasicParserPool;
+
 
 public class StaticMetadataResolver extends AbstractBatchMetadataResolver {
 

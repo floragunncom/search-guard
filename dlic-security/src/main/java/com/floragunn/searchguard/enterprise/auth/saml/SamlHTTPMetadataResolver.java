@@ -16,17 +16,19 @@ package com.floragunn.searchguard.enterprise.auth.saml;
 
 import java.net.URI;
 
-import org.apache.http.client.HttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.HttpClients;
+import net.shibboleth.shared.component.ComponentInitializationException;
+import net.shibboleth.shared.resolver.ResolverException;
+import net.shibboleth.shared.xml.impl.BasicParserPool;
+import org.apache.hc.client5.http.classic.HttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
 import org.opensaml.saml.metadata.resolver.impl.HTTPMetadataResolver;
 
 import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.searchsupport.PrivilegedCode;
 
-import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
-import net.shibboleth.utilities.java.support.resolver.ResolverException;
-import net.shibboleth.utilities.java.support.xml.BasicParserPool;
 
 public class SamlHTTPMetadataResolver extends HTTPMetadataResolver {
     private static int componentIdCounter = 0;
@@ -63,12 +65,19 @@ public class SamlHTTPMetadataResolver extends HTTPMetadataResolver {
 
     private static HttpClient createHttpClient(TLSConfig tlsConfig) {
         return PrivilegedCode.execute(() -> {
-            HttpClientBuilder builder = HttpClients.custom();
+            org.apache.hc.client5.http.impl.classic.HttpClientBuilder builder = HttpClients.custom();
 
             builder.useSystemProperties();
 
             if (tlsConfig != null) {
-                builder.setSSLSocketFactory(tlsConfig.toSSLConnectionSocketFactory());
+
+                PoolingHttpClientConnectionManagerBuilder clientConnectionManagerBuilder = PoolingHttpClientConnectionManagerBuilder.create();
+                SSLConnectionSocketFactory sslConnectionSocketFactory = new SSLConnectionSocketFactory(
+                        tlsConfig.getUnrestrictedSslContext(), tlsConfig.getSupportedProtocols(),
+                        tlsConfig.getSupportedCipherSuites(), tlsConfig.getHostnameVerifier()
+                );
+                clientConnectionManagerBuilder.setSSLSocketFactory(sslConnectionSocketFactory);
+                builder.setConnectionManager(clientConnectionManagerBuilder.build());
             }
 
             return builder.build();
