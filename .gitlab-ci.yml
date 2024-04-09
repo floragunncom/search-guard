@@ -73,6 +73,7 @@ build:
   tags:
     - build
   script:
+    - java --version
     - mvn $MAVEN_CLI_OPTS -Dmaven.test.skip.exec=true clean install
   artifacts:
     when: on_success
