@@ -7,7 +7,7 @@ variables:
   #KI_VERSION: ""
   #IT_BRANCH: ""
 
-image: maven:3.8.8-amazoncorretto-${SG_JAVA_BUILD_VERSION}-debian
+image: floragunncom/maven:3.8.8-amazoncorretto-${SG_JAVA_BUILD_VERSION}-debian
 
 
 
@@ -102,7 +102,7 @@ build_for_tag_version:
       when: always
   tags:
     - build
-  <<: *common_before_script_debian_packages
+  # <<: *common_before_script_debian_packages
   script:
     # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3
     - export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
@@ -455,7 +455,7 @@ deploy_snapshot:
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: never
     - when: always
-  <<: *common_before_script_debian_packages
+  # <<: *common_before_script_debian_packages
   script:
     - |
       set -x
@@ -511,7 +511,7 @@ deploy_staging:
       when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: always
-  <<: *common_before_script_debian_packages
+  # <<: *common_before_script_debian_packages
   tags:
     - build
   script:
@@ -572,7 +572,7 @@ deploy_release:
       when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: on_success
-  <<: *common_before_script_debian_packages
+  # <<: *common_before_script_debian_packages
   tags:
     - build
   script:
