@@ -13,11 +13,9 @@ image: maven:3.8.8-amazoncorretto-${SG_JAVA_BUILD_VERSION}-debian
 
 .common_before_script_debian_packages: &common_before_script_debian_packages
   before_script:
-    # - rm -rf /var/lib/apt/lists/* && yum update -y -q && apt-get install -yqq git jq xmlstarlet curl > /dev/null
     - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq git jq xmlstarlet curl locales > /dev/null
     - sed -i '/C.utf8/s/^# //g' /etc/locale.gen && locale-gen && export LANG=C.utf8 && export LANGUAGE=C.utf8 && export LC_ALL=C.utf8
     - locale
-    # - yum update -y -q && yum install -y -q git jq xmlstarlet 
 
 #cache:
 #  key: "$CI_COMMIT_REF_SLUG"
@@ -464,7 +462,7 @@ deploy_snapshot:
       mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests deploy | tee deploy.out
       SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
       SG_ADMIN="https://maven.search-guard.com//search-guard-suite-release/com/floragunn/search-guard-suite-plugin/7.17.0-53.4.0/search-guard-suite-plugin-7.17.0-53.4.0-sgadmin-standalone.zip"
-      ES_VERSION=$(xmllint --xpath '//*[local-name()="properties"]/*[local-name()="elasticsearch.version"]/text()' pom.xml)
+      ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
       MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
       if [ -z "$IT_BRANCH" ]; then
         if [[ "$CI_COMMIT_REF_NAME" != "master" ]] && [[ -n $(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME) ]]; then
