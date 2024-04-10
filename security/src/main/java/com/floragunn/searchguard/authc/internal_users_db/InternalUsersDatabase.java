@@ -27,9 +27,14 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.util.stream.Collectors;
 
 public class InternalUsersDatabase implements ComponentStateProvider {
 
+    private static final Logger log = LogManager.getLogger(InternalUsersDatabase.class);
     private final ComponentState componentState = new ComponentState(100, null, "internal_users_database");
     private volatile ImmutableMap<String, InternalUser> userMap;
 
@@ -54,6 +59,10 @@ public class InternalUsersDatabase implements ComponentStateProvider {
     }
 
     public InternalUser get(String userName) throws AuthenticatorUnavailableException {
+
+        log.info("userName: '{}'", userName);
+        log.info("userMap: {}", userMap.keySet().stream().map(s -> String.format("'%s'", s)).collect(Collectors.joining(", ")));
+
         if (userMap == null) {
             throw new AuthenticatorUnavailableException("Internal Users Database unavailable", "Internal Users Database is not yet initialized");
         }
