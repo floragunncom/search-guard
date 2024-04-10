@@ -10,13 +10,6 @@ variables:
 image: floragunncom/maven:3.8.8-amazoncorretto-${SG_JAVA_BUILD_VERSION}-debian
 
 
-
-.common_before_script_debian_packages: &common_before_script_debian_packages
-  before_script:
-    - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq git jq xmlstarlet curl locales > /dev/null
-    - sed -i '/C.utf8/s/^# //g' /etc/locale.gen && locale-gen && export LANG=C.utf8 && export LANGUAGE=C.utf8 && export LC_ALL=C.utf8
-    - locale
-
 #cache:
 #  key: "$CI_COMMIT_REF_SLUG"
 #  paths:
@@ -102,7 +95,6 @@ build_for_tag_version:
       when: always
   tags:
     - build
-  # <<: *common_before_script_debian_packages
   script:
     # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3
     - export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
@@ -455,7 +447,6 @@ deploy_snapshot:
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: never
     - when: always
-  # <<: *common_before_script_debian_packages
   script:
     - |
       set -x
@@ -511,7 +502,6 @@ deploy_staging:
       when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: always
-  # <<: *common_before_script_debian_packages
   tags:
     - build
   script:
@@ -572,7 +562,6 @@ deploy_release:
       when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: on_success
-  # <<: *common_before_script_debian_packages
   tags:
     - build
   script:
