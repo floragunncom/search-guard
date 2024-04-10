@@ -158,7 +158,8 @@ test_security_legacy:
   tags:
     - test-large
   script:
-    - find .
+    - locale-gen "C.UTF-8"
+    - dpkg-reconfigure locales
     - mvn $MAVEN_CLI_OPTS -pl security-legacy test
   artifacts:
     when: always
