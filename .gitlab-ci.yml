@@ -7,13 +7,14 @@ variables:
   #KI_VERSION: ""
   #IT_BRANCH: ""
 
-image: maven:3.8.8-amazoncorretto-${SG_JAVA_BUILD_VERSION}-debian
+image: maven:3.8.8-amazoncorretto-${SG_JAVA_BUILD_VERSION}
 
 
 
 .common_before_script_debian_packages: &common_before_script_debian_packages
   before_script:
-    - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq git jq xmlstarlet curl > /dev/null
+    # - rm -rf /var/lib/apt/lists/* && yum update -y -q && apt-get install -yqq git jq xmlstarlet curl > /dev/null
+    - yum update -y -q && yum install -y -q git jq xmlstarlet 
 
 #cache:
 #  key: "$CI_COMMIT_REF_SLUG"
