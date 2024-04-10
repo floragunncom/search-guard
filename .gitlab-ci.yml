@@ -159,7 +159,7 @@ test_security_legacy:
     - test-large
   script:
     - find .
-    - mvn $MAVEN_CLI_OPTS -pl security-legacy test
+    - mvn -Dfile.encoding="UTF-8" $MAVEN_CLI_OPTS -pl security-legacy test
   artifacts:
     when: always
     reports:
