@@ -158,7 +158,8 @@ test_security_legacy:
   tags:
     - test-large
   script:
-    - locale
+    - localectl set-locale "C.UTF-8"
+    - mvn -Dtest="IntegrationTests#testSpecialUsernames" $MAVEN_CLI_OPTS -pl security-legacy test
   artifacts:
     when: always
     reports:
