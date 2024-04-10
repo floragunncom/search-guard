@@ -61,6 +61,7 @@ public class HTTPBasicAuthenticator implements LegacyHTTPAuthenticator, ApiAuthe
         }
 
         final String authorizationHeader = request.header("Authorization");
+        log.info("HTTPBasicAuthenticator.authorizationHeader '{}", authorizationHeader);
 
         AuthCredentials.Builder credsBuilder = extractCredentials(authorizationHeader);
 
@@ -134,6 +135,8 @@ public class HTTPBasicAuthenticator implements LegacyHTTPAuthenticator, ApiAuthe
 
                 final String decodedBasicHeader = new String(Base64.getDecoder().decode(authorizationHeader.split(" ")[1]),
                         StandardCharsets.UTF_8);
+
+                log.info("HTTPBasicAuthenticator.decodedBasicHeader '{}", decodedBasicHeader);
 
                 //username:password
                 //special case
