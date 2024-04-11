@@ -560,14 +560,10 @@ public class EmailAction extends ActionHandler {
             message.setSubject(email.getSubject(), "UTF-8");
             message.setFrom(new InternetAddress(email.getFromRecipient().getAddress(), email.getFromRecipient().getName(), "UTF-8"));
 
-            if (email.getReplyToRecipient() != null) {
-                message.setReplyTo(toInternetAddressArray(email.getReplyToRecipient()));
-            }
+            message.setReplyTo(toInternetAddressArray(email.getReplyToRecipients()));
 
-            if (email.getRecipients() != null) {
-                for (Recipient recipient : email.getRecipients()) {
-                    message.setRecipient(recipient.getType(), toInternetAddress(recipient));
-                }
+            for (Recipient recipient : email.getRecipients()) {
+                message.setRecipient(recipient.getType(), toInternetAddress(recipient));
             }
 
             if (email.getPlainText() != null && email.getHTMLText() != null) {
@@ -614,16 +610,16 @@ public class EmailAction extends ActionHandler {
         return internedAddresses;
     }
 
-    private static Address[] toInternetAddressArray(Recipient recipient) {
-        try {
-            if (recipient != null) {
-                return new Address[] { new InternetAddress(recipient.getAddress(), recipient.getName(), "UTF-8") };
-            } else {
-                return null;
-            }
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
+    private static Address[] toInternetAddressArray(List<Recipient> recipients) {
+            return Optional.ofNullable(recipients).orElse(new ArrayList<>())
+                    .stream()
+                    .map(recipient -> {
+                        try {
+                            return new InternetAddress(recipient.getAddress(), recipient.getName(), "UTF-8");
+                        } catch (UnsupportedEncodingException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }).toArray(Address[]::new);
     }
 
     private static Address toInternetAddress(Recipient recipient) {
