@@ -8,9 +8,6 @@ public class ExecuteWatchAction extends ActionType<ExecuteWatchResponse> {
     public static final String NAME = "cluster:admin:searchguard:tenant:signals:watch/execute";
 
     protected ExecuteWatchAction() {
-        super(NAME, in -> {
-            ExecuteWatchResponse response = new ExecuteWatchResponse(in);
-            return response;
-        });
+        super(NAME);
     }
 }

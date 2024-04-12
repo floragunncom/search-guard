@@ -23,7 +23,6 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.flush.FlushRequest;
-import org.elasticsearch.action.admin.indices.flush.FlushResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
@@ -31,7 +30,6 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.readonly.AddIndexBlockResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
-import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
@@ -43,6 +41,7 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.Strings;
@@ -218,7 +217,7 @@ class StepRepository {
     public void flushIndex(String indexName) {
         Strings.requireNonEmpty(indexName, "Index name is required");
         FlushRequest request = new FlushRequest(indexName);
-        FlushResponse flushResponse = client.admin().indices().flush(request).actionGet();
+        BroadcastResponse flushResponse = client.admin().indices().flush(request).actionGet();
         if((flushResponse.getFailedShards() > 0) || isFailure(flushResponse.getStatus())) {
             throw new StepException("Cannot flush index '" + indexName + "'.", CANNOT_REFRESH_INDEX_ERROR, null);
         }
@@ -226,7 +225,7 @@ class StepRepository {
 
     public void refreshIndex(String indexName) {
         Strings.requireNonEmpty(indexName, "Index name is required");
-        RefreshResponse refreshResponse = client.admin().indices().refresh(new RefreshRequest(indexName)).actionGet();
+        BroadcastResponse refreshResponse = client.admin().indices().refresh(new RefreshRequest(indexName)).actionGet();
         if((refreshResponse.getFailedShards() > 0) || isFailure(refreshResponse.getStatus())) {
             throw new StepException("Cannot refresh index '" + indexName + "'.", StepExecutionStatus.CANNOT_REFRESH_INDEX_ERROR, null);
         }
@@ -278,10 +277,15 @@ class StepRepository {
             .query(QueryBuilders.matchAllQuery());
         request.source(sourceBuilder);
         SearchResponse response = client.search(request).actionGet();
-        if((response.getFailedShards() > 0) || (isFailure(response.status()))) {
-            throw new StepException("Cannot count documents in index '" + indexName + "'", CANNOT_COUNT_DOCUMENTS, null);
+        try {
+            if ((response.getFailedShards() > 0) || (isFailure(response.status()))) {
+                throw new StepException("Cannot count documents in index '" + indexName + "'", CANNOT_COUNT_DOCUMENTS, null);
+            }
+
+            return response.getHits().getTotalHits().value;
+        } finally {
+            response.decRef();
         }
-        return response.getHits().getTotalHits().value;
     }
 
     public void updateMappings(String indexName, Map<String, ?> sources) {

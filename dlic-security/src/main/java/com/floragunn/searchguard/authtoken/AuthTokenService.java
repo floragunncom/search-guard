@@ -683,8 +683,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
                 .source(new SearchSourceBuilder().query(QueryBuilders.termQuery("user_name", user.getName())).size(0));
 
         SearchResponse searchResponse = privilegedConfigClient.search(searchRequest).actionGet();
-
-        return searchResponse.getHits().getTotalHits().value;
+        try {
+            return searchResponse.getHits().getTotalHits().value;
+        } finally {
+            searchResponse.decRef();
+        }
     }
 
     private OffsetDateTime getExpiryTime(OffsetDateTime now, CreateAuthTokenRequest request) {

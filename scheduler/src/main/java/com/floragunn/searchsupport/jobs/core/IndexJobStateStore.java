@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchsupport.client.RefCountedGuard;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -1743,7 +1744,8 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             SearchResponse searchResponse = client.prepareSearch(this.statusIndexName).setQuery(queryBuilder).setSize(1000)
                     .setScroll(new TimeValue(10000)).get();
 
-            try {
+            try (RefCountedGuard<SearchResponse> guard = new RefCountedGuard<>()) {
+                guard.add(searchResponse);
                 do {
                     for (SearchHit searchHit : searchResponse.getHits().getHits()) {
                         try {
@@ -1759,8 +1761,10 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
                         }
                     }
 
-                    searchResponse = client.prepareSearchScroll(searchResponse.getScrollId()).setScroll(new TimeValue(10000)).execute().actionGet();
-
+                    String scrollId = searchResponse.getScrollId();
+                    guard.release();
+                    searchResponse = client.prepareSearchScroll(scrollId).setScroll(new TimeValue(10000)).execute().actionGet();
+                    guard.add(searchResponse);
                 } while (searchResponse.getHits().getHits().length != 0);
             } finally {
                 Actions.clearScrollAsync(client, searchResponse);

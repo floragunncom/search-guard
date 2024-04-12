@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
@@ -47,6 +48,7 @@ import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.ClusterSettings;
@@ -55,6 +57,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.xcontent.ChunkedToXContent;
 import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
+import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestController;
@@ -62,6 +65,7 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestHandler.Route;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
@@ -193,9 +197,10 @@ public class ResourceOwnerServiceTests {
                     new ActionHandler<>(MockDeleteTransportAction.TYPE, MockDeleteTransportAction.class));
         }
 
-        public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
-                IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-                Supplier<DiscoveryNodes> nodesInCluster) {
+        @Override
+        public List<RestHandler> getRestHandlers(Settings settings, NamedWriteableRegistry namedWriteableRegistry, RestController restController, ClusterSettings clusterSettings,
+                                                 IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
+                                                 Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
             return Arrays.asList(
                     new SimpleRestHandler<>(new Route(Method.POST, "/{index}/_async_search"), MockSubmitTransportAction.TYPE,
                             (request) -> new MockSubmitActionRequest(request.param("index"))),
@@ -207,7 +212,7 @@ public class ResourceOwnerServiceTests {
     }
 
     public static class MockSubmitTransportAction extends HandledTransportAction<MockSubmitActionRequest, MockActionResponse> {
-        static ActionType<MockActionResponse> TYPE = new ActionType<>("indices:data/read/async_search/submit", MockActionResponse::new);
+        static ActionType<MockActionResponse> TYPE = new ActionType<>("indices:data/read/async_search/submit");
 
         @Inject
         public MockSubmitTransportAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
@@ -250,7 +255,7 @@ public class ResourceOwnerServiceTests {
     }
 
     public static class MockGetTransportAction extends HandledTransportAction<MockGetActionRequest, MockActionResponse> {
-        static ActionType<MockActionResponse> TYPE = new ActionType<>("indices:data/read/async_search/get", MockActionResponse::new);
+        static ActionType<MockActionResponse> TYPE = new ActionType<>("indices:data/read/async_search/get");
 
         @Inject
         public MockGetTransportAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
@@ -294,7 +299,7 @@ public class ResourceOwnerServiceTests {
     }
 
     public static class MockDeleteTransportAction extends HandledTransportAction<MockGetActionRequest, AcknowledgedResponse> {
-        static ActionType<AcknowledgedResponse> TYPE = new ActionType<>("indices:data/read/async_search/delete", AcknowledgedResponse::readFrom);
+        static ActionType<AcknowledgedResponse> TYPE = new ActionType<>("indices:data/read/async_search/delete");
 
         @Inject
         public MockDeleteTransportAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,

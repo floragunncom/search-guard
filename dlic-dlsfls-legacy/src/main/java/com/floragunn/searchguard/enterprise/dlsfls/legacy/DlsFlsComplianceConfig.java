@@ -25,7 +25,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheRequest;
-import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheResponse;
+import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
@@ -169,10 +169,10 @@ public class DlsFlsComplianceConfig implements LicenseChangeListener {
                     clearIndicesCacheRequest.queryCache(false);
                     clearIndicesCacheRequest.requestCache(true);
 
-                    client.admin().indices().clearCache(clearIndicesCacheRequest, new ActionListener<ClearIndicesCacheResponse>() {
+                    client.admin().indices().clearCache(clearIndicesCacheRequest, new ActionListener<BroadcastResponse>() {
 
                         @Override
-                        public void onResponse(ClearIndicesCacheResponse response) {
+                        public void onResponse(BroadcastResponse response) {
                             log.debug("Cache cleared due to salt2 changed: " + Strings.toString(response));
                         }
 

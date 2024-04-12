@@ -13,10 +13,7 @@ public class DestinationConfigUpdateAction extends ActionType<DestinationConfigU
     public static final String NAME = "cluster:admin:searchguard:signals:destination/update"; //not tenant related
 
     protected DestinationConfigUpdateAction() {
-        super(NAME, in -> {
-            DestinationConfigUpdateResponse response = new DestinationConfigUpdateResponse(in);
-            return response;
-        });
+        super(NAME);
     }
 
     public static void send(Client client) {

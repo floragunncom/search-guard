@@ -172,6 +172,6 @@ public class WatchInitializationService {
     public String toString() {
         return "WatchInitializationService{" + "scriptService=" + scriptService + ", accountRegistry=" + accountRegistry
                 + ", trustManagerRegistry=" + trustManagerRegistry  + ", httpProxyConfigRegistry=" + httpProxyHostRegistry
-                + ", lifecycleStage=" + validationLevel + '}';
+                + ", validationLevel=" + validationLevel + '}';
     }
 }

@@ -35,8 +35,9 @@ public class SearchScroller {
         Objects.requireNonNull(request, "Search request is required to scroll");
         Objects.requireNonNull(resultMapper, "Scroll result mapper is required");
         request.scroll(scrollTime);
-        try {
+        try (RefCountedGuard<SearchResponse> guard = new RefCountedGuard<>()) {
             SearchResponse searchResponse = client.search(request).actionGet();
+            guard.add(searchResponse);
             try {
                 do {
                     SearchHit[] hits = searchResponse.getHits().getHits();
@@ -50,10 +51,12 @@ public class SearchScroller {
                         mutableResultList.add(resultMapper.apply(searchHit));
                     }
                     resultConsumer.accept(ImmutableList.of(mutableResultList));
-                    searchResponse = client.prepareSearchScroll(searchResponse.getScrollId()) //
+                    guard.release();
+                    searchResponse = client.prepareSearchScroll(scrollId) //
                         .setScroll(scrollTime)
                         .execute() //
                         .actionGet();
+                    guard.add(searchResponse);
                 } while (searchResponse.getHits().getHits().length != 0);
             } finally {
                 log.debug("Async clear scroll '{}'.", searchResponse.getScrollId());

@@ -23,9 +23,6 @@ public class SearchAuthTokensAction extends ActionType<SearchAuthTokensResponse>
     public static final String NAME_ALL = NAME.replace("/_own/", "/_all/");
 
     protected SearchAuthTokensAction() {
-        super(NAME, in -> {
-            SearchAuthTokensResponse response = new SearchAuthTokensResponse(in);
-            return response;
-        });
+        super(NAME);
     }
 }

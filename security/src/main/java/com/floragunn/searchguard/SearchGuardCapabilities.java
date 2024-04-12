@@ -324,7 +324,7 @@ public class SearchGuardCapabilities {
                 .name("/_searchguard/capabilities/cluster_wide");
 
         protected GetCapabilitiesAction() {
-            super(NAME, Response::new);
+            super(NAME);
         }
 
         public static class Request extends BaseNodesRequest<Request> {
@@ -452,7 +452,7 @@ public class SearchGuardCapabilities {
             @Inject
             public TransportAction(Settings settings, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                     ActionFilters actionFilters, SearchGuardCapabilities capabilities) {
-                super(GetCapabilitiesAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new, NodeRequest::new,
+                super(GetCapabilitiesAction.NAME, clusterService, transportService, actionFilters, NodeRequest::new,
                         threadPool.executor(ThreadPool.Names.MANAGEMENT));
 
                 this.capabilities = capabilities;

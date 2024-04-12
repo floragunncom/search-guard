@@ -42,6 +42,8 @@ import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.action.admin.cluster.node.stats.NodesStatsRequest;
+import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksRequest;
+import org.elasticsearch.action.admin.cluster.tasks.TransportPendingClusterTasksAction;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
@@ -302,7 +304,7 @@ public final class ClusterHelper {
 
                 //System.out.println("-- Time out while waiting for test cluster --");
                 log.error(Strings.toString(healthResponse));
-                log.error(Strings.toString(client.admin().cluster().preparePendingClusterTasks().get()));
+                log.error(Strings.toString(client.execute(TransportPendingClusterTasksAction.TYPE, new PendingClusterTasksRequest()).actionGet()));
                 log.error(Strings.toString(client.admin().indices().getIndex(new GetIndexRequest().includeDefaults(true).features(GetIndexRequest.Feature.MAPPINGS)).actionGet()));
                 log.error(Strings.toString(client.admin().indices().stats(new IndicesStatsRequest().all()).actionGet()));
                 log.error(Strings.toString(client.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet()));

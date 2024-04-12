@@ -6,9 +6,11 @@ import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.function.Predicate;
 
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.action.RestToXContentListener;
 import org.elasticsearch.search.Scroll;
@@ -21,8 +23,11 @@ import com.google.common.collect.ImmutableList;
 
 public class SearchWatchApiAction extends SignalsTenantAwareRestHandler {
 
-    public SearchWatchApiAction(Settings settings) {
+    private final Predicate<NodeFeature> clusterSupportsFeature;
+
+    public SearchWatchApiAction(Settings settings, Predicate<NodeFeature> clusterSupportsFeature) {
         super(settings);
+        this.clusterSupportsFeature = clusterSupportsFeature;
     }
 
     @Override
@@ -50,7 +55,7 @@ public class SearchWatchApiAction extends SignalsTenantAwareRestHandler {
         searchWatchRequest.setSize(size);
 
         if (request.hasContent()) {
-            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.searchSource().parseXContent(request.contentParser(), true);
+            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.searchSource().parseXContent(request.contentParser(), true, clusterSupportsFeature);
 
             searchWatchRequest.setSearchSourceBuilder(searchSourceBuilder);
         }

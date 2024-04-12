@@ -264,16 +264,26 @@ public class ResourceOwnerService implements ComponentStateProvider, ProtectedCo
                         }
                     }
 
+                    actionResponse.incRef();
                     storeOwner(newResource.getType(), id, currentUser, expiresMillis, new ActionListener<DocWriteResponse>() {
 
                         @Override
                         public void onResponse(DocWriteResponse indexResponse) {
-                            actionListener.onResponse(actionResponse);
+                            try {
+                                actionListener.onResponse(actionResponse);
+                            } finally {
+                                actionResponse.decRef();
+                            }
                         }
 
                         @Override
                         public void onFailure(Exception e) {
-                            actionListener.onFailure(new ElasticsearchException("Failed to store owner of " + newResource.getType() + ":" + id, e));
+                            try {
+                                actionListener.onFailure(new ElasticsearchException("Failed to store owner of " + newResource.getType() + ":" + id,
+                                    e));
+                            } finally {
+                                actionResponse.decRef();
+                            }
                         }
 
                     });

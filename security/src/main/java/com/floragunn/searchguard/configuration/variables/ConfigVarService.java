@@ -24,13 +24,15 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchsupport.client.RefCountedGuard;
+import com.floragunn.searchsupport.client.SearchScroller;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -392,28 +394,19 @@ public class ConfigVarService implements ComponentStateProvider {
     }
 
     public Map<String, ConfigVar> getAllFromIndex() {
-        SearchResponse response = privilegedConfigClient.search(new SearchRequest(this.indexName)
-                .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()).size(1000)).scroll(new TimeValue(10000))).actionGet();
-
+        SearchScroller searchScroller = new SearchScroller(privilegedConfigClient);
+        TimeValue scrollTimeout = new TimeValue(10000);
+        SearchRequest searchRequest = new SearchRequest(this.indexName)
+                .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()).size(1000)).scroll(new TimeValue(10000));
         Map<String, ConfigVar> result = new LinkedHashMap<>();
-
-        try {
-            do {
-                for (SearchHit searchHit : response.getHits().getHits()) {
-                    try {
-                        result.put(searchHit.getId(), new ConfigVar(DocNode.wrap(searchHit.getSourceAsMap())));
-                    } catch (Exception e) {
-                        log.error("Error while reading " + searchHit, e);
-                    }
-                }
-
-                response = client.prepareSearchScroll(response.getScrollId()).setScroll(new TimeValue(10000)).execute().actionGet();
-
-            } while (response.getHits().getHits().length != 0);
-        } finally {
-            Actions.clearScrollAsync(client, response);
-        }
-
+        searchScroller.scroll(searchRequest, scrollTimeout, searchHit -> {
+            try {
+                return ImmutableMap.of(searchHit.getId(), new ConfigVar(DocNode.wrap(searchHit.getSourceAsMap())));
+            } catch (Exception e) {
+                log.error("Error while reading {}", searchHit, e);
+                return ImmutableMap.<String, ConfigVar>empty();
+            }
+        }, idConfVarPair -> idConfVarPair.forEach(result::putAll));
         return result;
     }
 
@@ -525,12 +518,13 @@ public class ConfigVarService implements ComponentStateProvider {
             log.trace("SecretsService.readValues()");
         }
 
+        Map<String, Object> values = new HashMap<>();
+
         SearchResponse response = privilegedConfigClient.search(new SearchRequest(this.indexName)
                 .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()).size(1000)).scroll(new TimeValue(10000))).actionGet();
 
-        Map<String, Object> values = new HashMap<>();
-
-        try {
+        try (RefCountedGuard<SearchResponse> guard = new RefCountedGuard<>()) {
+            guard.add(response);
             do {
                 for (SearchHit searchHit : response.getHits().getHits()) {
                     try {
@@ -548,9 +542,10 @@ public class ConfigVarService implements ComponentStateProvider {
                         log.error("Error while reading " + searchHit, e);
                     }
                 }
-
-                response = client.prepareSearchScroll(response.getScrollId()).setScroll(new TimeValue(10000)).execute().actionGet();
-
+                String scrollId = response.getScrollId();
+                guard.release();
+                response = client.prepareSearchScroll(scrollId).setScroll(new TimeValue(10000)).execute().actionGet();
+                guard.add(response);
             } while (response.getHits().getHits().length != 0);
         } finally {
             Actions.clearScrollAsync(client, response);

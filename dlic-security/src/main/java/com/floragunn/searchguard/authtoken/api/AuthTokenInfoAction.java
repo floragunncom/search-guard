@@ -22,6 +22,6 @@ public class AuthTokenInfoAction extends ActionType<AuthTokenInfoResponse> {
     public static final String NAME = "cluster:admin:searchguard:authtoken/info";
 
     protected AuthTokenInfoAction() {
-        super(NAME, in -> new AuthTokenInfoResponse(in));
+        super(NAME);
     }
 }

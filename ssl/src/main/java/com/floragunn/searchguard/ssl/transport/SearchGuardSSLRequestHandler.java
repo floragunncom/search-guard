@@ -36,6 +36,7 @@ import org.elasticsearch.transport.TcpTransportChannel;
 import org.elasticsearch.transport.TransportChannel;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestHandler;
+import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.transport.netty4.Netty4TcpChannel;
 
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
@@ -82,7 +83,7 @@ implements TransportRequestHandler<T> {
             throw exception;
         }
  
-        if (!"transport".equals(channel.getChannelType())) { //netty4
+        if (isDirectChannelDeep(channel)) { //netty4
             messageReceivedDecorate(request, actualHandler, channel, task);
             return;
         }
@@ -94,12 +95,9 @@ implements TransportRequestHandler<T> {
             if (channel instanceof TaskTransportChannel) {
                 final TransportChannel inner = ((TaskTransportChannel) channel).getChannel();
                 nettyChannel = (Netty4TcpChannel ) ((TcpTransportChannel) inner).getChannel();
-            } else
-            if (channel instanceof TcpTransportChannel) {
+            } else  {
                 final TcpChannel inner = ((TcpTransportChannel) channel).getChannel();
                 nettyChannel = (Netty4TcpChannel) inner;
-            } else {
-                throw new Exception("Invalid channel of type "+channel.getClass()+ " ("+channel.getChannelType()+")");
             }
             
             final SslHandler sslhandler = (SslHandler) nettyChannel.getNettyChannel().pipeline().get("ssl_server");
@@ -154,7 +152,20 @@ implements TransportRequestHandler<T> {
         }
         
     }
-    
+
+    protected static boolean isDirectChannelDeep(TransportChannel channel) {
+        if (TransportService.isDirectResponseChannel(channel)) {
+            return true;
+        } else if (channel instanceof TcpTransportChannel) {
+            return false;
+        } else if (channel instanceof TaskTransportChannel taskTransportChannel) {
+            return isDirectChannelDeep(taskTransportChannel.getChannel());
+        } else {
+            throw new RuntimeException("Unknown channel type " + channel);
+        }
+    }
+
+
     protected void addAdditionalContextValues(final String action, final TransportRequest request, final X509Certificate[] localCerts, final X509Certificate[] peerCerts, final String principal)
             throws Exception {
         // no-op

@@ -48,6 +48,7 @@ import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.core.CheckedFunction;
+import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.shard.IndexingOperationListener;
 import org.elasticsearch.index.shard.SearchOperationListener;
@@ -154,12 +155,12 @@ public class SearchGuardModulesRegistry {
 
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
+            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
         List<RestHandler> result = new ArrayList<>();
 
         for (SearchGuardModule module : modules) {
             result.addAll(module.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
-                    indexNameExpressionResolver, scriptService, nodesInCluster));
+                    indexNameExpressionResolver, scriptService, nodesInCluster, clusterSupportsFeature));
         }
 
         return result;

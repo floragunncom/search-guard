@@ -130,10 +130,14 @@ public class LoadOperatorSummaryActionTest {
 
     private static void deleteDocumentsFromIndex(Client client, String indexName) {
         SearchResponse searchResponse = client.search(new SearchRequest(indexName)).actionGet();
-        for(SearchHit hit : searchResponse.getHits().getHits()) {
-            String documentId = hit.getId();
-            client.delete(new DeleteRequest(indexName).setRefreshPolicy(IMMEDIATE).id(documentId)).actionGet();
-            log.debug("Deleted document '{}' from index '{}'. Document: '{}'.", documentId, indexName, hit.getSourceAsString());
+        try {
+            for (SearchHit hit : searchResponse.getHits().getHits()) {
+                String documentId = hit.getId();
+                client.delete(new DeleteRequest(indexName).setRefreshPolicy(IMMEDIATE).id(documentId)).actionGet();
+                log.debug("Deleted document '{}' from index '{}'. Document: '{}'.", documentId, indexName, hit.getSourceAsString());
+            }
+        } finally {
+            searchResponse.decRef();
         }
     }
 

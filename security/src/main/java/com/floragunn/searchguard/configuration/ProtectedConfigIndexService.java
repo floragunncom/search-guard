@@ -670,7 +670,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
                 .name("/_searchguard/internal/indices/create");
 
         protected TriggerConfigIndexCreationAction() {
-            super(NAME, Response::new);
+            super(NAME);
         }
 
         public static class Request extends BaseNodesRequest<Request> {
@@ -760,7 +760,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
 
             public NodeResponse(StreamInput in) throws IOException {
                 super(in);
-                this.result = DocNode.wrap(in.readMap());
+                this.result = DocNode.wrap(in.readGenericMap());
             }
 
             public NodeResponse(DiscoveryNode node, DocNode result) {
@@ -789,7 +789,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
             @Inject
             public TransportAction(Settings settings, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                     ActionFilters actionFilters, ProtectedConfigIndexService protectedConfigIndexService) {
-                super(TriggerConfigIndexCreationAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new,
+                super(TriggerConfigIndexCreationAction.NAME, clusterService, transportService, actionFilters,
                         NodeRequest::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
 
                 this.protectedConfigIndexService = protectedConfigIndexService;

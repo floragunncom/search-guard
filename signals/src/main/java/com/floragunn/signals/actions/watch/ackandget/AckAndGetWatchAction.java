@@ -8,9 +8,6 @@ public class AckAndGetWatchAction extends ActionType<AckAndGetWatchResponse> {
     public static final String NAME = "cluster:admin:searchguard:tenant:signals:watch/ack_and_get";
 
     protected AckAndGetWatchAction() {
-        super(NAME, in -> {
-            AckAndGetWatchResponse response = new AckAndGetWatchResponse(in);
-            return response;
-        });
+        super(NAME);
     }
 }

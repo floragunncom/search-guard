@@ -23,6 +23,6 @@ public class GetAuthTokenAction extends ActionType<GetAuthTokenResponse> {
     public static final String NAME_ALL = NAME.replace("/_own/", "/_all/");
     
     protected GetAuthTokenAction() {
-        super(NAME, in -> new GetAuthTokenResponse(in));
+        super(NAME);
     }
 }

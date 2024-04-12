@@ -293,8 +293,8 @@ public class SearchGuardInterceptor {
         }
 
          @Override
-         public Executor executor(ThreadPool threadPool) {
-             return innerHandler.executor(threadPool);
+         public Executor executor() {
+             return innerHandler.executor();
          }
 
          @Override
