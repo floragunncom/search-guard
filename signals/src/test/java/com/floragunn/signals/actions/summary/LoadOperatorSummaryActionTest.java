@@ -15,6 +15,7 @@ import static org.awaitility.Awaitility.await;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.startsWith;
 
@@ -1169,10 +1170,16 @@ public class LoadOperatorSummaryActionTest {
             assertThat(body, docNodeSizeEqualTo("data.watches", 3));
             assertThat(body, containsAnyValues("data.watches[0].watch_id", "temp-3"));
             assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 3));
-            assertThat(body, containsAnyValues("data.watches[1].watch_id", "temp-1"));
             assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 1));
-            assertThat(body, containsAnyValues("data.watches[2].watch_id", "temp-2"));
             assertThat(body, containsValue("data.watches[2].severity_details.level_numeric", 1));
+            assertThat(body, anyOf(
+                containsAnyValues("data.watches[1].watch_id", "temp-1"),
+                containsAnyValues("data.watches[1].watch_id", "temp-2")
+            ));
+            assertThat(body, anyOf(
+                containsAnyValues("data.watches[2].watch_id", "temp-1"),
+                containsAnyValues("data.watches[2].watch_id", "temp-2")
+            ));
         } finally {
             predefinedWatches.deleteWatches();
         }

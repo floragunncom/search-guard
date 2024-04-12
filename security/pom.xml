@@ -35,7 +35,7 @@
     <dependency>
       <groupId>com.github.seancfoley</groupId>
       <artifactId>ipaddress</artifactId>
-      <version>5.4.2</version>
+      <version>5.5.0</version>
     </dependency>
 
     <dependency>
@@ -102,7 +102,7 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <version>5.10.0</version>
+      <version>5.11.0</version>
       <scope>test</scope>
     </dependency>
 

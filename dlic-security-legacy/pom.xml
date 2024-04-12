@@ -17,8 +17,9 @@
   <name>Search Guard FLX: Legacy Security (Enterprise)</name>
 
   <properties>
-    <jjwt.version>0.10.5</jjwt.version>
-    <unboundid-ldapsdk.version>5.0.1</unboundid-ldapsdk.version>
+    <jjwt.version>0.12.5</jjwt.version>
+    <ldaptive.version>2.3.1</ldaptive.version>
+    <unboundid-ldapsdk.version>7.0.0</unboundid-ldapsdk.version>
   </properties>
 
   <dependencies>
@@ -122,7 +123,7 @@
       <!-- Replacement dependency for com.onelogin:java-saml (see above) -->
       <groupId>org.apache.santuario</groupId>
       <artifactId>xmlsec</artifactId>
-      <version>2.3.4</version>
+      <version>4.0.2</version>
     </dependency>
     <dependency>
       <!-- Replacement for bcprov-jdk18on (see above)  -->
@@ -226,7 +227,7 @@
     <dependency>
       <groupId>net.minidev</groupId>
       <artifactId>json-smart</artifactId>
-      <version>2.5.0</version>
+      <version>2.5.1</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -258,7 +259,7 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <version>5.10.0</version>
+      <version>5.11.0</version>
       <scope>test</scope>
     </dependency>
 
