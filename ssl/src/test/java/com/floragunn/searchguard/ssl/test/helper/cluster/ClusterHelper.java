@@ -298,7 +298,6 @@ public final class ClusterHelper {
 
                 //System.out.println("-- Time out while waiting for test cluster --");
                 log.error(Strings.toString(healthResponse));
-
                 log.error(Strings.toString(client.execute(TransportPendingClusterTasksAction.TYPE, new PendingClusterTasksRequest()).actionGet()));
                 log.error(Strings.toString(client.admin().indices().getIndex(new GetIndexRequest().includeDefaults(true).features(GetIndexRequest.Feature.MAPPINGS)).actionGet()));
                 log.error(Strings.toString(client.admin().indices().stats(new IndicesStatsRequest().all()).actionGet()));
