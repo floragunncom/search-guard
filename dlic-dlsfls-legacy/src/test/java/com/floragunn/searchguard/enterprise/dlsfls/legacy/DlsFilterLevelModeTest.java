@@ -1,6 +1,5 @@
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -11,15 +10,8 @@ import co.elastic.clients.elasticsearch.core.msearch.RequestItem;
 import com.floragunn.searchguard.client.RestHighLevelClient;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.MultiSearchRequest;
-import org.elasticsearch.action.search.MultiSearchResponse;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.common.Strings;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.BeforeClass;

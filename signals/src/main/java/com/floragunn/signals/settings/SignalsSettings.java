@@ -340,31 +340,34 @@ public class SignalsSettings {
 
         void refresh(Client client) throws SignalsInitializationException {
             try {
+                Settings.Builder newDynamicSettings = Settings.builder();
                 SearchResponse response = LuckySisyphos.tryHard(() -> PrivilegedConfigClient.adapt(client)
                         .search(new SearchRequest(indexName).source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery()).size(1000)))
                         .actionGet());
 
-                Settings.Builder newDynamicSettings = Settings.builder();
+                try {
+                    for (SearchHit hit : response.getHits()) {
+                        if (hit.getSourceAsMap().get("value") != null) {
+                            try {
+                                String json = hit.getSourceAsMap().get("value").toString();
+                                DocNode jsonNode = DocNode.parse(Format.JSON).from(json);
 
-                for (SearchHit hit : response.getHits()) {
-                    if (hit.getSourceAsMap().get("value") != null) {
-                        try {
-                            String json = hit.getSourceAsMap().get("value").toString();
-                            DocNode jsonNode = DocNode.parse(Format.JSON).from(json);
-
-                            if (jsonNode.isList()) {
-                                List<String> list = new ArrayList<>();
-                                for (DocNode subNode : jsonNode.toListOfNodes()) {
-                                    list.add(subNode.toString());
+                                if (jsonNode.isList()) {
+                                    List<String> list = new ArrayList<>();
+                                    for (DocNode subNode : jsonNode.toListOfNodes()) {
+                                        list.add(subNode.toString());
+                                    }
+                                    newDynamicSettings.putList(hit.getId(), list);
+                                } else {
+                                    newDynamicSettings.put(hit.getId(), jsonNode.toString());
                                 }
-                                newDynamicSettings.putList(hit.getId(), list);
-                            } else {
-                                newDynamicSettings.put(hit.getId(), jsonNode.toString());
+                            } catch (Exception e) {
+                                log.error("Error while parsing setting " + hit, e);
                             }
-                        } catch (Exception e) {
-                            log.error("Error while parsing setting " + hit, e);
                         }
                     }
+                } finally {
+                    response.decRef();
                 }
 
                 Settings newSettings = newDynamicSettings.build();

@@ -117,6 +117,8 @@ public class RestApiTest {
 
     private static ScriptService scriptService;
     private static ThrottlePeriodParser throttlePeriodParser;
+    private final WatchInitializationService watchInitializationService = new WatchInitializationService(null, scriptService,
+            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
 
     private static final WireMockRequestHeaderAddingFilter REQUEST_HEADER_ADDING_FILTER = new WireMockRequestHeaderAddingFilter("Proxy", "wire-mock");
 
@@ -196,9 +198,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
-            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(watchInitializationService, "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, "testsink_put_watch", 1);
 
@@ -278,9 +278,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
-            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(watchInitializationService, "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, testSink, 1);
 
@@ -360,9 +358,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
-            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(watchInitializationService, "test", "put_test", response.getBody(), -1);
 
             log.info("Created watch; as it should find one doc in " + testSource + ", it should go to severity ERROR and write exactly one doc to "
                     + testSink);
@@ -431,9 +427,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
-            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(watchInitializationService, "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, "testsink_put_watch_with_dash", 1);
 
@@ -465,9 +459,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
-            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(watchInitializationService, "test", "put_test", response.getBody(), -1);
 
             Assert.assertTrue(response.getBody(), watch.getSchedule().getTriggers().isEmpty());
         }
@@ -490,9 +482,7 @@ public class RestApiTest {
 
             Assert.assertFalse(response.getBody(), response.getBody().contains("auth_token"));
 
-            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
-            watch = Watch.parseFromElasticDocument(initService, "test", watchId, response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(watchInitializationService, "test", watchId, response.getBody(), -1);
 
             Assert.assertNull(response.getBody(), watch.getAuthToken());
         }
@@ -1092,9 +1082,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
-            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(watchInitializationService, "test", "put_test", response.getBody(), -1);
 
             response = restClient.get(watchPathWithWrongTenant);
 
@@ -1125,9 +1113,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
-            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
+            watch = Watch.parseFromElasticDocument(watchInitializationService, "test", "put_test", response.getBody(), -1);
 
             response = restClient.get(watchPathWithWrongTenant);
 
@@ -2296,8 +2282,7 @@ public class RestApiTest {
                     HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
                             "/{{data.teststatic.path}}", null, "{{data.teststatic.body}}", null, null, null, null);
 
-                    httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                        Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT));
+                    httpRequestConfig.compileScripts(watchInitializationService);
 
                     EmailAccount destination = new EmailAccount();
                     destination.setHost("localhost");
@@ -2911,7 +2896,7 @@ public class RestApiTest {
     public void testConvEs() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             String input = DocNode.of("trigger.schedule.daily.at", "noon", "input.simple.x", "y", "actions",
-                    DocNode.of("email_action.email", DocNode.of("to", "horst@horst", "body", "Hallo {{ctx.payload.x}}", "attachments", "foo")))
+                            DocNode.of("email_action.email", DocNode.of("to", "horst@horst", "body", "Hallo {{ctx.payload.x}}", "attachments", "foo")))
                     .toJsonString();
 
             HttpResponse response = restClient.postJson("/_signals/convert/es", input);
@@ -3194,7 +3179,11 @@ public class RestApiTest {
 
         SearchResponse response = client.search(request).get();
 
-        return response.getHits().getTotalHits().value;
+        try {
+            return response.getHits().getTotalHits().value;
+        } finally {
+            response.decRef();
+        }
     }
 
     public String getDocs(Client client, String index) throws InterruptedException, ExecutionException {
@@ -3205,7 +3194,11 @@ public class RestApiTest {
 
         SearchResponse response = client.search(request).get();
 
-        return Strings.toString(response.getHits());
+        try {
+            return Strings.toString(response.getHits());
+        } finally {
+            response.decRef();
+        }
     }
 
     private long awaitMinCountOfDocuments(Client client, String index, long minCount) throws Exception {
@@ -3242,19 +3235,23 @@ public class RestApiTest {
             SearchResponse searchResponse = client.search(new SearchRequest("signals_" + tenantName + "_log")
                     .source(new SearchSourceBuilder().size(count).sort("execution_end", SortOrder.DESC).query(queryBuilder))).actionGet();
 
-            if (searchResponse.getHits().getHits().length == 0) {
-                return Collections.emptyList();
+            try {
+                if (searchResponse.getHits().getHits().length == 0) {
+                    return Collections.emptyList();
+                }
+
+                ArrayList<WatchLog> result = new ArrayList<>(count);
+
+                for (SearchHit searchHit : searchResponse.getHits().getHits()) {
+                    result.add(WatchLog.parse(searchHit.getId(), searchHit.getSourceAsString()));
+                }
+
+                Collections.reverse(result);
+
+                return result;
+            } finally {
+                searchResponse.decRef();
             }
-
-            ArrayList<WatchLog> result = new ArrayList<>(count);
-
-            for (SearchHit searchHit : searchResponse.getHits().getHits()) {
-                result.add(WatchLog.parse(searchHit.getId(), searchHit.getSourceAsString()));
-            }
-
-            Collections.reverse(result);
-
-            return result;
         } catch (org.elasticsearch.index.IndexNotFoundException | SearchPhaseExecutionException e) {
             throw e;
         } catch (Exception e) {
@@ -3302,8 +3299,11 @@ public class RestApiTest {
                                 .source(new SearchSourceBuilder().sort("execution_end", SortOrder.DESC).query(new MatchAllQueryBuilder())))
                         .actionGet();
 
-                log.info("Did not find watch log for " + watchName + " after " + (System.currentTimeMillis() - start) + " ms\n\n"
-                        + searchResponse.getHits());
+                try {
+                    log.info("Did not find watch log for " + watchName + " after " + (System.currentTimeMillis() - start) + " ms\n\n" + searchResponse.getHits());
+                } finally {
+                    searchResponse.decRef();
+                }
 
                 Assert.fail("Did not find watch log for " + watchName + " after " + (System.currentTimeMillis() - start) + " ms");
             }
@@ -3319,9 +3319,7 @@ public class RestApiTest {
 
         Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-        WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
-        return Watch.parseFromElasticDocument(initService, "test", id, response.getBody(), -1);
+        return Watch.parseFromElasticDocument(watchInitializationService, "test", id, response.getBody(), -1);
     }
 
     private HttpResponse awaitRestGet(String request, GenericRestClient restClient) throws Exception {

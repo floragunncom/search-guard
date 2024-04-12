@@ -8,9 +8,6 @@ public class SearchWatchAction extends ActionType<SearchWatchResponse> {
     public static final String NAME = "cluster:admin:searchguard:tenant:signals:watch/search";
 
     protected SearchWatchAction() {
-        super(NAME, in -> {
-            SearchWatchResponse response = new SearchWatchResponse(in);
-            return response;
-        });
+        super(NAME);
     }
 }

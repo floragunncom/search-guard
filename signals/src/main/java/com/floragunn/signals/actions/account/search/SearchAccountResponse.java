@@ -22,6 +22,7 @@ public class SearchAccountResponse extends ActionResponse implements ToXContentO
 
     public SearchAccountResponse(SearchResponse searchResponse) {
         this.searchResponse = searchResponse;
+        this.searchResponse.incRef();
     }
 
     public SearchAccountResponse(StreamInput in) throws IOException {
@@ -49,4 +50,8 @@ public class SearchAccountResponse extends ActionResponse implements ToXContentO
         return searchResponse.status();
     }
 
+    @Override
+    public boolean decRef() {
+        return this.searchResponse.decRef();
+    }
 }
