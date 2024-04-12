@@ -7,6 +7,7 @@
     <includeBaseDirectory>false</includeBaseDirectory>
     <dependencySets>
         <dependencySet>
+            <scope>runtime</scope>
             <useStrictFiltering>true</useStrictFiltering>
             <outputDirectory>${file.separator}</outputDirectory>
             <useProjectArtifact>false</useProjectArtifact>

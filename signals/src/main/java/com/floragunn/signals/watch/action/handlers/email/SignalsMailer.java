@@ -6,10 +6,11 @@ import java.security.PrivilegedExceptionAction;
 
 import org.elasticsearch.SpecialPermission;
 import org.simplejavamail.MailException;
-import org.simplejavamail.email.Email;
-import org.simplejavamail.mailer.Mailer;
+import org.simplejavamail.api.email.Email;
+import org.simplejavamail.api.mailer.Mailer;
+import org.simplejavamail.api.mailer.config.TransportStrategy;
 import org.simplejavamail.mailer.MailerBuilder;
-import org.simplejavamail.mailer.config.TransportStrategy;
+import org.simplejavamail.mailer.internal.MailerRegularBuilderImpl;
 
 public class SignalsMailer {
 
@@ -26,15 +27,14 @@ public class SignalsMailer {
             trustedHosts = emailDestination.getTrustedHosts().toArray(new String [] {});
         }
 
-        MailerBuilder.MailerRegularBuilder mailerBuilder = MailerBuilder
+        MailerRegularBuilderImpl mailerBuilder = MailerBuilder
                 .withSMTPServer(emailDestination.getHost(), emailDestination.getPort(), emailDestination.getUser(), emailDestination.getPassword())
                 .withProxy(emailDestination.getProxyHost(), emailDestination.getProxyPort(), emailDestination.getProxyUser(),
                         emailDestination.getProxyPassword())
                 .withDebugLogging(Boolean.valueOf(emailDestination.isDebug()))
                 .withTransportModeLoggingOnly(Boolean.valueOf(emailDestination.isSimulate())).withTransportStrategy(evalTransportStrategy())
                 .trustingAllHosts(sslUsed() ? Boolean.valueOf(emailDestination.isTrustAll()) : Boolean.FALSE).trustingSSLHosts(trustedHosts)
-                .withProperty("mail.smtps.ssl.checkserveridentity",
-                        (sslUsed() && (emailDestination.isTrustAll() || trustedHosts.length > 0)) ? "false" : "true");
+                .verifyingServerIdentity((sslUsed() && (emailDestination.isTrustAll() || trustedHosts.length > 0)) ? false : true);
 
         if (emailDestination.getSessionTimeout() != null) {
             mailerBuilder.withSessionTimeout(emailDestination.getSessionTimeout());
