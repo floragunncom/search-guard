@@ -23,6 +23,6 @@ public class PushAuthTokenUpdateAction extends ActionType<PushAuthTokenUpdateRes
     public static final String NAME = "cluster:admin/searchguard/auth_token/update/push";
 
     protected PushAuthTokenUpdateAction() {
-        super(NAME, PushAuthTokenUpdateResponse::new);
+        super(NAME);
     }
 }

@@ -35,9 +35,6 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.internal.ShardSearchRequest;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportChannel;
-import org.elasticsearch.transport.TransportRequest;
-import org.elasticsearch.transport.TransportRequestHandler;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
@@ -52,6 +49,12 @@ import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.google.common.base.Strings;
+import org.elasticsearch.transport.TaskTransportChannel;
+import org.elasticsearch.transport.TcpTransportChannel;
+import org.elasticsearch.transport.TransportChannel;
+import org.elasticsearch.transport.TransportRequest;
+import org.elasticsearch.transport.TransportRequestHandler;
+import org.elasticsearch.transport.TransportService;
 
 public class SearchGuardRequestHandler<T extends TransportRequest> extends SearchGuardSSLRequestHandler<T> {
 
@@ -106,15 +109,9 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
         
         try {
 
-           if(transportChannel.getChannelType() == null) {
-               throw new RuntimeException("Can not determine channel type (null)");
-           }
+           boolean isDirectChannel = isDirectChannelDeep(transportChannel);
 
-           if(!transportChannel.getChannelType().equals("direct") && !transportChannel.getChannelType().equals("transport")) {
-               throw new RuntimeException("Unknown channel type "+transportChannel.getChannelType());
-           }
-
-           getThreadContext().putTransient(ConfigConstants.SG_CHANNEL_TYPE, transportChannel.getChannelType());
+           getThreadContext().putTransient(ConfigConstants.SG_CHANNEL_TYPE, isDirectChannel? "direct": "transport");
            getThreadContext().putTransient(ConfigConstants.SG_ACTION_NAME, task.getAction());
            
            if(request instanceof ShardSearchRequest) {
@@ -125,7 +122,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
            }
 
             //bypass non-netty requests
-            if(transportChannel.getChannelType().equals("direct")) {
+            if(isDirectChannel) {
                 final String userHeader = getThreadContext().getHeader(ConfigConstants.SG_USER_HEADER);
 
                 if(!Strings.isNullOrEmpty(userHeader)) {
@@ -139,7 +136,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                 }
 
                 if(actionTrace.isTraceEnabled()) {
-                    getThreadContext().putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread.currentThread().getName()+" DIR -> "+transportChannel.getChannelType()+" "+getThreadContext().getHeaders());
+                    getThreadContext().putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID(), Thread.currentThread().getName()+" DIR -> "+transportChannel+" "+getThreadContext().getHeaders());
                 }
                 
                 putInitialActionClassHeader(initialActionClassValue, resolvedActionClass);
@@ -157,9 +154,9 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                     && (task.getAction().startsWith("internal:") || task.getAction().contains("["))) {
 
                 auditLog.logMissingPrivileges(task.getAction(), request, task);
-                log.error("Internal or shard requests ("+task.getAction()+") not allowed from a non-server node for transport type "+transportChannel.getChannelType());
+                log.error("Internal or shard requests ("+task.getAction()+") not allowed from a non-server node for transport type "+transportChannel);
                 transportChannel.sendResponse(new ElasticsearchSecurityException(
-                        "Internal or shard requests not allowed from a non-server node for transport type "+transportChannel.getChannelType()));
+                        "Internal or shard requests not allowed from a non-server node for transport type "+transportChannel));
                 return;
             }
 
@@ -168,9 +165,9 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
 
             if ((principal = getThreadContext().getTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL)) == null) {
                 Exception ex = new ElasticsearchSecurityException(
-                        "No SSL client certificates found for transport type "+transportChannel.getChannelType()+". Search Guard needs the Search Guard SSL plugin to be installed");
+                        "No SSL client certificates found for transport type "+transportChannel+". Search Guard needs the Search Guard SSL plugin to be installed");
                 auditLog.logSSLException(request, ex, task.getAction(), task);
-                log.error("No SSL client certificates found for transport type "+transportChannel.getChannelType()+". Search Guard needs the Search Guard SSL plugin to be installed");
+                log.error("No SSL client certificates found for transport type "+transportChannel+". Search Guard needs the Search Guard SSL plugin to be installed");
                 transportChannel.sendResponse(ex);
                 return;
             } else {
@@ -222,7 +219,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                 }
 
                 if(actionTrace.isTraceEnabled()) {
-                    getThreadContext().putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread.currentThread().getName()+" NETTI -> "+transportChannel.getChannelType()+" "+getThreadContext().getHeaders().entrySet().stream().filter(p->!p.getKey().startsWith("_sg_trace")).collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue())));
+                    getThreadContext().putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread.currentThread().getName()+" NETTI -> "+transportChannel+" "+getThreadContext().getHeaders().entrySet().stream().filter(p->!p.getKey().startsWith("_sg_trace")).collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue())));
                 }
 
                 
@@ -233,7 +230,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
         } finally {
 
             if(actionTrace.isTraceEnabled()) {
-                getThreadContext().putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread.currentThread().getName()+" FIN -> "+transportChannel.getChannelType()+" "+getThreadContext().getHeaders());
+                getThreadContext().putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread.currentThread().getName()+" FIN -> "+transportChannel+" "+getThreadContext().getHeaders());
             }
 
             if(sgContext != null) {

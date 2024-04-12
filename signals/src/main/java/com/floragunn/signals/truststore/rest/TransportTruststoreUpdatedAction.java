@@ -57,7 +57,7 @@ public class TransportTruststoreUpdatedAction extends
     @Inject
     public TransportTruststoreUpdatedAction(ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
         ActionFilters actionFilters, Signals signals) {
-        super(NAME,threadPool, clusterService, transportService, actionFilters, TruststoreUpdatedRequest::new, NodeRequest::new,
+        super(NAME,clusterService, transportService, actionFilters, NodeRequest::new,
                 threadPool.executor(ThreadPool.Names.MANAGEMENT));
         this.trustManagerRegistry = Objects.requireNonNull(signals.getTruststoreRegistry(), "Truststore registry is required");
     }
@@ -163,7 +163,7 @@ public class TransportTruststoreUpdatedAction extends
         public static final String NAME = "cluster:admin:searchguard:signals:truststores/update";
         public static final TruststoreUpdatedActionType INSTANCE = new TruststoreUpdatedActionType();
         protected TruststoreUpdatedActionType() {
-            super(NAME, TruststoreUpdatedResponse::new);
+            super(NAME);
         }
 
         public static ActionFuture<TruststoreUpdatedResponse> send(Client client, String truststoreId, String operationType) {

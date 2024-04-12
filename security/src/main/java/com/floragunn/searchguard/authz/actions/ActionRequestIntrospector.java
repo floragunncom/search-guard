@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +30,7 @@ import java.util.function.Function;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.CompositeIndicesRequest;
@@ -46,6 +46,7 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchContextId;
 import org.elasticsearch.rest.root.MainRequest;
 import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
@@ -79,10 +80,25 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.support.SnapshotRestoreHelper;
 
+import static org.elasticsearch.action.support.IndicesOptions.ConcreteTargetOptions.ALLOW_UNAVAILABLE_TARGETS;
+
 public class ActionRequestIntrospector {
 
-    private static final IndicesOptions EXACT = new IndicesOptions(EnumSet.noneOf(IndicesOptions.Option.class),
-            EnumSet.noneOf(IndicesOptions.WildcardStates.class));
+    private static final IndicesOptions EXACT = new IndicesOptions(
+            new IndicesOptions.ConcreteTargetOptions(false),
+            IndicesOptions.WildcardOptions.builder()
+                    .resolveAliases(true)
+                    .matchClosed(false)
+                    .includeHidden(false)
+                    .allowEmptyExpressions(false)
+                    .matchOpen(false)
+                    .build(),
+            IndicesOptions.GeneralOptions.builder()
+                    .allowClosedIndices(true)
+                    .allowAliasToMultipleIndices(true)
+                    .ignoreThrottled(false)
+                    .build()
+    );
 
     private static final Set<String> NAME_BASED_SHORTCUTS_FOR_CLUSTER_ACTIONS = ImmutableSet.of("indices:data/read/msearch/template",
             "indices:data/read/search/template", "indices:data/read/sql/translate", "indices:data/read/sql", "indices:data/read/sql/close_cursor",
@@ -108,8 +124,13 @@ public class ActionRequestIntrospector {
         if (NAME_BASED_SHORTCUTS_FOR_CLUSTER_ACTIONS.contains(action)) {
             return CLUSTER_REQUEST;
         }
-
-        if (request instanceof SingleShardRequest) {
+        if (request instanceof SearchRequest searchRequest && (searchRequest.pointInTimeBuilder() != null)) {
+            // In point-in-time queries, wildcards in index names are expanded when the open point-in-time request
+            // is sent. Therefore, a list of indices in search requests with PIT can be treated literally.
+            String pointInTimeId = searchRequest.pointInTimeBuilder().getEncodedId();
+            String[] indices = SearchContextId.decodeIndices(pointInTimeId);
+            return new ActionRequestInfo(indices == null ? ImmutableList.empty() : ImmutableList.ofArray(indices), EXACT);
+        } else if (request instanceof SingleShardRequest) {
             // SingleShardRequest can reference exactly one index or no indices at all (which might be a bit surprising)
             SingleShardRequest<?> singleShardRequest = (SingleShardRequest<?>) request;
             
@@ -755,9 +776,10 @@ public class ActionRequestIntrospector {
             if (indicesOptions.allowNoIndices()) {
                 return indicesOptions;
             } else {
-                EnumSet<IndicesOptions.Option> newOptions = indicesOptions.options().clone();
-                newOptions.add(IndicesOptions.Option.ALLOW_NO_INDICES);
-                return new IndicesOptions(newOptions, indicesOptions.expandWildcards());
+                IndicesOptions.Builder builder = IndicesOptions.builder(indicesOptions);
+                builder.wildcardOptions(IndicesOptions.WildcardOptions.builder(indicesOptions.wildcardOptions())
+                        .allowEmptyExpressions(true).build());
+                return builder.build();
             }
         }
 
@@ -899,9 +921,9 @@ public class ActionRequestIntrospector {
             if (indicesOptions.ignoreUnavailable()) {
                 return indicesOptions;
             } else {
-                EnumSet<IndicesOptions.Option> newOptions = indicesOptions.options().clone();
-                newOptions.add(IndicesOptions.Option.IGNORE_UNAVAILABLE);
-                return new IndicesOptions(newOptions, indicesOptions.expandWildcards());
+                IndicesOptions.Builder builder = IndicesOptions.builder(indicesOptions);
+                builder.concreteTargetOptions(ALLOW_UNAVAILABLE_TARGETS);
+                return builder.build();
             }
         }
     }
