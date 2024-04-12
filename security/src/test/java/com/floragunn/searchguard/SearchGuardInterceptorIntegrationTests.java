@@ -106,7 +106,7 @@ public class SearchGuardInterceptorIntegrationTests {
     }
 
     public static class MockTransportAction extends HandledTransportAction<MockActionRequest, MockActionResponse> {
-        static ActionType<MockActionResponse> TYPE = new ActionType<>("cluster:admin/header_test", MockActionResponse::new);
+        static ActionType<MockActionResponse> TYPE = new ActionType<>("cluster:admin/header_test"); //todo #104650
 
         private ThreadPool threadPool;
 

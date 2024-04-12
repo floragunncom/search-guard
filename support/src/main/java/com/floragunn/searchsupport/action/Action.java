@@ -58,7 +58,7 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
     private final MessageParser<ResponseType> responseParser;
 
     public Action(String name, MessageParser<RequestType> requestParser, MessageParser<ResponseType> responseParser) {
-        super(name, (in) -> parse(in, responseParser));
+        super(name); //todo #104650
         this.requestParser = requestParser;
         this.responseParser = responseParser;
     }
@@ -302,7 +302,7 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
             byte majorVersion = in.readByte();
             byte minorVersion = in.readByte();
 
-            Map<String, Object> metaData = in.readMap();
+            Map<String, Object> metaData = in.readGenericMap(); //todo #104045
 
             if (metaData == null) {
                 metaData = Collections.emptyMap();

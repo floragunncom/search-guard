@@ -36,6 +36,7 @@ import org.elasticsearch.transport.TcpTransportChannel;
 import org.elasticsearch.transport.TransportChannel;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestHandler;
+import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.transport.netty4.Netty4TcpChannel;
 
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
@@ -82,7 +83,7 @@ implements TransportRequestHandler<T> {
             throw exception;
         }
  
-        if (!"transport".equals(channel.getChannelType())) { //netty4
+        if (TransportService.isDirectResponseChannel(channel)) { //netty4 //todo #104032
             messageReceivedDecorate(request, actualHandler, channel, task);
             return;
         }
@@ -99,7 +100,7 @@ implements TransportRequestHandler<T> {
                 final TcpChannel inner = ((TcpTransportChannel) channel).getChannel();
                 nettyChannel = (Netty4TcpChannel) inner;
             } else {
-                throw new Exception("Invalid channel of type "+channel.getClass()+ " ("+channel.getChannelType()+")");
+                throw new Exception("Invalid channel of type "+channel.getClass()); //todo #104032
             }
             
             final SslHandler sslhandler = (SslHandler) nettyChannel.getNettyChannel().pipeline().get("ssl_server");

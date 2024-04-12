@@ -207,7 +207,7 @@ public class ResourceOwnerServiceTests {
     }
 
     public static class MockSubmitTransportAction extends HandledTransportAction<MockSubmitActionRequest, MockActionResponse> {
-        static ActionType<MockActionResponse> TYPE = new ActionType<>("indices:data/read/async_search/submit", MockActionResponse::new);
+        static ActionType<MockActionResponse> TYPE = new ActionType<>("indices:data/read/async_search/submit"); //todo #104650
 
         @Inject
         public MockSubmitTransportAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
@@ -250,7 +250,7 @@ public class ResourceOwnerServiceTests {
     }
 
     public static class MockGetTransportAction extends HandledTransportAction<MockGetActionRequest, MockActionResponse> {
-        static ActionType<MockActionResponse> TYPE = new ActionType<>("indices:data/read/async_search/get", MockActionResponse::new);
+        static ActionType<MockActionResponse> TYPE = new ActionType<>("indices:data/read/async_search/get"); //todo #104650
 
         @Inject
         public MockGetTransportAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
@@ -294,7 +294,7 @@ public class ResourceOwnerServiceTests {
     }
 
     public static class MockDeleteTransportAction extends HandledTransportAction<MockGetActionRequest, AcknowledgedResponse> {
-        static ActionType<AcknowledgedResponse> TYPE = new ActionType<>("indices:data/read/async_search/delete", AcknowledgedResponse::readFrom);
+        static ActionType<AcknowledgedResponse> TYPE = new ActionType<>("indices:data/read/async_search/delete"); //todo #104650
 
         @Inject
         public MockDeleteTransportAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
