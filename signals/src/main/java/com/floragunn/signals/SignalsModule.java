@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import com.floragunn.signals.actions.summary.LoadOperatorSummaryAction;
@@ -27,6 +28,7 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
+import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
@@ -126,7 +128,7 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
     @Override
     public List<RestHandler> getRestHandlers(Settings settings, RestController controller, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
+            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
         if (enabled) {
             return Arrays.asList(new WatchApiAction(settings), new ExecuteWatchApiAction(settings, scriptService, this.signalsSettings),
                     new DeActivateWatchAction(settings, controller), new AckWatchApiAction(settings, controller), new SearchWatchApiAction(settings),

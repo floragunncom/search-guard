@@ -31,7 +31,7 @@ import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
-import org.elasticsearch.action.admin.indices.mapping.put.PutMappingAction;
+import org.elasticsearch.action.admin.indices.mapping.put.TransportPutMappingAction;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -84,7 +84,7 @@ class FrontendDataMigrationInterceptor {
         if((context.getUser()!= null) && (Strings.isNullOrEmpty(context.getUser().getRequestedTenant())) && (kibanaServerUsername.equals(context.getUser().getName())) && (context.getRequest() instanceof BulkRequest bulkRequest)) {
             log.debug("Index '{}' used during migration detected.", kibanaIndices);
             return Optional.of(() -> handleDataMigration(kibanaIndices, context, bulkRequest, (ActionListener<BulkResponse>) listener));
-        } else if (PutMappingAction.NAME.equals(context.getAction().name())) {
+        } else if (TransportPutMappingAction.TYPE.name().equals(context.getAction().name())) {
             log.debug("Migration of mappings for index '{}' detected ", kibanaIndices);
             return Optional.of(() -> extendIndexMappingWithMultiTenancyData((PutMappingRequest) context.getRequest(), (ActionListener<AcknowledgedResponse>)listener));
         } else if (CreateIndexAction.NAME.equals(context.getAction().name())) {

@@ -31,9 +31,8 @@ public class HeaderHelper {
     }
 
     public static boolean isDirectRequest(final ThreadContext context) {
-        
-        return  "direct".equals(context.getTransient(ConfigConstants.SG_CHANNEL_TYPE))
-                  || context.getTransient(ConfigConstants.SG_CHANNEL_TYPE) == null;
+        return (context.getTransient(ConfigConstants.SG_CHANNEL_TYPE) == null)
+            || context.<Boolean>getTransient(ConfigConstants.SG_CHANNEL_TYPE);
     }
     
     

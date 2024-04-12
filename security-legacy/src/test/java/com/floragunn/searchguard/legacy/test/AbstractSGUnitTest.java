@@ -41,6 +41,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.telemetry.metric.MeterRegistry;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -77,7 +78,7 @@ public abstract class AbstractSGUnitTest {
 	}
 
 	protected final Logger log = LogManager.getLogger(this.getClass());
-    public static final ThreadPool MOCK_POOL = new ThreadPool(Settings.builder().put("node.name",  "mock").build());
+    public static final ThreadPool MOCK_POOL = new ThreadPool(Settings.builder().put("node.name",  "mock").build(), MeterRegistry.NOOP);
 
     //TODO Test Matrix
     //enable//disable enterprise modules

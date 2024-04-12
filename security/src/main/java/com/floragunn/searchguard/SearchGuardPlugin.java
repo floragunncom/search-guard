@@ -528,7 +528,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             }
 
             handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
-                    indexNameExpressionResolver, scriptService, nodesInCluster));
+                    indexNameExpressionResolver, scriptService, nodesInCluster, clusterSupportsFeature));
         }
 
         return handlers;
