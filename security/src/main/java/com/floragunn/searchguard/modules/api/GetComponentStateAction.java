@@ -78,7 +78,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
     public static final String NAME = "cluster:admin/searchguard/components/state";
 
     protected GetComponentStateAction() {
-        super(NAME, Response::new);
+        super(NAME);
     }
 
     public static class Request extends BaseNodesRequest<Request> {
@@ -467,7 +467,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         @Inject
         public TransportAction(Settings settings, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                 ActionFilters actionFilters, SearchGuardModulesRegistry modulesRegistry) {
-            super(GetComponentStateAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new, NodeRequest::new,
+            super(GetComponentStateAction.NAME, clusterService, transportService, actionFilters, NodeRequest::new,
                     threadPool.executor(ThreadPool.Names.MANAGEMENT));
             this.modulesRegistry = modulesRegistry;
         }

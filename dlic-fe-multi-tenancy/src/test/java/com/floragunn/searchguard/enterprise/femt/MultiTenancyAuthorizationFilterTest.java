@@ -25,17 +25,19 @@ import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandler;
 import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandlerFactory;
 import com.floragunn.searchguard.user.User;
+import org.apache.commons.logging.Log;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexAction;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-import org.elasticsearch.action.get.GetAction;
+import org.elasticsearch.action.admin.indices.delete.TransportDeleteIndexAction;
+import org.elasticsearch.action.get.TransportGetAction;
 import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.index.IndexAction;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.TransportIndexAction;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.indices.IndicesService;
 import org.junit.Before;
@@ -99,6 +101,7 @@ public class MultiTenancyAuthorizationFilterTest {
 
     @Before
     public void before() {
+        LogConfigurator.configureESLogging();
         when(config.getIndex()).thenReturn(".kibana");
         when(config.isEnabled()).thenReturn(true);
         when(context.getUser()).thenReturn(user);
@@ -199,7 +202,7 @@ public class MultiTenancyAuthorizationFilterTest {
         IndexRequest request = new IndexRequest().index(FRONTEND_MAIN_INDEX);
         when(context.getRequest()).thenReturn(request);
         when(context.getAction()).thenReturn(action);
-        when(action.name()).thenReturn(IndexAction.NAME);
+        when(action.name()).thenReturn(TransportIndexAction.NAME);
         when(user.getName()).thenReturn(TEST_USER_NAME_2);
         when(user.getRequestedTenant()).thenReturn(HR_TENANT_NAME);
         when(tenantManager.isTenantHeaderValid(HR_TENANT_NAME)).thenReturn(true);
@@ -228,7 +231,7 @@ public class MultiTenancyAuthorizationFilterTest {
         GetRequest request = new GetRequest(FRONTEND_MAIN_INDEX, "document_id");
         when(context.getRequest()).thenReturn(request);
         when(context.getAction()).thenReturn(action);
-        when(action.name()).thenReturn(GetAction.NAME);
+        when(action.name()).thenReturn(TransportGetAction.TYPE.name());
         when(user.getName()).thenReturn(TEST_USER_NAME_2);
         when(user.getRequestedTenant()).thenReturn(IT_TENANT_NAME);
         when(tenantManager.isTenantHeaderValid(IT_TENANT_NAME)).thenReturn(true);
@@ -260,7 +263,7 @@ public class MultiTenancyAuthorizationFilterTest {
         DeleteIndexRequest request = new DeleteIndexRequest(FRONTEND_MAIN_INDEX);
         when(context.getRequest()).thenReturn(request);
         when(context.getAction()).thenReturn(action);
-        when(action.name()).thenReturn(DeleteIndexAction.NAME);
+        when(action.name()).thenReturn(TransportDeleteIndexAction.TYPE.name());
         when(user.getName()).thenReturn(TEST_USER_NAME_2);
         when(user.getRequestedTenant()).thenReturn(IT_TENANT_NAME);
         when(tenantManager.isTenantHeaderValid(IT_TENANT_NAME)).thenReturn(true);

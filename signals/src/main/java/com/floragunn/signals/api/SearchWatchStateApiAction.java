@@ -6,16 +6,16 @@ import static org.elasticsearch.rest.RestRequest.Method.POST;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.function.Predicate;
 
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.BaseRestHandler;
+import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.action.RestToXContentListener;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
-import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
 import com.floragunn.signals.actions.watch.state.search.SearchWatchStateAction;
 import com.floragunn.signals.actions.watch.state.search.SearchWatchStateRequest;
 import com.floragunn.signals.actions.watch.state.search.SearchWatchStateResponse;
@@ -23,9 +23,11 @@ import com.google.common.collect.ImmutableList;
 
 public class SearchWatchStateApiAction extends SignalsTenantAwareRestHandler {
 
-    public SearchWatchStateApiAction(Settings settings) {
-        super(settings);
+    private Predicate<NodeFeature> clusterSupportsFeature;
 
+    public SearchWatchStateApiAction(Settings settings, Predicate<NodeFeature> clusterSupportsFeature) {
+        super(settings);
+        this.clusterSupportsFeature = clusterSupportsFeature;
     }
 
     public List<Route> routes() {
@@ -53,7 +55,7 @@ public class SearchWatchStateApiAction extends SignalsTenantAwareRestHandler {
         searchWatchRequest.setSize(size);
 
         if (request.hasContent()) {
-            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.searchSource().parseXContent(request.contentParser(), true);
+            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.searchSource().parseXContent(request.contentParser(), true, clusterSupportsFeature);
 
             searchWatchRequest.setSearchSourceBuilder(searchSourceBuilder);
         }
