@@ -43,6 +43,8 @@ import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
+import org.elasticsearch.action.search.SearchContextId;
+import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.internal.Client;
@@ -347,6 +349,9 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
 
             return ImmutableSet.of(putMappingRequest.getConcreteIndex() != null ? putMappingRequest.getConcreteIndex().getName() : null,
                     putMappingRequest.indices());
+        } else if ((request instanceof SearchRequest searchRequest) && (Objects.nonNull(searchRequest.pointInTimeBuilder()))) {
+            String pointInTimeId = searchRequest.pointInTimeBuilder().getEncodedId();
+            return ImmutableSet.ofArray(SearchContextId.decodeIndices(pointInTimeId));
         } else if (request instanceof IndicesRequest) {
             if (((IndicesRequest) request).indices() != null) {
                 return ImmutableSet.of(Arrays.asList(((IndicesRequest) request).indices()));

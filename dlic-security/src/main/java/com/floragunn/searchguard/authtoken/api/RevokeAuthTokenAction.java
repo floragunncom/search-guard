@@ -23,9 +23,6 @@ public class RevokeAuthTokenAction extends ActionType<RevokeAuthTokenResponse> {
     public static final String NAME_ALL = NAME.replace("/_own/", "/_all/");
 
     protected RevokeAuthTokenAction() {
-        super(NAME, in -> {
-            RevokeAuthTokenResponse response = new RevokeAuthTokenResponse(in);
-            return response;
-        });
+        super(NAME);
     }
 }

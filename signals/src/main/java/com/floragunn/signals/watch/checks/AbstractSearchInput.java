@@ -2,10 +2,10 @@ package com.floragunn.signals.watch.checks;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 
 import com.floragunn.signals.script.SignalsScriptContextFactory;
 import org.apache.logging.log4j.LogManager;
@@ -14,14 +14,13 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.support.IndicesOptions;
-import org.elasticsearch.action.support.IndicesOptions.WildcardStates;
 import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.TemplateScript;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.XContentParserConfiguration;
 import org.elasticsearch.xcontent.XContentType;
@@ -88,7 +87,7 @@ public abstract class AbstractSearchInput extends AbstractInput {
     }
 
     protected boolean executeSearchRequest(WatchExecutionContext ctx, String searchBody) {
-        SearchRequest searchRequest = createSearchRequest(ctx.getxContentRegistry(), searchBody);
+        SearchRequest searchRequest = createSearchRequest(ctx, searchBody);
 
         if (log.isDebugEnabled()) {
             log.debug("Executing: " + searchRequest);
@@ -97,22 +96,28 @@ public abstract class AbstractSearchInput extends AbstractInput {
         SearchResponse searchResponse = ctx.getClient().search(searchRequest)
                 .actionGet(timeout != null ? timeout : new TimeValue(30, TimeUnit.SECONDS));
 
-        if (log.isDebugEnabled()) {
-            log.debug("Response: " + searchResponse);
-        }
+        try {
+            if (log.isDebugEnabled()) {
+                log.debug("Response: " + searchResponse);
+            }
 
-        Object result = ObjectTreeXContent.toObjectTree(ChunkedToXContentObject.wrapAsToXContentObject(searchResponse), new MapParams(Collections.emptyMap()),
+            Object result = ObjectTreeXContent.toObjectTree(ChunkedToXContentObject.wrapAsToXContentObject(searchResponse),
+                new MapParams(Collections.emptyMap()),
                 () -> NestedValueMap.createNonCloningMap());
-        setResult(ctx, result);
+            setResult(ctx, result);
+        } finally {
+            searchResponse.decRef();
+        }
 
         return true;
     }
 
-    protected SearchRequest createSearchRequest(NamedXContentRegistry xContentRegistry, String searchBody) {
+    protected SearchRequest createSearchRequest(WatchExecutionContext ctx, String searchBody) {
 
-        try (XContentParser parser = XContentType.JSON.xContent().createParser(XContentParserConfiguration.EMPTY.withRegistry(xContentRegistry).withDeprecationHandler(LoggingDeprecationHandler.INSTANCE), searchBody)) {
+        try (XContentParser parser = XContentType.JSON.xContent().createParser(XContentParserConfiguration.EMPTY.withRegistry(ctx.getxContentRegistry()).withDeprecationHandler(LoggingDeprecationHandler.INSTANCE), searchBody)) {
 
-            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.searchSource().parseXContent(parser, true);
+            Predicate<NodeFeature> isFeatureSupported = (feature) -> ctx.getFeatureService().clusterHasFeature(ctx.getClusterService().state(), feature);
+            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.searchSource().parseXContent(parser, true, isFeatureSupported);
             SearchRequest result = new SearchRequest(this.getIndicesAsArray(), searchSourceBuilder);
 
             if (this.searchType != null) {
@@ -133,12 +138,14 @@ public abstract class AbstractSearchInput extends AbstractInput {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-        EnumSet<WildcardStates> wildcards = vJsonNode.get("expand_wildcards").expected("all|open|none|closed")
-                .withDefault(EnumSet.of(WildcardStates.OPEN)).by((s) -> WildcardStates.parseParameter(s, null));
+        boolean allowNoIndices = vJsonNode.get("allow_no_indices").withDefault(false).asBoolean();
+        IndicesOptions.WildcardOptions wildcardOptions = vJsonNode.get("expand_wildcards").expected("all|open|none|closed")
+                .withDefault(IndicesOptions.WildcardOptions.builder().matchOpen(true).build())
+                .by((s) -> IndicesOptions.WildcardOptions.parseParameters(s, allowNoIndices, null));
 
         IndicesOptions result = IndicesOptions.fromOptions(vJsonNode.get("ignore_unavailable").withDefault(false).asBoolean(),
-                vJsonNode.get("allow_no_indices").withDefault(false).asBoolean(), wildcards.contains(WildcardStates.OPEN),
-                wildcards.contains(WildcardStates.CLOSED), false, false, false, false);
+                allowNoIndices, wildcardOptions.matchOpen(), wildcardOptions.matchClosed(),
+                false, false, false, false);
 
         validationErrors.throwExceptionForPresentErrors();
 

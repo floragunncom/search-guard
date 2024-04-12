@@ -102,7 +102,7 @@ public class TransportSearchAuthTokensAction extends AbstractTransportAuthTokenA
 
             @Override
             public void onResponse(SearchResponse response) {
-                listener.onResponse(new SearchAuthTokensResponse(response));
+                ActionListener.respondAndRelease(listener, new SearchAuthTokensResponse(response));
             }
 
             @Override

@@ -8,9 +8,6 @@ public class CheckForExecutingTriggerAction extends ActionType<CheckForExecuting
     public static final String NAME = "cluster:admin/searchsupport/scheduler/executing_triggers/check";
 
     protected CheckForExecutingTriggerAction() {
-        super(NAME, in -> {
-            CheckForExecutingTriggerResponse response = new CheckForExecutingTriggerResponse(in);
-            return response;
-        });
+        super(NAME);
     }
 }

@@ -20,8 +20,8 @@ package com.floragunn.searchguard.action.whoami;
 import java.io.IOException;
 
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.support.TransportAction;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -40,31 +40,9 @@ public class WhoAmIResponse extends ActionResponse implements ToXContent {
         this.isNodeCertificateRequest = isNodeCertificateRequest;
     }
 
-    
-    public WhoAmIResponse() {
-        super();
-        this.dn = null;
-        this.isAdmin = false;
-        this.isAuthenticated = false;
-        this.isNodeCertificateRequest = false;
-    }
-
-
-
-    public WhoAmIResponse(StreamInput in) throws IOException {
-        super(in);
-        dn = in.readString();
-        isAdmin = in.readBoolean();
-        isAuthenticated = in.readBoolean();
-        isNodeCertificateRequest = in.readBoolean();
-    }
-
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        out.writeString(dn);
-        out.writeBoolean(isAdmin);
-        out.writeBoolean(isAuthenticated);
-        out.writeBoolean(isNodeCertificateRequest);
+        TransportAction.localOnly();
     }
 
     public String getDn() {
@@ -77,10 +55,6 @@ public class WhoAmIResponse extends ActionResponse implements ToXContent {
 
     public boolean isAuthenticated() {
         return isAuthenticated;
-    }
-
-    public boolean isNodeCertificateRequest() {
-        return isNodeCertificateRequest;
     }
 
     @Override

@@ -111,7 +111,8 @@ public class TransportSearchWatchStateAction extends HandledTransportAction<Sear
                     @Override
                     public void onResponse(SearchResponse response) {
 
-                        listener.onResponse(new SearchWatchStateResponse(response));
+                        ActionListener.respondAndRelease(listener, new SearchWatchStateResponse(response));
+
                     }
 
                     @Override
