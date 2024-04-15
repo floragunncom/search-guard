@@ -6,8 +6,8 @@
 # https://docs.search-guard.com/latest/kibana-multi-tenancy
 
 ## Demo tenants
-admin_tenant:
-  description: "Demo tenant for admin user"
+#admin_tenant:
+#  description: "Demo tenant for admin user"
 
-mytenant:
-  description: "Sample tenant definition for demonstration purposes"
+#mytenant:
+#  description: "Sample tenant definition for demonstration purposes"
