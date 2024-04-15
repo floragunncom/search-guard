@@ -2,7 +2,6 @@ package com.floragunn.signals.watch.checks;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -14,7 +13,6 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.support.IndicesOptions;
-import org.elasticsearch.action.support.IndicesOptions.WildcardStates;
 import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.core.TimeValue;
@@ -133,12 +131,23 @@ public abstract class AbstractSearchInput extends AbstractInput {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
-        EnumSet<WildcardStates> wildcards = vJsonNode.get("expand_wildcards").expected("all|open|none|closed")
-                .withDefault(EnumSet.of(WildcardStates.OPEN)).by((s) -> WildcardStates.parseParameter(s, null));
+        IndicesOptions.WildcardOptions wildcardOptions = vJsonNode.get("expand_wildcards").expected("all|open|none|closed")
+                .withDefault(IndicesOptions.WildcardOptions.builder().matchOpen(true).build())
+                .by(node -> {
+                    String[] states = null;
+                    if (node.isList()) {
+                        states = node.toListOfStrings().toArray(String[]::new);
+                    } else if (node.isString()) {
+                        states = new String[] { node.toString() };
+                    } else {
+                        throw new RuntimeException("Unsupported attribute type");
+                    }
+                    return IndicesOptions.WildcardOptions.builder().expandStates(states).build();
+                });
 
         IndicesOptions result = IndicesOptions.fromOptions(vJsonNode.get("ignore_unavailable").withDefault(false).asBoolean(),
-                vJsonNode.get("allow_no_indices").withDefault(false).asBoolean(), wildcards.contains(WildcardStates.OPEN),
-                wildcards.contains(WildcardStates.CLOSED), false, false, false, false);
+                vJsonNode.get("allow_no_indices").withDefault(false).asBoolean(), wildcardOptions.matchOpen(),
+                wildcardOptions.matchClosed(), false, false, false, false);
 
         validationErrors.throwExceptionForPresentErrors();
 
