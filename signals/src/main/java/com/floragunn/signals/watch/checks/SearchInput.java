@@ -4,10 +4,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Predicate;
 
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -28,16 +30,15 @@ public class SearchInput extends AbstractSearchInput {
     private SearchType searchType = SearchType.DEFAULT;
 
     public SearchInput(String name, String target, String index, String body) {
-        this(name, target, Collections.singletonList(index), body);
+        this(name, target, Collections.singletonList(index), body, feature -> true);
     }
 
-    public SearchInput(String name, String target, List<String> indices, String body) {
-        this(name, target, indices, body, null, null);
-        ;
+    public SearchInput(String name, String target, List<String> indices, String body, Predicate<NodeFeature> isFeatureSupported) {
+        this(name, target, indices, body, null, null, isFeatureSupported);;
     }
 
-    public SearchInput(String name, String target, List<String> indices, String body, SearchType searchType, IndicesOptions indicesOptions) {
-        super(name, target, indices);
+    public SearchInput(String name, String target, List<String> indices, String body, SearchType searchType, IndicesOptions indicesOptions, Predicate<NodeFeature> isFeatureSupported) {
+        super(name, target, indices, isFeatureSupported);
         this.body = body;
         this.searchType = searchType;
         this.indicesOptions = indicesOptions;
@@ -111,7 +112,8 @@ public class SearchInput extends AbstractSearchInput {
         vJsonNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
-        SearchInput result = new SearchInput(name, target, indices, body.toJsonString());
+        Predicate<NodeFeature> isFeatureSupported = (feature) -> watchInitService.getFeatureService().clusterHasFeature(watchInitService.getClusterService().state(), feature);
+        SearchInput result = new SearchInput(name, target, indices, body.toJsonString(), isFeatureSupported);
 
         result.timeout = timeout;
         result.searchType = searchType;

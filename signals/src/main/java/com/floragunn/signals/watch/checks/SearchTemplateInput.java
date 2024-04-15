@@ -3,10 +3,12 @@ package com.floragunn.signals.watch.checks;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -54,8 +56,9 @@ public class SearchTemplateInput extends AbstractSearchInput {
         vJsonNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
+        Predicate<NodeFeature> isFeatureSupported = (feature) -> watchInitService.getFeatureService().clusterHasFeature(watchInitService.getClusterService().state(), feature);
         SearchTemplateInput result = new SearchTemplateInput(name, target, indices, id,
-                template.get("params") != null ? template.getAsNode("params").toMap() : null);
+                template.get("params") != null ? template.getAsNode("params").toMap() : null, isFeatureSupported);
 
         result.timeout = timeout;
         result.searchType = searchType;
@@ -68,8 +71,8 @@ public class SearchTemplateInput extends AbstractSearchInput {
     private String id;
     private Map<String, Object> params;
 
-    public SearchTemplateInput(String name, String target, List<String> indices, String id, Map<String, Object> params) {
-        super(name, target, indices);
+    public SearchTemplateInput(String name, String target, List<String> indices, String id, Map<String, Object> params, Predicate<NodeFeature> isFeatureSupported) {
+        super(name, target, indices, isFeatureSupported);
         this.id = id;
         this.params = params;
     }

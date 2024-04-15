@@ -140,7 +140,9 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                                     return;
                                 }
                                 WatchInitializationService initService = new WatchInitializationService(signals.getAccountRegistry(), scriptService,
-                                    signals.getTruststoreRegistry(), signals.getHttpProxyHostRegistry(), new ValidatingThrottlePeriodParser(signals.getSignalsSettings()), LENIENT);
+                                    signals.getTruststoreRegistry(), signals.getHttpProxyHostRegistry(), new ValidatingThrottlePeriodParser(signals.getSignalsSettings()),
+                                        LENIENT, signals.getClusterService(), signals.getFeatureService()
+                                );
                                 Watch watch = Watch.parse(initService, signalsTenant.getName(), request.getWatchId(),//
                                     response.getSourceAsString(), response.getVersion());
 
@@ -185,7 +187,9 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
 
         try {
             WatchInitializationService initService = new WatchInitializationService(signals.getAccountRegistry(), scriptService,
-                signals.getTruststoreRegistry(), signals.getHttpProxyHostRegistry(), new ValidatingThrottlePeriodParser(signals.getSignalsSettings()), LENIENT);
+                signals.getTruststoreRegistry(), signals.getHttpProxyHostRegistry(), new ValidatingThrottlePeriodParser(signals.getSignalsSettings()), LENIENT,
+                    signals.getClusterService(), signals.getFeatureService()
+            );
             Watch watch = Watch.parse(initService, signalsTenant.getName(),
                     "__inline_watch", request.getWatchJson(), -1);
 

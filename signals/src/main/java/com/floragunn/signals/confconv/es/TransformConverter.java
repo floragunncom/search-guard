@@ -97,7 +97,7 @@ public class TransformConverter {
             validationErrors.add(new ValidationError("extract", "Signals does not support the extract attribute. Use a transform instead."));
         }
 
-        SearchInput searchInput = new SearchInput(null, null, indices, body, searchType, indicesOptions);
+        SearchInput searchInput = new SearchInput(null, null, indices, body, searchType, indicesOptions, feature -> true);
 
         if (timeout != null) {
             searchInput.setTimeout(timeout);

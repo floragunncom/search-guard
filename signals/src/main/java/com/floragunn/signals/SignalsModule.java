@@ -218,7 +218,7 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
             return signals.createComponents(baseDependencies.getLocalClient(), baseDependencies.getClusterService(), baseDependencies.getThreadPool(),
                     baseDependencies.getResourceWatcherService(), baseDependencies.getScriptService(), baseDependencies.getxContentRegistry(),
                     baseDependencies.getEnvironment(), baseDependencies.getNodeEnvironment(), baseDependencies.getInternalAuthTokenProvider(),
-                    baseDependencies.getProtectedConfigIndexService(), baseDependencies.getDiagnosticContext());
+                    baseDependencies.getProtectedConfigIndexService(), baseDependencies.getDiagnosticContext(), baseDependencies.getFeatureService());
         } else {
             return Collections.emptyList();
         }

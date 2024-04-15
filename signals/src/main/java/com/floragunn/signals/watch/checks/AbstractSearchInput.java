@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 
 import com.floragunn.signals.script.SignalsScriptContextFactory;
 import org.apache.logging.log4j.LogManager;
@@ -16,6 +17,7 @@ import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.TemplateScript;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -43,10 +45,12 @@ public abstract class AbstractSearchInput extends AbstractInput {
     protected TemplateScript.Factory templateScriptFactory;
     protected SearchType searchType;
     protected IndicesOptions indicesOptions;
+    protected Predicate<NodeFeature> isFeatureSupported;
 
-    public AbstractSearchInput(String name, String target, List<String> indices) {
+    public AbstractSearchInput(String name, String target, List<String> indices, Predicate<NodeFeature> isFeatureSupported) {
         super(name, target);
         this.indices = Collections.unmodifiableList(indices);
+        this.isFeatureSupported = isFeatureSupported;
     }
 
     public List<String> getIndices() {
@@ -110,7 +114,7 @@ public abstract class AbstractSearchInput extends AbstractInput {
 
         try (XContentParser parser = XContentType.JSON.xContent().createParser(XContentParserConfiguration.EMPTY.withRegistry(xContentRegistry).withDeprecationHandler(LoggingDeprecationHandler.INSTANCE), searchBody)) {
 
-            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.searchSource().parseXContent(parser, true);
+            SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.searchSource().parseXContent(parser, true, isFeatureSupported);
             SearchRequest result = new SearchRequest(this.getIndicesAsArray(), searchSourceBuilder);
 
             if (this.searchType != null) {

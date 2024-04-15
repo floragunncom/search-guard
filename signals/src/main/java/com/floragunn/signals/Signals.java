@@ -33,6 +33,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.env.NodeEnvironment;
+import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.watcher.ResourceWatcherService;
@@ -81,6 +82,7 @@ public class Signals extends AbstractLifecycleComponent {
 
     private TrustManagerRegistry trustManagerRegistry;
     private HttpProxyHostRegistry httpProxyHostRegistry;
+    private FeatureService featureService;
 
     public Signals(Settings settings, ComponentState componentState) {
         this.componentState = componentState;
@@ -92,7 +94,7 @@ public class Signals extends AbstractLifecycleComponent {
     public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool,
             ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
             Environment environment, NodeEnvironment nodeEnvironment, InternalAuthTokenProvider internalAuthTokenProvider,
-            ProtectedConfigIndexService protectedConfigIndexService, DiagnosticContext diagnosticContext) {
+            ProtectedConfigIndexService protectedConfigIndexService, DiagnosticContext diagnosticContext, FeatureService featureService) {
 
         try {
             nodeId = nodeEnvironment.nodeId();
@@ -127,6 +129,7 @@ public class Signals extends AbstractLifecycleComponent {
             ProxyRepository proxyRepository = new ProxyRepository(signalsSettings, privilegedConfigClient);
             ProxyCrudService proxyCrudService = new ProxyCrudService(proxyRepository);
             this.httpProxyHostRegistry = new HttpProxyHostRegistry(proxyCrudService);
+            this.featureService = featureService;
             return Collections.singletonList(this);
 
         } catch (Exception e) {
@@ -219,7 +222,7 @@ public class Signals extends AbstractLifecycleComponent {
 
             SignalsTenant signalsTenant = SignalsTenant.create(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
                     internalAuthTokenProvider, signalsSettings, accountRegistry, tenantState, diagnosticContext, threadPool,
-                    trustManagerRegistry, httpProxyHostRegistry);
+                    trustManagerRegistry, httpProxyHostRegistry, featureService);
 
             tenants.put(name, signalsTenant);
 
@@ -455,6 +458,15 @@ public class Signals extends AbstractLifecycleComponent {
     }
     public HttpProxyHostRegistry getHttpProxyHostRegistry() {
         return httpProxyHostRegistry;
+    }
+
+    public ClusterService getClusterService() {
+        return clusterService;
+    }
+
+    public FeatureService getFeatureService() {
+
+        return featureService;
     }
 
     public SignalsSettings getSignalsSettings() {

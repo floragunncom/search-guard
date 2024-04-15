@@ -48,6 +48,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.env.NodeEnvironment;
+import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.script.ScriptService;
@@ -103,10 +104,11 @@ public class SignalsTenant implements Closeable {
     public static SignalsTenant create(String name, Client client, ClusterService clusterService, NodeEnvironment nodeEnvironment,
             ScriptService scriptService, NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider,
             SignalsSettings settings, AccountRegistry accountRegistry, ComponentState tenantState, DiagnosticContext diagnosticContext,
-            ThreadPool threadPool, TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry)
+            ThreadPool threadPool, TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry,
+                                       FeatureService featureService)
             throws SchedulerException {
         SignalsTenant instance = new SignalsTenant(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                internalAuthTokenProvider, settings, accountRegistry, tenantState, diagnosticContext, threadPool, trustManagerRegistry, httpProxyHostRegistry);
+                internalAuthTokenProvider, settings, accountRegistry, tenantState, diagnosticContext, threadPool, trustManagerRegistry, httpProxyHostRegistry, featureService);
 
         instance.init();
 
@@ -138,11 +140,12 @@ public class SignalsTenant implements Closeable {
 
     private final TrustManagerRegistry trustManagerRegistry;
     private final HttpProxyHostRegistry httpProxyHostRegistry;
+    private final FeatureService featureService;
 
     public SignalsTenant(String name, Client client, ClusterService clusterService, NodeEnvironment nodeEnvironment, ScriptService scriptService,
             NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
             AccountRegistry accountRegistry, ComponentState tenantState, DiagnosticContext diagnosticContext, ThreadPool threadPool,
-        TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry) {
+        TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry, FeatureService featureService) {
         this.name = name;
         this.settings = settings;
         this.scopedName = "signals/" + name;
@@ -168,15 +171,18 @@ public class SignalsTenant implements Closeable {
         this.diagnosticContext = diagnosticContext;
         this.trustManagerRegistry = Objects.requireNonNull(trustManagerRegistry, "Trust manager registry is required");
         this.httpProxyHostRegistry = Objects.requireNonNull(httpProxyHostRegistry, "Http proxy host registry is required");
+        this.featureService = Objects.requireNonNull(featureService, "Feature service is required");
         settings.addChangeListener(this.settingsChangeListener);
     }
 
     public SignalsTenant(String name, Client client, ClusterService clusterService, NodeEnvironment nodeEnvironment, ScriptService scriptService,
             NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
             AccountRegistry accountRegistry, DiagnosticContext diagnosticContext, ThreadPool threadPool,
-            TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry) {
+            TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry, FeatureService featureService) {
         this(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry, internalAuthTokenProvider, settings, accountRegistry,
-                new ComponentState(0, null, "tenant"), diagnosticContext, threadPool, trustManagerRegistry, httpProxyHostRegistry);
+                new ComponentState(0, null, "tenant"), diagnosticContext, threadPool, trustManagerRegistry, httpProxyHostRegistry,
+                featureService
+        );
     }
 
     public void init() throws SchedulerException {
@@ -192,7 +198,7 @@ public class SignalsTenant implements Closeable {
         tenantState.setState(ComponentState.State.INITIALIZING);
 
         WatchInitializationService initContext = new WatchInitializationService(accountRegistry, scriptService, trustManagerRegistry,
-                httpProxyHostRegistry, new DefaultThrottlePeriodParser(settings), LENIENT);
+                httpProxyHostRegistry, new DefaultThrottlePeriodParser(settings), LENIENT, clusterService, featureService);
         this.scheduler = new SchedulerBuilder<Watch>()//
                 .client(privilegedConfigClient)//
                 .name(scopedName)//
@@ -351,7 +357,7 @@ public class SignalsTenant implements Closeable {
         Map<String, Object> watchJson = new LinkedHashMap<>(DocReader.json().readObject(watchJsonString));
 
         WatchInitializationService initializationService = new WatchInitializationService(accountRegistry, scriptService,//
-            trustManagerRegistry, httpProxyHostRegistry, new ValidatingThrottlePeriodParser(settings), validationLevel);
+            trustManagerRegistry, httpProxyHostRegistry, new ValidatingThrottlePeriodParser(settings), validationLevel, clusterService, featureService);
         Watch watch = Watch.parse(initializationService, getName(), watchId, DocNode.wrap(watchJson), -1);
 
         watch.setTenant(name);

@@ -12,6 +12,8 @@ import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import com.floragunn.signals.watch.common.ValidationLevel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptException;
@@ -40,18 +42,22 @@ public class WatchInitializationService {
      */
     private final TrustManagerRegistry trustManagerRegistry;
     private final HttpProxyHostRegistry httpProxyHostRegistry;
+    private final ClusterService clusterService;
+    private final FeatureService featureService;
 
     private final ValidationLevel validationLevel;
 
     public WatchInitializationService(AccountRegistry accountRegistry, ScriptService scriptService,
                                       TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry,
-                                      ThrottlePeriodParser throttlePeriodParser, ValidationLevel validationLevel) {
+                                      ThrottlePeriodParser throttlePeriodParser, ValidationLevel validationLevel, ClusterService clusterService, FeatureService featureService) {
         this.accountRegistry = accountRegistry;
         this.scriptService = scriptService;
         this.trustManagerRegistry = trustManagerRegistry;
         this.httpProxyHostRegistry = httpProxyHostRegistry;
         this.throttlePeriodParser = throttlePeriodParser;
         this.validationLevel = Objects.requireNonNull(validationLevel, "Life cycle stage is required");
+        this.clusterService = Objects.requireNonNull(clusterService, "Cluster service is required");
+        this.featureService = Objects.requireNonNull(featureService, "Feature service stage is required");
     }
 
     public ScriptService getScriptService() {
@@ -168,10 +174,18 @@ public class WatchInitializationService {
         return this.validationLevel;
     }
 
+    public ClusterService getClusterService() {
+        return clusterService;
+    }
+
+    public FeatureService getFeatureService() {
+        return featureService;
+    }
+
     @Override
     public String toString() {
         return "WatchInitializationService{" + "scriptService=" + scriptService + ", accountRegistry=" + accountRegistry
                 + ", trustManagerRegistry=" + trustManagerRegistry  + ", httpProxyConfigRegistry=" + httpProxyHostRegistry
-                + ", lifecycleStage=" + validationLevel + '}';
+                + ", lifecycleStage=" + validationLevel + ", clusterService=" + clusterService +  ", featureService=" + featureService + '}';
     }
 }

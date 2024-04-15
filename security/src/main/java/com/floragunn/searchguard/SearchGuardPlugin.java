@@ -902,7 +902,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 licenseRepository, protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, configVarService,
                 diagnosticContext, auditLog, evaluator, blockedIpRegistry, blockedUserRegistry, moduleRegistry,
                 internalUsersDatabase,
-            actions, authorizationService, guiceDependencies, authInfoService, actionRequestIntrospector);
+            actions, authorizationService, guiceDependencies, authInfoService, actionRequestIntrospector, services.featureService());
 
         sgi = new SearchGuardInterceptor(settings, services.threadPool(), auditLog, principalExtractor, interClusterRequestEvaluator,
             services.clusterService(),
