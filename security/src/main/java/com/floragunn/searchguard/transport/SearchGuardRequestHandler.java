@@ -35,10 +35,6 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.internal.ShardSearchRequest;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TcpTransportChannel;
-import org.elasticsearch.transport.TransportChannel;
-import org.elasticsearch.transport.TransportRequest;
-import org.elasticsearch.transport.TransportRequestHandler;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
@@ -53,6 +49,11 @@ import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.google.common.base.Strings;
+import org.elasticsearch.transport.TaskTransportChannel;
+import org.elasticsearch.transport.TcpTransportChannel;
+import org.elasticsearch.transport.TransportChannel;
+import org.elasticsearch.transport.TransportRequest;
+import org.elasticsearch.transport.TransportRequestHandler;
 import org.elasticsearch.transport.TransportService;
 
 public class SearchGuardRequestHandler<T extends TransportRequest> extends SearchGuardSSLRequestHandler<T> {
@@ -108,11 +109,11 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
         
         try {
 
-           if(!TransportService.isDirectResponseChannel(transportChannel) && !(transportChannel instanceof TcpTransportChannel)) {
+           if(!TransportService.isDirectResponseChannel(transportChannel) && !(transportChannel instanceof TcpTransportChannel) && !(transportChannel instanceof TaskTransportChannel)) {
                throw new RuntimeException("Unknown channel type "+transportChannel);
            }
 
-           getThreadContext().putTransient(ConfigConstants.SG_CHANNEL_TYPE, TransportService.isDirectResponseChannel(transportChannel));
+           getThreadContext().putTransient(ConfigConstants.SG_CHANNEL_TYPE, TransportService.isDirectResponseChannel(transportChannel)? "direct": "transport");
            getThreadContext().putTransient(ConfigConstants.SG_ACTION_NAME, task.getAction());
            
            if(request instanceof ShardSearchRequest) {
@@ -137,7 +138,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                 }
 
                 if(actionTrace.isTraceEnabled()) {
-                    getThreadContext().putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread.currentThread().getName()+" DIR -> "+transportChannel+" "+getThreadContext().getHeaders());
+                    getThreadContext().putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID(), Thread.currentThread().getName()+" DIR -> "+transportChannel+" "+getThreadContext().getHeaders());
                 }
                 
                 putInitialActionClassHeader(initialActionClassValue, resolvedActionClass);
