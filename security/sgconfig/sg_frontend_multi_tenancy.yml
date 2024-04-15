@@ -9,6 +9,6 @@
 # 
 # See https://docs.search-guard.com/latest/kibana-multi-tenancy for details
 
-enabled: true
+enabled: false
 index: .kibana
 server_user: kibanaserver
