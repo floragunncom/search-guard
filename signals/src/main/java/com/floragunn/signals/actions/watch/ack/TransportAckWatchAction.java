@@ -58,7 +58,7 @@ public class TransportAckWatchAction
     @Inject
     public TransportAckWatchAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
             final TransportService transportService, final ActionFilters actionFilters, final Signals signals) {
-        super(AckWatchAction.NAME, threadPool, clusterService, transportService, actionFilters, AckWatchRequest::new,
+        super(AckWatchAction.NAME, clusterService, transportService, actionFilters, //todo #103304
                 TransportAckWatchAction.NodeRequest::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
 
         this.signals = signals;

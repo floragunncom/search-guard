@@ -13,10 +13,7 @@ public class SettingsUpdateAction extends ActionType<SettingsUpdateResponse> {
     public static final String NAME = "cluster:admin:searchguard:signals:settings/update";
 
     protected SettingsUpdateAction() {
-        super(NAME, in -> {
-            SettingsUpdateResponse response = new SettingsUpdateResponse(in);
-            return response;
-        });
+        super(NAME); //todo #104650
     }
 
     public static void send(Client client) {

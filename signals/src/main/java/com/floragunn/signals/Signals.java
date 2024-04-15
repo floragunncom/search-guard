@@ -22,7 +22,7 @@ import com.floragunn.signals.truststore.service.persistence.TruststoreRepository
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.admin.indices.template.put.PutComposableIndexTemplateAction;
+import org.elasticsearch.action.admin.indices.template.put.TransportPutComposableIndexTemplateAction;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
@@ -340,14 +340,14 @@ public class Signals extends AbstractLifecycleComponent {
 
         log.debug("Creating signals_log_template for {}", signalsLogIndex);
 
-        PutComposableIndexTemplateAction.Request putRequest = new PutComposableIndexTemplateAction.Request("signals_log_template");
+        TransportPutComposableIndexTemplateAction.Request putRequest = new TransportPutComposableIndexTemplateAction.Request("signals_log_template");
         ComposableIndexTemplate composableIndexTemplate = ComposableIndexTemplate.builder() //
             .indexPatterns(ImmutableList.of(signalsLogIndex)) //
             .template(new Template(Settings.builder().put("index.hidden", true).build(), null, null)) //
             .build();
         putRequest.indexTemplate(composableIndexTemplate);
 
-        client.execute(PutComposableIndexTemplateAction.INSTANCE, putRequest, new ActionListener<AcknowledgedResponse>() {
+        client.execute(TransportPutComposableIndexTemplateAction.TYPE, putRequest, new ActionListener<AcknowledgedResponse>() {
 
             @Override public void onResponse(AcknowledgedResponse response) {
                 log.debug("Created signals_log_template");
