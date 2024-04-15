@@ -35,6 +35,7 @@ import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.rest.RestStatus;
@@ -45,6 +46,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
+import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_AUTO_EXPAND_REPLICAS;
+import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_NUMBER_OF_REPLICAS;
 import static org.elasticsearch.common.Strings.requireNonEmpty;
 
 public class IndexMigrationStateRepository implements MigrationStateRepository {
@@ -119,7 +122,8 @@ public class IndexMigrationStateRepository implements MigrationStateRepository {
 
     @Override
     public void createIndex() throws IndexAlreadyExistsException {
-        CreateIndexRequest request = new CreateIndexRequest(INDEX_NAME).mapping(MigrationExecutionSummary.MAPPING);
+        Settings settings = Settings.builder().put(SETTING_NUMBER_OF_REPLICAS, 0).put(SETTING_AUTO_EXPAND_REPLICAS, "0-1").build();
+        CreateIndexRequest request = new CreateIndexRequest(INDEX_NAME).mapping(MigrationExecutionSummary.MAPPING).settings(settings);
         try {
             CreateIndexResponse response = client.admin().indices().create(request).actionGet();
             throwOnFailure(response, "Cannot create index '" + INDEX_NAME + "'");
