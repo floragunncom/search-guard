@@ -26,6 +26,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.NodeEnvironment;
+import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -69,7 +70,7 @@ public class SignalsIndicesTest {
 
         Signals signals = new Signals(settings.build(), new ComponentState(0, "signals", "signals"));
         signals.createComponents(cluster.getInternalNodeClient(), clusterService, cluster.getInjectable(ThreadPool.class), null, null, null, null,
-                cluster.getInjectable(NodeEnvironment.class), null, protectedConfigIndexService, null);
+                cluster.getInjectable(NodeEnvironment.class), null, protectedConfigIndexService, null, cluster.getInjectable(FeatureService.class));
 
         // Actually trigger the creation:
         protectedConfigIndexService.onNodeStart();

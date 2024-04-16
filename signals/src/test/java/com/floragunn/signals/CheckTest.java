@@ -33,6 +33,8 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.index.query.MatchAllQueryBuilder;
 import org.elasticsearch.index.query.MatchQueryBuilder;
 import org.elasticsearch.script.ScriptService;
@@ -122,12 +124,16 @@ public class CheckTest {
     private TrustManagerRegistry trustManagerRegistry;
     private HttpProxyHostRegistry httpProxyHostRegistry;
     private X509ExtendedTrustManager trustManager;
+    private ClusterService clusterService;
+    private FeatureService featureService;
 
     @Before
     public void createMocks() {
         this.trustManagerRegistry = Mockito.mock(TrustManagerRegistry.class);
         this.httpProxyHostRegistry = Mockito.mock(HttpProxyHostRegistry.class);
         this.trustManager = Mockito.mock(X509ExtendedTrustManager.class);
+        this.clusterService = Mockito.mock(ClusterService.class);
+        this.featureService = Mockito.mock(FeatureService.class);
     }
 
     @BeforeClass
@@ -160,7 +166,7 @@ public class CheckTest {
 
         SearchInput searchInput = new SearchInput("test", "test", "testsource", "{\"query\": {\"term\" : {\"a\": \"x\"} }}");
         searchInput.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService));
 
         NestedValueMap runtimeData = new NestedValueMap();
         runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
@@ -185,7 +191,7 @@ public class CheckTest {
 
         SearchInput searchInput = new SearchInput("test", "test", "testsource", "{\"query\": {\"term\" : {\"a\": \"{{data.match}}\"} }}");
         searchInput.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService));
 
         NestedValueMap runtimeData = new NestedValueMap();
         runtimeData.put(new NestedValueMap.Path("match"), "xx");
@@ -213,7 +219,7 @@ public class CheckTest {
             SearchInput searchInput = new SearchInput("test", "test", "testsource",
                     "{\"query\": {\"range\" : {\"date\": {\"gte\": \"{{trigger.scheduled_time}}||-1M\", \"lt\": \"{{trigger.scheduled_time}}\", \"format\": \"strict_date_time\"} } }}");
             searchInput.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService));
 
         NestedValueMap runtimeData = new NestedValueMap();
         runtimeData.put(new NestedValueMap.Path("match"), "xx");
@@ -291,7 +297,7 @@ public class CheckTest {
                 Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
                 WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                    trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT);
+                    trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService);
                 watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(),
                         -1);
 
@@ -316,7 +322,7 @@ public class CheckTest {
                     null, null, null, null, null, null);
 
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -346,7 +352,7 @@ public class CheckTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                 null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService, trustManagerRegistry,
-                    httpProxyHostRegistry, throttlePeriodParser ,STRICT));
+                    httpProxyHostRegistry, throttlePeriodParser ,STRICT, clusterService, featureService));
 
             TlsConfig tlsConfig = new TlsConfig(trustManagerRegistry, STRICT);
             tlsConfig.setTruststoreId(TRUSTSTORE_ID);
@@ -377,7 +383,7 @@ public class CheckTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -409,7 +415,7 @@ public class CheckTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -438,7 +444,7 @@ public class CheckTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -491,7 +497,7 @@ public class CheckTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                    trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+                    trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -544,7 +550,7 @@ public class CheckTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, "application/x-yaml");
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(null, null, null, null));
 
@@ -570,7 +576,7 @@ public class CheckTest {
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
             httpRequestConfig.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService));
 
             HttpInput httpInput = new HttpInput("test", "test", httpRequestConfig, new HttpClientConfig(1, 1, null, null));
 
@@ -593,7 +599,7 @@ public class CheckTest {
 
         Condition scriptCondition = new Condition(null, "data.x.hits.total > 5", "painless", Collections.emptyMap());
         scriptCondition.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService));
 
         NestedValueMap runtimeData = new NestedValueMap();
         runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
@@ -612,7 +618,7 @@ public class CheckTest {
 
         Condition scriptCondition = new Condition(null, "data.x.hits.total > 510", "painless", Collections.emptyMap());
         scriptCondition.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService));
 
         NestedValueMap runtimeData = new NestedValueMap();
         runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
@@ -631,7 +637,7 @@ public class CheckTest {
 
         Condition scriptCondition = new Condition(null, "data.x.hits.hits.length > data.constants.threshold", "painless", Collections.emptyMap());
         scriptCondition.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService));
 
         NestedValueMap runtimeData = new NestedValueMap();
         runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);
@@ -652,7 +658,7 @@ public class CheckTest {
 
             Calc calc = new Calc(null, "data.x.y = 5", "painless", Collections.emptyMap());
             calc.compileScripts(new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT));
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService));
 
         NestedValueMap runtimeData = new NestedValueMap();
         runtimeData.put(new NestedValueMap.Path("x", "hits", "total"), 7);

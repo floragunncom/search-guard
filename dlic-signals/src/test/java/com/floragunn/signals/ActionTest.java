@@ -21,6 +21,8 @@ import org.apache.http.HttpHost;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentType;
@@ -67,6 +69,8 @@ public class ActionTest {
 	private final TrustManagerRegistry trustManagerRegistry = Mockito.mock(TrustManagerRegistry.class);
 	private final X509ExtendedTrustManager trustManager = Mockito.mock(X509ExtendedTrustManager.class);
 	private final HttpProxyHostRegistry httpProxyHostRegistry = Mockito.mock(HttpProxyHostRegistry.class);
+	private final ClusterService clusterService = Mockito.mock(ClusterService.class);
+	private final FeatureService featureService = Mockito.mock(FeatureService.class);
 
 	private static final WireMockRequestHeaderAddingFilter REQUEST_HEADER_ADDING_FILTER = new WireMockRequestHeaderAddingFilter("Proxy", "wire-mock");
 
@@ -121,7 +125,7 @@ public class ActionTest {
                 ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
                 trustManagerRegistry);
         WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService,
-                trustManagerRegistry, httpProxyHostRegistry, null, STRICT);
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT, clusterService, featureService);
 
 		PagerDutyEventConfig eventConfig = new PagerDutyEventConfig();
 		eventConfig.setDedupKey(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "my_key"));
@@ -165,7 +169,7 @@ public class ActionTest {
 				ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
 				trustManagerRegistry);
 			WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService,
-				trustManagerRegistry, httpProxyHostRegistry, null, STRICT);
+				trustManagerRegistry, httpProxyHostRegistry, null, STRICT, clusterService, featureService);
 
 			PagerDutyEventConfig eventConfig = new PagerDutyEventConfig();
 			eventConfig.setDedupKey(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "my_key"));
@@ -219,7 +223,7 @@ public class ActionTest {
 				ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
 				trustManagerRegistry);
 			WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService,
-				trustManagerRegistry, httpProxyHostRegistry, null, STRICT);
+				trustManagerRegistry, httpProxyHostRegistry, null, STRICT, clusterService, featureService);
 
 			PagerDutyEventConfig eventConfig = new PagerDutyEventConfig();
 			eventConfig.setDedupKey(InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "my_key"));
@@ -267,7 +271,7 @@ public class ActionTest {
                     ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
                     trustManagerRegistry);
             WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService,//
-                trustManagerRegistry, httpProxyHostRegistry, null, STRICT);
+                trustManagerRegistry, httpProxyHostRegistry, null, STRICT, clusterService, featureService);
 
             JiraIssueConfig jiraIssueConfig = new JiraIssueConfig("bug",
                     InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "Look: {{data.summary}}"),
@@ -306,7 +310,7 @@ public class ActionTest {
 				ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
 				trustManagerRegistry);
 			WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService,//
-				trustManagerRegistry, httpProxyHostRegistry, null, STRICT);
+				trustManagerRegistry, httpProxyHostRegistry, null, STRICT, clusterService, featureService);
 
 			JiraIssueConfig jiraIssueConfig = new JiraIssueConfig("bug",
 				InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "Look: {{data.summary}}"),
@@ -356,7 +360,7 @@ public class ActionTest {
 				ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData),
 				trustManagerRegistry);
 			WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService,//
-				trustManagerRegistry, httpProxyHostRegistry, null, STRICT);
+				trustManagerRegistry, httpProxyHostRegistry, null, STRICT, clusterService, featureService);
 
 			JiraIssueConfig jiraIssueConfig = new JiraIssueConfig("bug",
 				InlineMustacheTemplate.parse(watchInitializationService.getScriptService(), "Look: {{data.summary}}"),

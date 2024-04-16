@@ -32,6 +32,8 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -63,6 +65,8 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
     private static ThrottlePeriodParser throttlePeriodParser;
     private static TrustManagerRegistry trustManagerRegistry;
     private static HttpProxyHostRegistry httpProxyHostRegistry;
+    private static ClusterService clusterService;
+    private static FeatureService featureService;
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("sg_config/signals").nodeSettings("signals.enabled", true,
@@ -87,6 +91,8 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
         throttlePeriodParser = new ValidatingThrottlePeriodParser(cluster.getInjectable(Signals.class).getSignalsSettings());
         trustManagerRegistry = cluster.getInjectable(Signals.class).getTruststoreRegistry();
         httpProxyHostRegistry = cluster.getInjectable(Signals.class).getHttpProxyHostRegistry();
+        clusterService = cluster.getInjectable(Signals.class).getClusterService();
+        featureService = cluster.getInjectable(Signals.class).getFeatureService();
     }
 
     @Test
@@ -110,7 +116,7 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             WatchInitializationService initService = new WatchInitializationService(null, scriptService,
-                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT);
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT, clusterService, featureService);
             watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             Thread.sleep(2000);

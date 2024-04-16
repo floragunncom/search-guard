@@ -7,6 +7,8 @@ import java.util.List;
 
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
@@ -60,7 +62,7 @@ public class ScriptingTest {
         xContentRegistry = cluster.getInjectable(NamedXContentRegistry.class);
         scriptService = cluster.getInjectable(ScriptService.class);
         watchInitService = new WatchInitializationService(null, scriptService, Mockito.mock(TrustManagerRegistry.class),
-                Mockito.mock(HttpProxyHostRegistry.class), null, STRICT);
+                Mockito.mock(HttpProxyHostRegistry.class), null, STRICT, Mockito.mock(ClusterService.class), Mockito.mock(FeatureService.class));
         signalsModule = cluster.getInjectable(SignalsModule.class);
     }
 

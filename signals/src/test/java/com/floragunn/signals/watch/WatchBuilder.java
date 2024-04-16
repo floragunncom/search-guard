@@ -29,6 +29,8 @@ import com.jayway.jsonpath.JsonPath;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import com.google.common.base.Strings;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.features.FeatureService;
 import org.mockito.Mockito;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.SimpleScheduleBuilder;
@@ -288,7 +290,8 @@ public class WatchBuilder {
                 propertyMap.put(Path.parse(String.valueOf(properties[i])), properties[i + 1]);
             }
             WatchInitializationService watchInitService = new WatchInitializationService(null, null,
-                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, STRICT);
+                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, STRICT,
+                    Mockito.mock(ClusterService.class), Mockito.mock(FeatureService.class));
             ActionHandler actionHandler = ActionHandler.factoryRegistry.get(actionType).create(
                 watchInitService, DocNode.parse(Format.JSON).from(propertyMap.toJsonString()));
 
@@ -653,7 +656,7 @@ public class WatchBuilder {
                 body = buildBody();
             }
 
-            SearchInput searchInput = new SearchInput(name, name, Arrays.asList(indices), body);
+            SearchInput searchInput = new SearchInput(name, name, Arrays.asList(indices), body, feature -> true);
 
             parent.inputs.add(searchInput);
 
