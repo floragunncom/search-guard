@@ -454,7 +454,7 @@ deploy_snapshot:
       # echo "sleep"
       # sleep 3600
       
-      mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests deploy | tee deploy.out
+      mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests clean deploy | tee deploy.out
       SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
       SG_ADMIN="https://maven.search-guard.com//search-guard-suite-release/com/floragunn/search-guard-suite-plugin/7.17.0-53.4.0/search-guard-suite-plugin-7.17.0-53.4.0-sgadmin-standalone.zip"
       ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
