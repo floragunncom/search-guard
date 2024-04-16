@@ -433,7 +433,6 @@ test_dlic_signals:
 
 
 deploy_snapshot:
-  image: maven:3.9.6-amazoncorretto-${SG_JAVA_BUILD_VERSION}
   stage: package
   interruptible: true
   tags:
