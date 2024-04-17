@@ -436,7 +436,7 @@ deploy_snapshot:
   stage: package
   interruptible: true
   tags:
-    - build
+    - test-large
   needs:
     - job: build
       artifacts: true
