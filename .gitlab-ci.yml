@@ -450,8 +450,8 @@ deploy_snapshot:
     - |
       set -x
       # echo "185.11.255.132 maven.search-guard.com" >> /etc/hosts
-      echo "sleep"
-      sleep 3600
+      # echo "sleep"
+      # sleep 3600
       
       mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests deploy | tee deploy.out
       SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
