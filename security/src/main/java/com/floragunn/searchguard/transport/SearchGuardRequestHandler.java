@@ -109,7 +109,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
         
         try {
 
-           if(!TransportService.isDirectResponseChannel(transportChannel) && !(transportChannel instanceof TcpTransportChannel) && !(transportChannel instanceof TaskTransportChannel)) {
+           if(!isDirectChannelDeep(transportChannel) && !(transportChannel instanceof TcpTransportChannel) && !(transportChannel instanceof TaskTransportChannel)) {
                throw new RuntimeException("Unknown channel type "+transportChannel);
            }
 
@@ -124,7 +124,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
            }
 
             //bypass non-netty requests
-            if(TransportService.isDirectResponseChannel(transportChannel)) {
+            if(isDirectChannelDeep(transportChannel)) {
                 final String userHeader = getThreadContext().getHeader(ConfigConstants.SG_USER_HEADER);
 
                 if(!Strings.isNullOrEmpty(userHeader)) {

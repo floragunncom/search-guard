@@ -83,7 +83,7 @@ implements TransportRequestHandler<T> {
             throw exception;
         }
  
-        if (TransportService.isDirectResponseChannel(channel)) { //netty4 //todo #104032
+        if (isDirectChannelDeep(channel)) { //netty4 //todo #104032
             messageReceivedDecorate(request, actualHandler, channel, task);
             return;
         }
@@ -155,7 +155,12 @@ implements TransportRequestHandler<T> {
         }
         
     }
-    
+
+    protected static boolean isDirectChannelDeep(TransportChannel channel) {
+        return TransportService.isDirectResponseChannel(channel) || ((channel instanceof TaskTransportChannel) && TransportService.isDirectResponseChannel(
+            ((TaskTransportChannel) channel).getChannel()));
+    }
+
     protected void addAdditionalContextValues(final String action, final TransportRequest request, final X509Certificate[] localCerts, final X509Certificate[] peerCerts, final String principal)
             throws Exception {
         // no-op
