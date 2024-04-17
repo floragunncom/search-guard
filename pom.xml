@@ -36,7 +36,7 @@
     <repository>
       <id>release</id>
       <name>Release repository</name>
-      <url>https://maven7.search-guard.com::443/search-guard-flx-release</url>
+      <url>https://maven7.search-guard.com:443/search-guard-flx-release</url>
     </repository>
     <snapshotRepository>
       <id>snapshot</id>
@@ -537,7 +537,7 @@
         <enabled>false</enabled>
       </snapshots>
       <id>release</id>
-      <url>https://maven7.search-guard.com::443/search-guard-flx-release</url>
+      <url>https://maven7.search-guard.com:443/search-guard-flx-release</url>
     </repository>
     <repository>
       <releases>
@@ -557,7 +557,7 @@
         <enabled>true</enabled>
       </snapshots>
       <id>util-snapshot</id>
-      <url>https://maven7.search-guard.com::443/util-snapshot</url>
+      <url>https://maven7.search-guard.com:443/util-snapshot</url>
     </repository>
     <repository>
       <releases>
@@ -577,7 +577,7 @@
         <enabled>true</enabled>
       </snapshots>
       <id>third-party</id>
-      <url>https://maven7.search-guard.com::443/third-party</url>
+      <url>https://maven7.search-guard.com:443/third-party</url>
     </repository>
     <repository>
       <releases>
