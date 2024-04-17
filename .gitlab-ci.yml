@@ -7,7 +7,7 @@ variables:
   #KI_VERSION: ""
   #IT_BRANCH: ""
 
-image: floragunncom/maven:3.9.1-amazoncorretto-${SG_JAVA_BUILD_VERSION}-debian
+image: floragunncom/maven:3.9.6-amazoncorretto-${SG_JAVA_BUILD_VERSION}-debian
 
 
 #cache:
