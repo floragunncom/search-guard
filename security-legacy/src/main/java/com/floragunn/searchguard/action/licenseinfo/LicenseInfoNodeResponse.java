@@ -39,7 +39,7 @@ public class LicenseInfoNodeResponse extends BaseNodeResponse {
     public LicenseInfoNodeResponse(StreamInput in) throws IOException {
         super(in);
         license = in.readOptionalWriteable(SearchGuardLicense::new);
-        modules = new HashSet<>(in.readCollectionAsList(ModuleInfo::new));
+        modules = new HashSet<>(in.readList(ModuleInfo::new));
     }
 
     public LicenseInfoNodeResponse(final DiscoveryNode node, SearchGuardLicense license, Set<ModuleInfo> modules) {
@@ -64,7 +64,7 @@ public class LicenseInfoNodeResponse extends BaseNodeResponse {
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
         out.writeOptionalWriteable(license);
-        out.writeCollection(new LinkedList<>(modules));
+        out.writeList(new LinkedList<>(modules));
     }
 
     @Override

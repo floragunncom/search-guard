@@ -39,12 +39,12 @@ public class SchedulerConfigUpdateResponse extends BaseNodesResponse<TransportSc
 
     @Override
     public List<TransportSchedulerConfigUpdateAction.NodeResponse> readNodesFrom(final StreamInput in) throws IOException {
-        return in.readCollectionAsList(TransportSchedulerConfigUpdateAction.NodeResponse::readNodeResponse);
+        return in.readList(TransportSchedulerConfigUpdateAction.NodeResponse::readNodeResponse);
     }
 
     @Override
     public void writeNodesTo(final StreamOutput out, List<TransportSchedulerConfigUpdateAction.NodeResponse> nodes) throws IOException {
-        out.writeCollection(nodes);
+        out.writeList(nodes);
     }
 
     @Override

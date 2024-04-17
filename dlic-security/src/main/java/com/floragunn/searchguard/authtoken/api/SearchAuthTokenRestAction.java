@@ -24,7 +24,7 @@ import java.util.List;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.rest.action.RestToXContentListener;
+import org.elasticsearch.rest.action.RestStatusToXContentListener;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
@@ -63,7 +63,7 @@ public class SearchAuthTokenRestAction extends BaseRestHandler {
         }
 
         return channel -> client.execute(SearchAuthTokensAction.INSTANCE, searchWatchRequest,
-                new RestToXContentListener<SearchAuthTokensResponse>(channel, SearchAuthTokensResponse::status));
+                new RestStatusToXContentListener<SearchAuthTokensResponse>(channel));
     }
 
     @Override

@@ -12,6 +12,7 @@ import java.util.Set;
 
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.core.CheckedConsumer;
+import org.elasticsearch.xcontent.DeprecationHandler;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContent;
@@ -21,7 +22,9 @@ import org.elasticsearch.xcontent.XContentGenerator;
 import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.XContentParserConfiguration;
 import org.elasticsearch.xcontent.XContentType;
+import org.elasticsearch.xcontent.support.filtering.FilterPath;
 
+import com.google.common.base.Charsets;
 
 public class AttributeValueFromXContent implements XContent {
 
@@ -252,11 +255,6 @@ public class AttributeValueFromXContent implements XContent {
         @Override
         public void writeString(String value) throws IOException {
             setObject(value);
-        }
-
-        @Override
-        public void writeStringArray(String[] strings) throws IOException {
-            setObject(strings);
         }
 
         @Override

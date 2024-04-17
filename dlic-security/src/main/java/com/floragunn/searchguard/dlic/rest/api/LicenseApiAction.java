@@ -19,6 +19,7 @@ import java.util.List;
 
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
 import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -109,10 +110,10 @@ public class LicenseApiAction extends AbstractApiAction {
         try {
             SgDynamicConfiguration<SearchGuardLicenseKey> newConfig = SgDynamicConfiguration.of(CType.LICENSE_KEY, "default", key.get());
 
-            saveAnUpdateConfigs(client, request, CType.LICENSE_KEY, newConfig, new OnSucessActionListener<DocWriteResponse>(channel) {
+            saveAnUpdateConfigs(client, request, CType.LICENSE_KEY, newConfig, new OnSucessActionListener<IndexResponse>(channel) {
 
                 @Override
-                public void onResponse(DocWriteResponse response) {
+                public void onResponse(IndexResponse response) {
                     successResponse(channel, "License updated.");
                 }
             });

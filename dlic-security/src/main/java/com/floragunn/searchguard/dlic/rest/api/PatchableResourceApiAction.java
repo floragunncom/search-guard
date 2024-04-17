@@ -30,7 +30,7 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
@@ -183,10 +183,10 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
             validationErrors.throwExceptionForPresentErrors();
 
-            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<DocWriteResponse>(channel) {
+            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
                 @Override
-                public void onResponse(DocWriteResponse response) {
+                public void onResponse(IndexResponse response) {
                     successResponse(channel, "'" + name + "' updated.");
 
                 }
@@ -271,10 +271,10 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
             validationErrors.throwExceptionForPresentErrors();
 
-            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<DocWriteResponse>(channel) {
+            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<IndexResponse>(channel) {
 
                 @Override
-                public void onResponse(DocWriteResponse response) {
+                public void onResponse(IndexResponse response) {
                     successResponse(channel, "Resource updated.");
                 }
             });

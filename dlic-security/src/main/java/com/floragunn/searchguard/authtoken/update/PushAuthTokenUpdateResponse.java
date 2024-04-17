@@ -36,12 +36,12 @@ public class PushAuthTokenUpdateResponse extends BaseNodesResponse<PushAuthToken
 
     @Override
     public List<PushAuthTokenUpdateNodeResponse> readNodesFrom(final StreamInput in) throws IOException {
-        return in.readCollectionAsList(PushAuthTokenUpdateNodeResponse::readNodeResponse);
+        return in.readList(PushAuthTokenUpdateNodeResponse::readNodeResponse);
     }
 
     @Override
     public void writeNodesTo(final StreamOutput out, List<PushAuthTokenUpdateNodeResponse> nodes) throws IOException {
-        out.writeCollection(nodes);
+        out.writeList(nodes);
     }
 
     @Override
