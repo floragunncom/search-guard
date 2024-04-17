@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import org.elasticsearch.Build;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.jdk.ModuleQualifiedExportsService;
@@ -86,7 +85,7 @@ public class SgAwarePluginsService extends PluginsService {
                 pluginClass.getSimpleName(),
                 pluginClass.getSimpleName(),
                 "0.0.0",
-                Build.current().version(),
+                Version.CURRENT,
                 "17",
                 pluginClass.getSimpleName(),
                 "",

@@ -70,9 +70,10 @@ public class FlsKeywordTest {
 
     @BeforeClass
     public static void populateData() {
-        Client client = cluster.getPrivilegedInternalNodeClient();
-        client.index(new IndexRequest(DOCUMENTS_INDEX_NAME).id("0").setRefreshPolicy(IMMEDIATE)
-            .source(DocNode.of(FIELD_TITLE, "accessible document title", FIELD_CONTENT, "document content", FIELD_AUTHOR, AUTHOR_GOETHE).toJsonString(), XContentType.JSON)).actionGet();
+        try(Client client = cluster.getPrivilegedInternalNodeClient()) {
+            client.index(new IndexRequest(DOCUMENTS_INDEX_NAME).id("0").setRefreshPolicy(IMMEDIATE)
+                .source(DocNode.of(FIELD_TITLE, "accessible document title", FIELD_CONTENT, "document content", FIELD_AUTHOR, AUTHOR_GOETHE).toJsonString(), XContentType.JSON)).actionGet();
+        }
     }
 
     @Test

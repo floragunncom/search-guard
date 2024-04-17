@@ -119,8 +119,7 @@ public class MultitenancyTests {
             
             
         } finally {
-            try {
-                Client tc = cluster.getInternalNodeClient();
+            try (Client tc = cluster.getInternalNodeClient()) {
                 tc.admin().indices().delete(new DeleteIndexRequest(".kibana")).actionGet();
             } catch (Exception ignored) {
             }
@@ -153,8 +152,7 @@ public class MultitenancyTests {
             
             
         } finally {
-            try {
-                Client tc = cluster.getInternalNodeClient();
+            try (Client tc = cluster.getInternalNodeClient()) {
                 tc.admin().indices().delete(new DeleteIndexRequest(".kibana")).actionGet();
             } catch (Exception ignored) {
             }
@@ -239,14 +237,15 @@ public class MultitenancyTests {
         try {
             String tenantName = "human_resources";
             String internalTenantName = tenantName.hashCode() + "_" + "humanresources";
-            Client tc = cluster.getInternalNodeClient();
-            String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"human_resources\"}";
+            try (Client tc = cluster.getInternalNodeClient()) {
+                String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"human_resources\"}";
 
-            tc.admin().indices().create(new CreateIndexRequest(".kibana_8.8.0_001").alias(new Alias(".kibana"))
-                    .settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0))).actionGet();
+                tc.admin().indices().create(new CreateIndexRequest(".kibana_8.8.0_001").alias(new Alias(".kibana"))
+                        .settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0))).actionGet();
 
-            tc.index(new IndexRequest(".kibana_8.8.0_001").id("6.2.2__sg_ten__" + internalTenantName).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON))
-                    .actionGet();
+                tc.index(new IndexRequest(".kibana_8.8.0_001").id("6.2.2__sg_ten__" + internalTenantName).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON))
+                        .actionGet();
+            }
 
             try (GenericRestClient client = cluster.getRestClient("hr_employee", "hr_employee")) {
                 GenericRestClient.HttpResponse res;
@@ -254,8 +253,7 @@ public class MultitenancyTests {
                 Assert.assertEquals(HttpStatus.SC_OK, (res = client.get(".kibana/_doc/6.2.2?pretty", new BasicHeader("sgtenant", tenantName))).getStatusCode());
             }
         } finally {
-            try {
-                Client tc = cluster.getInternalNodeClient();
+            try (Client tc = cluster.getInternalNodeClient()) {
                 tc.admin().indices().prepareAliases().removeAlias(".kibana_8.8.0_001", ".kibana").get();
                 tc.admin().indices().delete(new DeleteIndexRequest(".kibana_8.8.0_001")).actionGet();
             } catch (Exception ignored) {
@@ -268,15 +266,16 @@ public class MultitenancyTests {
     public void testKibanaAlias65() throws Exception {
 
         try {
-            Client tc = cluster.getInternalNodeClient();
-            String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
-            Map<String, Object> indexSettings = new HashMap<>();
-            indexSettings.put("number_of_shards", 1);
-            indexSettings.put("number_of_replicas", 0);
-            tc.admin().indices().create(new CreateIndexRequest(".kibana_1").alias(new Alias(".kibana")).settings(indexSettings)).actionGet();
+            try (Client tc = cluster.getInternalNodeClient()) {
+                String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\"}";
+                Map<String, Object> indexSettings = new HashMap<>();
+                indexSettings.put("number_of_shards", 1);
+                indexSettings.put("number_of_replicas", 0);
+                tc.admin().indices().create(new CreateIndexRequest(".kibana_1").alias(new Alias(".kibana")).settings(indexSettings)).actionGet();
 
-            tc.index(new IndexRequest(".kibana_1").id("6.2.2__sg_ten__-900636979_kibanaro").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON))
-                    .actionGet();
+                tc.index(new IndexRequest(".kibana_1").id("6.2.2__sg_ten__-900636979_kibanaro").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON))
+                        .actionGet();
+            }
 
             try (GenericRestClient client = cluster.getRestClient("kibanaro", "kibanaro")) {
 
@@ -285,8 +284,7 @@ public class MultitenancyTests {
                         (res = client.get(".kibana/_doc/6.2.2?pretty", new BasicHeader("sgtenant", "__user__"))).getStatusCode());
             }
         } finally {
-            try {
-                Client tc = cluster.getInternalNodeClient();
+            try (Client tc = cluster.getInternalNodeClient()) {
                 tc.admin().indices().delete(new DeleteIndexRequest(".kibana_1")).actionGet();
             } catch (Exception ignored) {
             }
@@ -299,17 +297,18 @@ public class MultitenancyTests {
 
             String tenant = "kibana_7_12_alias_test";
             String internalTenantName = tenant.hashCode() + "_" + "kibana712aliastest";
-            Client tc = cluster.getInternalNodeClient();
-            String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"kibana_7_12_alias_test\"}";
+            try (Client tc = cluster.getInternalNodeClient()) {
+                String body = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"kibana_7_12_alias_test\"}";
 
-            tc.admin().indices()
-                    .create(new CreateIndexRequest(".kibana_7.12.0_001")
-                            .alias(new Alias(".kibana_7.12.0"))
-                            .settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0)))
-                    .actionGet();
+                tc.admin().indices()
+                        .create(new CreateIndexRequest(".kibana_7.12.0_001")
+                                .alias(new Alias(".kibana_7.12.0"))
+                                .settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0)))
+                        .actionGet();
 
-            tc.index(new IndexRequest(".kibana_7.12.0").id("test__sg_ten__" + internalTenantName).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                    .source(body, XContentType.JSON)).actionGet();
+                tc.index(new IndexRequest(".kibana_7.12.0").id("test__sg_ten__" + internalTenantName).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+                        .source(body, XContentType.JSON)).actionGet();
+            }
 
             try (GenericRestClient client = cluster.getRestClient("admin", "admin", tenant)) {
 
@@ -320,8 +319,7 @@ public class MultitenancyTests {
                         response.getBodyAsDocNode().getAsString("_index"));
             }
         } finally {
-            try {
-                Client tc = cluster.getInternalNodeClient();
+            try (Client tc = cluster.getInternalNodeClient()) {
                 tc.admin().indices().delete(new DeleteIndexRequest(".kibana_7.12.0_001")).actionGet();
             } catch (Exception ignored) {
             }
@@ -333,8 +331,8 @@ public class MultitenancyTests {
         String indexName = ".kibana";
         String testDoc = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"human_resources\"}";
 
-        try (RestHighLevelClient restClient = cluster.getRestHighLevelClient("hr_employee", "hr_employee", "human_resources")) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient();
+                RestHighLevelClient restClient = cluster.getRestHighLevelClient("hr_employee", "hr_employee", "human_resources")) {
             Map<String, Object> indexSettings = new HashMap<>();
             indexSettings.put("number_of_shards", 3);
             indexSettings.put("number_of_replicas", 0);
@@ -360,8 +358,7 @@ public class MultitenancyTests {
                 }
             }
         } finally {
-            try {
-                Client tc = cluster.getInternalNodeClient();
+            try (Client tc = cluster.getInternalNodeClient()) {
                 tc.admin().indices().delete(new DeleteIndexRequest(indexName + "_2")).actionGet();
             } catch (Exception ignored) {
             }
@@ -407,8 +404,7 @@ public class MultitenancyTests {
 
             }
         } finally {
-            try {
-                Client tc = cluster.getInternalNodeClient();
+            try (Client tc = cluster.getInternalNodeClient()) {
                 tc.admin().indices().delete(new DeleteIndexRequest(".kibana")).actionGet();
             } catch (Exception ignored) {
             }

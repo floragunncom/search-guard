@@ -59,11 +59,12 @@ public class TracingTests extends SingleClusterTest {
 
         setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
-        Client tc = getPrivilegedInternalNodeClient();
+        try (Client tc = getPrivilegedInternalNodeClient()) {
 
-        for(int i=0; i<50;i++) {
-            tc.index(new IndexRequest("a").id(i+"").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":"+i+"}", XContentType.JSON)).actionGet();
-            tc.index(new IndexRequest("c").id(i+"").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":"+i+"}", XContentType.JSON)).actionGet();
+            for(int i=0; i<50;i++) {
+                tc.index(new IndexRequest("a").id(i+"").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":"+i+"}", XContentType.JSON)).actionGet();
+                tc.index(new IndexRequest("c").id(i+"").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":"+i+"}", XContentType.JSON)).actionGet();
+            }
         }
 
 
@@ -238,24 +239,25 @@ public class TracingTests extends SingleClusterTest {
     setup(settings);
     final RestHelper rh = nonSslRestHelper();
 
-        Client tc = getPrivilegedInternalNodeClient();
-        tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();
-        tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("starfleet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("starfleet_academy").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("starfleet_library").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("klingonempire").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("public").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        try (Client tc = getPrivilegedInternalNodeClient()) {
+            tc.admin().indices().create(new CreateIndexRequest("copysf")).actionGet();
+            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("starfleet").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("starfleet_academy").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("starfleet_library").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("klingonempire").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("public").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-        tc.index(new IndexRequest("spock").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("kirk").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        tc.index(new IndexRequest("role01_role02").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("spock").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("kirk").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest("role01_role02").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-        tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("starfleet","starfleet_academy","starfleet_library").alias("sf"))).actionGet();
-        tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("klingonempire","vulcangov").alias("nonsf"))).actionGet();
-        tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("public").alias("unrestricted"))).actionGet();
+            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("starfleet","starfleet_academy","starfleet_library").alias("sf"))).actionGet();
+            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("klingonempire","vulcangov").alias("nonsf"))).actionGet();
+            tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("public").alias("unrestricted"))).actionGet();
 
-
+        }
+        
         AsyncAssert.awaitAssert("_search is OK", () -> 
             rh.executeGetRequest("_search", encodeBasicHeader("admin", "admin")).getStatusCode() == 200, Duration.ofSeconds(10));
 
@@ -293,9 +295,10 @@ public class TracingTests extends SingleClusterTest {
     setup(settings);
     final RestHelper rh = nonSslRestHelper();
 
-        Client tc = getPrivilegedInternalNodeClient();
-        for(int i=0; i<3; i++)
-        tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        try (Client tc = getPrivilegedInternalNodeClient()) {
+            for(int i=0; i<3; i++)
+            tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
+        }
 
 
         //System.out.println("########search");
@@ -323,15 +326,16 @@ public class TracingTests extends SingleClusterTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
         setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
-        Client tc = getPrivilegedInternalNodeClient();
-        tc.admin().indices().create(new CreateIndexRequest("myindex1")
-        .mapping(FileHelper.loadFile("mapping1.json"))).actionGet();
-        tc.admin().indices().create(new CreateIndexRequest("myindex2")
-        .mapping(FileHelper.loadFile("mapping2.json"))).actionGet();
-        tc.admin().indices().create(new CreateIndexRequest("myindex3")
-        .mapping(FileHelper.loadFile("mapping3.json"))).actionGet();
-        tc.admin().indices().create(new CreateIndexRequest("myindex4")
-        .mapping(FileHelper.loadFile("mapping4.json"))).actionGet();
+        try (Client tc = getPrivilegedInternalNodeClient()) {
+            tc.admin().indices().create(new CreateIndexRequest("myindex1")
+            .mapping(FileHelper.loadFile("mapping1.json"))).actionGet();
+            tc.admin().indices().create(new CreateIndexRequest("myindex2")
+            .mapping(FileHelper.loadFile("mapping2.json"))).actionGet();
+            tc.admin().indices().create(new CreateIndexRequest("myindex3")
+            .mapping(FileHelper.loadFile("mapping3.json"))).actionGet();
+            tc.admin().indices().create(new CreateIndexRequest("myindex4")
+            .mapping(FileHelper.loadFile("mapping4.json"))).actionGet();
+        }
 
         RestHelper rh = nonSslRestHelper();
         //System.out.println("############ write into mapping 1");
@@ -371,11 +375,12 @@ public class TracingTests extends SingleClusterTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
         setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
-        Client tc = getPrivilegedInternalNodeClient();
+        try (Client tc = getPrivilegedInternalNodeClient()) {
             tc.admin().indices().create(new CreateIndexRequest("myindex1")
             .mapping(FileHelper.loadFile("mapping1.json"))).actionGet();
             tc.admin().indices().create(new CreateIndexRequest("myindex2")
             .mapping(FileHelper.loadFile("mapping1.json"))).actionGet();
+        }
 
         RestHelper rh = nonSslRestHelper();
         //System.out.println("############ immutable 1");

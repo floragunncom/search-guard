@@ -373,10 +373,11 @@ public class IgnoreUnauthorizedIntTest {
     public void deleteByQuery() throws Exception {
         // TODO: Moved over from IntegrationTests.testDeleteByQueryDnfof; however the purpose of this is a bit unclear, as no behaviour specific to DNFOF is tested here
 
-        Client client = cluster.getInternalNodeClient();
-        for (int i = 0; i < 3; i++) {
-            client.index(new IndexRequest("d1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
-                    .actionGet();
+        try (Client client = cluster.getInternalNodeClient()) {
+            for (int i = 0; i < 3; i++) {
+                client.index(new IndexRequest("d1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON))
+                        .actionGet();
+            }
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_D)) {

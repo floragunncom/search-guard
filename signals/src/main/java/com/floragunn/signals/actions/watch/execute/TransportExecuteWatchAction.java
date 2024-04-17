@@ -72,7 +72,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
     public TransportExecuteWatchAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             ScriptService scriptService, NamedXContentRegistry xContentRegistry, Client client, Settings settings, ClusterService clusterService,
             DiagnosticContext diagnosticContext) {
-        super(ExecuteWatchAction.NAME, transportService, actionFilters, ExecuteWatchRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
+        super(ExecuteWatchAction.NAME, transportService, actionFilters, ExecuteWatchRequest::new);
 
         this.signals = signals;
         this.client = client;

@@ -237,11 +237,12 @@ public class ActionTest {
         // It seems that PowerMockRunner is messing with the rule execution order. Thus, we start the cluster manually here 
         cluster.before();
 
-        Client client = cluster.getInternalNodeClient();
-        client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
-                .actionGet();
-        client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
-                .actionGet();
+        try (Client client = cluster.getInternalNodeClient()) {
+            client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
+                    .actionGet();
+            client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
+                    .actionGet();
+        }
     }
 
     @BeforeClass
@@ -258,8 +259,7 @@ public class ActionTest {
     @Test
     public void testWebhookAction() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -293,8 +293,7 @@ public class ActionTest {
     @Test
     public void testWebhookAction_withJsonBodyFromRuntimeDataPath() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -320,8 +319,7 @@ public class ActionTest {
     @Test
     public void testWebhookAction_withJsonBodyFromRuntimeDataPath_givenPathDoesNotExists() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -349,8 +347,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsCustomTrustStore() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -383,8 +380,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsCustomTrustStoreFailure() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -413,8 +409,8 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithUploadedTruststore() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); //
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -448,8 +444,8 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithUploadedTruststoreFailure() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); //
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -482,8 +478,8 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithUploadedTruststoreFailureRecovery() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); //
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -532,8 +528,8 @@ public class ActionTest {
     public void testWebhookActionWithUploadedTruststoreShouldUseTrustManagerEachTimeWhenHttpRequestIsSendToExternalServer()
         throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); //
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -581,8 +577,8 @@ public class ActionTest {
     public void testWebhookActionWithUploadedTruststoreShouldUseTrustManagerOnlyOnceToCreateTlsContextAndThenUsesCachedTlsSession()
         throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); //
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -630,8 +626,8 @@ public class ActionTest {
     public void testWebhookActionWithUploadedTruststoreShouldDetectThatCertificateIsNotLongerTrusted()
         throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); //
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -675,8 +671,8 @@ public class ActionTest {
     public void testWebhookActionWithUploadedTruststoreShouldDetectThatTruststoreWasRemoved()
         throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); //
+            MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -850,8 +846,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsClientAuth() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, true)) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, true)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -891,8 +886,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsClientAuthFailure() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, true)) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, true)) {
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -927,8 +921,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionTimeout() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
             webhookProvider.setResponseDelayMs(3330);
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -957,132 +950,135 @@ public class ActionTest {
     @Test
     public void testIndexAction() throws Exception {
 
-        Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
-        NestedValueMap runtimeData = new NestedValueMap();
-        runtimeData.put("_id", "my_doc");
-        runtimeData.put(new NestedValueMap.Path("o1", "oa"), 10);
-        runtimeData.put(new NestedValueMap.Path("o1", "ob"), 20);
-        runtimeData.put(new NestedValueMap.Path("o2"), "test");
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("_id", "my_doc");
+            runtimeData.put(new NestedValueMap.Path("o1", "oa"), 10);
+            runtimeData.put(new NestedValueMap.Path("o1", "ob"), 20);
+            runtimeData.put(new NestedValueMap.Path("o2"), "test");
 
-        WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
-        IndexAction indexAction = new IndexAction("index_action_sink", RefreshPolicy.IMMEDIATE);
+            IndexAction indexAction = new IndexAction("index_action_sink", RefreshPolicy.IMMEDIATE);
 
-        indexAction.execute(ctx);
+            indexAction.execute(ctx);
 
-        GetResponse getResponse = client.get(new GetRequest("index_action_sink", "my_doc")).actionGet();
+            GetResponse getResponse = client.get(new GetRequest("index_action_sink", "my_doc")).actionGet();
 
-        Assert.assertEquals("test", getResponse.getSource().get("o2"));
+            Assert.assertEquals("test", getResponse.getSource().get("o2"));
+        }
     }
 
     @Test
     public void testIndexActionWithIdTemplate() throws Exception {
 
-        Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
-        NestedValueMap runtimeData = new NestedValueMap();
-        runtimeData.put("id_from_data", "my_doc_2");
-        runtimeData.put(new NestedValueMap.Path("o1", "oa"), 10);
-        runtimeData.put(new NestedValueMap.Path("o1", "ob"), 20);
-        runtimeData.put(new NestedValueMap.Path("o2"), "test_2");
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("id_from_data", "my_doc_2");
+            runtimeData.put(new NestedValueMap.Path("o1", "oa"), 10);
+            runtimeData.put(new NestedValueMap.Path("o1", "ob"), 20);
+            runtimeData.put(new NestedValueMap.Path("o2"), "test_2");
 
-        WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
-        IndexAction indexAction = new IndexAction("index_action_sink", RefreshPolicy.IMMEDIATE);
+            IndexAction indexAction = new IndexAction("index_action_sink", RefreshPolicy.IMMEDIATE);
 
-        indexAction.setDocId(InlineMustacheTemplate.parse(scriptService, "{{data.id_from_data}}"));
+            indexAction.setDocId(InlineMustacheTemplate.parse(scriptService, "{{data.id_from_data}}"));
 
-        indexAction.execute(ctx);
+            indexAction.execute(ctx);
 
-        GetResponse getResponse = client.get(new GetRequest("index_action_sink", "my_doc_2")).actionGet();
+            GetResponse getResponse = client.get(new GetRequest("index_action_sink", "my_doc_2")).actionGet();
 
-        Assert.assertEquals("test_2", getResponse.getSource().get("o2"));
+            Assert.assertEquals("test_2", getResponse.getSource().get("o2"));
+        }
     }
 
     @Test
     public void testMultiDocIndexAction() throws Exception {
 
-        Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
-        List<NestedValueMap> docs = new ArrayList<>();
+            List<NestedValueMap> docs = new ArrayList<>();
 
-        NestedValueMap doc1 = new NestedValueMap();
-        doc1.put("_id", "my_doc_1");
-        doc1.put("_index", "multidoc_index_action_sink");
-        doc1.put(new NestedValueMap.Path("a"), "test_1");
-        docs.add(doc1);
+            NestedValueMap doc1 = new NestedValueMap();
+            doc1.put("_id", "my_doc_1");
+            doc1.put("_index", "multidoc_index_action_sink");
+            doc1.put(new NestedValueMap.Path("a"), "test_1");
+            docs.add(doc1);
 
-        NestedValueMap doc2 = new NestedValueMap();
-        doc2.put("_id", "my_doc_2");
-        doc2.put("_index", "multidoc_index_action_sink");
-        doc2.put(new NestedValueMap.Path("a"), "test_2");
-        docs.add(doc2);
+            NestedValueMap doc2 = new NestedValueMap();
+            doc2.put("_id", "my_doc_2");
+            doc2.put("_index", "multidoc_index_action_sink");
+            doc2.put(new NestedValueMap.Path("a"), "test_2");
+            docs.add(doc2);
 
-        NestedValueMap runtimeData = new NestedValueMap();
-        runtimeData.put("_doc", docs);
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("_doc", docs);
 
-        WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
-        IndexAction indexAction = new IndexAction("index_action_sink", RefreshPolicy.IMMEDIATE);
+            IndexAction indexAction = new IndexAction("index_action_sink", RefreshPolicy.IMMEDIATE);
 
-        indexAction.execute(ctx);
+            indexAction.execute(ctx);
 
-        GetResponse getResponse = client.get(new GetRequest("multidoc_index_action_sink", "my_doc_1")).actionGet();
-        Assert.assertTrue(getResponse.isExists());
-        Assert.assertEquals("test_1", getResponse.getSource().get("a"));
+            GetResponse getResponse = client.get(new GetRequest("multidoc_index_action_sink", "my_doc_1")).actionGet();
+            Assert.assertTrue(getResponse.isExists());
+            Assert.assertEquals("test_1", getResponse.getSource().get("a"));
 
-        getResponse = client.get(new GetRequest("multidoc_index_action_sink", "my_doc_2")).actionGet();
-        Assert.assertTrue(getResponse.isExists());
-        Assert.assertEquals("test_2", getResponse.getSource().get("a"));
+            getResponse = client.get(new GetRequest("multidoc_index_action_sink", "my_doc_2")).actionGet();
+            Assert.assertTrue(getResponse.isExists());
+            Assert.assertEquals("test_2", getResponse.getSource().get("a"));
+        }
     }
 
     @Test
     public void testMultiDocIndexActionWithArray() throws Exception {
 
-        Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
-        NestedValueMap[] docs = new NestedValueMap[2];
+            NestedValueMap[] docs = new NestedValueMap[2];
 
-        NestedValueMap doc1 = new NestedValueMap();
-        doc1.put("_id", "my_doc_1");
-        doc1.put("_index", "multidoc_index_action_sink_2");
-        doc1.put(new NestedValueMap.Path("a"), "test_1");
-        docs[0] = doc1;
+            NestedValueMap doc1 = new NestedValueMap();
+            doc1.put("_id", "my_doc_1");
+            doc1.put("_index", "multidoc_index_action_sink_2");
+            doc1.put(new NestedValueMap.Path("a"), "test_1");
+            docs[0] = doc1;
 
-        NestedValueMap doc2 = new NestedValueMap();
-        doc2.put("_id", "my_doc_2");
-        doc2.put("_index", "multidoc_index_action_sink_2");
-        doc2.put(new NestedValueMap.Path("a"), "test_2");
-        docs[1] = doc2;
+            NestedValueMap doc2 = new NestedValueMap();
+            doc2.put("_id", "my_doc_2");
+            doc2.put("_index", "multidoc_index_action_sink_2");
+            doc2.put(new NestedValueMap.Path("a"), "test_2");
+            docs[1] = doc2;
 
-        NestedValueMap runtimeData = new NestedValueMap();
-        runtimeData.put("_doc", docs);
+            NestedValueMap runtimeData = new NestedValueMap();
+            runtimeData.put("_doc", docs);
 
-        WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
-                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
+            WatchExecutionContext ctx = new WatchExecutionContext(client, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                    ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), trustManagerRegistry);
 
-        IndexAction indexAction = new IndexAction("index_action_sink", RefreshPolicy.IMMEDIATE);
+            IndexAction indexAction = new IndexAction("index_action_sink", RefreshPolicy.IMMEDIATE);
 
-        indexAction.execute(ctx);
+            indexAction.execute(ctx);
 
-        GetResponse getResponse = client.get(new GetRequest("multidoc_index_action_sink_2", "my_doc_1")).actionGet();
-        Assert.assertTrue(getResponse.isExists());
-        Assert.assertEquals("test_1", getResponse.getSource().get("a"));
+            GetResponse getResponse = client.get(new GetRequest("multidoc_index_action_sink_2", "my_doc_1")).actionGet();
+            Assert.assertTrue(getResponse.isExists());
+            Assert.assertEquals("test_1", getResponse.getSource().get("a"));
 
-        getResponse = client.get(new GetRequest("multidoc_index_action_sink_2", "my_doc_2")).actionGet();
-        Assert.assertTrue(getResponse.isExists());
-        Assert.assertEquals("test_2", getResponse.getSource().get("a"));
+            getResponse = client.get(new GetRequest("multidoc_index_action_sink_2", "my_doc_2")).actionGet();
+            Assert.assertTrue(getResponse.isExists());
+            Assert.assertEquals("test_2", getResponse.getSource().get("a"));
+        }
     }
 
     @Test
     public void testSlackAction() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
 
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
@@ -1118,8 +1114,7 @@ public class ActionTest {
     @Test
     public void testSlackActionWithBlocks() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
 
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
@@ -1169,8 +1164,7 @@ public class ActionTest {
     @Test
     public void testSlackActionWithBlocksAndQuotesInMustacheTemplate() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
 
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
@@ -1221,8 +1215,7 @@ public class ActionTest {
     @Test
     public void testSlackActionWithBlocksAndText() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
 
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
@@ -1291,8 +1284,7 @@ public class ActionTest {
     @Test
     public void testSlackActionWithAttachments() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient(); MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
 
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
@@ -1362,8 +1354,7 @@ public class ActionTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
             EmailAccount emailAccount = new EmailAccount();
             emailAccount.setHost("localhost");
@@ -1428,8 +1419,7 @@ public class ActionTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTPS));
         greenMail.start();
 
-        try {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
             EmailAccount emailAccount = new EmailAccount();
             emailAccount.setHost("localhost");
@@ -1497,8 +1487,7 @@ public class ActionTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
             EmailAccount emailDestination = new EmailAccount();
             emailDestination.setHost("localhost");
@@ -1561,8 +1550,7 @@ public class ActionTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
             EmailAccount emailDestination = new EmailAccount();
             emailDestination.setHost("localhost");
@@ -1658,8 +1646,7 @@ public class ActionTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
             try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
 
@@ -1736,8 +1723,7 @@ public class ActionTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
             byte[] pdf = IOUtils.toByteArray(FileHelper.getAbsoluteFilePathFromClassPath("blank_email_attachment.pdf").toUri());
 
@@ -1814,8 +1800,7 @@ public class ActionTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
             String helloWorld = "{\n" + "   \"hello\":\"world\"\n" + "}";
 
@@ -1902,8 +1887,7 @@ public class ActionTest {
         GreenMail greenMail = new GreenMail(new ServerSetup(smtpPort, "127.0.0.1", ServerSetup.PROTOCOL_SMTP));
         greenMail.start();
 
-        try {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
             EmailAccount emailAccount = new EmailAccount();
             emailAccount.setHost("localhost");
@@ -1974,8 +1958,7 @@ public class ActionTest {
     @Test
     public void testEmailActionWithMalformedEmailAddressContainingDisplayName() throws Exception {
 
-        try {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient()) {
 
             EmailAccount emailAccount = new EmailAccount();
             emailAccount.setHost("localhost");

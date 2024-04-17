@@ -28,7 +28,7 @@ public class TransportPutSettingsAction extends HandledTransportAction<PutSettin
     @Inject
     public TransportPutSettingsAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(PutSettingsAction.NAME, transportService, actionFilters, PutSettingsRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
+        super(PutSettingsAction.NAME, transportService, actionFilters, PutSettingsRequest::new);
 
         this.signals = signals;
         this.client = client;

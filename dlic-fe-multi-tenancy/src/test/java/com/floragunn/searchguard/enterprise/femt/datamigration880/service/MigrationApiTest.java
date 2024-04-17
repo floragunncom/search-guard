@@ -83,19 +83,20 @@ public class MigrationApiTest {
 
     @Before
     public void before() {
-        Client client = cluster.getInternalNodeClient();
-        IndexMigrationStateRepository repository = new IndexMigrationStateRepository(PrivilegedConfigClient.adapt(client));
-        indexMigrationStateRepository = new IndexMigrationStateRepository(PrivilegedConfigClient.adapt(client));
-        if (indexMigrationStateRepository.isIndexCreated()) {
-            Awaitility.await("Data migration isn't in progress")
-                .atMost(Duration.ofSeconds(10)).pollInterval(Duration.ofMillis(25))
-                .until(() -> {
-                    Optional<MigrationExecutionSummary> executionSummary = indexMigrationStateRepository.findById(MIGRATION_STATE_DOC_ID);
-                    return executionSummary.map(summary -> !summary.isMigrationInProgress(LocalDateTime.now())).orElse(true);
-                });
-            if (repository.isIndexCreated()) {
-                environmentHelper.deleteIndex(".sg_data_migration_state");
-                assertThatMigrationStateIndexExists(false);
+        try (Client client = cluster.getInternalNodeClient()) {
+            IndexMigrationStateRepository repository = new IndexMigrationStateRepository(PrivilegedConfigClient.adapt(client));
+            indexMigrationStateRepository = new IndexMigrationStateRepository(PrivilegedConfigClient.adapt(client));
+            if (indexMigrationStateRepository.isIndexCreated()) {
+                Awaitility.await("Data migration isn't in progress")
+                    .atMost(Duration.ofSeconds(10)).pollInterval(Duration.ofMillis(25))
+                    .until(() -> {
+                        Optional<MigrationExecutionSummary> executionSummary = indexMigrationStateRepository.findById(MIGRATION_STATE_DOC_ID);
+                        return executionSummary.map(summary -> !summary.isMigrationInProgress(LocalDateTime.now())).orElse(true);
+                    });
+                if (repository.isIndexCreated()) {
+                    environmentHelper.deleteIndex(".sg_data_migration_state");
+                    assertThatMigrationStateIndexExists(false);
+                }
             }
         }
     }
@@ -145,10 +146,11 @@ public class MigrationApiTest {
             log.info("First migration run response '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex();
-            Client nodeClient = cluster.getInternalNodeClient();
-            FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(nodeClient));
-            // damage global tenant index
-            catalog.insertIndexPattern(GLOBAL_TENANT_INDEX.indexName(), 100);
+            try(Client nodeClient = cluster.getInternalNodeClient()) {
+                FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(nodeClient));
+                // damage global tenant index
+                catalog.insertIndexPattern(GLOBAL_TENANT_INDEX.indexName(), 100);
+            }
 
             response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
 
@@ -170,18 +172,20 @@ public class MigrationApiTest {
             log.info("First migration run response '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex();
-            Client nodeClient = cluster.getInternalNodeClient();
-            FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(nodeClient));
-            // damage global tenant index
-            catalog.insertIndexPattern(GLOBAL_TENANT_INDEX.indexName(), 100);
+            try(Client nodeClient = cluster.getInternalNodeClient()) {
+                FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(nodeClient));
+                // damage global tenant index
+                catalog.insertIndexPattern(GLOBAL_TENANT_INDEX.indexName(), 100);
+            }
             response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
             log.info("Second migration run response '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex();
-            nodeClient = cluster.getInternalNodeClient();
-            catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(nodeClient));
-            // damage global tenant index
-            catalog.insertIndexPattern(GLOBAL_TENANT_INDEX.indexName(), 100);
+            try(Client nodeClient = cluster.getInternalNodeClient()) {
+                FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(nodeClient));
+                // damage global tenant index
+                catalog.insertIndexPattern(GLOBAL_TENANT_INDEX.indexName(), 100);
+            }
 
             response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
 
@@ -203,13 +207,15 @@ public class MigrationApiTest {
             log.info("First migration run response '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex();
-            Client nodeClient = cluster.getInternalNodeClient();
-            FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(nodeClient));
-            // remove data migration marker form the global index. First delete index and create new one and insert required data
-            // this should cause backup index creation when the migration process is run 2nd time.
-            environmentHelper.deleteIndex(GLOBAL_TENANT_INDEX.indexName());
-            environmentHelper.createIndex(GLOBAL_TENANT_INDEX);
-            String spaceId = catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "global_default").get(0);
+            String spaceId = null;
+            try(Client nodeClient = cluster.getInternalNodeClient()) {
+                FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(nodeClient));
+                // remove data migration marker form the global index. First delete index and create new one and insert required data
+                // this should cause backup index creation when the migration process is run 2nd time.
+                environmentHelper.deleteIndex(GLOBAL_TENANT_INDEX.indexName());
+                environmentHelper.createIndex(GLOBAL_TENANT_INDEX);
+                spaceId = catalog.insertSpace(GLOBAL_TENANT_INDEX.indexName(), "global_default").get(0);
+            }
 
             response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
 
@@ -358,22 +364,23 @@ public class MigrationApiTest {
         List<DoubleAliasIndex> tenants = environmentHelper.findIndicesForTenantsDefinedInConfigurationWithoutGlobal();
         environmentHelper.createIndex(tenants);
         List<DoubleAliasIndex> createdIndices = new ArrayList<>(tenants);
-        Client client = cluster.getInternalNodeClient();
-        FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(client));
-        for (DoubleAliasIndex index : tenants) {
-            dataProvider.configuredTenant(catalog, index.indexName());
-        }
-        // global tenant index
-        environmentHelper.createIndex(GLOBAL_TENANT_INDEX);
-        createdIndices.add(GLOBAL_TENANT_INDEX);
-        dataProvider.globalTenant(catalog, GLOBAL_TENANT_INDEX.indexName());
-        // user tenant indices
-        ImmutableList<DoubleAliasIndex> privateUserTenants = ImmutableList.of(PRIVATE_USER_KIRK_INDEX, PRIVATE_USER_LUKASZ_1_INDEX,
-            PRIVATE_USER_LUKASZ_2_INDEX, PRIVATE_USER_LUKASZ_3_INDEX);
-        environmentHelper.createIndex(privateUserTenants);
-        createdIndices.addAll(privateUserTenants);
-        for (DoubleAliasIndex index : privateUserTenants) {
-            dataProvider.privateUserTenant(catalog, index.indexName());
+        try(Client client = cluster.getInternalNodeClient()) {
+            FrontendObjectCatalog catalog = new FrontendObjectCatalog(PrivilegedConfigClient.adapt(client));
+            for (DoubleAliasIndex index : tenants) {
+                dataProvider.configuredTenant(catalog, index.indexName());
+            }
+            // global tenant index
+            environmentHelper.createIndex(GLOBAL_TENANT_INDEX);
+            createdIndices.add(GLOBAL_TENANT_INDEX);
+            dataProvider.globalTenant(catalog, GLOBAL_TENANT_INDEX.indexName());
+            // user tenant indices
+            ImmutableList<DoubleAliasIndex> privateUserTenants = ImmutableList.of(PRIVATE_USER_KIRK_INDEX, PRIVATE_USER_LUKASZ_1_INDEX,
+                PRIVATE_USER_LUKASZ_2_INDEX, PRIVATE_USER_LUKASZ_3_INDEX);
+            environmentHelper.createIndex(privateUserTenants);
+            createdIndices.addAll(privateUserTenants);
+            for (DoubleAliasIndex index : privateUserTenants) {
+                dataProvider.privateUserTenant(catalog, index.indexName());
+            }
         }
         return createdIndices;
     }

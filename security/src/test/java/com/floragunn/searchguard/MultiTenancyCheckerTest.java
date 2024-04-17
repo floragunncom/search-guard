@@ -21,7 +21,6 @@ import com.floragunn.searchguard.MultiTenancyChecker.IndexRepository;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexVersion;
-import org.elasticsearch.index.IndexVersions;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -55,7 +54,7 @@ public class MultiTenancyCheckerTest  {
     @Test
     public void shouldReportErrorWhenMultiTenancyIndicesArePresent() {
         ImmutableMap<String, IndexMetadata> indices = ImmutableMap
-            .of(".kibana_-152937574_admintenant_7.17.12_001", mockMetadata(IndexVersions.V_8_3_0));
+            .of(".kibana_-152937574_admintenant_7.17.12_001", mockMetadata(IndexVersion.V_8_3_0));
         when(repository.findIndicesMetadata()).thenReturn(indices);
 
         Optional<String> errorDescription =  checker.findMultiTenancyConfigurationError();
@@ -67,7 +66,7 @@ public class MultiTenancyCheckerTest  {
     public void shouldNotReportErrorWhenMultiTenancyIndicesArePresentAndBootstrapChecksAreExplicitelyDisabled() {
         Settings settings = Settings.builder().put("searchguard.multi_tenancy_bootstrap_check_enabled", false).build();
         ImmutableMap<String, IndexMetadata> indices = ImmutableMap
-            .of(".kibana_-152937574_admintenant_7.17.12_001", mockMetadata(IndexVersions.V_8_3_0));
+            .of(".kibana_-152937574_admintenant_7.17.12_001", mockMetadata(IndexVersion.V_8_3_0));
         this.checker = new MultiTenancyChecker(settings, repository);
 
         Optional<String> errorDescription = checker.findMultiTenancyConfigurationError();
@@ -77,12 +76,12 @@ public class MultiTenancyCheckerTest  {
 
     @Test
     public void shouldReportErrorWhenOnlyOneMultiTenancyRelatedIndexExist() {
-        ImmutableMap<String, IndexMetadata> indices = ImmutableMap.of("data_index_1", mockMetadata(IndexVersions.V_8_5_0),
-                "data_index_2", mockMetadata(IndexVersions.V_8_1_0),
-                "logs_2023", mockMetadata(IndexVersions.V_8_2_0),
-                ".kibana_92668751_admin_8.7.12_100", mockMetadata(IndexVersions.V_8_3_0)) //
-            .with("logs_2024", mockMetadata(IndexVersions.V_8_4_0)) //
-            .with("logs_2024_01_01", mockMetadata(IndexVersions.V_8_6_0));
+        ImmutableMap<String, IndexMetadata> indices = ImmutableMap.of("data_index_1", mockMetadata(IndexVersion.V_8_5_0),
+                "data_index_2", mockMetadata(IndexVersion.V_8_1_0),
+                "logs_2023", mockMetadata(IndexVersion.V_8_2_0),
+                ".kibana_92668751_admin_8.7.12_100", mockMetadata(IndexVersion.V_8_3_0)) //
+            .with("logs_2024", mockMetadata(IndexVersion.V_8_4_0)) //
+            .with("logs_2024_01_01", mockMetadata(IndexVersion.V_8_6_0));
         when(repository.findIndicesMetadata()).thenReturn(indices);
 
         Optional<String> errorDescription = checker.findMultiTenancyConfigurationError();
@@ -92,14 +91,14 @@ public class MultiTenancyCheckerTest  {
 
     @Test
     public void shouldReportErrorWhenManyMultiTenancyRelatedIndexExist() {
-        ImmutableMap<String, IndexMetadata> indices = ImmutableMap.of("data_index_1", mockMetadata(IndexVersions.V_8_5_0),
-            "data_index_2", mockMetadata(IndexVersions.V_8_1_0),
-            "logs_2023", mockMetadata(IndexVersions.V_8_2_0),
-            ".kibana_92668751_admin_8.7.12_100", mockMetadata(IndexVersions.V_8_3_0)) //
-            .with("logs_2024", mockMetadata(IndexVersions.V_8_4_0)) //
-            .with(".kibana_-152937574_admintenant_7.17.12_001", mockMetadata(IndexVersions.V_8_5_0)) //
-            .with(".kibana_1329513022_ittenant_8.7.0_002", mockMetadata(IndexVersions.V_8_6_0)) //
-            .with("logs_2024_01_01", mockMetadata(IndexVersions.V_8_6_0));
+        ImmutableMap<String, IndexMetadata> indices = ImmutableMap.of("data_index_1", mockMetadata(IndexVersion.V_8_5_0),
+            "data_index_2", mockMetadata(IndexVersion.V_8_1_0),
+            "logs_2023", mockMetadata(IndexVersion.V_8_2_0),
+            ".kibana_92668751_admin_8.7.12_100", mockMetadata(IndexVersion.V_8_3_0)) //
+            .with("logs_2024", mockMetadata(IndexVersion.V_8_4_0)) //
+            .with(".kibana_-152937574_admintenant_7.17.12_001", mockMetadata(IndexVersion.V_8_5_0)) //
+            .with(".kibana_1329513022_ittenant_8.7.0_002", mockMetadata(IndexVersion.V_8_6_0)) //
+            .with("logs_2024_01_01", mockMetadata(IndexVersion.V_8_6_0));
         when(repository.findIndicesMetadata()).thenReturn(indices);
 
         Optional<String> errorDescription = checker.findMultiTenancyConfigurationError();
@@ -109,14 +108,14 @@ public class MultiTenancyCheckerTest  {
 
     @Test
     public void shouldNotReportErrorWhenManyMultiTenancyRelatedIndexExistButWasCreatedInVersion8_8_0() {
-        ImmutableMap<String, IndexMetadata> indices = ImmutableMap.of("data_index_1", mockMetadata(IndexVersions.V_8_5_0),
-                "data_index_2", mockMetadata(IndexVersions.V_8_1_0),
-                "logs_2023", mockMetadata(IndexVersions.V_8_2_0),
-                ".kibana_92668751_admin_8.7.12_100", mockMetadata(IndexVersions.V_8_8_0)) //
-            .with("logs_2024", mockMetadata(IndexVersions.V_8_4_0)) //
-            .with(".kibana_-152937574_admintenant_7.17.12_001", mockMetadata(IndexVersions.V_8_8_0)) //
-            .with(".kibana_1329513022_ittenant_8.7.0_002", mockMetadata(IndexVersions.V_8_8_0)) //
-            .with("logs_2024_01_01", mockMetadata(IndexVersions.V_8_6_0));
+        ImmutableMap<String, IndexMetadata> indices = ImmutableMap.of("data_index_1", mockMetadata(IndexVersion.V_8_5_0),
+                "data_index_2", mockMetadata(IndexVersion.V_8_1_0),
+                "logs_2023", mockMetadata(IndexVersion.V_8_2_0),
+                ".kibana_92668751_admin_8.7.12_100", mockMetadata(IndexVersion.V_8_8_0)) //
+            .with("logs_2024", mockMetadata(IndexVersion.V_8_4_0)) //
+            .with(".kibana_-152937574_admintenant_7.17.12_001", mockMetadata(IndexVersion.V_8_8_0)) //
+            .with(".kibana_1329513022_ittenant_8.7.0_002", mockMetadata(IndexVersion.V_8_8_0)) //
+            .with("logs_2024_01_01", mockMetadata(IndexVersion.V_8_6_0));
         when(repository.findIndicesMetadata()).thenReturn(indices);
 
         Optional<String> errorDescription = checker.findMultiTenancyConfigurationError();
@@ -126,14 +125,14 @@ public class MultiTenancyCheckerTest  {
 
     @Test
     public void shouldReportErrorWhenOneMultiTenancyRelatedIndexExistAndWasCreatedInVersionPriorTo8_8_0() {
-        ImmutableMap<String, IndexMetadata> indices = ImmutableMap.of("data_index_1", mockMetadata(IndexVersions.V_8_5_0),
-                "data_index_2", mockMetadata(IndexVersions.V_8_1_0),
-                "logs_2023", mockMetadata(IndexVersions.V_8_2_0),
-                ".kibana_92668751_admin_8.7.12_100", mockMetadata(IndexVersions.V_8_8_0)) //
-            .with("logs_2024", mockMetadata(IndexVersions.V_8_4_0)) //
-            .with(".kibana_-152937574_admintenant_7.17.12_001", mockMetadata(IndexVersions.V_8_7_0)) // this index cause error
-            .with(".kibana_1329513022_ittenant_8.7.0_002", mockMetadata(IndexVersions.V_8_8_0)) //
-            .with("logs_2024_01_01", mockMetadata(IndexVersions.V_8_6_0));
+        ImmutableMap<String, IndexMetadata> indices = ImmutableMap.of("data_index_1", mockMetadata(IndexVersion.V_8_5_0),
+                "data_index_2", mockMetadata(IndexVersion.V_8_1_0),
+                "logs_2023", mockMetadata(IndexVersion.V_8_2_0),
+                ".kibana_92668751_admin_8.7.12_100", mockMetadata(IndexVersion.V_8_8_0)) //
+            .with("logs_2024", mockMetadata(IndexVersion.V_8_4_0)) //
+            .with(".kibana_-152937574_admintenant_7.17.12_001", mockMetadata(IndexVersion.V_8_7_0)) // this index cause error
+            .with(".kibana_1329513022_ittenant_8.7.0_002", mockMetadata(IndexVersion.V_8_8_0)) //
+            .with("logs_2024_01_01", mockMetadata(IndexVersion.V_8_6_0));
         when(repository.findIndicesMetadata()).thenReturn(indices);
 
         Optional<String> errorDescription = checker.findMultiTenancyConfigurationError();
@@ -154,7 +153,7 @@ public class MultiTenancyCheckerTest  {
 
     @Test
     public void shouldNotReportErrorWhenMainKibanaIndexExist_1() {
-        ImmutableMap<String, IndexMetadata> indexMetadata = ImmutableMap.of(".kibana_7.17.12_001", mockMetadata(IndexVersions.V_8_1_0));
+        ImmutableMap<String, IndexMetadata> indexMetadata = ImmutableMap.of(".kibana_7.17.12_001", mockMetadata(IndexVersion.V_8_1_0));
         when(repository.findIndicesMetadata()).thenReturn(indexMetadata);
 
         Optional<String> errorDescription = checker.findMultiTenancyConfigurationError();
@@ -164,8 +163,8 @@ public class MultiTenancyCheckerTest  {
 
     @Test
     public void shouldNotReportErrorWhenMainKibanaIndexExist_2() {
-        ImmutableMap<String, IndexMetadata> indexMetadata = ImmutableMap.of(".kibana_7.17.12_001", mockMetadata(IndexVersions.V_7_0_0),
-            ".kibana_8.8.0_001", mockMetadata(IndexVersions.V_8_7_0));
+        ImmutableMap<String, IndexMetadata> indexMetadata = ImmutableMap.of(".kibana_7.17.12_001", mockMetadata(IndexVersion.V_7_0_0),
+            ".kibana_8.8.0_001", mockMetadata(IndexVersion.V_8_7_0));
         when(repository.findIndicesMetadata()).thenReturn(indexMetadata);
 
         Optional<String> errorDescription = checker.findMultiTenancyConfigurationError();

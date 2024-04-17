@@ -72,13 +72,14 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
     @BeforeClass
     public static void setupTestData() {
 
-        Client client = cluster.getInternalNodeClient();
-        client.index(new IndexRequest("testsource").source(XContentType.JSON, "key1", "val1", "key2", "val2")).actionGet();
+        try (Client client = cluster.getInternalNodeClient()) {
+            client.index(new IndexRequest("testsource").source(XContentType.JSON, "key1", "val1", "key2", "val2")).actionGet();
 
-        client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
-                .actionGet();
-        client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
-                .actionGet();
+            client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
+                    .actionGet();
+            client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
+                    .actionGet();
+        }
     }
 
     @BeforeClass
@@ -95,8 +96,8 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
         String watchId = "put_test";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
-            Client client = cluster.getInternalNodeClient();
+        try (Client client = cluster.getInternalNodeClient();
+                GenericRestClient restClient = cluster.getRestClient("uhura", "uhura").trackResources()) {
             client.admin().indices().create(new CreateIndexRequest("testsink_put_watch")).actionGet();
 
             Watch watch = new WatchBuilder(watchId).atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")

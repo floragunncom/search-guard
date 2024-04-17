@@ -38,7 +38,8 @@ public class SearchMapper {
 
     public SearchResponse toUnscopedSearchResponse(SearchResponse response) {
         log.debug("Rewriting search response - removing tenant scope");
-        SearchHits originalSearchHits = response.getHits();
+        SearchResponseSections originalSections = response.getInternalResponse();
+        SearchHits originalSearchHits = originalSections.hits();
         SearchHit[] originalSearchHitArray = originalSearchHits.getHits();
         SearchHit [] rewrittenSearchHitArray = new  SearchHit [originalSearchHitArray.length];
 
@@ -56,8 +57,8 @@ public class SearchMapper {
         }
 
         SearchHits rewrittenSearchHits = new SearchHits(rewrittenSearchHitArray, originalSearchHits.getTotalHits(), originalSearchHits.getMaxScore());
-        SearchResponseSections rewrittenSections = new SearchResponseSections(rewrittenSearchHits, response.getAggregations(), response.getSuggest(),
-                response.isTimedOut(), response.isTerminatedEarly(), null, response.getNumReducePhases());
+        SearchResponseSections rewrittenSections = new SearchResponseSections(rewrittenSearchHits, originalSections.aggregations(), originalSections.suggest(),
+                originalSections.timedOut(), originalSections.terminatedEarly(), null, originalSections.getNumReducePhases());
 
         return new SearchResponse(rewrittenSections, response.getScrollId(), response.getTotalShards(),
                 response.getSuccessfulShards(), response.getSkippedShards(), response.getTook().millis(),
