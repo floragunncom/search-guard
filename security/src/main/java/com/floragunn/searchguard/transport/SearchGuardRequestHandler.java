@@ -113,7 +113,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                throw new RuntimeException("Unknown channel type "+transportChannel);
            }
 
-           getThreadContext().putTransient(ConfigConstants.SG_CHANNEL_TYPE, TransportService.isDirectResponseChannel(transportChannel)? "direct": "transport");
+           getThreadContext().putTransient(ConfigConstants.SG_CHANNEL_TYPE, isDirectChannelDeep(transportChannel)? "direct": "transport");
            getThreadContext().putTransient(ConfigConstants.SG_ACTION_NAME, task.getAction());
            
            if(request instanceof ShardSearchRequest) {
