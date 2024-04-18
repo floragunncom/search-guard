@@ -20,7 +20,6 @@ package com.floragunn.searchguard;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -34,7 +33,6 @@ import co.elastic.clients.elasticsearch.async_search.GetAsyncSearchRequest;
 import co.elastic.clients.elasticsearch.async_search.GetAsyncSearchResponse;
 import co.elastic.clients.elasticsearch.async_search.SubmitRequest;
 import co.elastic.clients.elasticsearch.async_search.SubmitResponse;
-import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.client.RestHighLevelClient;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
@@ -72,7 +70,6 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
-import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.junit.Assert;
@@ -316,7 +313,7 @@ public class ResourceOwnerServiceTests {
         }
     }
 
-    public static class MockActionResponse extends ActionResponse implements ToXContentObject, ChunkedToXContentObject {
+    public static class MockActionResponse extends ActionResponse implements ToXContentObject {
 
         private String id;
         private RestStatus restStatus;
@@ -384,16 +381,6 @@ public class ResourceOwnerServiceTests {
             this.id = id;
         }
 
-        @Override
-        public Iterator<? extends ToXContent> toXContentChunked(ToXContent.Params params) {
-            ImmutableList<ToXContent> list = ImmutableList.of(this);
-            return list.iterator();
-        }
-
-        @Override
-        public boolean isFragment() {
-            return false;
-        }
     }
 
 }

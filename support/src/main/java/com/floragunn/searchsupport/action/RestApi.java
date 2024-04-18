@@ -31,7 +31,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import com.floragunn.searchsupport.xcontent.XContentConverter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionRequest;
@@ -48,6 +47,7 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.action.RestResponseListener;
+import org.elasticsearch.xcontent.ToXContent;
 
 import com.floragunn.codova.documents.ContentType;
 import com.floragunn.codova.documents.DocNode;
@@ -378,8 +378,8 @@ public class RestApi extends BaseRestHandler {
 
                             if (response instanceof Document) {
                                 body = DocWriter.format(responseDocType).pretty(prettyPrintResponse).writeAsString(response);
-                            } else if (XContentConverter.canConvert(response)) {
-                                body = Strings.toString(XContentConverter.convertOrNull(response));
+                            } else if (response instanceof ToXContent) {
+                                body = Strings.toString((ToXContent) response);
                             } else {
                                 body = response.toString();
                             }
