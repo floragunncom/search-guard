@@ -66,11 +66,5 @@
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
-
-    <dependency>
-      <groupId>org.elasticsearch.plugin</groupId>
-      <artifactId>rest-root</artifactId>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 </project>
