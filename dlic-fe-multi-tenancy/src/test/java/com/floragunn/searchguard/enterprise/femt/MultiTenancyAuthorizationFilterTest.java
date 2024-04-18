@@ -25,6 +25,7 @@ import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandler;
 import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandlerFactory;
 import com.floragunn.searchguard.user.User;
+import org.apache.commons.logging.Log;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -36,6 +37,7 @@ import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.TransportIndexAction;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.indices.IndicesService;
 import org.junit.Before;
@@ -103,6 +105,7 @@ public class MultiTenancyAuthorizationFilterTest {
 
     @Before
     public void before() {
+        LogConfigurator.configureESLogging();
         when(config.getIndex()).thenReturn(".kibana");
         when(config.isEnabled()).thenReturn(true);
         when(context.getUser()).thenReturn(user);
