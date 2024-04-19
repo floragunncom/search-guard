@@ -46,25 +46,48 @@ public class SearchMapper {
         log.debug("Rewriting search response - removing tenant scope");
         SearchHits originalSearchHits = response.getHits();
         SearchHit[] originalSearchHitArray = originalSearchHits.getHits();
+        SearchHit [] rewrittenSearchHitArray = new  SearchHit [originalSearchHitArray.length];
 
         for (int i = 0; i < originalSearchHitArray.length; i++) {
-            SearchHit searchHit = originalSearchHitArray[i];
-            String scopedId = RequestResponseTenantData.unscopedId(searchHit.getId());
-            AccessController.doPrivileged(new PrivilegedAction<Object>() {
-                @Override
-                public Object run() {
-                    try {
-                        Field idField = searchHit.getClass().getDeclaredField("id");
-                        idField.setAccessible(true);
-                        idField.set(searchHit, new Text(scopedId));
-                    } catch (NoSuchFieldException | IllegalAccessException e) {
-                        throw new RuntimeException("Cannot unscope id in search response");
-                    }
-                    return null;
-                }
-            });
+            rewrittenSearchHitArray[i] = SearchHit.unpooled(originalSearchHitArray[i].docId(), RequestResponseTenantData.unscopedId(originalSearchHitArray[i].getId()), originalSearchHitArray[i].getNestedIdentity());
+            rewrittenSearchHitArray[i].sourceRef(originalSearchHitArray[i].getSourceRef());
+            rewrittenSearchHitArray[i].addDocumentFields(originalSearchHitArray[i].getDocumentFields(), originalSearchHitArray[i].getMetadataFields());
+            rewrittenSearchHitArray[i].setPrimaryTerm(originalSearchHitArray[i].getPrimaryTerm());
+            rewrittenSearchHitArray[i].setSeqNo(originalSearchHitArray[i].getSeqNo());
+            rewrittenSearchHitArray[i].setRank(originalSearchHitArray[i].getRank());
+            rewrittenSearchHitArray[i].shard(originalSearchHitArray[i].getShard());
+            rewrittenSearchHitArray[i].version(originalSearchHitArray[i].getVersion());
+            rewrittenSearchHitArray[i].score(originalSearchHitArray[i].getScore());
+            rewrittenSearchHitArray[i].explanation(originalSearchHitArray[i].getExplanation());
         }
-        return response;
+
+        SearchHits rewrittenSearchHits = new SearchHits(rewrittenSearchHitArray, originalSearchHits.getTotalHits(), originalSearchHits.getMaxScore());
+        SearchResponseSections rewrittenSections = new SearchResponseSections(rewrittenSearchHits, response.getAggregations(), response.getSuggest(),
+                response.isTimedOut(), response.isTerminatedEarly(), null, response.getNumReducePhases());
+
+        return new SearchResponse(rewrittenSections, response.getScrollId(), response.getTotalShards(),
+                response.getSuccessfulShards(), response.getSkippedShards(), response.getTook().millis(),
+                response.getShardFailures(), response.getClusters(), response.pointInTimeId()) {
+            @Override
+            public void incRef() {
+                response.incRef();
+            }
+
+            @Override
+            public boolean tryIncRef() {
+                return response.tryIncRef();
+            }
+
+            @Override
+            public boolean decRef() {
+                return response.decRef();
+            }
+
+            @Override
+            public boolean hasReferences() {
+                return response.hasReferences();
+            }
+        };
     }
 
 }
