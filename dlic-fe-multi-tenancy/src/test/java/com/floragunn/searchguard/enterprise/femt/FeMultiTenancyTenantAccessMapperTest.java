@@ -21,6 +21,7 @@ import com.floragunn.searchguard.authz.TenantManager;
 import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.logging.internal.LoggerFactoryImpl;
 import org.elasticsearch.logging.internal.spi.LoggerFactory;
 import org.hamcrest.Matchers;
@@ -56,7 +57,7 @@ public class FeMultiTenancyTenantAccessMapperTest {
 
     @BeforeClass
     public static void beforeClass() {
-        LoggerFactory.setInstance(new LoggerFactoryImpl());
+        LogConfigurator.configureESLogging();
         actions = new Actions(null);
     }
 

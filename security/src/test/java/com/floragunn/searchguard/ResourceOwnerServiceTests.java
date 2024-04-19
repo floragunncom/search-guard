@@ -197,6 +197,7 @@ public class ResourceOwnerServiceTests {
                     new ActionHandler<>(MockDeleteTransportAction.TYPE, MockDeleteTransportAction.class));
         }
 
+        @Override
         public List<RestHandler> getRestHandlers(Settings settings, NamedWriteableRegistry namedWriteableRegistry, RestController restController, ClusterSettings clusterSettings,
                                                  IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
                                                  Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
