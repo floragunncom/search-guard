@@ -56,8 +56,8 @@ public class WatchInitializationService {
         this.httpProxyHostRegistry = httpProxyHostRegistry;
         this.throttlePeriodParser = throttlePeriodParser;
         this.validationLevel = Objects.requireNonNull(validationLevel, "Life cycle stage is required");
-        this.clusterService = Objects.requireNonNull(clusterService, "Cluster service is required");
-        this.featureService = Objects.requireNonNull(featureService, "Feature service stage is required");
+        this.clusterService = clusterService;
+        this.featureService = featureService;
     }
 
     public ScriptService getScriptService() {
