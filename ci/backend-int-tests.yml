@@ -93,13 +93,9 @@ ccs_3_roundtrips_true:
 .be_integration_test:
   stage: "Backend Int Tests Core"
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
       when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_TAG =~ /^sg-.*/ || $CI_PIPELINE_SOURCE == "schedule"'
       when: always
   variables:
     TEST: "«TBD»"
