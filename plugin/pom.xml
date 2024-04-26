@@ -187,72 +187,44 @@
 			</dependencies>
 		</profile>
 		<profile>
-			<id>veracode</id>
+			<id>veracode-one-jar</id>
+			<dependencies>
+				<dependency>
+					<groupId>org.elasticsearch</groupId>
+					<artifactId>elasticsearch</artifactId>
+					<version>${elasticsearch.version}</version>
+				</dependency>
+				<dependency>
+					<groupId>org.elasticsearch.plugin</groupId>
+					<artifactId>elasticsearch-scripting-painless-spi</artifactId>
+				</dependency>
+			</dependencies>
 			<build>
 				<plugins>
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-assembly-plugin</artifactId>
+						<artifactId>maven-shade-plugin</artifactId>
+						<version>3.5.1</version>
 						<executions>
 							<execution>
-								<id>veracode</id>
 								<phase>package</phase>
-								<configuration>
-									<appendAssemblyId>true</appendAssemblyId>
-									<tarLongFileMode>posix</tarLongFileMode>
-									<outputDirectory>${project.build.directory}/veracode/</outputDirectory>
-									<descriptors>
-										<descriptor>${veracode.descriptor}</descriptor>
-									</descriptors>
-								</configuration>
 								<goals>
-									<goal>single</goal>
+									<goal>shade</goal>
 								</goals>
+								<configuration>
+									<outputFile>${project.build.directory}/releases/search-guard-veracode.jar</outputFile>
+									<artifactSet>
+										<includes>
+											<include>*:search-guard*</include>
+											<include>*:dlic-search-guard*</include>
+										</includes>
+									</artifactSet>
+								</configuration>
 							</execution>
 						</executions>
 					</plugin>
 				</plugins>
 			</build>
-			<dependencies>
-				<!-- omit netty-tcnative and conscrypt-openjdk-uber if scan should be 
-					done without natives -->
-				<dependency>
-					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-security</artifactId>
-					<version>${project.version}</version>
-				</dependency>
-
-				<dependency>
-					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-scheduler</artifactId>
-					<version>${project.version}</version>
-				</dependency>
-
-				<dependency>
-					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-signals</artifactId>
-					<version>${project.version}</version>
-				</dependency>
-				
-				<dependency>
-					<groupId>${project.groupId}</groupId>
-					<artifactId>search-guard-suite-support</artifactId>
-					<version>${project.version}</version>
-				</dependency>
-				
-				<!-- DLIC -->
-				<dependency>
-					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-search-guard-suite-security</artifactId>
-					<version>${project.version}</version>
-				</dependency>
-
-				<dependency>
-					<groupId>${project.groupId}</groupId>
-					<artifactId>dlic-search-guard-suite-signals</artifactId>
-					<version>${project.version}</version>
-				</dependency>				
-			</dependencies>
 		</profile>
 	</profiles>
 </project>
