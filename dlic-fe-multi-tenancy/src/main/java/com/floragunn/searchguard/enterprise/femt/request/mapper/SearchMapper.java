@@ -6,9 +6,13 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchResponseSections;
+import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+
+import java.util.Arrays;
 
 public class SearchMapper {
 
@@ -44,12 +48,14 @@ public class SearchMapper {
 
         for (int i = 0; i < originalSearchHitArray.length; i++) {
             SearchHit currentHit = originalSearchHitArray[i];
-            SearchHit unscopedHit = SearchHit.unpooled(currentHit.docId(),
+            SearchHit unscopedHit = new SearchHit(currentHit.docId(),
                     RequestResponseTenantData.unscopedId(currentHit.getId()),
                     originalSearchHitArray[i].getNestedIdentity());
             log.debug("ES search hit '{}' replaced with replaced with '{}'", System.identityHashCode(currentHit), System.identityHashCode(unscopedHit));
             rewrittenSearchHitArray[i] = unscopedHit;
-            rewrittenSearchHitArray[i].sourceRef(originalSearchHitArray[i].getSourceRef());
+            BytesReference sourceRef = originalSearchHitArray[i].getSourceRef();
+            BytesArray source = sourceRef == null ? null : new BytesArray(sourceRef.toBytesRef(), true);
+            rewrittenSearchHitArray[i].sourceRef(source);
             rewrittenSearchHitArray[i].addDocumentFields(originalSearchHitArray[i].getDocumentFields(), originalSearchHitArray[i].getMetadataFields());
             rewrittenSearchHitArray[i].setPrimaryTerm(originalSearchHitArray[i].getPrimaryTerm());
             rewrittenSearchHitArray[i].setSeqNo(originalSearchHitArray[i].getSeqNo());
@@ -73,7 +79,6 @@ public class SearchMapper {
             response.getShardFailures(),
             response.getClusters(),
             response.pointInTimeId());
-        response.incRef();
         log.debug("SG unscoped search response '{}'", System.identityHashCode(unscopedResponse));
         return unscopedResponse;
     }
