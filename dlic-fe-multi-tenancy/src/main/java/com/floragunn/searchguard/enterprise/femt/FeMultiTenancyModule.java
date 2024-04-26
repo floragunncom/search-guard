@@ -22,6 +22,7 @@ import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -119,7 +120,8 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             if (feMultiTenancyConfig != null) {
                 if (feMultiTenancyConfig.isEnabled()) {
                     enabled = true;
-                    interceptorImpl = new PrivilegesInterceptorImpl(feMultiTenancyConfig, tenantNames, baseDependencies.getActions());
+                    interceptorImpl = new PrivilegesInterceptorImpl(feMultiTenancyConfig, tenantNames, baseDependencies.getActions(),
+                            clusterService, baseDependencies.getGuiceDependencies().getIndicesService());
                 } else {
                     enabled = false;
                     componentState.setState(State.SUSPENDED, "disabled_by_config");
@@ -140,9 +142,9 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
 
         @Override
         public InterceptionResult replaceKibanaIndex(PrivilegesEvaluationContext context, ActionRequest request, Action action,
-                ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
+                                                     ActionAuthorization actionAuthorization, ActionListener<?> listener) throws PrivilegesEvaluationException {
             if (enabled && interceptorImpl != null) {
-                return interceptorImpl.replaceKibanaIndex(context, request, action, actionAuthorization);
+                return interceptorImpl.replaceKibanaIndex(context, request, action, actionAuthorization, listener);
             } else {
                 return InterceptionResult.NORMAL;
             }

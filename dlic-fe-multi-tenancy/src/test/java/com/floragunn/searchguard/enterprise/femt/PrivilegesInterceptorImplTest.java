@@ -16,6 +16,8 @@ package com.floragunn.searchguard.enterprise.femt;
 
 import java.util.Arrays;
 
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.indices.IndicesService;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -29,12 +31,16 @@ import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
+import org.mockito.Mockito;
 
 public class PrivilegesInterceptorImplTest {
 
     private static final ActionGroup.FlattenedIndex emptyActionGroups = new ActionGroup.FlattenedIndex(
             SgDynamicConfiguration.empty(CType.ACTIONGROUPS));
     private static final Actions actions = new Actions(null);
+
+    private static final ClusterService clusterService = Mockito.mock(ClusterService.class);
+    public static final IndicesService indicesService = Mockito.mock(IndicesService.class);
 
     @Test
     public void wildcardTenantMapping() throws Exception {
@@ -49,7 +55,8 @@ public class PrivilegesInterceptorImplTest {
         ImmutableSet<String> tenants = ImmutableSet.of("my_tenant", "test");
 
         RoleBasedActionAuthorization actionAuthorization = new RoleBasedActionAuthorization(roles, emptyActionGroups, actions, null, tenants);
-        PrivilegesInterceptorImpl subject = new PrivilegesInterceptorImpl(FeMultiTenancyConfig.DEFAULT, tenants, actions);
+        PrivilegesInterceptorImpl subject = new PrivilegesInterceptorImpl(FeMultiTenancyConfig.DEFAULT, tenants, actions,
+                clusterService, indicesService);
 
         User user = User.forUser("test").searchGuardRoles("all_access").build();
 
