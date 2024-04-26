@@ -77,7 +77,10 @@ import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.Script;
 
-import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.*;
+import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.ALLOW;
+import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.DENY;
+import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.INTERCEPTED;
+import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.NORMAL;
 
 public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
 
