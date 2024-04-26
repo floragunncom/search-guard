@@ -140,7 +140,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
 
         @Override
         public InterceptionResult replaceKibanaIndex(PrivilegesEvaluationContext context, ActionRequest request, Action action,
-                ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
+                                                     ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
             if (enabled && interceptorImpl != null) {
                 return interceptorImpl.replaceKibanaIndex(context, request, action, actionAuthorization);
             } else {

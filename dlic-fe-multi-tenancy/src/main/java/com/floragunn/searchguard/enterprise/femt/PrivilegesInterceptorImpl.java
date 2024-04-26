@@ -14,10 +14,6 @@
 
 package com.floragunn.searchguard.enterprise.femt;
 
-import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.ALLOW;
-import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.DENY;
-import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.NORMAL;
-
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization;
@@ -29,13 +25,18 @@ import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchguard.user.User;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -52,6 +53,7 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsReques
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetRequest.Item;
@@ -64,6 +66,11 @@ import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.script.Script;
+
+import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.ALLOW;
+import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.DENY;
+import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.NORMAL;
 
 public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
 
@@ -103,8 +110,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         this.KIBANA_ALL_SAVED_OBJECTS_READ = actions.get("kibana:saved_objects/_/read");
     }
 
-    private boolean isTenantAllowed(PrivilegesEvaluationContext context, ActionRequest request, Action action, String requestedTenant,
-            ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
+    private boolean isTenantAllowed(TenantAccess tenantAccess, PrivilegesEvaluationContext context, Action action, String requestedTenant) throws PrivilegesEvaluationException {
 
         if (!isTenantValid(requestedTenant)) {
             log.warn("Invalid tenant: " + requestedTenant + "; user: " + context.getUser());
@@ -112,21 +118,12 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
             return false;
         }
 
-        if (requestedTenant.equals(USER_TENANT)) {
-            return true;
-        }
-
-        boolean hasReadPermission = actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_READ, requestedTenant).isOk();
-        boolean hasWritePermission = actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_WRITE, requestedTenant).isOk();
-
-        hasReadPermission |= hasWritePermission;
-
-        if (!hasReadPermission) {
+        if (tenantAccess.isProhibited()) {
             log.warn("Tenant {} is not allowed for user {}", requestedTenant, context.getUser().getName());
             return false;
         }
 
-        if (!hasWritePermission && !READ_ONLY_ALLOWED_ACTIONS.contains(action.name())) {
+        if (tenantAccess.isWriteProhibited() && !(READ_ONLY_ALLOWED_ACTIONS.contains(action.name()) || isReadOnlyAllowedRequest(context.getRequest()))) {
             log.warn("Tenant {} is not allowed to write (user: {})", requestedTenant, context.getUser().getName());
             return false;
         }
@@ -166,20 +163,23 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         }
 
         String requestedTenant = user.getRequestedTenant();
+        requestedTenant = (requestedTenant == null || requestedTenant.isEmpty())? Tenant.GLOBAL_TENANT_ID : requestedTenant;
 
-        if (requestedTenant == null || requestedTenant.length() == 0 || requestedTenant.equals(Tenant.GLOBAL_TENANT_ID)) {
+        TenantAccess tenantAccess = getTenantAccess(context, requestedTenant, actionAuthorization);
+
+        if (requestedTenant.equals(Tenant.GLOBAL_TENANT_ID)) {
             if (kibanaIndexInfo.tenantInfoPart != null) {
                 // XXX This indicates that the user tried to directly address an internal Kibana index including tenant name  (like .kibana_92668751_admin)
                 // The original implementation allows these requests to pass with normal privileges if the sgtenant header is null. Tenant privileges are ignored then.
                 // Integration tests (such as test_multitenancy_mget) are relying on this behaviour.
                 return NORMAL;
-            } else if (isTenantAllowed(context, request, action, Tenant.GLOBAL_TENANT_ID, actionAuthorization)) {
+            } else if (isTenantAllowed(tenantAccess, context, action, requestedTenant)) {
                 return NORMAL;
             } else {
                 return DENY;
             }
         } else {
-            if (isTenantAllowed(context, request, action, requestedTenant, actionAuthorization)) {
+            if (isTenantAllowed(tenantAccess, context, action, requestedTenant)) {
                 if (kibanaIndexInfo.isReplacementNeeded()) {
                     replaceIndex(request, kibanaIndexInfo.originalName, kibanaIndexInfo.toInternalIndexName(user), action, user);
                 }
@@ -524,4 +524,113 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         return User.USER_TENANT.equals(tenant) || tenantNames.contains(tenant);
     }
 
+    private TenantAccess getTenantAccess(PrivilegesEvaluationContext context, String requestedTenant, ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
+        if (!isTenantValid(requestedTenant)) {
+            return TenantAccess.INACCESSIBLE;
+        }
+
+        if (requestedTenant.equals(USER_TENANT)) {
+            return TenantAccess.FULL_ACCESS;
+        }
+
+        return new TenantAccess(
+                actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_READ, requestedTenant).isOk(),
+                actionAuthorization.hasTenantPermission(context, KIBANA_ALL_SAVED_OBJECTS_WRITE, requestedTenant).isOk()
+        );
+    }
+
+    private boolean isReadOnlyAllowedRequest(Object request) {
+        if (isUpdateLegacyUrlAliasDuringLoadingDashboard(request)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Method checks if it's a Bulk request related to legacy url alias, sent when a dashboard is opened.
+     * User with read-only permission is not allowed to send such request.
+     * When SG returns 403 response then process of opening the dashboard is interrupted.
+     */
+    private boolean isUpdateLegacyUrlAliasDuringLoadingDashboard(Object request) {
+
+        Predicate<DocWriteRequest<?>> bulkRequestMatcher = req -> {
+
+            if((req.id() == null) || (!req.id().startsWith("legacy-url-alias"))) {
+                return false;
+            }
+            if(!(req instanceof UpdateRequest updateRequest)) {
+                return false;
+            }
+            Script script = updateRequest.script();
+            if(script == null) {
+                return false;
+            }
+            if(!"painless".contains(script.getLang())) {
+                return false;
+            }
+            Map<String, Object> params = script.getParams();
+            if((params == null) || (!params.containsKey("type") || (!params.containsKey("time")))) {
+                return false;
+            }
+            if(!"legacy-url-alias".equals(params.get("type"))) {
+                return false;
+            }
+            String code = script.getIdOrCode();
+            if((code == null) || (!code.contains("ctx._source[params.type].disabled")) || (!code.contains("ctx._source[params.type].resolveCounter"))) {
+                return false;
+            }
+            return true;
+        };
+
+        if (request instanceof BulkRequest bulkRequest) {
+            if (bulkRequest.getIndices().size() != 1) {
+                return false;
+            }
+            if (!new ArrayList<>(bulkRequest.getIndices()).get(0).startsWith(kibanaIndexName)) {
+                return false;
+            }
+            if(bulkRequest.requests() == null || !(bulkRequest.requests().stream().allMatch(bulkRequestMatcher))) {
+                return false;
+            }
+            return true;
+        }
+
+        if (request instanceof BulkShardRequest bulkShardRequest) {
+            if (bulkShardRequest.indices().length != 1) {
+                return false;
+            }
+            if (!bulkShardRequest.indices()[0].startsWith(kibanaIndexName)) {
+                return false;
+            }
+            if(bulkShardRequest.items() == null || !(Stream.of(bulkShardRequest.items()).allMatch(item -> bulkRequestMatcher.test(item.request())))) {
+                return false;
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    record TenantAccess(boolean hasReadPermission, boolean hasWritePermission) {
+
+        public static final TenantAccess INACCESSIBLE = new TenantAccess(false, false);
+        public static final TenantAccess FULL_ACCESS = new TenantAccess(true, true);
+
+        public boolean hasAnyAccess() {
+            return hasReadPermission | hasWritePermission;
+        }
+
+        public boolean isProhibited() {
+            return ! hasAnyAccess();
+        }
+
+        public boolean isWriteProhibited() {
+            return ! hasWritePermission;
+        }
+
+        public boolean isReadOnly() {
+            return (!hasWritePermission) && hasReadPermission;
+        }
+    }
 }

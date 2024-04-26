@@ -39,6 +39,7 @@ import static com.floragunn.searchguard.enterprise.femt.TenantAccessMatcher.Acti
 import static com.floragunn.searchguard.enterprise.femt.TenantAccessMatcher.canPerformFollowingActions;
 import static com.floragunn.searchguard.legacy.test.AbstractSGUnitTest.encodeBasicHeader;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
+import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
@@ -67,6 +68,7 @@ import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
@@ -85,9 +87,18 @@ public class MultitenancyTests {
     public static final String TENANT_WRITABLE = Boolean.toString(true);
     public static final String TENANT_NOT_WRITABLE = Boolean.toString(false);
 
+    public static final TestSgConfig.Tenant TEST_TENANT = new TestSgConfig.Tenant("test_tenant");
+    public static final TestSgConfig.Role TEST_ROLE =new TestSgConfig.Role("test_role")
+            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")
+            .indexPermissions("SGS_READ").on("*")
+            .tenantPermission("SGS_KIBANA_ALL_READ").on(TEST_TENANT.getName());
+    public final static TestSgConfig.User TEST_READ_ONLY_TENANT_USER = new TestSgConfig
+            .User("test_user").roles(TEST_ROLE);
+
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("multitenancy").enterpriseModulesEnabled()
-            .users(USER_DEPT_01, USER_DEPT_02, HR_USER_READ_ONLY, HR_USER_READ_WRITE).build();
+            .tenants(TEST_TENANT)
+            .users(USER_DEPT_01, USER_DEPT_02, HR_USER_READ_ONLY, HR_USER_READ_WRITE, TEST_READ_ONLY_TENANT_USER).build();
 
     @Test
     public void testMt() throws Exception {
@@ -464,6 +475,35 @@ public class MultitenancyTests {
             assertAdminCanCreateTenantIndex(restClient, tenant);
             assertTenantWriteable(restClient, tenant, TENANT_WRITABLE);
             assertThat(restClient, canPerformFollowingActions(EnumSet.of(CREATE_DOCUMENT, UPDATE_DOCUMENT, UPDATE_INDEX, DELETE_INDEX)));
+        }
+    }
+
+    @Test
+    public void dashboardAccessByReadOnlyUser_shouldHavePermissionToLegacyUriAliasUpdate() throws Exception {
+        try(GenericRestClient client = cluster.getRestClient(TEST_READ_ONLY_TENANT_USER, new BasicHeader("sg_tenant", TEST_TENANT.getName()));
+        Client internalClient = cluster.getInternalNodeClient()) {
+
+            CreateIndexRequest request = new CreateIndexRequest(".kibana_-226117385_testtenant_8.7.1");
+            CreateIndexResponse createIndexResponse = internalClient.admin().indices().create(request).actionGet();
+            assertThat(createIndexResponse.isAcknowledged(), equalTo(true));
+
+            String body = """
+                    {"update":{"_id":"legacy-url-alias:default:dashboard:d90bca50-0910-11ef-ab4b-bf505c6701d0","_index":".kibana_8.7.1","_source":true}}
+                    {"script":{"source":"\\n            if (ctx._source[params.type].disabled != true) {\\n              if (ctx._source[params.type].resolveCounter == null) {\\n                ctx._source[params.type].resolveCounter = 1;\\n              }\\n              else {\\n                ctx._source[params.type].resolveCounter += 1;\\n              }\\n              ctx._source[params.type].lastResolved = params.time;\\n              ctx._source.updated_at = params.time;\\n            }\\n          ","lang":"painless","params":{"type":"legacy-url-alias","time":"2024-05-04T12:27:03.048Z"}}}
+                    {"update":{"_id":"legacy-url-alias:default:index-pattern:e4275435-dba8-4dbb-882f-509295543b89","_index":".kibana_8.7.1","_source":true}}
+                    {"script":{"source":"\\n            if (ctx._source[params.type].disabled != true) {\\n              if (ctx._source[params.type].resolveCounter == null) {\\n                ctx._source[params.type].resolveCounter = 1;\\n              }\\n              else {\\n                ctx._source[params.type].resolveCounter += 1;\\n              }\\n              ctx._source[params.type].lastResolved = params.time;\\n              ctx._source.updated_at = params.time;\\n            }\\n          ","lang":"painless","params":{"type":"legacy-url-alias","time":"2024-05-04T12:27:03.048Z"}}}
+                    """;
+            HttpResponse response = client.postJson("/_bulk", body);
+
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode responseBody = response.getBodyAsDocNode();
+            assertThat(responseBody, containsValue("$.errors", true));
+            assertThat(responseBody, containsValue("$.items[0].update.status", 404));
+            assertThat(responseBody, containsValue("$.items[0].update.error.type", "document_missing_exception"));
+            assertThat(responseBody, containsValue("$.items[0].update._id", "legacy-url-alias:default:dashboard:d90bca50-0910-11ef-ab4b-bf505c6701d0"));
+            assertThat(responseBody, containsValue("$.items[1].update.status", 404));
+            assertThat(responseBody, containsValue("$.items[1].update.error.type", "document_missing_exception"));
+            assertThat(responseBody, containsValue("$.items[1].update._id", "legacy-url-alias:default:index-pattern:e4275435-dba8-4dbb-882f-509295543b89"));
         }
     }
 
