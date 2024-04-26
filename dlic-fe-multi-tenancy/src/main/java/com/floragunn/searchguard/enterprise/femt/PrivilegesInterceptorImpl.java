@@ -180,11 +180,11 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         requestedTenant = (requestedTenant == null || requestedTenant.isEmpty())? Tenant.GLOBAL_TENANT_ID : requestedTenant;
 
         TenantAccess tenantAccess = getTenantAccess(context, requestedTenant, actionAuthorization);
-//        InterceptionResult interceptionResult = handleRequestRequiringSpecialTreatment(tenantAccess, context, listener);
-//
-//        if (interceptionResult == INTERCEPTED) {
-//            return INTERCEPTED;
-//        }
+        InterceptionResult interceptionResult = handleRequestRequiringSpecialTreatment(tenantAccess, context, listener);
+
+        if (interceptionResult == INTERCEPTED) {
+            return INTERCEPTED;
+        }
 
         if (requestedTenant.equals(Tenant.GLOBAL_TENANT_ID)) {
             if (kibanaIndexInfo.tenantInfoPart != null) {

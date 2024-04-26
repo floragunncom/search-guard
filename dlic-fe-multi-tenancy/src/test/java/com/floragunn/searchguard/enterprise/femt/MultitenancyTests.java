@@ -38,6 +38,8 @@ import static com.floragunn.searchguard.enterprise.femt.TenantAccessMatcher.Acti
 import static com.floragunn.searchguard.enterprise.femt.TenantAccessMatcher.Action.UPDATE_INDEX;
 import static com.floragunn.searchguard.enterprise.femt.TenantAccessMatcher.canPerformFollowingActions;
 import static com.floragunn.searchguard.legacy.test.AbstractSGUnitTest.encodeBasicHeader;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
+import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
@@ -49,6 +51,7 @@ import co.elastic.clients.elasticsearch.core.MgetResponse;
 import co.elastic.clients.elasticsearch.core.mget.MultiGetResponseItem;
 import co.elastic.clients.elasticsearch.indices.UpdateAliasesResponse;
 import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.client.RestHighLevelClient;
 import com.floragunn.searchguard.enterprise.femt.TenantAccessMatcher.Action;
 import com.floragunn.searchguard.test.GenericRestClient;
@@ -83,9 +86,18 @@ public class MultitenancyTests {
     public static final String TENANT_WRITABLE = Boolean.toString(true);
     public static final String TENANT_NOT_WRITABLE = Boolean.toString(false);
 
+    public static final TestSgConfig.Role TEST_ROLE =new TestSgConfig.Role("test_role")
+            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")
+            .indexPermissions("SGS_READ").on("*")
+            .tenantPermission("SGS_KIBANA_ALL_READ").on("test_tenant");
+    public final static TestSgConfig.User TEST_READ_ONLY_TENANT_USER = new TestSgConfig
+            .User("test_user").roles(TEST_ROLE);
+    public static final TestSgConfig.Tenant TEST_TENANT = new TestSgConfig.Tenant("test_tenant");
+
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("multitenancy").enterpriseModulesEnabled()
-            .users(USER_DEPT_01, USER_DEPT_02, HR_USER_READ_ONLY, HR_USER_READ_WRITE).build();
+            .tenants(TEST_TENANT)
+            .users(USER_DEPT_01, USER_DEPT_02, HR_USER_READ_ONLY, HR_USER_READ_WRITE, TEST_READ_ONLY_TENANT_USER).build();
 
     @Test
     public void testMt() throws Exception {
@@ -462,6 +474,24 @@ public class MultitenancyTests {
             assertAdminCanCreateTenantIndex(restClient, tenant);
             assertTenantWriteable(restClient, tenant, TENANT_WRITABLE);
             assertThat(restClient, canPerformFollowingActions(EnumSet.of(CREATE_DOCUMENT, UPDATE_DOCUMENT, UPDATE_INDEX, DELETE_INDEX)));
+        }
+    }
+
+    @Test
+    public void dashboardAccessByReadOnlyUser_shouldHavePermissionToLegacyUriAliasUpdate() throws Exception {
+        try(GenericRestClient client = cluster.getRestClient(TEST_READ_ONLY_TENANT_USER, new BasicHeader("sg_tenant", TEST_TENANT.getName()))) {
+            String body = """
+                {"update":{"_id":"legacy-url-alias:default:dashboard:8aee3c30-732f-11ee-9463-735e937661a5","_index":".kibana_8.7.2","_source":true}}
+                {"script":{"source":"\\n            if (ctx._source[params.type].disabled != true) {\\n              if (ctx._source[params.type].resolveCounter == null) {\\n                ctx._source[params.type].resolveCounter = 1;\\n              }\\n              else {\\n                ctx._source[params.type].resolveCounter += 1;\\n              }\\n              ctx._source[params.type].lastResolved = params.time;\\n              ctx._source.updated_at = params.time;\\n            }\\n          ","lang":"painless","params":{"type":"legacy-url-alias","time":"2023-10-31T13:11:27.347Z"}}}
+                """;
+            HttpResponse response = client.postJson("/_bulk", body);
+
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode responseBody = response.getBodyAsDocNode();
+            assertThat(responseBody, containsValue("$.errors", true));
+            assertThat(responseBody, containsValue("$.items[0].update.status", 404));
+            assertThat(responseBody, containsValue("$.items[0].update.error.type", "document_missing_exception"));
+            assertThat(responseBody, containsValue("$.items[0].update._id", "legacy-url-alias:default:dashboard:8aee3c30-732f-11ee-9463-735e937661a5"));
         }
     }
 
