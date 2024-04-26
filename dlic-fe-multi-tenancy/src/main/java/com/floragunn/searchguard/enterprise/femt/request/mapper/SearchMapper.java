@@ -6,15 +6,9 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchResponseSections;
-import org.elasticsearch.common.text.Text;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
-
-import java.lang.reflect.Field;
-import java.security.AccessController;
-import java.security.KeyStore;
-import java.security.PrivilegedAction;
 
 public class SearchMapper {
 
@@ -43,13 +37,18 @@ public class SearchMapper {
     }
 
     public SearchResponse toUnscopedSearchResponse(SearchResponse response) {
-        log.debug("Rewriting search response - removing tenant scope");
+        log.debug("Rewriting search response - removing tenant scope, ES search response hash {}", System.identityHashCode(response));
         SearchHits originalSearchHits = response.getHits();
         SearchHit[] originalSearchHitArray = originalSearchHits.getHits();
-        SearchHit [] rewrittenSearchHitArray = new  SearchHit [originalSearchHitArray.length];
+        SearchHit [] rewrittenSearchHitArray = new  SearchHit[originalSearchHitArray.length];
 
         for (int i = 0; i < originalSearchHitArray.length; i++) {
-            rewrittenSearchHitArray[i] = SearchHit.unpooled(originalSearchHitArray[i].docId(), RequestResponseTenantData.unscopedId(originalSearchHitArray[i].getId()), originalSearchHitArray[i].getNestedIdentity());
+            SearchHit currentHit = originalSearchHitArray[i];
+            SearchHit unscopedHit = SearchHit.unpooled(currentHit.docId(),
+                    RequestResponseTenantData.unscopedId(currentHit.getId()),
+                    originalSearchHitArray[i].getNestedIdentity());
+            log.debug("ES search hit '{}' replaced with replaced with '{}'", System.identityHashCode(currentHit), System.identityHashCode(unscopedHit));
+            rewrittenSearchHitArray[i] = unscopedHit;
             rewrittenSearchHitArray[i].sourceRef(originalSearchHitArray[i].getSourceRef());
             rewrittenSearchHitArray[i].addDocumentFields(originalSearchHitArray[i].getDocumentFields(), originalSearchHitArray[i].getMetadataFields());
             rewrittenSearchHitArray[i].setPrimaryTerm(originalSearchHitArray[i].getPrimaryTerm());
@@ -65,29 +64,18 @@ public class SearchMapper {
         SearchResponseSections rewrittenSections = new SearchResponseSections(rewrittenSearchHits, response.getAggregations(), response.getSuggest(),
                 response.isTimedOut(), response.isTerminatedEarly(), null, response.getNumReducePhases());
 
-        return new SearchResponse(rewrittenSections, response.getScrollId(), response.getTotalShards(),
-                response.getSuccessfulShards(), response.getSkippedShards(), response.getTook().millis(),
-                response.getShardFailures(), response.getClusters(), response.pointInTimeId()) {
-            @Override
-            public void incRef() {
-                response.incRef();
-            }
-
-            @Override
-            public boolean tryIncRef() {
-                return response.tryIncRef();
-            }
-
-            @Override
-            public boolean decRef() {
-                return response.decRef();
-            }
-
-            @Override
-            public boolean hasReferences() {
-                return response.hasReferences();
-            }
-        };
+        SearchResponse unscopedResponse = new SearchResponse(rewrittenSections,
+            response.getScrollId(),
+            response.getTotalShards(),
+            response.getSuccessfulShards(),
+            response.getSkippedShards(),
+            response.getTook().millis(),
+            response.getShardFailures(),
+            response.getClusters(),
+            response.pointInTimeId());
+        response.incRef();
+        log.debug("SG unscoped search response '{}'", System.identityHashCode(unscopedResponse));
+        return unscopedResponse;
     }
 
 }
