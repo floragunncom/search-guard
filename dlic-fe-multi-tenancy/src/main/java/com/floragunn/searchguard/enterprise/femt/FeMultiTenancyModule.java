@@ -77,7 +77,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
      * It's undocumented in the user docs.
      */
     private static final StaticSettings.Attribute<Boolean> UNSUPPORTED_SINGLE_INDEX_MT_ENABLED = StaticSettings.Attribute
-            .define("searchguard.unsupported.single_index_mt_enabled").withDefault(true).asBoolean();
+            .define("searchguard.unsupported.single_index_mt_enabled").withDefault(false).asBoolean();
 
     private static final Logger log = LogManager.getLogger(FeMultiTenancyModule.class);
 

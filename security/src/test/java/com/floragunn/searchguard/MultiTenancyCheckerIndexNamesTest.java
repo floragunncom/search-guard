@@ -109,10 +109,7 @@ public class MultiTenancyCheckerIndexNamesTest extends TestCase {
     @Test
     public void shouldDetermineIfIndexIsRelatedToMultiTenancy() {
         IndexRepository indexRepository = Mockito.mock(IndexRepository.class);
-        Settings settings = Settings.builder()
-            .put("searchguard.multi_tenancy_bootstrap_check_enabled", true) //
-            .build();
-        MultiTenancyChecker checker = new MultiTenancyChecker(settings, indexRepository);
+        MultiTenancyChecker checker = new MultiTenancyChecker(Settings.builder().build(), indexRepository);
         IndexMetadata mock = Mockito.mock(IndexMetadata.class);
         Mockito.when(mock.getCreationVersion()).thenReturn(Version.V_8_3_1);
         ImmutableMap<String, IndexMetadata> indices = ImmutableMap.of(indexName, mock);

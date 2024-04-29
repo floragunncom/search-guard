@@ -29,11 +29,10 @@ import com.google.common.collect.ImmutableMap;
 
 public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyConfig> {
 
-
     public static CType<FeMultiTenancyConfig> TYPE = new CType<FeMultiTenancyConfig>("frontend_multi_tenancy", "Frontend Multi-Tenancy", 10001,
             FeMultiTenancyConfig.class, FeMultiTenancyConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
 
-    static final FeMultiTenancyConfig DEFAULT = new FeMultiTenancyConfig(null, true, "kibanaserver", ".kibana");
+    static final FeMultiTenancyConfig DEFAULT = new FeMultiTenancyConfig(null, false, "kibanaserver", ".kibana");
 
     private final DocNode source;
     private final boolean enabled;
