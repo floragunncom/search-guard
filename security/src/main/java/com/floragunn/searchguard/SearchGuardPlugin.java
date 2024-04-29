@@ -36,7 +36,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -66,8 +65,6 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.search.SearchScrollAction;
 import org.elasticsearch.action.support.ActionFilter;
-import org.elasticsearch.bootstrap.BootstrapCheck;
-import org.elasticsearch.bootstrap.BootstrapContext;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -1168,7 +1165,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.addAll(ResourceOwnerService.SUPPORTED_SETTINGS);
 
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, false, Property.NodeScope, Property.Filtered));
-            settings.add(Setting.boolSetting(MultiTenancyChecker.SEARCHGUARD_MT_BOOTSTRAP_CHECK_ENABLED, false, Property.NodeScope, Property.Filtered));
 
             settings.add(SearchGuardModulesRegistry.DISABLED_MODULES);
             settings.add(EncryptionKeys.ENCRYPTION_KEYS_SETTING);
@@ -1181,30 +1177,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         }
 
         return settings;
-    }
-
-    @Override
-    public List<BootstrapCheck> getBootstrapChecks() {
-        List<BootstrapCheck> bootstrapChecks = new ArrayList<>(super.getBootstrapChecks());
-        bootstrapChecks.add(new BootstrapCheck() {
-            @Override
-            public BootstrapCheckResult check(BootstrapContext context) {
-                MultiTenancyChecker multiTenancyChecker = new MultiTenancyChecker(settings, new IndexRepository(context));
-                Optional<String> errorDescription = multiTenancyChecker.findMultiTenancyConfigurationError();
-                log.info("Multi-tenancy bootstrap check found errors '{}'", errorDescription);
-                return errorDescription.map(BootstrapCheck.BootstrapCheckResult::failure)//
-                    .orElseGet(BootstrapCheck.BootstrapCheckResult::success);
-            }
-
-            @Override
-            public boolean alwaysEnforce() {
-                // This is crucial line to execute this test in dev as well as prod environment
-                // Please see org.elasticsearch.bootstrap.BootstrapChecks.check(org.elasticsearch.bootstrap.BootstrapContext, boolean, java.util.List<org.elasticsearch.bootstrap.BootstrapCheck>, org.apache.logging.log4j.Logger)
-                return true;
-            }
-        });
-        log.info("SearchGuard plugin returned '{}' bootstrap checks", bootstrapChecks.size());
-        return bootstrapChecks;
     }
 
     @Override
