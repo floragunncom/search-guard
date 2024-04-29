@@ -1,17 +1,3 @@
-/*
- * Copyright 2023 by floragunn GmbH - All rights reserved
- *
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed here is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *
- * This software is free of charge for non-commercial and academic use.
- * For commercial use in a production environment you have to obtain a license
- * from https://floragunn.com
- *
- */
-
 package com.floragunn.searchguard.enterprise.femt.request.mapper;
 
 import com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData;
@@ -112,7 +98,7 @@ public class BulkMapper {
         return new BulkResponse(newItems, response.getTook().millis());
     }
 
-    BulkItemResponse.Failure toUnscopedFailure(BulkItemResponse.Failure scoped) {
+    private BulkItemResponse.Failure toUnscopedFailure(BulkItemResponse.Failure scoped) {
         log.debug("Rewriting item with failure");
         if(scoped.isAborted()) {
             return new BulkItemResponse.Failure(scoped.getIndex(), RequestResponseTenantData.unscopedId(scoped.getId()), scoped.getCause(), true);

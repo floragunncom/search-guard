@@ -47,17 +47,29 @@ public class MultiGetRequestHandler extends RequestHandler<MultiGetRequest> {
             threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
             MultiGetRequest scopedRequest = multiGetMapper.toScopedMultiGetRequest(request, requestedTenant);
 
-            TenantScopedActionListenerWrapper<MultiGetResponse> listenerWrapper = new TenantScopedActionListenerWrapper<>(
-                    listener,
-                    (response) -> storedContext.restore(),
-                    multiGetMapper::toUnscopedMultiGetResponse,
-                    (ex) -> {
-                        log.error("An error occurred while sending multi get request", ex);
+            nodeClient.multiGet(scopedRequest, new ActionListener<>() {
+                @Override
+                public void onResponse(MultiGetResponse multiGetItemResponses) {
+                    try {
                         storedContext.restore();
-                    }
-            );
 
-            nodeClient.multiGet(scopedRequest, listenerWrapper);
+                        MultiGetResponse response = multiGetMapper.toUnscopedMultiGetResponse(multiGetItemResponses);
+                        @SuppressWarnings("unchecked")
+                        ActionListener<MultiGetResponse> multiGetListener = (ActionListener<MultiGetResponse>) listener;
+                        multiGetListener.onResponse(response);
+                    } catch (Exception e) {
+                        log.error("An error occurred while handling multi get response", e);
+                        onFailure(e);
+                    }
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    log.error("An error occurred while sending multi get request", e);
+                    storedContext.restore();
+                    listener.onFailure(e);
+                }
+            });
 
             return SyncAuthorizationFilter.Result.INTERCEPTED;
         }

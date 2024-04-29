@@ -45,17 +45,31 @@ public class BulkRequestHandler extends RequestHandler<BulkRequest> {
             threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
             BulkRequest scoped = bulkMapper.toScopedBulkRequest(request, requestedTenant);
 
-            TenantScopedActionListenerWrapper<BulkResponse> listenerWrapper = new TenantScopedActionListenerWrapper<>(
-                    listener,
-                    (response) -> storedContext.restore(),
-                    bulkMapper::toUnscopedBulkResponse,
-                    (ex) -> {
-                        log.error("An error occurred while sending bulk request", ex);
+            nodeClient.bulk(scoped, new ActionListener<>() {
+                @Override
+                public void onResponse(BulkResponse response) {
+                    log.debug("Process bulk response");
+                    try {
                         storedContext.restore();
-                    }
-            );
 
-            nodeClient.bulk(scoped, listenerWrapper);
+                        BulkResponse bulkResponse = bulkMapper.toUnscopedBulkResponse(response);
+                        @SuppressWarnings("unchecked")
+                        ActionListener<BulkResponse> bulkListener = (ActionListener<BulkResponse>) listener;
+                        bulkListener.onResponse(bulkResponse);
+                        log.debug("Bulk request handled without errors");
+                    } catch (Exception e) {
+                        log.error("An error occurred while handling bulk response", e);
+                        listener.onFailure(e);
+                    }
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    log.error("An error occurred while sending bulk request", e);
+                    storedContext.restore();
+                    listener.onFailure(e);
+                }
+            });
 
             return SyncAuthorizationFilter.Result.INTERCEPTED;
         }
