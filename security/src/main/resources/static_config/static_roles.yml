@@ -245,11 +245,7 @@ SGS_KIBANA_SERVER:
     - "indices:admin/mappings/get"
     - "indices:monitor/settings/get"
     - "indices:monitor/stats"
-    - "indices:data/read/field_caps*"
-  - index_patterns:
-      - ".internal.alerts-security.alerts-default-*"
-    allowed_actions:
-      - "indices:admin/create"
+    - "indices:data/read/field_caps*"    
 
 SGS_LOGSTASH:
   reserved: true
