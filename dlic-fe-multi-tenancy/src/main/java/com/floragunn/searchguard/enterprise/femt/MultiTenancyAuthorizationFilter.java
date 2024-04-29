@@ -80,8 +80,7 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
                 "indices:data/read/search",
                 "indices:data/read/msearch",
                 "indices:data/read/mget",
-                "indices:data/read/mget[shard]",
-                "indices:data/read/open_point_in_time");
+                "indices:data/read/mget[shard]");
 
     private final Action KIBANA_ALL_SAVED_OBJECTS_WRITE;
     private final Action KIBANA_ALL_SAVED_OBJECTS_READ;
