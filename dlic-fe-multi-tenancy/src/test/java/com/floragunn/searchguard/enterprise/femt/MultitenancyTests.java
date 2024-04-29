@@ -154,22 +154,23 @@ public class MultitenancyTests {
     @Test
     public void testMtMulti() throws Exception {
 
-        Client tc = cluster.getInternalNodeClient();
-        String body = "{" + "\"type\" : \"index-pattern\"," + "\"updated_at\" : \"2018-09-29T08:56:59.066Z\"," + "\"index-pattern\" : {"
-                + "\"title\" : \"humanresources\"" + "}}";
+        try (Client tc = cluster.getInternalNodeClient()) {
+            String body = "{" + "\"type\" : \"index-pattern\"," + "\"updated_at\" : \"2018-09-29T08:56:59.066Z\"," + "\"index-pattern\" : {"
+                    + "\"title\" : \"humanresources\"" + "}}";
 
-        tc.admin().indices().create(
-                new CreateIndexRequest(".kibana").settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0)))
-                .actionGet();
+            tc.admin().indices().create(
+                    new CreateIndexRequest(".kibana").settings(ImmutableMap.of("number_of_shards", 1, "number_of_replicas", 0)))
+                    .actionGet();
 
-        tc.index(new IndexRequest(".kibana").id("index-pattern:9fbbd1a0-c3c5-11e8-a13f-71b8ea5a4f7b__sg_ten__human_resources")
-                .setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON)).actionGet();
+            tc.index(new IndexRequest(".kibana").id("index-pattern:9fbbd1a0-c3c5-11e8-a13f-71b8ea5a4f7b__sg_ten__human_resources")
+                    .setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(body, XContentType.JSON)).actionGet();
+        }
 
         try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
 
             //System.out.println("#### search");
             GenericRestClient.HttpResponse res;
-            body = "{\"query\" : {\"term\" : { \"_id\" : \"index-pattern:9fbbd1a0-c3c5-11e8-a13f-71b8ea5a4f7b\"}}}";
+            String body = "{\"query\" : {\"term\" : { \"_id\" : \"index-pattern:9fbbd1a0-c3c5-11e8-a13f-71b8ea5a4f7b\"}}}";
             Assert.assertEquals(HttpStatus.SC_OK,
                     (res = client.postJson(".kibana/_search/?pretty", body, new BasicHeader("sgtenant", "__user__"))).getStatusCode());
             ////System.out.println(res.getBody());

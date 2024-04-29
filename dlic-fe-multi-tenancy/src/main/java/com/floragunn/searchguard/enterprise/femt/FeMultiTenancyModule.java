@@ -35,7 +35,6 @@ import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandlerF
 import com.floragunn.searchguard.enterprise.femt.tenants.AvailableTenantService;
 import com.floragunn.searchguard.enterprise.femt.tenants.TenantAvailabilityRepository;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import com.floragunn.searchsupport.StaticSettings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -69,16 +68,6 @@ import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 
 public class FeMultiTenancyModule implements SearchGuardModule, ComponentStateProvider {
-
-    /**
-     * A config option which determines whether the 'single index multi tenancy' implementation
-     * is enabled or disabled. It was originally introduced in order to prepare version of the plugin for Elasticsearch 8.8,
-     * with multi tenancy support disabled by default.
-     * It's undocumented in the user docs.
-     */
-    private static final StaticSettings.Attribute<Boolean> UNSUPPORTED_SINGLE_INDEX_MT_ENABLED = StaticSettings.Attribute
-            .define("searchguard.unsupported.single_index_mt_enabled").withDefault(false).asBoolean();
-
     private static final Logger log = LogManager.getLogger(FeMultiTenancyModule.class);
 
     private final ComponentState componentState = new ComponentState(1000, null, "fe_multi_tenancy", FeMultiTenancyModule.class)
@@ -255,11 +244,6 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     @Override
     public ImmutableList<SyncAuthorizationFilter> getPrePrivilegeEvaluationSyncAuthorizationFilters() {
         return ImmutableList.of(this.syncAuthorizationFilter);
-    }
-
-    @Override
-    public StaticSettings.AttributeSet getSettings() {
-        return StaticSettings.AttributeSet.of(UNSUPPORTED_SINGLE_INDEX_MT_ENABLED);
     }
 
     @Override
