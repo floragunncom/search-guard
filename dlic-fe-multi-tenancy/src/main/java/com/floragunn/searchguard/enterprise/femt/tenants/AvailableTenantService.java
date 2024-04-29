@@ -44,7 +44,7 @@ public class AvailableTenantService {
                 ImmutableSet<String> exists = tenantRepository.exists(tenantsWriteAccessMap.keySet().toArray(String[]::new));
                 Map<String, TenantAccessData> tenantsAccess = new HashMap<>(tenantsWriteAccessMap.size());
                 tenantsWriteAccessMap.forEach((key, value) -> tenantsAccess.put(key, new TenantAccessData(true, value, exists.contains(key))));
-                return new AvailableTenantData(configProvider.isMultiTenancyEnabled(), tenantsAccess, user.getName());
+                return new AvailableTenantData(configProvider.isMultiTenancyEnabled(), tenantsAccess);
             });
     }
 }
