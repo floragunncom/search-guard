@@ -11,7 +11,6 @@ import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
-import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.terms.StringTerms;
 import org.elasticsearch.search.aggregations.bucket.terms.StringTerms.Bucket;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
@@ -20,7 +19,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 
 import static com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData.SG_TENANT_FIELD;
@@ -53,22 +51,16 @@ public class TenantAvailabilityRepository {
             log.error("Unexpected error occurred during loading information of available tenant, search response '{}'", response);
             throw new RuntimeException("Cannot retrieve information about existing frontend tenants");
         }
-        StringTerms aggregation = Optional.ofNullable(response.getAggregations()) //
-            .map(aggregations -> aggregations.get(AGGREGATION_NAME)) //
-            .filter(StringTerms.class::isInstance) //
-            .map(StringTerms.class::cast) //
-            .orElse(null);
+        StringTerms aggregation = response.getAggregations().get(AGGREGATION_NAME);
         Set<String> existingTenants = new HashSet<>();
-        if (Objects.nonNull(aggregation)) {
-            for(Bucket bucket : aggregation.getBuckets()) {
-                String internalTenantName = bucket.getKeyAsString();
-                long docCount = bucket.getDocCount();
-                if(!internalNameToNameMap.containsKey(internalTenantName)) {
-                    throw new RuntimeException("Unexpected internal tenant name '" + internalTenantName + "'");
-                }
-                if(docCount > 0) {
-                    existingTenants.add(internalNameToNameMap.get(internalTenantName));
-                }
+        for(Bucket bucket : aggregation.getBuckets()) {
+            String internalTenantName = bucket.getKeyAsString();
+            long docCount = bucket.getDocCount();
+            if(!internalNameToNameMap.containsKey(internalTenantName)) {
+                throw new RuntimeException("Unexpected internal tenant name '" + internalTenantName + "'");
+            }
+            if(docCount > 0) {
+                existingTenants.add(internalNameToNameMap.get(internalTenantName));
             }
         }
         return ImmutableSet.of(existingTenants);

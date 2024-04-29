@@ -7,7 +7,6 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.authz.TenantManager;
 import com.floragunn.searchguard.authz.actions.Actions;
-import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.user.User;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,14 +20,11 @@ public class FeMultiTenancyTenantAccessMapper  implements TenantAccessMapper {
     private final TenantManager tenantManager;
     private final TenantAuthorization tenantAuthorization;
     private final Actions actions;
-    private final FeMultiTenancyConfig feMultiTenancyConfig;
 
-    public FeMultiTenancyTenantAccessMapper(TenantManager tenantManager, TenantAuthorization tenantAuthorization,
-                                            Actions actions, FeMultiTenancyConfig feMultiTenancyConfig) {
+    public FeMultiTenancyTenantAccessMapper(TenantManager tenantManager, TenantAuthorization tenantAuthorization, Actions actions) {
         this.tenantManager = tenantManager;
         this.tenantAuthorization = tenantAuthorization;
         this.actions = actions;
-        this.feMultiTenancyConfig = feMultiTenancyConfig;
     }
 
     @Override
@@ -56,15 +52,6 @@ public class FeMultiTenancyTenantAccessMapper  implements TenantAccessMapper {
                 log.error("Error while evaluating privileges for " + user + " " + tenant, e);
             }
         }
-
-        if (!feMultiTenancyConfig.isGlobalTenantEnabled()) {
-            result.remove(Tenant.GLOBAL_TENANT_ID);
-        }
-
-        if (! feMultiTenancyConfig.isPrivateTenantEnabled()) {
-            result.remove(user.getName());
-        }
-
 
         return result.build();
     }

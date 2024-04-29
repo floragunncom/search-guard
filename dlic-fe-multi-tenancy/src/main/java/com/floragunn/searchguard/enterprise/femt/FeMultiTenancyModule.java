@@ -157,18 +157,22 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
             tenantManager = new TenantManager(tenants.getCEntries().keySet());
             tenantAuthorization = new RoleBasedTenantAuthorization(roles, actionGroups, baseDependencies.getActions(), tenantManager,
                     feMultiTenancyConfig.getMetricsLevel());
-            feMultiTenancyTenantAccessMapper = new FeMultiTenancyTenantAccessMapper(tenantManager, tenantAuthorization, baseDependencies.getActions(), feMultiTenancyConfig);
+            feMultiTenancyTenantAccessMapper = new FeMultiTenancyTenantAccessMapper(tenantManager, tenantAuthorization, baseDependencies.getActions());
             RequestHandlerFactory requestHandlerFactory = new RequestHandlerFactory(baseDependencies.getLocalClient(), baseDependencies.getThreadPool().getThreadContext(), baseDependencies.getClusterService(), baseDependencies.getGuiceDependencies().getIndicesService());
 
-            if (feMultiTenancyConfig.isEnabled()) {
-                enabled = true;
-                IndicesService indicesService = baseDependencies.getGuiceDependencies().getIndicesService();
-                multiTenancyAuthorizationFilter = new MultiTenancyAuthorizationFilter(feMultiTenancyConfig, tenantAuthorization, tenantManager, baseDependencies.getActions(),
-                        baseDependencies.getThreadPool().getThreadContext(), baseDependencies.getLocalClient(), requestHandlerFactory,
-                    clusterService, indicesService);
+            if (feMultiTenancyConfig != null) {
+                if (feMultiTenancyConfig.isEnabled()) {
+                    enabled = true;
+                    IndicesService indicesService = baseDependencies.getGuiceDependencies().getIndicesService();
+                    multiTenancyAuthorizationFilter = new MultiTenancyAuthorizationFilter(feMultiTenancyConfig, tenantAuthorization, tenantManager, baseDependencies.getActions(),
+                            baseDependencies.getThreadPool().getThreadContext(), baseDependencies.getLocalClient(), requestHandlerFactory,
+                        clusterService, indicesService);
+                } else {
+                    enabled = false;
+                    componentState.setState(State.SUSPENDED, "disabled_by_config");
+                }
             } else {
                 enabled = false;
-                componentState.setState(State.SUSPENDED, "disabled_by_config");
             }
 
             componentState.setConfigVersion(configMap.getVersionsAsString());

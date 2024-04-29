@@ -3,8 +3,6 @@ package com.floragunn.searchguard.authz.config;
 import com.floragunn.searchguard.authz.TenantAccessMapper;
 
 import javax.annotation.Nullable;
-import java.util.Collections;
-import java.util.List;
 
 public interface MultiTenancyConfigurationProvider {
 
@@ -17,8 +15,6 @@ public interface MultiTenancyConfigurationProvider {
     String getKibanaIndex();
 
     TenantAccessMapper getTenantAccessMapper();
-
-    List<String> getPreferredTenants();
 
     MultiTenancyConfigurationProvider DEFAULT = new MultiTenancyConfigurationProvider() {
         @Override
@@ -41,11 +37,6 @@ public interface MultiTenancyConfigurationProvider {
         @Override
         public TenantAccessMapper getTenantAccessMapper() {
             return TenantAccessMapper.NO_OP;
-        }
-
-        @Override
-        public List<String> getPreferredTenants() {
-            return Collections.emptyList();
         }
     };
 }

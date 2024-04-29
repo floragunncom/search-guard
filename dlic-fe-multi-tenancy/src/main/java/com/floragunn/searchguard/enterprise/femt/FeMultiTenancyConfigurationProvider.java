@@ -4,8 +4,6 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -45,12 +43,6 @@ public class FeMultiTenancyConfigurationProvider implements MultiTenancyConfigur
     @Override
     public TenantAccessMapper getTenantAccessMapper() {
         return module.getTenantAccessMapper();
-    }
-
-    @Override
-    public List<String> getPreferredTenants() {
-        return getConfig().map(FeMultiTenancyConfig::getPreferredTenants)
-                .orElse(Collections.emptyList());
     }
 }
 
