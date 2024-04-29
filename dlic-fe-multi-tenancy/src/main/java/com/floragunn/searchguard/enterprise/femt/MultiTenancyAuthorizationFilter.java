@@ -92,7 +92,6 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
     private final String kibanaIndexNamePrefix;
     private final Pattern versionedKibanaIndexPattern;
     private final boolean enabled;
-    private final boolean privateTenantEnabled;
     private final ThreadContext threadContext;
     private final ImmutableList<String> indexSubNames = ImmutableList.of("alerting_cases", "analytics", "security_solution", "ingest");
     private final RoleBasedTenantAuthorization tenantAuthorization;
@@ -107,7 +106,6 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
                                            RequestHandlerFactory requestHandlerFactory, ClusterService clusterService,
                                            IndicesService indicesService) {
         this.enabled = config.isEnabled();
-        this.privateTenantEnabled = config.isPrivateTenantEnabled();
         this.kibanaServerUsername = config.getServerUsername();
         this.kibanaIndexName = config.getIndex();
         this.kibanaIndexNamePrefix = this.kibanaIndexName + "_";
@@ -310,7 +308,7 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
         }
 
         if (tenantManager.isUserTenantHeader(requestedTenant)) {
-            return privateTenantEnabled? TenantAccess.FULL_ACCESS : TenantAccess.INACCESSIBLE;
+            return TenantAccess.FULL_ACCESS;
         }
 
         return new TenantAccess(

@@ -33,8 +33,7 @@ import com.floragunn.searchguard.configuration.validation.ConfigModificationVali
 import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.DataMigrationApi;
 import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandlerFactory;
 import com.floragunn.searchguard.enterprise.femt.tenants.AvailableTenantService;
-import com.floragunn.searchguard.enterprise.femt.tenants.MultitenancyActivationService;
-import com.floragunn.searchguard.enterprise.femt.tenants.TenantRepository;
+import com.floragunn.searchguard.enterprise.femt.tenants.TenantAvailabilityRepository;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.StaticSettings;
 import org.apache.logging.log4j.LogManager;
@@ -113,9 +112,6 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
                 feMultiTenancyConfigurationProvider, baseDependencies.getClusterService(),
                 baseDependencies.getConfigurationRepository()
         );
-        var tenantRepository = new TenantRepository(PrivilegedConfigClient.adapt(baseDependencies.getLocalClient()));
-        var activationService = new MultitenancyActivationService(tenantRepository, baseDependencies.getConfigurationRepository(),
-            feMultiTenancyConfigurationProvider);
 
         baseDependencies.getConfigurationRepository().subscribeOnChange((ConfigMap configMap) -> {
             SgDynamicConfiguration<FeMultiTenancyConfig> config = configMap.get(FeMultiTenancyConfig.TYPE);
@@ -158,10 +154,10 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
                     ? new ActionGroup.FlattenedIndex(configMap.get(CType.ACTIONGROUPS))
                     : ActionGroup.FlattenedIndex.EMPTY;
 
-            tenantManager = new TenantManager(tenants.getCEntries().keySet(), feMultiTenancyConfigurationProvider);
+            tenantManager = new TenantManager(tenants.getCEntries().keySet());
             tenantAuthorization = new RoleBasedTenantAuthorization(roles, actionGroups, baseDependencies.getActions(), tenantManager,
                     feMultiTenancyConfig.getMetricsLevel());
-            feMultiTenancyTenantAccessMapper = new FeMultiTenancyTenantAccessMapper(tenantManager, tenantAuthorization, baseDependencies.getActions());
+            feMultiTenancyTenantAccessMapper = new FeMultiTenancyTenantAccessMapper(tenantManager, tenantAuthorization, baseDependencies.getActions(), feMultiTenancyConfig);
             RequestHandlerFactory requestHandlerFactory = new RequestHandlerFactory(baseDependencies.getLocalClient(), baseDependencies.getThreadPool().getThreadContext(), baseDependencies.getClusterService(), baseDependencies.getGuiceDependencies().getIndicesService());
 
             if (feMultiTenancyConfig.isEnabled()) {
@@ -182,9 +178,11 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
                 log.debug("Using MT config: " + feMultiTenancyConfig + "\nenabled: " + enabled + "\nauthorization filter: " + multiTenancyAuthorizationFilter);
             }
         });
+
+        var tenantAvailabilityRepository = new TenantAvailabilityRepository(PrivilegedConfigClient.adapt(baseDependencies.getLocalClient()));
         var availableTenantService = new AvailableTenantService(feMultiTenancyConfigurationProvider,
-            baseDependencies.getAuthorizationService(), threadPool, tenantRepository);
-        return Arrays.asList(feMultiTenancyConfigurationProvider, tenantAccessMapper, availableTenantService, activationService);
+            baseDependencies.getAuthorizationService(), threadPool, tenantAvailabilityRepository);
+        return Arrays.asList(feMultiTenancyConfigurationProvider, tenantAccessMapper, availableTenantService);
     }
 
     private final TenantAccessMapper tenantAccessMapper = new TenantAccessMapper() {

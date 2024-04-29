@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.floragunn.searchguard.authz.TenantManager;
-import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import org.hamcrest.Matchers;
@@ -49,13 +48,12 @@ public class FeMultiTenancyTenantAccessMapperTest {
     private static final Actions actions = new Actions(null);
 
     @Mock
-    private MultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
+    private FeMultiTenancyConfig feMultiTenancyConfig;
 
     @Before
     public void setUp() throws Exception {
-        when(multiTenancyConfigurationProvider.isMultiTenancyEnabled()).thenReturn(true);
-        when(multiTenancyConfigurationProvider.isGlobalTenantEnabled()).thenReturn(true);
-        when(multiTenancyConfigurationProvider.isPrivateTenantEnabled()).thenReturn(true);
+        when(feMultiTenancyConfig.isGlobalTenantEnabled()).thenReturn(true);
+        when(feMultiTenancyConfig.isPrivateTenantEnabled()).thenReturn(true);
     }
     
     @Test
@@ -71,9 +69,9 @@ public class FeMultiTenancyTenantAccessMapperTest {
 
         ImmutableSet<String> tenants = ImmutableSet.of("my_tenant", "test");
 
-        TenantManager tenantManager = new TenantManager(tenants, multiTenancyConfigurationProvider);
+        TenantManager tenantManager = new TenantManager(tenants);
         RoleBasedTenantAuthorization tenantAuthorization = new RoleBasedTenantAuthorization(roles, emptyActionGroups, actions, tenantManager, MetricsLevel.NONE);
-        FeMultiTenancyTenantAccessMapper mapper = new FeMultiTenancyTenantAccessMapper(tenantManager, tenantAuthorization, actions);
+        FeMultiTenancyTenantAccessMapper mapper = new FeMultiTenancyTenantAccessMapper(tenantManager, tenantAuthorization, actions, feMultiTenancyConfig);
 
         User user = User.forUser("user_name").searchGuardRoles("all_access").build();
 
@@ -99,9 +97,9 @@ public class FeMultiTenancyTenantAccessMapperTest {
 
         ImmutableSet<String> tenants = ImmutableSet.of("write_tenant", "read_tenant", "another_tenant");
 
-        TenantManager tenantManager = new TenantManager(tenants, multiTenancyConfigurationProvider);
+        TenantManager tenantManager = new TenantManager(tenants);
         RoleBasedTenantAuthorization tenantAuthorization = new RoleBasedTenantAuthorization(roles, emptyActionGroups, actions, tenantManager, MetricsLevel.NONE);
-        FeMultiTenancyTenantAccessMapper mapper = new FeMultiTenancyTenantAccessMapper(tenantManager, tenantAuthorization, actions);
+        FeMultiTenancyTenantAccessMapper mapper = new FeMultiTenancyTenantAccessMapper(tenantManager, tenantAuthorization, actions, feMultiTenancyConfig);
 
         User user = User.forUser("user_name").searchGuardRoles("access_to_some_tenants").build();
 
@@ -127,11 +125,11 @@ public class FeMultiTenancyTenantAccessMapperTest {
 
         ImmutableSet<String> tenants = ImmutableSet.of("write_tenant", "read_tenant", "another_tenant");
 
-        when(multiTenancyConfigurationProvider.isPrivateTenantEnabled()).thenReturn(false);
+        when(feMultiTenancyConfig.isPrivateTenantEnabled()).thenReturn(false);
 
-        TenantManager tenantManager = new TenantManager(tenants, multiTenancyConfigurationProvider);
+        TenantManager tenantManager = new TenantManager(tenants);
         RoleBasedTenantAuthorization tenantAuthorization = new RoleBasedTenantAuthorization(roles, emptyActionGroups, actions, tenantManager, MetricsLevel.NONE);
-        FeMultiTenancyTenantAccessMapper mapper = new FeMultiTenancyTenantAccessMapper(tenantManager, tenantAuthorization, actions);
+        FeMultiTenancyTenantAccessMapper mapper = new FeMultiTenancyTenantAccessMapper(tenantManager, tenantAuthorization, actions, feMultiTenancyConfig);
 
         User user = User.forUser("user_name").searchGuardRoles("access_to_some_tenants").build();
 
@@ -155,11 +153,11 @@ public class FeMultiTenancyTenantAccessMapperTest {
 
         ImmutableSet<String> tenants = ImmutableSet.of(Tenant.GLOBAL_TENANT_ID);
 
-        when(multiTenancyConfigurationProvider.isGlobalTenantEnabled()).thenReturn(false);
+        when(feMultiTenancyConfig.isGlobalTenantEnabled()).thenReturn(false);
 
-        TenantManager tenantManager = new TenantManager(tenants, multiTenancyConfigurationProvider);
+        TenantManager tenantManager = new TenantManager(tenants);
         RoleBasedTenantAuthorization tenantAuthorization = new RoleBasedTenantAuthorization(roles, emptyActionGroups, actions, tenantManager, MetricsLevel.NONE);
-        FeMultiTenancyTenantAccessMapper mapper = new FeMultiTenancyTenantAccessMapper(tenantManager, tenantAuthorization, actions);
+        FeMultiTenancyTenantAccessMapper mapper = new FeMultiTenancyTenantAccessMapper(tenantManager, tenantAuthorization, actions, feMultiTenancyConfig);
 
         User user = User.forUser("user_name").searchGuardRoles("access_to_global_tenant").build();
 

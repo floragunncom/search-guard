@@ -1398,6 +1398,7 @@ public class TestSgConfig {
         private String index;
         private String serverUser;
         private boolean globalTenantEnabled = true;
+        private boolean privateTenantEnabled = true;
         private List<String> preferredTenants = new ArrayList<>();
 
         public FrontendMultiTenancy(boolean enabled) {
@@ -1419,6 +1420,11 @@ public class TestSgConfig {
             return this;
         }
 
+        public FrontendMultiTenancy privateTenantEnabled(boolean privateTenantEnabled) {
+            this.privateTenantEnabled = privateTenantEnabled;
+            return this;
+        }
+
         public FrontendMultiTenancy preferredTenants(String... preferredTenants) {
             this.preferredTenants.addAll(asList(preferredTenants));
             return this;
@@ -1430,6 +1436,7 @@ public class TestSgConfig {
             result.put("index", index);
             result.put("server_user", serverUser);
             result.put("global_tenant_enabled", globalTenantEnabled);
+            result.put("private_tenant_enabled", privateTenantEnabled);
             result.put("preferred_tenants", preferredTenants);
             return NestedValueMap.of("default", result);
         }

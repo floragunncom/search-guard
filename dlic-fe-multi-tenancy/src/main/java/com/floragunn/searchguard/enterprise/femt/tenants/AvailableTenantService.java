@@ -1,16 +1,3 @@
-/*
- * Copyright 2024 by floragunn GmbH - All rights reserved
- *
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed here is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *
- * This software is free of charge for non-commercial and academic use.
- * For commercial use in a production environment you have to obtain a license
- * from https://floragunn.com
- *
- */
 package com.floragunn.searchguard.enterprise.femt.tenants;
 
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -23,6 +10,7 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -35,15 +23,15 @@ public class AvailableTenantService {
     private final MultiTenancyConfigurationProvider configProvider;
     private final AuthorizationService authorizationService;
     private final ThreadPool threadPool;
-    private final TenantRepository tenantRepository;
+    private final TenantAvailabilityRepository tenantRepository;
     private final DefaultTenantSelector defaultTenantSelector;
 
     public AvailableTenantService(MultiTenancyConfigurationProvider configProvider, AuthorizationService authorizationService,
-        ThreadPool threadPool, TenantRepository tenantRepository) {
+        ThreadPool threadPool, TenantAvailabilityRepository tenantRepository) {
         this.configProvider = requireNonNull(configProvider, "Multi tenancy config provider is required");
         this.authorizationService = requireNonNull(authorizationService, "Authorization service is required");
         this.threadPool = requireNonNull(threadPool, "Thread pool is required");
-        this.tenantRepository = requireNonNull(tenantRepository, "Tenant repository is required");
+        this.tenantRepository = requireNonNull(tenantRepository, "Tenant availability repository is required");
         this.defaultTenantSelector = new DefaultTenantSelector();
     }
 

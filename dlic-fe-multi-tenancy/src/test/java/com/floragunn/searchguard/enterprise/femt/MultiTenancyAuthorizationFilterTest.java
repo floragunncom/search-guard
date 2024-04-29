@@ -1,16 +1,3 @@
-/*
- * Copyright 2023-2024 by floragunn GmbH - All rights reserved
- *
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed here is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *
- * This software is free of charge for non-commercial and academic use.
- * For commercial use in a production environment you have to obtain a license
- * from https://floragunn.com
- *
- */
 package com.floragunn.searchguard.enterprise.femt;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
@@ -107,16 +94,12 @@ public class MultiTenancyAuthorizationFilterTest {
         when(config.isEnabled()).thenReturn(true);
         when(context.getUser()).thenReturn(user);
         when(config.getServerUsername()).thenReturn("frontend_server_user");
-        when(config.isPrivateTenantEnabled()).thenReturn(false);
         this.filter = new MultiTenancyAuthorizationFilter(config, tenantAuthorization, tenantManager, new Actions(null),
             threadContext, null, handlerFactory, clusterServices, indicesService);
     }
 
     @Test
-    public void shouldAccessPrivateTenant_privateTenantEnabled() {
-        when(config.isPrivateTenantEnabled()).thenReturn(true);
-        MultiTenancyAuthorizationFilter filter = new MultiTenancyAuthorizationFilter(config, tenantAuthorization, tenantManager, new Actions(null),
-                threadContext, null, handlerFactory, clusterServices, indicesService);
+    public void shouldAccessPrivateTenant() {
         when(context.getRequestInfo()).thenReturn(actionRequestInfo);
         when(actionRequestInfo.getResolvedIndices()).thenReturn(resolvedIndices);
         when(resolvedIndices.isLocalAll()).thenReturn(false);
@@ -138,29 +121,6 @@ public class MultiTenancyAuthorizationFilterTest {
         assertThat(result.getStatus(), equalTo(SyncAuthorizationFilter.Result.Status.OK));
         verify(actionHandler).handle(same(context), eq(INTERNAL_TEST_USER_1_PRIVATE_TENANT_NAME), same(request), same(listener));
         verifyNoInteractions(listener);
-    }
-
-    @Test
-    public void shouldNotAccessPrivateTenant() {
-        when(context.getRequestInfo()).thenReturn(actionRequestInfo);
-        when(actionRequestInfo.getResolvedIndices()).thenReturn(resolvedIndices);
-        when(resolvedIndices.isLocalAll()).thenReturn(false);
-        GetRequest request = new GetRequest(FRONTEND_MAIN_INDEX, "space:default");
-        when(context.getRequest()).thenReturn(request);
-        when(context.getAction()).thenReturn(action);
-        when(action.name()).thenReturn("indices:data/read/search");
-        when(user.getName()).thenReturn(TEST_USER_NAME_1);
-        when(user.getRequestedTenant()).thenReturn(PRIVATE_TENANT_HEADER_VALUE);
-        when(tenantManager.isTenantHeaderValid(PRIVATE_TENANT_HEADER_VALUE)).thenReturn(true);
-        when(tenantManager.isUserTenantHeader(anyString())).thenCallRealMethod();
-
-        SyncAuthorizationFilter.Result result = filter.apply(context, listener);
-
-        log.info("Filter response {}", result);
-        assertThat(result.getStatus(), equalTo(SyncAuthorizationFilter.Result.Status.DENIED));
-        verifyNoInteractions(listener);
-        verifyNoInteractions(handlerFactory);
-        verifyNoInteractions(tenantAuthorization);
     }
 
     @Test

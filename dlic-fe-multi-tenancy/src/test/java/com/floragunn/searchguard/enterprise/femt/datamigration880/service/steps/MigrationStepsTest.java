@@ -1550,7 +1550,7 @@ public class MigrationStepsTest {
         String privateDocument = environmentHelper.getDocumentSource(PRIVATE_USER_KIRK_INDEX.indexName(), id).orElseThrow();
         id = "space:.kibana_-1799980989_management_8.7.0_001";
         String managementDocument = environmentHelper.getDocumentSource(managementTenant.indexName(),id ).orElseThrow();
-        id = "space:.kibana_8.7.0_001";
+        id = "space:.kibana_8.7.0_001__sg_ten__-1216324346_sgsglobaltenant";
         String migratedGlobal = environmentHelper.getDocumentSource(TEMP_INDEX_NAME, id).orElseThrow();
         id = "space:.kibana_3292183_kirk_8.7.0_001__sg_ten__3292183_kirk";
         String migratedPrivate = environmentHelper.getDocumentSource(TEMP_INDEX_NAME, id).orElseThrow();
@@ -1565,7 +1565,7 @@ public class MigrationStepsTest {
         privateDocument = environmentHelper.getDocumentSource(PRIVATE_USER_KIRK_INDEX.indexName(), id).orElseThrow();
         id = "index-pattern::iot-3";
         managementDocument = environmentHelper.getDocumentSource(managementTenant.indexName(), id).orElseThrow();
-        id = "index-pattern::iot-1";
+        id = "index-pattern::iot-1__sg_ten__-1216324346_sgsglobaltenant";
         migratedGlobal = environmentHelper.getDocumentSource(TEMP_INDEX_NAME, id).orElseThrow();
         id = "index-pattern::iot-2__sg_ten__3292183_kirk";
         migratedPrivate = environmentHelper.getDocumentSource(TEMP_INDEX_NAME, id).orElseThrow();
@@ -1620,7 +1620,7 @@ public class MigrationStepsTest {
 
         assertThat(result.isSuccess(), equalTo(true));
         String tempIndex = context.getTempIndexName();
-        environmentHelper.assertThatDocumentExists(tempIndex, "space:global_tenant_space");
+        environmentHelper.assertThatDocumentExists(tempIndex, "space:global_tenant_space__sg_ten__-1216324346_sgsglobaltenant");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:management_tenant_space__sg_ten__-1799980989_management");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:kirk_private_tenant_space__sg_ten__3292183_kirk");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:lukasz_1_private_tenant_space__sg_ten__-1091682490_lukasz");
@@ -1657,7 +1657,7 @@ public class MigrationStepsTest {
 
         assertThat(result.isSuccess(), equalTo(true));
         String tempIndex = context.getTempIndexName();
-        environmentHelper.assertThatDocumentExists(tempIndex, "space:colliding_space_id");
+        environmentHelper.assertThatDocumentExists(tempIndex, "space:colliding_space_id__sg_ten__-1216324346_sgsglobaltenant");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:colliding_space_id__sg_ten__-1799980989_management");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:colliding_space_id__sg_ten__3292183_kirk");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:colliding_space_id__sg_ten__-1091682490_lukasz");

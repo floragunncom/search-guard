@@ -1,25 +1,10 @@
-/*
- * Copyright 2024 by floragunn GmbH - All rights reserved
- *
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed here is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *
- * This software is free of charge for non-commercial and academic use.
- * For commercial use in a production environment you have to obtain a license
- * from https://floragunn.com
- *
- */
 package com.floragunn.searchguard.authz;
 
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.user.User;
 import org.elasticsearch.ElasticsearchException;
 
-import java.util.Objects;
 import java.util.Set;
 
 public class TenantManager {
@@ -27,23 +12,13 @@ public class TenantManager {
     private static final String USER_TENANT = "__user__";
 
     private final ImmutableSet<String> configuredTenants;
-    private final MultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
 
-    public TenantManager(Set<String> tenantNames, MultiTenancyConfigurationProvider multiTenancyConfigurationProvider) {
+    public TenantManager(Set<String> tenantNames) {
         this.configuredTenants = ImmutableSet.of(tenantNames);
-        this.multiTenancyConfigurationProvider = Objects.requireNonNull(
-                multiTenancyConfigurationProvider, "Multi Tenancy Configuration Provider is required"
-        );
     }
 
     public boolean isTenantHeaderValid(String tenant) {
-        if (multiTenancyConfigurationProvider.isMultiTenancyEnabled()) {
-            return (Tenant.GLOBAL_TENANT_ID.equals(tenant) && multiTenancyConfigurationProvider.isGlobalTenantEnabled()) //
-                || (USER_TENANT.equals(tenant) && multiTenancyConfigurationProvider.isPrivateTenantEnabled()) //
-                || ((!ImmutableSet.of(Tenant.GLOBAL_TENANT_ID, USER_TENANT).contains(tenant)) && configuredTenants.contains(tenant));
-        } else {
-            return Tenant.GLOBAL_TENANT_ID.equals(tenant);
-        }
+        return Tenant.GLOBAL_TENANT_ID.equals(tenant) || USER_TENANT.equals(tenant) || configuredTenants.contains(tenant);
     }
 
     public boolean isUserTenantHeader(String tenant) {

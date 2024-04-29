@@ -27,6 +27,8 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepRe
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.Optional;
+
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.OK;
 import static java.util.Objects.requireNonNull;
 
@@ -45,16 +47,16 @@ class EnableMultitenancyStep implements MigrationStep {
 
     @Override
     public StepResult execute(DataMigrationContext dataMigrationContext) throws StepException {
-        FeMultiTenancyConfig configuration = configurationProvider.getConfig().orElse(FeMultiTenancyConfig.DEFAULT);
-        if (configuration.isEnabled()) {
+        Optional<FeMultiTenancyConfig> configurationOptional = configurationProvider.getConfig();
+        if (configurationOptional.map(FeMultiTenancyConfig::isEnabled).orElse(FeMultiTenancyConfig.DEFAULT.isEnabled())) {
             return new StepResult(OK, "Multitenancy is already enabled", "Nothing to be done");
         } else {
-            return enableMultitenancy(configuration);
+            return enableMultitenancy(configurationOptional);
         }
     }
 
-    private StepResult enableMultitenancy(FeMultiTenancyConfig configuration) {
-        var newConfig = configuration.withEnabled(true);
+    private StepResult enableMultitenancy(Optional<FeMultiTenancyConfig> configurationOptional) {
+        var newConfig = configurationOptional.orElse(FeMultiTenancyConfig.DEFAULT).withEnabled(true);
         try (
             var config = SgDynamicConfiguration.of(FeMultiTenancyConfig.TYPE, "default", newConfig)) {
             configRepository.update(FeMultiTenancyConfig.TYPE, config, null, false);

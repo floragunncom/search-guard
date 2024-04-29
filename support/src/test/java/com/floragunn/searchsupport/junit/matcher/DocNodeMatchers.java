@@ -5,7 +5,6 @@ import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matcher;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Objects;
 
 public class DocNodeMatchers {
@@ -45,13 +44,5 @@ public class DocNodeMatchers {
 
     public static Matcher<DocNode> fieldIsNull(String jsonPath) {
         return new FieldIsNullMatcher(jsonPath);
-    }
-
-    public static Matcher<DocNode> containsOnlyFields(String jsonPath,String...fieldNames) {
-        return new ContainsOnlyFieldsMatcher(jsonPath, fieldNames);
-    }
-
-    public static Matcher<DocNode> containsOnlyFields(String jsonPath, Collection<String> fieldNames) {
-        return new ContainsOnlyFieldsMatcher(jsonPath, fieldNames.toArray(String[]::new));
     }
 }

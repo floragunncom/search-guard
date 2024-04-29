@@ -1,16 +1,3 @@
-/*
- * Copyright 2023-2024 by floragunn GmbH - All rights reserved
- *
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed here is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *
- * This software is free of charge for non-commercial and academic use.
- * For commercial use in a production environment you have to obtain a license
- * from https://floragunn.com
- *
- */
 package com.floragunn.searchguard.enterprise.femt.tenants;
 
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -18,11 +5,13 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.OptimisticLockException;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,11 +26,7 @@ import java.util.Optional;
 
 import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.aMapWithSize;
-import static org.hamcrest.Matchers.anEmptyMap;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -60,7 +45,7 @@ public class AvailableTenantServiceTest {
     @Mock
     private ThreadPool threadPool;
     @Mock
-    private TenantRepository repository;
+    private TenantAvailabilityRepository repository;
     @Mock
     private ThreadContext threadContext;
 

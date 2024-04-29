@@ -20,7 +20,6 @@ import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.UnparsedDocument;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchguard.enterprise.femt.tenants.MultitenancyActivationService;
 import com.floragunn.searchguard.user.User;
 import com.google.common.base.Strings;
 import org.apache.logging.log4j.LogManager;
@@ -48,6 +47,8 @@ import java.util.Optional;
 import java.util.Set;
 
 import static com.floragunn.searchguard.enterprise.femt.MultiTenancyAuthorizationFilter.SG_FILTER_LEVEL_FEMT_DONE;
+import static com.floragunn.searchguard.enterprise.femt.MultiTenancyAuthorizationFilter.TEMP_MIGRATION_INDEX_NAME_POSTFIX_1;
+import static com.floragunn.searchguard.enterprise.femt.MultiTenancyAuthorizationFilter.TEMP_MIGRATION_INDEX_NAME_POSTFIX_2;
 
 class FrontendDataMigrationInterceptor {
 
@@ -227,7 +228,7 @@ class FrontendDataMigrationInterceptor {
                 .filter(docNode -> docNode.hasNonNull("properties")) //
                 .map(propertiesDocNode -> propertiesDocNode.getAsNode("properties")) //
                 .filter(propertiesDocNode -> !RequestResponseTenantData.containsSgTenantField(propertiesDocNode)) //
-                .map(propertiesDocNode -> propertiesDocNode.with(MultitenancyActivationService.getSgTenantFieldMapping())) //
+                .map(propertiesDocNode -> propertiesDocNode.with(RequestResponseTenantData.getSgTenantField(), DocNode.of("type", "keyword"))) //
                 .map(propertiesDocNode -> node.with("properties", propertiesDocNode));
     }
 

@@ -19,8 +19,9 @@ package com.floragunn.searchguard.enterprise.femt;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.enterprise.femt.tenants.GetAvailableTenantsAction;
-import com.floragunn.searchguard.enterprise.femt.tenants.MultitenancyActivationAction;
 import com.floragunn.searchsupport.action.StandardRequests;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
@@ -35,7 +36,6 @@ public class FeMultiTenancyConfigApi extends TypeLevelConfigApi {
     public static final RestApi REST_API = new RestApi()//
             .handlesGet("/_searchguard/config/fe_multi_tenancy").with(GetAction.INSTANCE)//
             .handlesGet("/_searchguard/config/frontend_multi_tenancy").with(GetAction.INSTANCE)//
-            .handlesPut("/_searchguard/config/fe_multi_tenancy/activation").with(MultitenancyActivationAction.INSTANCE, (params, body) -> new StandardRequests.EmptyRequest())//
             .handlesPut("/_searchguard/config/fe_multi_tenancy").with(PutAction.INSTANCE, (params, body) -> new PutAction.Request(body.parseAsMap()))//
             .handlesPut("/_searchguard/config/frontend_multi_tenancy").with(PutAction.INSTANCE, (params, body) -> new PutAction.Request(body.parseAsMap()))//
             .handlesPatch("/_searchguard/config/fe_multi_tenancy").with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body)))
@@ -47,8 +47,7 @@ public class FeMultiTenancyConfigApi extends TypeLevelConfigApi {
             new ActionHandler<>(FeMultiTenancyConfigApi.GetAction.INSTANCE, FeMultiTenancyConfigApi.GetAction.Handler.class),
             new ActionHandler<>(FeMultiTenancyConfigApi.PutAction.INSTANCE, FeMultiTenancyConfigApi.PutAction.Handler.class),
             new ActionHandler<>(FeMultiTenancyConfigApi.PatchAction.INSTANCE, FeMultiTenancyConfigApi.PatchAction.Handler.class),
-            new ActionHandler<>(GetAvailableTenantsAction.INSTANCE, GetAvailableTenantsAction.GetAvailableTenantsHandler.class),
-            new ActionHandler<>(MultitenancyActivationAction.INSTANCE, MultitenancyActivationAction.MultitenancyActivationHandler.class)
+            new ActionHandler<>(GetAvailableTenantsAction.INSTANCE, GetAvailableTenantsAction.GetAvailableTenantsHandler.class)
         );
 
     public static class GetAction extends TypeLevelConfigApi.GetAction {

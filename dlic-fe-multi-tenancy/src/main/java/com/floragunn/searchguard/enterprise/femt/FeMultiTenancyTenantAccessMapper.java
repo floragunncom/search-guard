@@ -1,16 +1,3 @@
-/*
- * Copyright 2024 by floragunn GmbH - All rights reserved
- *
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed here is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *
- * This software is free of charge for non-commercial and academic use.
- * For commercial use in a production environment you have to obtain a license
- * from https://floragunn.com
- *
- */
 package com.floragunn.searchguard.enterprise.femt;
 
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -34,11 +21,14 @@ public class FeMultiTenancyTenantAccessMapper  implements TenantAccessMapper {
     private final TenantManager tenantManager;
     private final TenantAuthorization tenantAuthorization;
     private final Actions actions;
+    private final FeMultiTenancyConfig feMultiTenancyConfig;
 
-    public FeMultiTenancyTenantAccessMapper(TenantManager tenantManager, TenantAuthorization tenantAuthorization, Actions actions) {
+    public FeMultiTenancyTenantAccessMapper(TenantManager tenantManager, TenantAuthorization tenantAuthorization,
+                                            Actions actions, FeMultiTenancyConfig feMultiTenancyConfig) {
         this.tenantManager = tenantManager;
         this.tenantAuthorization = tenantAuthorization;
         this.actions = actions;
+        this.feMultiTenancyConfig = feMultiTenancyConfig;
     }
 
     @Override
@@ -67,11 +57,11 @@ public class FeMultiTenancyTenantAccessMapper  implements TenantAccessMapper {
             }
         }
 
-        if (! tenantManager.isTenantHeaderValid(Tenant.GLOBAL_TENANT_ID)) {
+        if (!feMultiTenancyConfig.isGlobalTenantEnabled()) {
             result.remove(Tenant.GLOBAL_TENANT_ID);
         }
 
-        if (! tenantManager.isTenantHeaderValid(User.USER_TENANT)) {
+        if (! feMultiTenancyConfig.isPrivateTenantEnabled()) {
             result.remove(user.getName());
         }
 
