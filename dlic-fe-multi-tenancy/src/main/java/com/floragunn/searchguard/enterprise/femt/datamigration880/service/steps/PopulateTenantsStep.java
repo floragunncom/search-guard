@@ -21,6 +21,7 @@ import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfig;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
 import org.apache.logging.log4j.LogManager;
@@ -70,6 +71,11 @@ class PopulateTenantsStep implements MigrationStep {
     private StepResult executeWithConfig(FeMultiTenancyConfig config, DataMigrationContext dataMigrationContext,
         ImmutableSet<String> configuredTenants) {
         log.debug("Searching for tenants, provided configuration '{}' and tenant names '{}'.", config, configuredTenants);
+        if(!config.isEnabled()) {
+            String details = "Current configuration " + config;
+            String message = "Frontend multi-tenancy is not enabled.";
+            return new StepResult(MULTI_TENANCY_DISABLED_ERROR, message, details);
+        }
         List<TenantAlias> configuredTenantAliases = configuredTenants.stream() //
             .filter(name -> !Tenant.GLOBAL_TENANT_ID.equals(name)) //
             .sorted() //

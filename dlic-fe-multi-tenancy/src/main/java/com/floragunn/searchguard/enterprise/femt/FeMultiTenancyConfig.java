@@ -29,7 +29,6 @@ import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.google.common.collect.ImmutableMap;
 
 import java.util.List;
-import java.util.Map;
 
 public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyConfig> {
 
@@ -37,7 +36,7 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
     public static CType<FeMultiTenancyConfig> TYPE = new CType<FeMultiTenancyConfig>("frontend_multi_tenancy", "Frontend Multi-Tenancy", 10001,
             FeMultiTenancyConfig.class, FeMultiTenancyConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
 
-    public static final FeMultiTenancyConfig DEFAULT = new FeMultiTenancyConfig(null, false,
+    static final FeMultiTenancyConfig DEFAULT = new FeMultiTenancyConfig(null, false,
             "kibanaserver", ".kibana", true, true, ImmutableList.empty());
 
     private final DocNode source;
@@ -116,7 +115,7 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
     }
 
     @Override
-    public Map<String, Object> toBasicObject() {
+    public Object toBasicObject() {
         if (source != null) {
             return source;
         } else {
@@ -143,9 +142,5 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
 
     public MetricsLevel getMetricsLevel() {
         return metricsLevel;
-    }
-
-    public FeMultiTenancyConfig withEnabled(boolean enabled) {
-        return new FeMultiTenancyConfig(source, enabled, serverUsername, index, globalTenantEnabled, privateTenantEnabled, preferredTenants);
     }
 }

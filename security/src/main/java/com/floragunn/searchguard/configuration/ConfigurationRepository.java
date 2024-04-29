@@ -895,7 +895,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         update(ctype, configInstance, matchETag, true);
     }
 
-    public <T> void update(CType<T> ctype, SgDynamicConfiguration<T> configInstance, String matchETag,
+    private  <T> void update(CType<T> ctype, SgDynamicConfiguration<T> configInstance, String matchETag,
                              boolean runValidations) throws ConfigUpdateException, ConcurrentConfigUpdateException, ConfigValidationException {
 
         if (runValidations) {
