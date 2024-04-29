@@ -42,9 +42,9 @@ public class GetRequestHandler extends RequestHandler<GetRequest> {
     @Override
     public SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, GetRequest request, ActionListener<?> listener) {
         log.debug("Handle get request");
+        threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
-            threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
             GetRequest scoped = getMapper.toScopedGetRequest(request, requestedTenant);
 
             nodeClient.get(scoped, new ActionListener<>() {
@@ -68,7 +68,6 @@ public class GetRequestHandler extends RequestHandler<GetRequest> {
                 @Override
                 public void onFailure(Exception e) {
                     log.error("An error occurred while sending get request", e);
-                    storedContext.restore();
                     listener.onFailure(e);
                 }
             });

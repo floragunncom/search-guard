@@ -42,9 +42,10 @@ public class SearchRequestHandler extends RequestHandler<SearchRequest> {
     @Override
     public SyncAuthorizationFilter.Result handle(PrivilegesEvaluationContext context, String requestedTenant, SearchRequest request, ActionListener<?> listener) {
         log.debug("Handle search request");
+        threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
-            threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
+
             SearchRequest scopedRequest = searchMapper.toScopedSearchRequest(request, requestedTenant);
 
             nodeClient.search(scopedRequest, new ActionListener<>() {
@@ -67,7 +68,6 @@ public class SearchRequestHandler extends RequestHandler<SearchRequest> {
                 @Override
                 public void onFailure(Exception e) {
                     log.error("An error occurred while sending search request", e);
-                    storedContext.restore();
                     listener.onFailure(e);
                 }
             });
