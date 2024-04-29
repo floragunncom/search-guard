@@ -125,11 +125,6 @@ SGS_KIBANA_MT_USER:
         - '/\.kibana_alerting_cases_[0-9]+\.[0-9]+\.[0-9]+_[0-9]+/'
       allowed_actions:
         - "indices:data/read/open_point_in_time"
-  tenant_permissions:
-    - tenant_patterns:
-        - "SGS_GLOBAL_TENANT"
-      allowed_actions:
-        - "kibana:saved_objects/_/write"
 
 SGS_OWN_INDEX:
   reserved: true
