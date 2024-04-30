@@ -89,7 +89,6 @@ public class SearchGuardFilter implements ActionFilter {
     private final PrivilegesEvaluator evalp;
     private final AdminDNs adminDns;
     private final ImmutableList<SyncAuthorizationFilter> syncAuthorizationFilters;
-    private final ImmutableList<SyncAuthorizationFilter> prePrivilegeEvaluationSyncAuthorizationFilters;
     private final AuditLog auditLog;
     private final ThreadContext threadContext;
     private final ClusterService cs;
@@ -102,16 +101,14 @@ public class SearchGuardFilter implements ActionFilter {
     private final AuthorizationService authorizationService;
 
     public SearchGuardFilter(AuthorizationService authorizationService, PrivilegesEvaluator evalp, AdminDNs adminDns,
-            ImmutableList<SyncAuthorizationFilter> syncAuthorizationFilters,
-            ImmutableList<SyncAuthorizationFilter> prePrivilegeEvaluationSyncAuthorizationFilters, AuditLog auditLog, ThreadPool threadPool,
-            ClusterService cs, DiagnosticContext diagnosticContext, ComplianceConfig complianceConfig, Actions actions,
+            ImmutableList<SyncAuthorizationFilter> syncAuthorizationFilters, AuditLog auditLog, ThreadPool threadPool, ClusterService cs,
+            DiagnosticContext diagnosticContext, ComplianceConfig complianceConfig, Actions actions,
             ActionRequestIntrospector actionRequestIntrospector,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
             ExtendedActionHandlingService extendedActionHandlingService, NamedXContentRegistry namedXContentRegistry) {
         this.evalp = evalp;
         this.adminDns = adminDns;
         this.syncAuthorizationFilters = syncAuthorizationFilters;
-        this.prePrivilegeEvaluationSyncAuthorizationFilters = prePrivilegeEvaluationSyncAuthorizationFilters;
         this.auditLog = auditLog;
         this.threadContext = threadPool.getThreadContext();
         this.cs = cs;
@@ -300,23 +297,6 @@ public class SearchGuardFilter implements ActionFilter {
             ImmutableSet<String> mappedRoles = this.authorizationService.getMappedRoles(user, specialPrivilegesEvaluationContext);
             PrivilegesEvaluationContext privilegesEvaluationContext = new PrivilegesEvaluationContext(user, mappedRoles, action, request,
                     eval.isDebugEnabled(), this.actionRequestIntrospector, specialPrivilegesEvaluationContext);
-                        
-            for (SyncAuthorizationFilter syncAuthorizationFilter : this.prePrivilegeEvaluationSyncAuthorizationFilters) {
-                SyncAuthorizationFilter.Result filterResult = syncAuthorizationFilter.apply(privilegesEvaluationContext, listener);
-
-                if (filterResult.getStatus() == SyncAuthorizationFilter.Result.Status.OK) {
-                    continue;
-                } else if (filterResult.getStatus() == SyncAuthorizationFilter.Result.Status.DENIED) {
-                    listener.onFailure(filterResult.toSecurityException(privilegesEvaluationContext));
-                    return;
-                } else if (filterResult.getStatus() == SyncAuthorizationFilter.Result.Status.INTERCEPTED) {
-                    return;
-                } else if (filterResult.getStatus() == SyncAuthorizationFilter.Result.Status.PASS_ON_FAST_LANE) {
-                    chain.proceed(task, actionName, request, listener);
-                    return;
-                }
-            }
-            
             PrivilegesEvaluationResult privilegesEvaluationResult = eval.evaluate(user, mappedRoles, actionName, request, task,
                     privilegesEvaluationContext, specialPrivilegesEvaluationContext);
 

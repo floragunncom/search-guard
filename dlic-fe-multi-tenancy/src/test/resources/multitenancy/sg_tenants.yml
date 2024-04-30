@@ -99,5 +99,3 @@ kltentrw:
   reserved: false
   hidden: false
   description: "Migrated from v6"
-admin_tenant:
-  description: "Demo tenant for admin user"

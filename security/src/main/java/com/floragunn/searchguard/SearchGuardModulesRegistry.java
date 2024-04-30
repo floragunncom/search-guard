@@ -29,9 +29,8 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
-import com.floragunn.searchguard.authz.TenantAccessMapper;
-import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -70,6 +69,7 @@ import com.floragunn.searchguard.authc.rest.authenticators.HttpTrustedOriginAuth
 import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.LinkApiAuthenticationFrontend;
 import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import com.floragunn.searchguard.privileges.PrivilegesInterceptor;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 
@@ -86,14 +86,12 @@ public class SearchGuardModulesRegistry {
     private ImmutableList<IndexingOperationListener> indexOperationListeners;
     private ImmutableList<ActionFilter> actionFilters;
     private ImmutableList<SyncAuthorizationFilter> syncAuthorizationFilters;
-    private ImmutableList<SyncAuthorizationFilter> prePrivilegeEvaluationSyncAuthorizationFilters;
     private ImmutableList<Function<String, Predicate<String>>> fieldFilters;
     private ImmutableList<QueryCacheWeightProvider> queryCacheWeightProviders;
     private ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForNormalOperations;
     private ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForAllOperations;
 
-    private MultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
-    private TenantAccessMapper tenantAccessMapper;
+    private PrivilegesInterceptor privilegesInterceptor;
     private Set<String> moduleNames = new HashSet<>();
     private ImmutableList<ConfigModificationValidator<?>> configModificationValidators;
     private final Set<String> disabledModules;
@@ -194,8 +192,11 @@ public class SearchGuardModulesRegistry {
             typedComponentRegistry.register(module.getTypedComponents());
         }
 
-        this.multiTenancyConfigurationProvider = getMultiTenancyConfigurationProvider(result);
-        this.tenantAccessMapper = getTenantAccessMapper(result);
+        List<Object> privilegesInterceptors = result.stream().filter(o -> o instanceof PrivilegesInterceptor).collect(Collectors.toList());
+
+        if (privilegesInterceptors.size() != 0) {
+            this.privilegesInterceptor = (PrivilegesInterceptor) privilegesInterceptors.get(0);
+        }
 
         return result;
     }
@@ -313,20 +314,6 @@ public class SearchGuardModulesRegistry {
         return result;
     }
 
-    public ImmutableList<SyncAuthorizationFilter> getPrePrivilegeSyncAuthorizationFilters() {
-        ImmutableList<SyncAuthorizationFilter> result = this.prePrivilegeEvaluationSyncAuthorizationFilters;
-
-        if (result == null) {
-            result = ImmutableList.empty();
-
-            for (SearchGuardModule module : modules) {
-                result = result.with(module.getPrePrivilegeEvaluationSyncAuthorizationFilters());
-            }
-        }
-
-        return result;
-    }
-    
     public ImmutableList<Function<String, Predicate<String>>> getFieldFilters() {
         ImmutableList<Function<String, Predicate<String>>> result = this.fieldFilters;
 
@@ -441,12 +428,8 @@ public class SearchGuardModulesRegistry {
         return Class.forName(className).getDeclaredConstructor().newInstance();
     }
 
-    public MultiTenancyConfigurationProvider getMultiTenancyConfigurationProvider() {
-        return multiTenancyConfigurationProvider;
-    }
-
-    public TenantAccessMapper getTenantAccessMapper() {
-        return tenantAccessMapper;
+    public PrivilegesInterceptor getPrivilegesInterceptor() {
+        return privilegesInterceptor;
     }
 
     private static TypedComponentRegistry createTypedComponentRegistryWithDefaults() {
@@ -473,28 +456,6 @@ public class SearchGuardModulesRegistry {
 
     public List<SearchGuardModule> getModules() {
         return Collections.unmodifiableList(modules);
-    }
-
-    private MultiTenancyConfigurationProvider getMultiTenancyConfigurationProvider(List<Object> componentsList) {
-        List<Object> multiTenancyConfigurationProviders = componentsList.stream()
-                .filter(o -> MultiTenancyConfigurationProvider.class.isAssignableFrom(o.getClass())).toList();
-
-        if (!multiTenancyConfigurationProviders.isEmpty()) {
-            return (MultiTenancyConfigurationProvider) multiTenancyConfigurationProviders.get(0);
-        } else {
-            return MultiTenancyConfigurationProvider.DEFAULT;
-        }
-    }
-
-    private TenantAccessMapper getTenantAccessMapper(List<Object> componentsList) {
-        List<Object> tenantAccessMappers = componentsList.stream()
-                .filter(o -> TenantAccessMapper.class.isAssignableFrom(o.getClass())).toList();
-
-        if (!tenantAccessMappers.isEmpty()) {
-            return (TenantAccessMapper) tenantAccessMappers.get(0);
-        } else {
-            return TenantAccessMapper.NO_OP;
-        }
     }
 
 }

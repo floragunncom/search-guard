@@ -24,7 +24,6 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.google.common.collect.ImmutableMap;
 
 public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyConfig> {
@@ -38,8 +37,6 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
     private final boolean enabled;
     private final String index;
     private final String serverUsername;
-    // TODO 
-    private final MetricsLevel metricsLevel = MetricsLevel.DETAILED;
 
     FeMultiTenancyConfig(DocNode source, boolean enabled, String serverUsername, String index) {
         this.source = source;
@@ -101,9 +98,5 @@ public class FeMultiTenancyConfig implements PatchableDocument<FeMultiTenancyCon
     @Override
     public FeMultiTenancyConfig parseI(DocNode docNode, Context context) throws ConfigValidationException {
         return parse(docNode, (ConfigurationRepository.Context) context).get();
-    }
-
-    public MetricsLevel getMetricsLevel() {
-        return metricsLevel;
     }
 }

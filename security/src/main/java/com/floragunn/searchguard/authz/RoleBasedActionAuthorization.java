@@ -39,6 +39,7 @@ import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.Resolve
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
+import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
@@ -53,11 +54,12 @@ import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 
 public class RoleBasedActionAuthorization implements ActionAuthorization, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(RoleBasedActionAuthorization.class);
+    private static final String USER_TENANT = "__user__";
 
     private final SgDynamicConfiguration<Role> roles;
     private final ActionGroup.FlattenedIndex actionGroups;
     private final Actions actions;
-    private final TenantManager tenantManager;
+    private final ImmutableSet<String> tenants;
 
     private final ClusterPermissions cluster;
     private final ClusterPermissionExclusions clusterExclusions;
@@ -98,13 +100,13 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         this.actionGroups = actionGroups;
         this.actions = actions;
         this.metricsLevel = metricsLevel;
-        this.tenantManager = new TenantManager(tenants);
+        this.tenants = ImmutableSet.of(tenants);
 
         this.cluster = new ClusterPermissions(roles, actionGroups, actions, metricsLevel);
         this.clusterExclusions = new ClusterPermissionExclusions(roles, actionGroups, actions);
         this.index = new IndexPermissions(roles, actionGroups, actions);
         this.indexExclusions = new IndexPermissionExclusions(roles, actionGroups, actions);
-        this.tenant = new TenantPermissions(roles, actionGroups, actions, this.tenantManager.getConfiguredTenantNames());
+        this.tenant = new TenantPermissions(roles, actionGroups, actions, this.tenants);
         this.universallyDeniedIndices = universallyDeniedIndices;
 
         this.componentState = new ComponentState("role_based_action_authorization");
@@ -396,7 +398,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 }
             }
 
-            if (!tenantManager.isTenantHeaderValid(requestedTenant)) {
+            if (!isTenantValid(requestedTenant)) {
                 log.info("Invalid tenant requested: {}", requestedTenant);
                 tenantActionCheckResults_insufficient.increment();
                 return PrivilegesEvaluationResult.INSUFFICIENT.reason("Invalid requested tenant");
@@ -447,6 +449,15 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             this.statefulIndex = new StatefulIndexPermssions(roles, actionGroups, actions, indices, universallyDeniedIndices, statefulIndexState);
             this.componentState.updateStateFromParts();
         }
+    }
+
+    private boolean isTenantValid(String requestedTenant) {
+
+        if (Tenant.GLOBAL_TENANT_ID.equals(requestedTenant) || USER_TENANT.equals(requestedTenant)) {
+            return true;
+        }
+
+        return tenants.contains(requestedTenant);
     }
 
     static class ClusterPermissions implements ComponentStateProvider {
@@ -1347,6 +1358,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             }
         }
 
+    }
+
+    public ImmutableSet<String> getTenants() {
+        return tenants;
     }
 
     public ActionGroup.FlattenedIndex getActionGroups() {
