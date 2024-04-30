@@ -42,7 +42,7 @@ public class AuditMessageTest {
     private final String localNodeName = "test-local-node";
     private final String localNodeHostAddress = "127.0.0.1";
     private final String localNodeHostName = "test-local-node-host";
-    private final Version localNodeVersion = Version.V_7_17_11;
+    private final Version localNodeVersion = Version.CURRENT;
 
     @Before
     public void setUp() {
