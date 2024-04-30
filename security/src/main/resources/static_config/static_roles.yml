@@ -61,7 +61,6 @@ SGS_KIBANA_USER_NO_GLOBAL_TENANT:
   cluster_permissions:
     - "SGS_CLUSTER_COMPOSITE_OPS"
     - "SGS_PERSONAL_SESSIONS"
-    - "cluster:admin:searchguard:femt:user/available_tenants/get"
   index_permissions:
     - index_patterns:
         - ".tasks"
