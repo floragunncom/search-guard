@@ -38,7 +38,6 @@ public class PrivilegesEvaluationResult {
 
     public static final PrivilegesEvaluationResult INSUFFICIENT = new PrivilegesEvaluationResult(Status.INSUFFICIENT);
     public static final PrivilegesEvaluationResult PENDING = new PrivilegesEvaluationResult(Status.PENDING);
-    public static final PrivilegesEvaluationResult INTERCEPTED = new PrivilegesEvaluationResult(Status.INTERCEPTED);
 
     private final Status status;
     private final CheckTable<String, Action> indexToActionPrivilegeTable;
@@ -209,7 +208,7 @@ public class PrivilegesEvaluationResult {
     }
 
     public static enum Status {
-        OK, PARTIALLY_OK, EMPTY, INSUFFICIENT, PENDING, INTERCEPTED;
+        OK, PARTIALLY_OK, EMPTY, INSUFFICIENT, PENDING;
     }
 
     public static class Error {

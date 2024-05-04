@@ -230,7 +230,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     }
 
     public PrivilegesEvaluationResult evaluate(User user, ImmutableSet<String> mappedRoles, String action0, ActionRequest request, Task task,
-            PrivilegesEvaluationContext context, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext, ActionListener<?> listener) {
+            PrivilegesEvaluationContext context, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
 
         if (!isInitialized()) {
             throw new ElasticsearchSecurityException("Search Guard is not initialized.");
@@ -321,12 +321,12 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 if (request instanceof RestoreSnapshotRequest && checkSnapshotRestoreWritePrivileges) {
                     // Evaluate additional index privileges                
                     return evaluateIndexPrivileges(user, action0, action.expandPrivileges(request), request, task, requestInfo, mappedRoles,
-                            authzConfig, actionAuthorization, specialPrivilegesEvaluationContext, context, listener);
+                            authzConfig, actionAuthorization, specialPrivilegesEvaluationContext, context);
                 }
 
                 if (privilegesInterceptor != null) {
                     PrivilegesInterceptor.InterceptionResult replaceResult = privilegesInterceptor.replaceKibanaIndex(context, request, action,
-                            actionAuthorization, listener);
+                            actionAuthorization);
 
                     if (log.isDebugEnabled()) {
                         log.debug("Result from privileges interceptor for cluster perm: {}", replaceResult);
@@ -337,8 +337,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                         return PrivilegesEvaluationResult.INSUFFICIENT.reason("Denied due to multi-tenancy settings");
                     } else if (replaceResult == PrivilegesInterceptor.InterceptionResult.ALLOW) {
                         return PrivilegesEvaluationResult.OK;
-                    } else if (replaceResult == PrivilegesInterceptor.InterceptionResult.INTERCEPTED) {
-                        return PrivilegesEvaluationResult.INTERCEPTED;
                     }
                 }
 
@@ -355,7 +353,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     }
 
                     return evaluateAdditionalPrivileges(user, action0, additionalPrivileges, request, task, requestInfo, mappedRoles, authzConfig,
-                            actionAuthorization, specialPrivilegesEvaluationContext, context, listener);
+                            actionAuthorization, specialPrivilegesEvaluationContext, context);
                 }
             }
 
@@ -390,7 +388,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             }
 
             return evaluateIndexPrivileges(user, action0, allIndexPermsRequired, request, task, requestInfo, mappedRoles, authzConfig,
-                    actionAuthorization, specialPrivilegesEvaluationContext, context, listener);
+                    actionAuthorization, specialPrivilegesEvaluationContext, context);
         } catch (Exception e) {
             log.error("Error while evaluating " + action0 + " (" + request.getClass().getName() + ")", e);
             return PrivilegesEvaluationResult.INSUFFICIENT.with(ImmutableList.of(new PrivilegesEvaluationResult.Error(e.getMessage(), e)));
@@ -400,7 +398,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private PrivilegesEvaluationResult evaluateIndexPrivileges(User user, String action0, ImmutableSet<Action> requiredPermissions,
             ActionRequest request, Task task, ActionRequestInfo actionRequestInfo, ImmutableSet<String> mappedRoles, AuthorizationConfig authzConfig,
             ActionAuthorization actionAuthorization, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext,
-            PrivilegesEvaluationContext context, ActionListener<?> listener) throws PrivilegesEvaluationException {
+            PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
 
         ActionFilter additionalActionFilter = null;
 
@@ -459,7 +457,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         if (privilegesInterceptor != null) {
 
             PrivilegesInterceptor.InterceptionResult replaceResult = privilegesInterceptor.replaceKibanaIndex(context, request, actions.get(action0),
-                    actionAuthorization, listener);
+                    actionAuthorization);
 
             if (log.isDebugEnabled()) {
                 log.debug("Result from privileges interceptor: {}", replaceResult);
@@ -470,8 +468,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 return PrivilegesEvaluationResult.INSUFFICIENT.reason("Denied due to multi-tenancy settings");
             } else if (replaceResult == PrivilegesInterceptor.InterceptionResult.ALLOW) {
                 return PrivilegesEvaluationResult.OK.with(additionalActionFilter);
-            } else if (replaceResult == PrivilegesInterceptor.InterceptionResult.INTERCEPTED) {
-                return PrivilegesEvaluationResult.INTERCEPTED;
             }
         }
 
@@ -566,7 +562,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             ResizeRequest resizeRequest = (ResizeRequest) request;
             CreateIndexRequest createIndexRequest = resizeRequest.getTargetIndexRequest();
             PrivilegesEvaluationResult subResponse = evaluate(user, mappedRoles, CreateIndexAction.NAME, createIndexRequest, task, context,
-                    specialPrivilegesEvaluationContext, listener);
+                    specialPrivilegesEvaluationContext);
 
             if (!subResponse.isOk()) {
                 return subResponse;
@@ -583,11 +579,11 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private PrivilegesEvaluationResult evaluateAdditionalPrivileges(User user, String action0, ImmutableSet<Action> additionalPrivileges,
             ActionRequest request, Task task, ActionRequestInfo actionRequestInfo, ImmutableSet<String> mappedRoles, AuthorizationConfig authzConfig,
             ActionAuthorization actionAuthorization, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext,
-            PrivilegesEvaluationContext context, ActionListener<?> listener) throws PrivilegesEvaluationException {
+            PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
 
         if (additionalPrivileges.forAllApplies((a) -> a.isIndexPrivilege())) {
             return evaluateIndexPrivileges(user, action0, additionalPrivileges, request, task, actionRequestInfo, mappedRoles, authzConfig,
-                    actionAuthorization, specialPrivilegesEvaluationContext, context, listener);
+                    actionAuthorization, specialPrivilegesEvaluationContext, context);
         }
 
         ImmutableSet<Action> indexPrivileges = ImmutableSet.empty();
@@ -614,7 +610,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
         if (!indexPrivileges.isEmpty()) {
             return evaluateIndexPrivileges(user, action0, indexPrivileges, request, task, actionRequestInfo, mappedRoles, authzConfig,
-                    actionAuthorization, specialPrivilegesEvaluationContext, context, listener);
+                    actionAuthorization, specialPrivilegesEvaluationContext, context);
         } else {
             if (log.isTraceEnabled()) {
                 log.trace("Allowing: " + action0);

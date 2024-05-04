@@ -30,17 +30,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.IndicesRequest;
@@ -52,9 +52,8 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsIndexR
 import org.elasticsearch.action.admin.indices.mapping.get.GetFieldMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
-import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetRequest.Item;
@@ -66,20 +65,11 @@ import org.elasticsearch.action.support.single.shard.SingleShardRequest;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
-import org.elasticsearch.cluster.metadata.IndexAbstraction;
-import org.elasticsearch.cluster.metadata.IndexMetadata;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.index.Index;
-import org.elasticsearch.index.engine.DocumentMissingException;
-import org.elasticsearch.index.shard.AbstractIndexShardComponent;
-import org.elasticsearch.index.shard.ShardId;
-import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.Script;
 
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.ALLOW;
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.DENY;
-import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.INTERCEPTED;
 import static com.floragunn.searchguard.privileges.PrivilegesInterceptor.InterceptionResult.NORMAL;
 
 public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
@@ -106,12 +96,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
     private final ImmutableSet<String> tenantNames;
     private final boolean enabled;
 
-    private final ClusterService clusterService;
-
-    private final IndicesService indicesService;
-
-    public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, ImmutableSet<String> tenantNames, Actions actions, ClusterService clusterService,
-                                     IndicesService indicesService) {
+    public PrivilegesInterceptorImpl(FeMultiTenancyConfig config, ImmutableSet<String> tenantNames, Actions actions) {
         this.enabled = config.isEnabled();
         this.kibanaServerUsername = config.getServerUsername();
         this.kibanaIndexName = config.getIndex();
@@ -123,8 +108,6 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         this.tenantNames = tenantNames.with(Tenant.GLOBAL_TENANT_ID);
         this.KIBANA_ALL_SAVED_OBJECTS_WRITE = actions.get("kibana:saved_objects/_/write");
         this.KIBANA_ALL_SAVED_OBJECTS_READ = actions.get("kibana:saved_objects/_/read");
-        this.clusterService = Objects.requireNonNull(clusterService, "Cluster services are required");
-        this.indicesService = Objects.requireNonNull(indicesService, "Indices service is required");
     }
 
     private boolean isTenantAllowed(TenantAccess tenantAccess, PrivilegesEvaluationContext context, Action action, String requestedTenant) throws PrivilegesEvaluationException {
@@ -140,7 +123,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
             return false;
         }
 
-        if (tenantAccess.isWriteProhibited() && !READ_ONLY_ALLOWED_ACTIONS.contains(action.name())) {
+        if (tenantAccess.isWriteProhibited() && !(READ_ONLY_ALLOWED_ACTIONS.contains(action.name()) || isReadOnlyAllowedRequest(context.getRequest()))) {
             log.warn("Tenant {} is not allowed to write (user: {})", requestedTenant, context.getUser().getName());
             return false;
         }
@@ -150,7 +133,7 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
 
     @Override
     public InterceptionResult replaceKibanaIndex(
-            PrivilegesEvaluationContext context, ActionRequest request, Action action, ActionAuthorization actionAuthorization, ActionListener<?> listener) throws PrivilegesEvaluationException {
+            PrivilegesEvaluationContext context, ActionRequest request, Action action, ActionAuthorization actionAuthorization) throws PrivilegesEvaluationException {
 
         if (!enabled) {
             return NORMAL;
@@ -183,11 +166,6 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         requestedTenant = (requestedTenant == null || requestedTenant.isEmpty())? Tenant.GLOBAL_TENANT_ID : requestedTenant;
 
         TenantAccess tenantAccess = getTenantAccess(context, requestedTenant, actionAuthorization);
-        InterceptionResult interceptionResult = handleRequestRequiringSpecialTreatment(tenantAccess, context, listener);
-
-        if (interceptionResult == INTERCEPTED) {
-            return INTERCEPTED;
-        }
 
         if (requestedTenant.equals(Tenant.GLOBAL_TENANT_ID)) {
             if (kibanaIndexInfo.tenantInfoPart != null) {
@@ -561,87 +539,77 @@ public class PrivilegesInterceptorImpl implements PrivilegesInterceptor {
         );
     }
 
-    private InterceptionResult handleRequestRequiringSpecialTreatment(TenantAccess tenantAccess,
-                                                                                  PrivilegesEvaluationContext context, ActionListener<?> listener) {
-        boolean shouldReturnNotFound = tenantAccess.isReadOnly() &&
-                "indices:data/write/bulk".equals(context.getAction().name()) &&
-                (context.getRequest() instanceof BulkRequest) &&
-                isUpdateRequestDuringLoadingDashboard((BulkRequest)context.getRequest());
-        if(shouldReturnNotFound) {
-            BulkRequest request = (BulkRequest) context.getRequest();
-            notFoundBulkResponseForOnlyBulkRequest((ActionListener<BulkResponse>) listener, request);
-            log.debug("Bulk only request permitted to load frontend dashboard.");
-            return INTERCEPTED;
+    private boolean isReadOnlyAllowedRequest(Object request) {
+        if (isUpdateLegacyUrlAliasDuringLoadingDashboard(request)) {
+            return true;
         }
-        return NORMAL;
+
+        return false;
     }
 
-    private void notFoundBulkResponseForOnlyBulkRequest(ActionListener<BulkResponse> listener, BulkRequest request) {
-        // intercepted bulk request is related only to one index
-        String indexOrAlias = request.getIndices().stream().findFirst().orElseThrow();
-        DocWriteRequest<?> firstBulkRequest = request.requests().get(0);
-        ActionListener<BulkResponse> bulkListener = listener;
-        BulkItemResponse[] items = new BulkItemResponse[1];
-        ShardId firstPrimaryShardId = Optional.of(clusterService.state().getMetadata().getIndicesLookup()) //
-                .map(lookup -> lookup.get(indexOrAlias)) //
-                .map(IndexAbstraction::getWriteIndex) //
-                .map(Index::getName) //
-                .map(realIndexName -> clusterService.state().getMetadata().indices().get(realIndexName)) //
-                .map(IndexMetadata::getIndex) //
-                .map(indicesService::indexService) //
-                .stream() //
-                .flatMap(indexService -> indexService.shardIds().stream().map(indexService::getShard)) //
-                .filter(shard -> shard.routingEntry().primary()) //
-                .map(AbstractIndexShardComponent::shardId) //
-                .findFirst() //
-                .orElse(null);
+    /**
+     * Method checks if it's a Bulk request related to legacy url alias, sent when a dashboard is opened.
+     * User with read-only permission is not allowed to send such request.
+     * When SG returns 403 response then process of opening the dashboard is interrupted.
+     */
+    private boolean isUpdateLegacyUrlAliasDuringLoadingDashboard(Object request) {
 
-        log.debug("Found primary shard id '{}'", firstPrimaryShardId);
+        Predicate<DocWriteRequest<?>> bulkRequestMatcher = req -> {
 
-        DocumentMissingException documentMissingException = new DocumentMissingException(firstPrimaryShardId, indexOrAlias);
-        BulkItemResponse.Failure failure = new BulkItemResponse.Failure(indexOrAlias, firstBulkRequest.id(), documentMissingException);
-        int requestIndexInBulk = 0; // request index in bulk is used as id also here
-        // org.elasticsearch.action.bulk.TransportBulkAction.BulkOperation.addFailure
-        items[0] = BulkItemResponse.failure(requestIndexInBulk, DocWriteRequest.OpType.UPDATE, failure);
-        bulkListener.onResponse(new BulkResponse(items, 1L));
-    }
+            if((req.id() == null) || (!req.id().startsWith("legacy-url-alias"))) {
+                return false;
+            }
+            if(!(req instanceof UpdateRequest updateRequest)) {
+                return false;
+            }
+            Script script = updateRequest.script();
+            if(script == null) {
+                return false;
+            }
+            if(!"painless".contains(script.getLang())) {
+                return false;
+            }
+            Map<String, Object> params = script.getParams();
+            if((params == null) || (!params.containsKey("type") || (!params.containsKey("time")))) {
+                return false;
+            }
+            if(!"legacy-url-alias".equals(params.get("type"))) {
+                return false;
+            }
+            String code = script.getIdOrCode();
+            if((code == null) || (!code.contains("ctx._source[params.type].disabled")) || (!code.contains("ctx._source[params.type].resolveCounter"))) {
+                return false;
+            }
+            return true;
+        };
 
-    private boolean isUpdateRequestDuringLoadingDashboard(BulkRequest request) {
-        if(request.getIndices().size() != 1) {
-            return false;
+        if (request instanceof BulkRequest bulkRequest) {
+            if (bulkRequest.getIndices().size() != 1) {
+                return false;
+            }
+            if (!new ArrayList<>(bulkRequest.getIndices()).get(0).startsWith(kibanaIndexName)) {
+                return false;
+            }
+            if(bulkRequest.requests() == null || !(bulkRequest.requests().stream().allMatch(bulkRequestMatcher))) {
+                return false;
+            }
+            return true;
         }
-        if(!new ArrayList<>(request.getIndices()).get(0).startsWith(kibanaIndexName)) {
-            return false;
+
+        if (request instanceof BulkShardRequest bulkShardRequest) {
+            if (bulkShardRequest.indices().length != 1) {
+                return false;
+            }
+            if (!bulkShardRequest.indices()[0].startsWith(kibanaIndexName)) {
+                return false;
+            }
+            if(bulkShardRequest.items() == null || !(Stream.of(bulkShardRequest.items()).allMatch(item -> bulkRequestMatcher.test(item.request())))) {
+                return false;
+            }
+            return true;
         }
-        if(request.requests() == null || (request.requests().size() != 1)) {
-            return false;
-        }
-        DocWriteRequest<?> firstBulkRequest = request.requests().get(0);
-        if((firstBulkRequest.id() == null) || (!firstBulkRequest.id().startsWith("legacy-url-alias"))) {
-            return false;
-        }
-        if(!(firstBulkRequest instanceof UpdateRequest updateRequest)) {
-            return false;
-        }
-        Script script = updateRequest.script();
-        if(script == null) {
-            return false;
-        }
-        if(!"painless".contains(script.getLang())) {
-            return false;
-        }
-        Map<String, Object> params = script.getParams();
-        if((params == null) || (!params.containsKey("type") || (!params.containsKey("time")))) {
-            return false;
-        }
-        if(!"legacy-url-alias".equals(params.get("type"))) {
-            return false;
-        }
-        String code = script.getIdOrCode();
-        if((code == null) || (!code.contains("ctx._source[params.type].disabled")) || (!code.contains("ctx._source[params.type].resolveCounter"))) {
-            return false;
-        }
-        return true;
+
+        return false;
     }
 
     record TenantAccess(boolean hasReadPermission, boolean hasWritePermission) {
