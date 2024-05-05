@@ -89,9 +89,11 @@ public class DashboardAccessByReadOnlyUserTest {
     public void shouldHavePermissionToLegacyUriAliasUpdate() throws Exception {
         try(GenericRestClient client = cluster.getRestClient(USER_READ_ONLY_TENANT, new BasicHeader("sg_tenant", HR_TENANT.getName()))) {
             String body = """
-                {"update":{"_id":"legacy-url-alias:default:dashboard:8aee3c30-732f-11ee-9463-735e937661a5","_index":".kibana_8.9.0","_source":true}}
-                {"script":{"source":"\\n            if (ctx._source[params.type].disabled != true) {\\n              if (ctx._source[params.type].resolveCounter == null) {\\n                ctx._source[params.type].resolveCounter = 1;\\n              }\\n              else {\\n                ctx._source[params.type].resolveCounter += 1;\\n              }\\n              ctx._source[params.type].lastResolved = params.time;\\n              ctx._source.updated_at = params.time;\\n            }\\n          ","lang":"painless","params":{"type":"legacy-url-alias","time":"2023-10-31T13:11:27.347Z"}}}
-                """;
+                    {"update":{"_id":"legacy-url-alias:default:dashboard:d90bca50-0910-11ef-ab4b-bf505c6701d0","_index":".kibana_8.9.0","_source":true}}
+                    {"script":{"source":"\\n            if (ctx._source[params.type].disabled != true) {\\n              if (ctx._source[params.type].resolveCounter == null) {\\n                ctx._source[params.type].resolveCounter = 1;\\n              }\\n              else {\\n                ctx._source[params.type].resolveCounter += 1;\\n              }\\n              ctx._source[params.type].lastResolved = params.time;\\n              ctx._source.updated_at = params.time;\\n            }\\n          ","lang":"painless","params":{"type":"legacy-url-alias","time":"2024-05-04T12:27:03.048Z"}}}
+                    {"update":{"_id":"legacy-url-alias:default:index-pattern:e4275435-dba8-4dbb-882f-509295543b89","_index":".kibana_8.9.0","_source":true}}
+                    {"script":{"source":"\\n            if (ctx._source[params.type].disabled != true) {\\n              if (ctx._source[params.type].resolveCounter == null) {\\n                ctx._source[params.type].resolveCounter = 1;\\n              }\\n              else {\\n                ctx._source[params.type].resolveCounter += 1;\\n              }\\n              ctx._source[params.type].lastResolved = params.time;\\n              ctx._source.updated_at = params.time;\\n            }\\n          ","lang":"painless","params":{"type":"legacy-url-alias","time":"2024-05-04T12:27:03.048Z"}}}
+                    """;;
             HttpResponse response = client.postJson("/_bulk", body);
 
             log.debug("Response status '{}', and body '{}'", response.getStatusCode(), response.getBody());
@@ -100,7 +102,10 @@ public class DashboardAccessByReadOnlyUserTest {
             assertThat(responseBody, containsValue("$.errors", true));
             assertThat(responseBody, containsValue("$.items[0].update.status", 404));
             assertThat(responseBody, containsValue("$.items[0].update.error.type", "document_missing_exception"));
-            assertThat(responseBody, containsValue("$.items[0].update._id", "legacy-url-alias:default:dashboard:8aee3c30-732f-11ee-9463-735e937661a5"));
+            assertThat(responseBody, containsValue("$.items[0].update._id", "legacy-url-alias:default:dashboard:d90bca50-0910-11ef-ab4b-bf505c6701d0"));
+            assertThat(responseBody, containsValue("$.items[1].update.status", 404));
+            assertThat(responseBody, containsValue("$.items[1].update.error.type", "document_missing_exception"));
+            assertThat(responseBody, containsValue("$.items[1].update._id", "legacy-url-alias:default:index-pattern:e4275435-dba8-4dbb-882f-509295543b89"));
         }
     }
 }
