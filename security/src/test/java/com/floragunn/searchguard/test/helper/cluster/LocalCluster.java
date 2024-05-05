@@ -40,6 +40,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.test.TestSgConfig.UserPassword;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.google.common.base.Strings;
@@ -304,7 +305,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
     private static String loadConfig(CType<?> configType, Client client, String searchGuardIndex) {
         GetResponse getResponse = client.get(new GetRequest(searchGuardIndex, configType.toLCString())).actionGet();
-        return new String(Base64.getDecoder().decode(String.valueOf(getResponse.getSource().get(configType.toLCString()))));
+        if (getResponse.isExists()) {
+            return new String(Base64.getDecoder().decode(String.valueOf(getResponse.getSource().get(configType.toLCString()))));
+        } else {
+            return DocNode.EMPTY.toJsonString();
+        }
     }
 
     private String getConfigIndexName() {

@@ -36,7 +36,7 @@ public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
     public static CType<DlsFlsConfig> TYPE = new CType<DlsFlsConfig>("authz_dlsfls", "Document Level Security and Field Level Security", 10011,
             DlsFlsConfig.class, DlsFlsConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
 
-    public static final DlsFlsConfig DEFAULT = new DlsFlsConfig(null, null, false, MetricsLevel.BASIC, Impl.LEGACY, false, Mode.ADAPTIVE);
+    public static final DlsFlsConfig DEFAULT = new DlsFlsConfig(null, null, false, MetricsLevel.BASIC, Impl.LEGACY, false, Mode.ADAPTIVE, false);
 
     private final DocNode source;
     private final FieldMasking fieldMasking;
@@ -45,9 +45,10 @@ public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
     private final Impl enabledImpl;
     private final boolean nowAllowedInQueries;
     private final Mode dlsMode;
+    private final boolean forceMinDocCountToOne;
 
     DlsFlsConfig(DocNode source, FieldMasking fieldMasking, boolean debugEnabled, MetricsLevel metricsLevel, Impl enabledImpl,
-            boolean nowAllowedInQueries, Mode dlsMode) {
+            boolean nowAllowedInQueries, Mode dlsMode, boolean forceMinDocCountToOne) {
         this.source = source;
 
         this.fieldMasking = fieldMasking;
@@ -56,6 +57,7 @@ public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
         this.enabledImpl = enabledImpl;
         this.nowAllowedInQueries = nowAllowedInQueries;
         this.dlsMode = dlsMode;
+        this.forceMinDocCountToOne = forceMinDocCountToOne;
     }
 
     public static ValidationResult<DlsFlsConfig> parse(DocNode docNode, Parser.Context context) {
@@ -73,12 +75,13 @@ public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
         Impl enabledImpl = vNode.get("use_impl").withDefault(Impl.LEGACY).asEnum(Impl.class);
         boolean nowAllowedInQueries = vNode.get("dls.allow_now").withDefault(false).asBoolean();
         Mode dlsMode = vNode.get("dls.mode").withDefault(Mode.ADAPTIVE).asEnum(Mode.class);
+        boolean forceMinDocCountToOne = vNode.get("dls.force_min_doc_count_to_1").withDefault(false).asBoolean();
 
         vNode.checkForUnusedAttributes();
 
         if (!validationErrors.hasErrors()) {
             return new ValidationResult<DlsFlsConfig>(
-                    new DlsFlsConfig(docNode, fieldMasking, debugEnabled, metricsLevel, enabledImpl, nowAllowedInQueries, dlsMode));
+                    new DlsFlsConfig(docNode, fieldMasking, debugEnabled, metricsLevel, enabledImpl, nowAllowedInQueries, dlsMode, forceMinDocCountToOne));
         } else {
             return new ValidationResult<DlsFlsConfig>(validationErrors);
         }
@@ -116,6 +119,10 @@ public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
 
     public FieldMasking getFieldMasking() {
         return fieldMasking;
+    }
+
+    public boolean isForceMinDocCountToOne() {
+        return forceMinDocCountToOne;
     }
 
     public static class FieldMasking implements Document<FieldMasking> {
