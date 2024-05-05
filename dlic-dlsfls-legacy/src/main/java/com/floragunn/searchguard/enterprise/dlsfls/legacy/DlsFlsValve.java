@@ -200,7 +200,12 @@ public class DlsFlsValve implements SyncAuthorizationFilter {
             if (searchRequest.source() != null && searchRequest.source().aggregations() != null) {
                 for (AggregationBuilder factory : searchRequest.source().aggregations().getAggregatorFactories()) {
                     if (factory instanceof TermsAggregationBuilder && ((TermsAggregationBuilder) factory).minDocCount() == 0) {
-                        return SyncAuthorizationFilter.Result.DENIED.reason("min_doc_count 0 is not supported when DLS is activated");
+                        if (config.getDlsFlsConfig().isForceMinDocCountToOne()) {
+                            log.debug("Forcing terms aggregation min doc count to 1");
+                            ((TermsAggregationBuilder) factory).minDocCount(1);
+                        } else {
+                            return SyncAuthorizationFilter.Result.DENIED.reason("min_doc_count 0 is not supported when DLS is activated");
+                        }
                     }
                 }
             }
