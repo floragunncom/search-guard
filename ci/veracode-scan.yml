@@ -29,7 +29,7 @@
 veracode_build:
   stage: Veracode Scan
   rules:
-    - if: '$VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_TAG =~ /^sg-flx-.*/'
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_TAG =~ /^sg-.*/'
       when: always
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: manual
@@ -79,7 +79,7 @@ veracode_sandbox_scan:
 veracode_release_scan:
   extends: ['.veracode_scan_common']
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
   script:
     - | 
       echo "Executing release scan for $APP_NAME with version $CI_COMMIT_TAG"
