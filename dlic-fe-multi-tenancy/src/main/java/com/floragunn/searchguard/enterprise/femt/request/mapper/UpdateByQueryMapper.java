@@ -26,7 +26,7 @@ import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 import java.util.List;
 import java.util.Objects;
 
-public class UpdateByQueryMapper {
+public class UpdateByQueryMapper implements Unscoper<BulkByScrollResponse> {
 
     private final BulkMapper bulkMapper;
 
@@ -60,7 +60,8 @@ public class UpdateByQueryMapper {
         return request;
     }
 
-    public BulkByScrollResponse toUnscopedBulkByScrollResponse(BulkByScrollResponse response) {
+    @Override
+    public BulkByScrollResponse unscopeResponse(BulkByScrollResponse response) {
         log.debug("Rewriting bulk by scroll response - removing tenant scope");
 
         List<BulkItemResponse.Failure> unscopedFailures = response.getBulkFailures()

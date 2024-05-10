@@ -35,7 +35,7 @@ import org.elasticsearch.index.seqno.SequenceNumbers;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class BulkMapper {
+public class BulkMapper implements Unscoper<BulkResponse>{
 
     private final static Logger log = LogManager.getLogger(BulkMapper.class);
 
@@ -78,7 +78,8 @@ public class BulkMapper {
         return request;
     }
 
-    public BulkResponse toUnscopedBulkResponse(BulkResponse response) {
+    @Override
+    public BulkResponse unscopeResponse(BulkResponse response) {
         log.debug("Rewriting bulk response - removing tenant scope");
         BulkItemResponse[] items = response.getItems();
         BulkItemResponse[] newItems = new BulkItemResponse[items.length];
@@ -95,13 +96,13 @@ public class BulkMapper {
 
                 if (docWriteResponse instanceof IndexResponse indexResponse) {
                     log.debug("Rewriting item - index response");
-                    newDocWriteResponse = new IndexMapper().toUnscopedIndexResponse(indexResponse);
+                    newDocWriteResponse = new IndexMapper().unscopeResponse(indexResponse);
                 } else if (docWriteResponse instanceof DeleteResponse deleteResponse) {
                     log.debug("Rewriting item - delete response");
-                    newDocWriteResponse = new DeleteMapper().toUnscopedDeleteResponse(deleteResponse);
+                    newDocWriteResponse = new DeleteMapper().unscopeResponse(deleteResponse);
                 } else if (docWriteResponse instanceof UpdateResponse updateResponse) {
                     log.debug("Rewriting item - update response");
-                    newDocWriteResponse = new UpdateMapper().toUnscopedUpdateResponse(updateResponse);
+                    newDocWriteResponse = new UpdateMapper().unscopeResponse(updateResponse);
                 } else {
                     log.error("Rewriting item - unhandled item type {}", item.getClass().getName());
                 }

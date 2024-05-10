@@ -14,13 +14,17 @@
 package com.floragunn.searchguard.enterprise.femt.request.handler;
 
 
+import com.floragunn.searchguard.enterprise.femt.request.mapper.Unscoper;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.client.internal.node.NodeClient;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;
 import org.elasticsearch.index.reindex.UpdateByQueryAction;
 import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -37,6 +41,10 @@ public class TenantScopedActionListenerWrapperTest {
 
     @Mock
     private NodeClient client;
+    @Mock
+    private ThreadContext.StoredContext context;
+    @Mock
+    private Unscoper<BulkByScrollResponse> unscoper;
 
     @Test
     public void shouldCallDelegateOnFailure_whenExecutionFails() {
@@ -44,15 +52,15 @@ public class TenantScopedActionListenerWrapperTest {
         RuntimeException actionException = new RuntimeException("Action failed");
 
         ActionListener<?> originalListener = Mockito.spy(ActionListener.noop());
-        TenantScopedActionListenerWrapper<BulkByScrollResponse> listenerWrapper = new TenantScopedActionListenerWrapper<>(
-                originalListener, (response) -> {}, (response) -> response, (ex) -> {}
-        );
+        var listenerWrapper = new TenantScopedActionListenerWrapper<>(originalListener, context, unscoper);
 
         doAnswer(new CallListenerOnFailureAnswer(actionException)).when(client).execute(any(), any(), any(ActionListener.class));
 
         client.execute(UpdateByQueryAction.INSTANCE, new UpdateByQueryRequest(), listenerWrapper);
 
-        verify(originalListener).onFailure(eq(actionException));
+        InOrder inOrder = Mockito.inOrder(originalListener, context);
+        inOrder.verify(context).restore();
+        inOrder.verify(originalListener).onFailure(eq(actionException));
     }
 
     private static class CallListenerOnFailureAnswer implements Answer<Void> {

@@ -12,13 +12,13 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 
-public class MultiGetMapper {
+public class MultiGetMapper implements Unscoper<MultiGetResponse> {
 
     private final static Logger log = LogManager.getLogger(MultiGetMapper.class);
-    private final GetMapper getMapper;
+    private final Unscoper<GetResponse> unscoper;
 
-    public MultiGetMapper(GetMapper getMapper) {
-        this.getMapper = Objects.requireNonNull(getMapper, "getMapper is required");
+    public MultiGetMapper(Unscoper<GetResponse> unscoper) {
+        this.unscoper = Objects.requireNonNull(unscoper, "getMapper is required");
     }
 
     public MultiGetRequest toScopedMultiGetRequest(MultiGetRequest request, String tenant) {
@@ -36,7 +36,8 @@ public class MultiGetMapper {
         return scopedRequest;
     }
 
-    public MultiGetResponse toUnscopedMultiGetResponse(MultiGetResponse response) {
+    @Override
+    public MultiGetResponse unscopeResponse(MultiGetResponse response) {
         log.debug("Rewriting multi get response - removing tenant scope");
         MultiGetItemResponse[] items = Arrays.stream(response.getResponses()) //
                 .map(this::unscopeIdInMultiGetResponseItem)
@@ -57,7 +58,7 @@ public class MultiGetMapper {
     private MultiGetItemResponse unscopeIdInMultiGetResponseItem(MultiGetItemResponse multiGetItemResponse) {
         log.debug("Removing tenant scope from multi get item response: {}, {}", multiGetItemResponse.getIndex(), multiGetItemResponse.getId());
         GetResponse successResponse = Optional.ofNullable(multiGetItemResponse.getResponse())
-                .map(getMapper::toUnscopedGetResponse)
+                .map(unscoper::unscopeResponse)
                 .orElse(null);
 
         MultiGetResponse.Failure failure = Optional.ofNullable(multiGetItemResponse.getFailure()) //

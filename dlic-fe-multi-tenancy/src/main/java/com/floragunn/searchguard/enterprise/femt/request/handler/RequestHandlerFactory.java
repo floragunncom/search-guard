@@ -69,7 +69,7 @@ public class RequestHandlerFactory {
                     nodeClient, threadContext, new MultiGetMapper(new GetMapper(clusterService, indicesService))
             );
         } else if (request instanceof ClusterSearchShardsRequest) {
-            handler = (RequestHandler<T>)  new ClusterSearchShardsRequestHandler(threadContext);
+            handler = (RequestHandler<T>)  new ClusterSearchShardsRequestHandler();
         } else if (request instanceof BulkRequest) {
             handler = (RequestHandler<T>)  new BulkRequestHandler(nodeClient, threadContext);
         } else if (request instanceof UpdateRequest) {
