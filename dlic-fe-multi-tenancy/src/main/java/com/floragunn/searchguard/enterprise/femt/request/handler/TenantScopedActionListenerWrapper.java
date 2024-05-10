@@ -14,45 +14,58 @@
 
 package com.floragunn.searchguard.enterprise.femt.request.handler;
 
+import com.floragunn.searchguard.enterprise.femt.request.mapper.Unscoper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 
 import java.util.function.Consumer;
-import java.util.function.Function;
 
-class TenantScopedActionListenerWrapper<T> implements ActionListener<T> {
+import static java.util.Objects.requireNonNull;
+
+class TenantScopedActionListenerWrapper<T extends ActionResponse> implements ActionListener<T> {
 
     private static final Logger LOG = LogManager.getLogger(TenantScopedActionListenerWrapper.class);
 
-    private final ActionListener<?> delegate;
-    private final Consumer<T> onResponse;
-    private final Function<T, T> responseMapper;
-    private final Consumer<Exception> onFailure;
+    private final ActionListener<T> delegate;
+    private final Unscoper<T> unscoper;
+    private final StoredContext contextToRestore;
+    private final Consumer<T> finalActionForResponse;
 
-    protected TenantScopedActionListenerWrapper(ActionListener<?> delegate, Consumer<T> onResponse, Function<T, T> responseMapper, Consumer<Exception> onFailure) {
-        this.delegate = delegate;
-        this.onResponse = onResponse;
-        this.responseMapper = responseMapper;
-        this.onFailure = onFailure.andThen(delegate::onFailure);
+    protected TenantScopedActionListenerWrapper(ActionListener<?> delegate, StoredContext contextToRestore, Unscoper<T> unscoper,
+        Consumer<T> finalActionForUnscopedResponse) {
+        this.delegate = (ActionListener<T>) requireNonNull(delegate, "Action listener is required");
+        this.unscoper = requireNonNull(unscoper, "Unscoper is required");
+        this.contextToRestore = requireNonNull(contextToRestore, "Thread context is required");
+        this.finalActionForResponse = requireNonNull(finalActionForUnscopedResponse, "Final action on response is required");
+    }
+
+    protected TenantScopedActionListenerWrapper(ActionListener<?> delegate, StoredContext contextToRestore, Unscoper<T> unscoper) {
+        this(delegate, contextToRestore, unscoper, unscopedResponse -> LOG.debug("Nothing to do on response {}.", unscopedResponse));
     }
 
     @Override
     public void onResponse(T response) {
         try {
-            onResponse.accept(response);
-            @SuppressWarnings("unchecked")
-            ActionListener<T> mappedDelegate = (ActionListener<T>) delegate;
-            mappedDelegate.onResponse(responseMapper.apply(response));
+            contextToRestore.restore();
+            T unscopedResponse = unscoper.unscopeResponse(response);
+            try {
+                delegate.onResponse(unscopedResponse);
+            } finally {
+                finalActionForResponse.accept(unscopedResponse);
+            }
         } catch (Exception e) {
             LOG.error("An error occurred while handling {} response", response.getClass().getName(), e);
             delegate.onFailure(e);
         }
-
     }
 
     @Override
     public void onFailure(Exception e) {
-        onFailure.accept(e);
+        LOG.error("Error occurred when handling response in the tenant scope.", e);
+        contextToRestore.restore();
+        delegate.onFailure(e);
     }
 }

@@ -45,18 +45,9 @@ public class SearchRequestHandler extends RequestHandler<SearchRequest> {
 
         try (ThreadContext.StoredContext storedContext = threadContext.newStoredContext()) {
             threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
+
             SearchRequest scopedRequest = searchMapper.toScopedSearchRequest(request, requestedTenant);
-
-            TenantScopedActionListenerWrapper<SearchResponse> listenerWrapper = new TenantScopedActionListenerWrapper<>(
-                    listener,
-                    (response) -> storedContext.restore(),
-                    searchMapper::toUnscopedSearchResponse,
-                    (ex) -> {
-                        log.error("An error occurred while sending search request", ex);
-                        storedContext.restore();
-                    }
-            );
-
+            var listenerWrapper = new TenantScopedActionListenerWrapper<>(listener, storedContext, searchMapper, SearchResponse::decRef);
             nodeClient.search(scopedRequest, listenerWrapper);
 
             return SyncAuthorizationFilter.Result.INTERCEPTED;

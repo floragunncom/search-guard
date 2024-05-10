@@ -19,17 +19,11 @@ import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsRequest;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
-
-import java.util.Objects;
-
-import static com.floragunn.searchguard.enterprise.femt.MultiTenancyAuthorizationFilter.SG_FILTER_LEVEL_FEMT_DONE;
 
 public class ClusterSearchShardsRequestHandler extends RequestHandler<ClusterSearchShardsRequest> {
 
-    private final ThreadContext threadContext;
-    public ClusterSearchShardsRequestHandler(ThreadContext threadContext) {
-        this.threadContext = Objects.requireNonNull(threadContext, "threadContext is required");
+
+    public ClusterSearchShardsRequestHandler() {
     }
 
     @Override

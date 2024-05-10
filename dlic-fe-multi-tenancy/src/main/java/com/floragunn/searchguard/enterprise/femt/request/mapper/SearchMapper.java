@@ -6,15 +6,12 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchResponseSections;
-import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 
-import java.util.Arrays;
 
-public class SearchMapper {
+public class SearchMapper implements Unscoper<SearchResponse> {
 
     private final static Logger log = LogManager.getLogger(SearchMapper.class);
 
@@ -40,22 +37,16 @@ public class SearchMapper {
         return request;
     }
 
-    public SearchResponse toUnscopedSearchResponse(SearchResponse response) {
-        log.debug("Rewriting search response - removing tenant scope, ES search response hash {}", System.identityHashCode(response));
+    @Override
+    public SearchResponse unscopeResponse(SearchResponse response) {
+        log.debug("Rewriting search response - removing tenant scope");
         SearchHits originalSearchHits = response.getHits();
         SearchHit[] originalSearchHitArray = originalSearchHits.getHits();
-        SearchHit [] rewrittenSearchHitArray = new  SearchHit[originalSearchHitArray.length];
+        SearchHit [] rewrittenSearchHitArray = new SearchHit[originalSearchHitArray.length];
 
         for (int i = 0; i < originalSearchHitArray.length; i++) {
-            SearchHit currentHit = originalSearchHitArray[i];
-            SearchHit unscopedHit = new SearchHit(currentHit.docId(),
-                    RequestResponseTenantData.unscopedId(currentHit.getId()),
-                    originalSearchHitArray[i].getNestedIdentity());
-            log.debug("ES search hit '{}' replaced with replaced with '{}'", System.identityHashCode(currentHit), System.identityHashCode(unscopedHit));
-            rewrittenSearchHitArray[i] = unscopedHit;
-            BytesReference sourceRef = originalSearchHitArray[i].getSourceRef();
-            BytesArray source = sourceRef == null ? null : new BytesArray(sourceRef.toBytesRef(), true);
-            rewrittenSearchHitArray[i].sourceRef(source);
+            rewrittenSearchHitArray[i] = new SearchHit(originalSearchHitArray[i].docId(), RequestResponseTenantData.unscopedId(originalSearchHitArray[i].getId()), originalSearchHitArray[i].getNestedIdentity());
+            rewrittenSearchHitArray[i].sourceRef(originalSearchHitArray[i].getSourceRef());
             rewrittenSearchHitArray[i].addDocumentFields(originalSearchHitArray[i].getDocumentFields(), originalSearchHitArray[i].getMetadataFields());
             rewrittenSearchHitArray[i].setPrimaryTerm(originalSearchHitArray[i].getPrimaryTerm());
             rewrittenSearchHitArray[i].setSeqNo(originalSearchHitArray[i].getSeqNo());
@@ -66,11 +57,15 @@ public class SearchMapper {
             rewrittenSearchHitArray[i].explanation(originalSearchHitArray[i].getExplanation());
         }
 
-        SearchHits rewrittenSearchHits = new SearchHits(rewrittenSearchHitArray, originalSearchHits.getTotalHits(), originalSearchHits.getMaxScore());
+        SearchHits rewrittenSearchHits = new SearchHits(rewrittenSearchHitArray, originalSearchHits.getTotalHits(), originalSearchHits.getMaxScore())
+            // Creates an unpooled version. This invocation creates a deep copy of source which is present is <code>SearchHit<code>s
+            .asUnpooled();
+        // SearchResponseSections is still pooled
         SearchResponseSections rewrittenSections = new SearchResponseSections(rewrittenSearchHits, response.getAggregations(), response.getSuggest(),
                 response.isTimedOut(), response.isTerminatedEarly(), null, response.getNumReducePhases());
 
-        SearchResponse unscopedResponse = new SearchResponse(rewrittenSections,
+        // SearchResponse is still pooled. It is not possible to create unpooled SearchResponse.
+        SearchResponse pooledSearchResponse = new SearchResponse(rewrittenSections,
             response.getScrollId(),
             response.getTotalShards(),
             response.getSuccessfulShards(),
@@ -79,8 +74,8 @@ public class SearchMapper {
             response.getShardFailures(),
             response.getClusters(),
             response.pointInTimeId());
-        log.debug("SG unscoped search response '{}'", System.identityHashCode(unscopedResponse));
-        return unscopedResponse;
+        pooledSearchResponse.incRef(); // invocation pooledSearchResponse.decRef() is needed to release resources
+        return pooledSearchResponse;
     }
 
 }

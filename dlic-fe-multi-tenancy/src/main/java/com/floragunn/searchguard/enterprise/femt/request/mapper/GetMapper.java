@@ -19,7 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-public class GetMapper {
+public class GetMapper implements Unscoper<GetResponse> {
 
     private final static Logger log = LogManager.getLogger(GetMapper.class);
 
@@ -36,7 +36,8 @@ public class GetMapper {
         return request;
     }
 
-    public GetResponse toUnscopedGetResponse(GetResponse response) {
+    @Override
+    public GetResponse unscopeResponse(GetResponse response) {
         log.debug("Rewriting get response - removing tenant scope");
         PartitionedFields partitionedFields = partitionFieldsIntoDocAndMetadataFields(response);
         GetResult getResult = new GetResult(
@@ -76,10 +77,7 @@ public class GetMapper {
                         documentFields.put(entry.getKey(), entry.getValue());
                     }
                 }
-
-                if (log.isDebugEnabled()) {
-                    log.debug("Partitioned fields: " + metadataFields + "; " + documentFields);
-                }
+                log.debug("Partitioned fields: {}; {}", metadataFields, documentFields);
 
             } else {
                 if (log.isWarnEnabled()) {

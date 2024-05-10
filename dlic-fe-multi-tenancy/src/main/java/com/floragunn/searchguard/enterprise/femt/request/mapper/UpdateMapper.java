@@ -6,7 +6,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.action.update.UpdateResponse;
 
-public class UpdateMapper {
+public class UpdateMapper implements Unscoper<UpdateResponse> {
 
     private final static Logger log = LogManager.getLogger(UpdateMapper.class);
 
@@ -17,7 +17,8 @@ public class UpdateMapper {
         return request;
     }
 
-    public UpdateResponse toUnscopedUpdateResponse(UpdateResponse response) {
+    @Override
+    public UpdateResponse unscopeResponse(UpdateResponse response) {
         log.debug("Rewriting update response - removing tenant scope");
         UpdateResponse updateResponse = new UpdateResponse(
                 response.getShardId(),
