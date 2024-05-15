@@ -713,8 +713,12 @@ public class CheckTest {
                                 .source(new SearchSourceBuilder().sort("execution_end", SortOrder.DESC).query(new MatchAllQueryBuilder())))
                         .actionGet();
 
-                log.info("Did not find watch log for " + watchName + " after " + (System.currentTimeMillis() - start) + " ms\n\n"
-                        + searchResponse.getHits());
+                    try {
+                        log.info("Did not find watch log for " + watchName + " after " + (System.currentTimeMillis() - start) + " ms\n\n"
+                                + searchResponse.getHits());
+                    } finally {
+                        searchResponse.decRef();
+                    }
 
                 Assert.fail("Did not find watch log for " + watchName + " after " + (System.currentTimeMillis() - start) + " ms");
             }

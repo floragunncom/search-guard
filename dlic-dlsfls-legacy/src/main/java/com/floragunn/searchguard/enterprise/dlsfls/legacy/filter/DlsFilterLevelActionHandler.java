@@ -200,7 +200,7 @@ public class DlsFilterLevelActionHandler {
 
         searchRequest.source().query(filterLevelQueryBuilder);
 
-        nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
+        nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {//TODO SearchResponse dec-ref
             @Override
             public void onResponse(SearchResponse response) {
                 try {
@@ -235,7 +235,7 @@ public class DlsFilterLevelActionHandler {
 
         nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
             @Override
-            public void onResponse(SearchResponse response) {
+            public void onResponse(SearchResponse response) {//TODO SearchResponse dec-ref
                 try {
 
                     ctx.restore();
@@ -302,7 +302,7 @@ public class DlsFilterLevelActionHandler {
 
         nodeClient.search(searchRequest, new ActionListener<SearchResponse>() {
             @Override
-            public void onResponse(SearchResponse response) {
+            public void onResponse(SearchResponse response) {//TODO SearchResponse dec-ref
                 try {
 
                     ctx.restore();

@@ -48,7 +48,7 @@ public class IndexJobConfigSource<JobType extends JobConfig> implements Iterable
     private class IndexJobConfigIterator implements Iterator<JobType> {
         private Iterator<SearchHit> searchHitIterator;
         private SearchRequest searchRequest;
-        private SearchResponse searchResponse;
+        private SearchResponse searchResponse; //TODO SearchResponse dec-ref
         private SearchHits searchHits;
         private JobType current;
         private boolean done = false;

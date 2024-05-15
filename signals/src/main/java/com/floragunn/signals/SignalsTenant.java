@@ -499,25 +499,34 @@ public class SignalsTenant implements Closeable {
         // TODO scrolling
 
         SearchResponse searchResponse = this.privilegedConfigClient.search(searchRequest).actionGet();
+        try {
 
-        int seen = 0;
-        int deletedWatches = 0;
-        int deletedWatchStates = 0;
+            int seen = 0;
+            int deletedWatches = 0;
+            int deletedWatchStates = 0;
 
-        for (SearchHit hit : searchResponse.getHits()) {
-            seen++;
+            for (SearchHit hit : searchResponse.getHits()) {
+                seen++;
 
-            DeleteResponse watchDeleteResponse = this.privilegedConfigClient.delete(new DeleteRequest(this.configIndexName, hit.getId())).actionGet();
-            deletedWatches += watchDeleteResponse.getResult() == Result.DELETED ? 1 : 0;
+                DeleteResponse
+                    watchDeleteResponse =
+                    this.privilegedConfigClient.delete(new DeleteRequest(this.configIndexName, hit.getId())).actionGet();
+                deletedWatches += watchDeleteResponse.getResult() == Result.DELETED ? 1 : 0;
 
-            DeleteResponse watchStateDeleteResponse = this.privilegedConfigClient
-                    .delete(new DeleteRequest(this.settings.getStaticSettings().getIndexNames().getWatchesState(), hit.getId())).actionGet();
-            deletedWatchStates += watchStateDeleteResponse.getResult() == Result.DELETED ? 1 : 0;
+                DeleteResponse
+                    watchStateDeleteResponse =
+                    this.privilegedConfigClient.delete(new DeleteRequest(this.settings.getStaticSettings()
+                        .getIndexNames()
+                        .getWatchesState(), hit.getId())).actionGet();
+                deletedWatchStates += watchStateDeleteResponse.getResult() == Result.DELETED ? 1 : 0;
 
-            // TODO triggers
+                // TODO triggers
+            }
+
+            log.info("Deleted of  " + seen + ":\n" + deletedWatches + " watches\n" + deletedWatchStates + " watch states");
+        } finally {
+            searchResponse.decRef();
         }
-
-        log.info("Deleted of  " + seen + ":\n" + deletedWatches + " watches\n" + deletedWatchStates + " watch states");
     }
 
     public void delete() {

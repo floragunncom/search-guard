@@ -79,6 +79,7 @@ public class WatchStateIndexReader {
                 log.debug("Going to do query: " + queryBuilder);
             }
 
+            //TODO SearchResponse dec-ref
             SearchResponse searchResponse = client.prepareSearch(this.indexName).setQuery(queryBuilder).setSize(1000).setScroll(new TimeValue(10000))
                     .get();
 

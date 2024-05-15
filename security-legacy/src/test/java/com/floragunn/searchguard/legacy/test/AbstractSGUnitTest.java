@@ -175,9 +175,12 @@ public abstract class AbstractSGUnitTest {
 
             Assert.assertFalse(cur.failures().toString(), cur.hasFailures());
 
+
             SearchResponse sr = tc.search(new SearchRequest("searchguard")).actionGet();
+            sr.decRef();
 
             sr = tc.search(new SearchRequest("searchguard")).actionGet();
+            sr.decRef();
 
             Assert.assertTrue(tc.get(new GetRequest("searchguard", "config")).actionGet().isExists());
             Assert.assertTrue(tc.get(new GetRequest("searchguard", "internalusers")).actionGet().isExists());

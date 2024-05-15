@@ -15,7 +15,7 @@ import com.floragunn.signals.watch.Watch;
 
 public class SearchAccountResponse extends ActionResponse implements ToXContentObject {
 
-    private SearchResponse searchResponse;
+    private SearchResponse searchResponse; //TODO SearchResponse dec-ref
 
     public SearchAccountResponse() {
     }

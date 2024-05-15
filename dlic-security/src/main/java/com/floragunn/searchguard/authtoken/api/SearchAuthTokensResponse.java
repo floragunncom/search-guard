@@ -27,7 +27,7 @@ import org.elasticsearch.xcontent.XContentBuilder;
 
 public class SearchAuthTokensResponse extends ActionResponse implements ToXContentObject {
 
-    private SearchResponse searchResponse;
+    private SearchResponse searchResponse; //TODO SearchResponse dec-ref
 
     public SearchAuthTokensResponse() {
     }
