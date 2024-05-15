@@ -1,22 +1,24 @@
 package com.floragunn.searchsupport.client;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.core.RefCounted;
-import org.elasticsearch.logging.LogManager;
-import org.elasticsearch.logging.Logger;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
 
 public class RefCountedGuard<T extends RefCounted> implements AutoCloseable {
 
     private static final Logger log = LogManager.getLogger(RefCountedGuard.class);
 
-    private final LinkedList<T> releasable = new LinkedList<>();
+    private final List<T> releasable = Collections.synchronizedList(new LinkedList<>());
 
     public void add(T refCounted) {
         Objects.requireNonNull(refCounted, "Ref counted is required");
-        releasable.addFirst(refCounted);
+        releasable.add(refCounted);
         log.debug("Ref counted {} added.", refCounted);
     }
 

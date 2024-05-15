@@ -40,12 +40,14 @@ public class SearchMapper implements Unscoper<SearchResponse> {
     @Override
     public SearchResponse unscopeResponse(SearchResponse response) {
         log.debug("Rewriting search response - removing tenant scope");
-        SearchHits originalSearchHits = response.getHits();
+        // the below line creates unpooled source object in SearchHit by intermediate invocation
+        // of org.elasticsearch.search.SearchHit.asUnpooled
+        SearchHits originalSearchHits = response.getHits().asUnpooled();
         SearchHit[] originalSearchHitArray = originalSearchHits.getHits();
         SearchHit [] rewrittenSearchHitArray = new SearchHit[originalSearchHitArray.length];
 
         for (int i = 0; i < originalSearchHitArray.length; i++) {
-            rewrittenSearchHitArray[i] = new SearchHit(originalSearchHitArray[i].docId(), RequestResponseTenantData.unscopedId(originalSearchHitArray[i].getId()), originalSearchHitArray[i].getNestedIdentity());
+            rewrittenSearchHitArray[i] = SearchHit.unpooled(originalSearchHitArray[i].docId(), RequestResponseTenantData.unscopedId(originalSearchHitArray[i].getId()), originalSearchHitArray[i].getNestedIdentity());
             rewrittenSearchHitArray[i].sourceRef(originalSearchHitArray[i].getSourceRef());
             rewrittenSearchHitArray[i].addDocumentFields(originalSearchHitArray[i].getDocumentFields(), originalSearchHitArray[i].getMetadataFields());
             rewrittenSearchHitArray[i].setPrimaryTerm(originalSearchHitArray[i].getPrimaryTerm());
@@ -57,9 +59,8 @@ public class SearchMapper implements Unscoper<SearchResponse> {
             rewrittenSearchHitArray[i].explanation(originalSearchHitArray[i].getExplanation());
         }
 
-        SearchHits rewrittenSearchHits = new SearchHits(rewrittenSearchHitArray, originalSearchHits.getTotalHits(), originalSearchHits.getMaxScore())
-            // Creates an unpooled version. This invocation creates a deep copy of source which is present is <code>SearchHit<code>s
-            .asUnpooled();
+        // Creates an unpooled version
+        SearchHits rewrittenSearchHits = SearchHits.unpooled(rewrittenSearchHitArray, originalSearchHits.getTotalHits(), originalSearchHits.getMaxScore());
         // SearchResponseSections is still pooled
         SearchResponseSections rewrittenSections = new SearchResponseSections(rewrittenSearchHits, response.getAggregations(), response.getSuggest(),
                 response.isTimedOut(), response.isTerminatedEarly(), null, response.getNumReducePhases());
