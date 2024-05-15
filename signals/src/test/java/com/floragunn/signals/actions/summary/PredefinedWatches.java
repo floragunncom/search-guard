@@ -230,7 +230,11 @@ class PredefinedWatches {
 
         SearchResponse response = client.search(request).get();
 
-        return response.getHits().getTotalHits().value;
+        try {
+            return response.getHits().getTotalHits().value;
+        } finally {
+            response.decRef();
+        }
     }
     public long countWatchStatusWithAvailableStatusCode(String watchStateIndexName) {
         try {
@@ -242,7 +246,11 @@ class PredefinedWatches {
 
             SearchResponse response = client.search(request).get();
 
-            return response.getHits().getTotalHits().value;
+            try {
+                return response.getHits().getTotalHits().value;
+            } finally {
+                response.decRef();
+            }
         } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException("Cannot count watch states with available status code.", e);
         }

@@ -3207,7 +3207,11 @@ public class RestApiTest {
 
         SearchResponse response = client.search(request).get();
 
-        return response.getHits().getTotalHits().value;
+        try {
+            return response.getHits().getTotalHits().value;
+        } finally {
+            response.decRef();
+        }
     }
 
     public String getDocs(Client client, String index) throws InterruptedException, ExecutionException {
@@ -3218,7 +3222,11 @@ public class RestApiTest {
 
         SearchResponse response = client.search(request).get();
 
-        return Strings.toString(response.getHits());
+        try {
+            return Strings.toString(response.getHits());
+        } finally {
+            response.decRef();
+        }
     }
 
     private long awaitMinCountOfDocuments(Client client, String index, long minCount) throws Exception {
@@ -3255,19 +3263,23 @@ public class RestApiTest {
             SearchResponse searchResponse = client.search(new SearchRequest("signals_" + tenantName + "_log")
                     .source(new SearchSourceBuilder().size(count).sort("execution_end", SortOrder.DESC).query(queryBuilder))).actionGet();
 
-            if (searchResponse.getHits().getHits().length == 0) {
-                return Collections.emptyList();
+            try {
+                if (searchResponse.getHits().getHits().length == 0) {
+                    return Collections.emptyList();
+                }
+
+                ArrayList<WatchLog> result = new ArrayList<>(count);
+
+                for (SearchHit searchHit : searchResponse.getHits().getHits()) {
+                    result.add(WatchLog.parse(searchHit.getId(), searchHit.getSourceAsString()));
+                }
+
+                Collections.reverse(result);
+
+                return result;
+            } finally {
+                searchResponse.decRef();
             }
-
-            ArrayList<WatchLog> result = new ArrayList<>(count);
-
-            for (SearchHit searchHit : searchResponse.getHits().getHits()) {
-                result.add(WatchLog.parse(searchHit.getId(), searchHit.getSourceAsString()));
-            }
-
-            Collections.reverse(result);
-
-            return result;
         } catch (org.elasticsearch.index.IndexNotFoundException | SearchPhaseExecutionException e) {
             throw e;
         } catch (Exception e) {
@@ -3315,8 +3327,11 @@ public class RestApiTest {
                                 .source(new SearchSourceBuilder().sort("execution_end", SortOrder.DESC).query(new MatchAllQueryBuilder())))
                         .actionGet();
 
-                log.info("Did not find watch log for " + watchName + " after " + (System.currentTimeMillis() - start) + " ms\n\n"
-                        + searchResponse.getHits());
+                try {
+                    log.info("Did not find watch log for " + watchName + " after " + (System.currentTimeMillis() - start) + " ms\n\n" + searchResponse.getHits());
+                } finally {
+                    searchResponse.decRef();
+                }
 
                 Assert.fail("Did not find watch log for " + watchName + " after " + (System.currentTimeMillis() - start) + " ms");
             }

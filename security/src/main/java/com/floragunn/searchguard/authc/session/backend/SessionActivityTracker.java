@@ -253,7 +253,7 @@ class SessionActivityTracker {
 
             ActionListener<SearchResponse> searchListener = new ActionListener<SearchResponse>() {
                 @Override
-                public void onResponse(SearchResponse response) {
+                public void onResponse(SearchResponse response) {//TODO SearchResponse dec-ref
 
                     if (response.getHits().getHits().length == 0) {
                         if (log.isDebugEnabled()) {
@@ -353,7 +353,7 @@ class SessionActivityTracker {
                     privilegedConfigClient.searchScroll(new SearchScrollRequest(response.getScrollId()), new ActionListener<SearchResponse>() {
 
                         @Override
-                        public void onResponse(SearchResponse response) {
+                        public void onResponse(SearchResponse response) { //TODO SearchResponse dec-ref
                             searchMeter.close();
                             self.onResponse(response);
                         }

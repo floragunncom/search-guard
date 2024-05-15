@@ -277,10 +277,15 @@ class StepRepository {
             .query(QueryBuilders.matchAllQuery());
         request.source(sourceBuilder);
         SearchResponse response = client.search(request).actionGet();
-        if((response.getFailedShards() > 0) || (isFailure(response.status()))) {
-            throw new StepException("Cannot count documents in index '" + indexName + "'", CANNOT_COUNT_DOCUMENTS, null);
+        try {
+            if ((response.getFailedShards() > 0) || (isFailure(response.status()))) {
+                throw new StepException("Cannot count documents in index '" + indexName + "'", CANNOT_COUNT_DOCUMENTS, null);
+            }
+
+            return response.getHits().getTotalHits().value;
+        } finally {
+            response.decRef();
         }
-        return response.getHits().getTotalHits().value;
     }
 
     public void updateMappings(String indexName, Map<String, ?> sources) {

@@ -49,7 +49,7 @@ public class Actions {
         });
     }
 
-    public static void clearScrollAsync(Client client, SearchResponse searchResponse) {
+    public static void clearScrollAsync(Client client, SearchResponse searchResponse) {//TODO SearchResponse dec-ref
         if (searchResponse == null) {
             return;
         }

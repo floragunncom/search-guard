@@ -391,11 +391,10 @@ public class ConfigVarService implements ComponentStateProvider {
     }
 
     public Map<String, ConfigVar> getAllFromIndex() {
+        Map<String, ConfigVar> result = new LinkedHashMap<>();
         SearchResponse response = privilegedConfigClient.search(new SearchRequest(this.indexName)
                 .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()).size(1000)).scroll(new TimeValue(10000))).actionGet();
-
-        Map<String, ConfigVar> result = new LinkedHashMap<>();
-
+        //TODO SearchResponse dec-ref
         try {
             do {
                 for (SearchHit searchHit : response.getHits().getHits()) {
@@ -524,10 +523,11 @@ public class ConfigVarService implements ComponentStateProvider {
             log.trace("SecretsService.readValues()");
         }
 
+        Map<String, Object> values = new HashMap<>();
+
+        //TODO SearchResponse dec-ref
         SearchResponse response = privilegedConfigClient.search(new SearchRequest(this.indexName)
                 .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()).size(1000)).scroll(new TimeValue(10000))).actionGet();
-
-        Map<String, Object> values = new HashMap<>();
 
         try {
             do {

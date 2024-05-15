@@ -56,7 +56,7 @@ public abstract class Account implements ToXContentObject {
                 .indicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN), new ActionListener<SearchResponse>() {
 
                     @Override
-                    public void onResponse(SearchResponse response) {
+                    public void onResponse(SearchResponse response) {//TODO SearchResponse dec-ref
                         if (response.getHits().getTotalHits().value > 0) {
                             actionListener.onResponse(Boolean.TRUE);
                         } else {

@@ -63,7 +63,7 @@ public class AccountRegistry {
 
             Map<String, Account> tmp = new HashMap<>();
 
-            SearchResponse searchResponse = LuckySisyphos
+            SearchResponse searchResponse = LuckySisyphos //TODO SearchResponse dec-ref
                     .tryHard(() -> client.prepareSearch(settings.getStaticSettings().getIndexNames().getAccounts())
                             .setSource(new SearchSourceBuilder()).setSize(10 * 1000).get());
 

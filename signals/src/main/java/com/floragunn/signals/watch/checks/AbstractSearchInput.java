@@ -98,14 +98,20 @@ public abstract class AbstractSearchInput extends AbstractInput {
 
         SearchResponse searchResponse = ctx.getClient().search(searchRequest)
                 .actionGet(timeout != null ? timeout : new TimeValue(30, TimeUnit.SECONDS));
+        //TODO SearchResponse dec-ref , verify correctness
 
-        if (log.isDebugEnabled()) {
-            log.debug("Response: " + searchResponse);
-        }
+        try {
+            if (log.isDebugEnabled()) {
+                log.debug("Response: " + searchResponse);
+            }
 
-        Object result = ObjectTreeXContent.toObjectTree(ChunkedToXContentObject.wrapAsToXContentObject(searchResponse), new MapParams(Collections.emptyMap()),
+            Object result = ObjectTreeXContent.toObjectTree(ChunkedToXContentObject.wrapAsToXContentObject(searchResponse),
+                new MapParams(Collections.emptyMap()),
                 () -> NestedValueMap.createNonCloningMap());
-        setResult(ctx, result);
+            setResult(ctx, result);
+        } finally {
+            searchResponse.decRef();
+        }
 
         return true;
     }

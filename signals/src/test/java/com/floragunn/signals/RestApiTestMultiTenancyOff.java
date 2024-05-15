@@ -223,7 +223,11 @@ public class RestApiTestMultiTenancyOff {
 
         SearchResponse response = client.search(request).get();
 
-        return response.getHits().getTotalHits().value;
+        try {
+            return response.getHits().getTotalHits().value;
+        } finally {
+            response.decRef();
+        }
     }
 
     private long awaitMinCountOfDocuments(Client client, String index, long minCount) throws Exception {

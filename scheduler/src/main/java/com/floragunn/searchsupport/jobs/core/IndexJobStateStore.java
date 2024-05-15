@@ -1741,7 +1741,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             QueryBuilder queryBuilder = QueryBuilders.idsQuery().addIds(triggerIds.keySet().toArray(new String[triggerIds.size()]));
 
             SearchResponse searchResponse = client.prepareSearch(this.statusIndexName).setQuery(queryBuilder).setSize(1000)
-                    .setScroll(new TimeValue(10000)).get();
+                    .setScroll(new TimeValue(10000)).get(); //TODO SearchResponse dec-ref
 
             try {
                 do {

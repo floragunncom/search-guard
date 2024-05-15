@@ -36,6 +36,7 @@ public class SearchScroller {
         Objects.requireNonNull(resultMapper, "Scroll result mapper is required");
         request.scroll(scrollTime);
         try {
+            //TODO SearchResponse dec-ref
             SearchResponse searchResponse = client.search(request).actionGet();
             try {
                 do {
