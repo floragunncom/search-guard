@@ -395,7 +395,6 @@ public class ConfigVarService implements ComponentStateProvider {
         Map<String, ConfigVar> result = new LinkedHashMap<>();
         SearchResponse response = privilegedConfigClient.search(new SearchRequest(this.indexName)
                 .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()).size(1000)).scroll(new TimeValue(10000))).actionGet();
-        //TODO SearchResponse dec-ref
         try (RefCountedGuard<SearchResponse> guard = new RefCountedGuard<>()){
             guard.add(response);
             do {
@@ -529,11 +528,11 @@ public class ConfigVarService implements ComponentStateProvider {
 
         Map<String, Object> values = new HashMap<>();
 
-        //TODO SearchResponse dec-ref
         SearchResponse response = privilegedConfigClient.search(new SearchRequest(this.indexName)
                 .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()).size(1000)).scroll(new TimeValue(10000))).actionGet();
 
-        try {
+        try (RefCountedGuard<SearchResponse> guard = new RefCountedGuard<>()) {
+            guard.add(response);
             do {
                 for (SearchHit searchHit : response.getHits().getHits()) {
                     try {
@@ -551,9 +550,10 @@ public class ConfigVarService implements ComponentStateProvider {
                         log.error("Error while reading " + searchHit, e);
                     }
                 }
-
-                response = client.prepareSearchScroll(response.getScrollId()).setScroll(new TimeValue(10000)).execute().actionGet();
-
+                String scrollId = response.getScrollId();
+                guard.release();
+                response = client.prepareSearchScroll(scrollId).setScroll(new TimeValue(10000)).execute().actionGet();
+                guard.add(response);
             } while (response.getHits().getHits().length != 0);
         } finally {
             Actions.clearScrollAsync(client, response);

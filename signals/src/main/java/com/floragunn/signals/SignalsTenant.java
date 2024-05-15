@@ -495,7 +495,6 @@ public class SignalsTenant implements Closeable {
 
         SearchRequest searchRequest = new SearchRequest(this.configIndexName);
         searchRequest.source(new SearchSourceBuilder().query(getConfigQuery(this.name)).size(10000));
-        // TODO scrolling
 
         SearchResponse searchResponse = this.privilegedConfigClient.search(searchRequest).actionGet();
         try {
