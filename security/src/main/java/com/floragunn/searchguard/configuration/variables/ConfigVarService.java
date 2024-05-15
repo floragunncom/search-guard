@@ -31,6 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchsupport.client.RefCountedGuard;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -395,7 +396,8 @@ public class ConfigVarService implements ComponentStateProvider {
         SearchResponse response = privilegedConfigClient.search(new SearchRequest(this.indexName)
                 .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery()).size(1000)).scroll(new TimeValue(10000))).actionGet();
         //TODO SearchResponse dec-ref
-        try {
+        try (RefCountedGuard<SearchResponse> guard = new RefCountedGuard<>()){
+            guard.add(response);
             do {
                 for (SearchHit searchHit : response.getHits().getHits()) {
                     try {
@@ -405,8 +407,10 @@ public class ConfigVarService implements ComponentStateProvider {
                     }
                 }
 
-                response = client.prepareSearchScroll(response.getScrollId()).setScroll(new TimeValue(10000)).execute().actionGet();
-
+                String scrollId = response.getScrollId();
+                guard.release();
+                response = client.prepareSearchScroll(scrollId).setScroll(new TimeValue(10000)).execute().actionGet();
+                guard.add(response);
             } while (response.getHits().getHits().length != 0);
         } finally {
             Actions.clearScrollAsync(client, response);
