@@ -64,6 +64,8 @@ public class SearchMapper implements Unscoper<SearchResponse> {
         // SearchResponseSections is still pooled
         SearchResponseSections rewrittenSections = new SearchResponseSections(rewrittenSearchHits, response.getAggregations(), response.getSuggest(),
                 response.isTimedOut(), response.isTerminatedEarly(), null, response.getNumReducePhases());
+        rewrittenSections.decRef(); // TODO this releases resources related only with hits which are unpooled. Therefore this method can
+        //be invoked safely on the current stage. But this might be changed in the future
 
         // SearchResponse is still pooled. It is not possible to create unpooled SearchResponse.
         SearchResponse pooledSearchResponse = new SearchResponse(rewrittenSections,
