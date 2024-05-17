@@ -24,6 +24,7 @@ import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
 import com.floragunn.signals.watch.Watch;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -114,7 +115,11 @@ public class TransportSearchWatchAction extends HandledTransportAction<SearchWat
                     @Override
                     public void onResponse(SearchResponse response) {
 
-                        listener.onResponse(new SearchWatchResponse(response));
+                        try {
+                            listener.onResponse(new SearchWatchResponse(response));
+                        } catch (IOException e) {
+                            onFailure(e);
+                        }
                     }
 
                     @Override
