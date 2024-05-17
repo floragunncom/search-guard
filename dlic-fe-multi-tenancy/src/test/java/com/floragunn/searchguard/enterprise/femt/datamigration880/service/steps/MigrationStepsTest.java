@@ -66,6 +66,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -230,7 +231,7 @@ public class MigrationStepsTest {
         populateTenantsStep.execute(context);
 
         ImmutableList<TenantIndex> tenants = context.getTenantIndices();
-        assertThat(tenants, hasSize(4));
+        assertThat(tenants, hasSize(3));
         assertThat(tenants.get(0).belongsToGlobalTenant(), equalTo(true));
         Set<String> tenantNames = tenants.stream() //
             .filter(tenantIndex -> ! tenantIndex.belongsToUserPrivateTenant()) //
@@ -241,8 +242,7 @@ public class MigrationStepsTest {
             .filter(TenantIndex::belongsToUserPrivateTenant) //
             .map(TenantIndex::indexName) //
             .toList();
-        assertThat(privateUserTenantIndexNames, hasSize(1));
-        assertThat(privateUserTenantIndexNames, containsInAnyOrder(PRIVATE_USER_LUKASZ_1_INDEX.indexName()));
+        assertThat(privateUserTenantIndexNames, hasSize(0));
     }
 
     @Test
@@ -348,10 +348,9 @@ public class MigrationStepsTest {
         populateTenantsStep.execute(context);
 
         ImmutableList<TenantIndex> tenants = context.getTenantIndices();
-        assertThat(tenants, hasSize(3));
+        assertThat(tenants, hasSize(2));
         assertThat(tenants.stream().filter(TenantIndex::belongsToGlobalTenant).count() == 1, equalTo(true));
         assertThat(tenants.stream().map(TenantIndex::tenantName).filter(tenantName -> "admin_tenant".equals(tenantName)).count() == 1, equalTo(true));
-        assertThat(tenants.stream().filter(TenantIndex::belongsToUserPrivateTenant).map(TenantIndex::indexName).findFirst().orElseThrow(), equalTo(".kibana_92668751_admin_8.7.0_001"));
     }
 
     @Test
@@ -373,10 +372,9 @@ public class MigrationStepsTest {
         populateTenantsStep.execute(context);
 
         ImmutableList<TenantIndex> tenants = context.getTenantIndices();
-        assertThat(tenants, hasSize(3));
+        assertThat(tenants, hasSize(2));
         assertThat(tenants.stream().filter(TenantIndex::belongsToGlobalTenant).count() == 1, equalTo(true));
         assertThat(tenants.stream().map(TenantIndex::tenantName).filter(tenantName -> "admin_tenant".equals(tenantName)).count() == 1, equalTo(true));
-        assertThat(tenants.stream().filter(TenantIndex::belongsToUserPrivateTenant).map(TenantIndex::indexName).findFirst().orElseThrow(), equalTo(".kibana_92668751_admin_8.7.0_001"));
     }
 
     @Test
@@ -423,13 +421,24 @@ public class MigrationStepsTest {
     }
 
     @Test
-    public void shouldReportErrorInCaseOfConflictBetweenUserPrivateTenantAndGlobalTenant() {
+    public void shouldNotReportErrorInCaseOfConflictBetweenUserPrivateTenantAndGlobalTenant() {
         environmentHelper.createIndex(GLOBAL_TENANT_INDEX, environmentHelper.doubleAliasForTenant(Tenant.GLOBAL_TENANT_ID));
         PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
 
-        var stepException = (StepException) assertThatThrown(() -> populateTenantsStep.execute(context), instanceOf(StepException.class));
+        var result = populateTenantsStep.execute(context);
 
-        assertThat(stepException.getStatus(), equalTo(GLOBAL_AND_PRIVATE_TENANT_CONFLICT_ERROR));
+        assertThat(result.isSuccess(), equalTo(true));
+    }
+
+    @Test
+    public void shouldOmitPrivateTenantDataMigration() {
+        this.context = new DataMigrationContext(new MigrationConfig(true), clock);
+        environmentHelper.createIndex(GLOBAL_TENANT_INDEX, environmentHelper.doubleAliasForTenant(Tenant.GLOBAL_TENANT_ID));
+        PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
+
+        StepResult execute = populateTenantsStep.execute(context);
+
+        assertThat(execute.isSuccess(), equalTo(true));
     }
 
     @Test
@@ -463,7 +472,7 @@ public class MigrationStepsTest {
     }
 
     @Test
-    public void shouldFindUserPrivateTenants() {
+    public void shouldNotFindUserPrivateTenants() {
         environmentHelper.createIndex(
             GLOBAL_TENANT_INDEX, PRIVATE_USER_KIRK_INDEX, PRIVATE_USER_LUKASZ_1_INDEX, MigrationEnvironmentHelper.PRIVATE_USER_LUKASZ_2_INDEX,
             MigrationEnvironmentHelper.PRIVATE_USER_LUKASZ_3_INDEX);
@@ -472,17 +481,8 @@ public class MigrationStepsTest {
         StepResult result = populateTenantsStep.execute(context);
 
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(context.getTenantIndices(), hasSize(5));
-        Set<String> privateTenantIndexNames = context.getTenantIndices() //
-            .stream() //
-            .filter(TenantIndex::belongsToUserPrivateTenant) //
-            .map(TenantIndex::indexName) //
-            .collect(Collectors.toSet());
-        assertThat(privateTenantIndexNames, containsInAnyOrder(
-            PRIVATE_USER_KIRK_INDEX.indexName(),
-            PRIVATE_USER_LUKASZ_1_INDEX.indexName(),
-            MigrationEnvironmentHelper.PRIVATE_USER_LUKASZ_2_INDEX.indexName(),
-            MigrationEnvironmentHelper.PRIVATE_USER_LUKASZ_3_INDEX.indexName()));
+        assertThat(context.getTenantIndices(), hasSize(1));
+        assertThat(context.getTenantIndices().map(TenantIndex::indexName), contains(GLOBAL_TENANT_INDEX.indexName()));
     }
 
     /**
@@ -493,27 +493,29 @@ public class MigrationStepsTest {
         List<DoubleAliasIndex> indices = new ArrayList<>();
         indices.add(GLOBAL_TENANT_INDEX);
         indices.addAll(environmentHelper.getIndicesForConfiguredTenantsWithoutGlobal());
-        indices.addAll(environmentHelper.generatePrivateTenantNames(MULTITENANCY_INDEX_PREFIX, 101));
+        final int numberOfPrivateTenants = 101;
+        indices.addAll(environmentHelper.generatePrivateTenantNames(MULTITENANCY_INDEX_PREFIX, numberOfPrivateTenants));
         environmentHelper.createIndex(indices);
         PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
 
         StepResult result = populateTenantsStep.execute(context);
 
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(context.getTenantIndices(), hasSize(indices.size()));
+        assertThat(context.getTenantIndices(), hasSize(indices.size() - numberOfPrivateTenants));
     }
 
     @Test
     public void shouldUseIndexPrefixReadFromConfiguration() {
         String indexNamePrefix = "wideopenfindashboard";
-        DoubleAliasIndex privateUserTenant = environmentHelper.generatePrivateTenantNames(indexNamePrefix, 1).get(0);
-        DoubleAliasIndex globalTenantIndex = new DoubleAliasIndex(indexNamePrefix + "_8.7.0_001",
+        DoubleAliasIndex privateUserTenant = new DoubleAliasIndex(indexNamePrefix + "_8.7.0_001",
             indexNamePrefix + "_8.7.0", indexNamePrefix);
-        environmentHelper.createIndex(indexNamePrefix, 0, null, globalTenantIndex);
+        DoubleAliasIndex definedTenantIndex = new DoubleAliasIndex(indexNamePrefix + "_1593390681_performancedata_8.7.0_001",
+            indexNamePrefix + "_1593390681_performancedata_8.7.0", indexNamePrefix + "_1593390681_performancedata");
+        environmentHelper.createIndex(indexNamePrefix, 0, null, definedTenantIndex);
         environmentHelper.createIndex(indexNamePrefix, 0, null, privateUserTenant);
         when(feMultiTenancyConfig.getIndex()).thenReturn(indexNamePrefix);
         when(multiTenancyConfigurationProvider.getConfig()).thenReturn(Optional.of(feMultiTenancyConfig));
-        when(multiTenancyConfigurationProvider.getTenantNames()).thenReturn(ImmutableSet.empty());
+        when(multiTenancyConfigurationProvider.getTenantNames()).thenReturn(ImmutableSet.of("performance_data"));
         Client client = cluster.getInternalNodeClient();
         StepRepository repository = new StepRepository(adapt(client));
         PopulateTenantsStep populateTenantsStep = new PopulateTenantsStep(multiTenancyConfigurationProvider, repository);
@@ -525,7 +527,7 @@ public class MigrationStepsTest {
         assertThat(context.getTenantIndices(), hasSize(2));
         TenantIndex tenantIndex = context.getTenantIndices() //
             .stream() //
-            .filter(TenantIndex::belongsToUserPrivateTenant) //
+            .filter(Predicate.not(TenantIndex::belongsToGlobalTenant)) //
             .findAny() //
             .orElseThrow();
         assertThat(tenantIndex.indexName(), containsString(indexNamePrefix));
@@ -605,13 +607,10 @@ public class MigrationStepsTest {
         StepResult result = populateTenantsStep.execute(context);
 
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(context.getTenantIndices(), hasSize(6));
+        assertThat(context.getTenantIndices(), hasSize(3));
         assertThat(context.getTenantIndices().map(TenantIndex::indexName), containsInAnyOrder(".kibana_8.7.0_001",
             ".kibana_-152937574_admintenant_8.7.0_001",
-            ".kibana_-1799980989_management_8.7.0_001",
-            ".kibana_3292183_kirk_8.7.0_001",
-            ".kibana_739956815_uksz_8.7.0_001",
-            ".kibana_109651354_spock_8.7.0_001"));
+            ".kibana_-1799980989_management_8.7.0_001"));
         // check that legacy indices was in fact created in course of the test
         assertThat(
             environmentHelper.isIndexCreated(".kibana_-152937574_admintenant_7.17.12_001",
@@ -633,17 +632,11 @@ public class MigrationStepsTest {
         StepResult result = populateTenantsStep.execute(context);
 
         assertThat(result.isSuccess(), equalTo(true));
-        assertThat(context.getTenantIndices(), hasSize(3));
+        assertThat(context.getTenantIndices(), hasSize(2));
         String global = context.getTenantIndices() //
             .stream() //
             .filter(TenantIndex::belongsToGlobalTenant) //
             .map(TenantIndex::tenantName) //
-            .findFirst() //
-            .orElseThrow();
-        String userPrivateIndex = context.getTenantIndices() //
-            .stream() //
-            .filter(TenantIndex::belongsToUserPrivateTenant) //
-            .map(TenantIndex::indexName) //
             .findFirst() //
             .orElseThrow();
         String configured = context.getTenantIndices().stream() //
@@ -654,7 +647,6 @@ public class MigrationStepsTest {
             .orElseThrow();
         assertThat(global, equalTo(Tenant.GLOBAL_TENANT_ID));
         assertThat(configured, equalTo("admin_tenant"));
-        assertThat(userPrivateIndex, equalTo(".kibana_3292183_kirk_8.7.0_001"));
     }
 
     @Test
