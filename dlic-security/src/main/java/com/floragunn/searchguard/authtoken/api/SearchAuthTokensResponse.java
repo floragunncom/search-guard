@@ -60,4 +60,8 @@ public class SearchAuthTokensResponse extends ActionResponse implements ToXConte
         return searchResponse.status();
     }
 
+    @Override
+    public boolean decRef() {
+        return this.searchResponse.decRef();
+    }
 }

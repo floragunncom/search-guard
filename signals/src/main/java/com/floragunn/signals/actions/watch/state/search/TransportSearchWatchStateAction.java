@@ -1,5 +1,6 @@
 package com.floragunn.signals.actions.watch.state.search;
 
+import com.floragunn.signals.actions.watch.search.SearchWatchResponse;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -111,7 +112,7 @@ public class TransportSearchWatchStateAction extends HandledTransportAction<Sear
                     @Override
                     public void onResponse(SearchResponse response) {
 
-                        listener.onResponse(new SearchWatchStateResponse(response));
+                        ActionListener.respondAndRelease(listener, new SearchWatchStateResponse(response));
                     }
 
                     @Override

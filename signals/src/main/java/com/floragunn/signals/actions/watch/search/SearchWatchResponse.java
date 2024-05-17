@@ -49,4 +49,8 @@ public class SearchWatchResponse extends ActionResponse implements ToXContentObj
         return searchResponse.status();
     }
 
+    @Override
+    public boolean decRef() {
+        return this.searchResponse.decRef();
+    }
 }
