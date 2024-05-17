@@ -50,6 +50,10 @@ public class SearchWatchStateResponse extends ActionResponse implements ToXConte
 
     @Override
     public boolean decRef() {
-        return this.searchResponse.decRef();
+        try {
+            return searchResponse.decRef();
+        } catch (Throwable e) {
+            throw new RuntimeException("SearchWatchStateResponse failed to dec ref");
+        }
     }
 }

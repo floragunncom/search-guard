@@ -51,6 +51,10 @@ public class SearchWatchResponse extends ActionResponse implements ToXContentObj
 
     @Override
     public boolean decRef() {
-        return this.searchResponse.decRef();
+        try {
+            return searchResponse.decRef();
+        } catch (Error e) {
+            throw new RuntimeException("SearchWatchResponse failed to dec ref");
+        }
     }
 }
