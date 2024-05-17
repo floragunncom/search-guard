@@ -103,7 +103,7 @@ public class TransportSearchAuthTokensAction extends AbstractTransportAuthTokenA
             @Override
             public void onResponse(SearchResponse response) {
                 //TODO SearchResponse dec-ref
-                listener.onResponse(new SearchAuthTokensResponse(response));
+                ActionListener.respondAndRelease(listener, new SearchAuthTokensResponse(response));
             }
 
             @Override

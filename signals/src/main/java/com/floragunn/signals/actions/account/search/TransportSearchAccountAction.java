@@ -21,7 +21,6 @@ import com.floragunn.searchguard.user.User;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -101,11 +100,7 @@ public class TransportSearchAccountAction extends HandledTransportAction<SearchA
                     @Override
                     public void onResponse(SearchResponse response) {
 
-                        try {
-                            listener.onResponse(new SearchAccountResponse(response));
-                        } catch (IOException e) {
-                            onFailure(e);
-                        }
+                        ActionListener.respondAndRelease(listener, new SearchAccountResponse(response));
                     }
 
                     @Override
