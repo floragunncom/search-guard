@@ -101,7 +101,7 @@ signals_2:
        echo "TEST_DEFINITIONS $TEST_DEFINITIONS"
        echo "ES_VERSION: $ES_VERSION"
        MAJOR="$(echo $ES_VERSION | cut -d. -f1-2)"
-       TEST_IT_BRANCH="${MAJOR}.x"
+       TEST_IT_BRANCH="8.13.x-test-exceptions"
        echo "TEST_IT_BRANCH: $TEST_IT_BRANCH"
        git clone --depth 1 --branch $TEST_IT_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/sgi8.git > /dev/null
        cd sgi8/server
