@@ -734,14 +734,17 @@ public class CheckTest {
             SearchResponse searchResponse = client.search(new SearchRequest(".signals_log_*").source(
                     new SearchSourceBuilder().size(1).sort("execution_end", SortOrder.DESC).query(new MatchQueryBuilder("watch_id", watchName))))
                     .actionGet();
+            try {
+                if (searchResponse.getHits().getHits().length == 0) {
+                    return null;
+                }
 
-            if (searchResponse.getHits().getHits().length == 0) {
-                return null;
+                SearchHit searchHit = searchResponse.getHits().getHits()[0];
+
+                return WatchLog.parse(searchHit.getId(), searchHit.getSourceAsString());
+            } finally {
+                searchResponse.decRef();
             }
-
-            SearchHit searchHit = searchResponse.getHits().getHits()[0];
-
-            return WatchLog.parse(searchHit.getId(), searchHit.getSourceAsString());
         } catch (org.elasticsearch.index.IndexNotFoundException | SearchPhaseExecutionException e) {
             throw e;
         } catch (Exception e) {
