@@ -736,7 +736,9 @@
           <version>3.2.5</version>
           <configuration>
             <!-- java.xml/jdk.xml.internal=ALL-UNNAMED required after wiremock bump to 3.5.4-->
-            <argLine>-Xmx3072m --add-opens java.xml/jdk.xml.internal=ALL-UNNAMED</argLine>
+            <!-- evan more opens is needed after upgrade simple-java-mail to 8.10.1 versions -->
+            <!-- Opens are needed due to usage of powermock in tests -->
+            <argLine>-Xmx3072m --add-opens java.xml/jdk.xml.internal=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/sun.nio.fs=ALL-UNNAMED</argLine>
             <rerunFailingTestsCount>3</rerunFailingTestsCount>
             <forkCount>3</forkCount>
             <reuseForks>true</reuseForks>
