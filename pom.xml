@@ -406,7 +406,7 @@
       <dependency>
         <groupId>org.wiremock</groupId>
         <artifactId>wiremock</artifactId>
-        <version>3.5.2</version>
+        <version>3.5.4</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -781,9 +781,10 @@
           <version>3.2.5</version>
           <configuration>
             <!-- add-opens is necessary for powermock on Java 17 -->
+            <!-- java.xml/jdk.xml.internal=ALL-UNNAMED required after wiremock bump to 3.5.4-->
             <argLine>
               -Xmx4g -Xms4g --add-opens java.base/sun.security.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/sun.nio.fs=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.base=ALL-UNNAMED
-              --add-opens java.base/java.net=ALL-UNNAMED
+              --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.xml/jdk.xml.internal=ALL-UNNAMED
             </argLine>
             <rerunFailingTestsCount>3</rerunFailingTestsCount>
             <forkCount>3</forkCount>
