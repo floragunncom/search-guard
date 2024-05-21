@@ -40,10 +40,10 @@ import org.elasticsearch.tasks.Task;
 public final class DiagnosticContext {
     private static final Logger log = LogManager.getLogger(DiagnosticContext.class);
 
-    public static final Setting<Boolean> ACTION_STACK_ENABLED = Setting.boolSetting("searchguard.diagnosis.action_stack.enabled", false,
+    public static final Setting<Boolean> ACTION_STACK_ENABLED = Setting.boolSetting("searchguard.diagnosis.action_stack.enabled", true,
             Property.NodeScope);
 
-    public static final Setting<Boolean> ADD_EXTENDED_HEADERS_TO_LOG_CONTEXT = Setting.boolSetting("searchguard.logging.context.extended", false,
+    public static final Setting<Boolean> ADD_EXTENDED_HEADERS_TO_LOG_CONTEXT = Setting.boolSetting("searchguard.logging.context.extended", true,
             Property.NodeScope);
 
     public static final List<Setting<?>> SETTINGS = Arrays.asList(ACTION_STACK_ENABLED, ADD_EXTENDED_HEADERS_TO_LOG_CONTEXT);
