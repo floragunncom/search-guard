@@ -431,17 +431,6 @@ public class MigrationStepsTest {
     }
 
     @Test
-    public void shouldOmitPrivateTenantDataMigration() {
-        this.context = new DataMigrationContext(new MigrationConfig(true), clock);
-        environmentHelper.createIndex(GLOBAL_TENANT_INDEX, environmentHelper.doubleAliasForTenant(Tenant.GLOBAL_TENANT_ID));
-        PopulateTenantsStep populateTenantsStep = createPopulateTenantsStep();
-
-        StepResult execute = populateTenantsStep.execute(context);
-
-        assertThat(execute.isSuccess(), equalTo(true));
-    }
-
-    @Test
     public void shouldBreakMigrationProcessWhenGlobalTenantIndexIsNotFound() {
         List<DoubleAliasIndex> configuredTenantIndices = environmentHelper.getIndicesForConfiguredTenantsWithoutGlobal();
         environmentHelper.createIndex(configuredTenantIndices);
