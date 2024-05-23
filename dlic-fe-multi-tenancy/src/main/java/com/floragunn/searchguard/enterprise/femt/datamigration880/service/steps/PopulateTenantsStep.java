@@ -39,7 +39,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.CANNOT_RESOLVE_INDEX_BY_ALIAS_ERROR;
-import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.GLOBAL_AND_PRIVATE_TENANT_CONFLICT_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.GLOBAL_TENANT_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.INDICES_NOT_FOUND_ERROR;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.MULTI_TENANCY_CONFIG_NOT_AVAILABLE_ERROR;
@@ -68,7 +67,7 @@ class PopulateTenantsStep implements MigrationStep {
             .orElse(new StepResult(MULTI_TENANCY_CONFIG_NOT_AVAILABLE_ERROR, "Cannot load SearchGuard multi tenancy config."));
     }
 
-    private StepResult executeWithConfig(FeMultiTenancyConfig config, DataMigrationContext dataMigrationContext,
+    private StepResult executeWithConfig(FeMultiTenancyConfig config, DataMigrationContext context,
         ImmutableSet<String> configuredTenants) {
         log.debug("Searching for tenants, provided configuration '{}' and tenant names '{}'.", config, configuredTenants);
         List<TenantAlias> configuredTenantAliases = configuredTenants.stream() //
@@ -85,8 +84,6 @@ class PopulateTenantsStep implements MigrationStep {
             .collect(Collectors.toList());
         log.debug("Tenants read from configuration with index names resolved: '{}'", tenants);
         Set<String> tenantIndices = tenants.stream().map(TenantIndex::indexName).collect(Collectors.toSet());
-        ImmutableList<TenantIndex> privateTenants = findPrivateTenants(allExistingIndices, config.getIndex(), tenantIndices);
-        tenants.addAll(privateTenants);
         if(tenants.isEmpty()) {
             return new StepResult(INDICES_NOT_FOUND_ERROR, "Indices related to front-end multi tenancy not found.");
         }
@@ -101,7 +98,7 @@ class PopulateTenantsStep implements MigrationStep {
         tenants = tenants.stream() //
             .filter(tenantIndex -> tenantIndex.isInVersion(globalTenantIndexVersion)) //
             .collect(Collectors.toList());
-        dataMigrationContext.setTenantIndices(ImmutableList.of(tenants));
+        context.setTenantIndices(ImmutableList.of(tenants));
         String stringTenantList = tenants.stream() //
             .map(data -> "tenant " + (data.belongsToUserPrivateTenant() ? "__user__" : data.tenantName()) + " -> " + data.indexName()) //
             .collect(Collectors.joining(", "));
@@ -117,9 +114,9 @@ class PopulateTenantsStep implements MigrationStep {
                 .entrySet()//
                 .stream() //
                 .filter(entry -> globalTenantIndexNamePattern.matcher(entry.getKey()).matches()) // index name must match regexp globalTenantIndexNamePattern
-                .filter(entry -> entry.getValue().stream().map(alias -> alias.getAlias()).collect(Collectors.toSet()).contains(configuredFrontendIndexName)) //
-                .filter(entry -> entry.getValue().stream().map(alias -> alias.getAlias()).anyMatch(alias -> globalTenantAliasNamePattern.matcher(alias).matches())) //
-                .map(entry -> entry.getKey()) //
+                .filter(entry -> entry.getValue().stream().map(AliasMetadata::getAlias).collect(Collectors.toSet()).contains(configuredFrontendIndexName)) //
+                .filter(entry -> entry.getValue().stream().map(AliasMetadata::getAlias).anyMatch(alias -> globalTenantAliasNamePattern.matcher(alias).matches())) //
+                .map(Map.Entry::getKey) //
                 .map(indexName -> new TenantAlias(indexName, Tenant.GLOBAL_TENANT_ID)) //
                 .toList();
     }
@@ -164,40 +161,5 @@ class PopulateTenantsStep implements MigrationStep {
             log.debug("Alias '{}' is related to index '{}'.", aliasName, indexName);
             return indexName;
         });
-    }
-
-    private ImmutableList<TenantIndex> findPrivateTenants(GetIndexResponse allExistingIndices, String validIndexPrefix, Set<String> alreadyFoundIndices) {
-        Pattern pattern = Pattern.compile(Pattern.quote(validIndexPrefix) + "_-?\\d+_[a-z0-9]+\\b");
-        List<TenantIndex> privateTenants = allExistingIndices.aliases()
-            .entrySet()
-            .stream()
-            .filter(entry -> ! alreadyFoundIndices.contains(entry.getKey()))
-            .peek(entry -> log.trace("Checking if index {} is private user tenant index", entry.getKey()))
-            .filter(entry -> isPrivateUserTenantIndex(pattern, entry))
-            .map(entry -> new TenantIndex(entry.getKey(), null))
-            .collect(Collectors.toList());
-        log.debug("Private tenant related index found: '{}'", privateTenants);
-        List<String> privateTenantsInConflictWithGlobalTenant = privateTenants.stream() //
-                .map(TenantIndex::indexName) //
-                .filter(name -> name.contains("_sgsglobaltenant_")) //
-                .toList();
-        if(!privateTenantsInConflictWithGlobalTenant.isEmpty()) {
-            String message = "Found user private tenant which is in name conflict with the global tenant";
-            String details = "Indices " + privateTenantsInConflictWithGlobalTenant.stream() //
-                .map(name -> "'" + name + "'") //
-                .collect(Collectors.joining(", "));
-            throw new StepException(message, GLOBAL_AND_PRIVATE_TENANT_CONFLICT_ERROR, details);
-        }
-        return ImmutableList.of(privateTenants);
-    }
-
-    private boolean isPrivateUserTenantIndex(Pattern aliasNamePattern, Map.Entry<String, List<AliasMetadata>> entry) {
-        for(AliasMetadata aliasMetadata : entry.getValue()) {
-            String currentAlias = aliasMetadata.alias();
-            if(aliasNamePattern.matcher(currentAlias).matches()) {
-                return true;
-            }
-        }
-        return false;
     }
 }
