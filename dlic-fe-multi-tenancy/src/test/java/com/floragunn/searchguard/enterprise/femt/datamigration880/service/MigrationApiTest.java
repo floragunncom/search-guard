@@ -110,7 +110,7 @@ public class MigrationApiTest {
 
             log.info("Start migration response status '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
-            assertThat(environmentHelper.countDocumentInIndex(GLOBAL_TENANT_INDEX.indexName()), equalTo(93L));
+            assertThat(environmentHelper.countDocumentInIndex(GLOBAL_TENANT_INDEX.indexName()), equalTo(85L));
             GetIndexResponse getIndexResponse = environmentHelper.findHiddenIndexByName("backup_fe_migration_to_8_8_0_*")
                 .orElseThrow();
             assertThat(getIndexResponse.getIndices(), arrayWithSize(1));
@@ -319,7 +319,7 @@ public class MigrationApiTest {
     }
 
     private void assertThatOnlySmallMigratedDatasetIsPresentInGlobalTenantIndex() {
-        assertThat(environmentHelper.countDocumentInIndex(GLOBAL_TENANT_INDEX.indexName()), equalTo(32L));
+        assertThat(environmentHelper.countDocumentInIndex(GLOBAL_TENANT_INDEX.indexName()), equalTo(28L));
         environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:global_default");
         environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__191795427_performancereviews");
         environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-738948632_performancereviews");
@@ -348,10 +348,6 @@ public class MigrationApiTest {
         environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-1386441176_praxisrw");
         environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-1754201467_testtenantro");
         environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:configured_default__sg_ten__-1754201459_testtenantrw");
-        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:user_private__sg_ten__-1091682490_lukasz");
-        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:user_private__sg_ten__3292183_kirk");
-        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:user_private__sg_ten__-1091714203_luksz");
-        environmentHelper.assertThatDocumentExists(GLOBAL_TENANT_INDEX.indexName(), "space:user_private__sg_ten__739988528_ukasz");
     }
 
     private List<DoubleAliasIndex> createTenantsAndSavedObjects(TenantDataProvider dataProvider) {

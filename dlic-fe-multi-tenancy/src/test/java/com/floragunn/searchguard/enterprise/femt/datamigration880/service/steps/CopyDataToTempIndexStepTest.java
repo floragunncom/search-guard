@@ -22,12 +22,10 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.Migrat
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
 import org.elasticsearch.search.SearchHit;
-import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
