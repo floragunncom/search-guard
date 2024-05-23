@@ -78,6 +78,7 @@ import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDI
 import static org.elasticsearch.common.Strings.requireNonEmpty;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 
 public class MigrationEnvironmentHelper extends ExternalResource {
@@ -417,6 +418,14 @@ public class MigrationEnvironmentHelper extends ExternalResource {
             String reason = "Document with id '" + documentId + "' does not exist in index '" + index + "'.";
             assertThat(reason, response.isExists(), equalTo(true));
         }
+    }
+
+    public void assertThatDocumentDoesNotExist(String index, String documentId) {
+        Client client = cluster.getInternalNodeClient();
+        GetRequest request = new GetRequest(index, documentId);
+        GetResponse response = client.get(request).actionGet();
+        String reason = "Document with id '" + documentId + "' does not exist in index '" + index + "'.";
+        assertThat(reason, response.isExists(), not(equalTo(true)));
     }
 
     public List<DoubleAliasIndex> findIndicesForTenantsDefinedInConfigurationWithoutGlobal() {
