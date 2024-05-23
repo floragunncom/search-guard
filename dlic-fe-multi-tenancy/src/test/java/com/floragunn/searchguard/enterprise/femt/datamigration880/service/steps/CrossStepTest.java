@@ -92,7 +92,7 @@ public class CrossStepTest {
         populateBackupIndicesViaStepExecution(stepRepository);
         assertThat(context.getBackupIndices(), hasSize(5));
         populateDataIndicesViaStep();
-        assertThat(context.getDataIndicesNames(), hasSize(3));
+        assertThat(context.getDataIndicesNames(), hasSize(2));
         CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
 
         StepResult result = step.execute(context);
@@ -100,10 +100,10 @@ public class CrossStepTest {
         assertThat(result.isSuccess(), equalTo(true));
         // documents from global tenant index not included (~100 documents)
         String tempIndex = context.getTempIndexName();
-        assertThat(environmentHelper.countDocumentInIndex(tempIndex), equalTo(3L));
+        assertThat(environmentHelper.countDocumentInIndex(tempIndex), equalTo(2L));
         environmentHelper.assertThatDocumentExists(tempIndex, "space:backup-1-tenant-space");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:management-tenant-space__sg_ten__-1799980989_management");
-        environmentHelper.assertThatDocumentExists(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
+        environmentHelper.assertThatDocumentDoesNotExist(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
     }
 
     @Test
@@ -133,7 +133,7 @@ public class CrossStepTest {
         populateBackupIndicesViaStepExecution(stepRepository);
         assertThat(context.getBackupIndices(), hasSize(5));
         populateDataIndicesViaStep();
-        assertThat(context.getDataIndicesNames(), hasSize(3));
+        assertThat(context.getDataIndicesNames(), hasSize(2));
         CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
 
         StepResult result = step.execute(context);
@@ -141,10 +141,10 @@ public class CrossStepTest {
         assertThat(result.isSuccess(), equalTo(true));
         // documents from global tenant index not included (~100 documents)
         String tempIndex = context.getTempIndexName();
-        assertThat(environmentHelper.countDocumentInIndex(tempIndex), equalTo(3L));
+        assertThat(environmentHelper.countDocumentInIndex(tempIndex), equalTo(2L));
         environmentHelper.assertThatDocumentExists(tempIndex, "space:backup-2-tenant-space");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:management-tenant-space__sg_ten__-1799980989_management");
-        environmentHelper.assertThatDocumentExists(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
+        environmentHelper.assertThatDocumentDoesNotExist(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
     }
 
     @Test
@@ -175,7 +175,7 @@ public class CrossStepTest {
         populateBackupIndicesViaStepExecution(stepRepository);
         assertThat(context.getBackupIndices(), hasSize(5));
         populateDataIndicesViaStep();
-        assertThat(context.getDataIndicesNames(), hasSize(3));
+        assertThat(context.getDataIndicesNames(), hasSize(2));
         CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
 
         StepResult result = step.execute(context);
@@ -183,10 +183,10 @@ public class CrossStepTest {
         assertThat(result.isSuccess(), equalTo(true));
         // documents from global tenant index not included (~100 documents)
         String tempIndex = context.getTempIndexName();
-        assertThat(environmentHelper.countDocumentInIndex(tempIndex), equalTo(3L));
+        assertThat(environmentHelper.countDocumentInIndex(tempIndex), equalTo(2L));
         environmentHelper.assertThatDocumentExists(tempIndex, "space:backup-3-tenant-space");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:management-tenant-space__sg_ten__-1799980989_management");
-        environmentHelper.assertThatDocumentExists(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
+        environmentHelper.assertThatDocumentDoesNotExist(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
     }
 
     @Test
@@ -218,7 +218,7 @@ public class CrossStepTest {
         populateBackupIndicesViaStepExecution(stepRepository);
         assertThat(context.getBackupIndices(), hasSize(5));
         populateDataIndicesViaStep();
-        assertThat(context.getDataIndicesNames(), hasSize(3));
+        assertThat(context.getDataIndicesNames(), hasSize(2));
         CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
 
         StepResult result = step.execute(context);
@@ -226,10 +226,10 @@ public class CrossStepTest {
         assertThat(result.isSuccess(), equalTo(true));
         // documents from global tenant index not included (~100 documents)
         String tempIndex = context.getTempIndexName();
-        assertThat(environmentHelper.countDocumentInIndex(tempIndex), equalTo(3L));
+        assertThat(environmentHelper.countDocumentInIndex(tempIndex), equalTo(2L));
         environmentHelper.assertThatDocumentExists(tempIndex, "space:backup-4-tenant-space");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:management-tenant-space__sg_ten__-1799980989_management");
-        environmentHelper.assertThatDocumentExists(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
+        environmentHelper.assertThatDocumentDoesNotExist(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
     }
 
     @Test
@@ -262,17 +262,17 @@ public class CrossStepTest {
         populateBackupIndicesViaStepExecution(stepRepository);
         assertThat(context.getBackupIndices(), hasSize(5));
         populateDataIndicesViaStep();
-        assertThat(context.getDataIndicesNames(), hasSize(3));
+        assertThat(context.getDataIndicesNames(), hasSize(2));
         CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
 
         StepResult result = step.execute(context);
 
         assertThat(result.isSuccess(), equalTo(true));
         // documents from global tenant index not included (~100 documents)
-        assertThat(environmentHelper.countDocumentInIndex(context.getTempIndexName()), equalTo(3L));
+        assertThat(environmentHelper.countDocumentInIndex(context.getTempIndexName()), equalTo(2L));
         environmentHelper.assertThatDocumentExists(context.getTempIndexName(), "space:backup-5-tenant-space");
         environmentHelper.assertThatDocumentExists(context.getTempIndexName(), "space:management-tenant-space__sg_ten__-1799980989_management");
-        environmentHelper.assertThatDocumentExists(context.getTempIndexName(), "space:kirk-tenant-space__sg_ten__3292183_kirk");
+        environmentHelper.assertThatDocumentDoesNotExist(context.getTempIndexName(), "space:kirk-tenant-space__sg_ten__3292183_kirk");
     }
 
     @Test
@@ -306,7 +306,7 @@ public class CrossStepTest {
         populateBackupIndicesViaStepExecution(stepRepository);
         assertThat(context.getBackupIndices(), hasSize(5));
         populateDataIndicesViaStep();
-        assertThat(context.getDataIndicesNames(), hasSize(3));
+        assertThat(context.getDataIndicesNames(), hasSize(2));
         CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
 
         StepException exception = (StepException) assertThatThrown(() -> step.execute(context), instanceOf(StepException.class));
@@ -332,7 +332,7 @@ public class CrossStepTest {
         populateBackupIndicesViaStepExecution(stepRepository);
         assertThat(context.getBackupIndices(), hasSize(1));
         populateDataIndicesViaStep();
-        assertThat(context.getDataIndicesNames(), hasSize(3));
+        assertThat(context.getDataIndicesNames(), hasSize(2));
         CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
         IndexSettingsManager indexSettingsManager = new IndexSettingsManager(stepRepository);
 
@@ -341,11 +341,11 @@ public class CrossStepTest {
         StepResult result = step.execute(context);
         assertThat(result.isSuccess(), equalTo(true));
         // documents from global tenant index not included (~100 documents)
-        assertThat(environmentHelper.countDocumentInIndex(context.getTempIndexName()), equalTo(3L));
+        assertThat(environmentHelper.countDocumentInIndex(context.getTempIndexName()), equalTo(2L));
         String tempIndex = context.getTempIndexName();
         environmentHelper.assertThatDocumentExists(tempIndex, "space:backup-1-tenant-space");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:management-tenant-space__sg_ten__-1799980989_management");
-        environmentHelper.assertThatDocumentExists(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
+        environmentHelper.assertThatDocumentDoesNotExist(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
     }
 
     @Test
@@ -362,7 +362,7 @@ public class CrossStepTest {
         StepRepository stepRepository = new StepRepository(client);
         populateBackupIndicesViaStepExecution(stepRepository);
         populateDataIndicesViaStep();
-        assertThat(context.getDataIndicesNames(), hasSize(3));
+        assertThat(context.getDataIndicesNames(), hasSize(2));
         CopyDataToTempIndexStep step = createCopyDataToTempIndexStep(client);
 
         StepException exception = (StepException) assertThatThrown(() -> step.execute(context), instanceOf(StepException.class));
@@ -383,7 +383,7 @@ public class CrossStepTest {
         catalog.insertSpace(managementTenant.indexName(), "management-tenant-space");
 
         populateDataIndicesViaStep();
-        assertThat(context.getDataIndicesNames(), hasSize(3));
+        assertThat(context.getDataIndicesNames(), hasSize(2));
 
         StepRepository stepRepository = new StepRepository(client);
         createBackupByStep(stepRepository);
@@ -402,10 +402,10 @@ public class CrossStepTest {
         assertThat(result.isSuccess(), equalTo(true));
         // documents from global tenant index not included (~100 documents)
         String tempIndex = context.getTempIndexName();
-        assertThat(environmentHelper.countDocumentInIndex(tempIndex), equalTo(3L));
+        assertThat(environmentHelper.countDocumentInIndex(tempIndex), equalTo(2L));
         environmentHelper.assertThatDocumentExists(tempIndex, "space:should-be-moved-to-backup-space");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:management-tenant-space__sg_ten__-1799980989_management");
-        environmentHelper.assertThatDocumentExists(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
+        environmentHelper.assertThatDocumentDoesNotExist(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
     }
 
     private void createBackupByStep(StepRepository stepRepository) {
