@@ -30,6 +30,8 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.searchguard.enterprise.dlsfls.DlsFlsConfig;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.index.IndexRequest;
@@ -257,8 +259,9 @@ public class DlsTest {
     public void testDlsWithMinDocCountZeroAggregations() throws Exception {
 
         try (Client client = cluster.getInternalNodeClient()) {
-            client.admin().indices().create(new CreateIndexRequest("logs")
-                    .mapping("_doc", ImmutableMap.of("properties", ImmutableMap.of("termX", ImmutableMap.of("type", "keyword"))))).actionGet();
+
+            client.admin().indices().create(new CreateIndexRequest("logs").mapping(
+                    "_doc", ImmutableMap.of("properties", ImmutableMap.of("termX", ImmutableMap.of("type", "keyword"))))).actionGet();
 
             for (int i = 0; i < 3; i++) {
                 client.index(new IndexRequest("logs").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("amount", i, "termX", "A", "timestamp",
@@ -275,238 +278,339 @@ public class DlsTest {
         }
 
         try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password");
-                GenericRestClient adminClient = cluster.getRestClient("admin", "admin")) {
+             GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+             GenericRestClient adminCertClient = cluster.getAdminCertRestClient()) {
+
             // Terms Aggregation
-            // Non-admin user with setting "min_doc_count":0. Expected to get error message "min_doc_count 0 is not supported when DLS is activated".
-            String query1 = "{\n"//
-                    + "  \"size\":0,\n"//
-                    + "  \"query\":{\n"//
-                    + "    \"bool\":{\n"//
-                    + "      \"must\":[\n"//
-                    + "        {\n"//
-                    + "          \"range\":{\n"//
-                    + "            \"amount\":{\"gte\":1,\"lte\":100}\n"//
-                    + "          }\n"//
-                    + "        }\n"//
-                    + "      ]\n"//
-                    + "    }\n"//
-                    + "  },\n"//
-                    + "  \"aggs\":{\n"//
-                    + "    \"a\": {\n"//
-                    + "      \"terms\": {\n"//
-                    + "        \"field\": \"termX\",\n"//
-                    + "        \"min_doc_count\":0,\n"//
-                    + "\"size\": 10,\n"//
-                    + "\"order\": { \"_count\": \"desc\" }\n"//
-                    + "      }\n"//
-                    + "    }\n"//
-                    + "  }\n"//
-                    + "}";
+            //force_min_doc_count_to_1 = false
 
-            HttpResponse response1 = dmClient.postJson("logs*/_search", query1);
+            cluster.callAndRestoreConfig(DlsFlsConfig.TYPE, () -> {
 
-            Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response1.getStatusCode());
-            // Assert.assertTrue(response1.getBody(), response1.getBody().contains("min_doc_count 0 is not supported when DLS is activated"));
+                DocNode dlsConfig = DocNode.of("dls.force_min_doc_count_to_1", false);
+                GenericRestClient.HttpResponse configResponse = adminCertClient.putJson("/_searchguard/config/authz_dlsfls", dlsConfig);
+                Assert.assertEquals(HttpStatus.SC_OK, configResponse.getStatusCode());
 
-            // Non-admin user without setting "min_doc_count". Expected to only have access to buckets for dept_manager excluding E with 0 doc_count".
-            String query2 = "{\n"//
-                    + "  \"size\":0,\n"//
-                    + "  \"query\":{\n"//
-                    + "    \"bool\":{\n"//
-                    + "      \"must\":[\n"//
-                    + "        {\n"//
-                    + "          \"range\":{\n"//
-                    + "            \"amount\":{\"gte\":1,\"lte\":100}\n"//
-                    + "          }\n"//
-                    + "        }\n"//
-                    + "      ]\n"//
-                    + "    }\n"//
-                    + "  },\n"//
-                    + "  \"aggs\":{\n"//
-                    + "    \"a\": {\n"//
-                    + "      \"terms\": {\n"//
-                    + "        \"field\": \"termX\",\n"//
-                    + "\"size\": 10,\n"//
-                    + "\"order\": { \"_count\": \"desc\" }\n"//
-                    + "      }\n"//
-                    + "    }\n"//
-                    + "  }\n"//
-                    + "}";
+                // Non-admin user with setting "min_doc_count":0 when force_min_doc_count_to_1 is disabled. Expected to get error message "min_doc_count 0 is not supported when DLS is activated".
+                String query1 = "{\n"//
+                        + "  \"size\":0,\n"//
+                        + "  \"query\":{\n"//
+                        + "    \"bool\":{\n"//
+                        + "      \"must\":[\n"//
+                        + "        {\n"//
+                        + "          \"range\":{\n"//
+                        + "            \"amount\":{\"gte\":1,\"lte\":100}\n"//
+                        + "          }\n"//
+                        + "        }\n"//
+                        + "      ]\n"//
+                        + "    }\n"//
+                        + "  },\n"//
+                        + "  \"aggs\":{\n"//
+                        + "    \"a\": {\n"//
+                        + "      \"terms\": {\n"//
+                        + "        \"field\": \"termX\",\n"//
+                        + "        \"min_doc_count\":0,\n"//
+                        + "\"size\": 10,\n"//
+                        + "\"order\": { \"_count\": \"desc\" }\n"//
+                        + "      }\n"//
+                        + "    }\n"//
+                        + "  }\n"//
+                        + "}";
 
-            HttpResponse response2 = dmClient.postJson("logs*/_search", query2);
+                GenericRestClient.HttpResponse response1 = dmClient.postJson("logs*/_search", query1);
 
-            Assert.assertEquals(HttpStatus.SC_OK, response2.getStatusCode());
-            Assert.assertTrue(response2.getBody(), response2.getBody().contains("\"key\":\"A\""));
-            Assert.assertFalse(response2.getBody(), response2.getBody().contains("\"key\":\"B\""));
-            Assert.assertFalse(response2.getBody(), response2.getBody().contains("\"key\":\"C\""));
-            Assert.assertFalse(response2.getBody(), response2.getBody().contains("\"key\":\"D\""));
-            Assert.assertFalse(response2.getBody(), response2.getBody().contains("\"key\":\"E\""));
+                Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response1.getStatusCode());
 
-            // Admin with setting "min_doc_count":0. Expected to have access to all buckets".
-            HttpResponse response3 = adminClient.postJson("logs*/_search", query1);
+                // Non-admin user without setting "min_doc_count". Expected to only have access to buckets for dept_manager excluding E with 0 doc_count".
+                String query2 = "{\n"//
+                        + "  \"size\":0,\n"//
+                        + "  \"query\":{\n"//
+                        + "    \"bool\":{\n"//
+                        + "      \"must\":[\n"//
+                        + "        {\n"//
+                        + "          \"range\":{\n"//
+                        + "            \"amount\":{\"gte\":1,\"lte\":100}\n"//
+                        + "          }\n"//
+                        + "        }\n"//
+                        + "      ]\n"//
+                        + "    }\n"//
+                        + "  },\n"//
+                        + "  \"aggs\":{\n"//
+                        + "    \"a\": {\n"//
+                        + "      \"terms\": {\n"//
+                        + "        \"field\": \"termX\",\n"//
+                        + "\"size\": 10,\n"//
+                        + "\"order\": { \"_count\": \"desc\" }\n"//
+                        + "      }\n"//
+                        + "    }\n"//
+                        + "  }\n"//
+                        + "}";
 
-            Assert.assertEquals(HttpStatus.SC_OK, response3.getStatusCode());
-            Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"A\""));
-            Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"B\""));
-            Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"C\""));
-            Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"D\""));
-            Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"E\",\"doc_count\":0"));
+                GenericRestClient.HttpResponse response2 = dmClient.postJson("logs*/_search", query2);
 
-            // Admin without setting "min_doc_count". Expected to have access to all buckets excluding E with 0 doc_count".
-            HttpResponse response4 = adminClient.postJson("logs*/_search", query2);
+                Assert.assertEquals(HttpStatus.SC_OK, response2.getStatusCode());
+                Assert.assertTrue(response2.getBody(), response2.getBody().contains("\"key\":\"A\""));
+                Assert.assertFalse(response2.getBody(), response2.getBody().contains("\"key\":\"B\""));
+                Assert.assertFalse(response2.getBody(), response2.getBody().contains("\"key\":\"C\""));
+                Assert.assertFalse(response2.getBody(), response2.getBody().contains("\"key\":\"D\""));
+                Assert.assertFalse(response2.getBody(), response2.getBody().contains("\"key\":\"E\""));
 
-            Assert.assertEquals(HttpStatus.SC_OK, response4.getStatusCode());
-            Assert.assertTrue(response4.getBody(), response4.getBody().contains("\"key\":\"A\""));
-            Assert.assertTrue(response4.getBody(), response4.getBody().contains("\"key\":\"B\""));
-            Assert.assertTrue(response4.getBody(), response4.getBody().contains("\"key\":\"C\""));
-            Assert.assertTrue(response4.getBody(), response4.getBody().contains("\"key\":\"D\""));
-            Assert.assertFalse(response4.getBody(), response4.getBody().contains("\"key\":\"E\""));
+                // Admin with setting "min_doc_count":0. Expected to have access to all buckets".
+                GenericRestClient.HttpResponse response3 = adminClient.postJson("logs*/_search", query1);
+
+                Assert.assertEquals(HttpStatus.SC_OK, response3.getStatusCode());
+                Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"A\""));
+                Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"B\""));
+                Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"C\""));
+                Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"D\""));
+                Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"E\",\"doc_count\":0"));
+
+                // Admin without setting "min_doc_count". Expected to have access to all buckets excluding E with 0 doc_count".
+                GenericRestClient.HttpResponse response4 = adminClient.postJson("logs*/_search", query2);
+
+                Assert.assertEquals(HttpStatus.SC_OK, response4.getStatusCode());
+                Assert.assertTrue(response4.getBody(), response4.getBody().contains("\"key\":\"A\""));
+                Assert.assertTrue(response4.getBody(), response4.getBody().contains("\"key\":\"B\""));
+                Assert.assertTrue(response4.getBody(), response4.getBody().contains("\"key\":\"C\""));
+                Assert.assertTrue(response4.getBody(), response4.getBody().contains("\"key\":\"D\""));
+                Assert.assertFalse(response4.getBody(), response4.getBody().contains("\"key\":\"E\""));
+
+                return null;
+            });
+
+            // Terms Aggregation
+            //force_min_doc_count_to_1 = true
+
+            cluster.callAndRestoreConfig(DlsFlsConfig.TYPE, () -> {
+
+                DocNode dlsConfig = DocNode.of("dls.force_min_doc_count_to_1", true);
+                GenericRestClient.HttpResponse configResponse = adminCertClient.putJson("/_searchguard/config/authz_dlsfls", dlsConfig);
+                Assert.assertEquals(HttpStatus.SC_OK, configResponse.getStatusCode());
+
+                // Non-admin user with setting "min_doc_count":0 when force_min_doc_count_to_1 is enabled. Expected to only have access to buckets for dept_manager excluding E with 0 doc_count".
+                String query1 = "{\n"//
+                        + "  \"size\":0,\n"//
+                        + "  \"query\":{\n"//
+                        + "    \"bool\":{\n"//
+                        + "      \"must\":[\n"//
+                        + "        {\n"//
+                        + "          \"range\":{\n"//
+                        + "            \"amount\":{\"gte\":1,\"lte\":100}\n"//
+                        + "          }\n"//
+                        + "        }\n"//
+                        + "      ]\n"//
+                        + "    }\n"//
+                        + "  },\n"//
+                        + "  \"aggs\":{\n"//
+                        + "    \"a\": {\n"//
+                        + "      \"terms\": {\n"//
+                        + "        \"field\": \"termX\",\n"//
+                        + "        \"min_doc_count\":0,\n"//
+                        + "\"size\": 10,\n"//
+                        + "\"order\": { \"_count\": \"desc\" }\n"//
+                        + "      }\n"//
+                        + "    }\n"//
+                        + "  }\n"//
+                        + "}";
+
+                GenericRestClient.HttpResponse response1 = dmClient.postJson("logs*/_search", query1);
+
+                Assert.assertEquals(HttpStatus.SC_OK, response1.getStatusCode());
+                Assert.assertTrue(response1.getBody(), response1.getBody().contains("\"key\":\"A\""));
+                Assert.assertFalse(response1.getBody(), response1.getBody().contains("\"key\":\"B\""));
+                Assert.assertFalse(response1.getBody(), response1.getBody().contains("\"key\":\"C\""));
+                Assert.assertFalse(response1.getBody(), response1.getBody().contains("\"key\":\"D\""));
+                Assert.assertFalse(response1.getBody(), response1.getBody().contains("\"key\":\"E\""));
+
+                // Non-admin user without setting "min_doc_count". Expected to only have access to buckets for dept_manager excluding E with 0 doc_count".
+                String query2 = "{\n"//
+                        + "  \"size\":0,\n"//
+                        + "  \"query\":{\n"//
+                        + "    \"bool\":{\n"//
+                        + "      \"must\":[\n"//
+                        + "        {\n"//
+                        + "          \"range\":{\n"//
+                        + "            \"amount\":{\"gte\":1,\"lte\":100}\n"//
+                        + "          }\n"//
+                        + "        }\n"//
+                        + "      ]\n"//
+                        + "    }\n"//
+                        + "  },\n"//
+                        + "  \"aggs\":{\n"//
+                        + "    \"a\": {\n"//
+                        + "      \"terms\": {\n"//
+                        + "        \"field\": \"termX\",\n"//
+                        + "\"size\": 10,\n"//
+                        + "\"order\": { \"_count\": \"desc\" }\n"//
+                        + "      }\n"//
+                        + "    }\n"//
+                        + "  }\n"//
+                        + "}";
+
+                GenericRestClient.HttpResponse response2 = dmClient.postJson("logs*/_search", query2);
+
+                Assert.assertEquals(HttpStatus.SC_OK, response2.getStatusCode());
+                Assert.assertTrue(response2.getBody(), response2.getBody().contains("\"key\":\"A\""));
+                Assert.assertFalse(response2.getBody(), response2.getBody().contains("\"key\":\"B\""));
+                Assert.assertFalse(response2.getBody(), response2.getBody().contains("\"key\":\"C\""));
+                Assert.assertFalse(response2.getBody(), response2.getBody().contains("\"key\":\"D\""));
+                Assert.assertFalse(response2.getBody(), response2.getBody().contains("\"key\":\"E\""));
+
+                // Admin with setting "min_doc_count":0. Expected to have access to all buckets".
+                GenericRestClient.HttpResponse response3 = adminClient.postJson("logs*/_search", query1);
+
+                Assert.assertEquals(HttpStatus.SC_OK, response3.getStatusCode());
+                Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"A\""));
+                Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"B\""));
+                Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"C\""));
+                Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"D\""));
+                Assert.assertTrue(response3.getBody(), response3.getBody().contains("\"key\":\"E\",\"doc_count\":0"));
+
+                // Admin without setting "min_doc_count". Expected to have access to all buckets excluding E with 0 doc_count".
+                GenericRestClient.HttpResponse response4 = adminClient.postJson("logs*/_search", query2);
+
+                Assert.assertEquals(HttpStatus.SC_OK, response4.getStatusCode());
+                Assert.assertTrue(response4.getBody(), response4.getBody().contains("\"key\":\"A\""));
+                Assert.assertTrue(response4.getBody(), response4.getBody().contains("\"key\":\"B\""));
+                Assert.assertTrue(response4.getBody(), response4.getBody().contains("\"key\":\"C\""));
+                Assert.assertTrue(response4.getBody(), response4.getBody().contains("\"key\":\"D\""));
+                Assert.assertFalse(response4.getBody(), response4.getBody().contains("\"key\":\"E\""));
+
+                return null;
+            });
 
             // Significant Text Aggregation is not impacted.
             // Non-admin user with setting "min_doc_count=0". Expected to only have access to buckets for dept_manager".
-            String query3 = "{\"aggregations\":{\"significant_termX\":{\"significant_terms\":{\"field\":\"termX.keyword\",\"min_doc_count\":0}}}}";
-            HttpResponse response5 = dmClient.postJson("logs*/_search", query3);
+            String query3 = "{\"size\":20,\"aggregations\":{\"significant_termX\":{\"significant_terms\":{\"field\":\"termX.keyword\",\"min_doc_count\":0}}}}";
+            GenericRestClient.HttpResponse response5 = dmClient.postJson("logs*/_search", query3);
 
             Assert.assertEquals(HttpStatus.SC_OK, response5.getStatusCode());
             Assert.assertTrue(response5.getBody(), response5.getBody().contains("\"termX\":\"A\""));
             Assert.assertFalse(response5.getBody(), response5.getBody().contains("\"termX\":\"B\""));
             Assert.assertFalse(response5.getBody(), response5.getBody().contains("\"termX\":\"C\""));
             Assert.assertFalse(response5.getBody(), response5.getBody().contains("\"termX\":\"D\""));
-            // TODO there seems to be some flakyness with the following assert
-            // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
+            Assert.assertFalse(response5.getBody(), response5.getBody().contains("\"termX\":\"E\""));
 
             // Non-admin user without setting "min_doc_count". Expected to only have access to buckets for dept_manager".
-            String query4 = "{\"aggregations\":{\"significant_termX\":{\"significant_terms\":{\"field\":\"termX.keyword\"}}}}";
+            String query4 = "{\"size\":20,\"aggregations\":{\"significant_termX\":{\"significant_terms\":{\"field\":\"termX.keyword\"}}}}";
 
-            HttpResponse response6 = dmClient.postJson("logs*/_search", query4);
+            GenericRestClient.HttpResponse response6 = dmClient.postJson("logs*/_search", query4);
 
             Assert.assertEquals(HttpStatus.SC_OK, response6.getStatusCode());
             Assert.assertTrue(response6.getBody(), response6.getBody().contains("\"termX\":\"A\""));
             Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"B\""));
             Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"C\""));
             Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"D\""));
-            // TODO there seems to be some flakyness with the following assert
-            // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
+            Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
 
             // Admin with setting "min_doc_count":0. Expected to have access to all buckets".
-            HttpResponse response7 = adminClient.postJson("logs*/_search", query3);
+            GenericRestClient.HttpResponse response7 = adminClient.postJson("logs*/_search", query3);
 
             Assert.assertEquals(HttpStatus.SC_OK, response7.getStatusCode());
             Assert.assertTrue(response7.getBody(), response7.getBody().contains("\"termX\":\"A\""));
             Assert.assertTrue(response7.getBody(), response7.getBody().contains("\"termX\":\"B\""));
             Assert.assertTrue(response7.getBody(), response7.getBody().contains("\"termX\":\"C\""));
             Assert.assertTrue(response7.getBody(), response7.getBody().contains("\"termX\":\"D\""));
-            // TODO there seems to be some flakyness with the following assert
-            // Assert.assertTrue(response7.getBody(), response7.getBody().contains("\"termX\":\"E\""));
+            Assert.assertTrue(response7.getBody(), response7.getBody().contains("\"termX\":\"E\""));
 
             // Admin without setting "min_doc_count". Expected to have access to all buckets".
-            HttpResponse response8 = adminClient.postJson("logs*/_search", query4);
+            GenericRestClient.HttpResponse response8 = adminClient.postJson("logs*/_search", query4);
 
             Assert.assertEquals(HttpStatus.SC_OK, response8.getStatusCode());
             Assert.assertTrue(response8.getBody(), response8.getBody().contains("\"termX\":\"A\""));
             Assert.assertTrue(response8.getBody(), response8.getBody().contains("\"termX\":\"B\""));
             Assert.assertTrue(response8.getBody(), response8.getBody().contains("\"termX\":\"C\""));
             Assert.assertTrue(response8.getBody(), response8.getBody().contains("\"termX\":\"D\""));
-            // TODO there seems to be some flakyness with the following assert
-            // Assert.assertTrue(response8.getBody(), response8.getBody().contains("\"termX\":\"E\""));
+            Assert.assertTrue(response8.getBody(), response8.getBody().contains("\"termX\":\"E\""));
 
             // Histogram Aggregation is not impacted.
             // Non-admin user with setting "min_doc_count=0". Expected to only have access to buckets for dept_manager".
-            String query5 = "{\"aggs\":{\"amount\":{\"histogram\":{\"field\":\"amount\",\"interval\":1,\"min_doc_count\":0}}}}";
+            String query5 = "{\"size\":20,\"aggs\":{\"amount\":{\"histogram\":{\"field\":\"amount\",\"interval\":1,\"min_doc_count\":0}}}}";
 
-            HttpResponse response9 = dmClient.postJson("logs*/_search", query5);
+            GenericRestClient.HttpResponse response9 = dmClient.postJson("logs*/_search", query5);
 
             Assert.assertEquals(HttpStatus.SC_OK, response9.getStatusCode());
             Assert.assertTrue(response9.getBody(), response9.getBody().contains("\"termX\":\"A\""));
             Assert.assertFalse(response9.getBody(), response9.getBody().contains("\"termX\":\"B\""));
             Assert.assertFalse(response9.getBody(), response9.getBody().contains("\"termX\":\"C\""));
             Assert.assertFalse(response9.getBody(), response9.getBody().contains("\"termX\":\"D\""));
-            // TODO there seems to be some flakyness with the following assert
-            // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
+            Assert.assertFalse(response9.getBody(), response9.getBody().contains("\"termX\":\"E\""));
 
             // Non-admin user without setting "min_doc_count". Expected to only have access to buckets for dept_manager".
-            String query6 = "{\"aggs\":{\"amount\":{\"histogram\":{\"field\":\"amount\",\"interval\":1}}}}";
+            String query6 = "{\"size\":20,\"aggs\":{\"amount\":{\"histogram\":{\"field\":\"amount\",\"interval\":1}}}}";
 
-            HttpResponse response10 = dmClient.postJson("logs*/_search", query6);
+            GenericRestClient.HttpResponse response10 = dmClient.postJson("logs*/_search", query6);
 
             Assert.assertEquals(HttpStatus.SC_OK, response10.getStatusCode());
             Assert.assertTrue(response10.getBody(), response10.getBody().contains("\"termX\":\"A\""));
             Assert.assertFalse(response10.getBody(), response10.getBody().contains("\"termX\":\"B\""));
             Assert.assertFalse(response10.getBody(), response10.getBody().contains("\"termX\":\"C\""));
             Assert.assertFalse(response10.getBody(), response10.getBody().contains("\"termX\":\"D\""));
-            // TODO there seems to be some flakyness with the following assert
-            // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
+            Assert.assertFalse(response10.getBody(), response10.getBody().contains("\"termX\":\"E\""));
 
             // Admin with setting "min_doc_count":0. Expected to have access to all buckets".
-            HttpResponse response11 = adminClient.postJson("logs*/_search", query5);
+            GenericRestClient.HttpResponse response11 = adminClient.postJson("logs*/_search", query5);
 
             Assert.assertEquals(HttpStatus.SC_OK, response11.getStatusCode());
             Assert.assertTrue(response11.getBody(), response11.getBody().contains("\"termX\":\"A\""));
             Assert.assertTrue(response11.getBody(), response11.getBody().contains("\"termX\":\"B\""));
             Assert.assertTrue(response11.getBody(), response11.getBody().contains("\"termX\":\"C\""));
             Assert.assertTrue(response11.getBody(), response11.getBody().contains("\"termX\":\"D\""));
-            // TODO there seems to be some flakyness with the following assert
-            // Assert.assertTrue(response11.getBody(), response11.getBody().contains("\"termX\":\"E\""));
+            Assert.assertTrue(response11.getBody(), response11.getBody().contains("\"termX\":\"E\""));
 
             // Admin without setting "min_doc_count". Expected to have access to all buckets".
-            HttpResponse response12 = adminClient.postJson("logs*/_search", query6);
+            GenericRestClient.HttpResponse response12 = adminClient.postJson("logs*/_search", query6);
 
             Assert.assertEquals(HttpStatus.SC_OK, response12.getStatusCode());
             Assert.assertTrue(response12.getBody(), response12.getBody().contains("\"termX\":\"A\""));
             Assert.assertTrue(response12.getBody(), response12.getBody().contains("\"termX\":\"B\""));
             Assert.assertTrue(response12.getBody(), response12.getBody().contains("\"termX\":\"C\""));
             Assert.assertTrue(response12.getBody(), response12.getBody().contains("\"termX\":\"D\""));
-            // TODO there seems to be some flakyness with the following assert
-            // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
+            Assert.assertTrue(response12.getBody(), response12.getBody().contains("\"termX\":\"E\""));
 
             // Date Histogram Aggregation is not impacted.
             // Non-admin user with setting "min_doc_count=0". Expected to only have access to buckets for dept_manager".
-            String query7 = "{\"aggs\":{\"timestamp\":{\"date_histogram\":{\"field\":\"timestamp\",\"calendar_interval\":\"month\",\"min_doc_count\":0}}}}";
+            String query7 = "{\"size\":20,\"aggs\":{\"timestamp\":{\"date_histogram\":{\"field\":\"timestamp\",\"calendar_interval\":\"month\",\"min_doc_count\":0}}}}";
 
-            HttpResponse response13 = dmClient.postJson("logs*/_search", query7);
+            GenericRestClient.HttpResponse response13 = dmClient.postJson("logs*/_search", query7);
 
             Assert.assertEquals(HttpStatus.SC_OK, response13.getStatusCode());
             Assert.assertTrue(response13.getBody(), response13.getBody().contains("\"termX\":\"A\""));
             Assert.assertFalse(response13.getBody(), response13.getBody().contains("\"termX\":\"B\""));
             Assert.assertFalse(response13.getBody(), response13.getBody().contains("\"termX\":\"C\""));
             Assert.assertFalse(response13.getBody(), response13.getBody().contains("\"termX\":\"D\""));
-            // TODO there seems to be some flakyness with the following assert
-            // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
+            Assert.assertFalse(response13.getBody(), response13.getBody().contains("\"termX\":\"E\""));
 
             // Non-admin user without setting "min_doc_count". Expected to only have access to buckets for dept_manager".
-            String query8 = "{\"aggs\":{\"timestamp\":{\"date_histogram\":{\"field\":\"timestamp\",\"calendar_interval\":\"month\"}}}}";
+            String query8 = "{\"size\":20,\"aggs\":{\"timestamp\":{\"date_histogram\":{\"field\":\"timestamp\",\"calendar_interval\":\"month\"}}}}";
 
-            HttpResponse response14 = dmClient.postJson("logs*/_search", query8);
+            GenericRestClient.HttpResponse response14 = dmClient.postJson("logs*/_search", query8);
 
             Assert.assertEquals(HttpStatus.SC_OK, response14.getStatusCode());
             Assert.assertTrue(response14.getBody(), response14.getBody().contains("\"termX\":\"A\""));
             Assert.assertFalse(response14.getBody(), response14.getBody().contains("\"termX\":\"B\""));
             Assert.assertFalse(response14.getBody(), response14.getBody().contains("\"termX\":\"C\""));
             Assert.assertFalse(response14.getBody(), response14.getBody().contains("\"termX\":\"D\""));
-            // TODO there seems to be some flakyness with the following assert
-            // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
+            Assert.assertFalse(response14.getBody(), response14.getBody().contains("\"termX\":\"E\""));
 
             // Admin with setting "min_doc_count":0. Expected to have access to all buckets".
-            HttpResponse response15 = adminClient.postJson("logs*/_search", query7);
+            GenericRestClient.HttpResponse response15 = adminClient.postJson("logs*/_search", query7);
 
             Assert.assertEquals(HttpStatus.SC_OK, response15.getStatusCode());
             Assert.assertTrue(response15.getBody(), response15.getBody().contains("\"termX\":\"A\""));
             Assert.assertTrue(response15.getBody(), response15.getBody().contains("\"termX\":\"B\""));
             Assert.assertTrue(response15.getBody(), response15.getBody().contains("\"termX\":\"C\""));
             Assert.assertTrue(response15.getBody(), response15.getBody().contains("\"termX\":\"D\""));
-            // TODO there seems to be some flakyness with the following assert
-            // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
+            Assert.assertTrue(response15.getBody(), response15.getBody().contains("\"termX\":\"E\""));
 
             // Admin without setting "min_doc_count". Expected to have access to all buckets".
-            HttpResponse response16 = adminClient.postJson("logs*/_search", query8);
+            GenericRestClient.HttpResponse response16 = adminClient.postJson("logs*/_search", query8);
 
             Assert.assertEquals(HttpStatus.SC_OK, response16.getStatusCode());
             Assert.assertTrue(response16.getBody(), response16.getBody().contains("\"termX\":\"A\""));
             Assert.assertTrue(response16.getBody(), response16.getBody().contains("\"termX\":\"B\""));
             Assert.assertTrue(response16.getBody(), response16.getBody().contains("\"termX\":\"C\""));
             Assert.assertTrue(response16.getBody(), response16.getBody().contains("\"termX\":\"D\""));
-            // TODO there seems to be some flakyness with the following assert
-            // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
+            Assert.assertTrue(response16.getBody(), response16.getBody().contains("\"termX\":\"E\""));
         }
     }
 
