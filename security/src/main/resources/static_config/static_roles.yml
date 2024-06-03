@@ -63,7 +63,15 @@ SGS_KIBANA_USER:
       - "SGS_GLOBAL_TENANT"
       allowed_actions:
       - "kibana:saved_objects/_/write"
-   
+  alias_permissions:
+    - alias_patterns:
+        - '/\.kibana_[0-9]+\.[0-9]+\.[0-9]+/'
+      allowed_actions:
+        - "SGS_READ"
+        - "SGS_DELETE"
+        - "SGS_MANAGE"
+        - "SGS_INDEX"
+
 SGS_KIBANA_USER_NO_GLOBAL_TENANT:
   reserved: true
   hidden: false
