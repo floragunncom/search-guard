@@ -709,6 +709,8 @@ public class ResolvedIndices {
                 pureIndices = pureIndices.matching(e -> !excludeStatePredicate.test(e.isOpen()));
             }
 
+            pureIndices = pureIndices.matching(index -> !index.isSystem() || request.systemIndexAccess.isAllowed(index));
+
             return new Local(pureIndices, aliases, dataStreams, nonExistingIndices);
         }
 
