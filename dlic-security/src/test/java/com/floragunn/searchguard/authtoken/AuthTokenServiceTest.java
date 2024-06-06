@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import com.floragunn.codova.config.net.CacheConfig;
@@ -110,6 +111,7 @@ public class AuthTokenServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void basicTest() throws Exception {
         User testUser = User.forUser("test_user").backendRoles("r1", "r2", "r3").build();
         AuthTokenServiceConfig config = new AuthTokenServiceConfig();
@@ -129,7 +131,10 @@ public class AuthTokenServiceTest {
             authTokenService.setSendTokenUpdates(false);
             authTokenService.waitForInitComplete(10000);
 
-            RequestedPrivileges requestedPrivileges = RequestedPrivileges.parseYaml("cluster_permissions:\n- cluster:test\nroles:\n- r1\n- r0");
+            RequestedPrivileges requestedPrivileges = RequestedPrivileges.parseYaml(
+                    "cluster_permissions:\n- cluster:test\nroles:\n- r1\n- r0\n" +
+                            "data_stream_permissions:\n- data_stream_patterns: ['ds_1']\n  allowed_actions: ['action:x']"
+            );
             CreateAuthTokenRequest request = new CreateAuthTokenRequest(requestedPrivileges);
 
             CreateAuthTokenResponse response = authTokenService.createJwt(testUser, request);
@@ -138,8 +143,12 @@ public class AuthTokenServiceTest {
             
             Claims claims = jwtParser.parseSignedClaims(response.getJwt()).getPayload();
 
+            Map<?,?> claimsRequested = claims.get("requested", Map.class);
             Assert.assertEquals(testUser.getName(), claims.getSubject());
-            Assert.assertEquals(requestedPrivileges.getClusterPermissions(), ((Map<?, ?>) claims.get("requested")).get("cluster_permissions"));
+            Assert.assertEquals(requestedPrivileges.getClusterPermissions(), claimsRequested.get("cluster_permissions"));
+            Assert.assertEquals(1, ((List<Map<?,?>>) claimsRequested.get("data_stream_permissions")).size());
+            Assert.assertEquals(Collections.singletonList("ds_1"), ((List<Map<?,?>>) claimsRequested.get("data_stream_permissions")).get(0).get("data_stream_patterns"));
+            Assert.assertEquals(Collections.singletonList("action:x"), ((List<Map<?,?>>) claimsRequested.get("data_stream_permissions")).get(0).get("allowed_actions"));
             Assert.assertEquals(Collections.singletonList("r1"), ((Map<?, ?>) claims.get("base")).get("r_be"));
             Assert.assertEquals(1, claims.getAudience().size());
             Assert.assertTrue(claims.getAudience().contains(config.getJwtAud()));
