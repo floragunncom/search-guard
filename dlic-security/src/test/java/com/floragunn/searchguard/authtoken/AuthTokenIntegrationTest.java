@@ -20,6 +20,7 @@ import java.util.Map;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -113,9 +114,16 @@ public class AuthTokenIntegrationTest {
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
+    static TestSgConfig.User USER_ALIAS_PUB_ACCESS = new TestSgConfig.User("user_alias_pub_access")
+            .roles(new TestSgConfig.Role("alias_pub_access")
+                    .clusterPermissions("cluster:admin:searchguard:authtoken/_own/*")
+                    .aliasPermissions("READ").on("alias_pub*")
+            );
+
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
-            .resources("authtoken").sslEnabled().sgConfig(sgConfig).enterpriseModulesEnabled().enableModule(AuthTokenModule.class).embedded().build();
+            .resources("authtoken").sslEnabled().sgConfig(sgConfig).enterpriseModulesEnabled().enableModule(AuthTokenModule.class).embedded()
+            .user(USER_ALIAS_PUB_ACCESS).build();
 
     @BeforeClass
     public static void setupTestData() {
@@ -134,6 +142,13 @@ public class AuthTokenIntegrationTest {
                     "a", "foo")).actionGet();
             client.index(new IndexRequest("dls_user_attr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is",
                     "not_allowed", "a", "qux")).actionGet();
+
+            client.admin().indices().aliases(new IndicesAliasesRequest()
+                    .addAliasAction(IndicesAliasesRequest.AliasActions.add().indices("pub_test_deny")
+                            .alias("alias_pub_test_deny"))
+                    .addAliasAction(IndicesAliasesRequest.AliasActions.add().indices("pub_test_allow_because_from_token")
+                            .alias("alias_pub_test_allow_because_from_token")))
+                    .actionGet();
 
         }
 
@@ -209,7 +224,7 @@ public class AuthTokenIntegrationTest {
     }
 
     @Test
-    public void basicTest() throws Exception {
+    public void basicTest_indexAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
             CreateAuthTokenRequest request = new CreateAuthTokenRequest(
                     RequestedPrivileges.parseYaml("index_permissions:\n- index_patterns: '*_from_token'\n  allowed_actions: '*'"));
@@ -255,6 +270,62 @@ public class AuthTokenIntegrationTest {
                     assertThat(searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"), equalTo("allowed"));
 
                     assertThatThrown(() -> client.search(new SearchRequest("pub_test_deny")
+                                    .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT),
+                            messageContainsMatcher("Insufficient permissions")
+                    );
+                }
+            }
+        }
+
+    }
+
+    @Test
+    public void basicTest_aliasAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(USER_ALIAS_PUB_ACCESS)) {
+            CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                    RequestedPrivileges.parseYaml("alias_permissions:\n- alias_patterns: '*_from_token'\n  allowed_actions: '*'"));
+
+            request.setTokenName("my_new_token");
+
+            HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
+
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+            String token = response.getBodyAsDocNode().getAsString("token");
+            assertThat(token, notNullValue());
+            assertThat(getJwtHeaderValue(token, "alg"), equalTo("HS512"));
+
+            String tokenPayload = getJwtPayload(token);
+            Map<String, Object> parsedTokenPayload = DocReader.json().readObject(tokenPayload);
+            assertThat(tokenPayload, JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration())
+                    .parse(parsedTokenPayload).read("sub"), equalTo(USER_ALIAS_PUB_ACCESS.getName())
+            );
+            assertThat(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c"), notNullValue());
+
+            try (RestHighLevelClient client = cluster.getRestHighLevelClient(USER_ALIAS_PUB_ACCESS)) {
+                SearchResponse searchResponse = client.search(new SearchRequest("alias_pub_test_allow_because_from_token")
+                        .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+
+                assertThat(searchResponse.getHits().getTotalHits().value, equalTo(1L));
+                assertThat(searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"), equalTo("allowed"));
+
+                searchResponse = client.search(
+                        new SearchRequest("alias_pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
+                        RequestOptions.DEFAULT);
+
+                assertThat(searchResponse.getHits().getTotalHits().value, equalTo(1L));
+                assertThat(searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"), equalTo("not_allowed_from_token"));
+            }
+
+            for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
+                try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
+                    SearchResponse searchResponse = client.search(new SearchRequest("alias_pub_test_allow_because_from_token")
+                            .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+
+                    assertThat(searchResponse.getHits().getTotalHits().value, equalTo(1L));
+                    assertThat(searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"), equalTo("allowed"));
+
+                    assertThatThrown(() -> client.search(new SearchRequest("alias_pub_test_deny")
                                     .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT),
                             messageContainsMatcher("Insufficient permissions")
                     );

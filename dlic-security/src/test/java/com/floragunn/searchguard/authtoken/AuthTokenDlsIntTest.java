@@ -15,6 +15,7 @@
 package com.floragunn.searchguard.authtoken;
 
 import org.apache.http.message.BasicHeader;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.Client;
@@ -46,14 +47,17 @@ public class AuthTokenDlsIntTest {
     static final TestData TEST_DATA = TestData.documentCount(DOC_COUNT).get();
 
     static final String INDEX = "logs";
+    static final String INDEX_ALIAS = "logs_alias";
 
     static final TestSgConfig.User ADMIN = new TestSgConfig.User("admin")
-            .roles(new Role("all_access").indexPermissions("*").on("*").clusterPermissions("*"));
+            .roles(new Role("all_access").indexPermissions("*").on("*").clusterPermissions("*").aliasPermissions("*").on("*"));
 
     static final TestSgConfig.User DEPT_A_USER = new TestSgConfig.User("dept_a")
             .roles(new Role("dept_a").indexPermissions("SGS_READ").dls(DocNode.of("prefix.dept.value", "dept_a")).on(INDEX).clusterPermissions("*"));
     static final TestSgConfig.User DEPT_D_USER = new TestSgConfig.User("dept_d")
             .roles(new Role("dept_d").indexPermissions("SGS_READ").dls(DocNode.of("term.dept.value", "dept_d")).on(INDEX).clusterPermissions("*"));
+    static final TestSgConfig.User DEPT_D_VIA_ALIAS_USER = new TestSgConfig.User("dept_d")
+            .roles(new Role("dept_d_via_alias").aliasPermissions("SGS_READ").dls(DocNode.of("term.dept.value", "dept_d")).on(INDEX_ALIAS).clusterPermissions("*"));
     static final TestSgConfig.User DEPT_D_TERMS_LOOKUP_USER = new TestSgConfig.User("dept_d_terms_lookup_user")
             .roles(new Role("dept_d").indexPermissions("SGS_READ")
                     .dls(DocNode.of("terms", DocNode.of("dept", DocNode.of("index", "user_dept_terms_lookup", "id", "${user.name}", "path", "dept"))))
@@ -66,6 +70,7 @@ public class AuthTokenDlsIntTest {
 
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
+            .authzDebug(true)
             .authTokenService(AUTH_TOKEN_SERVICE).users(ADMIN, DEPT_A_USER, DEPT_D_USER, DEPT_D_TERMS_LOOKUP_USER).resources(null)
             .enableModule(AuthTokenModule.class).embedded().build();
 
@@ -76,6 +81,7 @@ public class AuthTokenDlsIntTest {
 
             client.index(new IndexRequest("user_dept_terms_lookup").id("dept_d_terms_lookup_user").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source("dept", "dept_d")).actionGet();
+            client.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(IndicesAliasesRequest.AliasActions.add().indices(INDEX).alias(INDEX_ALIAS))).actionGet();
         }
     }
 
@@ -83,9 +89,9 @@ public class AuthTokenDlsIntTest {
     public void get_authtoken() throws Exception {
 
         TestDocument testDocumentA1 = TEST_DATA.anyDocumentForDepartment("dept_a_1");
-        String documentUriA1 = "/logs/_doc/" + testDocumentA1.getId();
+        String documentIndexUriA1 = String.format("/%s/_doc/%s", INDEX, testDocumentA1.getId());
         TestDocument testDocumentD = TEST_DATA.anyDocumentForDepartment("dept_d");
-        String documentUriD = "/logs/_doc/" + testDocumentD.getId();
+        String documentIndexUriD = String.format("/%s/_doc/%s", INDEX, testDocumentD.getId());
 
         String token;
 
@@ -103,14 +109,40 @@ public class AuthTokenDlsIntTest {
         }
 
         try (GenericRestClient client = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + token))) {
-            GenericRestClient.HttpResponse response = client.get(documentUriA1);
+            GenericRestClient.HttpResponse response = client.get(documentIndexUriA1);
             Assert.assertEquals(response.getBody(), 404, response.getStatusCode());
-            response = client.get(documentUriD);
+            response = client.get(documentIndexUriD);
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+        }
+
+        String documentAliasUriA1 =  String.format("/%s/_doc/%s", INDEX_ALIAS, testDocumentA1.getId());
+        String documentAliasUriD = String.format("/%s/_doc/%s", INDEX_ALIAS, testDocumentD.getId());
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_D_VIA_ALIAS_USER)) {
+            CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                    RequestedPrivileges.parseYaml("alias_permissions:\n- alias_patterns: '*'\n  allowed_actions: '*'"));
+
+            request.setTokenName("my_new_token");
+
+            GenericRestClient.HttpResponse response = client.postJson("/_searchguard/authtoken", request);
+            Assert.assertEquals(200, response.getStatusCode());
+
+            token = response.getBodyAsDocNode().getAsString("token");
+            Assert.assertNotNull(token);
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + token))) {
+            GenericRestClient.HttpResponse response = client.get(documentAliasUriA1);
+            Assert.assertEquals(response.getBody(), 404, response.getStatusCode());
+            response = client.get(documentAliasUriD);
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
         }
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
-            GenericRestClient.HttpResponse response = client.get(documentUriA1);
+            GenericRestClient.HttpResponse response = client.get(documentIndexUriA1);
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+
+            response = client.get(documentAliasUriA1);
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
         }
     }
