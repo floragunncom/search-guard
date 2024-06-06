@@ -216,7 +216,7 @@ public class RestMatchers {
 
                 HttpResponse response = (HttpResponse) item;
 
-                if (response.getStatusCode() == 400) {
+                if (response.getStatusCode() == 500) {
                     return true;
                 } else {
                     mismatchDescription.appendText("Status is not 500 Internal Server Error: ").appendValue(item);

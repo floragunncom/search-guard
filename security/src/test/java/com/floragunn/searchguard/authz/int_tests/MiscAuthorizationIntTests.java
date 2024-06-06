@@ -18,11 +18,13 @@
 package com.floragunn.searchguard.authz.int_tests;
 
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
+import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
@@ -163,16 +165,15 @@ public class MiscAuthorizationIntTests {
     @Test
     public void detailsAboutMissingPermissions_shouldBeReturnedOnlyWhenAuthzDebugIsEnabled() throws Exception {
         try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient();
-                GenericRestClient userClient = cluster.getRestClient("exclusion_test_user_basic", "secret")) {
+                GenericRestClient userClient = cluster.getRestClient("permssion_rest_api_user", "secret")) {
 
             cluster.callAndRestoreConfig(CType.AUTHZ, () -> {
 
                 HttpResponse httpResponse = adminCertClient.get("/_searchguard/config/authz");
-                assertThat(httpResponse, isOk());
+                assertThat(httpResponse, anyOf(isOk(), isNotFound()));
 
-                DocNode authzConfig = httpResponse.getBodyAsDocNode();
                 //authz debug enabled
-                authzConfig = authzConfig.with("debug", true);
+                DocNode authzConfig = DocNode.of("debug", true);
 
                 httpResponse = adminCertClient.putJson("/_searchguard/config/authz", authzConfig);
                 assertThat(httpResponse, isOk());

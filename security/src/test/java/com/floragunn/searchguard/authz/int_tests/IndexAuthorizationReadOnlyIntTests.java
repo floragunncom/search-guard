@@ -357,7 +357,7 @@ public class IndexAuthorizationReadOnlyIntTests {
                 assertThat(httpResponse, json(nodeAt("error.reason", equalTo("no such index [-index_b1]"))));
             } else {
                 assertThat(httpResponse,
-                        containsExactly(index_a1, index_a2, index_b1).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(403));
+                        containsExactly(index_a1, index_a2, index_b1).at("hits.hits[*]._index").butForbiddenIfIncomplete(user.indexMatcher("read")).whenEmpty(403));
             }
         }
     }

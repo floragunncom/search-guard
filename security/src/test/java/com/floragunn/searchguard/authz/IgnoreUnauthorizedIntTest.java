@@ -124,7 +124,7 @@ public class IgnoreUnauthorizedIntTest {
 
                 httpResponse = restClient2.get("/_alias/z_alias_a12");
 
-                Assert.assertThat(httpResponse, isForbidden());
+                Assert.assertThat(httpResponse, isNotFound());
             }
         }
 

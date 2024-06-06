@@ -572,7 +572,7 @@ public class DlsReadOnlyIntTests {
                 // termverctors is not supported for terms lookup DLS
                 assertThat(httpResponse, isInternalServerError());
                 assertTrue(httpResponse.getBody(),
-                        httpResponse.getBodyAsDocNode().getAsString("reason").startsWith("Unsupported request type for filter level DLS"));
+                        httpResponse.getBodyAsDocNode().getAsNode("error").getAsString("reason").startsWith("Unsupported request type for filter level DLS"));
             } else {
                 if (containsExactly(index_1).isCoveredBy(user.indexMatcher("read"))) {
                     assertThat(httpResponse, isOk());

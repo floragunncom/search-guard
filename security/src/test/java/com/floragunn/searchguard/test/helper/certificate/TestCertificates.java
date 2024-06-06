@@ -120,7 +120,7 @@ public class TestCertificates {
         if (certificate.getPrivateKeyPassword() != null) {
             result.put("searchguard.ssl.http.pemkey_password", certificate.getPrivateKeyPassword());
         }
-        result.put("searchguard.authcz.admin_dn", getAdminCertificate().getCertificate().getSubject().toString());
+        result.putList("searchguard.authcz.admin_dn", getAdminCertificate().getCertificate().getSubject().toString());
         result.put("searchguard.ssl.transport.pemtrustedcas_filepath", getCaCertFile().getAbsolutePath());
         result.put("searchguard.ssl.http.pemtrustedcas_filepath", getCaCertFile().getAbsolutePath());
         result.put("searchguard.ssl.http.enabled", true);
