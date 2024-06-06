@@ -350,9 +350,9 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
             super(docNode, context);
         }
 
-        Alias(ImmutableList<Template<Pattern>> indexPatterns, Template<Query> dls, ImmutableList<FlsPattern> fls,
+        public Alias(ImmutableList<Template<Pattern>> aliasPatterns, Template<Query> dls, ImmutableList<FlsPattern> fls,
                 ImmutableList<FieldMaskingExpression> maskedFields, ImmutableList<String> allowedActions) {
-            super(indexPatterns, dls, fls, maskedFields, allowedActions);
+            super(aliasPatterns, dls, fls, maskedFields, allowedActions);
         }
 
         @Override
@@ -367,9 +367,9 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
             super(docNode, context);
         }
 
-        DataStream(ImmutableList<Template<Pattern>> indexPatterns, Template<Query> dls, ImmutableList<FlsPattern> fls,
+        public DataStream(ImmutableList<Template<Pattern>> dataStreamPatterns, Template<Query> dls, ImmutableList<FlsPattern> fls,
                 ImmutableList<FieldMaskingExpression> maskedFields, ImmutableList<String> allowedActions) {
-            super(indexPatterns, dls, fls, maskedFields, allowedActions);
+            super(dataStreamPatterns, dls, fls, maskedFields, allowedActions);
         }
 
         @Override
