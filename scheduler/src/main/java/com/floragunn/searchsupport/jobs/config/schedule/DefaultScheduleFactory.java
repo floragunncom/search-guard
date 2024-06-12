@@ -1,20 +1,5 @@
 package com.floragunn.searchsupport.jobs.config.schedule;
 
-import java.text.ParseException;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.TimeZone;
-
-import org.apache.commons.codec.digest.DigestUtils;
-import org.quartz.CronScheduleBuilder;
-import org.quartz.JobKey;
-import org.quartz.SimpleScheduleBuilder;
-import org.quartz.Trigger;
-import org.quartz.TriggerBuilder;
-import org.quartz.TriggerKey;
-import org.quartz.impl.triggers.AbstractTrigger;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -25,9 +10,33 @@ import com.floragunn.searchsupport.config.validation.ValidatingJsonNode;
 import com.floragunn.searchsupport.config.validation.ValidationErrors;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.TriggerFactory;
 import com.floragunn.searchsupport.util.temporal.DurationFormat;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.elasticsearch.SpecialPermission;
+import org.quartz.CronScheduleBuilder;
+import org.quartz.JobKey;
+import org.quartz.SimpleScheduleBuilder;
+import org.quartz.Trigger;
+import org.quartz.TriggerBuilder;
+import org.quartz.TriggerKey;
+import org.quartz.impl.triggers.AbstractTrigger;
+
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.text.ParseException;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TimeZone;
 
 public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
     public static DefaultScheduleFactory INSTANCE = new DefaultScheduleFactory();
+    protected final Logger log = LogManager.getLogger(this.getClass());
+
+    private int cronMisfireStrategy = getEnvOrDefault("SIGNALS_CRON_MISFIRE_STRATEGY",Integer.MIN_VALUE);
+    private int simpleMisfireStrategy  = getEnvOrDefault("SIGNALS_SIMPLE_MISFIRE_STRATEGY",Integer.MIN_VALUE);
 
     protected String group = "main";
 
@@ -158,8 +167,24 @@ public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
         String triggerKey = getTriggerKey(cronExpression);
 
         try {
+
+            CronScheduleBuilder schedule = CronScheduleBuilder.cronScheduleNonvalidatedExpression(cronExpression).inTimeZone(timeZone);
+
+            if(cronMisfireStrategy > Integer.MIN_VALUE) {
+
+                switch (cronMisfireStrategy) {
+                    case 1: schedule.withMisfireHandlingInstructionFireAndProceed(); break;
+                    case 2: schedule.withMisfireHandlingInstructionDoNothing();; break;
+                    case -1: schedule.withMisfireHandlingInstructionIgnoreMisfires();; break;
+                    default: log.error("Invalid cron misfire strategy: " + cronMisfireStrategy);
+                }
+
+                log.info("Cron misfire strategy: "+cronMisfireStrategy);
+            }
+
             return TriggerBuilder.newTrigger().withIdentity(jobKey.getName() + "___" + triggerKey, group).forJob(jobKey)
-                    .withSchedule(CronScheduleBuilder.cronScheduleNonvalidatedExpression(cronExpression).inTimeZone(timeZone)).build();
+                    .withSchedule(schedule).build();
+
         } catch (ParseException e) {
             throw new ConfigValidationException(new InvalidAttributeValue(null, cronExpression,
                     "Quartz Cron Expression: <Seconds: 0-59|*> <Minutes: 0-59|*> <Hours: 0-23|*> <Day-of-Month: 1-31|?|*> <Month: JAN-DEC|*> <Day-of-Week: SUN-SAT|?|*> <Year: 1970-2199|*>?. Numeric ranges: 1-2; Several distinct values: 1,2; Increments: 0/15")
@@ -170,9 +195,26 @@ public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
     protected Trigger createIntervalScheduleTrigger(JobKey jobKey, String interval) throws ConfigValidationException {
         String triggerKey = getTriggerKey(interval);
         Duration duration = DurationFormat.INSTANCE.parse(interval);
+        SimpleScheduleBuilder schedule = SimpleScheduleBuilder.simpleSchedule()
+                .repeatForever().withIntervalInMilliseconds(duration.toMillis());
+
+        if(simpleMisfireStrategy > Integer.MIN_VALUE) {
+
+            switch (simpleMisfireStrategy) {
+                case 1: schedule.withMisfireHandlingInstructionFireNow();break;
+                case -1: schedule.withMisfireHandlingInstructionIgnoreMisfires();break;
+                case 5: schedule.withMisfireHandlingInstructionNextWithExistingCount();break;
+                case 4: schedule.withMisfireHandlingInstructionNextWithRemainingCount();break;
+                case 2: schedule.withMisfireHandlingInstructionNowWithExistingCount();break;
+                case 3: schedule.withMisfireHandlingInstructionNowWithRemainingCount();break;
+                default: log.error("Invalid simple misfire strategy: " + simpleMisfireStrategy);
+            }
+
+            log.info("Simple misfire strategy: "+simpleMisfireStrategy);
+        }
 
         return TriggerBuilder.newTrigger().withIdentity(jobKey.getName() + "___" + triggerKey, group).forJob(jobKey)
-                .withSchedule(SimpleScheduleBuilder.simpleSchedule().repeatForever().withIntervalInMilliseconds(duration.toMillis())).build();
+                .withSchedule(schedule).build();
     }
 
     protected Trigger createTrigger(JobKey jobKey, JsonNode jsonNode, TimeZone timeZone, TriggerFactory<?> scheduleFactory)
@@ -186,4 +228,35 @@ public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
         return trigger;
     }
 
+    private int getEnvOrDefault(String envvar, int defaultValue) {
+        final SecurityManager sm = System.getSecurityManager();
+
+        if (sm != null) {
+            sm.checkPermission(new SpecialPermission());
+        }
+
+        final Map<String, String> envAsMap = AccessController.doPrivileged(new PrivilegedAction<Map<String, String>>() {
+            @Override
+            public Map<String, String> run() {
+                return System.getenv();
+            }
+        });
+
+        String valueAsString = envAsMap.get(envvar);
+
+        if(valueAsString == null) {
+            return defaultValue;
+        } else {
+            try {
+                int ret = Integer.parseInt(valueAsString);
+                log.info(envvar+"="+ret);
+                return ret;
+            } catch (NumberFormatException e) {
+                log.error("Invalid misfire strategy: " + valueAsString, e);
+                return defaultValue;
+            }
+        }
+    }
+
 }
+
