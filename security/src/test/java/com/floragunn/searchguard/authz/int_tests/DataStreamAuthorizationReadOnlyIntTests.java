@@ -287,7 +287,11 @@ public class DataStreamAuthorizationReadOnlyIntTests {
     public void search_staticIndicies_negation() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1,-ds_b1/_search?size=1000");
-            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_b1).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+            if (containsExactly(ds_a1, ds_a2, ds_b1).at("hits.hits[*]._index").isCoveredBy(user.indexMatcher("read"))) {
+                assertThat(httpResponse, isNotFound());
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
         }
     }
 
