@@ -160,7 +160,7 @@ public class DlsRestriction {
         }
 
         public boolean isUnrestricted() {
-            return this.indexMap == null;
+            return this.indexMap == null || this.indexMap.isEmpty();
         }
 
         public ImmutableMap<Meta.Index, DlsRestriction> getIndexMap() {
