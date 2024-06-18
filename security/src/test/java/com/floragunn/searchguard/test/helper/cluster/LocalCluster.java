@@ -605,7 +605,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
 
         public Builder clusterName(String clusterName) {
-            this.clusterName = clusterName;
+            this.clusterName = clusterName ;
             return this;
         }
 
