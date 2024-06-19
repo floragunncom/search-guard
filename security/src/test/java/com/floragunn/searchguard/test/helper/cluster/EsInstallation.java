@@ -155,7 +155,7 @@ class EsInstallation {
             List<String> command = new ArrayList<>();
             command.add("bin/elasticsearch");
             command.add("-Ehttp.port=" + httpPort);
-            command.add("-Etransport.tcp.port=" + transportPort);
+            command.add("-Etransport.port=" + transportPort);
 
             for (String key : settings.keySet()) {
                 command.add("-E" + key + "=" + String.join(",", settings.getAsList(key)));
