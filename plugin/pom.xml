@@ -389,10 +389,10 @@
             <version>3.5.3</version>
             <executions>
               <execution>
-                <phase>package</phase>
                 <goals>
                   <goal>shade</goal>
                 </goals>
+                <phase>package</phase>
                 <configuration>
                   <outputFile>${project.build.directory}/releases/search-guard-veracode.jar</outputFile>
                   <artifactSet>
