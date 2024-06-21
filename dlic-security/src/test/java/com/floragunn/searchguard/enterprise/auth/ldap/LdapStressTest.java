@@ -88,10 +88,10 @@ public class LdapStressTest {
                             .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")) //
     );
 
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled().resources("ldap")//
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled().resources("ldap")//
             .roles(TestSgConfig.Role.ALL_ACCESS)//
             .roleToRoleMapping(TestSgConfig.Role.ALL_ACCESS, ALL_ACCESS_GROUP.getDn())//
-            .authc(AUTHC).var("ldapHost", () -> tlsLdapServer.hostAndPort()).build();
+            .authc(AUTHC).var("ldapHost", () -> tlsLdapServer.hostAndPort()).embedded().build();
 
     @ClassRule
     public static TestRule serverChain = RuleChain.outerRule(tlsLdapServer).around(cluster);

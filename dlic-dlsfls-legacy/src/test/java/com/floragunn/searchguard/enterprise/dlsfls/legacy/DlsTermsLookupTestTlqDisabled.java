@@ -35,8 +35,8 @@ public class DlsTermsLookupTestTlqDisabled {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls_legacy").nodeSettings("searchguard.dls.mode", "lucene_level")
-            .enterpriseModulesEnabled().build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().resources("dlsfls_legacy").nodeSettings("searchguard.dls.mode", "lucene_level")
+            .enterpriseModulesEnabled().embedded().build();
 
     @BeforeClass
     public static void setupTestData() {

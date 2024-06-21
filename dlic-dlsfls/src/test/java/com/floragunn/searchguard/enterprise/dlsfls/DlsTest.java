@@ -59,8 +59,8 @@ public class DlsTest {
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().useImpl("flx");
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
-            .users(ADMIN, DEPT_A_USER, DEPT_D_USER).resources("dlsfls").build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
+            .users(ADMIN, DEPT_A_USER, DEPT_D_USER).resources("dlsfls").embedded().build();
 
     @BeforeClass
     public static void setupTestData() {

@@ -72,13 +72,13 @@ public class MultitenancyTests {
             );
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder()
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder()
             .nodeSettings("searchguard.unsupported.single_index_mt_enabled", true)
             .nodeSettings("action.destructive_requires_name", false)
             .sslEnabled()
             .resources("multitenancy")
             .enterpriseModulesEnabled()
-            .users(USER_DEPT_01, USER_DEPT_02, USER_WITH_ACCESS_TO_GLOBAL_TENANT).build();
+            .users(USER_DEPT_01, USER_DEPT_02, USER_WITH_ACCESS_TO_GLOBAL_TENANT).embedded().build();
 
     @Before
     public void setUp() {

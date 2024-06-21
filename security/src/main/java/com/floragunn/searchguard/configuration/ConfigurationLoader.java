@@ -135,6 +135,8 @@ public class ConfigurationLoader {
     }
 
     public CompletableFuture<ConfigMap> load(Set<CType<?>> types, String reason, ConfigurationRepository.Context context) {
+        log.info("Updating configuration; types: {}; reason: {}", types, reason);
+        
         CompletableFuture<ConfigMap> resultFuture = new CompletableFuture<>();
 
         String searchguardIndex = configRepository.getEffectiveSearchGuardIndex();
@@ -156,7 +158,7 @@ public class ConfigurationLoader {
                 }
             }
         }
-
+        
         if (log.isTraceEnabled()) {
             log.trace("Issuing " + mget);
         }

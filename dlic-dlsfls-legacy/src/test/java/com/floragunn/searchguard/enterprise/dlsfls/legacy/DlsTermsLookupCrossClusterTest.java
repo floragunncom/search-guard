@@ -71,14 +71,14 @@ public class DlsTermsLookupCrossClusterTest {
             .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
             .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
             .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addAdminClients("CN=admin-0.example.com;OU=SearchGuard;O=SearchGuard")
             .build();
 
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup(); 
     
     @ClassRule
-    public static LocalCluster remote = new LocalCluster.Builder().singleNode().resources("dlsfls_legacy").sslEnabled(testCertificates)//
+    public static LocalCluster.Embedded remote = new LocalCluster.Builder().singleNode().resources("dlsfls_legacy").sslEnabled(testCertificates)//
             .nodeSettings("searchguard.logging.context.extended", true)//
             .sgConfigSettings("sg_config.dynamic.do_not_fail_on_forbidden", true)//
             .clusterName("remote")//
@@ -93,10 +93,10 @@ public class DlsTermsLookupCrossClusterTest {
             .user("tlq_1337_42", "password", "sg_dls_tlq_lookup").user("tlq_999", "password", "sg_dls_tlq_lookup")//
             .user("tlq_empty_access_codes", "password", "sg_dls_tlq_lookup").user("tlq_no_codes", "password", "sg_dls_tlq_lookup")//
             .user("tlq_no_entry_in_user_index", "password", "sg_dls_tlq_lookup").user("admin", "password", "sg_admin")//
-            .build();
+            .embedded().build();
 
     @ClassRule
-    public static LocalCluster coordinating = new LocalCluster.Builder().singleNode().resources("dlsfls_legacy").sslEnabled(testCertificates).remote(CLUSTER_ALIAS, remote)//
+    public static LocalCluster.Embedded coordinating = new LocalCluster.Builder().singleNode().resources("dlsfls_legacy").sslEnabled(testCertificates).remote(CLUSTER_ALIAS, remote)//
             .nodeSettings("searchguard.logging.context.extended", true)//
             .sgConfigSettings("sg_config.dynamic.do_not_fail_on_forbidden", true)//
             .clusterName("coordinating")//
@@ -110,12 +110,12 @@ public class DlsTermsLookupCrossClusterTest {
             .user("tlq_1337_42", "password", "sg_dls_tlq_lookup").user("tlq_999", "password", "sg_dls_tlq_lookup")//
             .user("tlq_empty_access_codes", "password", "sg_dls_tlq_lookup").user("tlq_no_codes", "password", "sg_dls_tlq_lookup")//
             .user("tlq_no_entry_in_user_index", "password", "sg_dls_tlq_lookup").user("admin", "password", "sg_admin")//
-            .build();
+            .embedded().build();
 
     @BeforeClass
     public static void setupTestData() {
         // we use the same data in both clusters but different DLS definitions on remote and coordinating
-        for (LocalCluster cluster : new LocalCluster[] { remote, coordinating }) {
+        for (LocalCluster.Embedded cluster : new LocalCluster.Embedded[] { remote, coordinating }) {
             Client client = cluster.getInternalNodeClient();
 
             // user access codes, basis for TLQ query

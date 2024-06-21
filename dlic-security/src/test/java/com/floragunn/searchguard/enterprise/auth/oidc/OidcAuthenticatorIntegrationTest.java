@@ -60,7 +60,7 @@ public class OidcAuthenticatorIntegrationTest {
 
     private static String FRONTEND_BASE_URL = "http://whereever";
     private static final TLSConfig IDP_TLS_CONFIG;
-    public static LocalCluster cluster;
+    public static LocalCluster.Embedded cluster;
 
     static {
         try {
@@ -90,7 +90,7 @@ public class OidcAuthenticatorIntegrationTest {
                         "127.0.0.8", "oidc.idp.proxy.port", wireMockProxy.port(), "oidc.idp.proxy.scheme", "http", "oidc.idp.tls.trusted_cas",
                         "#{file:" + testCertificates.getCaCertificate().getCertificateFile().getAbsolutePath() + "}", "oidc.idp.tls.verify_hostnames", false)));
 
-        cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().singleNode().resources("oidc").sgConfig(testSgConfig).start();
+        cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().singleNode().resources("oidc").sgConfig(testSgConfig).embedded().start();
     }
 
     @AfterClass

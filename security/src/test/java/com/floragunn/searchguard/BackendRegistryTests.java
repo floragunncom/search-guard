@@ -47,8 +47,8 @@ public class BackendRegistryTests {
                     .trustedProxies("127.0.0.44");
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().authc(AUTHC)
-            .users(TEST_USER, BLOCK_TEST_USER, BLOCK_WILDCARD_TEST_USER).build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().authc(AUTHC)
+            .users(TEST_USER, BLOCK_TEST_USER, BLOCK_WILDCARD_TEST_USER).embedded().build();
 
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();

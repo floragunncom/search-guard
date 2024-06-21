@@ -74,7 +74,7 @@ public class IgnoreUnauthorizedDisabledWithLegacyIndexIntTest {
     static TestAlias xalias_ab1 = new TestAlias("xalias_ab1", index_a1, index_a2, index_a3, index_b1);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().ignoreUnauthorizedIndices(false)//
+    public static LocalCluster cluster = new LocalCluster.Builder().embedded().singleNode().sslEnabled().ignoreUnauthorizedIndices(false)//
             .configIndexName("searchguard")//
             .users(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_C, LIMITED_USER_D, LIMITED_USER_A_B1, UNLIMITED_USER)//
             .indices(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1)//

@@ -23,11 +23,6 @@
   <dependencies>
 
     <dependency>
-      <groupId>org.elasticsearch.plugin</groupId>
-      <artifactId>rest-root</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>fluent-collections</artifactId>
     </dependency>
@@ -88,6 +83,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>rest-root</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-ssl</artifactId>
       <scope>provided</scope>
@@ -97,6 +97,12 @@
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-support</artifactId>
       <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -110,12 +116,6 @@
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-support</artifactId>
       <classifier>tests</classifier>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.awaitility</groupId>
-      <artifactId>awaitility</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

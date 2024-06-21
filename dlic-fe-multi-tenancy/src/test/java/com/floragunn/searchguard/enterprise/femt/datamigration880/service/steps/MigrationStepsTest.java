@@ -123,12 +123,13 @@ public class MigrationStepsTest {
     public static final String BACKUP_INDEX_NAME = "backup_fe_migration_to_8_8_0_2000_01_01_01_01_00";
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder()
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder()
         .nodeSettings("searchguard.unsupported.single_index_mt_enabled", true)
         .singleNode()
         .sslEnabled()
         .resources("multitenancy")
         .enterpriseModulesEnabled()
+        .embedded()
         .build();
 
     private final Clock clock = Clock.fixed(NOW.toInstant(), UTC);
@@ -722,7 +723,7 @@ public class MigrationStepsTest {
             managementTenantIndex);
         context.setTenantIndices(tenantIndices);
         CheckIfIndicesAreBlockedStep step = new CheckIfIndicesAreBlockedStep(new StepRepository(environmentHelper.getPrivilegedClient()));
-        try (GenericRestClient adminClient = cluster.getAdminCertRestClient(ImmutableList.empty())){
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient()){
             HttpResponse response = adminClient.put("/" + GLOBAL_TENANT_INDEX.indexName() + "/_block/write");
             assertThat(response.getStatusCode(), equalTo(SC_OK));
         }
@@ -741,7 +742,7 @@ public class MigrationStepsTest {
             managementTenantIndex);
         context.setTenantIndices(tenantIndices);
         CheckIfIndicesAreBlockedStep step = new CheckIfIndicesAreBlockedStep(new StepRepository(environmentHelper.getPrivilegedClient()));
-        try (GenericRestClient adminClient = cluster.getAdminCertRestClient(ImmutableList.empty())){
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient()){
             HttpResponse response = adminClient.put("/" + managementTenantIndex.indexName() + "/_block/write");
             assertThat(response.getStatusCode(), equalTo(SC_OK));
         }
@@ -763,7 +764,7 @@ public class MigrationStepsTest {
             managementTenantIndex);
         context.setTenantIndices(tenantIndices);
         CheckIfIndicesAreBlockedStep step = new CheckIfIndicesAreBlockedStep(new StepRepository(environmentHelper.getPrivilegedClient()));
-        try (GenericRestClient adminClient = cluster.getAdminCertRestClient(ImmutableList.empty())){
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient()){
             HttpResponse response = adminClient.put("/" + managementTenantIndex.indexName() + "/_block/read");
             assertThat(response.getStatusCode(), equalTo(SC_OK));
         }
@@ -786,7 +787,7 @@ public class MigrationStepsTest {
         context.setTenantIndices(tenantIndices);
         StepRepository stepRepository = new StepRepository(environmentHelper.getPrivilegedClient());
         CheckIfIndicesAreBlockedStep step = new CheckIfIndicesAreBlockedStep(stepRepository);
-        try (GenericRestClient adminClient = cluster.getAdminCertRestClient(ImmutableList.empty())){
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient()){
             HttpResponse response = adminClient.put("/" + managementTenantIndex.indexName() + "/_block/read_only");
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             try {
@@ -813,7 +814,7 @@ public class MigrationStepsTest {
         context.setTenantIndices(tenantIndices);
         StepRepository stepRepository = new StepRepository(environmentHelper.getPrivilegedClient());
         CheckIfIndicesAreBlockedStep step = new CheckIfIndicesAreBlockedStep(stepRepository);
-        try (GenericRestClient adminClient = cluster.getAdminCertRestClient(ImmutableList.empty())) {
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient()) {
             HttpResponse response = adminClient.put("/" + managementTenantIndex.indexName() + "/_block/metadata");
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             try {

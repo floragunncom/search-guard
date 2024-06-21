@@ -128,7 +128,7 @@ public class TenantsTest {
                     .on(Tenant.GLOBAL_TENANT_ID));
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled() //
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled() //
         .nodeSettings("action.destructive_requires_name", false, "searchguard.unsupported.single_index_mt_enabled", true) //
         .enterpriseModulesEnabled() //
         .roleMapping(new RoleMapping("SGS_KIBANA_USER").users(USER_SINGLE_TENANT.getName(), USER_EACH_TENANT_READ.getName(),
@@ -138,7 +138,7 @@ public class TenantsTest {
         .frontendMultiTenancy(new FrontendMultiTenancy(true).index(FRONTEND_INDEX).serverUser(FRONTEND_SERVER_USER.getName())) //
         .tenants(HR_TENANT, FINANCE_TENANT, SALES_TENANT, OPERATIONS_TENANT, RD_TENANT, BD_TENANT, LEGAL_TENANT,
             IT_TENANT, PR_TENANT, QA_TENANT) //
-        .build();
+            .embedded().build();
 
     @Before
     public void setUpIndex() {

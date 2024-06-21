@@ -38,10 +38,10 @@ public class InvalidRolesAndMappingConfigurationWithDisabledDlsTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster CLUSTER = new LocalCluster.Builder().singleNode().authc(AUTHC).dlsFls(DLSFLS)//
+    public static LocalCluster.Embedded CLUSTER = new LocalCluster.Builder().singleNode().authc(AUTHC).dlsFls(DLSFLS)//
         .roles(ALL_ACCESS)//
         .user(USER_ADMIN).user(USER_LIMITED)//
-        .sslEnabled().enterpriseModulesEnabled().build();
+        .sslEnabled().enterpriseModulesEnabled().embedded().build();
 
     private ConfigurationUpdater configurationUpdater;
 

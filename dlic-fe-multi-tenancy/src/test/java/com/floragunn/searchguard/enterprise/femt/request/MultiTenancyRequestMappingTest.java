@@ -46,6 +46,7 @@ import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Tuple;
 import org.junit.After;
 import org.junit.Before;
@@ -98,7 +99,7 @@ public class MultiTenancyRequestMappingTest {
     private final TenantManager tenantManager = new TenantManager(ImmutableSet.of(HR_TENANT.getName()), MultiTenancyConfigurationProvider.DEFAULT);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled()
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled()
             .nodeSettings("action.destructive_requires_name", false)
             .nodeSettings("searchguard.unsupported.single_index_mt_enabled", true)
             .enterpriseModulesEnabled()
@@ -106,7 +107,7 @@ public class MultiTenancyRequestMappingTest {
             .users(USER, LIMITED_USER)
             .frontendMultiTenancy(new TestSgConfig.FrontendMultiTenancy(true).index(KIBANA_INDEX).serverUser(KIBANA_SERVER_USER))
             .tenants(HR_TENANT, IT_TENANT)
-            .build();
+            .embedded().build();
 
     @Before
     public void createTestIndex() {
@@ -121,7 +122,8 @@ public class MultiTenancyRequestMappingTest {
                 }
                 """;
         AcknowledgedResponse createIndexResponse = client.admin().indices()
-                .create(new CreateIndexRequest(KIBANA_INDEX).mapping(mapping)).actionGet();
+                .create(new CreateIndexRequest(KIBANA_INDEX).mapping(mapping)
+                        .settings(Settings.builder().put("index.number_of_shards", 5))).actionGet();
         assertThat(createIndexResponse.isAcknowledged(), equalTo(true));
     }
 

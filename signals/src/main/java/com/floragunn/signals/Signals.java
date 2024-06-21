@@ -308,6 +308,9 @@ public class Signals extends AbstractLifecycleComponent {
 
             initState = InitializationState.INITIALIZED;
             componentState.setInitialized();
+            
+            log.info("Signals has been successfully initialized");
+            
         } catch (SignalsInitializationException e) {
             failureListener.onFailure(e);
             initState = InitializationState.FAILED;
