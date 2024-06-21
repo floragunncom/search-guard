@@ -48,12 +48,13 @@ public class CrossStepTest {
     private final Clock clock = Clock.fixed(NOW.toInstant(), UTC);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder()
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder()
         .nodeSettings("searchguard.unsupported.single_index_mt_enabled", true)
         .singleNode()
         .sslEnabled()
         .resources("multitenancy")
         .enterpriseModulesEnabled()
+        .embedded()
         .build();
 
     private DataMigrationContext context;

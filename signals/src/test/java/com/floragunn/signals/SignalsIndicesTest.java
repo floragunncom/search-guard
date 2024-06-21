@@ -50,8 +50,8 @@ public class SignalsIndicesTest {
      * This has the Signals module disabled!
      */
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().nodeSettings("searchguard.diagnosis.action_stack.enabled", true)
-            .build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().nodeSettings("searchguard.diagnosis.action_stack.enabled", true)
+            .embedded().build();
 
     @Test
     public void indexMappingUpdate() throws Exception {

@@ -48,6 +48,7 @@ import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.helper.certificate.NodeCertificateType;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
+import com.floragunn.searchguard.test.helper.cluster.EsClientProvider.UserCredentialsHolder;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.TestCertificateBasedSSLContextProvider;
@@ -266,7 +267,7 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
         TestCertificates.TestCertificatesBuilder builder = TestCertificates.builder();
         builder.ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard");
         builder.addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard");
-        builder.addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard");
+        builder.addAdminClients("CN=admin-0.example.com;OU=SearchGuard;O=SearchGuard");
 
         IntStream.range(0, numberOfNodeCerts)
                 .forEach(i -> builder.addNodes(Collections.singletonList(String.format("CN=node-%s.example.com,OU=SearchGuard,O=SearchGuard", i)),
@@ -297,13 +298,14 @@ public class SSLReloadCertsActionTests extends SingleClusterTest {
                 .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMCERT_FILEPATH, httpCertificate.getCertificateFile().getAbsolutePath())
                 .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_FILEPATH, httpCertificate.getPrivateKeyFile().getAbsolutePath())
                 .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMTRUSTEDCAS_FILEPATH, rootCertificate.getCertificateFile().getAbsolutePath())
-                .nodeSettings(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, sslCertReload).start();
+                .nodeSettings(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, sslCertReload).embedded().start();
     }
 
     private GenericRestClient prepareRestClient(InetSocketAddress address, TestCertificate rootCertificate, TestCertificate clientCertificate,
             boolean clientAuthentication) {
         TestCertificateBasedSSLContextProvider sslContextProvider = new TestCertificateBasedSSLContextProvider(rootCertificate, clientCertificate);
-        return new GenericRestClient(address, Collections.emptyList(), sslContextProvider.getSslContext(clientAuthentication));
+        return new GenericRestClient(address, Collections.emptyList(), sslContextProvider.getSslContext(clientAuthentication),
+                UserCredentialsHolder.basic("cert", null), null);
     }
 
     private List<String> certificatesToListOfString(X509CertificateHolder... certificates) {

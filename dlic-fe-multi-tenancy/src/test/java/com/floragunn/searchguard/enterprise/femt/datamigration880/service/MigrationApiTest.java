@@ -68,13 +68,13 @@ public class MigrationApiTest {
     private IndexMigrationStateRepository indexMigrationStateRepository;
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder()
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder()
         .nodeSettings("searchguard.unsupported.single_index_mt_enabled", true)
         .sslEnabled()
         .resources("multitenancy")
         .enterpriseModulesEnabled()
         .frontendMultiTenancy(new TestSgConfig.FrontendMultiTenancy(false))
-        .build();
+        .embedded().build();
 
     @Rule
     public final MigrationEnvironmentHelper environmentHelper = new MigrationEnvironmentHelper(cluster, Clock.systemDefaultZone());
@@ -103,7 +103,7 @@ public class MigrationApiTest {
     @Test
     public void shouldStartMigrationProcess() throws Exception {
         createTenantsAndSavedObjects(mediumAmountOfData());
-        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             DocNode body = DocNode.EMPTY;
 
             HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
@@ -122,7 +122,7 @@ public class MigrationApiTest {
     @Test
     public void shouldMigrateSmallAmountOfData() throws Exception {
         createTenantsAndSavedObjects(smallAmountOfData());
-        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             DocNode body = DocNode.EMPTY;
 
             HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
@@ -139,7 +139,7 @@ public class MigrationApiTest {
     @Test
     public void shouldRerunMigrationProcessUsingBackupIndex() throws Exception {
         createTenantsAndSavedObjects(smallAmountOfData());
-        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             DocNode body = DocNode.EMPTY;
             HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
             log.info("First migration run response '{}' and body '{}'.", response.getStatusCode(), response.getBody());
@@ -164,7 +164,7 @@ public class MigrationApiTest {
     @Test
     public void shouldRerunMigrationThreeTimes() throws Exception {
         createTenantsAndSavedObjects(smallAmountOfData());
-        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             DocNode body = DocNode.EMPTY;
             HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
             log.info("First migration run response '{}' and body '{}'.", response.getStatusCode(), response.getBody());
@@ -197,7 +197,7 @@ public class MigrationApiTest {
     @Test
     public void shouldRerunMigrationProcessAndCreateAdditionalBackupWhenGlobalTenantIndexContainsNotMigratedData() throws Exception {
         createTenantsAndSavedObjects(smallAmountOfData());
-        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             DocNode body = DocNode.EMPTY;
             HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
             log.info("First migration run response '{}' and body '{}'.", response.getStatusCode(), response.getBody());
@@ -236,7 +236,7 @@ public class MigrationApiTest {
     @Ignore // takes too much time
     public void shouldMigrateLargeAmountOfData() throws Exception {
         createTenantsAndSavedObjects(largeAmountOfData());
-        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             DocNode body = DocNode.EMPTY;
             HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
 
@@ -250,7 +250,7 @@ public class MigrationApiTest {
     @Ignore // takes too much time
     public void shouldMigrateHugeAmountOfData() throws Exception {
         createTenantsAndSavedObjects(hugeAmountOfData());
-        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             DocNode body = DocNode.EMPTY;
             HttpResponse response = client.postJson("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0", body);
 
@@ -264,7 +264,7 @@ public class MigrationApiTest {
     public void getMigrationState_shouldReturnNotFound_indexContainingMigrationStateDoesNotExist() throws Exception {
         assertThatMigrationStateIndexExists(false);
 
-        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             HttpResponse response = client.get("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0");
 
             assertThat(response.getStatusCode(), equalTo(SC_NOT_FOUND));
@@ -276,7 +276,7 @@ public class MigrationApiTest {
         indexMigrationStateRepository.createIndex();
         assertThatMigrationStateIndexExists(true);
 
-        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             HttpResponse response = client.get("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0");
 
             assertThat(response.getStatusCode(), equalTo(SC_NOT_FOUND));
@@ -297,7 +297,7 @@ public class MigrationApiTest {
         saveMigrationState(migrationExecutionSummary);
         assertThatMigrationStateIndexExists(true);
 
-        try (GenericRestClient client = cluster.createGenericAdminRestClient(Collections.emptyList())) {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             HttpResponse response = client.get("/_searchguard/config/fe_multi_tenancy/data_migration/8_8_0");
 
             assertThat(response.getStatusCode(), equalTo(SC_OK));

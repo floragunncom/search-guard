@@ -8,10 +8,7 @@ test_security:
       when: never    
     - when: always
   script:
-    - UUID=$(uuidgen)
-    - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION clean install -DskipTests
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION -pl security test
+    - ci/run_tests.sh security
   artifacts:
     when: always
     reports:
@@ -35,10 +32,7 @@ test_security_legacy:
       when: never   
     - when: always
   script:
-    - UUID=$(uuidgen)
-    - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION clean install -DskipTests
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION -pl security-legacy test
+    - ci/run_tests.sh security-legacy
   artifacts:
     when: always
     reports:
@@ -62,10 +56,7 @@ test_ssl:
       when: never   
     - when: always
   script:
-    - UUID=$(uuidgen)
-    - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION clean install -DskipTests
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION -pl ssl test
+    - ci/run_tests.sh ssl
   artifacts:
     when: always
     reports:
@@ -126,10 +117,7 @@ test_signals:
       when: never
     - when: always
   script:
-    - UUID=$(uuidgen)
-    - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION clean install -DskipTests
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION -pl signals test
+    - ci/run_tests.sh signals
   artifacts:
     when: always
     reports:
@@ -153,10 +141,7 @@ test_scheduler:
       when: never      
     - when: always
   script:
-    - UUID=$(uuidgen)
-    - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION clean install -DskipTests
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION -pl scheduler test
+    - ci/run_tests.sh scheduler
   artifacts:
     when: always
     reports:
@@ -180,10 +165,7 @@ test_support:
       when: never    
     - when: always
   script:
-    - UUID=$(uuidgen)
-    - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION clean install -DskipTests
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION -pl support test
+    - ci/run_tests.sh support
   artifacts:
     when: always
     reports:
@@ -207,10 +189,7 @@ test_dlic_security:
       when: never      
     - when: always
   script:
-    - UUID=$(uuidgen)
-    - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION clean install -DskipTests
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION -pl dlic-security test
+    - ci/run_tests.sh dlic-security
   artifacts:
     when: always
     reports:
@@ -234,10 +213,7 @@ test_dlic_security_legacy:
       when: never
     - when: always
   script:
-    - UUID=$(uuidgen)
-    - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION clean install -DskipTests
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION -pl dlic-security-legacy test
+    - ci/run_tests.sh dlic-security-legacy
   artifacts:
     when: always
     reports:
@@ -261,10 +237,7 @@ test_dlic_dlsfls:
       when: never
     - when: always
   script:
-    - UUID=$(uuidgen)
-    - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION clean install -DskipTests
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION -pl dlic-dlsfls test
+    - ci/run_tests.sh dlic-dlsfls
   artifacts:
     when: always
     reports:
@@ -288,10 +261,7 @@ test_dlic_dlsfls_legacy:
       when: never
     - when: always
   script:
-    - UUID=$(uuidgen)
-    - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION clean install -DskipTests
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION -pl dlic-dlsfls-legacy test
+    - ci/run_tests.sh dlic-dlsfls-legacy
   artifacts:
     when: always
     reports:
@@ -315,10 +285,7 @@ test_dlic_femt:
       when: never
     - when: always
   script:
-    - UUID=$(uuidgen)
-    - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION clean install -DskipTests
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION -pl dlic-fe-multi-tenancy test
+    - ci/run_tests.sh dlic-fe-multi-tenancy
   artifacts:
     when: always
     reports:
@@ -342,10 +309,7 @@ test_dlic_auditlog:
       when: never
     - when: always
   script:
-    - UUID=$(uuidgen)
-    - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION clean install -DskipTests
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION -pl dlic-auditlog test
+    - ci/run_tests.sh dlic-auditlog
   artifacts:
     when: always
     reports:
@@ -369,10 +333,7 @@ test_dlic_signals:
       when: never
     - when: always
   script:
-    - UUID=$(uuidgen)
-    - echo $UUID
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION clean install -DskipTests
-    - mvn $MAVEN_CLI_OPTS -Drevision=$UUID-SNAPSHOT -Delasticsearch.version=$ES_VERSION -pl dlic-signals test
+    - ci/run_tests.sh dlic-signals
   artifacts:
     when: always
     reports:

@@ -38,7 +38,7 @@ import com.google.common.collect.ImmutableMap;
 
 public class ProtectedConfigIndexServiceTest {
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().embedded().build();
 
     @Test
     public void mappingUpdate() throws Exception {

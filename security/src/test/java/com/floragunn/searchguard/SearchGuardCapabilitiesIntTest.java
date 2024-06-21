@@ -31,7 +31,7 @@ public class SearchGuardCapabilitiesIntTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().embedded().build();
     
     @Test
     public void basicTest() {

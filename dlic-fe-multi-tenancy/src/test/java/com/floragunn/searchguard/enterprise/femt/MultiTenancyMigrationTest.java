@@ -58,11 +58,12 @@ public class MultiTenancyMigrationTest {
     private static final Logger log = LogManager.getLogger(MultiTenancyMigrationTest.class);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder()
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder()
         .nodeSettings("searchguard.unsupported.single_index_mt_enabled", true)
         .sslEnabled()
         .resources("multitenancy")
         .enterpriseModulesEnabled()
+        .embedded()
         .build();
 
     @After

@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls;
 
+import java.io.IOException;
 import java.util.Set;
 
 import org.elasticsearch.client.internal.Client;
@@ -91,9 +92,10 @@ public class FlsIntTest {
             .users(ADMIN, EXCLUDE_IP_USER, INCLUDE_LOC_USER, MULTI_ROLE_USER).resources("dlsfls").build();
 
     @BeforeClass
-    public static void setupTestData() {
-        Client client = cluster.getInternalNodeClient();
-        TEST_DATA.createIndex(client, INDEX, Settings.builder().put("index.number_of_shards", 5).build());
+    public static void setupTestData() throws IOException {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+            TEST_DATA.createIndex(client, INDEX, Settings.builder().put("index.number_of_shards", 5).build());
+        }
     }
 
     @Test

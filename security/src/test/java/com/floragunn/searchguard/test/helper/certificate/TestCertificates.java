@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 floragunn GmbH
+ * Copyright 2021-2024 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,9 @@ import java.util.function.Function;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.settings.Settings;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public class TestCertificates {
@@ -39,14 +41,15 @@ public class TestCertificates {
 
     private final TestCertificateFactory testCertificateFactory;
     private final TestCertificate caCertificate;
-    private final List<TestCertificate> nodeCertificates;
-    private final List<TestCertificate> clientCertificates;
+    private final ImmutableList<TestCertificate> nodeCertificates;
+    private final ImmutableList<TestCertificate> clientCertificates;
     private final File resources;
-    
-    private TestCertificates(TestCertificate caCertificate, List<TestCertificate> nodeCertificates, List<TestCertificate> clientCertificates, TestCertificateFactory testCertificateFactory, File resources) {
+
+    private TestCertificates(TestCertificate caCertificate, List<TestCertificate> nodeCertificates, List<TestCertificate> clientCertificates,
+            TestCertificateFactory testCertificateFactory, File resources) {
         this.caCertificate = caCertificate;
-        this.nodeCertificates = nodeCertificates;
-        this.clientCertificates = clientCertificates;
+        this.nodeCertificates = ImmutableList.of(nodeCertificates);
+        this.clientCertificates = ImmutableList.of(clientCertificates);
         this.testCertificateFactory = testCertificateFactory;
         this.resources = resources;
     }
@@ -90,13 +93,41 @@ public class TestCertificates {
     public TestCertificate create(String dn) {
         String privateKeyPassword = "secret_" + (new Random().nextInt());
         TestCertificatesBuilder.CertificatesDefaults certificatesDefaults = new TestCertificatesBuilder.CertificatesDefaults();
-        
+
         CertificateWithKeyPair certificateWithKeyPair = testCertificateFactory.createClientCertificate(dn, certificatesDefaults.validityDays,
                 caCertificate.getCertificate(), caCertificate.getKeyPair().getPrivate());
-        return new TestCertificate(certificateWithKeyPair.getCertificate(), certificateWithKeyPair.getKeyPair(),
-                privateKeyPassword, CertificateType.other, resources);
+        return new TestCertificate(certificateWithKeyPair.getCertificate(), certificateWithKeyPair.getKeyPair(), privateKeyPassword,
+                CertificateType.other, resources);
     }
-    
+
+    public TestCertificates at(File directory) {
+        return new TestCertificates(caCertificate.at(directory), nodeCertificates.map(c -> c.at(directory)),
+                clientCertificates.map(c -> c.at(directory)), testCertificateFactory, directory);
+    }
+
+    public Settings getSgSettings() {
+        TestCertificate certificate = getNodesCertificates().get(0);
+
+        Settings.Builder result = Settings.builder();
+
+        result.put("searchguard.ssl.transport.pemcert_filepath", certificate.getCertificateFile().getAbsolutePath());
+        result.put("searchguard.ssl.transport.pemkey_filepath", certificate.getPrivateKeyFile().getAbsolutePath());
+        if (certificate.getPrivateKeyPassword() != null) {
+            result.put("searchguard.ssl.transport.pemkey_password", certificate.getPrivateKeyPassword());
+        }
+        result.put("searchguard.ssl.http.pemcert_filepath", certificate.getCertificateFile().getAbsolutePath());
+        result.put("searchguard.ssl.http.pemkey_filepath", certificate.getPrivateKeyFile().getAbsolutePath());
+        if (certificate.getPrivateKeyPassword() != null) {
+            result.put("searchguard.ssl.http.pemkey_password", certificate.getPrivateKeyPassword());
+        }
+        result.put("searchguard.authcz.admin_dn", getAdminCertificate().getCertificate().getSubject().toString());
+        result.put("searchguard.ssl.transport.pemtrustedcas_filepath", getCaCertFile().getAbsolutePath());
+        result.put("searchguard.ssl.http.pemtrustedcas_filepath", getCaCertFile().getAbsolutePath());
+        result.put("searchguard.ssl.http.enabled", true);
+
+        return result.build();
+    }
+
     /**
      * Uses: {@link TestCertificateFactory#rsaBaseCertificateFactory(java.security.Provider)} as {@link TestCertificateFactory}
      */
@@ -168,7 +199,7 @@ public class TestCertificates {
             }
             CertificateWithKeyPair certificateWithKeyPair = testCertificateFactory.createCaCertificate(dn, validityDays);
             this.caCertificate = new TestCertificate(certificateWithKeyPair.getCertificate(), certificateWithKeyPair.getKeyPair(), privateKeyPassword,
-                CertificateType.ca, resources);
+                    CertificateType.ca, resources);
             return this;
         }
 
@@ -199,6 +230,10 @@ public class TestCertificates {
             return this;
         }
 
+        /**
+         * Specifies to create admin certificates. Prefer to use DNs which use semicolons (;) to separate the RDNs. 
+         * DNs with commas can make trouble when specified on the elasticsearch command line (as elasticsearch will split values at commas).
+         */
         public TestCertificatesBuilder addAdminClients(String... dn) {
             return addAdminClients(Arrays.asList(dn), certificatesDefaults.validityDays, null);
         }

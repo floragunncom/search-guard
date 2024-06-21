@@ -250,6 +250,13 @@
         <artifactId>log4j-core</artifactId>
         <version>${log4j.version}</version>
       </dependency>
+
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-slf4j2-impl</artifactId>
+        <version>${log4j.version}</version>
+      </dependency>
+
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpg-jdk15on</artifactId>
@@ -266,26 +273,6 @@
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcprov-jdk15on</artifactId>
         <version>${bc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.elasticsearch</groupId>
-        <artifactId>elasticsearch</artifactId>
-        <version>${elasticsearch.version}</version>
-        <scope>provided</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>org.elasticsearch</groupId>
-            <artifactId>elasticsearch-preallocate</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>org.awaitility</groupId>
-        <artifactId>awaitility</artifactId>
-        <version>4.2.1</version>
-        <scope>test</scope>
       </dependency>
 
       <dependency>
@@ -369,6 +356,12 @@
       </dependency>
 
       <dependency>
+        <groupId>org.wiremock</groupId>
+        <artifactId>wiremock</artifactId>
+        <version>3.5.4</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.floragunn</groupId>
         <artifactId>dlic-search-guard-flx-dlsfls-legacy</artifactId>
         <version>${project.version}</version>
@@ -404,9 +397,23 @@
       </dependency>
 
       <dependency>
-        <groupId>org.wiremock</groupId>
-        <artifactId>wiremock</artifactId>
-        <version>3.5.4</version>
+        <groupId>org.elasticsearch</groupId>
+        <artifactId>elasticsearch</artifactId>
+        <version>${elasticsearch.version}</version>
+        <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.elasticsearch</groupId>
+            <artifactId>elasticsearch-preallocate</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.awaitility</groupId>
+        <artifactId>awaitility</artifactId>
+        <version>4.2.1</version>
+        <scope>test</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -430,6 +437,7 @@
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
       <version>${jackson.version}</version>
+      <scope>compile</scope>
       <exclusions>
         <!-- Exclusion because the dependent version has vulnerable dependencies. Replaced by explicit dependency just below.  -->
         <exclusion>
@@ -437,14 +445,6 @@
           <artifactId>snakeyaml</artifactId>
         </exclusion>
       </exclusions>
-      <scope>compile</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.yaml</groupId>
-      <artifactId>snakeyaml</artifactId>
-      <version>2.2</version>
-      <scope>compile</scope>
     </dependency>
 
     <dependency>
@@ -462,6 +462,23 @@
       <groupId>com.sun.activation</groupId>
       <artifactId>jakarta.activation</artifactId>
       <version>[1.2.2,1.3)</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.elasticsearch</groupId>
+      <artifactId>elasticsearch</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>rest-root</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
+      <version>2.2</version>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <!-- We explicitly specify jakarta.activation-api as provided dependency, as the API is also provided by jakarta.activation. However the explicit provided scope avoids activation-api
@@ -482,11 +499,6 @@
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-core</artifactId>
       <scope>provided</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.elasticsearch</groupId>
-      <artifactId>elasticsearch</artifactId>
     </dependency>
 
     <dependency>
@@ -528,6 +540,39 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j2-impl</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-compat</artifactId>
+      <version>3.9.6</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-embedder</artifactId>
+      <version>3.9.6</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.maven.resolver</groupId>
+      <artifactId>maven-resolver-connector-basic</artifactId>
+      <version>1.9.18</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.maven.resolver</groupId>
+      <artifactId>maven-resolver-transport-http</artifactId>
+      <version>1.9.18</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.elasticsearch</groupId>
       <artifactId>elasticsearch-ssl-config</artifactId>
       <scope>test</scope>
@@ -558,11 +603,6 @@
       <artifactId>reindex</artifactId>
       <version>${elasticsearch.version}</version>
       <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.elasticsearch.plugin</groupId>
-      <artifactId>rest-root</artifactId>
     </dependency>
 
     <dependency>
@@ -782,10 +822,8 @@
           <configuration>
             <!-- add-opens is necessary for powermock on Java 17 -->
             <!-- java.xml/jdk.xml.internal=ALL-UNNAMED required after wiremock bump to 3.5.4-->
-            <argLine>
-              -Xmx4g -Xms4g --add-opens java.base/sun.security.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/sun.nio.fs=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.base=ALL-UNNAMED
-              --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.xml/jdk.xml.internal=ALL-UNNAMED
-            </argLine>
+            <argLine>-Xmx4g -Xms4g --add-opens java.base/sun.security.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/sun.nio.fs=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.base=ALL-UNNAMED
+              --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.xml/jdk.xml.internal=ALL-UNNAMED</argLine>
             <rerunFailingTestsCount>3</rerunFailingTestsCount>
             <forkCount>3</forkCount>
             <reuseForks>true</reuseForks>

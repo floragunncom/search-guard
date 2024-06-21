@@ -28,15 +28,16 @@ public enum ClusterConfiguration {
     //HUGE(new NodeSettings(true, false, false), new NodeSettings(true, false, false), new NodeSettings(true, false, false), new NodeSettings(false, true,false), new NodeSettings(false, true, false)),
 
     //3 nodes (1m, 2d)
-    DEFAULT(new NodeSettings(true, false), new NodeSettings(false, true), new NodeSettings(false, true)),
+    DEFAULT(new NodeSettings("master", true, false), new NodeSettings("data_1", false, true), new NodeSettings("data_2", false, true)),
 
     //1 node (1md)
-    SINGLENODE(new NodeSettings(true, true)),
+    SINGLENODE(new NodeSettings("single", true, true)),
 
     //4 node (1m, 2d, 1c)
-    CLIENTNODE(new NodeSettings(true, false), new NodeSettings(false, true), new NodeSettings(false, true), new NodeSettings(false, false)),
+    CLIENTNODE(new NodeSettings("master", true, false), new NodeSettings("data_1", false, true), new NodeSettings("data_2", false, true), new NodeSettings("client_1", false, false)),
 
-    THREE_MASTERS(new NodeSettings(true, false), new NodeSettings(true, false), new NodeSettings(true, false), new NodeSettings(false, true), new NodeSettings(false, true));
+    THREE_MASTERS(new NodeSettings("master_1", true, false), new NodeSettings("master_2", true, false), new NodeSettings("master_3", true, false),
+            new NodeSettings("data_1", false, true), new NodeSettings("data_2", false, true));
 
     private List<NodeSettings> nodeSettings = new LinkedList<>();
 
@@ -73,11 +74,12 @@ public enum ClusterConfiguration {
     }
 
     public static class NodeSettings {
-        public boolean masterNode;
-        public boolean dataNode;
+        public final boolean masterNode;
+        public final boolean dataNode;
+        public final String name;
 
-        public NodeSettings(boolean masterNode, boolean dataNode) {
-            super();
+        public NodeSettings(String name, boolean masterNode, boolean dataNode) {
+            this.name = name;
             this.masterNode = masterNode;
             this.dataNode = dataNode;
         }

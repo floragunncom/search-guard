@@ -68,10 +68,11 @@ public class DataMigrationServiceLockingTest {
     private ExecutorService executor;
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder()
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder()
         .sslEnabled()
         .resources("multitenancy")
         .enterpriseModulesEnabled()
+        .embedded()
         .build();
 
     @Mock

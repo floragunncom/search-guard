@@ -66,9 +66,9 @@ public class SignalsTenantTest {
     public static final String UPLOADED_TRUSTSTORE_ID = "uploaded-truststore-id";
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/no-tenants")
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/no-tenants")
             .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals_main_log", "searchguard.enterprise_modules_enabled", false)
-            .enableModule(SignalsModule.class).user(USER_CERTIFICATE).build();
+            .enableModule(SignalsModule.class).waitForComponents("signals").user(USER_CERTIFICATE).embedded().build();
 
     private static ClusterService clusterService;
     private static NodeEnvironment nodeEnvironment;

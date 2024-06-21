@@ -95,7 +95,7 @@ public class CheckTest {
 
     private static TestCertificates testCertificates = TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
             .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard").addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard").build();
+            .addAdminClients("CN=admin-0.example.com;OU=SearchGuard;O=SearchGuard").build();
 
     private static final WireMockRequestHeaderAddingFilter REQUEST_HEADER_ADDING_FILTER = new WireMockRequestHeaderAddingFilter("Proxy", "wire-mock");
 
@@ -111,13 +111,13 @@ public class CheckTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(testCertificates).resources("sg_config/signals")
-            .nodeSettings("signals.enabled", false, "searchguard.enterprise_modules_enabled", false).enableModule(SignalsModule.class).build();
+    public static LocalCluster.Embedded anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(testCertificates).resources("sg_config/signals")
+            .nodeSettings("signals.enabled", false, "searchguard.enterprise_modules_enabled", false).enableModule(SignalsModule.class).embedded().build();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(testCertificates).resources("sg_config/signals")
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled(testCertificates).resources("sg_config/signals")
             .nodeSettings("signals.enabled", true, "searchguard.enterprise_modules_enabled", false).remote("my_remote", anotherCluster)
-            .enableModule(SignalsModule.class).build();
+            .enableModule(SignalsModule.class).waitForComponents("signals").embedded().build();
     
     private TrustManagerRegistry trustManagerRegistry;
     private HttpProxyHostRegistry httpProxyHostRegistry;
