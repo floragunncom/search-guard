@@ -71,12 +71,12 @@ public class LoadOperatorSummaryActionTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode()
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode()
         .sslEnabled()
         .enableModule(SignalsModule.class)
         .user(USER_ADMIN)
         .dependsOn(javaSecurity)
-        .build();
+        .embedded().build();
 
     @BeforeClass
     public static void createTestData() {

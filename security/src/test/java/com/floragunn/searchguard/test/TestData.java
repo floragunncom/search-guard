@@ -41,6 +41,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 import org.joda.time.Instant;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -131,6 +132,64 @@ public class TestData {
 
         client.admin().indices().refresh(new RefreshRequest(name)).actionGet();
         log.info("Test index creation finished after " + (System.currentTimeMillis() - start) + " ms");
+    }
+
+    public void createIndex(GenericRestClient client, String name, Settings settings) {
+        try {
+            log.info("creating test index " + name + "; size: " + size + "; deletedDocumentCount: " + deletedDocumentCount + "; refreshAfter: "
+                    + refreshAfter);
+
+            Random random = new Random(subRandomSeed);
+            long start = System.currentTimeMillis();
+
+            DocNode settingsDocNode = DocNode.EMPTY;
+
+            for (String key : settings.keySet()) {
+                settingsDocNode = settingsDocNode.with(key, settings.get(key));
+            }
+
+            GenericRestClient.HttpResponse response = client.putJson(name, DocNode.of("mappings.properties.timestamp",
+                    DocNode.of("type", "date", "format", "date_optional_time"), "settings", settingsDocNode));
+
+            if (response.getStatusCode() != 200) {
+                throw new RuntimeException("Error while creating index " + name + "\n" + response);
+            }
+
+            int nextRefresh = (int) Math.floor((random.nextGaussian() * 0.5 + 0.5) * refreshAfter);
+            int i = 0;
+
+            for (Map.Entry<String, Map<String, ?>> entry : allDocuments.entrySet()) {
+                String id = entry.getKey();
+                Map<String, ?> document = entry.getValue();
+
+                response = client.putJson(name + "/_doc/" + id, DocNode.wrap(document));
+
+                if (response.getStatusCode() != 201) {
+                    throw new RuntimeException("Error while creating document " + id + " in " + name + "\n" + response);
+                }
+
+                if (i > nextRefresh) {
+                    client.post(name + "/_refresh");
+                    double g = random.nextGaussian();
+
+                    nextRefresh = (int) Math.floor((g * 0.5 + 1) * refreshAfter) + i + 1;
+                    log.debug("refresh at " + i + " " + g + " " + (g * 0.5 + 1));
+                }
+
+                i++;
+            }
+
+            client.post(name + "/_refresh");
+
+            for (String id : deletedDocuments) {
+                client.delete(name + "/_doc/" + id);
+            }
+
+            client.post(name + "/_refresh");
+            log.info("Test index creation finished after " + (System.currentTimeMillis() - start) + " ms");
+        } catch (Exception e) {
+            throw new RuntimeException("Error while creating test index " + name, e);
+        }
     }
 
     private void createTestDocuments(Random random) {
@@ -229,8 +288,7 @@ public class TestData {
     }
 
     private String randomTimestamp(Random random) {
-        long epochMillis = random.longs(1,-2857691960709L, 2857691960709L)
-                .findFirst().getAsLong();
+        long epochMillis = random.longs(1, -2857691960709L, 2857691960709L).findFirst().getAsLong();
         return Instant.ofEpochMilli(epochMillis).toString();
     }
 
@@ -430,9 +488,9 @@ public class TestData {
         public Map<String, ?> getContent() {
             return content;
         }
-        
+
         public String getUri(String index) {
-            return "/" + index + "/_doc/" + id; 
+            return "/" + index + "/_doc/" + id;
         }
     }
 }

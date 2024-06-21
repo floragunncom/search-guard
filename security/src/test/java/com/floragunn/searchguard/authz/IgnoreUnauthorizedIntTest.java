@@ -85,11 +85,11 @@ public class IgnoreUnauthorizedIntTest {
     static TestAlias xalias_ab1 = new TestAlias("xalias_ab1", index_a1, index_a2, index_a3, index_b1);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .users(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_C, LIMITED_USER_D, LIMITED_USER_A_B1, UNLIMITED_USER, LIMITED_USER_A_WITHOUT_ANALYZE)//
             .indices(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1)//
             .aliases(xalias_ab1)//
-            .build();
+            .embedded().build();
 
     @Test
     public void search_noPattern() throws Exception {

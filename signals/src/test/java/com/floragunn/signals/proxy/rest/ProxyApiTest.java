@@ -24,7 +24,7 @@ import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.LocalEsCluster;
+import com.floragunn.searchguard.test.helper.cluster.JvmEmbeddedEsCluster;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsModule;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
@@ -77,19 +77,19 @@ public class ProxyApiTest {
     private static List<HttpProxyHostRegistry> nodesHttpProxyHostRegistries;
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().clusterConfiguration(ClusterConfiguration.DEFAULT)
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().clusterConfiguration(ClusterConfiguration.DEFAULT)
             .sslEnabled()//
             .user(ADMIN_USER)
             .enableModule(SignalsModule.class)//
-            .nodeSettings("signals.enabled", true)
-            .build();
+            .nodeSettings("signals.enabled", true).waitForComponents("signals")
+            .embedded().build();
 
     @BeforeClass
     public static void setup() {
         HttpProxyHostRegistry masterNodeRegistry = null;
         List<HttpProxyHostRegistry> dataNodesRegistries = new ArrayList<>();
 
-        for (LocalEsCluster.Node node : cluster.nodes()) {
+        for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
             Signals signals = node.getInjectable(Signals.class);
             assertThat(signals, notNullValue());
             if (node.esNode().isMasterEligible()) {

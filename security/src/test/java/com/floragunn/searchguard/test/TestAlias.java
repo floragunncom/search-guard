@@ -23,6 +23,7 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.client.Client;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableSet;
 
 public class TestAlias {
@@ -38,6 +39,15 @@ public class TestAlias {
     public void create(Client client) {
         client.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices(getIndexNamesAsArray()).alias(name)))
                 .actionGet();
+    }
+
+    public void create(GenericRestClient client) throws Exception {
+        GenericRestClient.HttpResponse response = client.postJson("_aliases",
+                DocNode.of("actions", DocNode.array(DocNode.of("add.indices", getIndexNamesAsArray(), "add.alias", name))));
+
+        if (response.getStatusCode() != 200) {
+            throw new RuntimeException("Error while creating alias " + name + "\n" + response);
+        }
     }
 
     public String getName() {

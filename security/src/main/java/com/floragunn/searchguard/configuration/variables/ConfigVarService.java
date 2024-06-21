@@ -66,6 +66,7 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.FailureListener;
@@ -289,7 +290,7 @@ public class ConfigVarService implements ComponentStateProvider {
             return CompletableFuture.completedFuture(new StandardResponse(400).error(validationErrors));
         }
 
-        Set<String> idsForDeletion = this.values.keySet().stream().filter((id) -> !valueMap.containsKey(id)).collect(Collectors.toSet());
+        Set<String> idsForDeletion = this.values != null ? this.values.keySet().stream().filter((id) -> !valueMap.containsKey(id)).collect(Collectors.toSet()) : ImmutableSet.empty();
 
         for (String idForDeletion : idsForDeletion) {
             bulkRequest.add(new DeleteRequest(indexName).id(idForDeletion));

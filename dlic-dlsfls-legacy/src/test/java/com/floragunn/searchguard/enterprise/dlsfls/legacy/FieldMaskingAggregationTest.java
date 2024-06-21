@@ -63,8 +63,8 @@ public class FieldMaskingAggregationTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled()
-            .users(MASKED_TEST_USER, UNMASKED_TEST_USER).resources("dlsfls_legacy").build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled()
+            .users(MASKED_TEST_USER, UNMASKED_TEST_USER).resources("dlsfls_legacy").embedded().build();
 
     /**
      * This table also aggregates the test data and serves as reference for the tests

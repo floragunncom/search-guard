@@ -79,8 +79,8 @@ public class ActionTest {
 			.extensions(REQUEST_HEADER_ADDING_FILTER));
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().nodeSettings("signals.enabled", true)
-            .resources("sg_config/signals").enterpriseModulesEnabled().enableModule(SignalsModule.class).build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().nodeSettings("signals.enabled", true)
+            .resources("sg_config/signals").enterpriseModulesEnabled().enableModule(SignalsModule.class).waitForComponents("signals").embedded().build();
 
     @BeforeClass
     public static void setupTestData() throws Throwable {

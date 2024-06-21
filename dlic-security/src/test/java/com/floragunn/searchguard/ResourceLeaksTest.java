@@ -38,11 +38,11 @@ public class ResourceLeaksTest {
     private static final TestSgConfig.Authc.Domain BASIC_INT_USER_DB_DOMAIN = new TestSgConfig.Authc.Domain("basic/internal_users_db");
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode()
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode()
             .authc(new TestSgConfig.Authc(BASIC_INT_USER_DB_DOMAIN))
             .sslEnabled()
             .enterpriseModulesEnabled()
-            .build();
+            .embedded().build();
 
     @BeforeClass
     public static void addMockAuthToTypedComponentRegistry() {

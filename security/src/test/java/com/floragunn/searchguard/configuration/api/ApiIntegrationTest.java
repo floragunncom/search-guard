@@ -43,14 +43,14 @@ public class ApiIntegrationTest {
             .roles(new Role("allaccess").indexPermissions("*").on("*").clusterPermissions("*"));
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled()
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled()
             .sgConfig(new TestSgConfig()
                     .frontendAuthc("default", new TestSgConfig.FrontendAuthc()
                             .authDomain(new TestSgConfig.FrontendAuthDomain("basic"))
                             .loginPage(new TestSgConfig.FrontendLoginPage().brandImage("/relative-default/img.png"))
                     )
             )
-            .user(ADMIN_USER).build();
+            .user(ADMIN_USER).embedded().build();
 
     @Test
     public void patchAuthc() throws Exception {

@@ -36,12 +36,12 @@ class PredefinedWatches {
     private static final Logger log = LogManager.getLogger(PredefinedWatches.class);
     public static final String ACTION_CREATE_ALARM_ONE = "create_alarmOne";
     public static final String ACTION_CREATE_ALARM_TWO = "create_alarmTwo";
-    private final LocalCluster localCluster;
+    private final LocalCluster.Embedded localCluster;
     private final User watchUser;
     private final String tenant;
     private List<WatchPointer> watchesToDelete;
 
-    public PredefinedWatches(LocalCluster localCluster, User watchUser, String tenant) {
+    public PredefinedWatches(LocalCluster.Embedded localCluster, User watchUser, String tenant) {
         this.localCluster = requireNonNull(localCluster);
         this.watchUser = requireNonNull(watchUser, "Watch user is required");
         this.tenant = requireNonNull(tenant, "Tenant is required");

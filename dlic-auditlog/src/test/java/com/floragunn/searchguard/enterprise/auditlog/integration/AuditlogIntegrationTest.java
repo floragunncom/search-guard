@@ -56,7 +56,7 @@ public class AuditlogIntegrationTest {
     );
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder()
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder()
             .users(AUDIT_IGNORED_USER, USER)
             .authc(AUTHC)
             .sslEnabled()
@@ -68,7 +68,7 @@ public class AuditlogIntegrationTest {
                     ConfigConstants.SEARCHGUARD_AUDIT_THREADPOOL_SIZE, 0,
                     ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_USERS, Collections.singletonList(AUDIT_IGNORED_USER.getName())
             )
-            .build();
+            .embedded().build();
 
     @Test
     public void testAuditLog_kibanaLogin() throws Exception {

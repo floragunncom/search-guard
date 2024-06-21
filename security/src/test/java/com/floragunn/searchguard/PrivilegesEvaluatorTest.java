@@ -87,18 +87,18 @@ public class PrivilegesEvaluatorTest {
 
     private static TestCertificates certificatesContext = TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
             .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard").addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard").build();
+            .addAdminClients("CN=admin-0.example.com;OU=SearchGuard;O=SearchGuard").build();
 
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
-    public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
+    public static LocalCluster.Embedded anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
             .user("resolve_test_user", "secret", new Role("resolve_test_user_role").indexPermissions("*").on("resolve_test_allow_*"))//
-            .build();
+            .embedded().build();
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).remote("my_remote", anotherCluster)
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).remote("my_remote", anotherCluster)
             .user("resolve_test_user", "secret",
                     new Role("resolve_test_user_role").indexPermissions("*").on("resolve_test_allow_*").indexPermissions("*")
                             .on("/alias_resolve_test_index_allow_.*/")) //
@@ -122,10 +122,10 @@ public class PrivilegesEvaluatorTest {
                             .excludeIndexPermissions("*").on("exclude_test_disallow_*"))//
             .user("admin", "admin", new Role("admin_role").clusterPermissions("*"))//
             .user("permssion_rest_api_user", "secret", new Role("permssion_rest_api_user_role").clusterPermissions("indices:data/read/mtv"))//
-            .users(SEARCH_TEMPLATE_USER, SEARCH_NO_TEMPLATE_USER, SEARCH_TEMPLATE_LEGACY_USER).build();
+            .users(SEARCH_TEMPLATE_USER, SEARCH_NO_TEMPLATE_USER, SEARCH_TEMPLATE_LEGACY_USER).embedded().build();
 
     @ClassRule
-    public static LocalCluster clusterFof = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
+    public static LocalCluster.Embedded clusterFof = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
             .remote("my_remote", anotherCluster).ignoreUnauthorizedIndices(false)
             .user("resolve_test_user", "secret",
                     new Role("resolve_test_user_role").indexPermissions("*").on("resolve_test_allow_*").indexPermissions("*")
@@ -149,7 +149,7 @@ public class PrivilegesEvaluatorTest {
                             .excludeClusterPermissions("indices:data/read/msearch").indexPermissions("*").on("exclude_test_*")
                             .excludeIndexPermissions("*").on("exclude_test_disallow_*"))//
             .users(RESIZE_USER, RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV, NEG_LOOKAHEAD_USER, REGEX_USER, HIDDEN_TEST_USER)//
-            .build();
+            .embedded().build();
 
     @BeforeClass
     public static void setupTestData() {
@@ -238,25 +238,14 @@ public class PrivilegesEvaluatorTest {
              GenericRestClient userClient = cluster.getRestClient("exclusion_test_user_basic", "secret")) {
 
             cluster.callAndRestoreConfig(CType.AUTHZ, () -> {
-
-                HttpResponse httpResponse = adminCertClient.get("/_searchguard/config/authz");
-                assertThat(httpResponse, isOk());
-
-                DocNode authzConfig = httpResponse.getBodyAsDocNode();
-                //authz debug enabled
-                authzConfig = authzConfig.with("debug", true);
-
-                httpResponse = adminCertClient.putJson("/_searchguard/config/authz", authzConfig);
+                GenericRestClient.HttpResponse httpResponse = adminCertClient.putJson("/_searchguard/config/authz", DocNode.of("debug", true));
                 assertThat(httpResponse, isOk());
 
                 httpResponse = userClient.get("alias_resolve_test_alias_1");
                 assertThat(httpResponse, isForbidden());
                 assertThat(httpResponse.getBody(), httpResponse.getBodyAsDocNode(), containsFieldPointedByJsonPath("error", "missing_permissions"));
 
-                //authz debug disabled
-                authzConfig = authzConfig.with("debug", false);
-
-                httpResponse = adminCertClient.putJson("/_searchguard/config/authz", authzConfig);
+                httpResponse = adminCertClient.putJson("/_searchguard/config/authz", DocNode.EMPTY);
                 assertThat(httpResponse, isOk());
 
                 httpResponse = userClient.get("alias_resolve_test_alias_1");
@@ -265,7 +254,6 @@ public class PrivilegesEvaluatorTest {
 
                 return null;
             });
-
         }
     }
 
@@ -515,6 +503,10 @@ public class PrivilegesEvaluatorTest {
         String targetIndex = "resize_test_target";
 
         try (Client client = clusterFof.getInternalNodeClient()) {
+            client.admin().indices()
+            .create(new CreateIndexRequest(sourceIndex).settings(Settings.builder().put("index.number_of_shards", 5).build()))
+            .actionGet();
+            
             client.index(new IndexRequest(sourceIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index", "a", "b", "y",
                     "date", "1985/01/01")).actionGet();
 

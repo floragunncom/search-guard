@@ -34,8 +34,8 @@ public class TenantInfoActionTest {
     private final static TestSgConfig.User KIBANA_SERVER = new TestSgConfig.User("kibanaserver").roles("SGS_KIBANA_SERVER");
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().resources("multitenancy").user(KIBANA_SERVER)
-            .enterpriseModulesEnabled().users(KIBANA_SERVER).build();
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().resources("multitenancy").user(KIBANA_SERVER)
+            .enterpriseModulesEnabled().users(KIBANA_SERVER).embedded().build();
 
     @Test
     public void testTenantInfo() throws Exception {

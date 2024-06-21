@@ -135,6 +135,10 @@ public class TestCertificate {
         return jksFile;
     }
 
+    public TestCertificate at(File directory) {
+        return new TestCertificate(certificate, keyPair, privateKeyPassword, certificateType, directory);
+    }
+    
     private File saveAsJksFile() {
         try {
             File file = new File(directory, String.format("cert-%s.pem", certificate.getSubject()));
