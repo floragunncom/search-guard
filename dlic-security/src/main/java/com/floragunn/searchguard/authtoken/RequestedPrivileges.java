@@ -442,7 +442,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
                 try {
                     return new Template<>(s, Pattern::create);
                 } catch (ConfigValidationException e) {
-                    log.error("Error compiling " + s, e);
+                    log.error("Error compiling {}", s, e);
                     return null;
                 }
             });

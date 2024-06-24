@@ -54,7 +54,9 @@ import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 
 import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static com.floragunn.searchsupport.junit.matcher.ExceptionsMatchers.messageContainsMatcher;
+import static javax.servlet.http.HttpServletResponse.SC_FORBIDDEN;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
@@ -302,33 +304,32 @@ public class AuthTokenIntegrationTest {
             );
             assertThat(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c"), notNullValue());
 
-            try (RestHighLevelClient client = cluster.getRestHighLevelClient(USER_ALIAS_PUB_ACCESS)) {
-                SearchResponse searchResponse = client.search(new SearchRequest("alias_pub_test_allow_because_from_token")
-                        .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+            DocNode matchAllQuery = DocNode.of("query", DocNode.of("match_all", DocNode.EMPTY));
+            try (GenericRestClient client = cluster.getRestClient(USER_ALIAS_PUB_ACCESS)) {
+                HttpResponse searchResponse = client.postJson("/alias_pub_test_allow_because_from_token/_search", matchAllQuery);
+                DocNode body = searchResponse.getBodyAsDocNode();
 
-                assertThat(searchResponse.getHits().getTotalHits().value, equalTo(1L));
-                assertThat(searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"), equalTo("allowed"));
+                assertThat(body, containsValue("$.hits.total.value", 1L));
+                assertThat(body, containsValue("$.hits.hits[0]._source.this_is", "allowed"));
 
-                searchResponse = client.search(
-                        new SearchRequest("alias_pub_test_deny").source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())),
-                        RequestOptions.DEFAULT);
+                searchResponse =  client.postJson("/alias_pub_test_deny/_search", matchAllQuery);
+                body = searchResponse.getBodyAsDocNode();
 
-                assertThat(searchResponse.getHits().getTotalHits().value, equalTo(1L));
-                assertThat(searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"), equalTo("not_allowed_from_token"));
+                assertThat(body, containsValue("$.hits.total.value", 1L));
+                assertThat(body, containsValue("$.hits.hits[0]._source.this_is", "not_allowed_from_token"));
             }
 
             for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
-                try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
-                    SearchResponse searchResponse = client.search(new SearchRequest("alias_pub_test_allow_because_from_token")
-                            .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
+                try (GenericRestClient client = node.getRestClient(new BasicHeader("Authorization", "Bearer " + token))) {
+                    HttpResponse searchResponse = client.postJson("/alias_pub_test_allow_because_from_token/_search", matchAllQuery);
 
-                    assertThat(searchResponse.getHits().getTotalHits().value, equalTo(1L));
-                    assertThat(searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"), equalTo("allowed"));
+                    DocNode body = searchResponse.getBodyAsDocNode();
+                    assertThat(body, containsValue("$.hits.total.value", 1L));
+                    assertThat(body, containsValue("$.hits.hits[0]._source.this_is", "allowed"));
 
-                    assertThatThrown(() -> client.search(new SearchRequest("alias_pub_test_deny")
-                                    .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT),
-                            messageContainsMatcher("Insufficient permissions")
-                    );
+                    searchResponse = client.postJson("/alias_pub_test_deny/_search", matchAllQuery);
+
+                    assertThat(searchResponse.getStatusCode(), equalTo(SC_FORBIDDEN));
                 }
             }
         }

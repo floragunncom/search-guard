@@ -139,7 +139,7 @@ public class AuthTokenDlsIntTest {
         }
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
-            GenericRestClient.HttpResponse response = client.get(documentIndexUriA1);
+            GenericRestClient.HttpResponse response = client.get(documentIndexUriD);
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
             response = client.get(documentAliasUriA1);
