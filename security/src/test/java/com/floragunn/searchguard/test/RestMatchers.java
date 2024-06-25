@@ -140,6 +140,35 @@ public class RestMatchers {
 
         };
     }
+
+    public static DiagnosingMatcher<HttpResponse> isUnauthorized() {
+        return new DiagnosingMatcher<HttpResponse>() {
+
+            @Override
+            public void describeTo(Description description) {
+                description.appendText("Response has status 401 Unauthorized");
+            }
+
+            @Override
+            protected boolean matches(Object item, Description mismatchDescription) {
+                if (!(item instanceof HttpResponse)) {
+                    mismatchDescription.appendValue(item).appendText(" is not a HttpResponse");
+                    return false;
+                }
+
+                HttpResponse response = (HttpResponse) item;
+
+                if (response.getStatusCode() == 401) {
+                    return true;
+                } else {
+                    mismatchDescription.appendText("Status is not 401 Unauthorized: ").appendValue(item);
+                    return false;
+                }
+
+            }
+
+        };
+    }
     
     public static DiagnosingMatcher<HttpResponse> isBadRequest() {
         return new DiagnosingMatcher<HttpResponse>() {
