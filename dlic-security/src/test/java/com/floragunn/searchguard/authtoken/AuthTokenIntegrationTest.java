@@ -17,7 +17,6 @@ package com.floragunn.searchguard.authtoken;
 import java.util.Collections;
 import java.util.Map;
 
-import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -53,10 +52,13 @@ import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 
+import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
+import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
+import static com.floragunn.searchguard.test.RestMatchers.isOk;
+import static com.floragunn.searchguard.test.RestMatchers.isUnauthorized;
 import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static com.floragunn.searchsupport.junit.matcher.ExceptionsMatchers.messageContainsMatcher;
-import static javax.servlet.http.HttpServletResponse.SC_FORBIDDEN;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
@@ -169,7 +171,7 @@ public class AuthTokenIntegrationTest {
 
                 HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                assertThat(response, isOk());
 
                 tokenWithConfiguredSigningKey = response.getBodyAsDocNode().getAsString("token");
                 assertThat(tokenWithConfiguredSigningKey, notNullValue());
@@ -191,7 +193,7 @@ public class AuthTokenIntegrationTest {
 
                 System.out.println(response.getBody());
 
-                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                assertThat(response, isOk());
 
                 tokenWithDefaultSigningKey = response.getBodyAsDocNode().getAsString("token");
 
@@ -201,18 +203,18 @@ public class AuthTokenIntegrationTest {
 
             try (GenericRestClient client = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + tokenWithConfiguredSigningKey))) {
                 HttpResponse response = client.postJson("/pub_test_allow_because_from_token/_search", "{\"query\":{\"match_all\":{}}}");
-                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_UNAUTHORIZED));
+                assertThat(response, isUnauthorized());
 
                 response = client.postJson("/pub_test_deny/_search", "{\"query\":{\"match_all\":{}}}");
-                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_UNAUTHORIZED));
+                assertThat(response, isUnauthorized());
             }
 
             try (GenericRestClient client = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + tokenWithDefaultSigningKey))) {
                 HttpResponse response = client.postJson("/pub_test_allow_because_from_token/_search", "{\"query\":{\"match_all\":{}}}");
-                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                assertThat(response, isOk());
 
                 response = client.postJson("/pub_test_deny/_search", "{\"query\":{\"match_all\":{}}}");
-                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
+                assertThat(response, isForbidden());
             }
         } finally {
             //revert original auth token service config
@@ -235,7 +237,7 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             String token = response.getBodyAsDocNode().getAsString("token");
             assertThat(token, notNullValue());
@@ -291,7 +293,7 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             String token = response.getBodyAsDocNode().getAsString("token");
             assertThat(token, notNullValue());
@@ -329,7 +331,7 @@ public class AuthTokenIntegrationTest {
 
                     searchResponse = client.postJson("/alias_pub_test_deny/_search", matchAllQuery);
 
-                    assertThat(searchResponse.getStatusCode(), equalTo(SC_FORBIDDEN));
+                    assertThat(searchResponse, isForbidden());
                 }
             }
         }
@@ -348,7 +350,7 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             String token = response.getBodyAsDocNode().getAsString("token");
 
@@ -407,12 +409,12 @@ public class AuthTokenIntegrationTest {
 
                 HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                assertThat(response, isOk());
             }
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
             
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
+            assertThat(response, isForbidden());
             assertThat(response.getBody(), 
                     response.getBodyAsDocNode().findSingleNodeByJsonPath("error.root_cause[0].reason").toString(), 
                     equalTo("Cannot create token. Token limit per user exceeded. Max number of allowed tokens is 10")
@@ -431,7 +433,7 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
             
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             String token = response.getBodyAsDocNode().getAsString("token");
             assertThat(token, notNullValue());
@@ -444,7 +446,7 @@ public class AuthTokenIntegrationTest {
                 request.setTokenName("this_token_should_not_be_created");
 
                 response = tokenAuthRestClient.postJson("/_searchguard/authtoken", request);
-                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
+                assertThat(response, isForbidden());
                 assertThat(response.getBody(), response.getBody(), containsString("Insufficient permissions"));
             }
         }
@@ -463,7 +465,7 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             String token = response.getBodyAsDocNode().getAsString("token");
             assertThat(token, notNullValue());
@@ -509,7 +511,7 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             String token = response.getBodyAsDocNode().getAsString("token");
             assertThat(token, notNullValue());
@@ -553,7 +555,7 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             String token = response.getBodyAsDocNode().getAsString("token");
             String id = response.getBodyAsDocNode().getAsString("id");
@@ -577,7 +579,7 @@ public class AuthTokenIntegrationTest {
             }
 
             response = restClient.delete("/_searchguard/authtoken/" + id);
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
             Thread.sleep(100);
 
             for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
@@ -615,7 +617,7 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request.toJson());
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             String token = response.getBodyAsDocNode().getAsString("token");
             String id = response.getBodyAsDocNode().getAsString("id");
@@ -634,7 +636,7 @@ public class AuthTokenIntegrationTest {
             }
 
             response = restClient.delete("/_searchguard/authtoken/" + id);
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
             Thread.sleep(100);
 
             for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
@@ -664,25 +666,25 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             request.setTokenName("get_and_search_test_token_2");
 
             response = restClient.postJson("/_searchguard/authtoken", request);
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             request.setTokenName("get_and_search_test_token_picard");
 
             response = picardRestClient.postJson("/_searchguard/authtoken", request);
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             String picardsTokenId = response.getBodyAsDocNode().getAsString("token");
 
             response = restClient.get("/_searchguard/authtoken/_search");
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
             assertThat(response.getBody(), response.getBody(), not(containsString("\"picard\"")));
 
             String searchRequest = "{\n" + //
@@ -697,7 +699,7 @@ public class AuthTokenIntegrationTest {
 
             response = restClient.postJson("/_searchguard/authtoken/_search", searchRequest);
             
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             DocNode jsonNode = response.getBodyAsDocNode();
 
@@ -714,7 +716,7 @@ public class AuthTokenIntegrationTest {
 
             response = restClient.get("/_searchguard/authtoken/" + picardsTokenId);
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_NOT_FOUND));
+            assertThat(response, isNotFound());
 
             response = adminRestClient.postJson("/_searchguard/authtoken/_search", searchRequest);
 
@@ -789,7 +791,7 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
             
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             String token = response.getBodyAsDocNode().getAsString("token");
             assertThat(token, notNullValue());
@@ -899,7 +901,7 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             String token = response.getBodyAsDocNode().getAsString("token");
             assertThat(token, notNullValue());
@@ -947,17 +949,17 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             String token = response.getBodyAsDocNode().getAsString("token");
             assertThat(token, notNullValue());
 
             response = restClient.get("_searchguard/api/roles");
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             try (GenericRestClient tokenAuthRestClient = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + token))) {
                 response = restClient.get("_searchguard/api/roles");
-                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                assertThat(response, isOk());
             }
         }
     }
@@ -972,17 +974,17 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             String token = response.getBodyAsDocNode().getAsString("token");
             assertThat(token, notNullValue());
 
             response = restClient.get("_searchguard/api/roles");
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             try (GenericRestClient tokenAuthRestClient = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + token))) {
                 response = tokenAuthRestClient.get("_searchguard/api/roles");
-                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
+                assertThat(response, isForbidden());
             }
         }
     }
@@ -998,18 +1000,18 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.postJson("/_searchguard/authtoken", request.toJson());
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             String token = response.getBodyAsDocNode().getAsString("token");
             assertThat(token, notNullValue());
 
             response = restClient.get("_searchguard/api/roles");
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             try (GenericRestClient tokenAuthRestClient = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + token))) {
 
                 response = tokenAuthRestClient.get("_searchguard/api/roles");
-                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
+                assertThat(response, isForbidden());
             }
         }
     }
@@ -1020,7 +1022,7 @@ public class AuthTokenIntegrationTest {
 
             HttpResponse response = restClient.get("/_searchguard/authtoken/_info");
 
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode().get("enabled"), equalTo(Boolean.TRUE));
         }
     }
@@ -1032,10 +1034,10 @@ public class AuthTokenIntegrationTest {
         
         try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {                        
             HttpResponse response = restClient.putJson("/_searchguard/config", DocNode.of("auth_token_service.content", config));                        
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
             
             response = restClient.get("/_searchguard/config");
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
             assertThat(response.getBodyAsDocNode().get("auth_token_service", "content"), equalTo(config.toMap()));
         }
     }
@@ -1056,10 +1058,10 @@ public class AuthTokenIntegrationTest {
     private DocNode updateAuthTokenServiceConfig(DocNode newConfig) throws Exception {
         try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {
             HttpResponse response = restClient.putJson("/_searchguard/config", DocNode.of("auth_token_service.content", newConfig));
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
 
             response = restClient.get("/_searchguard/config");
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+            assertThat(response, isOk());
             assertThat(response.getBodyAsDocNode().get("auth_token_service", "content"), equalTo(newConfig.toMap()));
             return response.getBodyAsDocNode().findSingleNodeByJsonPath("auth_token_service.content");
         }
