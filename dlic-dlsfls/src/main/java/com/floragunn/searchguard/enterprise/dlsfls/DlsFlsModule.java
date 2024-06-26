@@ -94,12 +94,13 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
 
         this.clusterService = baseDependencies.getClusterService();
 
+        Supplier<Meta> metaSupplier = () -> Meta.from(baseDependencies.getClusterService());
         this.dlsFlsBaseContext = new DlsFlsBaseContext(baseDependencies.getAuthInfoService(), baseDependencies.getAuthorizationService(),
-                baseDependencies.getThreadPool().getThreadContext(), () -> Meta.from(baseDependencies.getClusterService()));
+                baseDependencies.getThreadPool().getThreadContext(), metaSupplier);
 
         this.dlsFlsValve = new DlsFlsValve(baseDependencies.getLocalClient(), baseDependencies.getClusterService(),
                 baseDependencies.getIndexNameExpressionResolver(), baseDependencies.getGuiceDependencies(),
-                baseDependencies.getThreadPool().getThreadContext(), config);
+                baseDependencies.getThreadPool().getThreadContext(), config, metaSupplier);
 
         this.dlsFlsSearchOperationListener = new DlsFlsSearchOperationListener(this.dlsFlsBaseContext, config);
 
