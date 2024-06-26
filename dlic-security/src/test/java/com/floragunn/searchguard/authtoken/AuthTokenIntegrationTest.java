@@ -17,9 +17,11 @@ package com.floragunn.searchguard.authtoken;
 import java.util.Collections;
 import java.util.Map;
 
+import com.floragunn.searchguard.test.TestComponentTemplate;
+import com.floragunn.searchguard.test.TestIndexTemplate;
+import com.floragunn.searchguard.test.helper.cluster.LocalEsCluster;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -46,7 +48,6 @@ import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import com.floragunn.searchguard.test.helper.cluster.JvmEmbeddedEsCluster;
 import com.google.common.io.BaseEncoding;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
@@ -85,32 +86,7 @@ public class AuthTokenIntegrationTest {
                     "      max_tokens_per_user: 10\n" + //
                     "      token_cache:\n" + //
                     "        expire_after_write: 70m\n" + //
-                    "        max_size: 100\n" + //
-                    "    authc:\n" + //
-                    "      authentication_domain_basic_internal:\n" + //
-                    "        http_enabled: true\n" + //
-                    "        transport_enabled: true\n" + //
-                    "        order: 1\n" + //
-                    "        http_authenticator:\n" + //
-                    "          challenge: true\n" + //
-                    "          type: \"basic\"\n" + //
-                    "          config: {}\n" + //
-                    "        authentication_backend:\n" + //
-                    "          type: \"intern\"\n" + //
-                    "          config:\n" + //
-                    "            map_db_attrs_to_user_attrs:\n" + //
-                    "              index: test_attr_1.c\n" + //
-                    "              all: test_attr_1\n" + //
-                    "      sg_issued_jwt_auth_domain:\n" + //
-                    "        description: \"Authenticate via Json Web Tokens issued by Search Guard\"\n" + //
-                    "        http_enabled: true\n" + //
-                    "        transport_enabled: false\n" + //
-                    "        order: 0\n" + //
-                    "        http_authenticator:\n" + //
-                    "          type: sg_auth_token\n" + //
-                    "          challenge: false\n" + //
-                    "        authentication_backend:\n" + //
-                    "          type: sg_auth_token";
+                    "        max_size: 100";
 
     static TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").sgConfigSettings("", TestSgConfig.fromYaml(SGCONFIG));
     private static Configuration JSON_PATH_CONFIG = BasicJsonPathDefaultConfiguration.defaultConfiguration().setOptions(Option.SUPPRESS_EXCEPTIONS);
@@ -124,35 +100,57 @@ public class AuthTokenIntegrationTest {
                     .aliasPermissions("READ").on("alias_pub*")
             );
 
+    static TestSgConfig.User USER_DATA_STREAM_PUB_ACCESS = new TestSgConfig.User("user_ds_pub_access")
+            .roles(new TestSgConfig.Role("ds_pub_access")
+                    .clusterPermissions("cluster:admin:searchguard:authtoken/_own/*")
+                    .dataStreamPermissions("READ").on("ds_pub*")
+            );
+
     @ClassRule
-    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
-            .resources("authtoken").sslEnabled().sgConfig(sgConfig).enterpriseModulesEnabled().enableModule(AuthTokenModule.class).embedded()
-            .user(USER_ALIAS_PUB_ACCESS).build();
+    public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")
+            .sslEnabled().sgConfig(sgConfig).enterpriseModulesEnabled().enableModule(AuthTokenModule.class)
+            .useExternalProcessCluster()
+            .authc(new TestSgConfig.Authc(
+                    new TestSgConfig.Authc.Domain("basic/internal_users_db").userMapping(
+                            new TestSgConfig.Authc.Domain.UserMapping()
+                                    .attrsFrom("index", "user_entry.attributes.test_attr_1.c")
+                                    .attrsFrom("all", "user_entry.attributes.test_attr_1")
+                    )))
+            .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))
+            .users(USER_ALIAS_PUB_ACCESS, USER_DATA_STREAM_PUB_ACCESS).build();
 
     @BeforeClass
-    public static void setupTestData() {
+    public static void setupTestData() throws Exception {
 
-        try (Client client = cluster.getInternalNodeClient()) {
-            client.index(new IndexRequest("pub_test_deny").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is",
-                    "not_allowed_from_token")).actionGet();
-            client.index(new IndexRequest("pub_test_allow_because_from_token").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON,
-                    "this_is", "allowed")).actionGet();
-            client.index(new IndexRequest("user_attr_foo").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is", "allowed"))
-                    .actionGet();
-            client.index(
-                    new IndexRequest("user_attr_qux").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is", "not_allowed"))
-                    .actionGet();
-            client.index(new IndexRequest("dls_user_attr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is", "allowed",
-                    "a", "foo")).actionGet();
-            client.index(new IndexRequest("dls_user_attr").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "this_is",
-                    "not_allowed", "a", "qux")).actionGet();
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
 
-            client.admin().indices().aliases(new IndicesAliasesRequest()
-                    .addAliasAction(IndicesAliasesRequest.AliasActions.add().indices("pub_test_deny")
-                            .alias("alias_pub_test_deny"))
-                    .addAliasAction(IndicesAliasesRequest.AliasActions.add().indices("pub_test_allow_because_from_token")
-                            .alias("alias_pub_test_allow_because_from_token")))
-                    .actionGet();
+            //indices
+            client.postJson("/pub_test_deny/_doc?refresh=true", DocNode.of("this_is",
+                    "not_allowed_from_token"));
+
+            client.postJson("/pub_test_allow_because_from_token/_doc?refresh=true", DocNode.of("this_is", "allowed"));
+
+            client.postJson("/user_attr_foo/_doc?refresh=true", DocNode.of("this_is", "allowed"));
+
+            client.postJson("/user_attr_qux/_doc?refresh=true", DocNode.of("this_is", "not_allowed"));
+
+            client.postJson("/dls_user_attr/_doc?refresh=true", DocNode.of("this_is", "allowed",
+                    "a", "foo"));
+
+            client.postJson("/dls_user_attr/_doc?refresh=true", DocNode.of("this_is",
+                    "not_allowed", "a", "qux"));
+
+            //aliases
+            client.postJson("/_aliases", DocNode.of("actions", DocNode.array(
+                    DocNode.of("add", DocNode.of("index", "pub_test_deny", "alias", "alias_pub_test_deny")),
+                    DocNode.of("add", DocNode.of("index", "pub_test_allow_because_from_token", "alias", "alias_pub_test_allow_because_from_token"))
+            )));
+
+            //data streams
+            client.put("/_data_stream/ds_pub_test_deny");
+            client.put("/_data_stream/ds_pub_test_allow_because_from_token");
+            client.postJson("/ds_pub_test_deny/_doc?refresh=true", DocNode.of("@timestamp", "2024-05-06T10:11:15.000Z", "this_is", "not_allowed_from_token"));
+            client.postJson("/ds_pub_test_allow_because_from_token/_doc?refresh=true", DocNode.of("@timestamp", "2024-05-06T10:11:15.000Z", "this_is", "allowed"));
 
         }
 
@@ -265,7 +263,7 @@ public class AuthTokenIntegrationTest {
                 assertThat(searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"), equalTo("not_allowed_from_token"));
             }
 
-            for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
+            for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
                     SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
                             .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
@@ -321,7 +319,7 @@ public class AuthTokenIntegrationTest {
                 assertThat(body, containsValue("$.hits.hits[0]._source.this_is", "not_allowed_from_token"));
             }
 
-            for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
+            for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (GenericRestClient client = node.getRestClient(new BasicHeader("Authorization", "Bearer " + token))) {
                     HttpResponse searchResponse = client.postJson("/alias_pub_test_allow_because_from_token/_search", matchAllQuery);
 
@@ -330,6 +328,61 @@ public class AuthTokenIntegrationTest {
                     assertThat(body, containsValue("$.hits.hits[0]._source.this_is", "allowed"));
 
                     searchResponse = client.postJson("/alias_pub_test_deny/_search", matchAllQuery);
+
+                    assertThat(searchResponse, isForbidden());
+                }
+            }
+        }
+
+    }
+
+    @Test
+    public void basicTest_dataStreamAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(USER_DATA_STREAM_PUB_ACCESS)) {
+            CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                    RequestedPrivileges.parseYaml("data_stream_permissions:\n- data_stream_patterns: '*_from_token'\n  allowed_actions: '*'"));
+
+            request.setTokenName("my_new_token");
+
+            HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
+
+            assertThat(response, isOk());
+
+            String token = response.getBodyAsDocNode().getAsString("token");
+            assertThat(token, notNullValue());
+            assertThat(getJwtHeaderValue(token, "alg"), equalTo("HS512"));
+
+            String tokenPayload = getJwtPayload(token);
+            Map<String, Object> parsedTokenPayload = DocReader.json().readObject(tokenPayload);
+            assertThat(tokenPayload, JsonPath.using(BasicJsonPathDefaultConfiguration.defaultConfiguration())
+                    .parse(parsedTokenPayload).read("sub"), equalTo(USER_DATA_STREAM_PUB_ACCESS.getName())
+            );
+            assertThat(tokenPayload, JsonPath.using(JSON_PATH_CONFIG).parse(parsedTokenPayload).read("base.c"), notNullValue());
+
+            DocNode matchAllQuery = DocNode.of("query", DocNode.of("match_all", DocNode.EMPTY));
+            try (GenericRestClient client = cluster.getRestClient(USER_DATA_STREAM_PUB_ACCESS)) {
+                HttpResponse searchResponse = client.postJson("/ds_pub_test_allow_because_from_token/_search", matchAllQuery);
+                DocNode body = searchResponse.getBodyAsDocNode();
+
+                assertThat(body, containsValue("$.hits.total.value", 1L));
+                assertThat(body, containsValue("$.hits.hits[0]._source.this_is", "allowed"));
+
+                searchResponse =  client.postJson("/ds_pub_test_deny/_search", matchAllQuery);
+                body = searchResponse.getBodyAsDocNode();
+
+                assertThat(body, containsValue("$.hits.total.value", 1L));
+                assertThat(body, containsValue("$.hits.hits[0]._source.this_is", "not_allowed_from_token"));
+            }
+
+            for (LocalEsCluster.Node node : cluster.nodes()) {
+                try (GenericRestClient client = node.getRestClient(new BasicHeader("Authorization", "Bearer " + token))) {
+                    HttpResponse searchResponse = client.postJson("/ds_pub_test_allow_because_from_token/_search", matchAllQuery);
+
+                    DocNode body = searchResponse.getBodyAsDocNode();
+                    assertThat(body, containsValue("$.hits.total.value", 1L));
+                    assertThat(body, containsValue("$.hits.hits[0]._source.this_is", "allowed"));
+
+                    searchResponse = client.postJson("/ds_pub_test_deny/_search", matchAllQuery);
 
                     assertThat(searchResponse, isForbidden());
                 }
@@ -379,7 +432,7 @@ public class AuthTokenIntegrationTest {
                 assertThat(searchResponse.getHits().getAt(0).getSourceAsMap().get("this_is"), equalTo("not_allowed_from_token"));
             }
 
-            for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
+            for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
                     SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
                             .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
@@ -563,7 +616,7 @@ public class AuthTokenIntegrationTest {
             assertThat(token, notNullValue());
             assertThat(id, notNullValue());
 
-            for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
+            for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
                     SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
                             .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
@@ -582,7 +635,7 @@ public class AuthTokenIntegrationTest {
             assertThat(response, isOk());
             Thread.sleep(100);
 
-            for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
+            for (LocalEsCluster.Node node : cluster.nodes()) {
 
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
 
@@ -625,7 +678,7 @@ public class AuthTokenIntegrationTest {
             assertThat(token, notNullValue());
             assertThat(id, notNullValue());
 
-            for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
+            for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
                     SearchResponse searchResponse = client.search(new SearchRequest("pub_test_allow_because_from_token")
                             .source(SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery())), RequestOptions.DEFAULT);
@@ -639,7 +692,7 @@ public class AuthTokenIntegrationTest {
             assertThat(response, isOk());
             Thread.sleep(100);
 
-            for (JvmEmbeddedEsCluster.Node node : cluster.nodes()) {
+            for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
                     ElasticsearchStatusException statusException = (ElasticsearchStatusException) assertThatThrown(
                             () -> client.search(new SearchRequest("pub_test_allow_because_from_token")
