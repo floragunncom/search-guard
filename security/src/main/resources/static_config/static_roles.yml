@@ -242,11 +242,9 @@ SGS_KIBANA_SERVER:
     - "indices:data/read/field_caps*"
   alias_permissions:
   - alias_patterns:
-      - ".kibana_task_manager"
-      - '/\.kibana_task_manager_[0-9]+\.[0-9]+\.[0-9]+/'
       - ".kibana"
-      - '/\.kibana_[0-9]+\.[0-9]+\.[0-9]+/'
-      - '/\.kibana-event-log-[0-9]+\.[0-9]+\.[0-9]+/'
+      - ".kibana_*"
+      - ".kibana-event-log-*"
     allowed_actions:
       - "SGS_INDICES_ALL"
 
