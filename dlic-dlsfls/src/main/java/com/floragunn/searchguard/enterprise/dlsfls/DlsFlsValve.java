@@ -34,6 +34,7 @@ import static org.elasticsearch.rest.RestStatus.INTERNAL_SERVER_ERROR;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchStatusException;
@@ -79,6 +80,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
     private final AtomicReference<DlsFlsProcessedConfig> config;
     private final ComponentState componentState = new ComponentState(0, null, "dls_fls_valve", DlsFlsValve.class).initialized();
     private final TimeAggregation applyTimeAggregation = new TimeAggregation.Nanoseconds();
+    private final Meta meta;
 
     public DlsFlsValve(Client nodeClient, ClusterService clusterService, IndexNameExpressionResolver resolver, GuiceDependencies guiceDependencies,
             ThreadContext threadContext, AtomicReference<DlsFlsProcessedConfig> config) {
@@ -89,6 +91,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
         this.threadContext = threadContext;
         this.config = config;
         this.componentState.addMetrics("filter_request", applyTimeAggregation);
+        this.meta = Meta.from(clusterService);
     }
 
     @Override
@@ -124,10 +127,9 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
 
             if (context.getSpecialPrivilegesEvaluationContext() != null && context.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = context.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                // TODO
-                // documentAuthorization = new RoleBasedDocumentAuthorization(roles, indices, MetricsLevel.NONE);
-                //fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices, MetricsLevel.NONE);
-                //fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices, MetricsLevel.NONE);
+                documentAuthorization = new RoleBasedDocumentAuthorization(roles, meta, MetricsLevel.NONE);
+                fieldAuthorization = new RoleBasedFieldAuthorization(roles, meta, MetricsLevel.NONE);
+                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), meta, MetricsLevel.NONE);
             }
 
             boolean hasDlsRestrictions = documentAuthorization.hasRestrictions(context, resolvedIndices, meter);
