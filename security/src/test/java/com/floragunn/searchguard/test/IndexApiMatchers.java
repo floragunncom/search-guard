@@ -207,6 +207,8 @@ public class IndexApiMatchers {
                 if (containsSearchGuardIndices && (indexName.startsWith(".searchguard") || indexName.equals("searchguard"))) {
                     seenSearchGuardIndicesBuilder.add(indexName);
                     continue;
+                } else if (containsEsInternalIndices && (indexName.startsWith(".logs-deprecation") || indexName.startsWith(".ds-.logs-deprecation"))) {
+                    // We will just ignore these, as they actually might not exist on embedded clusters
                 }
 
                 TestIndexLike index = indexNameMap.get(indexName);
