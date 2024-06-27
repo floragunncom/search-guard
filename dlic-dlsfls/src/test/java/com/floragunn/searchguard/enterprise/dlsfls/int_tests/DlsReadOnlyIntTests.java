@@ -17,11 +17,7 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls.int_tests;
 
-import static com.floragunn.searchguard.test.IndexApiMatchers.containsExactly;
-import static com.floragunn.searchguard.test.IndexApiMatchers.limitedTo;
-import static com.floragunn.searchguard.test.IndexApiMatchers.searchGuardIndices;
-import static com.floragunn.searchguard.test.IndexApiMatchers.unlimited;
-import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncludingSearchGuardIndices;
+import static com.floragunn.searchguard.test.IndexApiMatchers.*;
 import static com.floragunn.searchguard.test.RestMatchers.*;
 import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
@@ -310,7 +306,7 @@ public class DlsReadOnlyIntTests {
     public void search_wildcard_includeHidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/*/_search?size=1000&expand_wildcards=all");
-            assertThat(httpResponse, containsExactly(index_1, index_2, index_3, index_hidden, user_dept_terms_lookup, searchGuardIndices()).at("hits.hits[*]")
+            assertThat(httpResponse, containsExactly(index_1, index_2, index_3, index_hidden, user_dept_terms_lookup, searchGuardIndices(), esInternalIndices()).at("hits.hits[*]")
                     .but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
