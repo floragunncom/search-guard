@@ -16,7 +16,6 @@ package com.floragunn.searchguard.enterprise.dlsfls.lucene;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 
@@ -33,7 +32,6 @@ import org.elasticsearch.index.query.SearchExecutionContext;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.shard.ShardUtils;
 
-import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authz.DocumentWhitelist;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
@@ -53,6 +51,7 @@ import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import com.floragunn.searchsupport.meta.Meta;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
 public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryReader, DirectoryReader, IOException> {
     private static final Logger log = LogManager.getLogger(DlsFlsDirectoryReaderWrapper.class);
@@ -110,10 +109,11 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
             if (privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext() != null
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                Set<String> indices = ImmutableSet.of(index.getName());
-                //documentAuthorization = new RoleBasedDocumentAuthorization(roles, indices, MetricsLevel.NONE); TODO
-                //fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices, MetricsLevel.NONE);
-                //fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices, MetricsLevel.NONE);
+
+                Meta indexMetadata = dlsFlsBaseContext.getIndexMetaData();
+                documentAuthorization = new RoleBasedDocumentAuthorization(roles, indexMetadata, MetricsLevel.NONE);
+                fieldAuthorization = new RoleBasedFieldAuthorization(roles, indexMetadata, MetricsLevel.NONE);
+                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indexMetadata, MetricsLevel.NONE);
             }
             
             Meta.Index metaIndex = (Meta.Index) this.dlsFlsBaseContext.getIndexMetaData().getIndexOrLike(this.index.getName());
