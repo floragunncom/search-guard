@@ -362,6 +362,17 @@ public class TestData {
         return new TestDocument(entry.getKey(), entry.getValue());
     }
 
+    public void additionalDocument(String id, Map<String, Object> source) {
+        this.allDocuments = ImmutableMap.of(allDocuments).with(id, source);
+        this.retainedDocuments = ImmutableMap.of(retainedDocuments).with(id, source);
+        Object dept = source.get("dept");
+        if (dept instanceof String) {
+            documentsByDepartment.computeIfPresent((String) source.get("dept"), (k, v) -> {v.put(id, source); return v;});
+        } else {
+            throw new RuntimeException("Document: %s doesn't contain a 'dept' attribute of String type");
+        }
+    }
+
     private static class Key {
 
         private final int seed;
