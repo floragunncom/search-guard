@@ -53,6 +53,7 @@ import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 
+import static com.floragunn.searchguard.test.RestMatchers.isCreated;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
@@ -125,32 +126,43 @@ public class AuthTokenIntegrationTest {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
 
             //indices
-            client.postJson("/pub_test_deny/_doc?refresh=true", DocNode.of("this_is",
+            GenericRestClient.HttpResponse response = client.postJson("/pub_test_deny/_doc?refresh=true", DocNode.of("this_is",
                     "not_allowed_from_token"));
+            assertThat(response, isCreated());
 
-            client.postJson("/pub_test_allow_because_from_token/_doc?refresh=true", DocNode.of("this_is", "allowed"));
+            response = client.postJson("/pub_test_allow_because_from_token/_doc?refresh=true", DocNode.of("this_is", "allowed"));
+            assertThat(response, isCreated());
 
-            client.postJson("/user_attr_foo/_doc?refresh=true", DocNode.of("this_is", "allowed"));
+            response = client.postJson("/user_attr_foo/_doc?refresh=true", DocNode.of("this_is", "allowed"));
+            assertThat(response, isCreated());
 
-            client.postJson("/user_attr_qux/_doc?refresh=true", DocNode.of("this_is", "not_allowed"));
+            response = client.postJson("/user_attr_qux/_doc?refresh=true", DocNode.of("this_is", "not_allowed"));
+            assertThat(response, isCreated());
 
-            client.postJson("/dls_user_attr/_doc?refresh=true", DocNode.of("this_is", "allowed",
+            response = client.postJson("/dls_user_attr/_doc?refresh=true", DocNode.of("this_is", "allowed",
                     "a", "foo"));
+            assertThat(response, isCreated());
 
-            client.postJson("/dls_user_attr/_doc?refresh=true", DocNode.of("this_is",
+            response = client.postJson("/dls_user_attr/_doc?refresh=true", DocNode.of("this_is",
                     "not_allowed", "a", "qux"));
+            assertThat(response, isCreated());
 
             //aliases
-            client.postJson("/_aliases", DocNode.of("actions", DocNode.array(
+            response = client.postJson("/_aliases", DocNode.of("actions", DocNode.array(
                     DocNode.of("add", DocNode.of("index", "pub_test_deny", "alias", "alias_pub_test_deny")),
                     DocNode.of("add", DocNode.of("index", "pub_test_allow_because_from_token", "alias", "alias_pub_test_allow_because_from_token"))
             )));
+            assertThat(response, isOk());
 
             //data streams
-            client.put("/_data_stream/ds_pub_test_deny");
-            client.put("/_data_stream/ds_pub_test_allow_because_from_token");
-            client.postJson("/ds_pub_test_deny/_doc?refresh=true", DocNode.of("@timestamp", "2024-05-06T10:11:15.000Z", "this_is", "not_allowed_from_token"));
-            client.postJson("/ds_pub_test_allow_because_from_token/_doc?refresh=true", DocNode.of("@timestamp", "2024-05-06T10:11:15.000Z", "this_is", "allowed"));
+            response = client.put("/_data_stream/ds_pub_test_deny");
+            assertThat(response, isOk());
+            response = client.put("/_data_stream/ds_pub_test_allow_because_from_token");
+            assertThat(response, isOk());
+            response = client.postJson("/ds_pub_test_deny/_doc?refresh=true", DocNode.of("@timestamp", "2024-05-06T10:11:15.000Z", "this_is", "not_allowed_from_token"));
+            assertThat(response, isCreated());
+            response = client.postJson("/ds_pub_test_allow_because_from_token/_doc?refresh=true", DocNode.of("@timestamp", "2024-05-06T10:11:15.000Z", "this_is", "allowed"));
+            assertThat(response, isCreated());
 
         }
 
