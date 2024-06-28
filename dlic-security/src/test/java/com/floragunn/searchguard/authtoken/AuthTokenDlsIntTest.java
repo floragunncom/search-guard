@@ -20,7 +20,6 @@ import com.floragunn.searchguard.test.TestData;
 import com.floragunn.searchguard.test.TestDataStream;
 import com.floragunn.searchguard.test.TestIndexTemplate;
 import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchsupport.junit.matcher.DocNodeMatchers;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
@@ -35,9 +34,20 @@ import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
+import java.util.Collections;
+
 import static com.floragunn.searchguard.test.RestMatchers.isCreated;
+import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeSizeEqualTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 
 public class AuthTokenDlsIntTest {
 
@@ -73,18 +83,30 @@ public class AuthTokenDlsIntTest {
                     .dls(DocNode.of("terms", DocNode.of("dept", DocNode.of("index", "user_dept_terms_lookup", "id", "${user.name}", "path", "dept"))))
                     .on(INDEX).clusterPermissions("*"));
 
+    static final TestSgConfig.Role ROLE_WITH_DLS_FLS_FM_RULES_ON_INDEX = new TestSgConfig.Role("dls_fls_fm_role")
+            .clusterPermissions("*")
+            .indexPermissions("SGS_READ")
+            .dls(DocNode.of("term.dept.value", "dept_d"))
+            .fls("source_ip", "dest_ip", "dept")
+            .maskedFields("dest_ip")
+            .on(INDEX);
+
+    static final TestSgConfig.User DLS_FLS_FM_USER = new TestSgConfig.User("dls_fls_fm")
+            .roles(ROLE_WITH_DLS_FLS_FM_RULES_ON_INDEX.getName());
+
     static final TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db"));
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().useImpl("flx").metrics("detailed");
     static final TestSgConfig.AuthTokenService AUTH_TOKEN_SERVICE = new TestSgConfig.AuthTokenService().enabled(true).jwtSigningKeyHs512(
             "eTDZjSqRD9Abhod9iqeGX_7o93a-eElTeXWAF6FmzQshmRIrPD-C9ET3pFjJ_IBrzmWIZDk8ig-X_PIyGmKsxNMsrU-0BNWF5gJq5xOp4rYTl8z66Tw9wr8tHLxLxgJqkLSuUCRBZvlZlQ7jNdhBBxgM-hdSSzsN1T33qdIwhrUeJ-KXI5yKUXHjoWFYb9tETbYQ4NvONowkCsXK_flp-E3F_OcKe_z5iVUszAV8QfCod1zhbya540kDejXCL6N_XMmhWJqum7UJ3hgf6DEtroPSnVpHt4iR5w9ArKK-IBgluPght03gNcoNqwz7p77TFbdOmUKF_PWy1bcdbaUoSg");
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
+            .roles(ROLE_WITH_DLS_FLS_FM_RULES_ON_INDEX)
             .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))
             .dataStreams(TEST_DATA_STREAM)
             .authzDebug(true)
             .authTokenService(AUTH_TOKEN_SERVICE)
-            .users(ADMIN, DEPT_A_USER, DEPT_D_USER, DEPT_D_TERMS_LOOKUP_USER, DEPT_D_VIA_ALIAS_USER, DEPT_D_DATA_STREAM_USER)
+            .users(ADMIN, DEPT_A_USER, DEPT_D_USER, DEPT_D_TERMS_LOOKUP_USER, DEPT_D_VIA_ALIAS_USER, DEPT_D_DATA_STREAM_USER, DLS_FLS_FM_USER)
             .resources(null)
             .enableModule(AuthTokenModule.class).useExternalProcessCluster().build();
 
@@ -176,11 +198,11 @@ public class AuthTokenDlsIntTest {
 
         try (GenericRestClient client = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + token))) {
             GenericRestClient.HttpResponse response = client.postJson(searchDataStreamUri, searchDataStreamA1);
-            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.docNodeSizeEqualTo("$.hits.hits", 0));
+            assertThat(response.getBodyAsDocNode(), docNodeSizeEqualTo("$.hits.hits", 0));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             response = client.postJson(searchDataStreamUri, searchDataStreamD);
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.docNodeSizeEqualTo("$.hits.hits", 1));
+            assertThat(response.getBodyAsDocNode(), docNodeSizeEqualTo("$.hits.hits", 1));
         }
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
@@ -192,8 +214,75 @@ public class AuthTokenDlsIntTest {
 
             response = client.postJson(searchDataStreamUri, searchDataStreamA1);
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.docNodeSizeEqualTo("$.hits.hits", 1));
+            assertThat(response.getBodyAsDocNode(), docNodeSizeEqualTo("$.hits.hits", 1));
         }
     }
 
+    @Test
+    public void roleChangesShouldNotAffectTokenWithFrozenPrivileges() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(DLS_FLS_FM_USER);
+             GenericRestClient adminCertClient = cluster.getAdminCertRestClient()) {
+            CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                    RequestedPrivileges.parseYaml("index_permissions:\n- index_patterns: '*'\n  allowed_actions: '*'"));
+
+            request.setFreezePrivileges(true);
+            request.setTokenName("my_new_token");
+
+            //create auth token when role has DLS FLS FM restrictions
+            GenericRestClient.HttpResponse response = client.postJson("/_searchguard/authtoken", request);
+            assertThat(response, isOk());
+            String accessToken = response.getBodyAsDocNode().getAsString("token");
+
+            //update role - remove DLS FLS FM restrictions
+            DocNode roleWithoutDlsFlsFmRestrictions = DocNode.of(
+                    "cluster_permissions", Collections.singletonList("*"),
+                    "index_permissions", DocNode.array(DocNode.of("index_patterns", Collections.singletonList(INDEX),
+                            "allowed_actions", Collections.singletonList("SGS_READ")))
+            );
+            response = adminCertClient.putJson("/_searchguard/api/roles/" + ROLE_WITH_DLS_FLS_FM_RULES_ON_INDEX.getName(), roleWithoutDlsFlsFmRestrictions);
+            assertThat(response, isOk());
+
+            TestData.TestDocument docDeptD = TEST_DATA.anyDocumentForDepartment("dept_d");
+            TestData.TestDocument docDeptA = TEST_DATA.anyDocumentForDepartment("dept_a_1");
+            assertThat(docDeptD, notNullValue());
+            assertThat(docDeptA, notNullValue());
+
+            String searchUrl = "/" + INDEX + "/_search?size=200";
+            String docDeptDUrl = "/" + INDEX + "/_doc/" + docDeptD.getId();
+            String docDeptAUrl = "/" + INDEX + "/_doc/" + docDeptA.getId();
+
+            //search & get docs using basic auth
+            response = client.get(searchUrl);
+            assertThat(response, isOk());
+            assertThat(response.getBodyAsDocNode().findByJsonPath("$.hits.hits[*]._source.dept"), not(everyItem(equalTo("dept_d"))));
+
+            response = client.get(docDeptDUrl);
+            assertThat(response, isOk());
+            assertThat(response.getBodyAsDocNode().getAsNode("_source").size(), greaterThan(3));
+            assertThat(response.getBodyAsDocNode(), containsValue("$._source.source_ip", docDeptD.getContent().get("source_ip")));
+            assertThat(response.getBodyAsDocNode(), containsValue("$._source.dest_ip", docDeptD.getContent().get("dest_ip")));
+
+            response = client.get(docDeptAUrl);
+            assertThat(response, isOk());
+
+            //search & get docs using auth tokens
+            try (GenericRestClient tokenClient = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + accessToken))) {
+                response = tokenClient.get(searchUrl);
+                assertThat(response, isOk());
+                assertThat(response.getBodyAsDocNode().findByJsonPath("$.hits.hits[*]._source.dept"), everyItem(equalTo("dept_d")));
+
+                response = tokenClient.get(docDeptDUrl);
+                assertThat(response, isOk());
+                assertThat(response.getBodyAsDocNode(), docNodeSizeEqualTo("$._source", 3));
+                assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$._source", "dept"));
+                assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$._source", "source_ip"));
+                assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$._source", "dest_ip"));
+                assertThat(response.getBodyAsDocNode(), containsValue("$._source.source_ip", docDeptD.getContent().get("source_ip")));
+                assertThat(response.getBodyAsDocNode(), not(containsValue("$._source.dest_ip", docDeptD.getContent().get("dest_ip"))));
+
+                response = tokenClient.get(docDeptAUrl);
+                assertThat(response, isNotFound());
+            }
+        }
+    }
 }
