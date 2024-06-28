@@ -64,7 +64,7 @@ public class ActionRequestIntrospectorTest {
                 .indicesOptions(IndicesOptions.strictSingleIndexNoExpandForbidClosed());
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(GetAliasesAction.NAME), request);
         assertThat(requestInfo, resolved(//
-                main().hasIndices("index_a1*").hasNoAliases().hasNoDataStreams(),
+                main().hasNoIndices().hasNoAliases().hasNoDataStreams(),
                 additional(Action.AdditionalDimension.ALIASES).hasNoIndices().hasAliases("alias_a", "alias_a1", "alias_a2").hasNoDataStreams()));
     }
 
@@ -86,7 +86,7 @@ public class ActionRequestIntrospectorTest {
 
         assertThat(requestInfo, resolved(//
                 main().hasIndices("index_a11").hasNoAliases().hasNoDataStreams(),
-                additional(Action.AdditionalDimension.ALIASES).hasNoIndices().hasAliases("alias_a*").hasNoDataStreams()));
+                additional(Action.AdditionalDimension.ALIASES).hasNoIndices().hasNoAliases().hasNoDataStreams()));
 
     }
 
@@ -118,7 +118,10 @@ public class ActionRequestIntrospectorTest {
                 .addAliasAction(AliasActions.removeIndex().indices("index_a11", "-index_a1*"));
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(IndicesAliasesAction.NAME), request);
 
-        assertThat(requestInfo, main().hasIndices("index_a11", "index_a12").hasNoAliases().hasNoDataStreams());
+        assertThat(requestInfo, resolved(
+                main().hasNoIndices().hasNoAliases().hasNoDataStreams(),
+                additional(Action.AdditionalDimension.DELETE_INDEX).hasIndices("index_a11", "index_a12").hasNoAliases().hasNoDataStreams()
+        ));
     }
 
     @Test

@@ -519,7 +519,7 @@ public class DataStreamAuthorizationReadWriteIntTests {
                 assertThat(httpResponse, isOk());
                 httpResponse = adminRestClient.put("/_data_stream/ds_bwx2");
                 assertThat(httpResponse, isOk());
-                httpResponse = restClient.postJson("/_aliases", DocNode.of("actions",
+                httpResponse = adminRestClient.postJson("/_aliases", DocNode.of("actions",
                         DocNode.array(DocNode.of("add.indices", DocNode.array("ds_bwx1", "ds_bwx2"), "add.alias", "alias_bwx"))));
                 assertThat(httpResponse, isOk());
             }

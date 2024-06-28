@@ -734,7 +734,7 @@ public class ActionRequestIntrospector {
             this.indicesArray = indicesRequest.indices();
             this.indicesOptions = indicesRequest.indicesOptions();
             this.allowsRemoteIndices = indicesRequest instanceof Replaceable ? ((Replaceable) indicesRequest).allowsRemoteIndices() : false;
-            this.includeDataStreams = indicesRequest.includeDataStreams();
+            this.includeDataStreams = indicesRequest.includeDataStreams() || scope.includeDataStreams();
             this.role = role;
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
