@@ -1492,6 +1492,7 @@ public class TestSgConfig {
         private String metrics;
         private String useImpl;
         private Boolean dlsAllowNow;
+        private String mode;
 
         public DlsFls() {
         }
@@ -1506,10 +1507,15 @@ public class TestSgConfig {
             return this;
         }
 
+        public DlsFls mode(String mode) {
+            this.mode = mode;
+            return this;
+        }
+
         @Override
         public Object toBasicObject() {
             return ImmutableMap.ofNonNull("debug", debug, "metrics", metrics, "use_impl", useImpl, "dls",
-                    ImmutableMap.ofNonNull("allow_now", dlsAllowNow));
+                    ImmutableMap.ofNonNull("allow_now", dlsAllowNow, "mode", mode));
         }
 
         @Override
