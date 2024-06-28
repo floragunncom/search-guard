@@ -16,6 +16,7 @@ package com.floragunn.searchguard.enterprise.dlsfls;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.search.BooleanClause.Occur;
@@ -100,8 +101,7 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
             if (privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext() != null
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                // TODO
-                //documentAuthorization = new RoleBasedDocumentAuthorization(roles, ImmutableSet.of(index), MetricsLevel.NONE);
+                documentAuthorization = new RoleBasedDocumentAuthorization(roles, indexMetaData, MetricsLevel.NONE);
             }
 
             DlsRestriction dlsRestriction = documentAuthorization.getRestriction(privilegesEvaluationContext, index, meter);

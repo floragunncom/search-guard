@@ -73,9 +73,8 @@ public class FlsQueryCacheWeightProvider implements SearchGuardModule.QueryCache
 
             if (context.getSpecialPrivilegesEvaluationContext() != null && context.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = context.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                ImmutableSet<String> indices = ImmutableSet.of(index.getName());
-               //fieldAuthorization = new RoleBasedFieldAuthorization(roles, indices, MetricsLevel.NONE); TODO
-               // fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indices, MetricsLevel.NONE);
+               fieldAuthorization = new RoleBasedFieldAuthorization(roles, baseContext.getIndexMetaData(), MetricsLevel.NONE);
+                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), baseContext.getIndexMetaData(), MetricsLevel.NONE);
             }
 
             if (fieldAuthorization.hasRestrictions(context, metaIndex, meter)

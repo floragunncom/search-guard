@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -76,8 +77,7 @@ public class FlsFieldFilter implements Function<String, Predicate<String>>, Comp
             if (privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext() != null
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                // TODO
-                // fieldAuthorization = new RoleBasedFieldAuthorization(roles, ImmutableSet.of(indexName), MetricsLevel.NONE);
+                 fieldAuthorization = new RoleBasedFieldAuthorization(roles, baseContext.getIndexMetaData(), MetricsLevel.NONE);
             }
 
             FlsRule flsRule = fieldAuthorization.getRestriction(privilegesEvaluationContext, index, meter);
