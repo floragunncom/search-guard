@@ -144,7 +144,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
                 return SyncAuthorizationFilter.Result.OK;
             }
 
-            DlsRestriction.IndexMap restrictionMap = null;
+            DlsRestriction.IndexMap restrictionMap = DlsRestriction.IndexMap.NONE;
 
             boolean doFilterLevelDls;
 
