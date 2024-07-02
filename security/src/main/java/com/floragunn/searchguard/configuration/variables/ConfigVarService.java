@@ -585,7 +585,7 @@ public class ConfigVarService implements ComponentStateProvider {
 
             threadPool.generic().submit(() -> {
                 try {
-                    Thread.sleep(10000 + new Random().nextInt(10000));
+                    Thread.sleep(10000 + new SecureRandom().nextInt(10000));
                     refreshSync();
                 } catch (InterruptedException e1) {
 
