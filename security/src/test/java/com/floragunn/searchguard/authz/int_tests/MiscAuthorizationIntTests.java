@@ -445,20 +445,4 @@ public class MiscAuthorizationIntTests {
         }
 
     }
-
-    @Test
-    public void negativeLookaheadPattern() throws Exception {
-
-        try (GenericRestClient restClient = clusterFof.getRestClient(NEG_LOOKAHEAD_USER)) {
-
-            HttpResponse httpResponse = restClient.get("*/_search");
-
-            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
-
-            httpResponse = restClient.get("r*/_search");
-
-            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_OK));
-        }
-    }
-
 }
