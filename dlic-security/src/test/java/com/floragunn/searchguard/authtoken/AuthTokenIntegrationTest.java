@@ -72,6 +72,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
 public class AuthTokenIntegrationTest {
+    public static final int MAX_TOKEN_PER_USER = 10;
     private static String SGCONFIG = //
             "_sg_meta:\n" + //
                     "  type: \"config\"\n" + //
@@ -84,7 +85,7 @@ public class AuthTokenIntegrationTest {
                     "      jwt_signing_key_hs512: \"" + TestJwk.OCT_1_K + "\"\n" + //
                     "      jwt_aud: \"searchguard_tokenauth\"\n" + //
                     "      max_validity: \"1y\"\n" + //
-                    "      max_tokens_per_user: 10\n" + //
+                    "      max_tokens_per_user: " + MAX_TOKEN_PER_USER + "\n" + //
                     "      token_cache:\n" + //
                     "        expire_after_write: 70m\n" + //
                     "        max_size: 100";
@@ -470,7 +471,7 @@ public class AuthTokenIntegrationTest {
 
             request.setTokenName("my_new_token");
 
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < MAX_TOKEN_PER_USER; i++) {
 
                 HttpResponse response = restClient.postJson("/_searchguard/authtoken", request);
 
@@ -1095,16 +1096,20 @@ public class AuthTokenIntegrationTest {
     @Test
     public void bulkConfigApi() throws Exception {
         DocNode config = DocNode.of("jwt_signing_key_hs512", TestJwk.OCT_1_K, "max_tokens_per_user", 100, "enabled", true);
-        HttpResponse httpResponse = cluster.callAndRestoreConfig(() -> {
-            try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {
+        try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {
+            try {
                 HttpResponse response = restClient.putJson("/_searchguard/config", DocNode.of("auth_token_service.content", config));
                 assertThat(response, isOk());
 
-                return restClient.get("/_searchguard/config");
+                HttpResponse httpResponse = restClient.get("/_searchguard/config");
+                assertThat(httpResponse, isOk());
+                assertThat(httpResponse.getBodyAsDocNode().get("auth_token_service", "content"), equalTo(config.toMap()));
+            } finally {
+                DocNode configToRestore = config.with("max_tokens_per_user", MAX_TOKEN_PER_USER);
+                HttpResponse response = restClient.putJson("/_searchguard/config", DocNode.of("auth_token_service.content", configToRestore));
+                assertThat(response, isOk());
             }
-        });
-        assertThat(httpResponse, isOk());
-        assertThat(httpResponse.getBodyAsDocNode().get("auth_token_service", "content"), equalTo(config.toMap()));
+        }
     }
 
     private static String getJwtHeaderValue(String jwt, String headerName) throws DocumentParseException {

@@ -224,7 +224,7 @@ public class MiscAuthorizationIntTests {
         try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient();
              GenericRestClient userClient = cluster.getRestClient("exclusion_test_user_basic", "secret")) {
 
-            GenericRestClient.HttpResponse finalResponse = cluster.callAndRestoreConfig(() -> {
+            GenericRestClient.HttpResponse finalResponse = cluster.callAndRestoreConfig(CType.AUTHZ, () -> {
                 GenericRestClient.HttpResponse httpResponse = adminCertClient.putJson("/_searchguard/config/authz", DocNode.of("debug", true));
                 assertThat(httpResponse, isOk());
 

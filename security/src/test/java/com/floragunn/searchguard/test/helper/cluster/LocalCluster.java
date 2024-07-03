@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -33,7 +32,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -42,12 +40,12 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import com.floragunn.codova.documents.DocNode;
-import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest;
@@ -300,65 +298,13 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         }
     }
 
-    private Optional<String> loadEncodedConfig(CType<?> configType, String searchGuardIndex) {
-        try (GenericRestClient adminCertRestClient = this.getAdminCertRestClient()) {
-            GenericRestClient.HttpResponse response = adminCertRestClient.get("/" + searchGuardIndex + "/_doc/" + configType.toLCString());
-            int statusCode = response.getStatusCode();
-            switch (statusCode) {
-                case HttpStatus.SC_NOT_FOUND:
-                    return Optional.empty();
-                case HttpStatus.SC_OK:
-                    return Optional.of(response.getBodyAsDocNode().getAsNode("_source").getAsString(configType.toLCString()));
-                default:
-                    throw new RuntimeException("Cannot load configuration from test cluster, response code '" + response.getStatusCode() + "' body: '" + response.getBody() + "'");
-            }
-        } catch (Exception e) {
-            throw new RuntimeException("Cannot load configuration from test cluster", e);
-        }
-    }
+    private static String loadConfig(CType<?> configType, Client client, String searchGuardIndex) {
+        GetResponse getResponse = client.get(new GetRequest(searchGuardIndex, configType.toLCString())).actionGet();
 
-    protected String loadConfig(CType<?> configType, String searchGuardIndex) {
-        return loadEncodedConfig(configType, searchGuardIndex) //
-            .map(encoded -> new String(Base64.getDecoder().decode(encoded))) //
-            .orElse(null);
-    }
-
-    public String getCurrentConfig() {
-        try(GenericRestClient adminCertRestClient = this.getAdminCertRestClient()) {
-            GenericRestClient.HttpResponse response = adminCertRestClient.get("/_searchguard/config");
-            if (response.getStatusCode() == HttpStatus.SC_OK) {
-                return response.getBody();
+        if (getResponse.isExists()) {
+            return new String(Base64.getDecoder().decode(String.valueOf(getResponse.getSource().get(configType.toLCString()))));
             } else {
-                throw new RuntimeException("Cannot load configuration from test cluster, response code '" + response.getStatusCode() + "' body: '" + response.getBody() + "'");
-            }
-        } catch (Exception e) {
-            throw new RuntimeException("Cannot load config", e);
-        }
-    }
-
-    /**
-     * Backup configuration of type <code>configTypeToRestore</code> before execution of {@link Callable}. Then
-     * {@link Callable} from parameter <code>callable</code> is executed. After execution of {@link Callable} the
-     * configuration is restored from backup created previously
-     * @param callable action to be executed after configuration backup is created and before the backup is restored.
-     */
-    public <T> T callAndRestoreConfig(Callable<T> callable) throws Exception {
-        String configuration = getCurrentConfig();
-        try {
-            return callable.call();
-        } finally {
-            replaceConfiguration(configuration);
-        }
-    }
-
-    private void replaceConfiguration(String configuration) {
-        try(GenericRestClient adminCertRestClient = this.getAdminCertRestClient()) {
-            GenericRestClient.HttpResponse response = adminCertRestClient.putJson("/_searchguard/config", configuration);
-            if (response.getStatusCode() != HttpStatus.SC_OK) {
-                throw new RuntimeException("Cannot store configuration in test cluster, response code '" + response.getStatusCode() + "' body: '" + response.getBody() + "'");
-            }
-        } catch (Exception e) {
-            throw new RuntimeException("Cannot replace configuration", e);
+            return null;
         }
     }
 
@@ -1027,7 +973,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         public <T> T callAndRestoreConfig(CType<?> configTypeToRestore, Callable<T> callable) throws Exception {
             try (Client client = PrivilegedConfigClient.adapt(this.getInternalNodeClient())) {
                 String searchGuardIndex = getConfigIndexName();
-                String configurationBackup = loadConfig(configTypeToRestore, searchGuardIndex);
+                String configurationBackup = loadConfig(configTypeToRestore, client, searchGuardIndex);
                 try {
                     return callable.call();
                 } finally {
@@ -1041,7 +987,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                 log.info("Updating config {}.{}:{}", configType, key, value);
                 String searchGuardIndex = getConfigIndexName();
 
-                String jsonDoc = loadConfig(configType, searchGuardIndex);
+                String jsonDoc = loadConfig(configType, client, searchGuardIndex);
                 NestedValueMap config = NestedValueMap.fromJsonString(jsonDoc);
 
                 if (Strings.isNullOrEmpty(key)) {

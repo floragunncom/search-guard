@@ -38,7 +38,7 @@ public class ConfigurationUpdater {
      * @param clientCallable {@link ClientCallable} for the user {@link #user} which will be invoked after configuration update
      */
     public <T> T callWithRole(Role desiredRole, ClientCallable<T> clientCallable) throws Exception {
-        return localCluster.callAndRestoreConfig(() -> {
+        return localCluster.callAndRestoreConfig(CType.ROLES, () -> {
             localCluster.updateRolesConfig(desiredRole);
             try (GenericRestClient client = localCluster.getRestClient(user)) {
                 return clientCallable.callClient(client);
@@ -57,7 +57,7 @@ public class ConfigurationUpdater {
      * @param clientCallable {@link ClientCallable} for the user {@link #user} which will be invoked after configuration update
      */
     public <T> T callWithMapping(RoleMapping roleMapping, ClientCallable<T> clientCallable) throws Exception {
-        return localCluster.callAndRestoreConfig(() -> {
+        return localCluster.callAndRestoreConfig(CType.ROLESMAPPING, () -> {
             localCluster.updateRolesMappingsConfig(roleMapping);
             try (GenericRestClient client = localCluster.getRestClient(user)) {
                 return clientCallable.callClient(client);
