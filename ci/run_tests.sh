@@ -5,7 +5,7 @@ set -e
 MODULE=$1
 MAVEN_CLI_OPTS="--batch-mode -s settings.xml"
 
-useradd es_test
+useradd -m es_test
 chown -R es_test .
 
 if [ "$TEST_CLUSTER_TYPE" == "full" ]; then
