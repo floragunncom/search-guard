@@ -1095,7 +1095,7 @@ public class AuthTokenIntegrationTest {
     @Test
     public void bulkConfigApi() throws Exception {
         DocNode config = DocNode.of("jwt_signing_key_hs512", TestJwk.OCT_1_K, "max_tokens_per_user", 100, "enabled", true);
-        HttpResponse httpResponse = cluster.callAndRestoreConfig(AuthTokenServiceConfig.TYPE,() -> {
+        HttpResponse httpResponse = cluster.callAndRestoreConfig(() -> {
             try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {
                 HttpResponse response = restClient.putJson("/_searchguard/config", DocNode.of("auth_token_service.content", config));
                 assertThat(response, isOk());
