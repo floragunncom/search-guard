@@ -91,7 +91,7 @@ public class SgPluginPackage {
 
         System.setProperty("maven.multiModuleProjectDirectory", projectRoot.getAbsolutePath());
         MavenCli cli = new MavenCli();
-        int rc = cli.doMain(new String[] { "--no-transfer-progress", "--batch-mode", "install", "-DskipTests=true", "-Pquick" },
+        int rc = cli.doMain(new String[] { "-X", "--no-transfer-progress", "--batch-mode", "install", "-DskipTests=true", "-Pquick" },
                 projectRoot.getAbsolutePath(), null, null);
 
         if (rc != 0) {
