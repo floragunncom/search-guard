@@ -34,6 +34,8 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.fluent.collections.UnmodifiableCollection;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.common.collect.ImmutableOpenMap;
 
 public abstract class MetaImpl implements Meta {
     private static final Logger log = LogManager.getLogger(MetaImpl.class);

@@ -165,11 +165,11 @@ public class ApiIntegrationTest {
                 Assert.assertEquals(putResponse.getBody(), 200, putResponse.getStatusCode());
 
                 HttpResponse getResponse = client.get("/_searchguard/config/authc_frontend");
-                Assert.assertEquals(getResponse.getBody(), 200, getResponse.getStatusCode());
-                Assert.assertEquals(
-                        getResponse.getBodyAsDocNode().findSingleValueByJsonPath("$.content.default.login_page.brand_image", String.class),
-                        "http://localhost:123/absolute/test.png"
-                );
+            Assert.assertEquals(getResponse.getBody(), 200, getResponse.getStatusCode());
+            Assert.assertEquals(
+                getResponse.getBodyAsDocNode().findSingleValueByJsonPath("$.content.default.login_page.brand_image", String.class),
+                "http://localhost:123/absolute/test.png"
+            );
                 return null;
             });
         }
@@ -188,11 +188,11 @@ public class ApiIntegrationTest {
                 Assert.assertEquals(putResponse.getBody(), 200, putResponse.getStatusCode());
 
                 HttpResponse getResponse = client.get("/_searchguard/config/authc_frontend/default");
-                Assert.assertEquals(getResponse.getBody(), 200, getResponse.getStatusCode());
-                Assert.assertEquals(
-                        getResponse.getBodyAsDocNode().findSingleValueByJsonPath("$.data.login_page.brand_image", String.class),
-                        "http://localhost:123/absolute/test.png"
-                );
+            Assert.assertEquals(getResponse.getBody(), 200, getResponse.getStatusCode());
+            Assert.assertEquals(
+                getResponse.getBodyAsDocNode().findSingleValueByJsonPath("$.data.login_page.brand_image", String.class),
+                "http://localhost:123/absolute/test.png"
+            );
                 return null;
             });
         }
@@ -218,11 +218,11 @@ public class ApiIntegrationTest {
                 Assert.assertEquals(patchResponse.getBody(), 200, patchResponse.getStatusCode());
 
                 HttpResponse getResponse = client.get("/_searchguard/config/authc_frontend");
-                Assert.assertEquals(getResponse.getBody(), 200, getResponse.getStatusCode());
-                Assert.assertEquals(
-                        getResponse.getBodyAsDocNode().findSingleValueByJsonPath("$.content.default.login_page.brand_image", String.class),
-                        "http://localhost:123/absolute/test.png"
-                );
+            Assert.assertEquals(getResponse.getBody(), 200, getResponse.getStatusCode());
+            Assert.assertEquals(
+                getResponse.getBodyAsDocNode().findSingleValueByJsonPath("$.content.default.login_page.brand_image", String.class),
+                "http://localhost:123/absolute/test.png"
+            );
                 return null;
             });
         }
@@ -240,11 +240,11 @@ public class ApiIntegrationTest {
                 Assert.assertEquals(patchResponse.getBody(), 200, patchResponse.getStatusCode());
 
                 HttpResponse getResponse = client.get("/_searchguard/config/authc_frontend/default");
-                Assert.assertEquals(getResponse.getBody(), 200, getResponse.getStatusCode());
-                Assert.assertEquals(
-                        getResponse.getBodyAsDocNode().findSingleValueByJsonPath("$.data.login_page.brand_image", String.class),
-                        "http://localhost:123/absolute/test.png"
-                );
+            Assert.assertEquals(getResponse.getBody(), 200, getResponse.getStatusCode());
+            Assert.assertEquals(
+                getResponse.getBodyAsDocNode().findSingleValueByJsonPath("$.data.login_page.brand_image", String.class),
+                "http://localhost:123/absolute/test.png"
+            );
                 return null;
             });
         }

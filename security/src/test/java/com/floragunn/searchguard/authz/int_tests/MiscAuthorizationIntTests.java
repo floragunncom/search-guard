@@ -224,7 +224,7 @@ public class MiscAuthorizationIntTests {
         try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient();
              GenericRestClient userClient = cluster.getRestClient("exclusion_test_user_basic", "secret")) {
 
-            cluster.callAndRestoreConfig(CType.AUTHZ, () -> {
+            GenericRestClient.HttpResponse finalResponse = cluster.callAndRestoreConfig(() -> {
                 GenericRestClient.HttpResponse httpResponse = adminCertClient.putJson("/_searchguard/config/authz", DocNode.of("debug", true));
                 assertThat(httpResponse, isOk());
 
@@ -235,13 +235,11 @@ public class MiscAuthorizationIntTests {
                 httpResponse = adminCertClient.putJson("/_searchguard/config/authz", DocNode.EMPTY);
                 assertThat(httpResponse, isOk());
 
-                httpResponse = userClient.get("alias_resolve_test_alias_1");
-                assertThat(httpResponse, isForbidden());
-                assertThat(httpResponse.getBody(), httpResponse.getBodyAsDocNode(),
-                        not(containsFieldPointedByJsonPath("error", "missing_permissions")));
-
-                return null;
+                 return userClient.get("alias_resolve_test_alias_1");
             });
+            assertThat(finalResponse, isForbidden());
+            assertThat(finalResponse.getBody(), finalResponse.getBodyAsDocNode(),
+                not(containsFieldPointedByJsonPath("error", "missing_permissions")));
         }
     }
 
