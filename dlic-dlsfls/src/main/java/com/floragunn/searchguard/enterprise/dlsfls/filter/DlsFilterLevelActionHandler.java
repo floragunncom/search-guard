@@ -358,7 +358,7 @@ public class DlsFilterLevelActionHandler {
 
         int queryCount = 0;
 
-        for (Meta.IndexLikeObject index : resolved.getLocal().getUnion()) {
+        for (Meta.IndexLikeObject index : Meta.IndexLikeObject.resolveDeep(resolved.getLocal().getUnion())) {
             String prefixedIndex;
 
             if (localClusterAlias != null) {

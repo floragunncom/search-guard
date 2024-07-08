@@ -159,6 +159,8 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
 
                 if (modeByHeader == Mode.FILTER_LEVEL) {
                     doFilterLevelDls = true;
+                    restrictionMap = documentAuthorization.getRestriction(context,
+                            Meta.IndexLikeObject.resolveDeep(resolvedIndices.getLocal().getUnion()), meter);
                     log.debug("Doing filter-level DLS due to header");
                 } else {
                     restrictionMap = documentAuthorization.getRestriction(context,
