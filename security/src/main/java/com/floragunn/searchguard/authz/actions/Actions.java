@@ -240,9 +240,9 @@ public class Actions {
         indexLike(IndicesShardStoresAction.INSTANCE);
 
         index(CreateIndexAction.INSTANCE)
-            //.additionalDimensions(MANAGE_ALIASES); // TODO ds_onES8
             .requestType(CreateIndexRequest.class)//
-            .requiresAdditionalPrivileges(ifNotEmpty(CreateIndexRequest::aliases), "indices:admin/aliases");
+            .requiresAdditionalPrivileges(ifNotEmpty(CreateIndexRequest::aliases), "indices:admin/aliases")
+            .additionalDimensions(MANAGE_ALIASES);
         index(OpenIndexAction.INSTANCE);
         index(CloseIndexAction.INSTANCE);
         index(ResizeAction.INSTANCE).additionalDimensions(RESIZE_TARGET);
@@ -260,7 +260,8 @@ public class Actions {
         indexLike(IndicesAliasesAction.INSTANCE) //
             .requestType(IndicesAliasesRequest.class)//
             .requestItems(IndicesAliasesRequest::getAliasActions, IndicesAliasesRequest.AliasActions::actionType)//
-            .requiresAdditionalPrivilegesForItemType(AliasActions.Type.REMOVE_INDEX, "indices:admin/delete").additionalDimensions(ALIASES);
+            .requiresAdditionalPrivilegesForItemType(AliasActions.Type.REMOVE_INDEX, "indices:admin/delete")
+            .additionalDimensions(ALIASES);
 
         indexLike(UpdateSettingsAction.INSTANCE);
         indexLike(AnalyzeAction.INSTANCE);
