@@ -223,7 +223,7 @@ public class DlsFilterLevelActionHandler {
 
             @Override
             public void onFailure(Exception e) {
-                log.error("XXX", e); // TODO ds_onES8
+                log.error("DLS filter level failure", e);
                 listener.onFailure(e);
             }
         });

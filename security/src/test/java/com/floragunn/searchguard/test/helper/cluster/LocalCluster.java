@@ -342,25 +342,12 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             this.localEsCluster = result;
 
             createTemplates();
-//<<<<<<< HEAD // TODO ds_onES8 check conflicts resolution
             Client client = result.clientNode().getInternalNodeClient();
             for (TestIndex index : this.testIndices) {
                 index.create(client);
             }
             for (TestAlias alias : this.testAliases) {
                 alias.create(client);
-//=======
-//
-//
-//            try (Client client = result.clientNode().getInternalNodeClient()) {
-//                for (TestIndex index : this.testIndices) {
-//                    index.create(client);
-//                }
-//                // DataStreams are not available on the embedded cluster
-//                for (TestAlias alias : this.testAliases) {
-//                    alias.create(client);
-//                }
-//>>>>>>> 0363c1d79... First shot at privilege evaluation support for aliases/ds. WIP.
             }
 
             if (testSgConfig != null) {

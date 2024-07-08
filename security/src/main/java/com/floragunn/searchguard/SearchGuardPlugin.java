@@ -255,7 +255,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     }
 
     private final SslExceptionHandler evaluateSslExceptionHandler() {
-        // TODO ds_onES8 client is not present in the branch main-es
         if (disabled || sslOnly) {
             return new SslExceptionHandler() {
             };
@@ -377,7 +376,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             }
         }
 
-        // TODO ds_onES8 client is not present in the branch main-es
         if (!settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES, false)) {
             //check for demo certificates
             final List<String> files = AccessController.doPrivileged(new PrivilegedAction<List<String>>() {

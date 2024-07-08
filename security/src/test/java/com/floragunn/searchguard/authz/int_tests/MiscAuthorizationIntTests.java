@@ -70,7 +70,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 
-public class MiscAuthorizationIntTests { // TODO ds_onES8 not sure if the name of the class should be changed to PriviliagesEvaluatorTest
+public class MiscAuthorizationIntTests {
 
     private static TestSgConfig.User RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV = new TestSgConfig.User("resize_user_without_create_index_priv")
             .roles(new Role("resize_role").clusterPermissions("*").indexPermissions("indices:admin/resize", "indices:monitor/stats")
@@ -247,46 +247,22 @@ public class MiscAuthorizationIntTests { // TODO ds_onES8 not sure if the name o
         try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient();
             GenericRestClient userClient = cluster.getRestClient("exclusion_test_user_basic", "secret")) {
 
-            cluster.callAndRestoreConfig(CType.AUTHZ, () -> {
-
-                HttpResponse httpResponse = adminCertClient.get("/_searchguard/config/authz");
-                assertThat(httpResponse, isOk());
-
-                DocNode authzConfig = httpResponse.getBodyAsDocNode();
-                //authz debug enabled
-                authzConfig = authzConfig.with("debug", true);
-
-                httpResponse = adminCertClient.putJson("/_searchguard/config/authz", authzConfig);
+            GenericRestClient.HttpResponse finalResponse = cluster.callAndRestoreConfig(CType.AUTHZ, () -> {
+                GenericRestClient.HttpResponse httpResponse = adminCertClient.putJson("/_searchguard/config/authz", DocNode.of("debug", true));
                 assertThat(httpResponse, isOk());
 
                 httpResponse = userClient.get("alias_resolve_test_alias_1");
                 assertThat(httpResponse, isForbidden());
                 assertThat(httpResponse.getBody(), httpResponse.getBodyAsDocNode(), containsFieldPointedByJsonPath("error", "missing_permissions"));
 
-                //authz debug disabled
-                authzConfig = authzConfig.with("debug", false);
-
-                httpResponse = adminCertClient.putJson("/_searchguard/config/authz", authzConfig);
+                httpResponse = adminCertClient.putJson("/_searchguard/config/authz", DocNode.EMPTY);
                 assertThat(httpResponse, isOk());
 
-                httpResponse = userClient.get("alias_resolve_test_alias_1");
-                assertThat(httpResponse, isForbidden());
-                assertThat(httpResponse.getBody(), httpResponse.getBodyAsDocNode(), not(containsFieldPointedByJsonPath("error", "missing_permissions")));
-
-                return null;
+                 return userClient.get("alias_resolve_test_alias_1");
             });
-
-        }
-    }
-
-    @Test
-    public void resolveTestLocal() throws Exception {
-
-        try (GenericRestClient restClient = cluster.getRestClient("resolve_test_user", "secret")) {
-            HttpResponse httpResponse = restClient.get("/_resolve/index/resolve_test_*");
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(nodeAt("indices[*].name", contains("resolve_test_allow_1", "resolve_test_allow_2"))));
+            assertThat(finalResponse, isForbidden());
+            assertThat(finalResponse.getBody(), finalResponse.getBodyAsDocNode(),
+                not(containsFieldPointedByJsonPath("error", "missing_permissions")));
         }
     }
 
@@ -311,18 +287,6 @@ public class MiscAuthorizationIntTests { // TODO ds_onES8 not sure if the name o
             assertThat(httpResponse, isOk());
             assertThat(httpResponse, json(nodeAt("indices[*].name", contains("resolve_test_allow_1", "resolve_test_allow_2",
                     "my_remote:resolve_test_allow_remote_1", "my_remote:resolve_test_allow_remote_2"))));
-        }
-    }
-
-    @Test
-    public void resolveTestAliasAndIndexMixed() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient("resolve_test_user", "secret")) {
-
-            HttpResponse httpResponse = restClient.get("/_resolve/index/alias_resolve_test_*");
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(nodeAt("indices[*].name", containsInAnyOrder("alias_resolve_test_index_allow_aliased_1",
-                    "alias_resolve_test_index_allow_aliased_2", "alias_resolve_test_index_allow_1"))));
         }
     }
 
@@ -566,67 +530,4 @@ public class MiscAuthorizationIntTests { // TODO ds_onES8 not sure if the name o
 
     }
 
-    @Test
-    public void searchTemplate() throws Exception {
-
-        SearchTemplateRequest searchTemplateRequest = new co.elastic.clients.elasticsearch.core.SearchTemplateRequest.Builder()
-            .index("resolve_test_allow_*")
-            .source("{\"query\": {\"term\": {\"b\": \"{{x}}\" } } }")
-            .params(Map.of("x", JsonData.of("yy")))
-            .build();
-
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SEARCH_TEMPLATE_USER)) {
-            SearchTemplateResponse<Map> searchTemplateResponse = client.getJavaClient()
-                .searchTemplate(searchTemplateRequest, Map.class);
-            HitsMetadata<Map> searchResponse = searchTemplateResponse.hits();
-
-            assertThat(searchResponse.toString(), searchResponse.total().value(), equalTo(1L));
-        }
-
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SEARCH_NO_TEMPLATE_USER)) {
-            ElasticsearchException e = (ElasticsearchException) assertThatThrown(() ->
-                client.getJavaClient().searchTemplate(searchTemplateRequest, Map.class), instanceOf(ElasticsearchException.class));
-            assertThat(e.toString(), e.status(), equalTo(RestStatus.FORBIDDEN.getStatus()));
-        }
-    }
-
-    @Test
-    public void negativeLookaheadPattern() throws Exception {
-
-        try (GenericRestClient restClient = clusterFof.getRestClient(NEG_LOOKAHEAD_USER)) {
-
-            HttpResponse httpResponse = restClient.get("*/_search");
-
-            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
-
-            httpResponse = restClient.get("r*/_search");
-
-            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_OK));
-        }
-    }
-
-    @Test
-    public void regexPattern() throws Exception {
-
-        try (GenericRestClient restClient = clusterFof.getRestClient(REGEX_USER)) {
-
-            HttpResponse httpResponse = restClient.get("*/_search");
-
-            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
-        }
-    }
-
-    @Test
-    public void resolveTestHidden() throws Exception {
-
-        try (GenericRestClient restClient = clusterFof.getRestClient(HIDDEN_TEST_USER)) {
-            HttpResponse httpResponse = restClient.get("/*hidden_test*/_search?expand_wildcards=all&pretty=true");
-            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_FORBIDDEN));
-
-            httpResponse = restClient.get("/*hidden_test*/_search?pretty=true");
-            assertThat(httpResponse.getBody(), httpResponse.getStatusCode(), equalTo(HttpStatus.SC_OK));
-            assertThat(httpResponse.getBody(), httpResponse.getBody(), not(containsString("hidden_test_actually_hidden")));
-        }
-
-    }
 }

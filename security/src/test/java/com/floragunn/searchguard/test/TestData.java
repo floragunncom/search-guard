@@ -107,14 +107,8 @@ public class TestData {
         long start = System.currentTimeMillis();
 
 
-        // TODO ds_onES8 figure out which version is valid
-//<<<<<<< HEAD
         client.admin().indices()
                 .create(new CreateIndexRequest(name).settings(settings).simpleMapping(timestampAttributeName, "type=date,format=date_optional_time"))
-//=======
-//        client.admin().indices().create(
-//                new CreateIndexRequest(name).settings(settings).mapping("_doc", timestampAttributeName, "type=date,format=date_optional_time"))
-//>>>>>>> 0363c1d79... First shot at privilege evaluation support for aliases/ds. WIP.
                 .actionGet();
         int nextRefresh = (int) Math.floor((random.nextGaussian() * 0.5 + 0.5) * refreshAfter);
         int i = 0;
