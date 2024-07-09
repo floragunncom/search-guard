@@ -37,14 +37,14 @@ public class TestAlias implements TestIndexLike {
     private final ImmutableSet<TestIndexLike> indices;
     private Set<String> documentIds;
     private Map<String, Map<String, ?>> documents;
-    private TestIndex writeIndex;
+    private TestIndexLike writeIndex;
 
     public TestAlias(String name, TestIndexLike... indices) {
         this.name = name;
         this.indices = ImmutableSet.ofArray(indices);
     }
 
-    public TestAlias writeIndex(TestIndex writeIndex) {
+    public TestAlias writeIndex(TestIndexLike writeIndex) {
         this.writeIndex = writeIndex;
         return this;
     }

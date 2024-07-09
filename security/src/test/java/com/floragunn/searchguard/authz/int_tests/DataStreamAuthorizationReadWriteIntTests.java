@@ -57,7 +57,7 @@ public class DataStreamAuthorizationReadWriteIntTests {
     static TestDataStream ds_hidden = TestDataStream.name("ds_hidden").documentCount(10).rolloverAfter(3).seed(8).attr("prefix", "h").build();
 
     static TestAlias alias_ab1r = new TestAlias("alias_ab1r", ds_ar1, ds_ar2, ds_aw1, ds_aw2, ds_br1, ds_bw1);
-    // static TestAlias alias_ab1w = new TestAlias("alias_ab1w", ds_aw1, ds_aw2, ds_bw1).writeIndex(ds_aw1);
+    static TestAlias alias_ab1w = new TestAlias("alias_ab1w", ds_aw1, ds_aw2, ds_bw1).writeIndex(ds_aw1);
     static TestAlias alias_ab1w_nowriteindex = new TestAlias("alias_ab1w_nowriteindex", ds_aw1, ds_aw2, ds_bw1);
 
     static TestAlias alias_c1 = new TestAlias("alias_c1", index_cr1);
@@ -257,7 +257,7 @@ public class DataStreamAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_WRITE", "indices:admin/refresh").on("ds_aw1")//
+                            .dataStreamPermissions("SGS_WRITE").on("ds_aw1")//
                             .aliasPermissions("SGS_READ").on("alias_ab1w"))//
             .indexMatcher("read", limitedTo(ds_aw1, ds_aw2, ds_bw1))//
             .indexMatcher("write", limitedTo(ds_aw1)) // alias_ab1w is included because ds_aw1 is the write index of alias_ab1w
@@ -362,7 +362,7 @@ public class DataStreamAuthorizationReadWriteIntTests {
             .indexTemplates(new TestIndexTemplate("ds_hidden", "ds_hidden*").priority(10).dataStream("hidden", true)
                     .composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
             .indices(index_cr1, index_cw1)//
-            .aliases(alias_ab1r, alias_ab1w_nowriteindex, alias_c1)//
+            .aliases(alias_ab1w, alias_ab1r, alias_ab1w_nowriteindex, alias_c1)//
             .dataStreams(ds_ar1, ds_ar2, ds_aw1, ds_aw2, ds_br1, ds_br2, ds_bw1, ds_bw2, ds_hidden)//
             .authzDebug(true)//
             .useExternalProcessCluster().build();
@@ -401,12 +401,18 @@ public class DataStreamAuthorizationReadWriteIntTests {
             HttpResponse httpResponse = restClient.postJson("/ds_aw*,ds_bw*/_delete_by_query?refresh=true&wait_for_completion=true",
                     DocNode.of("query.term.delete_by_query_test_delete", "yes"));
 
-            if (containsExactly(ds_aw1, ds_aw2, ds_bw1, ds_bw2).at("_index").but(user.indexMatcher("write")).isEmpty()) {
-                assertThat(httpResponse, isForbidden());
-            } else {
+            //DeleteByQueryRequest#includeDataStreams() returns false, indices are selected based on the following SearchRequest (read permissions)
+            if (containsExactly(ds_aw1, ds_aw2, ds_bw1, ds_bw2).at("_index").but(user.indexMatcher("read")).isEmpty()) {
+                //it won't delete anything
+                assertThat(httpResponse, isOk());
+            } else if (containsExactly(ds_aw1, ds_aw2, ds_bw1, ds_bw2).at("_index").but(user.indexMatcher("read")).isCoveredBy(user.indexMatcher("write"))) {
+                //user can remove all docs found by search request
                 assertThat(httpResponse, isOk());
                 int expectedDeleteCount = containsExactly(ds_aw1, ds_bw1).at("_index").but(user.indexMatcher("write")).size();
                 assertThat(httpResponse, json(nodeAt("deleted", equalTo(expectedDeleteCount))));
+            } else {
+                //user cannot remove all docs found by search request
+                assertThat(httpResponse, isForbidden());
             }
         } finally {
             deleteTestDocs("deleteByQuery_indexPattern", "ds_aw*,ds_bw*");
