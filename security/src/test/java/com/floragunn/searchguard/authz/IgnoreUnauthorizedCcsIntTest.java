@@ -238,7 +238,7 @@ public class IgnoreUnauthorizedCcsIntTest {
     }
 
     @Test
-    @Ignore("NoSuchRemoteClusterException: no such remote cluster: []") // TODO ds_onES8 the test was ignored on main-es8 branch
+    @Ignore("NoSuchRemoteClusterException: no such remote cluster: []")
     public void search_emptyClusterName() throws Exception {
         String query = ":*/_search?size=1000&" + ccsMinimizeRoundtrips;
 

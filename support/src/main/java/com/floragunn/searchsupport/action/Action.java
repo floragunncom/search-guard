@@ -182,12 +182,11 @@ public abstract class Action<RequestType extends Action.Request, ResponseType ex
         public void writeTo(StreamOutput out) throws IOException {
             out.writeByte((byte) 0);
             out.writeByte((byte) 0);
-            out.writeGenericMap(ImmutableMap.ofNonNull("status", restStatus, "etag", concurrencyControlEntityTag)); // TODO ds_onES8
+            out.writeGenericMap(ImmutableMap.ofNonNull("status", restStatus, "etag", concurrencyControlEntityTag));
             out.writeByte(MessageType.SMILE);
             out.writeByteArray(this.toSmile());
         }
 
-        //@Override TODO ds_onES8
         public final RestStatus status() {
             RestStatus result = RestStatus.fromCode(restStatus);
 

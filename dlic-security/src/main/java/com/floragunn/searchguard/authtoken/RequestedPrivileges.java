@@ -67,8 +67,8 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         this.excludedIndexPermissions = ImmutableList.of(in.readCollectionAsList(ExcludedIndexPermissions::new));
         List<String> roles = in.readOptionalStringCollectionAsList();
         this.roles = roles != null ? ImmutableList.of(roles) : null;
-        this.aliasPermissions = ImmutableList.ofArray(in.readArray(AliasPermissions::new, size -> new AliasPermissions[size])); // TODO ds_onES8 verify if correct method is used to read array
-        this.dataStreamPermissions = ImmutableList.of(in.readCollectionAsList(DataStreamPermissions::new)); // TODO ds_onES8 verify if correct method is used to read list
+        this.aliasPermissions = ImmutableList.of(in.readCollectionAsList(AliasPermissions::new));
+        this.dataStreamPermissions = ImmutableList.of(in.readCollectionAsList(DataStreamPermissions::new));
     }
 
     RequestedPrivileges(List<String> clusterPermissions, List<IndexPermissions> indexPermissions, List<TenantPermissions> tenantPermissions,
@@ -226,8 +226,8 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         out.writeStringCollection(excludedClusterPermissions);
         out.writeCollection(excludedIndexPermissions);
         out.writeOptionalStringCollection(roles);
-        out.writeGenericList(aliasPermissions, (stream, aliasPermission) -> aliasPermission.writeTo(stream)); // TODO ds_onES8 method writeList removed from StreamOutput verify replacement
-        out.writeGenericList(dataStreamPermissions, (stream, dataStreamPermission) -> dataStreamPermission.writeTo(stream)); // TODO ds_onES8 method writeList removed from StreamOutput verify replacement
+        out.writeCollection(aliasPermissions);
+        out.writeCollection(dataStreamPermissions);
     }
 
     public static class IndexPermissions implements Writeable, ToXContentObject, Serializable {
@@ -438,7 +438,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         }
 
         AliasPermissions(StreamInput in) throws IOException {
-            this.aliasPatterns =  ImmutableList.map(in.readStringCollectionAsList(), (s) -> { // TODO ds_onES8 verify if correct method is used to read list
+            this.aliasPatterns =  ImmutableList.map(in.readStringCollectionAsList(), (s) -> {
                 try {
                     return new Template<>(s, Pattern::create);
                 } catch (ConfigValidationException e) {
@@ -446,7 +446,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
                     return null;
                 }
             });
-            this.allowedActions = ImmutableList.of(in.readStringCollectionAsList()); // TODO ds_onES8 verify if correct method is used to read list
+            this.allowedActions = ImmutableList.of(in.readStringCollectionAsList());
         }
 
         @Override
@@ -535,7 +535,6 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         }
 
         DataStreamPermissions(StreamInput in) throws IOException {
-            // TODO ds_onES8 method in.readStringList replaced with readStringCollectionAsList, verify if correct
             this.dataStreamPatterns =  ImmutableList.map(in.readStringCollectionAsList(), (s) -> {
                 try {
                     return new Template<>(s, Pattern::create);
@@ -544,7 +543,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
                     return null;
                 }
             });
-            this.allowedActions = ImmutableList.of(in.readStringCollectionAsList());// TODO ds_onES8 method in.readStringList replaced with readStringCollectionAsList, verify if correct
+            this.allowedActions = ImmutableList.of(in.readStringCollectionAsList());
         }
 
         @Override

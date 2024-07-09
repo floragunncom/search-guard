@@ -75,7 +75,6 @@ import org.elasticsearch.action.admin.cluster.tasks.PendingClusterTasksAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
-//import org.elasticsearch.action.admin.indices.alias.exists.AliasesExistAction; // TODO ds_onES8
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
 import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheAction;
@@ -151,8 +150,6 @@ import org.elasticsearch.persistent.StartPersistentTaskAction;
 import org.elasticsearch.persistent.UpdatePersistentTaskStatusAction;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.rest.root.MainRestPlugin;
-import org.elasticsearch.rest.root.RestMainAction;
-import org.elasticsearch.xcontent.ToXContent;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -165,7 +162,6 @@ import com.floragunn.searchguard.authc.internal_users_db.InternalUsersConfigApi;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.authc.session.backend.SessionApi;
 import com.floragunn.searchguard.authz.ActionAuthorization.AliasDataStreamHandling;
-import com.floragunn.searchguard.authz.actions.Action.AdditionalDimension;
 import com.floragunn.searchguard.authz.actions.Action.Scope;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
 import com.floragunn.searchguard.authz.actions.Action.WellKnownAction.AdditionalPrivileges;
@@ -250,7 +246,6 @@ public class Actions {
         indexLike(RolloverAction.INSTANCE);
         indexLike(DeleteIndexAction.INSTANCE);
         indexLike(GetIndexAction.INSTANCE);
-//        indexLike(IndicesExistsAction.INSTANCE); // TODO ds_onES8
         indexLike(AddIndexBlockAction.INSTANCE);
         indexLike(GetMappingsAction.INSTANCE);
         indexLike(GetFieldMappingsAction.INSTANCE);
@@ -339,15 +334,10 @@ public class Actions {
         indexLike(RefreshAction.INSTANCE);
         indexLike(TransportShardRefreshAction.NAME);
         indexLike(FlushAction.INSTANCE);
-//        indexLike(SyncedFlushAction.INSTANCE); // TODO ds_onES8
         indexLike(ForceMergeAction.INSTANCE);
-//        indexLike(UpgradeAction.INSTANCE); // TODO ds_onES8
-//        indexLike(UpgradeStatusAction.INSTANCE);
-//        indexLike(UpgradeSettingsAction.INSTANCE); // TODO ds_onES8
         indexLike(ClearIndicesCacheAction.INSTANCE);
 
         indexLike(GetAliasesAction.INSTANCE).additionalDimensions(ALIASES);
-//        indexLike(AliasesExistAction.INSTANCE).additionalDimensions(ALIASES); // TODO ds_onES8
         indexLike(GetSettingsAction.INSTANCE);
 
         indexLike(FieldCapabilitiesAction.INSTANCE);
