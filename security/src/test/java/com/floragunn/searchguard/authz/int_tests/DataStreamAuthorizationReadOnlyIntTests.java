@@ -26,12 +26,22 @@ import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncluding
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncludingSearchGuardIndices;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
+import static com.floragunn.searchguard.test.RestMatchers.json;
+import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.TestAlias;
+import com.floragunn.searchguard.test.TestComponentTemplate;
+import com.floragunn.searchguard.test.TestDataStream;
+import com.floragunn.searchguard.test.TestIndex;
+import com.floragunn.searchguard.test.TestIndexTemplate;
+import com.floragunn.searchguard.test.TestSgConfig;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -39,14 +49,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.TestAlias;
-import com.floragunn.searchguard.test.TestComponentTemplate;
-import com.floragunn.searchguard.test.TestDataStream;
-import com.floragunn.searchguard.test.TestIndex;
-import com.floragunn.searchguard.test.TestIndexTemplate;
-import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
@@ -288,7 +291,10 @@ public class DataStreamAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1,-ds_b1/_search?size=1000");
             if (containsExactly(ds_a1, ds_a2, ds_b1).at("hits.hits[*]._index").isCoveredBy(user.indexMatcher("read"))) {
+                // A 404 error is also acceptable if we get ES complaining about -ds_b1. This will be the case for users with full permissions
                 assertThat(httpResponse, isNotFound());
+                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
+                assertThat(httpResponse, json(nodeAt("error.reason", equalTo("no such index [-ds_b1]"))));
             } else {
                 assertThat(httpResponse, isForbidden());
             }
