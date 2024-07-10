@@ -20,7 +20,6 @@ package com.floragunn.searchguard.test;
 import java.util.Map;
 import java.util.Set;
 
-import com.floragunn.codova.documents.DocNode;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
@@ -74,15 +73,6 @@ public class TestIndex implements TestIndexLike {
 
     public static Builder name(String name) {
         return new Builder().name(name);
-    }
-
-    public void addDocument(GenericRestClient client, String id, Map<String, Object> source) throws Exception {
-        GenericRestClient.HttpResponse response = client.putJson(name + "/_create/" + id + "?refresh=true", DocNode.wrap(source));
-
-        if (response.getStatusCode() != 201) {
-            throw new RuntimeException("Error while creating document " + id + " in " + name + "\n" + response);
-        }
-        testData.additionalDocument(id, source);
     }
 
     public static class Builder {
@@ -148,6 +138,11 @@ public class TestIndex implements TestIndexLike {
 
         public Builder attr(String name, Object value) {
             testDataBuilder.attr(name, value);
+            return this;
+        }
+
+        public Builder customDocument(String id, Map<String, Object> source) {
+            testDataBuilder.customDocument(id, source);
             return this;
         }
 

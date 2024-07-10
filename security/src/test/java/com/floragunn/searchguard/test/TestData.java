@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -85,7 +86,8 @@ public class TestData {
     private String timestampAttributeName;
 
     public TestData(int seed, int size, int deletedDocumentCount, int refreshAfter, int rolloverAfter,
-            ImmutableMap<String, Object> additionalAttributes, String timestampAttributeName) {
+                    ImmutableMap<String, Object> additionalAttributes, String timestampAttributeName,
+                    Map<String, Map<String, Object>> customDocuments) {
         Random random = new Random(seed);
         this.ipAddresses = createRandomIpAddresses(random);
         this.locationNames = createRandomLocationNames(random);
@@ -95,7 +97,7 @@ public class TestData {
         this.rolloverAfter = rolloverAfter;
         this.additionalAttributes = additionalAttributes;
         this.timestampAttributeName = timestampAttributeName;
-        createTestDocuments(random);
+        createTestDocuments(random, customDocuments);
         this.subRandomSeed = random.nextLong();
     }
 
@@ -216,19 +218,14 @@ public class TestData {
         }
     }
 
-    private void createTestDocuments(Random random) {
+    private void createTestDocuments(Random random, Map<String, Map<String, Object>> customDocuments) {
 
-        Map<String, Map<String, ?>> allDocuments = new HashMap<>(size);
+        Map<String, Map<String, Object>> customDocumentsWithTestAttributes = addTestDocAttributesToCustomDocuments(random, customDocuments);
+
+        Map<String, Map<String, ?>> allDocuments = new HashMap<>(size + customDocumentsWithTestAttributes.size());
 
         for (int i = 0; i < size; i++) {
-            ImmutableMap<String, Object> document = ImmutableMap
-                    .<String, Object>of("source_ip", randomIpAddress(random), "dest_ip", randomIpAddress(random), "source_loc",
-                            randomLocationName(random), "dest_loc", randomLocationName(random), "dept", randomDepartmentName(random))
-                    .with(timestampAttributeName, randomTimestamp(random));
-
-            if (additionalAttributes != null && additionalAttributes.size() != 0) {
-                document = document.with(additionalAttributes);
-            }
+            ImmutableMap<String, Object> document = randomDocument(random);
 
             String id = randomId(random);
 
@@ -248,6 +245,9 @@ public class TestData {
             deletedDocuments.add(id);
             retainedDocuments.remove(id);
         }
+
+        allDocuments.putAll(customDocumentsWithTestAttributes);
+        retainedDocuments.putAll(customDocumentsWithTestAttributes);
 
         Map<String, Map<String, Map<String, ?>>> documentsByDepartment = new HashMap<>();
 
@@ -291,6 +291,25 @@ public class TestData {
         Collections.shuffle(result, random);
 
         return result.toArray(new String[result.size()]);
+    }
+
+    private ImmutableMap<String, Object>  randomDocument(Random random) {
+        return ImmutableMap
+                .<String, Object>of("source_ip", randomIpAddress(random), "dest_ip", randomIpAddress(random), "source_loc",
+                        randomLocationName(random), "dest_loc", randomLocationName(random), "dept", randomDepartmentName(random))
+                .with(timestampAttributeName, randomTimestamp(random))
+                .with(Optional.ofNullable(additionalAttributes).orElse(ImmutableMap.empty()));
+    }
+
+    private Map<String, Map<String, Object>> addTestDocAttributesToCustomDocuments(Random random, Map<String, Map<String, Object>> customDocuments) {
+        HashMap<String, Map<String, Object>> customDocsWithTestAttributes = new HashMap<>(customDocuments.size());
+        customDocuments.forEach((customDocId, customDocSource) -> {
+            ImmutableMap<String, Object> customDocWithTestAttributes = randomDocument(random)
+                    .with(ImmutableMap.of(customDocSource));
+            customDocsWithTestAttributes.put(customDocId, customDocWithTestAttributes);
+
+        });
+        return customDocsWithTestAttributes;
     }
 
     private String randomIpAddress(Random random) {
@@ -362,17 +381,6 @@ public class TestData {
         return new TestDocument(entry.getKey(), entry.getValue());
     }
 
-    public void additionalDocument(String id, Map<String, Object> source) {
-        this.allDocuments = ImmutableMap.of(allDocuments).with(id, source);
-        this.retainedDocuments = ImmutableMap.of(retainedDocuments).with(id, source);
-        Object dept = source.get("dept");
-        if (dept instanceof String) {
-            documentsByDepartment.computeIfPresent((String) source.get("dept"), (k, v) -> {v.put(id, source); return v;});
-        } else {
-            throw new RuntimeException("Document: %s doesn't contain a 'dept' attribute of String type");
-        }
-    }
-
     private static class Key {
 
         private final int seed;
@@ -380,14 +388,17 @@ public class TestData {
         private final int deletedDocumentCount;
         private final int refreshAfter;
         private final ImmutableMap<String, Object> additionalAttributes;
+        private final ImmutableMap<String, Map<String, Object>> customDocuments;
 
-        public Key(int seed, int size, int deletedDocumentCount, int refreshAfter, ImmutableMap<String, Object> additionalAttributes) {
+        public Key(int seed, int size, int deletedDocumentCount, int refreshAfter, ImmutableMap<String, Object> additionalAttributes,
+                   ImmutableMap<String, Map<String, Object>> customDocuments) {
             super();
             this.seed = seed;
             this.size = size;
             this.deletedDocumentCount = deletedDocumentCount;
             this.refreshAfter = refreshAfter;
             this.additionalAttributes = additionalAttributes;
+            this.customDocuments = customDocuments;
         }
 
         @Override
@@ -399,6 +410,7 @@ public class TestData {
             result = prime * result + seed;
             result = prime * result + size;
             result = prime * result + additionalAttributes.hashCode();
+            result = prime * result + customDocuments.hashCode();
             return result;
         }
 
@@ -429,6 +441,9 @@ public class TestData {
             if (!additionalAttributes.equals(other.additionalAttributes)) {
                 return false;
             }
+            if (!customDocuments.equals(other.customDocuments)) {
+                return false;
+            }
             return true;
         }
 
@@ -444,6 +459,7 @@ public class TestData {
         private int rolloverAfter = -1;
         private int segmentCount = 17;
         private Map<String, Object> additionalAttributes = new HashMap<>();
+        private Map<String, Map<String, Object>> customDocuments = new HashMap<>();
         private String timestampAttributeName = "timestamp";
 
         public Builder() {
@@ -495,6 +511,11 @@ public class TestData {
             return this;
         }
 
+        public Builder customDocument(String id, Map<String, Object> source) {
+            this.customDocuments.put(id, source);
+            return this;
+        }
+
         public Key toKey() {
             if (deletedDocumentCount == -1) {
                 this.deletedDocumentCount = (int) (this.size * deletedDocumentFraction);
@@ -504,7 +525,7 @@ public class TestData {
                 this.refreshAfter = this.size / this.segmentCount;
             }
 
-            return new Key(seed, size, deletedDocumentCount, refreshAfter, ImmutableMap.of(additionalAttributes));
+            return new Key(seed, size, deletedDocumentCount, refreshAfter, ImmutableMap.of(additionalAttributes), ImmutableMap.of(customDocuments));
         }
 
         public TestData get() {
@@ -512,12 +533,11 @@ public class TestData {
 
             try {
                 return cache.get(key, () -> new TestData(seed, size, deletedDocumentCount, refreshAfter, rolloverAfter,
-                        ImmutableMap.of(additionalAttributes), timestampAttributeName));
+                        ImmutableMap.of(additionalAttributes), timestampAttributeName, ImmutableMap.of(customDocuments)));
             } catch (ExecutionException e) {
                 throw new RuntimeException(e);
             }
         }
-
     }
 
     public static class TestDocument {

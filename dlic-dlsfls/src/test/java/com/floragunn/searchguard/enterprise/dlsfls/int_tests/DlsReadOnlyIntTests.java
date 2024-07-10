@@ -61,7 +61,7 @@ public class DlsReadOnlyIntTests {
     static TestIndex index_2 = TestIndex.name("index_2").documentCount(110).seed(2).attr("prefix", "a").setting("index.number_of_shards", 5).build();
     static TestIndex index_3 = TestIndex.name("index_3").documentCount(51).seed(4).attr("prefix", "b").setting("index.number_of_shards", 5).build();
     static TestIndex index_hidden = TestIndex.name("index_hidden").documentCount(52).hidden().seed(8).attr("prefix", "h").build();
-    static TestIndex user_dept_terms_lookup = TestIndex.name("user_dept_terms_lookup").hidden().build();
+    static TestIndex user_dept_terms_lookup = TestIndex.name("user_dept_terms_lookup").documentCount(0).customDocument("limited_user_index_1_dept_D_terms_lookup", ImmutableMap.of("dept", "dept_d")).hidden().build();
 
     static TestAlias alias_1 = new TestAlias("alias_1", index_1);
     static TestAlias alias_12 = new TestAlias("alias_12", index_1, index_2);
@@ -265,11 +265,6 @@ public class DlsReadOnlyIntTests {
             .dlsFls(DLSFLS)//
             // .useExternalProcessCluster()//
             .build();
-
-    @BeforeClass
-    public static void setupTestData() throws Exception {
-        user_dept_terms_lookup.addDocument(cluster.getAdminCertRestClient(), "limited_user_index_1_dept_D_terms_lookup", ImmutableMap.of("dept", "dept_d"));
-    }
 
     final TestSgConfig.User user;
 
