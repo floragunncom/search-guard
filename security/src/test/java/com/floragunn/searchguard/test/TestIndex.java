@@ -21,11 +21,13 @@ import java.util.Map;
 import java.util.Set;
 
 import com.floragunn.codova.documents.DocNode;
-import org.elasticsearch.common.settings.Settings;
-
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.index.IndexNotFoundException;
+import org.elasticsearch.indices.SystemIndices;
 
 public class TestIndex implements TestIndexLike {
 
@@ -40,15 +42,20 @@ public class TestIndex implements TestIndexLike {
     }
 
     public void create(Client client) {
+        ThreadContext threadContext = client.threadPool().getThreadContext();
 
-        try {
-            client.admin().indices().getIndex(new GetIndexRequest().indices(name)).actionGet();
-        } catch (IndexNotFoundException e) {
-            testData.createIndex(client, name, settings);
+        try (StoredContext stored = threadContext.newStoredContext()) {
+             threadContext.putHeader(SystemIndices.SYSTEM_INDEX_ACCESS_CONTROL_HEADER_KEY, "true");
+            try {
+                client.admin().indices().getIndex(new GetIndexRequest().indices(name)).actionGet();
+            } catch (IndexNotFoundException e) {
+                testData.createIndex(client, name, settings);
+            }
+
         }
-
-    }
     
+    }
+
     public void create(GenericRestClient client) throws Exception {
         GenericRestClient.HttpResponse response = client.head(name);
         

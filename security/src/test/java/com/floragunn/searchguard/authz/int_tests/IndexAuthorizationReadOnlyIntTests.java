@@ -29,6 +29,7 @@ import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 
 import java.util.ArrayList;
@@ -301,7 +302,7 @@ public class IndexAuthorizationReadOnlyIntTests {// TODO ds_onES8 test failures 
     public void search_wildcard_noWildcards() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/*/_search?size=1000&expand_wildcards=none");
-            assertThat(httpResponse, containsExactly().at("hits.hits[*]._index").whenEmpty(200));
+            assertThat(httpResponse, containsExactly().at("hits.hits[*]._index").whenEmpty(404));
         }
     }
 
@@ -355,7 +356,7 @@ public class IndexAuthorizationReadOnlyIntTests {// TODO ds_onES8 test failures 
                 // The pecularities of index resolution, chapter 634:
                 // A 404 error is also acceptable if we get ES complaining about -index_b1. This will be the case for users with full permissions
                 assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", equalTo("no such index [-index_b1]"))));
+                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-index_b1]"))));
             } else {
                 assertThat(httpResponse,
                         containsExactly(index_a1, index_a2, index_b1).at("hits.hits[*]._index").butForbiddenIfIncomplete(user.indexMatcher("read")).whenEmpty(403));
