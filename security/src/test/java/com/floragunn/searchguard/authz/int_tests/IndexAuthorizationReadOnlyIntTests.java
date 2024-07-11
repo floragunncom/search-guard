@@ -37,11 +37,13 @@ import java.util.Collection;
 import java.util.List;
 
 import org.apache.http.message.BasicHeader;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.indices.SystemIndexDescriptor;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.SystemIndexPlugin;
 import org.elasticsearch.tasks.Task;
+import org.elasticsearch.xcontent.XContentBuilder;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -66,7 +68,7 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
  *
  */
 @RunWith(Parameterized.class)
-public class IndexAuthorizationReadOnlyIntTests {// TODO ds_onES8 test failures needs to be corrected
+public class IndexAuthorizationReadOnlyIntTests {
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
@@ -614,7 +616,7 @@ public class IndexAuthorizationReadOnlyIntTests {// TODO ds_onES8 test failures 
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_cat/indices?format=json&expand_wildcards=all");
             assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1, index_hidden,
-                    index_hidden_dot, searchGuardIndices()).at("$[*].index").but(user.indexMatcher("read")).whenEmpty(200));
+                    index_hidden_dot, index_system, searchGuardIndices()).at("$[*].index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -785,7 +787,21 @@ public class IndexAuthorizationReadOnlyIntTests {// TODO ds_onES8 test failures 
             return ImmutableList.of(//
                     SystemIndexDescriptor.builder()//
                             .setIndexPattern(".index_system*").setDescription("Test system indices")
-                            .setType(SystemIndexDescriptor.Type.EXTERNAL_UNMANAGED)
+                            /*
+                                The SG plugin for ES used an index of type "EXTERNAL_UNMANAGED" which seems to be correct. However,
+                                due to changes introduced in the following commit
+                                https://github.com/elastic/elasticsearch/commit/9cf33d74263be44358d9bd059a91ffb0455295f7
+                                the test cases "search_all_includeHidden" and "search_all_includeHidden_origin" get the same result,
+                                making them useless. Therefore, the index type was changed from "EXTERNAL_UNMANAGED" to "EXTERNAL_MANAGED".
+                                Hence, the later test also returns data from the system index in contrast to the other test.
+                             */
+                            .setType(SystemIndexDescriptor.Type.EXTERNAL_MANAGED)
+                            .setSettings(Settings.builder().build())
+                            .setVersionMetaKey("my_test_version")
+                            .setMappings("{\"_doc\":{\"_meta\":{\"my_test_version\":\"8.0.0\",\"managed_index_mappings_version\":0},\"properties\":{\"dept\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"dest_ip\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"dest_loc\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"prefix\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"source_ip\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"source_loc\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"timestamp\":{\"type\":\"date\"}}}}")//
+                            .setPrimaryIndex(index_system.getName())
+                            .setMinimumNodeVersion(Version.V_8_0_0)
+                            .setOrigin("origin-with-allowed-system-indices")
                             .setAllowedElasticProductOrigins(ImmutableList.of("origin-with-allowed-system-indices")).setNetNew().build());
         }
     }
