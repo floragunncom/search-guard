@@ -22,21 +22,23 @@ import static com.floragunn.searchguard.test.IndexApiMatchers.limitedTo;
 import static com.floragunn.searchguard.test.IndexApiMatchers.searchGuardIndices;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimited;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncludingSearchGuardIndices;
-import static com.floragunn.searchguard.test.RestMatchers.*;
+import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
+import static com.floragunn.searchguard.test.RestMatchers.isInternalServerError;
 import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeSizeEqualTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 import com.floragunn.fluent.collections.ImmutableMap;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -512,13 +514,20 @@ public class DlsReadOnlyIntTests {
 
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse response = restClient.postJson("/_mget", mget);
-            assertThat(response, isOk());
-            DocNode body = response.getBodyAsDocNode();
 
-            checkMgetDocument(response, body, index_1, testDocument1a1);
-            checkMgetDocument(response, body, index_1, testDocument1b1);
-            checkMgetDocument(response, body, index_2, testDocument2a1);
-            checkMgetDocument(response, body, index_2, testDocument2b1);
+            if (user == LIMITED_USER_INDEX_1_DEPT_D_TERMS_LOOKUP) {
+                //mget request sent by user with TLQ is handled differently. It's replaced with search request, response looks different from standard mget response.
+                assertThat(response, isForbidden());
+                assertEquals(response.getBody(), "Insufficient permissions", response.getBodyAsDocNode().get("error", "reason"));
+            } else {
+                assertThat(response, isOk());
+                DocNode body = response.getBodyAsDocNode();
+
+                checkMgetDocument(response, body, index_1, testDocument1a1);
+                checkMgetDocument(response, body, index_1, testDocument1b1);
+                checkMgetDocument(response, body, index_2, testDocument2a1);
+                checkMgetDocument(response, body, index_2, testDocument2b1);
+            }
         }
     }
 
@@ -536,8 +545,13 @@ public class DlsReadOnlyIntTests {
             assertThat(response, isOk());
             DocNode body = response.getBodyAsDocNode();
 
-            checkMgetDocument(response, body, index_1, testDocument1a1);
-            checkMgetDocument(response, body, index_1, testDocument1b1);
+            if (user == LIMITED_USER_INDEX_1_DEPT_D_TERMS_LOOKUP) {
+                //mget request sent by user with TLQ is handled differently. It's replaced with search request, response looks different from standard mget response.
+                assertThat(response.getBodyAsDocNode(), docNodeSizeEqualTo("docs", 0));
+            } else {
+                checkMgetDocument(response, body, index_1, testDocument1a1);
+                checkMgetDocument(response, body, index_1, testDocument1b1);
+            }
         }
     }
 
