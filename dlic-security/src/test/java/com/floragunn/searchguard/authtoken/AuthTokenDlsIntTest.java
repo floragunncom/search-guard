@@ -222,67 +222,73 @@ public class AuthTokenDlsIntTest {
     public void roleChangesShouldNotAffectTokenWithFrozenPrivileges() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(DLS_FLS_FM_USER);
              GenericRestClient adminCertClient = cluster.getAdminCertRestClient()) {
-            CreateAuthTokenRequest request = new CreateAuthTokenRequest(
-                    RequestedPrivileges.parseYaml("index_permissions:\n- index_patterns: '*'\n  allowed_actions: '*'"));
+            try {
+                CreateAuthTokenRequest request = new CreateAuthTokenRequest(
+                        RequestedPrivileges.parseYaml("index_permissions:\n- index_patterns: '*'\n  allowed_actions: '*'"));
 
-            request.setFreezePrivileges(true);
-            request.setTokenName("my_new_token");
+                request.setFreezePrivileges(true);
+                request.setTokenName("my_new_token");
 
-            //create auth token when role has DLS FLS FM restrictions
-            GenericRestClient.HttpResponse response = client.postJson("/_searchguard/authtoken", request);
-            assertThat(response, isOk());
-            String accessToken = response.getBodyAsDocNode().getAsString("token");
-
-            //update role - remove DLS FLS FM restrictions
-            DocNode roleWithoutDlsFlsFmRestrictions = DocNode.of(
-                    "cluster_permissions", Collections.singletonList("*"),
-                    "index_permissions", DocNode.array(DocNode.of("index_patterns", Collections.singletonList(INDEX),
-                            "allowed_actions", Collections.singletonList("SGS_READ")))
-            );
-            response = adminCertClient.putJson("/_searchguard/api/roles/" + ROLE_WITH_DLS_FLS_FM_RULES_ON_INDEX.getName(), roleWithoutDlsFlsFmRestrictions);
-            assertThat(response, isOk());
-
-            TestData.TestDocument docDeptD = TEST_DATA.anyDocumentForDepartment("dept_d");
-            TestData.TestDocument docDeptA = TEST_DATA.anyDocumentForDepartment("dept_a_1");
-            assertThat(docDeptD, notNullValue());
-            assertThat(docDeptA, notNullValue());
-
-            String searchUrl = "/" + INDEX + "/_search?size=200";
-            String docDeptDUrl = "/" + INDEX + "/_doc/" + docDeptD.getId();
-            String docDeptAUrl = "/" + INDEX + "/_doc/" + docDeptA.getId();
-
-            //search & get docs using basic auth
-            response = client.get(searchUrl);
-            assertThat(response, isOk());
-            assertThat(response.getBodyAsDocNode().findByJsonPath("$.hits.hits[*]._source.dept"), not(everyItem(equalTo("dept_d"))));
-
-            response = client.get(docDeptDUrl);
-            assertThat(response, isOk());
-            assertThat(response.getBodyAsDocNode().getAsNode("_source").size(), greaterThan(3));
-            assertThat(response.getBodyAsDocNode(), containsValue("$._source.source_ip", docDeptD.getContent().get("source_ip")));
-            assertThat(response.getBodyAsDocNode(), containsValue("$._source.dest_ip", docDeptD.getContent().get("dest_ip")));
-
-            response = client.get(docDeptAUrl);
-            assertThat(response, isOk());
-
-            //search & get docs using auth tokens
-            try (GenericRestClient tokenClient = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + accessToken))) {
-                response = tokenClient.get(searchUrl);
+                //create auth token when role has DLS FLS FM restrictions
+                GenericRestClient.HttpResponse response = client.postJson("/_searchguard/authtoken", request);
                 assertThat(response, isOk());
-                assertThat(response.getBodyAsDocNode().findByJsonPath("$.hits.hits[*]._source.dept"), everyItem(equalTo("dept_d")));
+                String accessToken = response.getBodyAsDocNode().getAsString("token");
 
-                response = tokenClient.get(docDeptDUrl);
+                //update role - remove DLS FLS FM restrictions
+                DocNode roleWithoutDlsFlsFmRestrictions = DocNode.of(
+                        "cluster_permissions", Collections.singletonList("*"),
+                        "index_permissions", DocNode.array(DocNode.of("index_patterns", Collections.singletonList(INDEX),
+                                "allowed_actions", Collections.singletonList("SGS_READ")))
+                );
+                response = adminCertClient.putJson("/_searchguard/api/roles/" + ROLE_WITH_DLS_FLS_FM_RULES_ON_INDEX.getName(), roleWithoutDlsFlsFmRestrictions);
                 assertThat(response, isOk());
-                assertThat(response.getBodyAsDocNode(), docNodeSizeEqualTo("$._source", 3));
-                assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$._source", "dept"));
-                assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$._source", "source_ip"));
-                assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$._source", "dest_ip"));
+
+                TestData.TestDocument docDeptD = TEST_DATA.anyDocumentForDepartment("dept_d");
+                TestData.TestDocument docDeptA = TEST_DATA.anyDocumentForDepartment("dept_a_1");
+                assertThat(docDeptD, notNullValue());
+                assertThat(docDeptA, notNullValue());
+
+                String searchUrl = "/" + INDEX + "/_search?size=200";
+                String docDeptDUrl = "/" + INDEX + "/_doc/" + docDeptD.getId();
+                String docDeptAUrl = "/" + INDEX + "/_doc/" + docDeptA.getId();
+
+                //search & get docs using basic auth
+                response = client.get(searchUrl);
+                assertThat(response, isOk());
+                assertThat(response.getBodyAsDocNode().findByJsonPath("$.hits.hits[*]._source.dept"), not(everyItem(equalTo("dept_d"))));
+
+                response = client.get(docDeptDUrl);
+                assertThat(response, isOk());
+                assertThat(response.getBodyAsDocNode().getAsNode("_source").size(), greaterThan(3));
                 assertThat(response.getBodyAsDocNode(), containsValue("$._source.source_ip", docDeptD.getContent().get("source_ip")));
-                assertThat(response.getBodyAsDocNode(), not(containsValue("$._source.dest_ip", docDeptD.getContent().get("dest_ip"))));
+                assertThat(response.getBodyAsDocNode(), containsValue("$._source.dest_ip", docDeptD.getContent().get("dest_ip")));
 
-                response = tokenClient.get(docDeptAUrl);
-                assertThat(response, isNotFound());
+                response = client.get(docDeptAUrl);
+                assertThat(response, isOk());
+
+                //search & get docs using auth tokens
+                try (GenericRestClient tokenClient = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + accessToken))) {
+                    response = tokenClient.get(searchUrl);
+                    assertThat(response, isOk());
+                    assertThat(response.getBodyAsDocNode().findByJsonPath("$.hits.hits[*]._source.dept"), everyItem(equalTo("dept_d")));
+
+                    response = tokenClient.get(docDeptDUrl);
+                    assertThat(response, isOk());
+                    assertThat(response.getBodyAsDocNode(), docNodeSizeEqualTo("$._source", 3));
+                    assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$._source", "dept"));
+                    assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$._source", "source_ip"));
+                    assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$._source", "dest_ip"));
+                    assertThat(response.getBodyAsDocNode(), containsValue("$._source.source_ip", docDeptD.getContent().get("source_ip")));
+                    assertThat(response.getBodyAsDocNode(), not(containsValue("$._source.dest_ip", docDeptD.getContent().get("dest_ip"))));
+
+                    response = tokenClient.get(docDeptAUrl);
+                    assertThat(response, isNotFound());
+                }
+            } finally {
+                GenericRestClient.HttpResponse response = adminCertClient.putJson("/_searchguard/api/roles/" + ROLE_WITH_DLS_FLS_FM_RULES_ON_INDEX.getName(), ROLE_WITH_DLS_FLS_FM_RULES_ON_INDEX);
+                assertThat(response, isOk());
             }
+
         }
     }
 }

@@ -1012,7 +1012,7 @@ public class TestSgConfig {
         @Override
         public Object toBasicObject() {
             return ImmutableMap.ofNonNull(patternAttributeName, indexPatterns, "allowed_actions", allowedActions, "dls", dlsQuery, "fls", fls,
-                    "masked_files", maskedFields);
+                    "masked_fields", maskedFields);
         }
 
     }
