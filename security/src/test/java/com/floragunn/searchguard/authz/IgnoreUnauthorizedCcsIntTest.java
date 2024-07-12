@@ -68,7 +68,7 @@ public class IgnoreUnauthorizedCcsIntTest {// TODO ds_onES8 correct test failure
 
     static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user").roles(//
             new Role("unlimited_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO")
-                    .indexPermissions("SGS_CRUD", "indices:admin/shards/search_shards").on("*"));
+                    .indexPermissions("SGS_CRUD", "indices:admin/search/search_shards").on("*"));
 
     static TestIndex index_coord_a1 = TestIndex.name("a1").documentCount(100).seed(1).attr("prefix", "a").attr("cluster", "local").build();
     static TestIndex index_coord_a2 = TestIndex.name("a2").documentCount(110).seed(2).attr("prefix", "a").attr("cluster", "local").build();
