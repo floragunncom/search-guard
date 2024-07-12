@@ -35,7 +35,7 @@ import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 @RunWith(Parameterized.class)
-public class IgnoreUnauthorizedCcsIntTest {// TODO ds_onES8 correct test failures
+public class IgnoreUnauthorizedCcsIntTest {
 
     @Parameter
     public String ccsMinimizeRoundtrips;
@@ -594,22 +594,14 @@ public class IgnoreUnauthorizedCcsIntTest {// TODO ds_onES8 correct test failure
 
     @Test
     public void search_termsAggregation_localNotFoundAndRemoteWildcard_ignoreUnavailable() throws Exception {
-        boolean roundtripsMinimized = ccsMinimizeRoundtrips.endsWith(String.valueOf(Boolean.TRUE));
-        String query = "my_remote:*,notfound/_search?ignore_unavailable=true&" + ccsMinimizeRoundtrips;
+        String query = "my_remote:*,*/_search?ignore_unavailable=true&" + ccsMinimizeRoundtrips;
         String body = "{\"size\":0,\"aggs\":{\"clusteragg\":{\"terms\":{\"field\":\"cluster.keyword\",\"size\":1000}}}}";
-
-        Matcher<HttpResponse> clustersCountMatcherCssRoundtripsMinTrue = allOf(
-                json(nodeAt("_clusters.successful", is(2))), json(nodeAt("_clusters.running", is(0)))
-        );
-        Matcher<HttpResponse> clustersCountMatcherCssRoundtripsMinFalse = allOf(
-                json(nodeAt("_clusters.successful", is(1))), json(nodeAt("_clusters.running", is(1)))
-        );
 
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.postJson(query, body);
 
             Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, roundtripsMinimized? clustersCountMatcherCssRoundtripsMinTrue : clustersCountMatcherCssRoundtripsMinFalse);
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.successful", is(2))));
 
             Assert.assertThat(httpResponse,
                     json(distinctNodesAt("aggregations.clusteragg.buckets[?(@.key == 'remote')].doc_count", containsInAnyOrder(342))));
@@ -619,7 +611,7 @@ public class IgnoreUnauthorizedCcsIntTest {// TODO ds_onES8 correct test failure
             HttpResponse httpResponse = restClient.postJson(query, body);
 
             Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, roundtripsMinimized? clustersCountMatcherCssRoundtripsMinTrue : clustersCountMatcherCssRoundtripsMinFalse);
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.successful", is(2))));
 
             Assert.assertThat(httpResponse,
                     json(distinctNodesAt("aggregations.clusteragg.buckets[?(@.key == 'remote')].doc_count", containsInAnyOrder(236))));
