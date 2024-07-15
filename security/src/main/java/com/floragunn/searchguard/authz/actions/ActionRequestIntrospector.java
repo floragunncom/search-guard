@@ -194,11 +194,8 @@ public class ActionRequestIntrospector {
                 } else {
                     return new ActionRequestInfo(putMappingRequest, IndicesRequestInfo.Scope.ANY);
                 }
-            } else if (request instanceof FieldCapabilitiesRequest) {
-                // FieldCapabilitiesIndexRequest implements IndicesRequest. However,  this delegates to the original indices specified in the FieldCapabilitiesIndexRequest.
-                // On the level of FieldCapabilitiesIndexRequest, it is sufficient to only consider the index stored in the index attribute.
-
-                return new ActionRequestInfo(((FieldCapabilitiesRequest) request).indices(), EXACT, IndicesRequestInfo.Scope.ANY);
+            } else if (request instanceof FieldCapabilitiesRequest fieldCapabilitiesRequest) {
+                return new ActionRequestInfo(fieldCapabilitiesRequest, IndicesRequestInfo.Scope.ANY);
             } else if (request instanceof ResizeRequest) {
                 // Note: The targetIndex of ResizeRequest gets special treatment in PrivilegesEvaluator
 
