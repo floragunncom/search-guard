@@ -29,13 +29,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @Execution(ExecutionMode.SAME_THREAD)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class ScenarioTest {
-    private static LocalCluster CLUSTER;
+    private static LocalCluster.Embedded CLUSTER;
 
     @BeforeAll
     public static void setup() throws Exception {
         CLUSTER = new LocalCluster.Builder().sslEnabled().resources("sg_config").enableModule(AutomatedIndexManagementModule.class)
                 .clusterConfiguration(ClusterConfiguration.THREE_MASTERS)
-                .nodeSettings(AutomatedIndexManagementSettings.Static.StateLog.ENABLED.name(), false).start();
+                .nodeSettings(AutomatedIndexManagementSettings.Static.StateLog.ENABLED.name(), false).waitForComponents("aim").embedded().start();
         ClusterHelper.Internal.postSettingsUpdate(CLUSTER, AutomatedIndexManagementSettings.Dynamic.EXECUTION_DELAY_RANDOM_ENABLED, false);
         ClusterHelper.Internal.postSettingsUpdate(CLUSTER, AutomatedIndexManagementSettings.Dynamic.STATE_LOG_ACTIVE, false);
         Awaitility.setDefaultTimeout(60, TimeUnit.SECONDS);

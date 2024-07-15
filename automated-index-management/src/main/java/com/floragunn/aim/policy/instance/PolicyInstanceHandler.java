@@ -22,10 +22,10 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -78,12 +78,11 @@ public final class PolicyInstanceHandler {
                     deletedIndices.add(index.getName());
                 }
             }
-            for (String index : clusterChangedEvent.indicesCreated()) {
-                IndexMetadata indexMetadata = clusterChangedEvent.state().metadata().index(index);
-                LOG.trace("New index '" + index + "' with settings:\n" + Strings.toString(indexMetadata.getSettings(), true, true));
-                String policyName = indexMetadata.getSettings().get(settings.getStatic().getPolicyNameFieldName());
+            for (Map.Entry<String, IndexMetadata> index : clusterChangedEvent.state().metadata().indices().entrySet()) {
+                LOG.trace("New index '" + index + "' with settings:\n" + Strings.toString(index.getValue().getSettings(), true, true));
+                String policyName = index.getValue().getSettings().get(settings.getStatic().getPolicyNameFieldName());
                 if (!Strings.isNullOrEmpty(policyName)) {
-                    createdIndices.put(index, policyName);
+                    createdIndices.put(index.getKey(), policyName);
                 }
             }
             scheduler.execute(() -> handleInstanceDeleteCreate(deletedIndices, createdIndices));
@@ -291,7 +290,8 @@ public final class PolicyInstanceHandler {
         long executionPeriod = settings.getDynamic().getExecutionPeriod().getMillis();
         long executionDelay = settings.getDynamic().getExecutionFixedDelay().getMillis();
         if (settings.getDynamic().getExecutionRandomDelayEnabled()) {
-            executionDelay += ThreadLocalRandom.current().nextLong(executionPeriod);
+            SecureRandom random = new SecureRandom();
+            executionDelay += random.nextLong(executionPeriod);
         }
         for (Map.Entry<String, PolicyInstance> entry : instances) {
             ScheduledFuture<?> scheduledFuture = scheduler.scheduleAtFixedRate(entry.getValue(), executionDelay, executionPeriod,
