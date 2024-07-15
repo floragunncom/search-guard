@@ -78,7 +78,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class PolicyInstanceIntegrationTest {
     @TempDir
     protected static Path SNAPSHOT_REPO_PATH;
-    private static LocalCluster CLUSTER;
+    private static LocalCluster.Embedded CLUSTER;
 
     private static void setupRepository(String repositoryName) {
         Settings.Builder builder = Settings.builder().put("location", SNAPSHOT_REPO_PATH.toAbsolutePath());
@@ -97,7 +97,7 @@ public class PolicyInstanceIntegrationTest {
     @BeforeAll
     public static void setup() {
         CLUSTER = new LocalCluster.Builder().sslEnabled().resources("sg_config").enableModule(AutomatedIndexManagementModule.class)
-                .nodeSettings("path.repo", SNAPSHOT_REPO_PATH.toAbsolutePath()).start();
+                .nodeSettings("path.repo", SNAPSHOT_REPO_PATH.toAbsolutePath()).waitForComponents("aim").embedded().start();
         MockSupport.init(CLUSTER);
         Awaitility.setDefaultTimeout(30, TimeUnit.SECONDS);
         ClusterHelper.Internal.postSettingsUpdate(CLUSTER, AutomatedIndexManagementSettings.Dynamic.EXECUTION_DELAY, TimeValue.timeValueHours(1));
