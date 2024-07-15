@@ -25,7 +25,6 @@ import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateActio
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
@@ -86,7 +85,7 @@ public class PolicyInstanceStateLogHandler {
                 LOG.debug("State log policy already exists. Skipping creation");
                 return;
             }
-            DocNode policyNode = DocNode.parse(Format.JSON).from(getClass().getClassLoader().getResourceAsStream("policies/state_log_policy.json"));
+            DocNode policyNode = DocNode.parse(Format.JSON).from(PolicyInstanceStateLogHandler.class.getResourceAsStream("/policies/state_log_policy.json"));
             Policy policy = Policy.parse(policyNode, Policy.ParsingContext.strict(conditionFactory, actionFactory));
             InternalPolicyAPI.StatusResponse response = policyService.putPolicy(policyName, policy);
             if (response.status() != RestStatus.CREATED) {

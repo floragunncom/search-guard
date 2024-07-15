@@ -22,10 +22,10 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -290,7 +290,8 @@ public final class PolicyInstanceHandler {
         long executionPeriod = settings.getDynamic().getExecutionPeriod().getMillis();
         long executionDelay = settings.getDynamic().getExecutionFixedDelay().getMillis();
         if (settings.getDynamic().getExecutionRandomDelayEnabled()) {
-            executionDelay += ThreadLocalRandom.current().nextLong(executionPeriod);
+            SecureRandom random = new SecureRandom();
+            executionDelay += random.nextLong(executionPeriod);
         }
         for (Map.Entry<String, PolicyInstance> entry : instances) {
             ScheduledFuture<?> scheduledFuture = scheduler.scheduleAtFixedRate(entry.getValue(), executionDelay, executionPeriod,
