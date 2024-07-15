@@ -21,7 +21,7 @@ public class MockSupport {
     public static final MockCondition STATE_LOG_ROLLOVER_MAX_SIZE = new MockCondition("2f73b82f-d670-4e58-abd7-45501da3d9ce");
     public static final MockCondition STATE_LOG_DELETE_MAX_AGE = new MockCondition("95d1addf-bb29-4c94-80e3-5c8dbf056a18");
 
-    public static void init(LocalCluster cluster) {
+    public static void init(LocalCluster.Embedded cluster) {
         AutomatedIndexManagement aim = cluster.getInjectable(AutomatedIndexManagement.class);
         aim.getConditionFactory().register(MockCondition.TYPE, MockCondition.VALIDATING_PARSER);
         aim.getActionFactory().register(MockAction.TYPE, MockAction.VALIDATING_PARSER);

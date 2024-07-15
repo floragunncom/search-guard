@@ -136,32 +136,32 @@ public class ClusterHelper {
     }
 
     public static class Internal {
-        public static InternalPolicyAPI.StatusResponse putPolicy(LocalCluster cluster, String policyName, Policy policy) {
+        public static InternalPolicyAPI.StatusResponse putPolicy(LocalCluster.Embedded cluster, String policyName, Policy policy) {
             return cluster.getInternalNodeClient().admin().indices()
                     .execute(InternalPolicyAPI.Put.INSTANCE, new InternalPolicyAPI.Put.Request(policyName, policy, false)).actionGet();
         }
 
-        public static InternalPolicyInstanceAPI.PostExecuteRetry.Response postPolicyInstanceExecuteRetry(LocalCluster cluster, String indexName,
+        public static InternalPolicyInstanceAPI.PostExecuteRetry.Response postPolicyInstanceExecuteRetry(LocalCluster.Embedded cluster, String indexName,
                 boolean execute, boolean retry) {
             return cluster.getInternalNodeClient().admin().indices().execute(InternalPolicyInstanceAPI.PostExecuteRetry.INSTANCE,
                     new InternalPolicyInstanceAPI.PostExecuteRetry.Request(indexName, execute, retry)).actionGet();
         }
 
-        public static InternalPolicyInstanceAPI.PostExecuteRetry.Response postPolicyInstanceRetry(LocalCluster cluster, String indexName) {
+        public static InternalPolicyInstanceAPI.PostExecuteRetry.Response postPolicyInstanceRetry(LocalCluster.Embedded cluster, String indexName) {
             return postPolicyInstanceExecuteRetry(cluster, indexName, false, true);
         }
 
-        public static InternalPolicyInstanceAPI.PostExecuteRetry.Response postPolicyInstanceExecute(LocalCluster cluster, String indexName) {
+        public static InternalPolicyInstanceAPI.PostExecuteRetry.Response postPolicyInstanceExecute(LocalCluster.Embedded cluster, String indexName) {
             return postPolicyInstanceExecuteRetry(cluster, indexName, true, false);
         }
 
-        public static InternalSettingsAPI.Update.Response postSettingsUpdate(LocalCluster cluster,
+        public static InternalSettingsAPI.Update.Response postSettingsUpdate(LocalCluster.Embedded cluster,
                 AutomatedIndexManagementSettings.Dynamic.DynamicAttribute<?> key, Object value) {
             return cluster.getInternalNodeClient().admin().indices().execute(InternalSettingsAPI.Update.INSTANCE,
                     new InternalSettingsAPI.Update.Request(ImmutableMap.of(key, value), ImmutableList.empty())).actionGet();
         }
 
-        public static InternalSettingsAPI.Update.Response postSettingsDelete(LocalCluster cluster,
+        public static InternalSettingsAPI.Update.Response postSettingsDelete(LocalCluster.Embedded cluster,
                 AutomatedIndexManagementSettings.Dynamic.DynamicAttribute<?> key) {
             return cluster.getInternalNodeClient().admin().indices()
                     .execute(InternalSettingsAPI.Update.INSTANCE, new InternalSettingsAPI.Update.Request(ImmutableMap.empty(), ImmutableList.of(key)))
@@ -170,38 +170,38 @@ public class ClusterHelper {
     }
 
     public static class Index {
-        private static GetResponse get(LocalCluster cluster, String index, String doc) {
+        private static GetResponse get(LocalCluster.Embedded cluster, String index, String doc) {
             return cluster.getPrivilegedInternalNodeClient().get(new GetRequest(index).id(doc)).actionGet();
         }
 
-        public static GetResponse getPolicy(LocalCluster cluster, String policyName) {
+        public static GetResponse getPolicy(LocalCluster.Embedded cluster, String policyName) {
             return get(cluster, AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME, policyName);
         }
 
-        public static boolean isPolicyExists(LocalCluster cluster, String policyName) {
+        public static boolean isPolicyExists(LocalCluster.Embedded cluster, String policyName) {
             return get(cluster, AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME, policyName).isExists();
         }
 
-        public static void awaitPolicyExists(LocalCluster cluster, String policyName) {
+        public static void awaitPolicyExists(LocalCluster.Embedded cluster, String policyName) {
             Awaitility.await().until(() -> get(cluster, AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME, policyName),
                     GetResponse::isExists);
         }
 
-        public static CreateIndexResponse createManagedIndex(LocalCluster cluster, String indexName, String policyName) {
+        public static CreateIndexResponse createManagedIndex(LocalCluster.Embedded cluster, String indexName, String policyName) {
             Settings.Builder builder = Settings.builder().put(AutomatedIndexManagementSettings.Static.POLICY_NAME_FIELD.name(), policyName);
             Settings indexSettings = builder.build();
             CreateIndexRequest request = new CreateIndexRequest(indexName, indexSettings);
             return cluster.getInternalNodeClient().admin().indices().create(request).actionGet();
         }
 
-        public static CreateIndexResponse createManagedIndex(LocalCluster cluster, String indexName, String policyName, Settings settings) {
+        public static CreateIndexResponse createManagedIndex(LocalCluster.Embedded cluster, String indexName, String policyName, Settings settings) {
             Settings.Builder builder = Settings.builder().put(AutomatedIndexManagementSettings.Static.POLICY_NAME_FIELD.name(), policyName)
                     .put(settings);
             CreateIndexRequest request = new CreateIndexRequest(indexName, builder.build());
             return cluster.getInternalNodeClient().admin().indices().create(request).actionGet();
         }
 
-        public static CreateIndexResponse createManagedIndex(LocalCluster cluster, String indexName, String policyName, String alias,
+        public static CreateIndexResponse createManagedIndex(LocalCluster.Embedded cluster, String indexName, String policyName, String alias,
                 Settings settings) {
             Settings.Builder builder = Settings.builder().put(AutomatedIndexManagementSettings.Static.POLICY_NAME_FIELD.name(), policyName)
                     .put(settings);
@@ -209,43 +209,43 @@ public class ClusterHelper {
             return cluster.getInternalNodeClient().admin().indices().create(request).actionGet();
         }
 
-        public static GetResponse getPolicyInstanceStatus(LocalCluster cluster, String indexName) {
+        public static GetResponse getPolicyInstanceStatus(LocalCluster.Embedded cluster, String indexName) {
             return get(cluster, AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexName);
         }
 
-        public static boolean isPolicyInstanceStatusExists(LocalCluster cluster, String indexName) {
+        public static boolean isPolicyInstanceStatusExists(LocalCluster.Embedded cluster, String indexName) {
             return get(cluster, AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexName).isExists();
         }
 
-        public static boolean isPolicyInstanceStatusEqual(LocalCluster cluster, String indexName, PolicyInstanceState.Status status) {
+        public static boolean isPolicyInstanceStatusEqual(LocalCluster.Embedded cluster, String indexName, PolicyInstanceState.Status status) {
             GetResponse response = get(cluster, AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexName);
             return response.isExists() && status.name().equals(response.getSource().get(PolicyInstanceState.STATUS_FIELD));
         }
 
-        public static void awaitPolicyInstanceStatusExists(LocalCluster cluster, String indexName) {
+        public static void awaitPolicyInstanceStatusExists(LocalCluster.Embedded cluster, String indexName) {
             Awaitility.await().until(() -> get(cluster, AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexName),
                     GetResponse::isExists);
         }
 
-        public static void awaitPolicyInstanceStatusEqual(LocalCluster cluster, String indexName, PolicyInstanceState.Status status, Runnable task) {
+        public static void awaitPolicyInstanceStatusEqual(LocalCluster.Embedded cluster, String indexName, PolicyInstanceState.Status status, Runnable task) {
             Awaitility.await().until(() -> {
                 task.run();
                 return getPolicyInstanceStatus(cluster, indexName);
             }, s -> status.name().equals(s.getSource().get(PolicyInstanceState.STATUS_FIELD)));
         }
 
-        public static void awaitPolicyInstanceStatusEqual(LocalCluster cluster, String indexName, PolicyInstanceState.Status status) {
+        public static void awaitPolicyInstanceStatusEqual(LocalCluster.Embedded cluster, String indexName, PolicyInstanceState.Status status) {
             awaitPolicyInstanceStatusEqual(cluster, indexName, status, () -> {
             });
         }
 
-        public static void assertStatus(LocalCluster cluster, String indexName, PolicyInstanceState.Status status) {
+        public static void assertStatus(LocalCluster.Embedded cluster, String indexName, PolicyInstanceState.Status status) {
             GetResponse getResponse = getPolicyInstanceStatus(cluster, indexName);
             assertTrue(getResponse.isExists(), Strings.toString(getResponse));
             assertEquals(status.name(), getResponse.getSource().get(PolicyInstanceState.STATUS_FIELD));
         }
 
-        public static void awaitSegmentCount(LocalCluster cluster, String indexName, Integer min, Integer max) {
+        public static void awaitSegmentCount(LocalCluster.Embedded cluster, String indexName, Integer min, Integer max) {
             Awaitility.await().until(() -> {
                 IndicesStatsRequest indicesStatsRequest = new IndicesStatsRequest().indices(indexName).clear().segments(true);
                 return cluster.getInternalNodeClient().admin().indices().stats(indicesStatsRequest).actionGet();

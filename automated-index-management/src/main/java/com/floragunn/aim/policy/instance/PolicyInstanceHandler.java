@@ -78,12 +78,11 @@ public final class PolicyInstanceHandler {
                     deletedIndices.add(index.getName());
                 }
             }
-            for (String index : clusterChangedEvent.indicesCreated()) {
-                IndexMetadata indexMetadata = clusterChangedEvent.state().metadata().index(index);
-                LOG.trace("New index '" + index + "' with settings:\n" + Strings.toString(indexMetadata.getSettings(), true, true));
-                String policyName = indexMetadata.getSettings().get(settings.getStatic().getPolicyNameFieldName());
+            for (Map.Entry<String, IndexMetadata> index : clusterChangedEvent.state().metadata().indices().entrySet()) {
+                LOG.trace("New index '" + index + "' with settings:\n" + Strings.toString(index.getValue().getSettings(), true, true));
+                String policyName = index.getValue().getSettings().get(settings.getStatic().getPolicyNameFieldName());
                 if (!Strings.isNullOrEmpty(policyName)) {
-                    createdIndices.put(index, policyName);
+                    createdIndices.put(index.getKey(), policyName);
                 }
             }
             scheduler.execute(() -> handleInstanceDeleteCreate(deletedIndices, createdIndices));
