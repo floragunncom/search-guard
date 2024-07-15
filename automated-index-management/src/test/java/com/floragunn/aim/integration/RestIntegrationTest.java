@@ -40,11 +40,11 @@ public class RestIntegrationTest {
     private static final Policy INVALID_POLICY = new Policy();
     private static final String POLICY_INSTANCE_TEST_POLICY_NAME = "test_policy";
     private static final String POLICY_INSTANCE_TEST_INDEX_NAME = "test_index";
-    private static LocalCluster CLUSTER;
+    private static LocalCluster.Embedded CLUSTER;
 
     @BeforeAll
     public static void setup() {
-        CLUSTER = new LocalCluster.Builder().sslEnabled().resources("sg_config").enableModule(AutomatedIndexManagementModule.class).start();
+        CLUSTER = new LocalCluster.Builder().sslEnabled().resources("sg_config").enableModule(AutomatedIndexManagementModule.class).waitForComponents("aim").embedded().start();
         Awaitility.setDefaultTimeout(1, TimeUnit.MINUTES);
 
         ClusterHelper.Internal.putPolicy(CLUSTER, POLICY_INSTANCE_TEST_POLICY_NAME, VALID_INTERNAL_POLICY);
