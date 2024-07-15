@@ -64,6 +64,7 @@ public class PolicyInstance implements Runnable {
     private void retry() {
         try {
             state.setStatus(RUNNING);
+            updateState();
             Policy.Step currentStep = policy.getStep(state.getCurrentStepName());
             Action failedAction = null;
             if (state.getLastExecutedActionState() != null && state.getLastExecutedActionState().hasError()) {
@@ -99,6 +100,7 @@ public class PolicyInstance implements Runnable {
     private void execute() {
         try {
             state.setStatus(RUNNING);
+            updateState();
             while (state.getStatus() == RUNNING) {
                 Policy.Step currentStep = policy.getStep(state.getCurrentStepName());
                 if (currentStep != null) {
