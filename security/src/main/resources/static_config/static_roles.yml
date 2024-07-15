@@ -104,7 +104,7 @@ SGS_KIBANA_USER_NO_MT:
         - "SGS_INDICES_ALL"
   alias_permissions:
     - alias_patterns:
-        - '/\.kibana_[0-9]+\.[0-9]+\.[0-9]+/'
+        - '.kibana*'
       allowed_actions:
         - "SGS_READ"
         - "SGS_DELETE"
@@ -278,7 +278,20 @@ SGS_KIBANA_SERVER:
     - ".apm-*"
     - "*:.apm-*"
     - ".kibana-event-log-*"
+    - ".ds-.kibana-event-log-*"
     - "*:.kibana-event-log-*"
+    - ".fleet-agents"
+    - "logs-cloud_security_posture*"
+    - ".internal.alerts-observability.*"
+    - ".internal.alerts-ml.anomaly-detection.alerts*"
+    - ".kibana-observability-ai-assistant-conversations*"
+    - ".kibana-observability-ai-assistant-kb*"
+    - ".internal.alerts-security.alerts*"
+    - ".internal.alerts-stack.alerts*"
+    - ".slo-observability.sli-v*"
+    - ".slo-observability.summary-v*"
+    - "logs-cloud_defend.*"
+    - ".elastic-connectors"
     allowed_actions:
     - "SGS_INDICES_ALL"
   - index_patterns:
@@ -293,12 +306,19 @@ SGS_KIBANA_SERVER:
     - "indices:data/read/field_caps*"
   alias_permissions:
     - alias_patterns:
-        - '/\.kibana_[0-9]+\.[0-9]+\.[0-9]+/'
+        - ".kibana*"
+        - ".alerts*"
+        - ".internal.alerts*"
       allowed_actions:
         - "SGS_READ"
         - "SGS_DELETE"
         - "SGS_MANAGE"
         - "SGS_INDEX"
+  data_stream_permissions:
+    - data_stream_patterns:
+        - ".kibana-event-log-ds*"
+      allowed_actions:
+        - "*"
 
 SGS_LOGSTASH:
   reserved: true
