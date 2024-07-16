@@ -194,8 +194,6 @@ public class ActionRequestIntrospector {
                 } else {
                     return new ActionRequestInfo(putMappingRequest, IndicesRequestInfo.Scope.ANY);
                 }
-            } else if (request instanceof FieldCapabilitiesRequest fieldCapabilitiesRequest) {
-                return new ActionRequestInfo(fieldCapabilitiesRequest, IndicesRequestInfo.Scope.ANY);
             } else if (request instanceof ResizeRequest) {
                 // Note: The targetIndex of ResizeRequest gets special treatment in PrivilegesEvaluator
 

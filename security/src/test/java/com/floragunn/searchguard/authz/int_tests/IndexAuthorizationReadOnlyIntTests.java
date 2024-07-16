@@ -43,7 +43,6 @@ import org.elasticsearch.indices.SystemIndexDescriptor;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.SystemIndexPlugin;
 import org.elasticsearch.tasks.Task;
-import org.elasticsearch.xcontent.XContentBuilder;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -752,6 +751,145 @@ public class IndexAuthorizationReadOnlyIntTests {
             HttpResponse httpResponse = restClient.get("/_resolve/index/index_a*,index_b*");
             assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3).at("$.*[*].name")
                     .but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void field_caps_all() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/_field_caps?fields=*");
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1).at("indices")
+                    .but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void field_caps_indexPattern() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("index_b*/_field_caps?fields=*");
+            assertThat(httpResponse,
+                    containsExactly(index_b1, index_b2, index_b3).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void field_caps_staticIndices_noIgnoreUnavailable() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("index_a1,index_a2,index_b1/_field_caps?fields=*");
+            assertThat(httpResponse,
+                    containsExactly(index_a1, index_a2, index_b1).at("indices").butForbiddenIfIncomplete(user.indexMatcher("read")));
+        }
+    }
+
+    @Test
+    public void field_caps_staticIndices_ignoreUnavailable() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("index_a1,index_a2,index_b1/_field_caps?fields=*&ignore_unavailable=true");
+            assertThat(httpResponse,
+                    containsExactly(index_a1, index_a2, index_b1).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void field_caps_staticIndices_hidden() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("index_hidden/_field_caps?fields=*");
+            assertThat(httpResponse, containsExactly(index_hidden).at("indices").butForbiddenIfIncomplete(user.indexMatcher("read")));
+        }
+    }
+
+    @Test
+    public void field_caps_alias_ignoreUnavailable() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("alias_ab1/_field_caps?fields=*&ignore_unavailable=true");
+            assertThat(httpResponse,
+                    containsExactly(index_a1, index_a2, index_a3, index_b1).at("indices")
+                            .but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void field_caps_alias_noIgnoreUnavailable() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("alias_ab1/_field_caps?fields=*");
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1).at("indices")
+                    .butForbiddenIfIncomplete(user.indexMatcher("read")));
+        }
+    }
+
+    @Test
+    public void field_caps_aliasPattern() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/alias_ab*/_field_caps?fields=*");
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1)
+                    .at("indices").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void field_caps_nonExisting_static() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("index_ax/_field_caps?fields=*");
+
+            if (containsExactly(index_ax).but(user.indexMatcher("read")).isEmpty()) {
+                assertThat(httpResponse, isForbidden());
+            } else {
+                assertThat(httpResponse, isNotFound());
+            }
+        }
+    }
+
+    @Test
+    public void field_caps_nonExisting_indexPattern() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("x_does_not_exist*/_field_caps?fields=*");
+
+            assertThat(httpResponse, containsExactly().at("indices").whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void field_caps_aliasAndIndex_ignoreUnavailable() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("alias_ab1,index_b2/_field_caps?fields=*&ignore_unavailable=true");
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2).at("indices")
+                    .but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void field_caps_aliasAndIndex_noIgnoreUnavailable() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("alias_ab1,index_b2/_field_caps?fields=*");
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2).at("indices")
+                    .butForbiddenIfIncomplete(user.indexMatcher("read")));
+        }
+    }
+
+    @Test
+    public void field_caps_staticIndices_negation() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            // On static indices, negation does not have an effect
+            HttpResponse httpResponse = restClient.get("index_a1,index_a2,index_b1,-index_b1/_field_caps?fields=*");
+
+            if (httpResponse.getStatusCode() == 404) {
+                // The pecularities of index resolution, chapter 634:
+                // A 404 error is also acceptable if we get ES complaining about -index_b1. This will be the case for users with full permissions
+                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
+                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-index_b1]"))));
+            } else {
+                assertThat(httpResponse,
+                        containsExactly(index_a1, index_a2, index_b1).at("indices").butForbiddenIfIncomplete(user.indexMatcher("read")).whenEmpty(403));
+            }
+        }
+    }
+
+    @Test
+    public void field_caps_indexPattern_minus() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("index_a*,index_b*,-index_b2,-index_b3/_field_caps?fields=*");
+            assertThat(httpResponse,
+                    containsExactly(index_a1, index_a2, index_a3, index_b1).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
