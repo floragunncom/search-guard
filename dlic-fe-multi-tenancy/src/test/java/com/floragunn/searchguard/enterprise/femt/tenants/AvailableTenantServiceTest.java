@@ -81,8 +81,6 @@ public class AvailableTenantServiceTest {
         this.service = new AvailableTenantService(configProvider, authorizationService, threadPool, repository, authInfoService);
     }
 
-    // TODO ds_onES8 additional tests needed, related with usage of AuthInfoService
-
     @Test
     public void shouldReturnErrorWhenUserIsNotPresentInContext() {
         when(threadContext.getTransient(ConfigConstants.SG_USER)).thenReturn(null);
@@ -256,6 +254,60 @@ public class AvailableTenantServiceTest {
         assertThat(accessData.readAccess(), equalTo(true));
         assertThat(accessData.writeAccess(), equalTo(true));
         assertThat(accessData.exists(), equalTo(false));
+    }
+
+    @Test
+    public void shouldDetectAdminUser() {
+        User user = new User("user");
+        TransportAddress remoteAddress = new TransportAddress(new InetSocketAddress(8901));
+        when(threadContext.getTransient(ConfigConstants.SG_USER)).thenReturn(user);
+        when(threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS)).thenReturn(remoteAddress);
+        ImmutableSet<String> userRoles = ImmutableSet.of("my_nice_role");
+        when(authorizationService.getMappedRoles(user, remoteAddress)).thenReturn(userRoles);
+        when(configProvider.getTenantAccessMapper()).thenReturn(accessMapper);
+        when(configProvider.isMultiTenancyEnabled()).thenReturn(true);
+        var tenantWriteAccess = ImmutableMap.of(TENANT_1, true);
+        boolean adminUser = true;
+        when(accessMapper.mapTenantsAccess(user, adminUser, userRoles)).thenReturn(tenantWriteAccess);
+        when(repository.exists(any(String[].class))).thenReturn(ImmutableSet.of(TENANT_1));
+        when(authInfoService.isAdmin(user)).thenReturn(adminUser);
+
+        AvailableTenantData data = service.findTenantAvailableForCurrentUser().orElseThrow();
+
+        assertThat(data.multiTenancyEnabled(), equalTo(true));
+        Map<String, TenantAccessData> tenants = data.tenants();
+        assertThat(tenants, aMapWithSize(1));
+        TenantAccessData accessData = tenants.get(TENANT_1);
+        assertThat(accessData.readAccess(), equalTo(true));
+        assertThat(accessData.writeAccess(), equalTo(true));
+        assertThat(accessData.exists(), equalTo(true));
+    }
+
+    @Test
+    public void shouldDetectNonAdminUser() {
+        User user = new User("user");
+        TransportAddress remoteAddress = new TransportAddress(new InetSocketAddress(8901));
+        when(threadContext.getTransient(ConfigConstants.SG_USER)).thenReturn(user);
+        when(threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS)).thenReturn(remoteAddress);
+        ImmutableSet<String> userRoles = ImmutableSet.of("my_nice_role");
+        when(authorizationService.getMappedRoles(user, remoteAddress)).thenReturn(userRoles);
+        when(configProvider.getTenantAccessMapper()).thenReturn(accessMapper);
+        when(configProvider.isMultiTenancyEnabled()).thenReturn(true);
+        var tenantWriteAccess = ImmutableMap.of(TENANT_1, true);
+        boolean adminUser = false;
+        when(accessMapper.mapTenantsAccess(user, adminUser, userRoles)).thenReturn(tenantWriteAccess);
+        when(repository.exists(any(String[].class))).thenReturn(ImmutableSet.of(TENANT_1));
+        when(authInfoService.isAdmin(user)).thenReturn(adminUser);
+
+        AvailableTenantData data = service.findTenantAvailableForCurrentUser().orElseThrow();
+
+        assertThat(data.multiTenancyEnabled(), equalTo(true));
+        Map<String, TenantAccessData> tenants = data.tenants();
+        assertThat(tenants, aMapWithSize(1));
+        TenantAccessData accessData = tenants.get(TENANT_1);
+        assertThat(accessData.readAccess(), equalTo(true));
+        assertThat(accessData.writeAccess(), equalTo(true));
+        assertThat(accessData.exists(), equalTo(true));
     }
 
     private static class TenantExistsAnswer implements Answer<ImmutableSet<String>> {
