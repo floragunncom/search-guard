@@ -84,10 +84,9 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
     private final AtomicReference<DlsFlsProcessedConfig> config;
     private final ComponentState componentState = new ComponentState(0, null, "dls_fls_valve", DlsFlsValve.class).initialized();
     private final TimeAggregation applyTimeAggregation = new TimeAggregation.Nanoseconds();
-    private final Supplier<Meta> metaSupplier;
 
     public DlsFlsValve(Client nodeClient, ClusterService clusterService, IndexNameExpressionResolver resolver, GuiceDependencies guiceDependencies,
-            ThreadContext threadContext, AtomicReference<DlsFlsProcessedConfig> config, Supplier<Meta> metaSupplier) {
+            ThreadContext threadContext, AtomicReference<DlsFlsProcessedConfig> config) {
         this.nodeClient = nodeClient;
         this.clusterService = clusterService;
         this.resolver = resolver;
@@ -95,7 +94,6 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
         this.threadContext = threadContext;
         this.config = config;
         this.componentState.addMetrics("filter_request", applyTimeAggregation);
-        this.metaSupplier = Objects.requireNonNull(metaSupplier, "Meta supplier must not be null");
     }
 
     @Override
@@ -132,10 +130,9 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
             if (context.getSpecialPrivilegesEvaluationContext() != null && context.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
 
                 SgDynamicConfiguration<Role> roles = context.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                Meta meta = metaSupplier.get();
-                documentAuthorization = new RoleBasedDocumentAuthorization(roles, meta, MetricsLevel.NONE);
-                fieldAuthorization = new RoleBasedFieldAuthorization(roles, meta, MetricsLevel.NONE);
-                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), meta, MetricsLevel.NONE);
+                documentAuthorization = new RoleBasedDocumentAuthorization(roles, null, MetricsLevel.NONE);
+                fieldAuthorization = new RoleBasedFieldAuthorization(roles, null, MetricsLevel.NONE);
+                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), null, MetricsLevel.NONE);
             }
 
             boolean hasDlsRestrictions = documentAuthorization.hasRestrictions(context, resolvedIndices, meter);

@@ -100,7 +100,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
 
         this.dlsFlsValve = new DlsFlsValve(baseDependencies.getLocalClient(), baseDependencies.getClusterService(),
                 baseDependencies.getIndexNameExpressionResolver(), baseDependencies.getGuiceDependencies(),
-                baseDependencies.getThreadPool().getThreadContext(), config, metaSupplier);
+                baseDependencies.getThreadPool().getThreadContext(), config);
 
         this.dlsFlsSearchOperationListener = new DlsFlsSearchOperationListener(this.dlsFlsBaseContext, config);
 
