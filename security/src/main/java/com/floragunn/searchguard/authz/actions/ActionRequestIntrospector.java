@@ -93,7 +93,7 @@ public class ActionRequestIntrospector {
                     .allowEmptyExpressions(false)
                     .matchOpen(false)
                     .build(),
-            IndicesOptions.GeneralOptions.builder()
+            IndicesOptions.GatekeeperOptions.builder()
                     .allowClosedIndices(true)
                     .allowAliasToMultipleIndices(true)
                     .ignoreThrottled(false)
