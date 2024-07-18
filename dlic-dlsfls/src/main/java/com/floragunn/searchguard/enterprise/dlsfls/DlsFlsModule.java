@@ -40,6 +40,7 @@ import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.shard.SearchOperationListener;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
+import org.elasticsearch.plugins.FieldPredicate;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
@@ -158,7 +159,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     }
 
     @Override
-    public ImmutableList<Function<String, Predicate<String>>> getFieldFilters() {
+    public ImmutableList<Function<String, FieldPredicate>> getFieldFilters() {
         return ImmutableList.of(flsFieldFilter);
     }
 

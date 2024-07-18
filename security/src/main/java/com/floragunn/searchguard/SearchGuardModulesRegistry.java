@@ -53,6 +53,7 @@ import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.shard.IndexingOperationListener;
 import org.elasticsearch.index.shard.SearchOperationListener;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
+import org.elasticsearch.plugins.FieldPredicate;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptContext;
@@ -88,7 +89,7 @@ public class SearchGuardModulesRegistry {
     private ImmutableList<ActionFilter> actionFilters;
     private ImmutableList<SyncAuthorizationFilter> syncAuthorizationFilters;
     private ImmutableList<SyncAuthorizationFilter> prePrivilegeEvaluationSyncAuthorizationFilters;
-    private ImmutableList<Function<String, Predicate<String>>> fieldFilters;
+    private ImmutableList<Function<String, FieldPredicate>> fieldFilters;
     private ImmutableList<QueryCacheWeightProvider> queryCacheWeightProviders;
     private ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForNormalOperations;
     private ImmutableList<Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>>> directoryReaderWrappersForAllOperations;
@@ -328,8 +329,8 @@ public class SearchGuardModulesRegistry {
         return result;
     }
     
-    public ImmutableList<Function<String, Predicate<String>>> getFieldFilters() {
-        ImmutableList<Function<String, Predicate<String>>> result = this.fieldFilters;
+    public ImmutableList<Function<String, FieldPredicate>> getFieldFilters() {
+        ImmutableList<Function<String, FieldPredicate>> result = this.fieldFilters;
 
         if (result == null) {
             result = ImmutableList.empty();

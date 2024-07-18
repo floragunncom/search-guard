@@ -35,8 +35,9 @@ import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import org.elasticsearch.plugins.FieldPredicate;
 
-public class FlsFieldFilter implements Function<String, Predicate<String>>, ComponentStateProvider {
+public class FlsFieldFilter implements Function<String, FieldPredicate>, ComponentStateProvider {
     private static final String KEYWORD = ".keyword";
     private static final Logger log = LogManager.getLogger(FlsFieldFilter.class);
 
@@ -53,17 +54,17 @@ public class FlsFieldFilter implements Function<String, Predicate<String>>, Comp
     }
 
     @Override
-    public Predicate<String> apply(String indexName) {
+    public FieldPredicate apply(String indexName) {
         DlsFlsProcessedConfig config = this.config.get();
 
         if (!config.isEnabled()) {
-            return (field) -> true;
+            return FieldPredicate.ACCEPT_ALL;
         }
 
         PrivilegesEvaluationContext privilegesEvaluationContext = this.baseContext.getPrivilegesEvaluationContext();
 
         if (privilegesEvaluationContext == null) {
-            return (field) -> true;
+            return FieldPredicate.ACCEPT_ALL;
         }
 
         try (Meter meter = Meter.detail(config.getMetricsLevel(), applyAggregation)) {
@@ -96,8 +97,23 @@ public class FlsFieldFilter implements Function<String, Predicate<String>>, Comp
     /**
      * Converts a Predicate<String> simplePredicate into a FieldPredicate. For ES versions before 8.14.x, this will just return the original object. This avoids code conflicts.
      */
-    private Predicate<String> createFieldPredicate(Predicate<String> simplePredicate) {
-        return simplePredicate;
+    private FieldPredicate createFieldPredicate(Predicate<String> simplePredicate) {
+        return new FieldPredicate() {
+            @Override
+            public long ramBytesUsed() {
+                return 0; // TODO See https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/379
+            }
+
+            @Override
+            public boolean test(String field) {
+                return simplePredicate.test(field);
+            }
+
+            @Override
+            public String modifyHash(String hash) {
+                return hash; // TODO See https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/379
+            }
+        };
     }
 
     private static String removeSuffix(String field) {

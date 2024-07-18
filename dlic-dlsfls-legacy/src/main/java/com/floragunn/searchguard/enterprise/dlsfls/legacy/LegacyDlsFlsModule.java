@@ -38,6 +38,7 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.dlsfls.legacy.lucene.SearchGuardFlsDlsIndexSearcherWrapper;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import org.elasticsearch.plugins.FieldPredicate;
 
 public class LegacyDlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(LegacyDlsFlsModule.class);
@@ -109,7 +110,7 @@ public class LegacyDlsFlsModule implements SearchGuardModule, ComponentStateProv
     }
 
     @Override
-    public ImmutableList<Function<String, Predicate<String>>> getFieldFilters() {
+    public ImmutableList<Function<String, FieldPredicate>> getFieldFilters() {
         return ImmutableList.of(flsFieldFilter);
     }
 
