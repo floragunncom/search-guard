@@ -14,7 +14,6 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
@@ -22,12 +21,10 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.Migrat
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
 import org.elasticsearch.search.SearchHit;
-import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
@@ -54,6 +51,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -118,8 +116,9 @@ public class CopyDataToTempIndexStepTest {
         String indexName = "incorrect-index-name-without-prefix";
         context.setTenantIndices(ImmutableList.of(GLOBAL_TENANT, new TenantIndex(indexName, null)));
         when(configProvider.getKibanaIndex()).thenReturn("required-index-name-prefix");
-        ImmutableMap<String, Object> searchHitMap = ImmutableMap.of("_index", indexName, "_id", "space:default");
-        SearchHit searchHit = SearchHit.createFromMap(searchHitMap);
+        SearchHit searchHit = mock(SearchHit.class);
+        when(searchHit.getId()).thenReturn("space:default");
+        when(searchHit.getIndex()).thenReturn(indexName);
         ImmutableList<SearchHit> hits = ImmutableList.of(searchHit);
         doAnswer(new ProvideSearchHitsAnswer(hits)).when(repository).forEachDocumentInIndex(anyString(), anyInt(), any(Consumer.class));
 
@@ -134,8 +133,9 @@ public class CopyDataToTempIndexStepTest {
         String indexName = prefix + "-one";
         context.setTenantIndices(ImmutableList.of(GLOBAL_TENANT, new TenantIndex(indexName, null)));
         when(configProvider.getKibanaIndex()).thenReturn(prefix);
-        ImmutableMap<String, Object> searchHitMap = ImmutableMap.of("_index", indexName, "_id", "space:default");
-        SearchHit searchHit = SearchHit.createFromMap(searchHitMap);
+        SearchHit searchHit = mock(SearchHit.class);
+        when(searchHit.getId()).thenReturn("space:default");
+        when(searchHit.getIndex()).thenReturn(indexName);
         ImmutableList<SearchHit> hits = ImmutableList.of(searchHit);
         doAnswer(new ProvideSearchHitsAnswer(hits)).when(repository).forEachDocumentInIndex(anyString(), anyInt(), any(Consumer.class));
 
@@ -150,8 +150,9 @@ public class CopyDataToTempIndexStepTest {
         String indexName = prefix + "_3292183_kirk_8.7.0_003";
         context.setTenantIndices(ImmutableList.of(GLOBAL_TENANT, new TenantIndex(indexName, null)));
         when(configProvider.getKibanaIndex()).thenReturn(prefix);
-        ImmutableMap<String, Object> searchHitMap = ImmutableMap.of("_index", indexName, "_id", "space:default");
-        SearchHit searchHit = SearchHit.createFromMap(searchHitMap);
+        SearchHit searchHit = mock(SearchHit.class);
+        when(searchHit.getId()).thenReturn("space:default");
+        when(searchHit.getIndex()).thenReturn(indexName);
         ImmutableList<SearchHit> hits = ImmutableList.of(searchHit);
         doAnswer(new ProvideSearchHitsAnswer(hits)).when(repository).forEachDocumentInIndex(anyString(), anyInt(), any(Consumer.class));
 

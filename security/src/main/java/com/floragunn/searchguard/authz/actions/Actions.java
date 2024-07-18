@@ -43,12 +43,12 @@ import org.elasticsearch.action.admin.cluster.node.hotthreads.TransportNodesHotT
 import org.elasticsearch.action.admin.cluster.node.info.TransportNodesInfoAction;
 import org.elasticsearch.action.admin.cluster.node.reload.TransportNodesReloadSecureSettingsAction;
 import org.elasticsearch.action.admin.cluster.node.stats.TransportNodesStatsAction;
-import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksAction;
-import org.elasticsearch.action.admin.cluster.node.tasks.get.GetTaskAction;
+import org.elasticsearch.action.admin.cluster.node.tasks.cancel.TransportCancelTasksAction;
+import org.elasticsearch.action.admin.cluster.node.tasks.get.TransportGetTaskAction;
 import org.elasticsearch.action.admin.cluster.node.tasks.list.TransportListTasksAction;
 import org.elasticsearch.action.admin.cluster.node.usage.TransportNodesUsageAction;
 import org.elasticsearch.action.admin.cluster.remote.TransportRemoteInfoAction;
-import org.elasticsearch.action.admin.cluster.repositories.cleanup.CleanupRepositoryAction;
+import org.elasticsearch.action.admin.cluster.repositories.cleanup.TransportCleanupRepositoryAction;
 import org.elasticsearch.action.admin.cluster.repositories.delete.TransportDeleteRepositoryAction;
 import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesAction;
 import org.elasticsearch.action.admin.cluster.repositories.put.TransportPutRepositoryAction;
@@ -73,11 +73,11 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasA
 import org.elasticsearch.action.admin.indices.alias.TransportIndicesAliasesAction;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
-import org.elasticsearch.action.admin.indices.cache.clear.ClearIndicesCacheAction;
+import org.elasticsearch.action.admin.indices.cache.clear.TransportClearIndicesCacheAction;
 import org.elasticsearch.action.admin.indices.close.TransportCloseIndexAction;
 import org.elasticsearch.action.admin.indices.create.AutoCreateAction;
-import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.create.TransportCreateIndexAction;
 import org.elasticsearch.action.admin.indices.dangling.delete.TransportDeleteDanglingIndexAction;
 import org.elasticsearch.action.admin.indices.dangling.find.TransportFindDanglingIndexAction;
 import org.elasticsearch.action.admin.indices.dangling.import_index.TransportImportDanglingIndexAction;
@@ -91,7 +91,7 @@ import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsAction;
 import org.elasticsearch.action.admin.indices.mapping.put.TransportAutoPutMappingAction;
 import org.elasticsearch.action.admin.indices.mapping.put.TransportPutMappingAction;
 import org.elasticsearch.action.admin.indices.open.OpenIndexAction;
-import org.elasticsearch.action.admin.indices.readonly.AddIndexBlockAction;
+import org.elasticsearch.action.admin.indices.readonly.TransportAddIndexBlockAction;
 import org.elasticsearch.action.admin.indices.recovery.RecoveryAction;
 import org.elasticsearch.action.admin.indices.refresh.RefreshAction;
 import org.elasticsearch.action.admin.indices.refresh.TransportShardRefreshAction;
@@ -115,8 +115,8 @@ import org.elasticsearch.action.admin.indices.template.put.PutComponentTemplateA
 import org.elasticsearch.action.admin.indices.template.put.TransportPutComposableIndexTemplateAction;
 import org.elasticsearch.action.admin.indices.template.put.TransportPutIndexTemplateAction;
 import org.elasticsearch.action.admin.indices.validate.query.ValidateQueryAction;
-import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkShardRequest;
+import org.elasticsearch.action.bulk.TransportBulkAction;
 import org.elasticsearch.action.bulk.TransportShardBulkAction;
 import org.elasticsearch.action.delete.TransportDeleteAction;
 import org.elasticsearch.action.explain.TransportExplainAction;
@@ -146,8 +146,6 @@ import org.elasticsearch.persistent.StartPersistentTaskAction;
 import org.elasticsearch.persistent.UpdatePersistentTaskStatusAction;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.rest.root.MainRestPlugin;
-import org.elasticsearch.rest.root.RestMainAction;
-import org.elasticsearch.xcontent.ToXContent;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -212,7 +210,7 @@ public class Actions {
                 .requiresAdditionalPrivileges(always(), "indices:data/read/search");
 
         cluster(TransportMultiGetAction.TYPE); //todo #103055
-        cluster(BulkAction.INSTANCE);
+        cluster(TransportBulkAction.TYPE);
         cluster(TransportSearchScrollAction.TYPE);
         cluster(TransportMultiSearchAction.TYPE);
         cluster(MultiTermVectorsAction.INSTANCE);
@@ -223,7 +221,7 @@ public class Actions {
         index(IndicesStatsAction.INSTANCE);
         index(IndicesSegmentsAction.INSTANCE);
         index(TransportIndicesShardStoresAction.TYPE); //todo #103716
-        index(CreateIndexAction.INSTANCE) //
+        index(TransportCreateIndexAction.TYPE) //
                 .requestType(CreateIndexRequest.class)//
                 .requiresAdditionalPrivileges(ifNotEmpty(CreateIndexRequest::aliases), "indices:admin/aliases");
 
@@ -233,7 +231,7 @@ public class Actions {
         index(GetIndexAction.INSTANCE);
         index(OpenIndexAction.INSTANCE);
         index(TransportCloseIndexAction.TYPE); //todo #103055
-        index(AddIndexBlockAction.INSTANCE);
+        index(TransportAddIndexBlockAction.TYPE);
         index(GetMappingsAction.INSTANCE);
         index(GetFieldMappingsAction.INSTANCE);
         index(TransportPutMappingAction.TYPE); //todo #103330
@@ -274,8 +272,8 @@ public class Actions {
         cluster(TransportNodesUsageAction.TYPE);
         cluster(TransportNodesHotThreadsAction.TYPE);
         cluster(TransportListTasksAction.TYPE);
-        cluster(GetTaskAction.INSTANCE);
-        cluster(CancelTasksAction.INSTANCE);
+        cluster(TransportGetTaskAction.TYPE);
+        cluster(TransportCancelTasksAction.TYPE);
 
         cluster(TransportAddVotingConfigExclusionsAction.TYPE); //todo #103242
         cluster(TransportClearVotingConfigExclusionsAction.TYPE); //todo #103242
@@ -290,7 +288,7 @@ public class Actions {
         cluster(GetRepositoriesAction.INSTANCE);
         cluster(TransportDeleteRepositoryAction.TYPE); //todo #103242
         cluster(VerifyRepositoryAction.INSTANCE);
-        cluster(CleanupRepositoryAction.INSTANCE);
+        cluster(TransportCleanupRepositoryAction.TYPE);
         cluster(GetSnapshotsAction.INSTANCE);
         cluster(TransportDeleteSnapshotAction.TYPE); //todo #103242
         cluster(CreateSnapshotAction.INSTANCE);
@@ -321,7 +319,7 @@ public class Actions {
         index(TransportShardRefreshAction.NAME);
         index(FlushAction.INSTANCE);
         index(ForceMergeAction.INSTANCE);
-        index(ClearIndicesCacheAction.INSTANCE);
+        index(TransportClearIndicesCacheAction.TYPE);
 
         index(GetAliasesAction.INSTANCE);
         index(GetSettingsAction.INSTANCE);

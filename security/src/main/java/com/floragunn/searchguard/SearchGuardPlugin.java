@@ -1244,28 +1244,29 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         }
     }
 
-    @Override
-    public Function<String, Predicate<String>> getFieldFilter() {        
-        return (index) -> {
-            ImmutableList<Function<String, Predicate<String>>> fieldFilters = this.moduleRegistry.getFieldFilters();
-
-            List<Predicate<String>> predicates = new ArrayList<>(fieldFilters.size());
-            
-            for (Function<String, Predicate<String>> filter : fieldFilters) {
-                predicates.add(filter.apply(index));                
-            }
-            
-            return (field) -> {
-                for (Predicate<String> predicate : predicates) {
-                    if (!predicate.test(field)) {
-                        return false;
-                    }
-                }
-                
-                return true;
-            };
-        };
-    }
+    //todo uncomment and fix
+//    @Override
+//    public Function<String, Predicate<String>> getFieldFilter() {
+//        return (index) -> {
+//            ImmutableList<Function<String, Predicate<String>>> fieldFilters = this.moduleRegistry.getFieldFilters();
+//
+//            List<Predicate<String>> predicates = new ArrayList<>(fieldFilters.size());
+//
+//            for (Function<String, Predicate<String>> filter : fieldFilters) {
+//                predicates.add(filter.apply(index));
+//            }
+//
+//            return (field) -> {
+//                for (Predicate<String> predicate : predicates) {
+//                    if (!predicate.test(field)) {
+//                        return false;
+//                    }
+//                }
+//
+//                return true;
+//            };
+//        };
+//    }
 
     public static ProtectedIndices getProtectedIndices() {
         return Objects.requireNonNull(SearchGuardPlugin.protectedIndices);

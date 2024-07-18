@@ -92,12 +92,12 @@ public class ActionRequestIntrospector {
                     .allowEmptyExpressions(false)
                     .matchOpen(false)
                     .build(),
-            IndicesOptions.GeneralOptions.builder()
+            IndicesOptions.GatekeeperOptions.builder()
                     .allowClosedIndices(true)
                     .allowAliasToMultipleIndices(true)
                     .ignoreThrottled(false)
                     .build()
-    ); //todo #104655
+    );
 
     private static final Set<String> NAME_BASED_SHORTCUTS_FOR_CLUSTER_ACTIONS = ImmutableSet.of("indices:data/read/msearch/template",
             "indices:data/read/search/template", "indices:data/read/sql/translate", "indices:data/read/sql", "indices:data/read/sql/close_cursor",
