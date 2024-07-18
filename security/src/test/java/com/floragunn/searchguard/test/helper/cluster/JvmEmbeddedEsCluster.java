@@ -26,11 +26,8 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.ServiceLoader;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import com.floragunn.searchguard.client.RestHighLevelClient;
 import org.apache.commons.io.FileUtils;
@@ -54,8 +51,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.http.BindHttpException;
 import org.elasticsearch.node.PluginAwareNode;
-import org.elasticsearch.plugins.ExtensiblePlugin;
-import org.elasticsearch.plugins.ExtensiblePlugin.ExtensionLoader;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.BindTransportException;
 
@@ -87,7 +82,6 @@ public class JvmEmbeddedEsCluster extends LocalEsCluster {
             List<Class<? extends Plugin>> additionalPlugins, TestCertificates testCertificates) {
         super(clusterName, clusterConfiguration, nodeSettingsSupplier, testCertificates);
         this.additionalPlugins = additionalPlugins;
-        painlessWhitelistKludge();
     }
 
     public boolean isStarted() {
@@ -373,38 +367,5 @@ public class JvmEmbeddedEsCluster extends LocalEsCluster {
     public Node clientNode() {
         return (Node) super.clientNode();
     }
-    
-    /**
-     * Triggers loading of SPI extensions for the painless plugin. This is only effective when Painless is on the classpath. If Painless is not on the classpath, nothing will be done.
-     */
-    private void painlessWhitelistKludge() {
-        try {
-            ClassLoader classLoader = getClass().getClassLoader();
-            Class<?> painlessExtensionClass = Class.forName("org.elasticsearch.painless.spi.PainlessExtension");
-            ExtensiblePlugin painlessPlugin = (ExtensiblePlugin) Class.forName("org.elasticsearch.painless.PainlessPlugin").getConstructor()
-                    .newInstance();
 
-            painlessPlugin.loadExtensions(new ExtensionLoader() {
-
-                @SuppressWarnings("unchecked")
-                @Override
-                public <T> List<T> loadExtensions(Class<T> extensionPointType) {
-                    if (extensionPointType.equals(painlessExtensionClass)) {
-                        List<?> result = StreamSupport.stream(ServiceLoader.load(painlessExtensionClass, classLoader).spliterator(), false)
-                                .collect(Collectors.toList());
-
-                        return (List<T>) result;
-                    } else {
-                        return Collections.emptyList();
-                    }
-                }
-            });
-
-            ((Plugin) painlessPlugin).close();
-        } catch (ClassNotFoundException e) {
-            // Ignore this, as this is expected on projects without painless dependency
-        } catch (Exception e) {
-            log.error("Error while applying painlessWhitelistKludge", e);
-        }
-    }
 }

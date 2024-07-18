@@ -28,9 +28,9 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteRequest;
-import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
+import org.elasticsearch.action.admin.indices.create.TransportCreateIndexAction;
 import org.elasticsearch.action.admin.indices.mapping.put.TransportPutMappingAction;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -87,7 +87,7 @@ class FrontendDataMigrationInterceptor {
         } else if (TransportPutMappingAction.TYPE.name().equals(context.getAction().name())) {
             log.debug("Migration of mappings for index '{}' detected ", kibanaIndices);
             return Optional.of(() -> extendIndexMappingWithMultiTenancyData((PutMappingRequest) context.getRequest(), (ActionListener<AcknowledgedResponse>)listener));
-        } else if (CreateIndexAction.NAME.equals(context.getAction().name())) {
+        } else if (TransportCreateIndexAction.TYPE.name().equals(context.getAction().name())) {
             log.debug("Creation of index '{}' detected", kibanaIndices);
             return Optional.of(() -> extendIndexMappingWithMultiTenancyData((CreateIndexRequest) context.getRequest(), (ActionListener<CreateIndexResponse>)listener));
         }
