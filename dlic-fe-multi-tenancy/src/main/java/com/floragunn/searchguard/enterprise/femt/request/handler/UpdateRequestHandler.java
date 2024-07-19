@@ -19,7 +19,6 @@ import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.enterprise.femt.request.mapper.UpdateMapper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.update.UpdateRequest;
-import org.elasticsearch.action.update.UpdateResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
@@ -46,15 +45,7 @@ public class UpdateRequestHandler extends RequestHandler<UpdateRequest> {
             threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
             UpdateRequest scoped = updateMapper.toScopedUpdateRequest(request, requestedTenant);
 
-            TenantScopedActionListenerWrapper<UpdateResponse> listenerWrapper = new TenantScopedActionListenerWrapper<>(
-                    listener,
-                    response -> storedContext.restore(),
-                    updateMapper::toUnscopedUpdateResponse,
-                    (ex) ->  {
-                        log.error("An error occurred while sending update request", ex);
-                        storedContext.restore();
-                    }
-            );
+            var listenerWrapper = new TenantScopedActionListenerWrapper<>(listener, storedContext, updateMapper);
 
             nodeClient.update(scoped, listenerWrapper);
 

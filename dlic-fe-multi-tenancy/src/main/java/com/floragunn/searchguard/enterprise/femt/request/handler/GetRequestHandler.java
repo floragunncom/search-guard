@@ -19,7 +19,6 @@ import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.enterprise.femt.request.mapper.GetMapper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.get.GetRequest;
-import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
@@ -47,15 +46,7 @@ public class GetRequestHandler extends RequestHandler<GetRequest> {
             threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
             GetRequest scoped = getMapper.toScopedGetRequest(request, requestedTenant);
 
-            TenantScopedActionListenerWrapper<GetResponse> listenerWrapper = new TenantScopedActionListenerWrapper<>(
-                    listener,
-                    (response) -> storedContext.restore(),
-                    getMapper::toUnscopedGetResponse,
-                    (ex) -> {
-                        log.error("An error occurred while sending get request", ex);
-                        storedContext.restore();
-                    }
-            );
+            var listenerWrapper = new TenantScopedActionListenerWrapper<>(listener, storedContext, getMapper);
 
             nodeClient.get(scoped, listenerWrapper);
 

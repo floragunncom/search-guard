@@ -20,7 +20,6 @@ import com.floragunn.searchguard.enterprise.femt.request.mapper.UpdateByQueryMap
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.index.reindex.BulkByScrollResponse;
 import org.elasticsearch.index.reindex.UpdateByQueryAction;
 import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 
@@ -48,15 +47,7 @@ public class UpdateByQueryRequestHandler extends RequestHandler<UpdateByQueryReq
             threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
             UpdateByQueryRequest scoped = updateByQueryMapper.toScopedUpdateByQueryRequest(request, requestedTenant);
 
-            TenantScopedActionListenerWrapper<BulkByScrollResponse> listenerWrapper = new TenantScopedActionListenerWrapper<>(
-                    listener,
-                    (response) -> storedContext.restore(),
-                    updateByQueryMapper::toUnscopedBulkByScrollResponse,
-                    (ex) -> {
-                        log.error("An error occurred while sending update request", ex);
-                        storedContext.restore();
-                    }
-            );
+            var listenerWrapper = new TenantScopedActionListenerWrapper<>(listener, storedContext, updateByQueryMapper);
 
             nodeClient.execute(UpdateByQueryAction.INSTANCE, scoped, listenerWrapper);
 

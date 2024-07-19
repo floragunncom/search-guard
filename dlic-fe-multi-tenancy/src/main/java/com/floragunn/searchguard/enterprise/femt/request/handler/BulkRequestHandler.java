@@ -19,7 +19,6 @@ import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.enterprise.femt.request.mapper.BulkMapper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
@@ -45,15 +44,7 @@ public class BulkRequestHandler extends RequestHandler<BulkRequest> {
             threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
             BulkRequest scoped = bulkMapper.toScopedBulkRequest(request, requestedTenant);
 
-            TenantScopedActionListenerWrapper<BulkResponse> listenerWrapper = new TenantScopedActionListenerWrapper<>(
-                    listener,
-                    (response) -> storedContext.restore(),
-                    bulkMapper::toUnscopedBulkResponse,
-                    (ex) -> {
-                        log.error("An error occurred while sending bulk request", ex);
-                        storedContext.restore();
-                    }
-            );
+            var listenerWrapper = new TenantScopedActionListenerWrapper<>(listener, storedContext, bulkMapper);
 
             nodeClient.bulk(scoped, listenerWrapper);
 

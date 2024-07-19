@@ -19,7 +19,6 @@ import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.enterprise.femt.request.mapper.MultiGetMapper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.get.MultiGetRequest;
-import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
@@ -47,15 +46,7 @@ public class MultiGetRequestHandler extends RequestHandler<MultiGetRequest> {
             threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
             MultiGetRequest scopedRequest = multiGetMapper.toScopedMultiGetRequest(request, requestedTenant);
 
-            TenantScopedActionListenerWrapper<MultiGetResponse> listenerWrapper = new TenantScopedActionListenerWrapper<>(
-                    listener,
-                    (response) -> storedContext.restore(),
-                    multiGetMapper::toUnscopedMultiGetResponse,
-                    (ex) -> {
-                        log.error("An error occurred while sending multi get request", ex);
-                        storedContext.restore();
-                    }
-            );
+            var listenerWrapper = new TenantScopedActionListenerWrapper<>(listener, storedContext, multiGetMapper);
 
             nodeClient.multiGet(scopedRequest, listenerWrapper);
 
