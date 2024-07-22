@@ -65,7 +65,6 @@ class TenantScopedActionListenerWrapper<T extends ActionResponse> implements Act
 
     @Override
     public void onFailure(Exception e) {
-        LOG.error("Error occurred when handling response in the tenant scope.", e);
         contextToRestore.restore();
         delegate.onFailure(e);
     }

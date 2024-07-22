@@ -35,7 +35,7 @@ import org.elasticsearch.index.seqno.SequenceNumbers;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class BulkMapper implements Unscoper<BulkResponse>{
+public class BulkMapper implements Unscoper<BulkResponse> {
 
     private final static Logger log = LogManager.getLogger(BulkMapper.class);
 
@@ -115,12 +115,25 @@ public class BulkMapper implements Unscoper<BulkResponse>{
 
     BulkItemResponse.Failure toUnscopedFailure(BulkItemResponse.Failure scoped) {
         log.debug("Rewriting item with failure");
-        if(scoped.isAborted()) {
-            return new BulkItemResponse.Failure(scoped.getIndex(), RequestResponseTenantData.unscopedId(scoped.getId()), scoped.getCause(), true);
+        if (scoped.isAborted()) {
+            return new BulkItemResponse.Failure(
+                scoped.getIndex(),
+                RequestResponseTenantData.unscopedId(scoped.getId()),
+                scoped.getCause(),
+                true);
         } else if ((scoped.getSeqNo() != SequenceNumbers.UNASSIGNED_SEQ_NO) || (scoped.getTerm() != SequenceNumbers.UNASSIGNED_PRIMARY_TERM)) {
-            return new BulkItemResponse.Failure(scoped.getIndex(), RequestResponseTenantData.unscopedId(scoped.getId()), scoped.getCause(), scoped.getSeqNo(), scoped.getTerm());
+            return new BulkItemResponse.Failure(
+                scoped.getIndex(),
+                RequestResponseTenantData.unscopedId(scoped.getId()),
+                scoped.getCause(),
+                scoped.getSeqNo(),
+                scoped.getTerm());
         } else {
-            return new BulkItemResponse.Failure(scoped.getIndex(), RequestResponseTenantData.unscopedId(scoped.getId()), scoped.getCause(), scoped.getStatus());
+            return new BulkItemResponse.Failure(
+                scoped.getIndex(),
+                RequestResponseTenantData.unscopedId(scoped.getId()),
+                scoped.getCause(),
+                scoped.getStatus());
         }
     }
 
