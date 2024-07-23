@@ -6,11 +6,12 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.index.IndexResponse;
 
-public class IndexMapper {
+public class IndexMapper implements Unscoper<IndexResponse> {
 
     private final static Logger log = LogManager.getLogger(IndexMapper.class);
 
-    public IndexResponse toUnscopedIndexResponse(IndexResponse response) {
+    @Override
+    public IndexResponse unscopeResponse(IndexResponse response) {
         log.debug("Rewriting index response - removing tenant scope");
         IndexResponse indexResponse = new IndexResponse(
                 response.getShardId(), RequestResponseTenantData.unscopedId(response.getId()),
