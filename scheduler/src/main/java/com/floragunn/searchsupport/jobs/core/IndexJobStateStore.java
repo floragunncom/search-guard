@@ -1744,7 +1744,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             SearchResponse searchResponse = client.prepareSearch(this.statusIndexName).setQuery(queryBuilder).setSize(1000)
                     .setScroll(new TimeValue(10000)).get();
 
-            try(RefCountedGuard<SearchResponse> guard = new RefCountedGuard<>()) {
+            try (RefCountedGuard<SearchResponse> guard = new RefCountedGuard<>()) {
                 guard.add(searchResponse);
                 do {
                     for (SearchHit searchHit : searchResponse.getHits().getHits()) {
