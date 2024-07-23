@@ -6,11 +6,12 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
 
-public class DeleteMapper {
+public class DeleteMapper implements Unscoper<DeleteResponse> {
 
     private final static Logger log = LogManager.getLogger(DeleteMapper.class);
 
-    public DeleteResponse toUnscopedDeleteResponse(DeleteResponse response) {
+    @Override
+    public DeleteResponse unscopeResponse(DeleteResponse response) {
         log.debug("Rewriting delete response - removing tenant scope");
         DeleteResponse deleteResponse = new DeleteResponse(
                 response.getShardId(), RequestResponseTenantData.unscopedId(response.getId()),

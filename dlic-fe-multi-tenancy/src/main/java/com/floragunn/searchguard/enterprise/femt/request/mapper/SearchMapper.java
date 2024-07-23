@@ -10,7 +10,7 @@ import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 
-public class SearchMapper {
+public class SearchMapper implements Unscoper<SearchResponse> {
 
     private final static Logger log = LogManager.getLogger(SearchMapper.class);
 
@@ -36,7 +36,8 @@ public class SearchMapper {
         return request;
     }
 
-    public SearchResponse toUnscopedSearchResponse(SearchResponse response) {
+    @Override
+    public SearchResponse unscopeResponse(SearchResponse response) {
         log.debug("Rewriting search response - removing tenant scope");
         SearchHits originalSearchHits = response.getHits();
         SearchHit[] originalSearchHitArray = originalSearchHits.getHits();
