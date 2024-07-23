@@ -337,4 +337,13 @@ public class StaticSettings {
         }
 
     }
+    
+    /**
+     * For testing only
+     */
+    public static StaticSettings ofBoolean(StaticSettings.Attribute<Boolean> attribute, boolean value) {
+        Settings.Builder platformSettings = Settings.builder();
+        platformSettings.put(attribute.toPlatformInstance().getKey(), value);
+        return new StaticSettings(platformSettings.build(), null);
+    }
 }

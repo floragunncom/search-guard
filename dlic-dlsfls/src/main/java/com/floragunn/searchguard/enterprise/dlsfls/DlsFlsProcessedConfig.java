@@ -39,7 +39,7 @@ import static java.util.stream.Collectors.joining;
 public class DlsFlsProcessedConfig {
     private static final Logger log = LogManager.getLogger(DlsFlsProcessedConfig.class);
 
-    public static final DlsFlsProcessedConfig DEFAULT = new DlsFlsProcessedConfig(DlsFlsConfig.DEFAULT, null, null, null, null, null);
+    public static final DlsFlsProcessedConfig DEFAULT = new DlsFlsProcessedConfig(DlsFlsConfig.DEFAULT, null, null, null, SgDynamicConfiguration.empty(CType.ROLES), null, null);
 
     private final DlsFlsConfig dlsFlsConfig;
     private final RoleBasedDocumentAuthorization documentAuthorization;
@@ -49,9 +49,10 @@ public class DlsFlsProcessedConfig {
     private final boolean validationErrorsPresent;
     private final String validationErrorDescription;
     private final String uniqueValidationErrorToken;
-
+    private final SgDynamicConfiguration<Role> roleConfig;
+    
     DlsFlsProcessedConfig(DlsFlsConfig dlsFlsConfig, RoleBasedDocumentAuthorization documentAuthorization,
-            RoleBasedFieldAuthorization fieldAuthorization, RoleBasedFieldMasking fieldMasking, ValidationErrors rolesValidationErrors,
+            RoleBasedFieldAuthorization fieldAuthorization, RoleBasedFieldMasking fieldMasking, SgDynamicConfiguration<Role> roleConfig, ValidationErrors rolesValidationErrors,
         ValidationErrors rolesMappingValidationErrors) {
         this.dlsFlsConfig = dlsFlsConfig;
         this.documentAuthorization = documentAuthorization;
@@ -63,6 +64,7 @@ public class DlsFlsProcessedConfig {
         this.uniqueValidationErrorToken = UUID.randomUUID().toString();
         this.validationErrorDescription = describeValidationErrors(uniqueValidationErrorToken, rolesValidationErrors,//
             rolesMappingValidationErrors);
+        this.roleConfig = roleConfig;
     }
 
     static DlsFlsProcessedConfig createFrom(ConfigMap configMap, ComponentState componentState, Set<String> indices) {
@@ -107,7 +109,7 @@ public class DlsFlsProcessedConfig {
             ValidationErrors rolesMappingsValidationErrors = Optional.ofNullable(configMap.get(CType.ROLESMAPPING))
                 .map(SgDynamicConfiguration::getValidationErrors)
                 .orElse(null);
-            return new DlsFlsProcessedConfig(dlsFlsConfig, documentAuthorization, fieldAuthorization, fieldMasking, rolesValidationErrors,
+            return new DlsFlsProcessedConfig(dlsFlsConfig, documentAuthorization, fieldAuthorization, fieldMasking, roleConfig, rolesValidationErrors,
                 rolesMappingsValidationErrors);
         } catch (Exception e) {
             log.error("Error while updating DLS/FLS config", e);
@@ -140,6 +142,10 @@ public class DlsFlsProcessedConfig {
         return dlsFlsConfig.getMetricsLevel();
     }
 
+    public SgDynamicConfiguration<Role> getRoleConfig() {
+        return roleConfig;
+    }
+    
     public void updateIndices(Set<String> indices) {
         if (documentAuthorization != null) {
             documentAuthorization.updateIndices(indices);
