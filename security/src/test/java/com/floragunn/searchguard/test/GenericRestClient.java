@@ -20,6 +20,7 @@ package com.floragunn.searchguard.test;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,6 +42,7 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
+import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.client.methods.HttpOptions;
@@ -180,6 +182,21 @@ public class GenericRestClient implements AutoCloseable {
 
     public HttpResponse delete(String path, Header... headers) throws Exception {
         return executeRequest(new HttpDelete(getHttpServerUri() + "/" + path), new RequestInfo().path(path).method("DELETE"), headers);
+    }
+
+    public HttpResponse deleteJson(String path, Map<String, Object> body, Header... headers) throws Exception {
+        HttpEntityEnclosingRequestBase uriRequest = new HttpEntityEnclosingRequestBase() {
+            {
+                setURI(URI.create(getHttpServerUri() + "/" + path));
+            }
+
+            @Override
+            public String getMethod() {
+                return "DELETE";
+            }
+        };
+        uriRequest.setEntity(new StringEntity(DocWriter.json().writeAsString(body), org.apache.http.entity.ContentType.APPLICATION_JSON));
+        return executeRequest(uriRequest, new RequestInfo().path(path).method("DELETE"), headers);
     }
 
     public HttpResponse postJson(String path, String body, Header... headers) throws Exception {

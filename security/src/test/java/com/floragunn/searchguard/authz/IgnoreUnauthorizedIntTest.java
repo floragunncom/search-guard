@@ -23,11 +23,13 @@ import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
+import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containSubstring;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 
 import java.util.Arrays;
@@ -58,13 +60,15 @@ public class IgnoreUnauthorizedIntTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     static TestSgConfig.User LIMITED_USER_A = new TestSgConfig.User("limited_user_A").roles(//
-            new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("a*"));
+            new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "indices:data/read/close_point_in_time") //
+                .indexPermissions("SGS_CRUD").on("a*"));
 
     static TestSgConfig.User LIMITED_USER_B = new TestSgConfig.User("limited_user_B").roles(//
             new Role("limited_user_b_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("b*"));
 
     static TestSgConfig.User LIMITED_USER_C = new TestSgConfig.User("limited_user_C").roles(//
-            new Role("limited_user_c_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("c*"));
+            new Role("limited_user_c_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "indices:data/read/close_point_in_time") //
+                .indexPermissions("SGS_CRUD").on("c*"));
 
     static TestSgConfig.User LIMITED_USER_D = new TestSgConfig.User("limited_user_D").roles(//
             new Role("limited_user_d_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")
@@ -75,7 +79,8 @@ public class IgnoreUnauthorizedIntTest {
                     .indexPermissions("SGS_CRUD").on("b1"));
 
     static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user").roles(//
-            new Role("unlimited_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("*"));
+            new Role("unlimited_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "indices:data/read/close_point_in_time")//
+                .indexPermissions("SGS_CRUD").on("*"));
 
     static TestSgConfig.User LIMITED_USER_A_WITHOUT_ANALYZE = new TestSgConfig.User("limited_user_A_without_analyze").roles(//
             new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("indices:data/read*").on("a*"));
@@ -293,25 +298,25 @@ public class IgnoreUnauthorizedIntTest {
     @Test
     public void search_indexPattern_withPit() throws Exception {
 
-        String pitId = generatePitForIndices("a*", "b*");
-        DocNode searchWithPitId = DocNode.of("pit.id", pitId);
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", searchWithPitId);
+        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
+            PitPointer pitPointer = generatePitForIndices(restClient,"a*", "b*")) {
+            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitPointer.getPitId()));
 
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3"))));
         }
 
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", searchWithPitId);
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A);
+            PitPointer pitPointer = generatePitForIndices(restClient,"a*", "b*")) {
+            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitPointer.getPitId()));
 
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3"))));
         }
 
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", searchWithPitId);
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C);
+            PitPointer pitPointer = generatePitForIndices(restClient,"a*", "b*")) {
+            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitPointer.getPitId()));
 
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", empty())));
@@ -345,11 +350,9 @@ public class IgnoreUnauthorizedIntTest {
 
     @Test
     public void search_all_withPit() throws Exception {
-
-        String pitId = generatePitForIndices("_all");
-        DocNode searchWithPitId = DocNode.of("pit.id", pitId);
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
+        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
+            PitPointer pitPointer = generatePitForIndices(restClient,"_all")) {
+            DocNode searchWithPitId = DocNode.of("pit.id", pitPointer.getPitId());
             HttpResponse httpResponse = restClient.postJson("/_search?size=1000", searchWithPitId);
 
             Assert.assertThat(httpResponse, isOk());
@@ -357,14 +360,18 @@ public class IgnoreUnauthorizedIntTest {
                     json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3", "c1"))));
         }
 
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A);
+            PitPointer pitPointer = generatePitForIndices(restClient,"_all")) {
+            DocNode searchWithPitId = DocNode.of("pit.id", pitPointer.getPitId());
             HttpResponse httpResponse = restClient.postJson("/_search?size=1000", searchWithPitId);
 
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3"))));
         }
 
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C);
+            PitPointer pitPointer = generatePitForIndices(restClient,"_all")) {
+            DocNode searchWithPitId = DocNode.of("pit.id", pitPointer.getPitId());
             HttpResponse httpResponse = restClient.postJson("/_search?size=1000", searchWithPitId);
 
             Assert.assertThat(httpResponse, isOk());
@@ -400,26 +407,26 @@ public class IgnoreUnauthorizedIntTest {
     @Test
     public void search_wildcard_withPit() throws Exception {
 
-        String pitId = generatePitForIndices("*");
-        DocNode searchWithPitId = DocNode.of("pit.id", pitId);
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", searchWithPitId);
+        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
+            PitPointer pitPointer = generatePitForIndices(restClient,"*")) {
+            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitPointer.getPitId()));
 
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse,
                     json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3", "c1"))));
         }
 
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", searchWithPitId);
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A);
+            PitPointer pitPointer = generatePitForIndices(restClient,"*")) {
+            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitPointer.getPitId()));
 
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3"))));
         }
 
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", searchWithPitId);
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C);
+            PitPointer pitPointer = generatePitForIndices(restClient,"*")) {
+            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitPointer.getPitId()));
 
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("c1"))));
@@ -441,24 +448,23 @@ public class IgnoreUnauthorizedIntTest {
         }
     }
 
-    @Ignore("It's not possible to create PIT for not existing index") //todo
+//    @Ignore("It's not possible to create PIT for not existing index") //todo
     @Test
     public void search_staticNonExisting_withPit() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A);
+            PitPointer pitPointer = generatePitForIndices(restClient,"ax")) {
+            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitPointer.getPitId()));
 
-
-        String pitId = generatePitForIndices("ax");
-        DocNode searchWithPitId = DocNode.of("pit.id", pitId);
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", searchWithPitId);
-
-            Assert.assertThat(httpResponse, isNotFound());
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("$.hits.total.value", equalTo(0))));
         }
 
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C)) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", searchWithPitId);
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C);
+            PitPointer pitPointer = generatePitForIndices(restClient,"ax")) {
+            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitPointer.getPitId()));
 
-            Assert.assertThat(httpResponse, isForbidden());
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("$.hits.total.value", equalTo(0))));
         }
     }
 
@@ -635,16 +641,15 @@ public class IgnoreUnauthorizedIntTest {
 
     }
 
-    @Ignore("It is impossible to create PIT without providing indices") //todo
+//    @Ignore("It is impossible to create PIT without providing indices") //todo
     @Test
     public void search_termsAggregation_index_withPit() throws Exception {
-
-        String pitId = generatePitForIndices(); //todo the assertion below: `assertThat(httpResponse, isOk());` fails even after replacing this with generatePitForIndices("_all / *")
-
         String aggregationBody = "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}";
-        DocNode searchWithAggregationAndPitId = DocNode.of("pit.id", pitId).with(DocNode.parse(Format.JSON).from(aggregationBody));
 
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A)) {
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A);
+            PitPointer pitPointer = generatePitForIndices(restClient, "_all")) {
+            DocNode searchWithAggregationAndPitId = DocNode.of("pit.id", pitPointer.getPitId()) //
+                .with(DocNode.parse(Format.JSON).from(aggregationBody));
             HttpResponse httpResponse = restClient.postJson("/_search", searchWithAggregationAndPitId);
 
             Assert.assertThat(httpResponse, isOk());
@@ -691,10 +696,35 @@ public class IgnoreUnauthorizedIntTest {
 
     private String generatePitForIndices(String... indices) throws Exception {
         try (GenericRestClient admin = cluster.getAdminCertRestClient()) {
-            HttpResponse response = admin.post(String.join(",", indices) + "/_pit?keep_alive=1m");
+            return generatePitForIndices(admin, indices).getPitId(); // TODO PIT request needs to be closed
+        }
+    }
+
+    private PitPointer generatePitForIndices(GenericRestClient genericRestClient, String... indices) throws Exception {
+            HttpResponse response = genericRestClient.post(String.join(",", indices) + "/_pit?keep_alive=1m&ignore_unavailable=true");
             assertThat(response, isOk());
             assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$", "id"));
-            return response.getBodyAsDocNode().getAsString("id");
+            return new PitPointer(genericRestClient, response.getBodyAsDocNode().getAsString("id"));
+    }
+
+    private static class PitPointer implements AutoCloseable {
+
+        private final GenericRestClient genericRestClient;
+        private final String pitId;
+
+        public PitPointer(GenericRestClient genericRestClient, String pitId) {
+            this.genericRestClient = genericRestClient;
+            this.pitId = pitId;
+        }
+
+        public String getPitId() {
+            return pitId;
+        }
+
+        @Override
+        public void close() throws Exception {
+            HttpResponse response = genericRestClient.deleteJson("/_pit/", DocNode.of("id", pitId));
+            assertThat(response, isOk());
         }
     }
 }
