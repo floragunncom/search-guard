@@ -96,6 +96,8 @@ public class CheckTest {
 
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
+    private static ClusterService clusterService;
+    private static FeatureService featureService;
     private static ThrottlePeriodParser throttlePeriodParser;
 
     private static TestCertificates testCertificates = TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
@@ -132,10 +134,6 @@ public class CheckTest {
     private HttpProxyHostRegistry httpProxyHostRegistry;
     @Mock
     private X509ExtendedTrustManager trustManager;
-    @Mock
-    private ClusterService clusterService;
-    @Mock
-    private FeatureService featureService;
     private final WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService, trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT);
 
     @BeforeClass
@@ -159,6 +157,8 @@ public class CheckTest {
         xContentRegistry = cluster.getInjectable(NamedXContentRegistry.class);
         scriptService = cluster.getInjectable(ScriptService.class);
         throttlePeriodParser = new ValidatingThrottlePeriodParser(cluster.getInjectable(Signals.class).getSignalsSettings());
+        clusterService = cluster.getInjectable(ClusterService.class);
+        featureService = cluster.getInjectable(FeatureService.class);
     }
 
     @Before
