@@ -95,12 +95,9 @@ implements TransportRequestHandler<T> {
             if (channel instanceof TaskTransportChannel) {
                 final TransportChannel inner = ((TaskTransportChannel) channel).getChannel();
                 nettyChannel = (Netty4TcpChannel ) ((TcpTransportChannel) inner).getChannel();
-            } else
-            if (channel instanceof TcpTransportChannel) {
+            } else  {
                 final TcpChannel inner = ((TcpTransportChannel) channel).getChannel();
                 nettyChannel = (Netty4TcpChannel) inner;
-            } else {
-                // already validated by the isDirectChannelDeep method
             }
             
             final SslHandler sslhandler = (SslHandler) nettyChannel.getNettyChannel().pipeline().get("ssl_server");
