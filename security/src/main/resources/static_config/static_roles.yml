@@ -259,6 +259,7 @@ SGS_KIBANA_SERVER:
   - "cluster:admin/ingest/pipeline/put"
   - "cluster:admin/transform/put"
   - "cluster:admin/transform/start"
+  - "cluster:admin/ingest/pipeline/get"
   index_permissions:
   - index_patterns:
     - ".kibana"
@@ -279,12 +280,9 @@ SGS_KIBANA_SERVER:
     - "*:.kibana-event-log-*"
     - ".fleet-agents"
     - "logs-cloud_security_posture*"
-    - ".internal.alerts-observability.*"
-    - ".internal.alerts-ml.anomaly-detection.alerts*"
     - ".kibana-observability-ai-assistant-conversations*"
     - ".kibana-observability-ai-assistant-kb*"
-    - ".internal.alerts-security.alerts*"
-    - ".internal.alerts-stack.alerts*"
+    - ".internal.alerts*"
     - ".slo-observability.sli-v*"
     - ".slo-observability.summary-v*"
     - "logs-cloud_defend.*"
@@ -302,7 +300,7 @@ SGS_KIBANA_SERVER:
     - "indices:monitor/stats"
     - "indices:data/read/field_caps*"
   - index_patterns:
-      - ".internal.alerts-security.alerts-default-*"
+      - ".internal.alerts*"
     allowed_actions:
       - "indices:admin/create"
 
