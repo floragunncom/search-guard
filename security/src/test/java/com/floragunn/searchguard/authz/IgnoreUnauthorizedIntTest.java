@@ -639,7 +639,7 @@ public class IgnoreUnauthorizedIntTest {
     @Test
     public void search_termsAggregation_index_withPit() throws Exception {
 
-        String pitId = generatePitForIndices("_all"); //todo the assertion below: `assertThat(httpResponse, isOk());` fails even after replacing this with generatePitForIndices("_all / *")
+        String pitId = generatePitForIndices(); //todo the assertion below: `assertThat(httpResponse, isOk());` fails even after replacing this with generatePitForIndices("_all / *")
 
         String aggregationBody = "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":40}}}}";
         DocNode searchWithAggregationAndPitId = DocNode.of("pit.id", pitId).with(DocNode.parse(Format.JSON).from(aggregationBody));
