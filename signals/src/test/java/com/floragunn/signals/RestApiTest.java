@@ -2896,9 +2896,7 @@ public class RestApiTest {
     public void testConvEs() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             String input = DocNode.of("trigger.schedule.daily.at", "noon", "input.simple.x", "y", "actions",
-                            DocNode.of("email_action.email", DocNode.of("to", "horst@horst", "body", "Hallo {{ctx.payload.x}}", "attachments", "foo")),
-                            "input.search.request.indices", Collections.singletonList("search-index")
-                    )
+                            DocNode.of("email_action.email", DocNode.of("to", "horst@horst", "body", "Hallo {{ctx.payload.x}}", "attachments", "foo")))
                     .toJsonString();
 
             HttpResponse response = restClient.postJson("/_signals/convert/es", input);
