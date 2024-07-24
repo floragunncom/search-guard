@@ -163,7 +163,7 @@ public class CheckTest {
 
     @Before
     public void resetMock() {
-        Mockito.reset(accountRegistry, trustManagerRegistry, trustManager, httpProxyHostRegistry, clusterService, featureService);
+        Mockito.reset(accountRegistry, trustManagerRegistry, trustManager, httpProxyHostRegistry);
     }
 
     @Test
