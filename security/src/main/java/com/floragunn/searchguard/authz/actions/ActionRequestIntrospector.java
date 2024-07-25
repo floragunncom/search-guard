@@ -608,10 +608,12 @@ public class ActionRequestIntrospector {
         }
 
         private static String[] extractIndicesFromRequest(IndicesRequest indicesRequest) {
-            if (indicesRequest instanceof SearchRequest searchRequest && Objects.nonNull(searchRequest.pointInTimeBuilder())) {
+            if (indicesRequest instanceof SearchRequest searchRequest && Objects.nonNull(searchRequest.pointInTimeBuilder())
+                && ((searchRequest.indices() == null) || (searchRequest.indices().length == 0))) {
                 // This if statement is necessary for handling point-in-time (PIT) search requests, a feature introduced in
                 // ES version 8.13, which requires fetching the indices from the search context.
                 String pointInTimeId = searchRequest.pointInTimeBuilder().getEncodedId();
+
                 return SearchContextId.decodeIndices(pointInTimeId);
             }
             return indicesRequest.indices();
