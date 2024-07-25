@@ -129,7 +129,7 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
         if (policyInstanceHandler == null && aimSettings.getDynamic().getStateLogActive()) {
             LOG.info("Starting AIM policy instance handler");
             policyInstanceHandler = new PolicyInstanceHandler(aimSettings, policyService, policyInstanceService, client, threadPool, clusterService,
-                    indexNameExpressionResolver, conditionFactory, actionFactory);
+                    conditionFactory, actionFactory);
             policyInstanceHandler.init();
         }
     }

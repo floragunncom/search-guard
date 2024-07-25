@@ -38,10 +38,8 @@ public final class RolloverAction extends Action {
         if (!executionContext.getClusterService().state().metadata().index(index).getAliases().containsKey(alias)) {
             throw new IllegalStateException("Index does not have the rollover alias assigned. Index might be already rolled over");
         }
-        RolloverRequest request = new RolloverRequest(alias, null);
-        RolloverResponse response = executionContext.getClient().admin().indices()
-                .execute(org.elasticsearch.action.admin.indices.rollover.RolloverAction.INSTANCE, request).actionGet();
-        if (!response.isRolledOver()) {
+        RolloverResponse rolloverResponse = executionContext.getClient().admin().indices().prepareRolloverIndex(alias).get();
+        if (!rolloverResponse.isRolledOver()) {
             throw new IllegalStateException("Rollover finally failed");
         }
     }

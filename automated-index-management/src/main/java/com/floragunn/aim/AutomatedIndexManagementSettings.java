@@ -81,7 +81,7 @@ public final class AutomatedIndexManagementSettings {
                             settings.put(item.getId(), value);
                         }
                     } else {
-                        LOG.warn("Failed to retrieve setting '" + item.getId() + "' from settings index", item.getFailure().getFailure());
+                        LOG.warn("Failed to retrieve setting '{}' from settings index\n{}", item.getId(), item.getFailure().getFailure());
                     }
                 }
             } catch (Exception e) {
@@ -261,7 +261,7 @@ public final class AutomatedIndexManagementSettings {
                     } else {
                         throw new IllegalArgumentException("Default value for '" + name + "' is not a time value");
                     }
-                    return timeValueBuilder.asGeneric(new StringParser<TimeValue>() {
+                    return timeValueBuilder.asGeneric(new StringParser<>() {
                         @Override
                         public TimeValue fromBasicObject(Object obj) {
                             return TimeValue.parseTimeValue((String) obj, name);
@@ -328,10 +328,6 @@ public final class AutomatedIndexManagementSettings {
         protected Static(Settings settings) {
             this.settings = new StaticSettings(settings, null);
             stateLog = new StateLog(this.settings);
-        }
-
-        public boolean isEnabled() {
-            return settings.get(ENABLED);
         }
 
         public int getThreadPoolSize() {
