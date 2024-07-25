@@ -9,8 +9,6 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotStatus;
-import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusAction;
-import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusResponse;
 
 import static com.floragunn.aim.policy.actions.SnapshotAsyncAction.REPOSITORY_NAME_FIELD;
@@ -44,16 +42,15 @@ public final class SnapshotCreatedCondition extends Condition.Async {
         if (snapshotName == null || snapshotName.isEmpty()) {
             throw new IllegalStateException("Snapshot name not found");
         }
-        SnapshotsStatusRequest request = new SnapshotsStatusRequest(repositoryName, new String[] { snapshotName });
-        SnapshotsStatusResponse response = executionContext.getClient().admin().cluster().execute(SnapshotsStatusAction.INSTANCE, request)
-                .actionGet();
-        if (response.getSnapshots().isEmpty()) {
+        SnapshotsStatusResponse snapshotsStatusResponse = executionContext.getClient().admin().cluster().prepareSnapshotStatus(repositoryName)
+                .setSnapshots(snapshotName).get();
+        if (snapshotsStatusResponse.getSnapshots().isEmpty()) {
             throw new IllegalStateException("Could not retrieve snapshot status");
         }
-        if (response.getSnapshots().size() > 1) {
-            LOG.warn("Found multiple snapshots for index '" + index + "' matching request params. Choosing the first");
+        if (snapshotsStatusResponse.getSnapshots().size() > 1) {
+            LOG.warn("Found multiple snapshots for index '{}' matching request params. Choosing the first", index);
         }
-        SnapshotStatus status = response.getSnapshots().get(0);
+        SnapshotStatus status = snapshotsStatusResponse.getSnapshots().get(0);
         if (status == null) {
             throw new IllegalStateException("Snapshot status is null");
         }

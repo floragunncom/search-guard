@@ -5,8 +5,6 @@ import com.floragunn.aim.policy.instance.PolicyInstance;
 import com.floragunn.aim.policy.instance.PolicyInstanceState;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import org.elasticsearch.action.admin.indices.close.CloseIndexAction;
-import org.elasticsearch.action.admin.indices.close.CloseIndexRequest;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 
 public final class CloseAction extends Action {
@@ -34,9 +32,8 @@ public final class CloseAction extends Action {
 
     @Override
     public void execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-        CloseIndexRequest request = new CloseIndexRequest(index);
-        CloseIndexResponse response = executionContext.getClient().admin().indices().execute(CloseIndexAction.INSTANCE, request).actionGet();
-        if (!response.isAcknowledged()) {
+        CloseIndexResponse closeIndexResponse = executionContext.getClient().admin().indices().prepareClose(index).get();
+        if (!closeIndexResponse.isAcknowledged()) {
             throw new IllegalStateException("Could not close index. Response was unacknowledged");
         }
     }

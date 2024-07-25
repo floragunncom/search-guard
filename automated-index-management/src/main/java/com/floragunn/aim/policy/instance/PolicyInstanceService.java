@@ -14,7 +14,6 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.*;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.rest.RestStatus;
 
@@ -44,7 +43,7 @@ public class PolicyInstanceService {
         try {
             DocWriteResponse response = client.index(request).actionGet();
             if (RestStatus.CREATED != response.status() && RestStatus.OK != response.status()) {
-                LOG.warn("Could not update policy instance state: " + response);
+                LOG.warn("Could not update policy instance state: {}", response);
             }
         } catch (Exception e) {
             LOG.warn("Could not update policy instance state", e);
@@ -57,18 +56,17 @@ public class PolicyInstanceService {
 
     public CompletableFuture<GetResponse> getStateAsync(String indexName) {
         CompletableFuture<GetResponse> result = new CompletableFuture<>();
-        client.execute(GetAction.INSTANCE, new GetRequest(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexName),
-                new ActionListener<GetResponse>() {
-                    @Override
-                    public void onResponse(GetResponse response) {
-                        result.complete(response);
-                    }
+        client.prepareGet(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexName).execute(new ActionListener<>() {
+            @Override
+            public void onResponse(GetResponse documentFields) {
+                result.complete(documentFields);
+            }
 
-                    @Override
-                    public void onFailure(Exception e) {
-                        result.completeExceptionally(e);
-                    }
-                });
+            @Override
+            public void onFailure(Exception e) {
+                result.completeExceptionally(e);
+            }
+        });
         return result;
     }
 
@@ -82,7 +80,7 @@ public class PolicyInstanceService {
             MultiGetResponse response = client.multiGet(request).actionGet();
             for (MultiGetItemResponse item : response.getResponses()) {
                 if (item.isFailed()) {
-                    LOG.debug("Failed to get policy instance state for index '" + item.getId() + "'", item.getFailure());
+                    LOG.debug("Failed to get policy instance state for index '{}'\n{}", item.getId(), item.getFailure());
                 } else if (item.getResponse().isExists()) {
                     result.put(item.getId(),
                             new PolicyInstanceState(DocNode.parse(Format.JSON).from(item.getResponse().getSourceAsBytesRef().utf8ToString())));
@@ -104,12 +102,12 @@ public class PolicyInstanceService {
                 request.add(new DeleteRequest().id(index));
             }
             for (Map.Entry<String, PolicyInstanceState> entry : create.entrySet()) {
-                LOG.trace("Creating state for index '" + entry.getKey() + "'");
+                LOG.trace("Creating state for index '{}'", entry.getKey());
                 request.add(new IndexRequest().id(entry.getKey()).source(entry.getValue().toDocNode()));
             }
             BulkResponse response = client.bulk(request).actionGet();
             if (response.hasFailures()) {
-                LOG.warn("Error while creating and deleting policy instance states: " + response.buildFailureMessage());
+                LOG.warn("Error while creating and deleting policy instance states: {}", response.buildFailureMessage());
             }
         } catch (Exception e) {
             LOG.warn("Error while creating policy instance states", e);
@@ -120,18 +118,17 @@ public class PolicyInstanceService {
             boolean retry) {
         InternalPolicyInstanceAPI.PostExecuteRetry.Request request = new InternalPolicyInstanceAPI.PostExecuteRetry.Request(index, execute, retry);
         CompletableFuture<InternalPolicyInstanceAPI.PostExecuteRetry.Response> result = new CompletableFuture<>();
-        client.execute(InternalPolicyInstanceAPI.PostExecuteRetry.INSTANCE, request,
-                new ActionListener<InternalPolicyInstanceAPI.PostExecuteRetry.Response>() {
-                    @Override
-                    public void onResponse(InternalPolicyInstanceAPI.PostExecuteRetry.Response response) {
-                        result.complete(response);
-                    }
+        client.execute(InternalPolicyInstanceAPI.PostExecuteRetry.INSTANCE, request, new ActionListener<>() {
+            @Override
+            public void onResponse(InternalPolicyInstanceAPI.PostExecuteRetry.Response response) {
+                result.complete(response);
+            }
 
-                    @Override
-                    public void onFailure(Exception e) {
-                        result.completeExceptionally(e);
-                    }
-                });
+            @Override
+            public void onFailure(Exception e) {
+                result.completeExceptionally(e);
+            }
+        });
         return result;
     }
 }

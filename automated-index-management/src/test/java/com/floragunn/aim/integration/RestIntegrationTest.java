@@ -44,7 +44,8 @@ public class RestIntegrationTest {
 
     @BeforeAll
     public static void setup() {
-        CLUSTER = new LocalCluster.Builder().sslEnabled().resources("sg_config").enableModule(AutomatedIndexManagementModule.class).waitForComponents("aim").embedded().start();
+        CLUSTER = new LocalCluster.Builder().sslEnabled().resources("sg_config").enableModule(AutomatedIndexManagementModule.class)
+                .waitForComponents("aim").embedded().start();
         Awaitility.setDefaultTimeout(1, TimeUnit.MINUTES);
 
         ClusterHelper.Internal.putPolicy(CLUSTER, POLICY_INSTANCE_TEST_POLICY_NAME, VALID_INTERNAL_POLICY);

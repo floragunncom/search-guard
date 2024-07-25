@@ -37,7 +37,7 @@ public abstract class Condition implements Document<Object> {
         return res.with(configToBasicMap());
     }
 
-    public IndicesStatsResponse getIndexStats(String index, PolicyInstance.ExecutionContext executionContext) throws Exception {
+    public IndicesStatsResponse getIndexStats(String index, PolicyInstance.ExecutionContext executionContext) {
         IndicesStatsRequest request = new IndicesStatsRequest().indices(index).clear().docs(true);
         IndicesStatsResponse response;
         response = executionContext.getClient().admin().indices().stats(request).actionGet();

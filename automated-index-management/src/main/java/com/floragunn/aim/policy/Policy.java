@@ -54,10 +54,6 @@ public class Policy implements Document<Object> {
         this.steps = ImmutableList.of(steps);
     }
 
-    public ImmutableList<Step> getSteps() {
-        return steps;
-    }
-
     public Step getNextStep(String name) {
         for (int i = 0; i < (steps.size() - 1); i++) {
             if (steps.get(i).getName().equals(name)) {

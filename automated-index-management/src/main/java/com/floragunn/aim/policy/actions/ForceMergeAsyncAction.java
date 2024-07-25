@@ -10,10 +10,8 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.fluent.collections.ImmutableMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeRequest;
-import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
-import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
+import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.rest.RestStatus;
 
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_BLOCKS_WRITE;
@@ -49,15 +47,15 @@ public final class ForceMergeAsyncAction extends Action.Async<ForceMergeDoneCond
 
     @Override
     public void execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-        GetSettingsRequest settingsRequest = new GetSettingsRequest().indices(index).names(SETTING_BLOCKS_WRITE);
-        GetSettingsResponse settingsResponse = executionContext.getClient().admin().indices().getSettings(settingsRequest).actionGet();
-        if (!"true".equals(settingsResponse.getSetting(index, SETTING_BLOCKS_WRITE))) {
+        GetSettingsResponse getSettingsResponse = executionContext.getClient().admin().indices().prepareGetSettings(index)
+                .setNames(SETTING_BLOCKS_WRITE).get();
+        if (!"true".equals(getSettingsResponse.getSetting(index, SETTING_BLOCKS_WRITE))) {
             throw new IllegalStateException("Index was not set to read only");
         }
-        ForceMergeRequest request = new ForceMergeRequest(index).maxNumSegments(segments);
-        ForceMergeResponse response = executionContext.getClient().admin().indices().forceMerge(request).actionGet();
-        if (response.getStatus() == RestStatus.OK) {
-            LOG.debug("Starting force merge on index '" + index + "' successful.");
+        BroadcastResponse forceMergeResponse = executionContext.getClient().admin().indices().prepareForceMerge(index).setMaxNumSegments(segments)
+                .get();
+        if (forceMergeResponse.getStatus() == RestStatus.OK) {
+            LOG.debug("Starting force merge on index '{}' successful.", index);
         } else {
             throw new IllegalStateException("Starting force merge failed. Response was not ok");
         }

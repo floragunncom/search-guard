@@ -43,7 +43,7 @@ public final class ForceMergeDoneCondition extends Condition.Async {
         for (ShardStats shard : response.getShards()) {
             SegmentsStats segmentsStats = shard.getStats().getSegments();
             if (segmentsStats == null) {
-                LOG.warn("Index '" + index + "' had null segments waiting for force merge.");
+                LOG.warn("Index '{}' had null segments waiting for force merge.", index);
             } else if (segments < shard.getStats().getSegments().getCount()) {
                 mergingShards++;
             }

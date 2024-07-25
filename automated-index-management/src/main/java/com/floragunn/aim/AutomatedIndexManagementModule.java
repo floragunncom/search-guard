@@ -20,12 +20,14 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
+import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public class AutomatedIndexManagementModule implements SearchGuardModule, ComponentStateProvider {
@@ -43,7 +45,7 @@ public class AutomatedIndexManagementModule implements SearchGuardModule, Compon
     @Override
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
+            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
         if (enabled) {
             return Arrays.asList(PolicyAPI.REST, PolicyInstanceAPI.REST, SettingsAPI.REST);
         }
@@ -69,8 +71,7 @@ public class AutomatedIndexManagementModule implements SearchGuardModule, Compon
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
         if (enabled) {
             return new AutomatedIndexManagement(baseDependencies.getSettings(), componentState).createComponents(baseDependencies.getLocalClient(),
-                    baseDependencies.getClusterService(), baseDependencies.getThreadPool(), baseDependencies.getProtectedConfigIndexService(),
-                    baseDependencies.getIndexNameExpressionResolver());
+                    baseDependencies.getClusterService(), baseDependencies.getThreadPool(), baseDependencies.getProtectedConfigIndexService());
         }
         return Collections.emptyList();
     }

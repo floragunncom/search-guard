@@ -141,8 +141,8 @@ public class ClusterHelper {
                     .execute(InternalPolicyAPI.Put.INSTANCE, new InternalPolicyAPI.Put.Request(policyName, policy, false)).actionGet();
         }
 
-        public static InternalPolicyInstanceAPI.PostExecuteRetry.Response postPolicyInstanceExecuteRetry(LocalCluster.Embedded cluster, String indexName,
-                boolean execute, boolean retry) {
+        public static InternalPolicyInstanceAPI.PostExecuteRetry.Response postPolicyInstanceExecuteRetry(LocalCluster.Embedded cluster,
+                String indexName, boolean execute, boolean retry) {
             return cluster.getInternalNodeClient().admin().indices().execute(InternalPolicyInstanceAPI.PostExecuteRetry.INSTANCE,
                     new InternalPolicyInstanceAPI.PostExecuteRetry.Request(indexName, execute, retry)).actionGet();
         }
@@ -227,7 +227,8 @@ public class ClusterHelper {
                     GetResponse::isExists);
         }
 
-        public static void awaitPolicyInstanceStatusEqual(LocalCluster.Embedded cluster, String indexName, PolicyInstanceState.Status status, Runnable task) {
+        public static void awaitPolicyInstanceStatusEqual(LocalCluster.Embedded cluster, String indexName, PolicyInstanceState.Status status,
+                Runnable task) {
             Awaitility.await().until(() -> {
                 task.run();
                 return getPolicyInstanceStatus(cluster, indexName);

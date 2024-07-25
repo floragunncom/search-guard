@@ -7,7 +7,6 @@ import com.floragunn.aim.policy.conditions.Condition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 
 import java.time.Instant;
@@ -33,13 +32,13 @@ public class PolicyInstance implements Runnable {
 
     @Override
     public synchronized void run() {
-        LOG.trace("Running policy instance for index '" + index + "' with policy '" + index + "'" + " and status '" + state.getStatus() + "'");
+        LOG.trace("Running policy instance for index '{}' with policy '{}' and status '{}'", index, index, state.getStatus());
         switch (state.getStatus()) {
         case FINISHED:
             LOG.debug("Skipping execution because policy instance is finished");
             break;
         case DELETED:
-            LOG.debug("Skipping policy instance execution for index '" + index + "' because index is deleted");
+            LOG.debug("Skipping policy instance execution for index '{}' because index is deleted", index);
             break;
         case NOT_STARTED:
             state.setCurrentStepName(policy.getFirstStep().getName());
@@ -53,10 +52,10 @@ public class PolicyInstance implements Runnable {
             }
             break;
         case RUNNING:
-            LOG.debug("Policy instance for index '" + index + "' with policy '" + index + "' could not start because it is still running");
+            LOG.debug("Policy instance for index '{}' with policy '{}' could not start because it is still running", index, index);
             break;
         default:
-            LOG.warn("Policy instance for index '" + index + "' is in no step");
+            LOG.warn("Policy instance for index '{}' is in no step", index);
             break;
         }
     }
@@ -90,7 +89,7 @@ public class PolicyInstance implements Runnable {
                 updateState();
             }
         } catch (Exception e) {
-            LOG.warn("Unexpected error while retrying policy instance for index '" + index + "'", e);
+            LOG.warn("Unexpected error while retrying policy instance for index '{}'", index, e);
             state.setLastExecutedStepState(new PolicyInstanceState.StepState("unknown", Instant.now(), 0, e));
             state.setStatus(FAILED);
             updateState();
@@ -106,7 +105,7 @@ public class PolicyInstance implements Runnable {
                 if (currentStep != null) {
                     executeStep(currentStep, 0);
                 } else {
-                    LOG.warn("Could not find step to execute for index '" + index + "'");
+                    LOG.warn("Could not find step to execute for index '{}'", index);
                     state.setLastExecutedStepState(new PolicyInstanceState.StepState("unknown", Instant.now(), 0,
                             new IllegalStateException("Could not find step to execute")));
                     state.setStatus(FAILED);
@@ -123,7 +122,7 @@ public class PolicyInstance implements Runnable {
                 }
             }
         } catch (Exception e) {
-            LOG.warn("Unexpected error while executing policy instance for index '" + index + "'", e);
+            LOG.warn("Unexpected error while executing policy instance for index '{}'", index, e);
             state.setLastExecutedStepState(new PolicyInstanceState.StepState("unknown", Instant.now(), 0, e));
             state.setStatus(FAILED);
         } finally {
@@ -201,7 +200,7 @@ public class PolicyInstance implements Runnable {
     }
 
     private void updateState() {
-        LOG.trace("Updating policy instance state:\n" + state.toPrettyJsonString());
+        LOG.trace("Updating policy instance state:\n{}", state.toPrettyJsonString());
         executionContext.getStateService().updateState(index, state);
     }
 
@@ -227,15 +226,13 @@ public class PolicyInstance implements Runnable {
         private final ClusterService clusterService;
         private final Client client;
         private final AutomatedIndexManagementSettings aimSettings;
-        private final IndexNameExpressionResolver indexNameExpressionResolver;
         private final PolicyInstanceService stateService;
 
         public ExecutionContext(ClusterService clusterService, Client client, AutomatedIndexManagementSettings aimSettings,
-                IndexNameExpressionResolver indexNameExpressionResolver, PolicyInstanceService stateService) {
+                PolicyInstanceService stateService) {
             this.clusterService = clusterService;
             this.client = client;
             this.aimSettings = aimSettings;
-            this.indexNameExpressionResolver = indexNameExpressionResolver;
             this.stateService = stateService;
         }
 
@@ -249,10 +246,6 @@ public class PolicyInstance implements Runnable {
 
         public AutomatedIndexManagementSettings getAimSettings() {
             return aimSettings;
-        }
-
-        public IndexNameExpressionResolver getIndexNameExpressionResolver() {
-            return indexNameExpressionResolver;
         }
 
         public PolicyInstanceService getStateService() {
