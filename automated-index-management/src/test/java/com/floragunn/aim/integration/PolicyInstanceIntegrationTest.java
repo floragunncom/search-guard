@@ -67,12 +67,14 @@ public class PolicyInstanceIntegrationTest {
 
     private static void setupRepository(String repositoryName) {
         Settings.Builder builder = Settings.builder().put("location", SNAPSHOT_REPO_PATH.toAbsolutePath());
-        AcknowledgedResponse response = CLUSTER.getInternalNodeClient().admin().cluster().preparePutRepository(repositoryName).setType("fs").setSettings(builder).get();
+        AcknowledgedResponse response = CLUSTER.getInternalNodeClient().admin().cluster().preparePutRepository(repositoryName).setType("fs")
+                .setSettings(builder).get();
         assertTrue(response.isAcknowledged(), Strings.toString(response, true, true));
     }
 
     private static void deleteRepository(String repositoryName) {
-        AcknowledgedResponse deleteRepositoryResponse = CLUSTER.getInternalNodeClient().admin().cluster().prepareDeleteRepository(repositoryName).get();
+        AcknowledgedResponse deleteRepositoryResponse = CLUSTER.getInternalNodeClient().admin().cluster().prepareDeleteRepository(repositoryName)
+                .get();
         assertTrue(deleteRepositoryResponse.isAcknowledged(), Strings.toString(deleteRepositoryResponse, true, true));
     }
 
@@ -299,7 +301,8 @@ public class PolicyInstanceIntegrationTest {
             }
             ClusterHelper.Index.awaitSegmentCount(CLUSTER, indexName, 2, null);
 
-            BroadcastResponse forceMergeResponse = CLUSTER.getInternalNodeClient().admin().indices().prepareForceMerge(indexName).setMaxNumSegments(1).get();
+            BroadcastResponse forceMergeResponse = CLUSTER.getInternalNodeClient().admin().indices().prepareForceMerge(indexName).setMaxNumSegments(1)
+                    .get();
             assertEquals(RestStatus.OK, forceMergeResponse.getStatus(), Strings.toString(forceMergeResponse, true, true));
 
             ClusterHelper.Index.awaitSegmentCount(CLUSTER, indexName, 1, 1);
@@ -391,7 +394,8 @@ public class PolicyInstanceIntegrationTest {
             setupRepository(repositoryName);
             ClusterHelper.Index.createManagedIndex(CLUSTER, indexName, policyName);
 
-            CreateSnapshotResponse createSnapshotResponse = CLUSTER.getInternalNodeClient().admin().cluster().prepareCreateSnapshot(repositoryName, snapshotName).setIndices(indexName).setWaitForCompletion(true).get();
+            CreateSnapshotResponse createSnapshotResponse = CLUSTER.getInternalNodeClient().admin().cluster()
+                    .prepareCreateSnapshot(repositoryName, snapshotName).setIndices(indexName).setWaitForCompletion(true).get();
             assertSame(RestStatus.OK, createSnapshotResponse.status(), Strings.toString(createSnapshotResponse, true, true));
 
             Awaitility.await().until(
@@ -435,7 +439,8 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
 
             GetSettingsResponse getSettingsResponse = CLUSTER.getInternalNodeClient().admin().indices().prepareGetSettings(indexName).get();
-            assertEquals("some_node_name", getSettingsResponse.getSetting(indexName, "index.routing.allocation.require._name"), "Expected 'some_node_name'");
+            assertEquals("some_node_name", getSettingsResponse.getSetting(indexName, "index.routing.allocation.require._name"),
+                    "Expected 'some_node_name'");
         }
 
         @Test
@@ -603,7 +608,8 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
 
             GetSettingsResponse getSettingsResponse = CLUSTER.getInternalNodeClient().admin().indices().prepareGetSettings(indexName).get();
-            assertTrue(getSettingsResponse.getIndexToSettings().get(indexName).getAsBoolean(SETTING_BLOCKS_WRITE, false), Strings.toString(getSettingsResponse));
+            assertTrue(getSettingsResponse.getIndexToSettings().get(indexName).getAsBoolean(SETTING_BLOCKS_WRITE, false),
+                    Strings.toString(getSettingsResponse));
         }
 
         @Test

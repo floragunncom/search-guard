@@ -118,18 +118,17 @@ public class PolicyInstanceService {
             boolean retry) {
         InternalPolicyInstanceAPI.PostExecuteRetry.Request request = new InternalPolicyInstanceAPI.PostExecuteRetry.Request(index, execute, retry);
         CompletableFuture<InternalPolicyInstanceAPI.PostExecuteRetry.Response> result = new CompletableFuture<>();
-        client.execute(InternalPolicyInstanceAPI.PostExecuteRetry.INSTANCE, request,
-                new ActionListener<>() {
-                    @Override
-                    public void onResponse(InternalPolicyInstanceAPI.PostExecuteRetry.Response response) {
-                        result.complete(response);
-                    }
+        client.execute(InternalPolicyInstanceAPI.PostExecuteRetry.INSTANCE, request, new ActionListener<>() {
+            @Override
+            public void onResponse(InternalPolicyInstanceAPI.PostExecuteRetry.Response response) {
+                result.complete(response);
+            }
 
-                    @Override
-                    public void onFailure(Exception e) {
-                        result.completeExceptionally(e);
-                    }
-                });
+            @Override
+            public void onFailure(Exception e) {
+                result.completeExceptionally(e);
+            }
+        });
         return result;
     }
 }

@@ -47,11 +47,13 @@ public final class ForceMergeAsyncAction extends Action.Async<ForceMergeDoneCond
 
     @Override
     public void execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-        GetSettingsResponse getSettingsResponse = executionContext.getClient().admin().indices().prepareGetSettings(index).setNames(SETTING_BLOCKS_WRITE).get();
+        GetSettingsResponse getSettingsResponse = executionContext.getClient().admin().indices().prepareGetSettings(index)
+                .setNames(SETTING_BLOCKS_WRITE).get();
         if (!"true".equals(getSettingsResponse.getSetting(index, SETTING_BLOCKS_WRITE))) {
             throw new IllegalStateException("Index was not set to read only");
         }
-        BroadcastResponse forceMergeResponse = executionContext.getClient().admin().indices().prepareForceMerge(index).setMaxNumSegments(segments).get();
+        BroadcastResponse forceMergeResponse = executionContext.getClient().admin().indices().prepareForceMerge(index).setMaxNumSegments(segments)
+                .get();
         if (forceMergeResponse.getStatus() == RestStatus.OK) {
             LOG.debug("Starting force merge on index '{}' successful.", index);
         } else {

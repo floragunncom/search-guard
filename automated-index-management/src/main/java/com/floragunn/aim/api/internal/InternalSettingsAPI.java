@@ -352,8 +352,7 @@ public class InternalSettingsAPI {
             @Inject
             public Handler(AutomatedIndexManagement aim, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                     ActionFilters actionFilters) {
-                super(NAME, clusterService, transportService, actionFilters, Request.Node::new,
-                        threadPool.executor(ThreadPool.Names.MANAGEMENT));
+                super(NAME, clusterService, transportService, actionFilters, Request.Node::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
                 this.aim = aim;
             }
 

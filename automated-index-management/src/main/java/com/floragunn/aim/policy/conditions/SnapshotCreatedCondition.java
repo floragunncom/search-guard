@@ -42,7 +42,8 @@ public final class SnapshotCreatedCondition extends Condition.Async {
         if (snapshotName == null || snapshotName.isEmpty()) {
             throw new IllegalStateException("Snapshot name not found");
         }
-        SnapshotsStatusResponse snapshotsStatusResponse = executionContext.getClient().admin().cluster().prepareSnapshotStatus(repositoryName).setSnapshots(snapshotName).get();
+        SnapshotsStatusResponse snapshotsStatusResponse = executionContext.getClient().admin().cluster().prepareSnapshotStatus(repositoryName)
+                .setSnapshots(snapshotName).get();
         if (snapshotsStatusResponse.getSnapshots().isEmpty()) {
             throw new IllegalStateException("Could not retrieve snapshot status");
         }

@@ -50,8 +50,7 @@ public final class PolicyInstanceHandler {
     private PolicyInstanceStateLogHandler policyInstanceStateLogHandler;
 
     public PolicyInstanceHandler(AutomatedIndexManagementSettings settings, PolicyService policyService, PolicyInstanceService policyInstanceService,
-            Client client, ThreadPool threadPool, ClusterService clusterService,
-                                 Condition.Factory conditionFactory, Action.Factory actionFactory) {
+            Client client, ThreadPool threadPool, ClusterService clusterService, Condition.Factory conditionFactory, Action.Factory actionFactory) {
         this.client = client;
         this.threadPool = threadPool;
         this.clusterService = clusterService;
@@ -102,8 +101,7 @@ public final class PolicyInstanceHandler {
                 }
             }
         };
-        executionContext = new PolicyInstance.ExecutionContext(clusterService, client, settings,
-                this.policyInstanceService);
+        executionContext = new PolicyInstance.ExecutionContext(clusterService, client, settings, this.policyInstanceService);
     }
 
     public synchronized void init() {
@@ -255,10 +253,12 @@ public final class PolicyInstanceHandler {
                             LOG.warn("Policy '{}' is corrupted", res.getId(), e);
                         }
                     } else {
-                        LOG.warn("Could not create policy instance for indices {} with policy '{}' because policy does not exist", Arrays.toString(correspondingIndices.toArray()), res.getId());
+                        LOG.warn("Could not create policy instance for indices {} with policy '{}' because policy does not exist",
+                                Arrays.toString(correspondingIndices.toArray()), res.getId());
                     }
                 } else {
-                    LOG.warn("Could not create policy instance for indices {} with policy '{}' because of an API error", Arrays.toString(correspondingIndices.toArray()), res.getId(), res.getFailure().getFailure());
+                    LOG.warn("Could not create policy instance for indices {} with policy '{}' because of an API error",
+                            Arrays.toString(correspondingIndices.toArray()), res.getId(), res.getFailure().getFailure());
                 }
             }
         }

@@ -43,7 +43,9 @@ public class AutomatedIndexManagementModule implements SearchGuardModule, Compon
     }
 
     @Override
-    public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings, IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver, ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
+    public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
+            IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
+            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
         if (enabled) {
             return Arrays.asList(PolicyAPI.REST, PolicyInstanceAPI.REST, SettingsAPI.REST);
         }
@@ -69,8 +71,7 @@ public class AutomatedIndexManagementModule implements SearchGuardModule, Compon
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
         if (enabled) {
             return new AutomatedIndexManagement(baseDependencies.getSettings(), componentState).createComponents(baseDependencies.getLocalClient(),
-                    baseDependencies.getClusterService(), baseDependencies.getThreadPool(), baseDependencies.getProtectedConfigIndexService()
-            );
+                    baseDependencies.getClusterService(), baseDependencies.getThreadPool(), baseDependencies.getProtectedConfigIndexService());
         }
         return Collections.emptyList();
     }

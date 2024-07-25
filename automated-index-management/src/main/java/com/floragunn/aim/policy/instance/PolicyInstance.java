@@ -229,7 +229,7 @@ public class PolicyInstance implements Runnable {
         private final PolicyInstanceService stateService;
 
         public ExecutionContext(ClusterService clusterService, Client client, AutomatedIndexManagementSettings aimSettings,
-                                PolicyInstanceService stateService) {
+                PolicyInstanceService stateService) {
             this.clusterService = clusterService;
             this.client = client;
             this.aimSettings = aimSettings;

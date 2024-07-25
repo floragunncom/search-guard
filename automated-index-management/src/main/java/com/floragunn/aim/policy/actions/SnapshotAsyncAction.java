@@ -49,7 +49,8 @@ public final class SnapshotAsyncAction extends Action.Async<SnapshotCreatedCondi
         String snapshotNameExpression = "<" + (snapshotNamePrefix == null ? "" : snapshotNamePrefix + "_") + index + "_{now/d}>";
         String snapshotName = IndexNameExpressionResolver.resolveDateMathExpression(snapshotNameExpression);
         state.setSnapshotName(snapshotName);
-        CreateSnapshotResponse createSnapshotResponse = executionContext.getClient().admin().cluster().prepareCreateSnapshot(repositoryName, snapshotName).setIndices(index).setWaitForCompletion(false).get();
+        CreateSnapshotResponse createSnapshotResponse = executionContext.getClient().admin().cluster()
+                .prepareCreateSnapshot(repositoryName, snapshotName).setIndices(index).setWaitForCompletion(false).get();
         if (createSnapshotResponse.status() == OK || createSnapshotResponse.status() == ACCEPTED) {
             LOG.debug("Starting snapshot creation for index '{}' successful", index);
         } else {

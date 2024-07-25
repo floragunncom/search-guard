@@ -81,7 +81,8 @@ public class PolicyInstanceStateLogHandler {
                 LOG.debug("State log policy already exists. Skipping creation");
                 return;
             }
-            DocNode policyNode = DocNode.parse(Format.JSON).from(PolicyInstanceStateLogHandler.class.getResourceAsStream("/policies/state_log_policy.json"));
+            DocNode policyNode = DocNode.parse(Format.JSON)
+                    .from(PolicyInstanceStateLogHandler.class.getResourceAsStream("/policies/state_log_policy.json"));
             Policy policy = Policy.parse(policyNode, Policy.ParsingContext.strict(conditionFactory, actionFactory));
             InternalPolicyAPI.StatusResponse response = policyService.putPolicy(policyName, policy);
             if (response.status() != RestStatus.CREATED) {
@@ -106,14 +107,11 @@ public class PolicyInstanceStateLogHandler {
                 LOG.debug("State log index template already exists. Skipping creation");
                 return;
             }
-            AcknowledgedResponse putTemplateResponse = client.admin().indices().preparePutTemplate(indexTemplateName)
-                    .setCreate(true)
-                    .setPatterns(ImmutableList.of(indexNamePrefix + "*"))
-                    .addAlias(new Alias(aliasName).isHidden(true).writeIndex(false))
-                    .setSettings(Settings.builder()
-                            .put("index.hidden", true)
-                            .put(settings.getStatic().getPolicyNameFieldName(), policyName)
-                            .put(settings.getStatic().getRolloverAliasFieldName(), writeAliasName)).get();
+            AcknowledgedResponse putTemplateResponse = client.admin().indices().preparePutTemplate(indexTemplateName).setCreate(true)
+                    .setPatterns(ImmutableList.of(indexNamePrefix + "*")).addAlias(new Alias(aliasName).isHidden(true).writeIndex(false))
+                    .setSettings(Settings.builder().put("index.hidden", true).put(settings.getStatic().getPolicyNameFieldName(), policyName)
+                            .put(settings.getStatic().getRolloverAliasFieldName(), writeAliasName))
+                    .get();
             if (!putTemplateResponse.isAcknowledged()) {
                 throw new StateLogInitializationException("Failed to create state log index template. Response was not acknowledged");
             }
