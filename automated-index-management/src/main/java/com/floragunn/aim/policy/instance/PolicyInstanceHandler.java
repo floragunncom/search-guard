@@ -16,7 +16,6 @@ import org.elasticsearch.action.get.MultiGetItemResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.index.Index;
@@ -51,8 +50,7 @@ public final class PolicyInstanceHandler {
     private PolicyInstanceStateLogHandler policyInstanceStateLogHandler;
 
     public PolicyInstanceHandler(AutomatedIndexManagementSettings settings, PolicyService policyService, PolicyInstanceService policyInstanceService,
-            Client client, ThreadPool threadPool, ClusterService clusterService, IndexNameExpressionResolver indexNameExpressionResolver,
-            Condition.Factory conditionFactory, Action.Factory actionFactory) {
+            Client client, ThreadPool threadPool, ClusterService clusterService, Condition.Factory conditionFactory, Action.Factory actionFactory) {
         this.client = client;
         this.threadPool = threadPool;
         this.clusterService = clusterService;
@@ -79,7 +77,7 @@ public final class PolicyInstanceHandler {
                 }
             }
             for (Map.Entry<String, IndexMetadata> index : clusterChangedEvent.state().metadata().indices().entrySet()) {
-                LOG.trace("New index '" + index + "' with settings:\n" + Strings.toString(index.getValue().getSettings(), true, true));
+                LOG.trace("New index '{}' with settings:\n{}", index.getKey(), Strings.toString(index.getValue().getSettings(), true, true));
                 String policyName = index.getValue().getSettings().get(settings.getStatic().getPolicyNameFieldName());
                 if (!Strings.isNullOrEmpty(policyName)) {
                     createdIndices.put(index.getKey(), policyName);
@@ -103,8 +101,7 @@ public final class PolicyInstanceHandler {
                 }
             }
         };
-        executionContext = new PolicyInstance.ExecutionContext(clusterService, client, settings, indexNameExpressionResolver,
-                this.policyInstanceService);
+        executionContext = new PolicyInstance.ExecutionContext(clusterService, client, settings, this.policyInstanceService);
     }
 
     public synchronized void init() {
@@ -209,13 +206,13 @@ public final class PolicyInstanceHandler {
         }
         if (!deleted.isEmpty()) {
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Indices to delete policy instances: " + Arrays.toString(deleted.toArray()));
+                LOG.debug("Indices to delete policy instances: {}", Arrays.toString(deleted.toArray()));
             }
             for (String index : deleted) {
                 if (!scheduledPolicyInstances.containsKey(index)) {
-                    LOG.debug("Policy instance for index '" + index + "' does not exist. Skipping delete");
+                    LOG.debug("Policy instance for index '{}' does not exist. Skipping delete", index);
                 } else {
-                    LOG.trace("Deleting policy instance for index '" + index + "'");
+                    LOG.trace("Deleting policy instance for index '{}'", index);
                     Map.Entry<ScheduledFuture<?>, PolicyInstance> instanceEntry = scheduledPolicyInstances.remove(index);
                     instanceEntry.getKey().cancel(true);
                     instanceEntry.getValue().handleDelete();
@@ -225,15 +222,11 @@ public final class PolicyInstanceHandler {
         Map<String, PolicyInstanceState> newStates = new HashMap<>();
         Map<String, PolicyInstance> newInstances = new HashMap<>();
         if (!created.isEmpty()) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Indices to schedule policy instances: " + Arrays.toString(created.keySet().toArray(new String[0])));
-            }
+            LOG.debug("Indices to schedule policy instances: {}", Arrays.toString(created.keySet().toArray(new String[0])));
             Map<String, PolicyInstanceState> existingStates = policyInstanceService.getStates(created.keySet());
             Set<String> policyNames = new HashSet<>(created.values());
             for (MultiGetItemResponse res : policyService.multiGetPolicy(policyNames)) {
-                if (LOG.isTraceEnabled()) {
-                    LOG.trace("Creating instances for policy '" + res.getId() + "'");
-                }
+                LOG.trace("Creating instances for policy '{}'", res.getId());
                 List<String> correspondingIndices = getKeysWithCorrespondingValue(created, res.getId());
                 if (!res.isFailed()) {
                     if (res.getResponse().isExists()) {
@@ -242,12 +235,10 @@ public final class PolicyInstanceHandler {
                                     Policy.ParsingContext.lenient(conditionFactory, actionFactory));
                             for (String index : correspondingIndices) {
                                 if (scheduledPolicyInstances.containsKey(index)) {
-                                    LOG.trace("PolicyInstance for index '" + index + "' with policy '" + res.getId() + "' already exists. Skipping");
+                                    LOG.trace("PolicyInstance for index '{}' with policy '{}' already exists. Skipping", index, res.getId());
                                     continue;
                                 }
-                                if (LOG.isTraceEnabled()) {
-                                    LOG.trace("Creating instance for index '" + index + "'");
-                                }
+                                LOG.trace("Creating instance for index '{}'", index);
                                 PolicyInstanceState state;
                                 if (existingStates.containsKey(index)
                                         && existingStates.get(index).getStatus() != PolicyInstanceState.Status.DELETED) {
@@ -259,15 +250,15 @@ public final class PolicyInstanceHandler {
                                 newInstances.put(index, new PolicyInstance(index, policy, state, executionContext));
                             }
                         } catch (ConfigValidationException e) {
-                            LOG.warn("Policy '" + res.getId() + "' is corrupted", e);
+                            LOG.warn("Policy '{}' is corrupted", res.getId(), e);
                         }
                     } else {
-                        LOG.warn("Could not create policy instance for indices " + Arrays.toString(correspondingIndices.toArray()) + " with policy '"
-                                + res.getId() + "' because policy does not exist");
+                        LOG.warn("Could not create policy instance for indices {} with policy '{}' because policy does not exist",
+                                Arrays.toString(correspondingIndices.toArray()), res.getId());
                     }
                 } else {
-                    LOG.warn("Could not create policy instance for indices " + Arrays.toString(correspondingIndices.toArray()) + " with policy '"
-                            + res.getId() + "' because of an API error", res.getFailure().getFailure());
+                    LOG.warn("Could not create policy instance for indices {} with policy '{}' because of an API error",
+                            Arrays.toString(correspondingIndices.toArray()), res.getId(), res.getFailure().getFailure());
                 }
             }
         }
@@ -285,7 +276,7 @@ public final class PolicyInstanceHandler {
 
     private void schedulePolicyInstances(Set<Map.Entry<String, PolicyInstance>> instances) {
         if (LOG.isTraceEnabled()) {
-            LOG.trace("Scheduling policy instances: " + Arrays.toString(instances.stream().map(Map.Entry::getKey).toArray()));
+            LOG.trace("Scheduling policy instances: {}", Arrays.toString(instances.stream().map(Map.Entry::getKey).toArray()));
         }
         long executionPeriod = settings.getDynamic().getExecutionPeriod().getMillis();
         long executionDelay = settings.getDynamic().getExecutionFixedDelay().getMillis();

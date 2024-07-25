@@ -9,8 +9,6 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.fluent.collections.ImmutableMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotAction;
-import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 
@@ -51,13 +49,12 @@ public final class SnapshotAsyncAction extends Action.Async<SnapshotCreatedCondi
         String snapshotNameExpression = "<" + (snapshotNamePrefix == null ? "" : snapshotNamePrefix + "_") + index + "_{now/d}>";
         String snapshotName = IndexNameExpressionResolver.resolveDateMathExpression(snapshotNameExpression);
         state.setSnapshotName(snapshotName);
-        CreateSnapshotRequest request = new CreateSnapshotRequest(repositoryName, snapshotName).indices(index).waitForCompletion(false);
-        CreateSnapshotResponse createSnapshotResponse = executionContext.getClient().admin().cluster().execute(CreateSnapshotAction.INSTANCE, request)
-                .actionGet();
+        CreateSnapshotResponse createSnapshotResponse = executionContext.getClient().admin().cluster()
+                .prepareCreateSnapshot(repositoryName, snapshotName).setIndices(index).setWaitForCompletion(false).get();
         if (createSnapshotResponse.status() == OK || createSnapshotResponse.status() == ACCEPTED) {
-            LOG.debug("Starting snapshot creation for index '" + index + "' successful");
+            LOG.debug("Starting snapshot creation for index '{}' successful", index);
         } else {
-            LOG.debug("Starting snapshot creation for index '" + index + "' failed");
+            LOG.debug("Starting snapshot creation for index '{}' failed", index);
             throw new IllegalStateException("Snapshot creation finally failed");
         }
     }

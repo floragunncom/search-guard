@@ -18,11 +18,7 @@ import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
-import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesAction;
-import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesRequest;
 import org.elasticsearch.action.admin.indices.template.get.GetIndexTemplatesResponse;
-import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateAction;
-import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
@@ -85,7 +81,8 @@ public class PolicyInstanceStateLogHandler {
                 LOG.debug("State log policy already exists. Skipping creation");
                 return;
             }
-            DocNode policyNode = DocNode.parse(Format.JSON).from(PolicyInstanceStateLogHandler.class.getResourceAsStream("/policies/state_log_policy.json"));
+            DocNode policyNode = DocNode.parse(Format.JSON)
+                    .from(PolicyInstanceStateLogHandler.class.getResourceAsStream("/policies/state_log_policy.json"));
             Policy policy = Policy.parse(policyNode, Policy.ParsingContext.strict(conditionFactory, actionFactory));
             InternalPolicyAPI.StatusResponse response = policyService.putPolicy(policyName, policy);
             if (response.status() != RestStatus.CREATED) {
@@ -105,19 +102,17 @@ public class PolicyInstanceStateLogHandler {
         String writeAliasName = getWriteAliasName(aliasName);
         String policyName = settings.getStatic().stateLog().getPolicyName();
         try {
-            GetIndexTemplatesResponse getResponse = client.execute(GetIndexTemplatesAction.INSTANCE, new GetIndexTemplatesRequest(indexTemplateName))
-                    .actionGet();
-            if (!getResponse.getIndexTemplates().isEmpty()) {
+            GetIndexTemplatesResponse getIndexTemplatesResponse = client.admin().indices().prepareGetTemplates(indexTemplateName).get();
+            if (!getIndexTemplatesResponse.getIndexTemplates().isEmpty()) {
                 LOG.debug("State log index template already exists. Skipping creation");
                 return;
             }
-            AcknowledgedResponse putResponse = client.execute(PutIndexTemplateAction.INSTANCE,
-                    new PutIndexTemplateRequest(indexTemplateName).create(false).patterns(ImmutableList.of(indexNamePrefix + "*"))
-                            .alias(new Alias(aliasName).isHidden(true).writeIndex(false))
-                            .settings(Settings.builder().put("index.hidden", true).put(settings.getStatic().getPolicyNameFieldName(), policyName)
-                                    .put(settings.getStatic().getRolloverAliasFieldName(), writeAliasName)))
-                    .actionGet();
-            if (!putResponse.isAcknowledged()) {
+            AcknowledgedResponse putTemplateResponse = client.admin().indices().preparePutTemplate(indexTemplateName).setCreate(true)
+                    .setPatterns(ImmutableList.of(indexNamePrefix + "*")).addAlias(new Alias(aliasName).isHidden(true).writeIndex(false))
+                    .setSettings(Settings.builder().put("index.hidden", true).put(settings.getStatic().getPolicyNameFieldName(), policyName)
+                            .put(settings.getStatic().getRolloverAliasFieldName(), writeAliasName))
+                    .get();
+            if (!putTemplateResponse.isAcknowledged()) {
                 throw new StateLogInitializationException("Failed to create state log index template. Response was not acknowledged");
             }
         } catch (StateLogInitializationException e) {
@@ -143,7 +138,7 @@ public class PolicyInstanceStateLogHandler {
             if (!indexResponse.isAcknowledged()) {
                 throw new StateLogInitializationException("Failed to setup state log index. Response was not acknowledged");
             } else {
-                LOG.debug("Initialized state log index '" + indexResponse.index() + "'");
+                LOG.debug("Initialized state log index '{}'", indexResponse.index());
             }
         } catch (StateLogInitializationException e) {
             throw e;
@@ -159,11 +154,11 @@ public class PolicyInstanceStateLogHandler {
             }
             String writeAliasName = getWriteAliasName(settings.getStatic().stateLog().getAliasName());
             StateLogEntry stateLogEntry = new StateLogEntry(index, state);
-            LOG.trace("Creating new state log entry\n" + stateLogEntry.toPrettyJsonString());
+            LOG.trace("Creating new state log entry\n{}", stateLogEntry.toPrettyJsonString());
             try {
                 DocWriteResponse response = client.index(new IndexRequest(writeAliasName).source(stateLogEntry.toDocNode())).actionGet();
                 if (!RestStatus.CREATED.equals(response.status())) {
-                    LOG.debug("Failed to index state log entry. Response status was: " + response.status().getStatus());
+                    LOG.debug("Failed to index state log entry. Response status was: {}", response.status().getStatus());
                 }
             } catch (Exception e) {
                 LOG.warn("Failed to index state log entry", e);

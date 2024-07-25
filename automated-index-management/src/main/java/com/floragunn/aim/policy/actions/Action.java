@@ -13,8 +13,6 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
-import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsAction;
-import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.common.settings.Settings;
 
@@ -25,12 +23,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public abstract class Action implements Document<Object> {
     public static final String TYPE_FIELD = "type";
 
-    protected static void setIndexSetting(String index, PolicyInstance.ExecutionContext executionContext, Settings.Builder settingsBuilder)
-            throws Exception {
-        UpdateSettingsRequest request = new UpdateSettingsRequest(index).settings(settingsBuilder);
-        AcknowledgedResponse response;
-        response = executionContext.getClient().admin().indices().execute(UpdateSettingsAction.INSTANCE, request).actionGet();
-        if (!response.isAcknowledged()) {
+    protected static void setIndexSetting(String index, PolicyInstance.ExecutionContext executionContext, Settings.Builder settingsBuilder) {
+        AcknowledgedResponse acknowledgedResponse = executionContext.getClient().admin().indices().prepareUpdateSettings(index)
+                .setSettings(settingsBuilder).get();
+        if (!acknowledgedResponse.isAcknowledged()) {
             throw new IllegalStateException("Failed to execute index settings update. Response was not acknowledged");
         }
     }
@@ -87,12 +83,6 @@ public abstract class Action implements Document<Object> {
             public void validateIndexNotDeleted() {
                 if (validationContext.isDeleted()) {
                     errors.add(new InvalidAttributeValue(Action.TYPE_FIELD, type, "No actions or conditions after delete", docNode));
-                }
-            }
-
-            public void validateIndexWritable() {
-                if (validationContext.isWriteBlocked()) {
-                    errors.add(new InvalidAttributeValue(Action.TYPE_FIELD, type, "No write blocking actions before", docNode));
                 }
             }
 

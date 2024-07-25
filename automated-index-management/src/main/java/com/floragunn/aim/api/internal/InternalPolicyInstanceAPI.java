@@ -31,7 +31,7 @@ public class InternalPolicyInstanceAPI {
         public static final PostExecuteRetry INSTANCE = new PostExecuteRetry();
 
         public PostExecuteRetry() {
-            super(NAME, Response::new);
+            super(NAME);
         }
 
         public static class Request extends MasterNodeRequest<Request> {
@@ -132,7 +132,7 @@ public class InternalPolicyInstanceAPI {
             }
 
             @Override
-            protected void masterOperation(Task task, Request request, ClusterState state, ActionListener<Response> listener) throws Exception {
+            protected void masterOperation(Task task, Request request, ClusterState state, ActionListener<Response> listener) {
                 if (aim.getPolicyInstanceHandler().policyInstanceExistsForIndex(request.getIndex())) {
                     if (request.isRetry()) {
                         aim.getPolicyInstanceHandler().setPolicyInstanceRetry(request.getIndex(), true);

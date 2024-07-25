@@ -61,8 +61,7 @@ public class SettingsAPI {
                     result.complete(new StandardResponse(404).message("Unknown setting"));
                 } else {
                     client.execute(InternalSettingsAPI.Update.INSTANCE,
-                            new InternalSettingsAPI.Update.Request(ImmutableMap.empty(), ImmutableList.of(attribute)),
-                            new ActionListener<InternalSettingsAPI.Update.Response>() {
+                            new InternalSettingsAPI.Update.Request(ImmutableMap.empty(), ImmutableList.of(attribute)), new ActionListener<>() {
                                 @Override
                                 public void onResponse(InternalSettingsAPI.Update.Response response) {
                                     if (response.hasRefreshFailures()) {
@@ -168,7 +167,7 @@ public class SettingsAPI {
                         attribute.validate(value);
                         client.execute(InternalSettingsAPI.Update.INSTANCE,
                                 new InternalSettingsAPI.Update.Request(ImmutableMap.of(attribute, value), ImmutableList.empty()),
-                                new ActionListener<InternalSettingsAPI.Update.Response>() {
+                                new ActionListener<>() {
                                     @Override
                                     public void onResponse(InternalSettingsAPI.Update.Response response) {
                                         if (response.hasRefreshFailures()) {

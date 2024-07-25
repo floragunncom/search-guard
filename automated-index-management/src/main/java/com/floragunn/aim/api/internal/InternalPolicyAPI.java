@@ -44,7 +44,7 @@ public class InternalPolicyAPI {
         public final static Delete INSTANCE = new Delete();
 
         private Delete() {
-            super(NAME, StatusResponse::new);
+            super(NAME);
         }
 
         public static class Request extends BaseRequest<Request> {
@@ -77,7 +77,7 @@ public class InternalPolicyAPI {
             }
 
             @Override
-            protected void masterOperation(Task task, Request request, ClusterState state, ActionListener<StatusResponse> listener) throws Exception {
+            protected void masterOperation(Task task, Request request, ClusterState state, ActionListener<StatusResponse> listener) {
                 if (aim.getPolicyInstanceHandler().policyInstanceExistsForPolicy(request.getPolicyName())) {
                     if (request.isForce()) {
                         aim.getPolicyInstanceHandler().handlePoliciesDelete(ImmutableList.of(request.getPolicyName()));
@@ -87,7 +87,7 @@ public class InternalPolicyAPI {
                     }
                 }
                 client.prepareDelete().setIndex(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME).setId(request.getPolicyName())
-                        .execute(new ActionListener<DeleteResponse>() {
+                        .execute(new ActionListener<>() {
                             @Override
                             public void onResponse(DeleteResponse deleteResponse) {
                                 listener.onResponse(new StatusResponse(deleteResponse.status()));
@@ -112,7 +112,7 @@ public class InternalPolicyAPI {
         public final static Put INSTANCE = new Put();
 
         private Put() {
-            super(NAME, StatusResponse::new);
+            super(NAME);
         }
 
         public static class Request extends BaseRequest<Request> {
@@ -126,7 +126,7 @@ public class InternalPolicyAPI {
             public Request(StreamInput input, Condition.Factory conditionFactory, Action.Factory actionFactory) throws IOException {
                 super(input);
                 try {
-                    policy = Policy.parse(DocNode.wrap(input.readMap()), Policy.ParsingContext.lenient(conditionFactory, actionFactory));
+                    policy = Policy.parse(DocNode.wrap(input.readGenericMap()), Policy.ParsingContext.lenient(conditionFactory, actionFactory));
                 } catch (ConfigValidationException e) {
                     throw new IOException(e);
                 }
@@ -168,7 +168,7 @@ public class InternalPolicyAPI {
             }
 
             @Override
-            protected void masterOperation(Task task, Request request, ClusterState state, ActionListener<StatusResponse> listener) throws Exception {
+            protected void masterOperation(Task task, Request request, ClusterState state, ActionListener<StatusResponse> listener) {
                 if (aim.getPolicyInstanceHandler().policyInstanceExistsForPolicy(request.getPolicyName())) {
                     if (request.isForce()) {
                         aim.getPolicyInstanceHandler().handlePoliciesDelete(ImmutableList.of(request.getPolicyName()));
@@ -179,7 +179,7 @@ public class InternalPolicyAPI {
                 }
                 client.prepareIndex().setIndex(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME).setId(request.getPolicyName())
                         .setSource(request.getPolicy().toDocNode()).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE)
-                        .execute(new ActionListener<DocWriteResponse>() {
+                        .execute(new ActionListener<>() {
                             @Override
                             public void onResponse(DocWriteResponse docWriteResponse) {
                                 if (docWriteResponse.status() == RestStatus.CREATED || docWriteResponse.status() == RestStatus.OK) {
