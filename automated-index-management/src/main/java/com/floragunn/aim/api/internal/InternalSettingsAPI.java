@@ -47,7 +47,7 @@ public class InternalSettingsAPI {
 
     private static Map<AutomatedIndexManagementSettings.Dynamic.DynamicAttribute<?>, Object> readDynamicSettingsMap(StreamInput input)
             throws IOException {
-        return input.readMap().entrySet().stream().map(entry -> {
+        return Objects.requireNonNull(input.readGenericMap()).entrySet().stream().map(entry -> {
             AutomatedIndexManagementSettings.Dynamic.DynamicAttribute<?> attribute = AutomatedIndexManagementSettings.Dynamic
                     .findAvailableSettingByKey(entry.getKey());
             return new AbstractMap.SimpleImmutableEntry<AutomatedIndexManagementSettings.Dynamic.DynamicAttribute<?>, Object>(attribute,
@@ -68,7 +68,7 @@ public class InternalSettingsAPI {
         public static final Update INSTANCE = new Update();
 
         private Update() {
-            super(NAME, Response::new);
+            super(NAME);
         }
 
         public static class Request extends ActionRequest {
@@ -183,7 +183,7 @@ public class InternalSettingsAPI {
                     bulkRequest.add(new IndexRequest().id(entry.getKey().getName())
                             .source(ImmutableMap.of("setting", DocWriter.json().writeAsString(entry.getKey().toBasicObject(entry.getValue())))));
                 }
-                client.bulk(bulkRequest, new ActionListener<BulkResponse>() {
+                client.bulk(bulkRequest, new ActionListener<>() {
                     @Override
                     public void onResponse(BulkResponse bulkItemResponses) {
                         Map<AutomatedIndexManagementSettings.Dynamic.DynamicAttribute<?>, Object> changed = request.getChanged();
@@ -205,7 +205,7 @@ public class InternalSettingsAPI {
                                 }
                             }
                         }
-                        client.execute(Refresh.INSTANCE, new Refresh.Request(changed, deleted), new ActionListener<Refresh.Response>() {
+                        client.execute(Refresh.INSTANCE, new Refresh.Request(changed, deleted), new ActionListener<>() {
                             @Override
                             public void onResponse(Refresh.Response response) {
                                 listener.onResponse(new Response(failed, response.hasFailures()));
@@ -232,7 +232,7 @@ public class InternalSettingsAPI {
         public static final Refresh INSTANCE = new Refresh();
 
         private Refresh() {
-            super(NAME, Response::new);
+            super(NAME);
         }
 
         public static class Request extends BaseNodesRequest<Request> {
@@ -352,8 +352,7 @@ public class InternalSettingsAPI {
             @Inject
             public Handler(AutomatedIndexManagement aim, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                     ActionFilters actionFilters) {
-                super(NAME, threadPool, clusterService, transportService, actionFilters, Request::new, Request.Node::new,
-                        threadPool.executor(ThreadPool.Names.MANAGEMENT));
+                super(NAME, clusterService, transportService, actionFilters, Request.Node::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
                 this.aim = aim;
             }
 

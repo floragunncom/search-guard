@@ -103,10 +103,6 @@ public final class PolicyInstanceState implements Document<Object> {
         return lastExecutedStepState;
     }
 
-    public ConditionState getLastExecutedConditionState() {
-        return lastExecutedConditionState;
-    }
-
     public ActionState getLastExecutedActionState() {
         return lastExecutedActionState;
     }
@@ -207,17 +203,10 @@ public final class PolicyInstanceState implements Document<Object> {
             return name;
         }
 
-        public Instant getStartTime() {
-            return startTime;
-        }
-
         public int getRetries() {
             return retries;
         }
 
-        public boolean hasError() {
-            return error != null;
-        }
     }
 
     public static class ConditionState implements Document<Object> {
@@ -273,14 +262,6 @@ public final class PolicyInstanceState implements Document<Object> {
         @Override
         public String toString() {
             return "ConditionState{" + "type='" + type + '\'' + ", startTime=" + startTime + ", result=" + result + ", error=" + error + '}';
-        }
-
-        public boolean hasError() {
-            return error != null;
-        }
-
-        public Instant getStartTime() {
-            return startTime;
         }
 
         public String getType() {
@@ -344,10 +325,6 @@ public final class PolicyInstanceState implements Document<Object> {
 
         public boolean hasError() {
             return error != null;
-        }
-
-        public Instant getStartTime() {
-            return startTime;
         }
 
         public String getType() {

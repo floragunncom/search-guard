@@ -20,36 +20,21 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.http.HttpStatus;
 import org.awaitility.Awaitility;
 import org.elasticsearch.action.DocWriteResponse;
-import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryAction;
-import org.elasticsearch.action.admin.cluster.repositories.delete.DeleteRepositoryRequest;
-import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryAction;
-import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest;
-import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotAction;
-import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
-import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsAction;
-import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsResponse;
-import org.elasticsearch.action.admin.cluster.state.ClusterStateAction;
-import org.elasticsearch.action.admin.cluster.state.ClusterStateRequest;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
-import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeRequest;
-import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
-import org.elasticsearch.action.admin.indices.rollover.RolloverRequest;
 import org.elasticsearch.action.admin.indices.rollover.RolloverResponse;
-import org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction;
-import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest;
+import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.SnapshotsInProgress;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -82,15 +67,14 @@ public class PolicyInstanceIntegrationTest {
 
     private static void setupRepository(String repositoryName) {
         Settings.Builder builder = Settings.builder().put("location", SNAPSHOT_REPO_PATH.toAbsolutePath());
-        PutRepositoryRequest request = new PutRepositoryRequest(repositoryName).type("fs").settings(builder);
-        AcknowledgedResponse response = CLUSTER.getInternalNodeClient().admin().cluster().execute(PutRepositoryAction.INSTANCE, request).actionGet();
+        AcknowledgedResponse response = CLUSTER.getInternalNodeClient().admin().cluster().preparePutRepository(repositoryName).setType("fs")
+                .setSettings(builder).get();
         assertTrue(response.isAcknowledged(), Strings.toString(response, true, true));
     }
 
     private static void deleteRepository(String repositoryName) {
-        DeleteRepositoryRequest deleteRepositoryRequest = new DeleteRepositoryRequest(repositoryName);
-        AcknowledgedResponse deleteRepositoryResponse = CLUSTER.getInternalNodeClient().admin().cluster()
-                .execute(DeleteRepositoryAction.INSTANCE, deleteRepositoryRequest).actionGet();
+        AcknowledgedResponse deleteRepositoryResponse = CLUSTER.getInternalNodeClient().admin().cluster().prepareDeleteRepository(repositoryName)
+                .get();
         assertTrue(deleteRepositoryResponse.isAcknowledged(), Strings.toString(deleteRepositoryResponse, true, true));
     }
 
@@ -317,9 +301,9 @@ public class PolicyInstanceIntegrationTest {
             }
             ClusterHelper.Index.awaitSegmentCount(CLUSTER, indexName, 2, null);
 
-            ForceMergeRequest request = new ForceMergeRequest(indexName).maxNumSegments(1);
-            ForceMergeResponse response = CLUSTER.getInternalNodeClient().admin().indices().forceMerge(request).actionGet();
-            assertEquals(RestStatus.OK, response.getStatus(), Strings.toString(response, true, true));
+            BroadcastResponse forceMergeResponse = CLUSTER.getInternalNodeClient().admin().indices().prepareForceMerge(indexName).setMaxNumSegments(1)
+                    .get();
+            assertEquals(RestStatus.OK, forceMergeResponse.getStatus(), Strings.toString(forceMergeResponse, true, true));
 
             ClusterHelper.Index.awaitSegmentCount(CLUSTER, indexName, 1, 1);
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
@@ -410,9 +394,8 @@ public class PolicyInstanceIntegrationTest {
             setupRepository(repositoryName);
             ClusterHelper.Index.createManagedIndex(CLUSTER, indexName, policyName);
 
-            CreateSnapshotRequest request = new CreateSnapshotRequest(repositoryName, snapshotName).indices(indexName).waitForCompletion(true);
             CreateSnapshotResponse createSnapshotResponse = CLUSTER.getInternalNodeClient().admin().cluster()
-                    .execute(CreateSnapshotAction.INSTANCE, request).actionGet();
+                    .prepareCreateSnapshot(repositoryName, snapshotName).setIndices(indexName).setWaitForCompletion(true).get();
             assertSame(RestStatus.OK, createSnapshotResponse.status(), Strings.toString(createSnapshotResponse, true, true));
 
             Awaitility.await().until(
@@ -455,9 +438,9 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
             ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
 
-            GetSettingsResponse getResponse = CLUSTER.getInternalNodeClient()
-                    .execute(GetSettingsAction.INSTANCE, new GetSettingsRequest().indices(indexName)).actionGet();
-            assertEquals("some_node_name", getResponse.getSetting(indexName, "index.routing.allocation.require._name"), "Expected 'some_node_name'");
+            GetSettingsResponse getSettingsResponse = CLUSTER.getInternalNodeClient().admin().indices().prepareGetSettings(indexName).get();
+            assertEquals("some_node_name", getSettingsResponse.getSetting(indexName, "index.routing.allocation.require._name"),
+                    "Expected 'some_node_name'");
         }
 
         @Test
@@ -474,8 +457,7 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
             ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
 
-            ClusterStateResponse clusterStateResponse = CLUSTER.getInternalNodeClient()
-                    .execute(ClusterStateAction.INSTANCE, new ClusterStateRequest()).actionGet();
+            ClusterStateResponse clusterStateResponse = CLUSTER.getInternalNodeClient().admin().cluster().prepareState().get();
             assertEquals(IndexMetadata.State.CLOSE, clusterStateResponse.getState().metadata().index(indexName).getState());
         }
 
@@ -580,10 +562,8 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Index.createManagedIndex(CLUSTER, indexName, policyName, aliasName, settings);
             ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);
 
-            RolloverResponse response = CLUSTER.getInternalNodeClient().admin().indices()
-                    .execute(org.elasticsearch.action.admin.indices.rollover.RolloverAction.INSTANCE, new RolloverRequest(aliasName, null))
-                    .actionGet();
-            assertTrue(response.isRolledOver(), Strings.toString(response));
+            RolloverResponse rolloverResponse = CLUSTER.getInternalNodeClient().admin().indices().prepareRolloverIndex(aliasName).get();
+            assertTrue(rolloverResponse.isRolledOver(), Strings.toString(rolloverResponse));
 
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
             ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FAILED);
@@ -609,9 +589,8 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
             ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
 
-            GetSettingsRequest request = new GetSettingsRequest().indices(indexName);
-            GetSettingsResponse response = CLUSTER.getInternalNodeClient().admin().indices().execute(GetSettingsAction.INSTANCE, request).actionGet();
-            assertEquals(50, response.getIndexToSettings().get(indexName).getAsInt(SETTING_PRIORITY, 0));
+            GetSettingsResponse getSettingsResponse = CLUSTER.getInternalNodeClient().admin().indices().prepareGetSettings(indexName).get();
+            assertEquals(50, getSettingsResponse.getIndexToSettings().get(indexName).getAsInt(SETTING_PRIORITY, 0));
         }
 
         @Test
@@ -628,9 +607,9 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
             ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
 
-            GetSettingsRequest request = new GetSettingsRequest().indices(indexName);
-            GetSettingsResponse response = CLUSTER.getInternalNodeClient().admin().indices().execute(GetSettingsAction.INSTANCE, request).actionGet();
-            assertTrue(response.getIndexToSettings().get(indexName).getAsBoolean(SETTING_BLOCKS_WRITE, false), Strings.toString(response));
+            GetSettingsResponse getSettingsResponse = CLUSTER.getInternalNodeClient().admin().indices().prepareGetSettings(indexName).get();
+            assertTrue(getSettingsResponse.getIndexToSettings().get(indexName).getAsBoolean(SETTING_BLOCKS_WRITE, false),
+                    Strings.toString(getSettingsResponse));
         }
 
         @Test
@@ -647,9 +626,8 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
             ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
 
-            GetSettingsRequest request = new GetSettingsRequest().indices(indexName);
-            GetSettingsResponse response = CLUSTER.getInternalNodeClient().admin().indices().execute(GetSettingsAction.INSTANCE, request).actionGet();
-            assertEquals(2, response.getIndexToSettings().get(indexName).getAsInt(SETTING_NUMBER_OF_REPLICAS, 0));
+            GetSettingsResponse getSettingsResponse = CLUSTER.getInternalNodeClient().admin().indices().prepareGetSettings(indexName).get();
+            assertEquals(2, getSettingsResponse.getIndexToSettings().get(indexName).getAsInt(SETTING_NUMBER_OF_REPLICAS, 0));
         }
 
         @Test
@@ -670,12 +648,11 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
             ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
 
-            GetSnapshotsResponse snapshotsResponse = CLUSTER.getInternalNodeClient().admin().cluster()
-                    .execute(GetSnapshotsAction.INSTANCE, new GetSnapshotsRequest(repositoryName)).actionGet();
+            GetSnapshotsResponse getSnapshotsResponse = CLUSTER.getInternalNodeClient().admin().cluster().prepareGetSnapshots(repositoryName).get();
             assertTrue(
-                    snapshotsResponse.getSnapshots().stream()
+                    getSnapshotsResponse.getSnapshots().stream()
                             .anyMatch(snapshotInfo -> snapshotInfo.snapshotId().getName().startsWith(snapshotNamePrefix)),
-                    Strings.toString(snapshotsResponse, true, true));
+                    Strings.toString(getSnapshotsResponse, true, true));
 
             GetResponse statusResponse = ClusterHelper.Index.getPolicyInstanceStatus(CLUSTER, indexName);
             DocNode statusNode = DocNode.wrap(DocReader.json().read(statusResponse.getSourceAsString()));

@@ -12,7 +12,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.LocalNodeMasterListener;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
@@ -35,7 +34,6 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
     private Client client;
     private ThreadPool threadPool;
     private ClusterService clusterService;
-    private IndexNameExpressionResolver indexNameExpressionResolver;
     private PolicyInstanceHandler policyInstanceHandler;
     private PolicyService policyService;
     private PolicyInstanceService policyInstanceService;
@@ -70,12 +68,11 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
     }
 
     public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool,
-            ProtectedConfigIndexService protectedConfigIndexService, IndexNameExpressionResolver indexNameExpressionResolver) {
+            ProtectedConfigIndexService protectedConfigIndexService) {
         try {
             this.client = client;
             this.threadPool = threadPool;
             this.clusterService = clusterService;
-            this.indexNameExpressionResolver = indexNameExpressionResolver;
 
             initIndices(protectedConfigIndexService);
             return Collections.singleton(this);
@@ -129,7 +126,7 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
         if (policyInstanceHandler == null && aimSettings.getDynamic().getStateLogActive()) {
             LOG.info("Starting AIM policy instance handler");
             policyInstanceHandler = new PolicyInstanceHandler(aimSettings, policyService, policyInstanceService, client, threadPool, clusterService,
-                    indexNameExpressionResolver, conditionFactory, actionFactory);
+                    conditionFactory, actionFactory);
             policyInstanceHandler.init();
         }
     }
