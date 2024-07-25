@@ -16,15 +16,11 @@ package com.floragunn.searchguard.enterprise.dlsfls;
 
 import java.util.Collection;
 
+import com.floragunn.codova.documents.Format;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocumentParseException;
@@ -36,6 +32,16 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Ignore;
+import org.junit.Test;
+
+import static com.floragunn.searchguard.test.RestMatchers.isOk;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 public class DlsIntTest {
 
@@ -194,9 +200,46 @@ public class DlsIntTest {
     }
 
     @Test
+    public void search_withPit() throws Exception {
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER);
+             PitPointer pitPointer = generatePit(client)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", DocNode.of("pit.id", pitPointer.pitId()));
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_a.*/)]").size() == 10);
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_a.*/))]").size() == 0);
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN);
+             PitPointer pitPointer = generatePit(client)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", DocNode.of("pit.id", pitPointer.pitId()));
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_a.*/))]").size() != 0);
+        }
+    }
+
+    @Test
     public void search_termsLookup() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER)) {
             GenericRestClient.HttpResponse response = client.get("/logs/_search?pretty");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == 10);
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_d.*/))]").size() == 0);
+        }
+    }
+
+    @Ignore("Unsupported request type for filter level DLS: indices:data/read/open_point_in_time; org.elasticsearch.action.search.OpenPointInTimeRequest")
+    @Test
+    public void search_termsLookup_withPit() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER);
+             PitPointer pitPointer = generatePit(client)) {
+
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", DocNode.of("pit.id", pitPointer.pitId()));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == 10);
@@ -225,10 +268,66 @@ public class DlsIntTest {
     }
 
     @Test
+    public void search_suggest_withPit() throws Exception {
+        // TOOD test with exclusive term
+
+        DocNode query = DocNode.of("suggest", DocNode.of("suggestion", DocNode.of("text", "rahnsthla", "term.field", "source_loc")));
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_D_USER);
+             PitPointer pitPointer = generatePit(client)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitPointer.pitId())));
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN);
+             PitPointer pitPointer = generatePit(client)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitPointer.pitId())));
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+        }
+    }
+
+    @Test
     public void scroll() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER)) {
             GenericRestClient.HttpResponse response = client.get("/logs/_search?scroll=1m&pretty=true&size=5");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_a.*/)]").size() == 5);
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_a.*/))]").size() == 0);
+
+            System.out.println(response.getBody());
+            String scrollId = response.getBodyAsDocNode().getAsString("_scroll_id");
+
+            for (;;) {
+                GenericRestClient.HttpResponse scrollResponse = client.postJson("/_search/scroll?pretty=true",
+                        DocNode.of("scroll", "1m", "scroll_id", scrollId));
+
+                int hits = scrollResponse.getBodyAsDocNode().getAsNode("hits").getAsListOfNodes("hits").size();
+
+                if (hits == 0) {
+                    break;
+                }
+
+                Assert.assertTrue(scrollResponse.getBody(),
+                        scrollResponse.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_a.*/)]").size() == hits);
+                Assert.assertTrue(scrollResponse.getBody(),
+                        scrollResponse.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_a.*/))]").size() == 0);
+            }
+
+        }
+    }
+
+    @Ignore("Validation Failed: 1: using [point in time] is not allowed in a scroll context")
+    @Test
+    public void scroll_withPit() throws Exception {
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER);
+             PitPointer pitPointer = generatePit(client)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?scroll=1m&pretty=true&size=5", DocNode.of("pit.id", pitPointer.pitId()));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_a.*/)]").size() == 5);
@@ -290,6 +389,41 @@ public class DlsIntTest {
         }
     }
 
+    @Ignore("Validation Failed: 1: using [point in time] is not allowed in a scroll context;")
+    @Test
+    public void scroll_termsLookup_withPit() throws Exception {
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER);
+             PitPointer pitPointer = generatePit(client)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?scroll=1m&pretty=true&size=5", DocNode.of("pit.id", pitPointer.pitId()));
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == 5);
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_d.*/))]").size() == 0);
+
+            System.out.println(response.getBody());
+            String scrollId = response.getBodyAsDocNode().getAsString("_scroll_id");
+
+            for (;;) {
+                GenericRestClient.HttpResponse scrollResponse = client.postJson("/_search/scroll?pretty=true",
+                        DocNode.of("scroll", "1m", "scroll_id", scrollId));
+
+                int hits = scrollResponse.getBodyAsDocNode().getAsNode("hits").getAsListOfNodes("hits").size();
+
+                if (hits == 0) {
+                    break;
+                }
+
+                Assert.assertTrue(scrollResponse.getBody(),
+                        scrollResponse.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == hits);
+                Assert.assertTrue(response.getBody(),
+                        scrollResponse.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_d.*/))]").size() == 0);
+            }
+
+        }
+    }
+
     @Test
     public void terms_aggregation() throws Exception {
 
@@ -312,6 +446,40 @@ public class DlsIntTest {
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER)) {
             GenericRestClient.HttpResponse response = client.postJson("/logs/_search?pretty", query);
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("aggregations.test_agg.buckets[?(@.key == 'dept_d')]").size() == 0);
+
+            Assert.assertEquals(response.getBody(), a1count, getInt(response, "aggregations.test_agg.buckets[?(@.key == 'dept_a_1')].doc_count"));
+            Assert.assertEquals(response.getBody(), a2count, getInt(response, "aggregations.test_agg.buckets[?(@.key == 'dept_a_2')].doc_count"));
+        }
+    }
+
+    @Test
+    public void terms_aggregation_withPit() throws Exception {
+
+        DocNode query = DocNode.parse(Format.JSON).from("{" + "\"query\" : {" + "\"match_all\": {}" + "}," + "\"aggs\" : {"
+                + "\"test_agg\" : { \"terms\" : { \"field\" : \"dept.keyword\" } }" + "}" + "}");
+
+        int a1count;
+        int a2count;
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN);
+             PitPointer pitPointer = generatePit(client)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitPointer.pitId())));
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("aggregations.test_agg.buckets[?(@.key == 'dept_d')]").size() == 1);
+
+            a1count = getInt(response, "aggregations.test_agg.buckets[?(@.key == 'dept_a_1')].doc_count");
+            a2count = getInt(response, "aggregations.test_agg.buckets[?(@.key == 'dept_a_2')].doc_count");
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER);
+             PitPointer pitPointer = generatePit(client)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitPointer.pitId())));
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
@@ -369,6 +537,22 @@ public class DlsIntTest {
             return ((Number) object).intValue();
         } else {
             throw new RuntimeException("Invalid value for " + jsonPath + ": " + object);
+        }
+    }
+
+    private PitPointer generatePit(GenericRestClient genericRestClient) throws Exception {
+        GenericRestClient.HttpResponse response = genericRestClient.post(INDEX + "/_pit?keep_alive=1m");
+        assertThat(response, isOk());
+        assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$", "id"));
+        return new PitPointer(genericRestClient, response.getBodyAsDocNode().getAsString("id"));
+    }
+
+    private record PitPointer(GenericRestClient genericRestClient, String pitId) implements AutoCloseable {
+
+        @Override
+        public void close() throws Exception {
+            GenericRestClient.HttpResponse response = genericRestClient.deleteJson("/_pit/", DocNode.of("id", pitId));
+            assertThat(response, isOk());
         }
     }
 }
