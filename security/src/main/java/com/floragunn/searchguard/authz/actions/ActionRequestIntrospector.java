@@ -30,6 +30,7 @@ import java.util.function.Function;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.CompositeIndicesRequest;
@@ -123,8 +124,13 @@ public class ActionRequestIntrospector {
         if (NAME_BASED_SHORTCUTS_FOR_CLUSTER_ACTIONS.contains(action)) {
             return CLUSTER_REQUEST;
         }
-
-        if (request instanceof SingleShardRequest) {
+        if (request instanceof SearchRequest searchRequest && (searchRequest.pointInTimeBuilder() != null)) {
+            // In point-in-time queries, wildcards in index names are expanded when the open point-in-time request
+            // is sent. Therefore, a list of indices in search requests with PIT can be treated literally.
+            String pointInTimeId = searchRequest.pointInTimeBuilder().getEncodedId();
+            String[] indices = SearchContextId.decodeIndices(pointInTimeId);
+            return new ActionRequestInfo(indices == null ? ImmutableList.empty() : ImmutableList.ofArray(indices), EXACT);
+        } else if (request instanceof SingleShardRequest) {
             // SingleShardRequest can reference exactly one index or no indices at all (which might be a bit surprising)
             SingleShardRequest<?> singleShardRequest = (SingleShardRequest<?>) request;
             
@@ -589,9 +595,8 @@ public class ActionRequestIntrospector {
         private List<String> localIndices;
 
         IndicesRequestInfo(String role, IndicesRequest indicesRequest) {
-            String[] realIndices = extractIndicesFromRequest(indicesRequest);
-            this.indices = realIndices != null ? Arrays.asList(realIndices) : Collections.emptyList();
-            this.indicesArray = realIndices;
+            this.indices = indicesRequest.indices() != null ? Arrays.asList(indicesRequest.indices()) : Collections.emptyList();
+            this.indicesArray = indicesRequest.indices();
             this.indicesOptions = indicesRequest.indicesOptions();
             this.allowsRemoteIndices = indicesRequest instanceof Replaceable ? ((Replaceable) indicesRequest).allowsRemoteIndices() : false;
             this.includeDataStreams = indicesRequest.includeDataStreams();
@@ -605,18 +610,6 @@ public class ActionRequestIntrospector {
             this.writeRequest = indicesRequest instanceof DocWriteRequest;
             this.createIndexRequest = indicesRequest instanceof IndexRequest
                     || indicesRequest instanceof org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-        }
-
-        private static String[] extractIndicesFromRequest(IndicesRequest indicesRequest) {
-            if (indicesRequest instanceof SearchRequest searchRequest && Objects.nonNull(searchRequest.pointInTimeBuilder())
-                && ((searchRequest.indices() == null) || (searchRequest.indices().length == 0))) {
-                // This if statement is necessary for handling point-in-time (PIT) search requests, a feature introduced in
-                // ES version 8.13, which requires fetching the indices from the search context.
-                String pointInTimeId = searchRequest.pointInTimeBuilder().getEncodedId();
-
-                return SearchContextId.decodeIndices(pointInTimeId);
-            }
-            return indicesRequest.indices();
         }
 
         IndicesRequestInfo(String role, String index, IndicesOptions indicesOptions) {
