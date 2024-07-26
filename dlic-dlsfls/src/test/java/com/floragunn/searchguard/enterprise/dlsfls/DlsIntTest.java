@@ -491,20 +491,4 @@ public class DlsIntTest {
             throw new RuntimeException("Invalid value for " + jsonPath + ": " + object);
         }
     }
-
-    private PitPointer generatePit(GenericRestClient genericRestClient) throws Exception {
-        GenericRestClient.HttpResponse response = genericRestClient.post(INDEX + "/_pit?keep_alive=1m");
-        assertThat(response, isOk());
-        assertThat(response.getBodyAsDocNode(), containsFieldPointedByJsonPath("$", "id"));
-        return new PitPointer(genericRestClient, response.getBodyAsDocNode().getAsString("id"));
-    }
-
-    private record PitPointer(GenericRestClient genericRestClient, String pitId) implements AutoCloseable {
-
-        @Override
-        public void close() throws Exception {
-            GenericRestClient.HttpResponse response = genericRestClient.deleteJson("/_pit/", DocNode.of("id", pitId));
-            assertThat(response, isOk());
-        }
-    }
 }
