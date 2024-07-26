@@ -31,10 +31,10 @@
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.helper.PitHolder;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.http.HttpStatus;
@@ -47,10 +47,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
-
-import static com.floragunn.searchguard.test.RestMatchers.isOk;
-import static org.apache.http.HttpStatus.SC_OK;
-import static org.hamcrest.MatcherAssert.assertThat;
 
 public class DlsTest {
 
@@ -118,9 +114,9 @@ public class DlsTest {
                 + "}" + "}");
 
         try (GenericRestClient client = cluster.getRestClient("dept_manager", "password");
-             PitPointer pitPointer = generatePitForIndices(client, false, "deals")) {
+             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, "deals")) {
 
-            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(pitPointer.asSearchBody()));
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(pitHolder.asSearchBody()));
 
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
             Assert.assertTrue(response.getBody().contains("\"value\" : 1,\n      \"relation"));
@@ -129,9 +125,9 @@ public class DlsTest {
         }
 
         try (GenericRestClient client = cluster.getRestClient("admin", "admin");
-             PitPointer pitPointer = generatePitForIndices(client, false, "deals")) {
+             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, "deals")) {
 
-            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(pitPointer.asSearchBody()));
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(pitHolder.asSearchBody()));
 
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
             Assert.assertTrue(response.getBody().contains("\"value\" : 2,\n      \"relation"));
@@ -252,8 +248,8 @@ public class DlsTest {
 
         try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password");
                 GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-                PitPointer dmPit = generatePitForIndices(dmClient, false, "deals");
-             PitPointer adminPit = generatePitForIndices(adminClient, false, "deals")) {
+                PitHolder dmPit = PitHolder.generatePitForIndices(dmClient, false, "deals");
+             PitHolder adminPit = PitHolder.generatePitForIndices(adminClient, false, "deals")) {
             GenericRestClient.HttpResponse res;
 
             Assert.assertEquals(HttpStatus.SC_OK, (res = dmClient.postJson("/_search?pretty&size=0", dmPit.asSearchBody())).getStatusCode());
@@ -323,7 +319,7 @@ public class DlsTest {
     public void testNonDls_withPit() throws Exception {
 
         try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password");
-             PitPointer pitPointer = generatePitForIndices(dmClient, false, "deals")) {
+             PitHolder pitHolder = PitHolder.generatePitForIndices(dmClient, false, "deals")) {
 
             GenericRestClient.HttpResponse res;
             DocNode query = DocNode.parse(Format.JSON).from(
@@ -331,7 +327,7 @@ public class DlsTest {
                             + "\"boost\" : 2.0" + "}" + "}" + "}" + "}"
             );
 
-            Assert.assertEquals(HttpStatus.SC_OK, (res = dmClient.postJson("/_search?pretty", query.with(pitPointer.asSearchBody()))).getStatusCode());
+            Assert.assertEquals(HttpStatus.SC_OK, (res = dmClient.postJson("/_search?pretty", query.with(pitHolder.asSearchBody()))).getStatusCode());
             Assert.assertTrue(res.getBody().contains("\"value\" : 1,\n      \"relation"));
             Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
         }
@@ -366,8 +362,8 @@ public class DlsTest {
 
         try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password");
                 GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-             PitPointer dmPit = generatePitForIndices(dmClient, false, "deals");
-             PitPointer adminPit = generatePitForIndices(adminClient, false, "deals")) {
+             PitHolder dmPit = PitHolder.generatePitForIndices(dmClient, false, "deals");
+             PitHolder adminPit = PitHolder.generatePitForIndices(adminClient, false, "deals")) {
 
             GenericRestClient.HttpResponse res;
             Assert.assertEquals(HttpStatus.SC_OK, (res = adminClient.postJson("/_search?pretty", adminPit.asSearchBody())).getStatusCode());
@@ -642,40 +638,4 @@ public class DlsTest {
             // Assert.assertFalse(response6.getBody(), response6.getBody().contains("\"termX\":\"E\""));
         }
     }
-
-    private PitPointer generatePitForIndices(GenericRestClient genericRestClient, boolean ignoreUnavailable, String... indices) throws Exception {
-        String path = String.join(",", indices) + "/_pit?keep_alive=1m&ignore_unavailable=" + ignoreUnavailable;
-        GenericRestClient.HttpResponse response = genericRestClient.post(path);
-        return new PitPointer(genericRestClient, response);
-    }
-
-    private record PitPointer(GenericRestClient genericRestClient,
-                              GenericRestClient.HttpResponse response) implements AutoCloseable {
-
-        public String getPitId() {
-                assertThat(response, isOk());
-                try {
-                    return response.getBodyAsDocNode().getAsString("id");
-                } catch (DocumentParseException | Format.UnknownDocTypeException e) {
-                    throw new RuntimeException("Cannot retrieve PIT id", e);
-                }
-            }
-
-            public DocNode asSearchBody() {
-                assertThat(response, isOk());
-                try {
-                    return DocNode.of("pit.id", response.getBodyAsDocNode().getAsString("id"));
-                } catch (DocumentParseException | Format.UnknownDocTypeException e) {
-                    throw new RuntimeException("Cannot retrieve PIT id", e);
-                }
-            }
-
-            @Override
-            public void close() throws Exception {
-                if (response.getStatusCode() == SC_OK) {
-                    GenericRestClient.HttpResponse response = genericRestClient.deleteJson("/_pit/", DocNode.of("id", getPitId()));
-                    assertThat(response, isOk());
-                }
-            }
-        }
 }

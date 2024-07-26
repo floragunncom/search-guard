@@ -17,6 +17,7 @@ package com.floragunn.searchguard.enterprise.dlsfls;
 import java.util.Collection;
 
 import com.floragunn.codova.documents.Format;
+import com.floragunn.searchguard.test.helper.PitHolder;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
@@ -203,8 +204,8 @@ public class DlsIntTest {
     public void search_withPit() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER);
-             PitPointer pitPointer = generatePit(client)) {
-            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", DocNode.of("pit.id", pitPointer.pitId()));
+             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", DocNode.of("pit.id", pitHolder.getPitId()));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_a.*/)]").size() == 10);
@@ -213,8 +214,8 @@ public class DlsIntTest {
         }
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN);
-             PitPointer pitPointer = generatePit(client)) {
-            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", DocNode.of("pit.id", pitPointer.pitId()));
+             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", DocNode.of("pit.id", pitHolder.getPitId()));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_a.*/))]").size() != 0);
@@ -237,9 +238,9 @@ public class DlsIntTest {
     @Test
     public void search_termsLookup_withPit() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER);
-             PitPointer pitPointer = generatePit(client)) {
+             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
 
-            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", DocNode.of("pit.id", pitPointer.pitId()));
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", DocNode.of("pit.id", pitHolder.getPitId()));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == 10);
@@ -274,15 +275,15 @@ public class DlsIntTest {
         DocNode query = DocNode.of("suggest", DocNode.of("suggestion", DocNode.of("text", "rahnsthla", "term.field", "source_loc")));
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_USER);
-             PitPointer pitPointer = generatePit(client)) {
-            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitPointer.pitId())));
+             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitHolder.getPitId())));
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
         }
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN);
-             PitPointer pitPointer = generatePit(client)) {
-            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitPointer.pitId())));
+             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitHolder.getPitId())));
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
         }
@@ -326,8 +327,8 @@ public class DlsIntTest {
     public void scroll_withPit() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER);
-             PitPointer pitPointer = generatePit(client)) {
-            GenericRestClient.HttpResponse response = client.postJson("/_search?scroll=1m&pretty=true&size=5", DocNode.of("pit.id", pitPointer.pitId()));
+             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?scroll=1m&pretty=true&size=5", DocNode.of("pit.id", pitHolder.getPitId()));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_a.*/)]").size() == 5);
@@ -394,8 +395,8 @@ public class DlsIntTest {
     public void scroll_termsLookup_withPit() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER);
-             PitPointer pitPointer = generatePit(client)) {
-            GenericRestClient.HttpResponse response = client.postJson("/_search?scroll=1m&pretty=true&size=5", DocNode.of("pit.id", pitPointer.pitId()));
+             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?scroll=1m&pretty=true&size=5", DocNode.of("pit.id", pitHolder.getPitId()));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == 5);
@@ -466,8 +467,8 @@ public class DlsIntTest {
         int a2count;
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN);
-             PitPointer pitPointer = generatePit(client)) {
-            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitPointer.pitId())));
+             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitHolder.getPitId())));
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
@@ -478,8 +479,8 @@ public class DlsIntTest {
         }
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER);
-             PitPointer pitPointer = generatePit(client)) {
-            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitPointer.pitId())));
+             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitHolder.getPitId())));
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
