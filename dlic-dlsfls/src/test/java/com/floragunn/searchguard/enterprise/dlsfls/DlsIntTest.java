@@ -322,38 +322,13 @@ public class DlsIntTest {
         }
     }
 
-    @Ignore("Validation Failed: 1: using [point in time] is not allowed in a scroll context")
     @Test
     public void scroll_withPit() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER);
              PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
             GenericRestClient.HttpResponse response = client.postJson("/_search?scroll=1m&pretty=true&size=5", DocNode.of("pit.id", pitHolder.getPitId()));
-            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            Assert.assertTrue(response.getBody(),
-                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_a.*/)]").size() == 5);
-            Assert.assertTrue(response.getBody(),
-                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_a.*/))]").size() == 0);
-
-            System.out.println(response.getBody());
-            String scrollId = response.getBodyAsDocNode().getAsString("_scroll_id");
-
-            for (;;) {
-                GenericRestClient.HttpResponse scrollResponse = client.postJson("/_search/scroll?pretty=true",
-                        DocNode.of("scroll", "1m", "scroll_id", scrollId));
-
-                int hits = scrollResponse.getBodyAsDocNode().getAsNode("hits").getAsListOfNodes("hits").size();
-
-                if (hits == 0) {
-                    break;
-                }
-
-                Assert.assertTrue(scrollResponse.getBody(),
-                        scrollResponse.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_a.*/)]").size() == hits);
-                Assert.assertTrue(scrollResponse.getBody(),
-                        scrollResponse.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_a.*/))]").size() == 0);
-            }
-
+            Assert.assertEquals(response.getBody(), 400, response.getStatusCode()); //using point in time is not allowed in a scroll context
         }
     }
 
@@ -390,38 +365,14 @@ public class DlsIntTest {
         }
     }
 
-    @Ignore("Validation Failed: 1: using [point in time] is not allowed in a scroll context;")
+    @Ignore("Unsupported request type for filter level DLS: indices:data/read/open_point_in_time; org.elasticsearch.action.search.OpenPointInTimeRequest")
     @Test
     public void scroll_termsLookup_withPit() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER);
              PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
             GenericRestClient.HttpResponse response = client.postJson("/_search?scroll=1m&pretty=true&size=5", DocNode.of("pit.id", pitHolder.getPitId()));
-            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            Assert.assertTrue(response.getBody(),
-                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == 5);
-            Assert.assertTrue(response.getBody(),
-                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_d.*/))]").size() == 0);
-
-            System.out.println(response.getBody());
-            String scrollId = response.getBodyAsDocNode().getAsString("_scroll_id");
-
-            for (;;) {
-                GenericRestClient.HttpResponse scrollResponse = client.postJson("/_search/scroll?pretty=true",
-                        DocNode.of("scroll", "1m", "scroll_id", scrollId));
-
-                int hits = scrollResponse.getBodyAsDocNode().getAsNode("hits").getAsListOfNodes("hits").size();
-
-                if (hits == 0) {
-                    break;
-                }
-
-                Assert.assertTrue(scrollResponse.getBody(),
-                        scrollResponse.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == hits);
-                Assert.assertTrue(response.getBody(),
-                        scrollResponse.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_d.*/))]").size() == 0);
-            }
-
+            Assert.assertEquals(response.getBody(), 400, response.getStatusCode()); //using point in time is not allowed in a scroll context
         }
     }
 
