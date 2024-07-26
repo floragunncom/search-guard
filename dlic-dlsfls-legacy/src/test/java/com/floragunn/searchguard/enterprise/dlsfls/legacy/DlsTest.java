@@ -114,7 +114,7 @@ public class DlsTest {
                 + "}" + "}");
 
         try (GenericRestClient client = cluster.getRestClient("dept_manager", "password");
-             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, "deals")) {
+            PitHolder pitHolder = PitHolder.of(client).post("/deals" + "/_pit?keep_alive=1m")) {
 
             GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(pitHolder.asSearchBody()));
 
@@ -125,7 +125,7 @@ public class DlsTest {
         }
 
         try (GenericRestClient client = cluster.getRestClient("admin", "admin");
-             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, "deals")) {
+            PitHolder pitHolder = PitHolder.of(client).post("/deals" + "/_pit?keep_alive=1m")) {
 
             GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(pitHolder.asSearchBody()));
 
@@ -248,8 +248,9 @@ public class DlsTest {
 
         try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password");
                 GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-                PitHolder dmPit = PitHolder.generatePitForIndices(dmClient, false, "deals");
-             PitHolder adminPit = PitHolder.generatePitForIndices(adminClient, false, "deals")) {
+                PitHolder dmPit = PitHolder.of(dmClient).post("/deals" + "/_pit?keep_alive=1m");
+                PitHolder adminPit = PitHolder.of(adminClient).post("/deals" + "/_pit?keep_alive=1m")) {
+
             GenericRestClient.HttpResponse res;
 
             Assert.assertEquals(HttpStatus.SC_OK, (res = dmClient.postJson("/_search?pretty&size=0", dmPit.asSearchBody())).getStatusCode());
@@ -319,7 +320,7 @@ public class DlsTest {
     public void testNonDls_withPit() throws Exception {
 
         try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password");
-             PitHolder pitHolder = PitHolder.generatePitForIndices(dmClient, false, "deals")) {
+            PitHolder pitHolder = PitHolder.of(dmClient).post("/deals" + "/_pit?keep_alive=1m")) {
 
             GenericRestClient.HttpResponse res;
             DocNode query = DocNode.parse(Format.JSON).from(
@@ -362,8 +363,8 @@ public class DlsTest {
 
         try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password");
                 GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
-             PitHolder dmPit = PitHolder.generatePitForIndices(dmClient, false, "deals");
-             PitHolder adminPit = PitHolder.generatePitForIndices(adminClient, false, "deals")) {
+            PitHolder dmPit = PitHolder.of(dmClient).post("/deals" + "/_pit?keep_alive=1m");
+            PitHolder adminPit = PitHolder.of(adminClient).post("/deals" + "/_pit?keep_alive=1m")) {
 
             GenericRestClient.HttpResponse res;
             Assert.assertEquals(HttpStatus.SC_OK, (res = adminClient.postJson("/_search?pretty", adminPit.asSearchBody())).getStatusCode());

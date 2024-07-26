@@ -1,3 +1,19 @@
+/*
+ * Copyright 2024 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.searchguard.test.helper;
 
 import com.floragunn.codova.documents.DocNode;
@@ -19,10 +35,8 @@ public class PitHolder implements AutoCloseable {
     private final GenericRestClient genericRestClient;
     private final HttpResponse response;
 
-    public static PitHolder generatePitForIndices(GenericRestClient genericRestClient, boolean ignoreUnavailable, String... indices) throws Exception{
-        String path = String.join(",", indices) + "/_pit?keep_alive=1m&ignore_unavailable=" + ignoreUnavailable;
-        HttpResponse response = genericRestClient.post(path);
-        return new PitHolder(genericRestClient, response);
+    public static HolderClient of(GenericRestClient genericRestClient) {
+        return new HolderClient(genericRestClient);
     }
 
     private PitHolder(GenericRestClient genericRestClient, HttpResponse response) {
@@ -64,5 +78,19 @@ public class PitHolder implements AutoCloseable {
 
     public HttpResponse getResponse() {
         return response;
+    }
+
+    public static class HolderClient {
+
+        private final GenericRestClient genericRestClient;
+
+        public HolderClient(GenericRestClient genericRestClient) {
+            this.genericRestClient = Objects.requireNonNull(genericRestClient, "Rest client is required");
+        }
+
+        public PitHolder post(String path) throws Exception {
+            HttpResponse response = genericRestClient.post(path);
+            return new PitHolder(genericRestClient, response);
+        }
     }
 }
