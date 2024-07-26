@@ -131,44 +131,6 @@ public class IgnoreUnauthorizedIntTest {
         }
     }
 
-    @Ignore("It is impossible to create PIT without providing indices") //todo
-    @Test
-    public void search_noPattern_withPit() throws Exception {
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
-            PitPointer pitPointer = generatePitForIndices(restClient, false)) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", pitPointer.asSearchBody());
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse,
-                    json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1", "b2", "b3", "c1"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A);
-            PitPointer pitPointer = generatePitForIndices(restClient, false)) {
-            HttpResponse httpResponse = restClient.get("/_search?size=1000");
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_B);
-            PitPointer pitPointer = generatePitForIndices(restClient, false)) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", pitPointer.asSearchBody());
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("b1", "b2", "b3"))));
-        }
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A_B1);
-            PitPointer pitPointer = generatePitForIndices(restClient, false)) {
-            HttpResponse httpResponse = restClient.postJson("/_search?size=1000", pitPointer.asSearchBody());
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("a1", "a2", "a3", "b1"))));
-        }
-    }
-
     @Test
     public void search_staticIndicies() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
@@ -448,7 +410,7 @@ public class IgnoreUnauthorizedIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_A);
             PitPointer pitPointer = generatePitForIndices(restClient, false,"ax")) {
 
-            Assert.assertThat(pitPointer.getResponse(), isNotFound());// TODO expected isForbidden()
+            Assert.assertThat(pitPointer.getResponse(), isNotFound());
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_C);
