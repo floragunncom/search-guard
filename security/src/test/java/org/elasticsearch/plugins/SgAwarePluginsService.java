@@ -1,10 +1,9 @@
 package org.elasticsearch.plugins;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import org.elasticsearch.Build;
 import org.elasticsearch.Version;
@@ -78,7 +77,26 @@ public class SgAwarePluginsService extends PluginsService {
         return new LoadedPlugin(createPluginDescriptor(plugin.getClass()),plugin);
     }
     private static LoadedPlugin createLoadedPlugin(Class<? extends Plugin> pluginClass) throws Exception {
-        return new LoadedPlugin(createPluginDescriptor(pluginClass),pluginClass.getDeclaredConstructor().newInstance());
+        Plugin plugin = pluginClass.getDeclaredConstructor().newInstance();
+        if (plugin instanceof ExtensiblePlugin extensiblePlugin) {
+
+            extensiblePlugin.loadExtensions(new ExtensiblePlugin.ExtensionLoader() {
+
+                @SuppressWarnings("unchecked")
+                @Override
+                public <T> List<T> loadExtensions(Class<T> extensionPointType) {
+                    if (extensionPointType.equals(pluginClass)) {
+                        List<?> result = StreamSupport.stream(ServiceLoader.load(pluginClass, getClass().getClassLoader()).spliterator(), false)
+                                .collect(Collectors.toList());
+
+                        return (List<T>) result;
+                    } else {
+                        return Collections.emptyList();
+                    }
+                }
+            });
+        }
+        return new LoadedPlugin(createPluginDescriptor(pluginClass), plugin);
     }
 
     private static PluginDescriptor createPluginDescriptor(Class<? extends Plugin> pluginClass)  {
