@@ -161,7 +161,7 @@ public class IgnoreUnauthorizedCcsIntTest {
 
         try (
             GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
-            PitHolder pitHolder = PitHolder.generatePitForIndices(restClient, false, "*")) {
+            PitHolder pitHolder = PitHolder.of(restClient).post("/"+ "*" + "/_pit?keep_alive=1m")) {
 
             HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
@@ -176,7 +176,7 @@ public class IgnoreUnauthorizedCcsIntTest {
 
         try (
             GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A);
-            PitHolder pitHolder = PitHolder.generatePitForIndices(restClient, false, "*")) {
+            PitHolder pitHolder = PitHolder.of(restClient).post("/*/_pit?keep_alive=1m")) {
             HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
             Assert.assertThat(httpResponse, isOk());
@@ -234,7 +234,7 @@ public class IgnoreUnauthorizedCcsIntTest {
 
         try (
             GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
-            PitHolder pitHolder = PitHolder.generatePitForIndices(restClient, false, "my_remote:*")) {
+            PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:*/_pit?keep_alive=1m")) {
             HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
             // Remote search does not work with PIT https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/350
@@ -252,7 +252,8 @@ public class IgnoreUnauthorizedCcsIntTest {
 
         try (
             GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A);
-            PitHolder pitHolder = PitHolder.generatePitForIndices(restClient, false, "my_remote:*")) {
+            PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:*/_pit?keep_alive=1m")) {
+
             //            HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
             //
             //            Assert.assertThat(httpResponse, isOk());
@@ -370,7 +371,7 @@ public class IgnoreUnauthorizedCcsIntTest {
         String query = "/_search?size=1000&" + ccsMinimizeRoundtrips;
 
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
-            PitHolder pitHolder = PitHolder.generatePitForIndices(restClient, false, "my_remote:a*")) {
+            PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:a*/_pit?keep_alive=1m")) {
 
             HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
@@ -381,7 +382,7 @@ public class IgnoreUnauthorizedCcsIntTest {
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A);
-            PitHolder pitHolder = PitHolder.generatePitForIndices(restClient, false, "my_remote:a*")) {
+            PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:a*/_pit?keep_alive=1m")) {
 
             HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
@@ -419,7 +420,7 @@ public class IgnoreUnauthorizedCcsIntTest {
 
         try (
             GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
-            PitHolder pitHolder = PitHolder.generatePitForIndices(restClient, false, "my_remote:b1")) {
+            PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:b1/_pit?keep_alive=1m")) {
 
             HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
@@ -431,7 +432,7 @@ public class IgnoreUnauthorizedCcsIntTest {
 
         try (
             GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A);
-            PitHolder pitHolder = PitHolder.generatePitForIndices(restClient, false, "my_remote:b1")) {
+            PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:b1/_pit?keep_alive=1m")) {
 
             Assert.assertThat(pitHolder.getResponse(), isForbidden());
         }

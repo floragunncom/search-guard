@@ -40,9 +40,6 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import static com.floragunn.searchguard.test.RestMatchers.isOk;
-import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
-import static org.hamcrest.MatcherAssert.assertThat;
 
 public class DlsIntTest {
 
@@ -204,17 +201,20 @@ public class DlsIntTest {
     public void search_withPit() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER);
-             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            PitHolder pitHolder = PitHolder.of(client).post("/" + INDEX  + "/_pit?keep_alive=1m")) {
+
             GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", DocNode.of("pit.id", pitHolder.getPitId()));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_a.*/)]").size() == 10);
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_a.*/))]").size() == 0);
+
         }
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN);
-             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            PitHolder pitHolder = PitHolder.of(client).post("/" + INDEX  + "/_pit?keep_alive=1m")) {
+
             GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", DocNode.of("pit.id", pitHolder.getPitId()));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
@@ -238,7 +238,7 @@ public class DlsIntTest {
     @Test
     public void search_termsLookup_withPit() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER);
-             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            PitHolder pitHolder = PitHolder.of(client).post("/" +  INDEX + "/_pit?keep_alive=1m")) {
 
             GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", DocNode.of("pit.id", pitHolder.getPitId()));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
@@ -275,14 +275,16 @@ public class DlsIntTest {
         DocNode query = DocNode.of("suggest", DocNode.of("suggestion", DocNode.of("text", "rahnsthla", "term.field", "source_loc")));
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_USER);
-             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            PitHolder pitHolder = PitHolder.of(client).post("/" + INDEX  + "/_pit?keep_alive=1m")) {
+
             GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitHolder.getPitId())));
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
         }
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN);
-             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            PitHolder pitHolder = PitHolder.of(client).post("/" + INDEX + "/_pit?keep_alive=1m")) {
+
             GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitHolder.getPitId())));
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
@@ -326,7 +328,8 @@ public class DlsIntTest {
     public void scroll_withPit() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER);
-             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            PitHolder pitHolder = PitHolder.of(client).post("/" + INDEX + "/_pit?keep_alive=1m")) {
+
             GenericRestClient.HttpResponse response = client.postJson("/_search?scroll=1m&pretty=true&size=5", DocNode.of("pit.id", pitHolder.getPitId()));
             Assert.assertEquals(response.getBody(), 400, response.getStatusCode()); //using point in time is not allowed in a scroll context
         }
@@ -370,7 +373,8 @@ public class DlsIntTest {
     public void scroll_termsLookup_withPit() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER);
-             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            PitHolder pitHolder = PitHolder.of(client).post("/" + INDEX + "/_pit?keep_alive=1m")) {
+
             GenericRestClient.HttpResponse response = client.postJson("/_search?scroll=1m&pretty=true&size=5", DocNode.of("pit.id", pitHolder.getPitId()));
             Assert.assertEquals(response.getBody(), 400, response.getStatusCode()); //using point in time is not allowed in a scroll context
         }
@@ -418,7 +422,8 @@ public class DlsIntTest {
         int a2count;
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN);
-             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            PitHolder pitHolder = PitHolder.of(client).post("/" + INDEX + "/_pit?keep_alive=1m")) {
+
             GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitHolder.getPitId())));
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
@@ -430,7 +435,8 @@ public class DlsIntTest {
         }
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER);
-             PitHolder pitHolder = PitHolder.generatePitForIndices(client, false, INDEX)) {
+            PitHolder pitHolder = PitHolder.of(client).post("/" + INDEX + "/_pit?keep_alive=1m")) {
+
             GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitHolder.getPitId())));
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
