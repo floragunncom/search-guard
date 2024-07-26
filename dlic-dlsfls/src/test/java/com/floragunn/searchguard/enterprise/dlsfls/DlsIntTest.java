@@ -234,21 +234,6 @@ public class DlsIntTest {
         }
     }
 
-    @Ignore("Unsupported request type for filter level DLS: indices:data/read/open_point_in_time; org.elasticsearch.action.search.OpenPointInTimeRequest")
-    @Test
-    public void search_termsLookup_withPit() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER);
-            PitHolder pitHolder = PitHolder.of(client).post("/" +  INDEX + "/_pit?keep_alive=1m")) {
-
-            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", DocNode.of("pit.id", pitHolder.getPitId()));
-            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            Assert.assertTrue(response.getBody(),
-                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == 10);
-            Assert.assertTrue(response.getBody(),
-                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_d.*/))]").size() == 0);
-        }
-    }
-
     @Test
     public void search_suggest() throws Exception {
         // TOOD test with exclusive term
