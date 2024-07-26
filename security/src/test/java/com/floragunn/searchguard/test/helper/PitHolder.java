@@ -5,6 +5,10 @@ import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import org.elasticsearch.action.search.SearchContextId;
+import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
+
+import java.util.Objects;
 
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static org.apache.http.HttpStatus.SC_OK;
@@ -42,6 +46,12 @@ public class PitHolder implements AutoCloseable {
         } catch (DocumentParseException | Format.UnknownDocTypeException e) {
             throw new RuntimeException("Cannot retrieve PIT id", e);
         }
+    }
+
+    public String[] extractIndicesFromPit(NamedWriteableRegistry namedWriteableRegistry) {
+        Objects.requireNonNull(namedWriteableRegistry, "Name writeable registry cannot be null");
+        SearchContextId searchContextId = SearchContextId.decode(namedWriteableRegistry, getPitId());
+        return searchContextId.getActualIndices();
     }
 
     @Override
