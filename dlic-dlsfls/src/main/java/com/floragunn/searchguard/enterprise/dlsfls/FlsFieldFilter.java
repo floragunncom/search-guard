@@ -35,8 +35,9 @@ import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import org.elasticsearch.plugins.FieldPredicate;
 
-public class FlsFieldFilter implements Function<String, Predicate<String>>, ComponentStateProvider {
+public class FlsFieldFilter implements Function<String, FieldPredicate>, ComponentStateProvider {
     private static final String KEYWORD = ".keyword";
     private static final Logger log = LogManager.getLogger(FlsFieldFilter.class);
 
@@ -53,17 +54,17 @@ public class FlsFieldFilter implements Function<String, Predicate<String>>, Comp
     }
 
     @Override
-    public Predicate<String> apply(String index) {
+    public FieldPredicate apply(String index) {
         DlsFlsProcessedConfig config = this.config.get();
 
         if (!config.isEnabled()) {
-            return (field) -> true;
+            return FieldPredicate.ACCEPT_ALL;
         }
 
         PrivilegesEvaluationContext privilegesEvaluationContext = this.baseContext.getPrivilegesEvaluationContext();
 
         if (privilegesEvaluationContext == null) {
-            return (field) -> true;
+            return FieldPredicate.ACCEPT_ALL;
         }
 
         try (Meter meter = Meter.detail(config.getMetricsLevel(), applyAggregation)) {
@@ -80,7 +81,22 @@ public class FlsFieldFilter implements Function<String, Predicate<String>>, Comp
             }
 
             FlsRule flsRule = fieldAuthorization.getFlsRule(privilegesEvaluationContext, index, meter);
-            return (field) -> flsRule.isAllowed(removeSuffix(field));
+            return new FieldPredicate() {
+                @Override
+                public long ramBytesUsed() {
+                    return 0; //todo
+                }
+
+                @Override
+                public boolean test(String field) {
+                    return flsRule.isAllowed(removeSuffix(field));
+                }
+
+                @Override
+                public String modifyHash(String hash) {
+                    return hash; //todo
+                }
+            };
         } catch (PrivilegesEvaluationException e) {
             log.error("Error while evaluating FLS for index " + index, e);
             componentState.addLastException("filter_fields", e);
