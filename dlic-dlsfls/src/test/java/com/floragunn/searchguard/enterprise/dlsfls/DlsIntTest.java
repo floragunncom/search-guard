@@ -353,18 +353,6 @@ public class DlsIntTest {
         }
     }
 
-    @Ignore("Unsupported request type for filter level DLS: indices:data/read/open_point_in_time; org.elasticsearch.action.search.OpenPointInTimeRequest")
-    @Test
-    public void scroll_termsLookup_withPit() throws Exception {
-
-        try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER);
-            PitHolder pitHolder = PitHolder.of(client).post("/" + INDEX + "/_pit?keep_alive=1m")) {
-
-            GenericRestClient.HttpResponse response = client.postJson("/_search?scroll=1m&pretty=true&size=5", DocNode.of("pit.id", pitHolder.getPitId()));
-            Assert.assertEquals(response.getBody(), 400, response.getStatusCode()); //using point in time is not allowed in a scroll context
-        }
-    }
-
     @Test
     public void terms_aggregation() throws Exception {
 
