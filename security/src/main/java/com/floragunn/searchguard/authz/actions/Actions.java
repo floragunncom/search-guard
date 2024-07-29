@@ -199,7 +199,6 @@ public class Actions {
         index(UpdateAction.INSTANCE);
         index(TransportSearchAction.TYPE);
         index(TransportOpenPointInTimeAction.TYPE);
-        cluster(TransportClosePointInTimeAction.TYPE);
         index(TransportExplainAction.TYPE);
         index(ResolveIndexAction.INSTANCE);
         
