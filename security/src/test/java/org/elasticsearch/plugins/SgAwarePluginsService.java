@@ -1,12 +1,15 @@
 package org.elasticsearch.plugins;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import org.elasticsearch.Build;
-import org.elasticsearch.Version;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.jdk.ModuleQualifiedExportsService;
 import org.elasticsearch.join.ParentJoinPlugin;
@@ -60,7 +63,10 @@ public class SgAwarePluginsService extends PluginsService {
     private void loadPainlessPluginIfAvailable() {
         try {
             Class<? extends Plugin> painlessPlugin = (Class<? extends Plugin>) Class.forName("org.elasticsearch.painless.PainlessPlugin");
-            loadedPlugins.add(createLoadedPlugin(painlessPlugin));
+            Class<?> painlessExtensionClass = Class.forName("org.elasticsearch.painless.spi.PainlessExtension");
+            LoadedPlugin loadedPainlessPlugin = createLoadedPlugin(painlessPlugin);
+            painlessWhitelistKludge(loadedPainlessPlugin.instance(), painlessExtensionClass);
+            loadedPlugins.add(loadedPainlessPlugin);
         } catch (ClassNotFoundException e) {
             //that's ok
         } catch (Throwable e) {
@@ -77,26 +83,7 @@ public class SgAwarePluginsService extends PluginsService {
         return new LoadedPlugin(createPluginDescriptor(plugin.getClass()),plugin);
     }
     private static LoadedPlugin createLoadedPlugin(Class<? extends Plugin> pluginClass) throws Exception {
-        Plugin plugin = pluginClass.getDeclaredConstructor().newInstance();
-        if (plugin instanceof ExtensiblePlugin extensiblePlugin) {
-
-            extensiblePlugin.loadExtensions(new ExtensiblePlugin.ExtensionLoader() {
-
-                @SuppressWarnings("unchecked")
-                @Override
-                public <T> List<T> loadExtensions(Class<T> extensionPointType) {
-                    if (extensionPointType.equals(pluginClass)) {
-                        List<?> result = StreamSupport.stream(ServiceLoader.load(pluginClass, getClass().getClassLoader()).spliterator(), false)
-                                .collect(Collectors.toList());
-
-                        return (List<T>) result;
-                    } else {
-                        return Collections.emptyList();
-                    }
-                }
-            });
-        }
-        return new LoadedPlugin(createPluginDescriptor(pluginClass), plugin);
+        return new LoadedPlugin(createPluginDescriptor(pluginClass),pluginClass.getDeclaredConstructor().newInstance());
     }
 
     private static PluginDescriptor createPluginDescriptor(Class<? extends Plugin> pluginClass)  {
@@ -113,6 +100,28 @@ public class SgAwarePluginsService extends PluginsService {
                 false,
                 true,
                 false);
+    }
+
+    /**
+     * Triggers loading of SPI extensions for the painless plugin.
+     */
+    private void painlessWhitelistKludge(Plugin plugin, Class<?> painlessExtensionClass) {
+        ExtensiblePlugin painlessPlugin = (ExtensiblePlugin) plugin;
+        painlessPlugin.loadExtensions(new ExtensiblePlugin.ExtensionLoader() {
+
+            @SuppressWarnings("unchecked")
+            @Override
+            public <T> List<T> loadExtensions(Class<T> extensionPointType) {
+                if (extensionPointType.equals(painlessExtensionClass)) {
+                    List<?> result = StreamSupport.stream(ServiceLoader.load(painlessExtensionClass, getClass().getClassLoader()).spliterator(), false)
+                            .collect(Collectors.toList());
+
+                    return (List<T>) result;
+                } else {
+                    return Collections.emptyList();
+                }
+            }
+        });
     }
 
     @Override
