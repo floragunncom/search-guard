@@ -88,6 +88,7 @@ public class RoleBasedDocumentAuthorizationTest {
         final static Meta.Index index_a2 = (Meta.Index) BASIC.getIndexOrLike("index_a2");
         final static Meta.Index index_b1 = (Meta.Index) BASIC.getIndexOrLike("index_b1");
 
+        final Statefulness statefulness;
         final UserSpec userSpec;
         final User user;
         final IndexSpec indexSpec;
@@ -100,7 +101,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("*"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*"),
                     new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
@@ -125,8 +126,8 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("*", "-index_b*"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*", "-index_a*"),
                     new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
-
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
+            
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
             if (userSpec.roles.contains("non_dls_role")) {
@@ -154,7 +155,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("index_a*"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_b*"),
                     new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
@@ -185,7 +186,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_*",
                             "-index_a*"),
                     new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
@@ -216,7 +217,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a*"),
                     new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("index_${user.attrs.attr_a}1"));
 
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             try {
                 DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
@@ -260,7 +261,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("alias_a"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
                     new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("alias_a"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
@@ -297,7 +298,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("alias_a"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
                     new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
@@ -334,7 +335,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("alias_a*"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
                     new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("alias_a*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
@@ -373,7 +374,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
                     new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("alias_${user.attrs.attr_a}"));
 
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             try {
                 DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
@@ -413,7 +414,7 @@ public class RoleBasedDocumentAuthorizationTest {
             }
         }
 
-        @Parameters(name = "{0}; {1}")
+        @Parameters(name = "{0}; {1}; {2}")
         public static Collection<Object[]> params() {
             List<Object[]> result = new ArrayList<>();
 
@@ -432,20 +433,27 @@ public class RoleBasedDocumentAuthorizationTest {
                         new IndexSpec("index_a1"), //
                         new IndexSpec("index_a2"), //
                         new IndexSpec("index_b1"))) {
-                    result.add(new Object[] { userSpec, indexSpec });
+                    for (Statefulness statefulness : Statefulness.values()) {
+                        result.add(new Object[] { userSpec, indexSpec, statefulness });                        
+                    }
                 }
             }
             return result;
         }
 
-        public IndicesAndAliases_getRestriction(UserSpec userSpec, IndexSpec indexSpec) {
+        public IndicesAndAliases_getRestriction(UserSpec userSpec, IndexSpec indexSpec, Statefulness statefulness) {
             this.userSpec = userSpec;
             this.indexSpec = indexSpec;
             this.user = userSpec.buildUser();
             this.index = (Meta.Index) BASIC.getIndexOrLike(indexSpec.index);
             this.context = new PrivilegesEvaluationContext(this.user, false, ImmutableSet.of(userSpec.roles), null, null, true, null, null);
+            this.statefulness = statefulness;
         }
 
+
+        private RoleBasedDocumentAuthorization createSubject(SgDynamicConfiguration<Role> roleConfig) {
+            return new RoleBasedDocumentAuthorization(roleConfig, statefulness == Statefulness.STATEFUL ? BASIC : null, MetricsLevel.NONE);
+        }
     }
 
     @RunWith(Parameterized.class)
@@ -458,6 +466,7 @@ public class RoleBasedDocumentAuthorizationTest {
         final static Meta.Index index_b1 = (Meta.Index) BASIC.getIndexOrLike("index_b1");
         final static Meta.Alias alias_a = (Meta.Alias) BASIC.getIndexOrLike("alias_a");
 
+        final Statefulness statefulness;
         final UserSpec userSpec;
         final User user;
         final IndicesSpec indicesSpec;
@@ -470,7 +479,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("*"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*"),
                     new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
 
@@ -487,7 +496,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("*", "-index_b*"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*", "-index_a*"),
                     new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
 
@@ -523,7 +532,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_*",
                             "-index_a*"),
                     new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
 
@@ -542,7 +551,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a*"),
                     new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("index_${user.attrs.attr_a}1"));
 
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             try {
                 boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
@@ -569,7 +578,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("alias_a"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
                     new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("alias_a"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
 
@@ -587,11 +596,11 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("alias_a"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
                     new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
 
-            if (userSpec.roles.contains("non_dls_role") && resolvedIndices.getLocal().getUnion().forAllApplies(i -> !i.parentAliases().isEmpty())) {
+            if (userSpec.roles.contains("non_dls_role") && resolvedIndices.getLocal().getUnion().forAllApplies(i -> !i.parentAliases().isEmpty() || i instanceof Meta.Alias)) {
                 assertFalse(result);
             } else {
                 assertTrue(result);
@@ -604,7 +613,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("alias_a*"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
                     new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("alias_a*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
 
@@ -624,7 +633,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("index_a2"),
                     new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("alias_${user.attrs.attr_a}"));
 
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             try {
                 boolean result = subject.hasRestrictions(context, resolvedIndices, Meter.NO_OP);
@@ -645,7 +654,7 @@ public class RoleBasedDocumentAuthorizationTest {
             }
         }
 
-        @Parameters(name = "{0}; {1}")
+        @Parameters(name = "{0}; {1}; {2}")
         public static Collection<Object[]> params() {
             List<Object[]> result = new ArrayList<>();
 
@@ -668,20 +677,26 @@ public class RoleBasedDocumentAuthorizationTest {
                         new IndicesSpec("index_a1", "index_a2"), //
                         new IndicesSpec("index_a1", "index_b1"), //
                         new IndicesSpec("alias_a", "index_b1"))) {
-                    result.add(new Object[] { userSpec, indicesSpec });
+                    for (Statefulness statefulness : Statefulness.values()) {
+                        result.add(new Object[] { userSpec, indicesSpec, statefulness });
+                    }
                 }
             }
             return result;
         }
 
-        public IndicesAndAliases_hasRestriction(UserSpec userSpec, IndicesSpec indicesSpec) {
+        public IndicesAndAliases_hasRestriction(UserSpec userSpec, IndicesSpec indicesSpec, Statefulness statefulness) {
             this.userSpec = userSpec;
             this.indicesSpec = indicesSpec;
             this.user = userSpec.buildUser();
             this.resolvedIndices = ResolvedIndices.of(BASIC, indicesSpec.indices.toArray(new String[0]));
             this.context = new PrivilegesEvaluationContext(this.user, false, ImmutableSet.of(userSpec.roles), null, null, true, null, null);
+            this.statefulness = statefulness;
         }
 
+        private RoleBasedDocumentAuthorization createSubject(SgDynamicConfiguration<Role> roleConfig) {
+            return new RoleBasedDocumentAuthorization(roleConfig, statefulness == Statefulness.STATEFUL ? BASIC : null, MetricsLevel.NONE);
+        }
     }
 
     @RunWith(Parameterized.class)
@@ -696,6 +711,7 @@ public class RoleBasedDocumentAuthorizationTest {
         final static Meta.Index datastream_a2_backing = (Meta.Index) BASIC.getIndexOrLike(".ds-datastream_a2_backing_0001");
         final static Meta.Index datastream_b1_backing = (Meta.Index) BASIC.getIndexOrLike(".ds-datastream_b1_backing_0001");
 
+        final Statefulness statefulness;
         final UserSpec userSpec;
         final User user;
         final IndexSpec indexSpec;
@@ -708,7 +724,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_1").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("*"),
                     new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*"),
                     new TestSgConfig.Role("non_dls_role").dataStreamPermissions("*").on("*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
@@ -735,7 +751,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*",
                             "-datastream_a*"),
                     new TestSgConfig.Role("non_dls_role").dataStreamPermissions("*").on("*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
@@ -764,7 +780,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_1").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("datastream_a*"),
                     new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("datastream_b*"),
                     new TestSgConfig.Role("non_dls_role").dataStreamPermissions("*").on("*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
@@ -795,7 +811,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("datastream_*",
                             "-datastream_a*"),
                     new TestSgConfig.Role("non_dls_role").dataStreamPermissions("*").on("*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
@@ -826,7 +842,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("datastream_a*"),
                     new TestSgConfig.Role("non_dls_role").dataStreamPermissions("*").on("datastream_${user.attrs.attr_a}1"));
 
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             try {
                 DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
@@ -868,7 +884,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_1").aliasPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("alias_a"),
                     new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("datastream_a2"),
                     new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("alias_a"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
@@ -907,7 +923,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_2").dataStreamPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("datastream_a2"),
                     new TestSgConfig.Role("non_dls_role").aliasPermissions("*").on("alias_${user.attrs.attr_a}"));
 
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             try {
                 DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
@@ -953,7 +969,7 @@ public class RoleBasedDocumentAuthorizationTest {
                     new TestSgConfig.Role("dls_role_1").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r1")).on("*"),
                     new TestSgConfig.Role("dls_role_2").indexPermissions("*").dls(DocNode.of("term.dept.value", "dept_r2")).on("*"),
                     new TestSgConfig.Role("non_dls_role").indexPermissions("*").on("*"));
-            RoleBasedDocumentAuthorization subject = new RoleBasedDocumentAuthorization(roleConfig, BASIC, MetricsLevel.NONE);
+            RoleBasedDocumentAuthorization subject = createSubject(roleConfig);
 
             DlsRestriction dlsRestriction = subject.getRestriction(context, index, Meter.NO_OP);
 
@@ -970,7 +986,7 @@ public class RoleBasedDocumentAuthorizationTest {
             }
         }
 
-        @Parameters(name = "{0}; {1}")
+        @Parameters(name = "{0}; {1}; {2}")
         public static Collection<Object[]> params() {
             List<Object[]> result = new ArrayList<>();
 
@@ -989,18 +1005,25 @@ public class RoleBasedDocumentAuthorizationTest {
                         new IndexSpec(datastream_a1_backing.name()), //
                         new IndexSpec(datastream_a2_backing.name()), //
                         new IndexSpec(datastream_b1_backing.name()))) {
-                    result.add(new Object[] { userSpec, indexSpec });
+                    for (Statefulness statefulness : Statefulness.values()) {
+                        result.add(new Object[] { userSpec, indexSpec, statefulness });
+                    }
                 }
             }
             return result;
         }
 
-        public DataStreams_getRestriction(UserSpec userSpec, IndexSpec indexSpec) {
+        private RoleBasedDocumentAuthorization createSubject(SgDynamicConfiguration<Role> roleConfig) {
+            return new RoleBasedDocumentAuthorization(roleConfig, statefulness == Statefulness.STATEFUL ? BASIC : null, MetricsLevel.NONE);
+        }
+
+        public DataStreams_getRestriction(UserSpec userSpec, IndexSpec indexSpec, Statefulness statefulness) {
             this.userSpec = userSpec;
             this.indexSpec = indexSpec;
             this.user = userSpec.buildUser();
             this.index = (Meta.Index) BASIC.getIndexOrLike(indexSpec.index);
             this.context = new PrivilegesEvaluationContext(this.user, false, ImmutableSet.of(userSpec.roles), null, null, true, null, null);
+            this.statefulness = statefulness;
         }
 
     }
@@ -1058,6 +1081,10 @@ public class RoleBasedDocumentAuthorizationTest {
         public String toString() {
             return this.indices.toString();
         }
+    }
+
+    static enum Statefulness {
+        STATEFUL, NON_STATEFUL
     }
 
     static DiagnosingMatcher<DlsRestriction> isUnrestricted() {

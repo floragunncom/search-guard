@@ -53,13 +53,13 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
     @Override
     public void onPreQueryPhase(SearchContext searchContext) {
         DlsFlsProcessedConfig config = this.config.get();
-        
+
         if (!config.isEnabled()) {
             log.trace("DlsFlsSearchOperationListener.onPreQueryPhase()\nnot enabled");
             return;
         }
-        
-        if (config.getDlsFlsConfig().getDlsMode() ==  DlsFlsConfig.Mode.FILTER_LEVEL) {
+
+        if (config.getDlsFlsConfig().getDlsMode() == DlsFlsConfig.Mode.FILTER_LEVEL) {
             log.trace("DlsFlsSearchOperationListener.onPreQueryPhase()\nFilter Level mode active");
             return;
         }
@@ -73,7 +73,7 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
             log.trace("DlsFlsSearchOperationListener.onPreQueryPhase()\nisuggest: " + searchContext.suggest());
             return;
         }
-        
+
         PrivilegesEvaluationContext privilegesEvaluationContext = dlsFlsBaseContext.getPrivilegesEvaluationContext();
 
         if (privilegesEvaluationContext == null) {
@@ -85,7 +85,7 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
             log.trace("DlsFlsSearchOperationListener.onPreQueryPhase()\nUser is admin. Giving full access");
             return;
         }
-        
+
         try (Meter meter = Meter.detail(config.getMetricsLevel(), onPreQueryPhaseAggregation)) {
 
             RoleBasedDocumentAuthorization documentAuthorization = config.getDocumentAuthorization();
@@ -95,21 +95,21 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
             }
 
             Meta indexMetaData = dlsFlsBaseContext.getIndexMetaData();
-            
+
             Meta.Index index = (Meta.Index) indexMetaData.getIndexOrLike(searchContext.indexShard().indexSettings().getIndex().getName());
 
             if (privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext() != null
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                documentAuthorization = new RoleBasedDocumentAuthorization(roles, indexMetaData, MetricsLevel.NONE);
+                documentAuthorization = new RoleBasedDocumentAuthorization(roles, null, MetricsLevel.NONE);
             }
 
             DlsRestriction dlsRestriction = documentAuthorization.getRestriction(privilegesEvaluationContext, index, meter);
-            
+
             log.trace("DlsRestriction for {}: {}", index, dlsRestriction);
 
             if (!dlsRestriction.isUnrestricted()) {
-                if (config.getDlsFlsConfig().getDlsMode() ==  DlsFlsConfig.Mode.ADAPTIVE && dlsRestriction.containsTermLookupQuery()) {
+                if (config.getDlsFlsConfig().getDlsMode() == DlsFlsConfig.Mode.ADAPTIVE && dlsRestriction.containsTermLookupQuery()) {
                     // Special case for scroll operations: 
                     // Normally, the check dlsFlsBaseContext.isDlsDoneOnFilterLevel() already aborts early if DLS filter level mode
                     // has been activated. However, this is not the case for scroll operations, as these lose the thread context value
@@ -118,7 +118,7 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
                     log.trace("DlsRestriction: contains TLQ.");
                     return;
                 }
-                                
+
                 BooleanQuery.Builder queryBuilder = dlsRestriction.toBooleanQueryBuilder(searchContext.getSearchExecutionContext(),
                         (q) -> new ConstantScoreQuery(q));
 

@@ -13,8 +13,10 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -65,8 +67,10 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         this.staticAliasRules = new StaticRules.Alias<>(roles, roleToRuleFunction);
         this.staticDataStreamRules = new StaticRules.DataStream<>(roles, roleToRuleFunction);
 
-        try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
-            this.statefulRules = new StatefulRules<>(roles, indexMetadata, roleToRuleFunction);
+        if (indexMetadata != null) {
+            try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
+                this.statefulRules = new StatefulRules<>(roles, indexMetadata, roleToRuleFunction);
+            }
         }
 
         this.componentState.addPart(this.staticIndexRules.getComponentState());
@@ -89,12 +93,10 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 return false;
             }
 
-            StatefulRules<SingleRule> statefulRules = this.statefulRules;
-
             if (resolved == null) {
                 return true;
             }
-            
+
             if (resolved.getLocal().hasNonExistingObjects()) {
                 // We get a request for an index unknown to this instance. Usually, this is the case because the index simply does not exist.
                 // For non-existing indices, it is safe to assume that no documents can be accessed.
@@ -110,6 +112,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 return true;
             }
 
+            StatefulRules<SingleRule> statefulRules = this.statefulRules;
+
             // The logic is here a bit tricky: For each index/alias/data stream we assume restrictions until we found an unrestricted role.
             // If we found an unrestricted role, we continue with the next index/alias/data stream. If we found a restricted role, we abort 
             // early and return true.
@@ -120,31 +124,29 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 }
             }
 
-            for (Meta.Alias alias : resolved.getLocal().getAliases()) {
-                ImmutableSet<String> roleWithoutRules = statefulRules.alias.aliasToRoleWithoutRule.get(alias);
+            if (!this.staticAliasRules.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
+                // Only go through the aliases if we do not have a global role which marks all indices as unrestricted
 
-                if (roleWithoutRules != null && roleWithoutRules.containsAny(context.getMappedRoles())) {
-                    // Unrestricted => check next alias/data stream
-                    continue;
+                for (Meta.Alias alias : resolved.getLocal().getAliases()) {
+                    if (hasRestrictions(context, statefulRules, alias)) {
+                        return true;
+                    }
                 }
-
-                if (this.staticAliasRules.hasUnrestrictedPatternTemplates(context, alias)) {
-                    // Unrestricted => check next alias/data stream
-                    continue;
-                }
-
-                // There are restrictions => abort early
-                return true;
             }
 
-            for (Meta.DataStream dataStream : resolved.getLocal().getDataStreams()) {
-                if (hasRestrictions(context, statefulRules, dataStream)) {
-                    // There are restrictions => abort early
-                    return true;
+            if (!this.staticDataStreamRules.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
+                // Only go through the data streams if we do not have a global role which marks all indices as unrestricted
+
+                for (Meta.DataStream dataStream : resolved.getLocal().getDataStreams()) {
+                    if (hasRestrictions(context, statefulRules, dataStream)) {
+                        // There are restrictions => abort early
+                        return true;
+                    }
                 }
             }
 
             return false;
+
         } catch (PrivilegesEvaluationException e) {
             componentState.addLastException("has_restriction", e);
             throw e;
@@ -159,12 +161,6 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
             if (context.getMappedRoles().isEmpty()) {
                 return true;
             }
-
-            if (this.staticIndexRules.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
-                return false;
-            }
-
-            StatefulRules<SingleRule> statefulRules = this.statefulRules;
 
             if (!index.exists()) {
                 // We get a request for an index unknown to this instance. Usually, this is the case because the index simply does not exist.
@@ -181,7 +177,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 return false;
             }
 
-            return hasRestrictions(context, statefulRules, index);
+            return hasRestrictions(context, this.statefulRules, index);
+
         } catch (PrivilegesEvaluationException e) {
             componentState.addLastException("has_dls_restriction", e);
             throw e;
@@ -194,17 +191,21 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
     private boolean hasRestrictions(PrivilegesEvaluationContext context, StatefulRules<SingleRule> statefulRules, Meta.Index index)
             throws PrivilegesEvaluationException {
 
-        {
+        if (statefulRules != null) {
             ImmutableSet<String> roleWithoutRule = statefulRules.index.indexToRoleWithoutRule.get(index);
 
             if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
                 return false;
             }
-
-            // We assume that we have a restriction unless there are roles without restriction. This, we only have to check the roles without restriction.
-            if (this.staticIndexRules.hasUnrestrictedPatternTemplates(context, index)) {
+        } else {
+            if (this.staticIndexRules.hasUnrestrictedPatterns(context, index)) {
                 return false;
             }
+        }
+
+        // We assume that we have a restriction unless there are roles without restriction. This, we only have to check the roles without restriction.
+        if (this.staticIndexRules.hasUnrestrictedPatternTemplates(context, index)) {
+            return false;
         }
 
         if (!index.parentAliases().isEmpty()) {
@@ -223,6 +224,30 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         return true;
     }
 
+    private boolean hasRestrictions(PrivilegesEvaluationContext context, StatefulRules<SingleRule> statefulRules, Meta.Alias alias)
+            throws PrivilegesEvaluationException {
+
+        if (statefulRules != null) {
+            ImmutableSet<String> roleWithoutRule = statefulRules.alias.aliasToRoleWithoutRule.get(alias);
+
+            if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
+                return false;
+            }
+        } else {
+            if (this.staticAliasRules.hasUnrestrictedPatterns(context, alias)) {
+                return false;
+            }
+
+        }
+
+        // We assume that we have a restriction unless there are roles without restriction. This, we only have to check the roles without restriction.
+        if (this.staticAliasRules.hasUnrestrictedPatternTemplates(context, alias)) {
+            return false;
+        }
+        // If we found no roles without restriction, we assume a restriction
+        return true;
+    }
+
     private boolean hasRestrictions(PrivilegesEvaluationContext context, StatefulRules<SingleRule> statefulRules, Collection<Meta.Alias> aliases)
             throws PrivilegesEvaluationException {
         if (aliases.isEmpty()) {
@@ -234,10 +259,16 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         }
 
         for (Meta.Alias alias : aliases) {
-            ImmutableSet<String> roleWithoutRule = statefulRules.alias.aliasToRoleWithoutRule.get(alias);
+            if (statefulRules != null) {
+                ImmutableSet<String> roleWithoutRule = statefulRules.alias.aliasToRoleWithoutRule.get(alias);
 
-            if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
-                return false;
+                if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
+                    return false;
+                }
+            } else {
+                if (this.staticAliasRules.hasUnrestrictedPatterns(context, alias)) {
+                    return false;
+                }
             }
 
             if (this.staticAliasRules.hasUnrestrictedPatternTemplates(context, alias)) {
@@ -251,21 +282,20 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
 
     private boolean hasRestrictions(PrivilegesEvaluationContext context, StatefulRules<SingleRule> statefulRules, Meta.DataStream dataStream)
             throws PrivilegesEvaluationException {
-        if (this.staticDataStreamRules.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
-            return false;
-        }
-
-        {
+        if (statefulRules != null) {
             ImmutableSet<String> roleWithoutRule = statefulRules.dataStream.dataStreamToRoleWithoutRule.get(dataStream);
 
             if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
                 return false;
             }
-
-            // We assume that we have a restriction unless there are roles without restriction. This, we only have to check the roles without restriction.
-            if (this.staticDataStreamRules.hasUnrestrictedPatternTemplates(context, dataStream)) {
+        } else {
+            if (this.staticDataStreamRules.hasUnrestrictedPatterns(context, dataStream)) {
                 return false;
             }
+        }
+        // We assume that we have a restriction unless there are roles without restriction. This, we only have to check the roles without restriction.
+        if (this.staticDataStreamRules.hasUnrestrictedPatternTemplates(context, dataStream)) {
+            return false;
         }
 
         if (!dataStream.parentAliases().isEmpty()) {
@@ -307,28 +337,35 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
             }
         }
 
-        StatefulRules<SingleRule> statefulRules = this.statefulRules;
+        if (!index.parentAliases().isEmpty()) {
+            if (this.staticAliasRules.rolesWithIndexWildcardWithoutRule.containsAny(context.getMappedRoles())) {
+                return unrestricted();
+            }
+        }
 
-        {
+        StatefulRules<SingleRule> statefulRules = this.statefulRules;
+        ImmutableMap<String, SingleRule> roleToQueryForIndex = null;
+        ImmutableMap<String, SingleRule> roleToQueryForDataStream = null;
+
+        if (statefulRules != null) {
             ImmutableSet<String> roleWithoutQuery = statefulRules.index.indexToRoleWithoutRule.get(index);
 
             if (roleWithoutQuery != null && roleWithoutQuery.containsAny(context.getMappedRoles())) {
                 return unrestricted();
             }
+
+            roleToQueryForIndex = statefulRules.index.indexToRoleToRule.get(index);
         }
 
-        if (parentDataStream != null) {
+        if (statefulRules != null && parentDataStream != null) {
             ImmutableSet<String> roleWithoutQuery = statefulRules.dataStream.dataStreamToRoleWithoutRule.get(parentDataStream);
 
             if (roleWithoutQuery != null && roleWithoutQuery.containsAny(context.getMappedRoles())) {
                 return unrestricted();
             }
-        }
 
-        ImmutableMap<String, SingleRule> roleToQueryForIndex = statefulRules.index.indexToRoleToRule.get(index);
-        ImmutableMap<String, SingleRule> roleToQueryForDataStream = parentDataStream != null
-                ? statefulRules.dataStream.dataStreamToRoleToRule.get(parentDataStream)
-                : null;
+            roleToQueryForDataStream = statefulRules.dataStream.dataStreamToRoleToRule.get(parentDataStream);
+        }
 
         Set<SingleRule> rules = new HashSet<>();
 
@@ -366,11 +403,31 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
 
             }
 
-            ImmutableSet<Role.IndexPatterns.IndexPatternTemplate> indexPatternTemplatesWithoutRole = this.staticIndexRules.rolesToIndexPatternTemplateWithoutRule
+            if (statefulRules == null) {
+                // Only when we have no stateful information, we also check the simple index patterns
+
+                Pattern indexPatternWithoutRule = this.staticIndexRules.rolesToIndexPatternWithoutRule.get(role);
+                if (indexPatternWithoutRule != null && indexPatternWithoutRule.matches(index.name())) {
+                    return unrestricted();
+                }
+
+                ImmutableMap<Pattern, SingleRule> indexPatternToRule = this.staticIndexRules.rolesToIndexPatternToRule.get(role);
+                if (indexPatternToRule != null) {
+                    for (Map.Entry<Pattern, SingleRule> entry : indexPatternToRule.entrySet()) {
+                        Pattern pattern = entry.getKey();
+
+                        if (pattern.matches(index.name())) {
+                            rules.add(entry.getValue());
+                        }
+                    }
+                }
+            }
+
+            ImmutableSet<Role.IndexPatterns.IndexPatternTemplate> indexPatternTemplatesWithoutRule = this.staticIndexRules.rolesToIndexPatternTemplateWithoutRule
                     .get(role);
 
-            if (indexPatternTemplatesWithoutRole != null) {
-                for (Role.IndexPatterns.IndexPatternTemplate indexPatternTemplate : indexPatternTemplatesWithoutRole) {
+            if (indexPatternTemplatesWithoutRule != null) {
+                for (Role.IndexPatterns.IndexPatternTemplate indexPatternTemplate : indexPatternTemplatesWithoutRule) {
                     try {
                         Pattern pattern = context.getRenderedPattern(indexPatternTemplate.getTemplate());
 
@@ -383,11 +440,11 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 }
             }
 
-            ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, SingleRule> indexPatternTemplateToQuery = this.staticIndexRules.rolesToIndexPatternTemplateToRule
+            ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, SingleRule> indexPatternTemplateToRule = this.staticIndexRules.rolesToIndexPatternTemplateToRule
                     .get(role);
 
-            if (indexPatternTemplateToQuery != null) {
-                for (Map.Entry<Role.IndexPatterns.IndexPatternTemplate, SingleRule> entry : indexPatternTemplateToQuery.entrySet()) {
+            if (indexPatternTemplateToRule != null) {
+                for (Map.Entry<Role.IndexPatterns.IndexPatternTemplate, SingleRule> entry : indexPatternTemplateToRule.entrySet()) {
                     try {
                         Pattern pattern = context.getRenderedPattern(entry.getKey().getTemplate());
 
@@ -401,15 +458,45 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
             }
 
             if (!index.parentAliases().isEmpty()) {
-                if (this.staticAliasRules.isUnrestrictedViaParentAlias(context, index, role)) {
+                if (statefulRules == null && this.staticAliasRules.isUnrestrictedViaParentAlias(context, index, role)) {
+                    return unrestricted();
+                }
+
+                if (this.staticAliasRules.isUnrestrictedViaTemplatesOnParentAlias(context, index, role)) {
                     return unrestricted();
                 }
 
                 // As a side effect, this adds rules to the rules HashSet
-                this.staticAliasRules.collectRulesViaParentAlias(context, index, role, rules);
+                this.staticAliasRules.collectRulesViaTemplatesOnParentAlias(context, index, role, rules);
+
+                if (statefulRules == null) {
+                    this.staticAliasRules.collectRulesViaParentAlias(context, index, role, rules);
+                }
             }
 
             if (parentDataStream != null) {
+                if (statefulRules == null) {
+                    // If there are no stateful rules, we also need to check the static data stream rules.
+                    // There is no direct equivalent for the case when there are stateful rules, as the privileges
+                    // then come via the backing indices
+
+                    Pattern dataStreamPatternWithoutRule = this.staticDataStreamRules.rolesToIndexPatternWithoutRule.get(role);
+                    if (dataStreamPatternWithoutRule != null && dataStreamPatternWithoutRule.matches(parentDataStream.name())) {
+                        return unrestricted();
+                    }
+
+                    ImmutableMap<Pattern, SingleRule> dataStreamPatternToRule = this.staticDataStreamRules.rolesToIndexPatternToRule.get(role);
+                    if (dataStreamPatternToRule != null) {
+                        for (Map.Entry<Pattern, SingleRule> entry : dataStreamPatternToRule.entrySet()) {
+                            Pattern pattern = entry.getKey();
+
+                            if (pattern.matches(parentDataStream.name())) {
+                                rules.add(entry.getValue());
+                            }
+                        }
+                    }
+                }
+
                 ImmutableSet<Role.IndexPatterns.IndexPatternTemplate> dataStreamPatternTemplateWithoutRule = this.staticDataStreamRules.rolesToIndexPatternTemplateWithoutRule
                         .get(role);
 
@@ -445,12 +532,20 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 }
 
                 if (!parentDataStream.parentAliases().isEmpty()) {
-                    if (this.staticAliasRules.isUnrestrictedViaParentAlias(context, parentDataStream, role)) {
+                    if (statefulRules == null && this.staticAliasRules.isUnrestrictedViaParentAlias(context, parentDataStream, role)) {
+                        return unrestricted();
+                    }
+
+                    if (this.staticAliasRules.isUnrestrictedViaTemplatesOnParentAlias(context, parentDataStream, role)) {
                         return unrestricted();
                     }
 
                     // As a side effect, this adds rules to the rules HashSet
-                    this.staticAliasRules.collectRulesViaParentAlias(context, parentDataStream, role, rules);
+                    this.staticAliasRules.collectRulesViaTemplatesOnParentAlias(context, parentDataStream, role, rules);
+
+                    if (statefulRules == null) {
+                        this.staticAliasRules.collectRulesViaParentAlias(context, parentDataStream, role, rules);
+                    }
                 }
             }
         }
@@ -504,14 +599,32 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 super(roles, "alias", Role::getAliasPermissions, roleToRuleFunction);
             }
 
+            /**
+             * Only necessary when no stateful index information is present.
+             */
             boolean isUnrestrictedViaParentAlias(PrivilegesEvaluationContext context, Meta.IndexLikeObject indexLike, String role)
                     throws PrivilegesEvaluationException {
-                ImmutableSet<Role.IndexPatterns.IndexPatternTemplate> aliasPatternTemplatesWithoutRole = this.rolesToIndexPatternTemplateWithoutRule
+                Pattern aliasPatternWithoutRule = this.rolesToIndexPatternWithoutRule.get(role);
+
+                if (aliasPatternWithoutRule != null) {
+                    for (Meta.Alias alias : indexLike.parentAliases()) {
+                        if (aliasPatternWithoutRule.matches(alias.name())) {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            boolean isUnrestrictedViaTemplatesOnParentAlias(PrivilegesEvaluationContext context, Meta.IndexLikeObject indexLike, String role)
+                    throws PrivilegesEvaluationException {
+                ImmutableSet<Role.IndexPatterns.IndexPatternTemplate> aliasPatternTemplatesWithoutRule = this.rolesToIndexPatternTemplateWithoutRule
                         .get(role);
 
-                if (aliasPatternTemplatesWithoutRole != null) {
+                if (aliasPatternTemplatesWithoutRule != null) {
                     for (Meta.Alias alias : indexLike.parentAliases()) {
-                        for (Role.IndexPatterns.IndexPatternTemplate indexPatternTemplate : aliasPatternTemplatesWithoutRole) {
+                        for (Role.IndexPatterns.IndexPatternTemplate indexPatternTemplate : aliasPatternTemplatesWithoutRule) {
                             try {
                                 Pattern pattern = context.getRenderedPattern(indexPatternTemplate.getTemplate());
 
@@ -529,6 +642,21 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
             }
 
             void collectRulesViaParentAlias(PrivilegesEvaluationContext context, Meta.IndexLikeObject indexLike, String role,
+                    Set<SingleRule> rulesSink) throws PrivilegesEvaluationException {
+                ImmutableMap<Pattern, SingleRule> aliasPatternToRule = this.rolesToIndexPatternToRule.get(role);
+
+                if (aliasPatternToRule != null) {
+                    for (Meta.Alias alias : indexLike.parentAliases()) {
+                        for (Map.Entry<Pattern, SingleRule> entry : aliasPatternToRule.entrySet()) {
+                            if (entry.getKey().matches(alias.name())) {
+                                rulesSink.add(entry.getValue());
+                            }
+                        }
+                    }
+                }
+            }
+
+            void collectRulesViaTemplatesOnParentAlias(PrivilegesEvaluationContext context, Meta.IndexLikeObject indexLike, String role,
                     Set<SingleRule> rulesSink) throws PrivilegesEvaluationException {
                 ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, SingleRule> aliasPatternTemplateToRule = this.rolesToIndexPatternTemplateToRule
                         .get(role);
@@ -564,6 +692,16 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         protected final ImmutableMap<String, ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, SingleRule>> rolesToIndexPatternTemplateToRule;
         protected final ImmutableMap<String, ImmutableSet<Role.IndexPatterns.IndexPatternTemplate>> rolesToIndexPatternTemplateWithoutRule;
 
+        /**
+         * Only used when no index metadata is available upon construction
+         */
+        protected final ImmutableMap<String, ImmutableMap<Pattern, SingleRule>> rolesToIndexPatternToRule;
+
+        /**
+         * Only used when no index metadata is available upon construction
+         */
+        protected final ImmutableMap<String, Pattern> rolesToIndexPatternWithoutRule;
+
         protected final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
         protected final Function<Role.Index, SingleRule> roleToRuleFunction;
 
@@ -578,6 +716,10 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                     .defaultValue((k) -> new ImmutableMap.Builder<>());
             ImmutableMap.Builder<String, ImmutableSet.Builder<Role.IndexPatterns.IndexPatternTemplate>> rolesToIndexPatternTemplateWithoutRule = new ImmutableMap.Builder<String, ImmutableSet.Builder<Role.IndexPatterns.IndexPatternTemplate>>()
                     .defaultValue((k) -> new ImmutableSet.Builder<>());
+            ImmutableMap.Builder<String, ImmutableMap.Builder<Pattern, SingleRule>> rolesToIndexPatternToRule = new ImmutableMap.Builder<String, ImmutableMap.Builder<Pattern, SingleRule>>()
+                    .defaultValue((k) -> new ImmutableMap.Builder<>());
+            ImmutableMap.Builder<String, List<Pattern>> rolesToIndexPatternWithoutRule = new ImmutableMap.Builder<String, List<Pattern>>()
+                    .defaultValue((k) -> new ArrayList<>());
 
             ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                     .defaultValue((k) -> new ImmutableList.Builder<Exception>());
@@ -597,14 +739,22 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                                 roleWithIndexWildcardToRule.put(roleName, singleRule);
                             }
                         } else {
+                            SingleRule singleRule = this.roleToRule(rolePermissions);
+
                             for (Role.IndexPatterns.IndexPatternTemplate indexPatternTemplate : rolePermissions.getIndexPatterns()
                                     .getPatternTemplates()) {
-                                SingleRule singleRule = this.roleToRule(rolePermissions);
-
                                 if (singleRule == null) {
                                     rolesToIndexPatternTemplateWithoutRule.get(roleName).add(indexPatternTemplate);
                                 } else {
                                     rolesToIndexPatternTemplateToRule.get(roleName).put(indexPatternTemplate, singleRule);
+                                }
+                            }
+
+                            if (!rolePermissions.getIndexPatterns().getPattern().isBlank()) {
+                                if (singleRule == null) {
+                                    rolesToIndexPatternWithoutRule.get(roleName).add(rolePermissions.getIndexPatterns().getPattern());
+                                } else {
+                                    rolesToIndexPatternToRule.get(roleName).put(rolePermissions.getIndexPatterns().getPattern(), singleRule);
                                 }
                             }
                         }
@@ -621,6 +771,9 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
             this.rolesToIndexPatternTemplateWithoutRule = rolesToIndexPatternTemplateWithoutRule.build((b) -> b.build());
             this.rolesToInitializationErrors = rolesToInitializationErrors.build((b) -> b.build());
 
+            this.rolesToIndexPatternToRule = rolesToIndexPatternToRule.build((b) -> b.build());
+            this.rolesToIndexPatternWithoutRule = rolesToIndexPatternWithoutRule.build((b) -> Pattern.join(b));
+
             if (this.rolesToInitializationErrors.isEmpty()) {
                 this.componentState.initialized();
             } else {
@@ -636,6 +789,23 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         @Override
         public ComponentState getComponentState() {
             return componentState;
+        }
+
+        /**
+         * Only to be used if there is no stateful index information
+         */
+        boolean hasUnrestrictedPatterns(PrivilegesEvaluationContext context, MetaDataObject indexLike) throws PrivilegesEvaluationException {
+            // We assume that we have a restriction unless there are roles without restriction. This, we only have to check the roles without restriction.
+            for (String role : context.getMappedRoles()) {
+                Pattern pattern = this.rolesToIndexPatternWithoutRule.get(role);
+
+                if (pattern != null && pattern.matches(indexLike.name())) {
+                    return true;
+                }
+            }
+
+            // If we found no roles without restriction, we assume a restriction
+            return false;
         }
 
         boolean hasUnrestrictedPatternTemplates(PrivilegesEvaluationContext context, MetaDataObject indexLike) throws PrivilegesEvaluationException {

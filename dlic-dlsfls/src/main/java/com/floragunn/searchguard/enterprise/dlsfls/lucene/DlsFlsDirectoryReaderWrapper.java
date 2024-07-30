@@ -110,10 +110,9 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
 
-                Meta indexMetadata = dlsFlsBaseContext.getIndexMetaData();
-                documentAuthorization = new RoleBasedDocumentAuthorization(roles, indexMetadata, MetricsLevel.NONE);
-                fieldAuthorization = new RoleBasedFieldAuthorization(roles, indexMetadata, MetricsLevel.NONE);
-                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), indexMetadata, MetricsLevel.NONE);
+                documentAuthorization = new RoleBasedDocumentAuthorization(roles, null, MetricsLevel.NONE);
+                fieldAuthorization = new RoleBasedFieldAuthorization(roles, null, MetricsLevel.NONE);
+                fieldMasking = new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), null, MetricsLevel.NONE);
             }
             
             Meta.Index metaIndex = (Meta.Index) this.dlsFlsBaseContext.getIndexMetaData().getIndexOrLike(this.index.getName());
