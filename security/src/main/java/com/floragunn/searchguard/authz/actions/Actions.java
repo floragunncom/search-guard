@@ -133,7 +133,9 @@ import org.elasticsearch.action.ingest.GetPipelineAction;
 import org.elasticsearch.action.ingest.PutPipelineAction;
 import org.elasticsearch.action.ingest.SimulatePipelineAction;
 import org.elasticsearch.action.search.TransportClearScrollAction;
+import org.elasticsearch.action.search.TransportClosePointInTimeAction;
 import org.elasticsearch.action.search.TransportMultiSearchAction;
+import org.elasticsearch.action.search.TransportOpenPointInTimeAction;
 import org.elasticsearch.action.search.TransportSearchAction;
 import org.elasticsearch.action.search.TransportSearchScrollAction;
 import org.elasticsearch.action.search.TransportSearchShardsAction;
@@ -196,6 +198,7 @@ public class Actions {
         index(DeleteAction.INSTANCE);
         index(UpdateAction.INSTANCE);
         index(TransportSearchAction.TYPE);
+        index(TransportOpenPointInTimeAction.TYPE);
         index(TransportExplainAction.TYPE);
         index(ResolveIndexAction.INSTANCE);
         

@@ -30,8 +30,11 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls.legacy;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.helper.PitHolder;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.http.HttpStatus;
@@ -96,6 +99,35 @@ public class DlsTest {
         try (GenericRestClient client = cluster.getRestClient("admin", "admin")) {
 
             GenericRestClient.HttpResponse response = client.postJson("/deals/_search?pretty", query);
+
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            Assert.assertTrue(response.getBody().contains("\"value\" : 2,\n      \"relation"));
+            Assert.assertTrue(response.getBody().contains("\"value\" : 1510.0"));
+            Assert.assertTrue(response.getBody().contains("\"failed\" : 0"));
+        }
+    }
+
+    @Test
+    public void testDlsAggregations_withPit() throws Exception {
+
+        DocNode query = DocNode.parse(Format.JSON).from("{" + "\"query\" : {" + "\"match_all\": {}" + "}," + "\"aggs\" : {" + "\"thesum\" : { \"sum\" : { \"field\" : \"amount\" } }"
+                + "}" + "}");
+
+        try (GenericRestClient client = cluster.getRestClient("dept_manager", "password");
+            PitHolder pitHolder = PitHolder.of(client).post("/deals" + "/_pit?keep_alive=1m")) {
+
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(pitHolder.asSearchBody()));
+
+            Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+            Assert.assertTrue(response.getBody().contains("\"value\" : 1,\n      \"relation"));
+            Assert.assertTrue(response.getBody().contains("\"value\" : 1500.0"));
+            Assert.assertTrue(response.getBody(), response.getBody().contains("\"failed\" : 0"));
+        }
+
+        try (GenericRestClient client = cluster.getRestClient("admin", "admin");
+            PitHolder pitHolder = PitHolder.of(client).post("/deals" + "/_pit?keep_alive=1m")) {
+
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(pitHolder.asSearchBody()));
 
             Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
             Assert.assertTrue(response.getBody().contains("\"value\" : 2,\n      \"relation"));
@@ -212,6 +244,61 @@ public class DlsTest {
     }
 
     @Test
+    public void testDls_withPit() throws Exception {
+
+        try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password");
+                GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+                PitHolder dmPit = PitHolder.of(dmClient).post("/deals" + "/_pit?keep_alive=1m");
+                PitHolder adminPit = PitHolder.of(adminClient).post("/deals" + "/_pit?keep_alive=1m")) {
+
+            GenericRestClient.HttpResponse res;
+
+            Assert.assertEquals(HttpStatus.SC_OK, (res = dmClient.postJson("/_search?pretty&size=0", dmPit.asSearchBody())).getStatusCode());
+            Assert.assertTrue(res.getBody().contains("\"value\" : 1,\n      \"relation"));
+            Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+
+            Assert.assertEquals(HttpStatus.SC_OK, (res = dmClient.postJson("/_search?pretty", dmPit.asSearchBody())).getStatusCode());
+            Assert.assertTrue(res.getBody().contains("\"value\" : 1,\n      \"relation"));
+            Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+
+            Assert.assertEquals(HttpStatus.SC_OK, (res = adminClient.postJson("/_search?pretty", adminPit.asSearchBody())).getStatusCode());
+            Assert.assertTrue(res.getBody().contains("\"value\" : 2,\n      \"relation"));
+            Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+
+            Assert.assertEquals(HttpStatus.SC_OK, (res = adminClient.postJson("/_search?pretty&size=0", adminPit.asSearchBody())).getStatusCode());
+            Assert.assertTrue(res.getBody().contains("\"value\" : 2,\n      \"relation"));
+            Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+
+            DocNode query = DocNode.parse(Format.JSON).from(
+                    "{" + "\"query\": {" + "\"range\" : {" + "\"amount\" : {" + "\"gte\" : 8," + "\"lte\" : 20," + "\"boost\" : 3.0" + "}" + "}" + "}"
+                            + "}"
+            );
+
+            Assert.assertEquals(HttpStatus.SC_OK, (res = dmClient.postJson("/_search?pretty", query.with(dmPit.asSearchBody()))).getStatusCode());
+            Assert.assertTrue(res.getBody().contains("\"value\" : 0,\n      \"relation"));
+            Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+
+            query = DocNode.parse(Format.JSON).from(
+                    "{" + "\"query\": {" + "\"range\" : {" + "\"amount\" : {" + "\"gte\" : 100," + "\"lte\" : 2000," + "\"boost\" : 2.0" + "}" + "}"
+                            + "}" + "}"
+            );
+
+            Assert.assertEquals(HttpStatus.SC_OK, (res = dmClient.postJson("/_search?pretty", query.with(dmPit.asSearchBody()))).getStatusCode());
+            Assert.assertTrue(res.getBody().contains("\"value\" : 1,\n      \"relation"));
+            Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+
+            Assert.assertEquals(HttpStatus.SC_OK, (res = adminClient.postJson("/_search?pretty", query.with(adminPit.asSearchBody()))).getStatusCode());
+            Assert.assertTrue(res.getBody().contains("\"value\" : 1,\n      \"relation"));
+            Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+
+            Assert.assertEquals(HttpStatus.SC_OK, (res = dmClient.postJson("/_search?q=amount:10&pretty", query.with(dmPit.asSearchBody()))).getStatusCode());
+            Assert.assertTrue(res.getBody(), res.getBody().contains("\"value\" : 0,\n      \"relation"));
+            Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+        }
+
+    }
+
+    @Test
     public void testNonDls() throws Exception {
 
         try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password")) {
@@ -230,6 +317,25 @@ public class DlsTest {
     }
 
     @Test
+    public void testNonDls_withPit() throws Exception {
+
+        try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password");
+            PitHolder pitHolder = PitHolder.of(dmClient).post("/deals" + "/_pit?keep_alive=1m")) {
+
+            GenericRestClient.HttpResponse res;
+            DocNode query = DocNode.parse(Format.JSON).from(
+                    "{" + "\"_source\": false," + "\"query\": {" + "\"range\" : {" + "\"amount\" : {" + "\"gte\" : 100," + "\"lte\" : 2000,"
+                            + "\"boost\" : 2.0" + "}" + "}" + "}" + "}"
+            );
+
+            Assert.assertEquals(HttpStatus.SC_OK, (res = dmClient.postJson("/_search?pretty", query.with(pitHolder.asSearchBody()))).getStatusCode());
+            Assert.assertTrue(res.getBody().contains("\"value\" : 1,\n      \"relation"));
+            Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+        }
+
+    }
+
+    @Test
     public void testDlsCache() throws Exception {
 
         try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password");
@@ -241,6 +347,31 @@ public class DlsTest {
             Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
 
             Assert.assertEquals(HttpStatus.SC_OK, (res = dmClient.get("/deals/_search?pretty")).getStatusCode());
+            Assert.assertTrue(res.getBody().contains("\"value\" : 1,\n      \"relation"));
+            Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+
+            res = adminClient.get("/deals/_doc/0?pretty");
+            Assert.assertTrue(res.getBody(), res.getBody().contains("\"found\" : true"));
+
+            res = dmClient.get("/deals/_doc/0?pretty");
+            Assert.assertTrue(res.getBody().contains("\"found\" : false"));
+        }
+    }
+
+    @Test
+    public void testDlsCache_withPit() throws Exception {
+
+        try (GenericRestClient dmClient = cluster.getRestClient("dept_manager", "password");
+                GenericRestClient adminClient = cluster.getRestClient("admin", "admin");
+            PitHolder dmPit = PitHolder.of(dmClient).post("/deals" + "/_pit?keep_alive=1m");
+            PitHolder adminPit = PitHolder.of(adminClient).post("/deals" + "/_pit?keep_alive=1m")) {
+
+            GenericRestClient.HttpResponse res;
+            Assert.assertEquals(HttpStatus.SC_OK, (res = adminClient.postJson("/_search?pretty", adminPit.asSearchBody())).getStatusCode());
+            Assert.assertTrue(res.getBody().contains("\"value\" : 2,\n      \"relation"));
+            Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
+
+            Assert.assertEquals(HttpStatus.SC_OK, (res = dmClient.postJson("/_search?pretty", dmPit.asSearchBody())).getStatusCode());
             Assert.assertTrue(res.getBody().contains("\"value\" : 1,\n      \"relation"));
             Assert.assertTrue(res.getBody().contains("\"failed\" : 0"));
 
