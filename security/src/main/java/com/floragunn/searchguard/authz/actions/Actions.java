@@ -96,6 +96,7 @@ import org.elasticsearch.action.admin.indices.recovery.RecoveryAction;
 import org.elasticsearch.action.admin.indices.refresh.RefreshAction;
 import org.elasticsearch.action.admin.indices.refresh.TransportShardRefreshAction;
 import org.elasticsearch.action.admin.indices.resolve.ResolveIndexAction;
+import org.elasticsearch.action.admin.indices.resolve.TransportResolveClusterAction;
 import org.elasticsearch.action.admin.indices.rollover.RolloverAction;
 import org.elasticsearch.action.admin.indices.segments.IndicesSegmentsAction;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsAction;
@@ -130,6 +131,7 @@ import org.elasticsearch.action.ingest.PutPipelineTransportAction;
 import org.elasticsearch.action.ingest.SimulatePipelineAction;
 import org.elasticsearch.action.search.TransportClearScrollAction;
 import org.elasticsearch.action.search.TransportMultiSearchAction;
+import org.elasticsearch.action.search.TransportOpenPointInTimeAction;
 import org.elasticsearch.action.search.TransportSearchAction;
 import org.elasticsearch.action.search.TransportSearchScrollAction;
 import org.elasticsearch.action.search.TransportSearchShardsAction;
@@ -146,8 +148,6 @@ import org.elasticsearch.persistent.StartPersistentTaskAction;
 import org.elasticsearch.persistent.UpdatePersistentTaskStatusAction;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.rest.root.MainRestPlugin;
-import org.elasticsearch.rest.root.RestMainAction;
-import org.elasticsearch.xcontent.ToXContent;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -192,9 +192,11 @@ public class Actions {
         index(TransportDeleteAction.TYPE);
         index(TransportUpdateAction.TYPE);
         index(TransportSearchAction.TYPE);
+        index(TransportOpenPointInTimeAction.TYPE);
         index(TransportExplainAction.TYPE);
         index(ResolveIndexAction.INSTANCE);
-        
+        index(TransportResolveClusterAction.NAME);
+
         index(UpdateByQueryAction.INSTANCE);
         index(DeleteByQueryAction.INSTANCE);
 
