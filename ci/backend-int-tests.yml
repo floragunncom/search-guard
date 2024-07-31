@@ -4,12 +4,16 @@ community:
   - .be_integration_test
   variables:
     TEST_DEFINITIONS: ".*community.*"
+  rules:
+    - when: never
 
 enterprise_1:
   extends:
   - .be_integration_test
   variables:
-    TEST_DEFINITIONS: ".*enterprise_1.*"  
+    TEST_DEFINITIONS: ".*enterprise_1.*"
+    TEST_VARIANTS: ".*"
+    TEST_PATTERN: "test_jwt.*"
 
 enterprise_2:
   extends:
@@ -28,18 +32,24 @@ ccs_1:
   - .be_integration_test
   variables:
     TEST_DEFINITIONS: ".*ccs_1.*"
+  rules:
+    - when: never
 
 ccs_2:
   extends:
   - .be_integration_test
   variables:
     TEST_DEFINITIONS: ".*ccs_2.*"
+  rules:
+    - when: never
 
 ccs_3:
   extends:
   - .be_integration_test
   variables:
     TEST_DEFINITIONS: ".*ccs_3.*"
+  rules:
+    - when: never
 
 
 compliance_1:
@@ -47,6 +57,8 @@ compliance_1:
   - .be_integration_test
   variables:
     TEST_DEFINITIONS: ".*compliance_1.*"
+  rules:
+    - when: never
 
 compliance_2:
   extends:
@@ -59,24 +71,32 @@ compliance_3:
   - .be_integration_test
   variables:
     TEST_DEFINITIONS: ".*compliance_3.*"
+  rules:
+    - when: never
 
 compliance_ccs:
   extends:
   - .be_integration_test
   variables:
     TEST_DEFINITIONS: ".*compliance_ccs.*"
+  rules:
+    - when: never
 
 signals_1:
   extends:
   - .be_integration_test
   variables:
     TEST_DEFINITIONS: ".*signals_1.*"
+  rules:
+    - when: never
 
 signals_2:
   extends:
     - .be_integration_test
   variables:
     TEST_DEFINITIONS: ".*signals_2.*"
+  rules:
+    - when: never
 
 .be_integration_test:
   allow_failure: false
@@ -107,7 +127,7 @@ signals_2:
        cd sgi8/server
        rm -f docker/elasticsearch/search-guard.zip
        cp -a ../../plugin/target/releases/search-guard-flx-elasticsearch-plugin-${SNAPSHOT_REVISION}.zip docker/elasticsearch/search-guard.zip
-       ./run_test_definition.sh "$TEST_DEFINITIONS"
+       ./run_test_definition.sh "$TEST_DEFINITIONS" "$TEST_VARIANTS" "$TEST_PATTERN"
   artifacts:
     when: always
     paths:
