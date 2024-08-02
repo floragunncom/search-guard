@@ -55,10 +55,6 @@ public class FlsQueryCacheWeightProvider implements SearchGuardModule.QueryCache
     public Weight apply(Index index, Weight weight, QueryCachingPolicy policy) {
         DlsFlsProcessedConfig config = this.config.get();
 
-        if (!config.isEnabled()) {
-            return null;
-        }
-
         PrivilegesEvaluationContext context = baseContext.getPrivilegesEvaluationContext();
 
         if (context == null) {

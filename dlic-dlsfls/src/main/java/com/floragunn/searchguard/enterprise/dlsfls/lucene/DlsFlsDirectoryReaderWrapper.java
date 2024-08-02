@@ -84,10 +84,6 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
     public final DirectoryReader apply(DirectoryReader reader) throws IOException {
         DlsFlsProcessedConfig config = this.config.get();
 
-        if (!config.isEnabled()) {
-            return reader;
-        }
-
         PrivilegesEvaluationContext privilegesEvaluationContext = this.dlsFlsBaseContext.getPrivilegesEvaluationContext();
 
         if (privilegesEvaluationContext == null) {

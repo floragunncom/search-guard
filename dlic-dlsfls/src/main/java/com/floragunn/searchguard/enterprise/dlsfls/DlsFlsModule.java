@@ -118,11 +118,8 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
             DlsFlsProcessedConfig config = DlsFlsProcessedConfig.createFrom(configMap, componentState,
                     clusterService.state().metadata().indices().keySet());
 
-            DlsFlsProcessedConfig oldConfig = this.config.get();
+            log.info("New-style DLS/FLS implementation is now ENABLED");
 
-            if (oldConfig.isEnabled() != config.isEnabled()) {
-                log.info(config.isEnabled() ? "New-style DLS/FLS implementation is now ENABLED" : "New-style DLS/FLS implementation is now DISABLED");
-            }
 
             this.config.set(config);
         });

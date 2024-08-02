@@ -99,12 +99,6 @@
 
       <dependency>
         <groupId>com.floragunn</groupId>
-        <artifactId>dlic-search-guard-flx-dlsfls-legacy</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
         <artifactId>dlic-search-guard-flx-fe-multi-tenancy</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -358,13 +352,6 @@
         <groupId>org.wiremock</groupId>
         <artifactId>wiremock</artifactId>
         <version>3.9.1</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>dlic-search-guard-flx-dlsfls-legacy</artifactId>
-        <version>${project.version}</version>
-        <classifier>tests</classifier>
       </dependency>
 
       <dependency>
@@ -973,7 +960,6 @@
         <module>dlic-signals</module>
         <module>dlic-auditlog</module>
         <module>dlic-dlsfls</module>
-        <module>dlic-dlsfls-legacy</module>
         <module>dlic-security-legacy</module>
         <module>dlic-fe-multi-tenancy</module>
         <module>plugin</module>

@@ -57,10 +57,6 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
     public FieldPredicate apply(String indexName) {
         DlsFlsProcessedConfig config = this.config.get();
 
-        if (!config.isEnabled()) {
-            return FieldPredicate.ACCEPT_ALL;
-        }
-
         PrivilegesEvaluationContext privilegesEvaluationContext = this.baseContext.getPrivilegesEvaluationContext();
 
         if (privilegesEvaluationContext == null) {

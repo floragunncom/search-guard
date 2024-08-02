@@ -83,7 +83,7 @@ public class FmIntTest {
             new Role("hashed_ip").indexPermissions("SGS_READ", "indices:admin/mappings/get").maskedFields("*_loc").on(INDEX).clusterPermissions("*"));
 
     static final TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db"));
-    static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().useImpl("flx");
+    static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls();
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
