@@ -48,6 +48,7 @@ import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 
+import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
 import static com.floragunn.searchsupport.junit.matcher.ExceptionsMatchers.messageContainsMatcher;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -61,6 +62,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 
 public class AuthTokenIntegrationTest {
+    public static final int MAX_TOKEN_PER_USER = 10;
     private static String SGCONFIG = //
             "_sg_meta:\n" + //
                     "  type: \"config\"\n" + //
@@ -73,7 +75,7 @@ public class AuthTokenIntegrationTest {
                     "      jwt_signing_key_hs512: \"" + TestJwk.OCT_1_K + "\"\n" + //
                     "      jwt_aud: \"searchguard_tokenauth\"\n" + //
                     "      max_validity: \"1y\"\n" + //
-                    "      max_tokens_per_user: 10\n" + //
+                    "      max_tokens_per_user: " + MAX_TOKEN_PER_USER + "\n" + //
                     "      token_cache:\n" + //
                     "        expire_after_write: 70m\n" + //
                     "        max_size: 100\n" + //
@@ -908,17 +910,24 @@ public class AuthTokenIntegrationTest {
     }
     
     @Test
-    public void bulkConfigApi() throws Exception {
+    public void bulkConfigApi() throws Exception { // todo correction missing
         
         DocNode config = DocNode.of("jwt_signing_key_hs512", TestJwk.OCT_1_K, "max_tokens_per_user", 100, "enabled", true);
         
-        try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {                        
-            HttpResponse response = restClient.putJson("/_searchguard/config", DocNode.of("auth_token_service.content", config));                        
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
-            
-            response = restClient.get("/_searchguard/config");
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
-            assertThat(response.getBodyAsDocNode().get("auth_token_service", "content"), equalTo(config.toMap()));
+        try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {
+            try {
+                HttpResponse response = restClient.putJson("/_searchguard/config", DocNode.of("auth_token_service.content", config));
+
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+
+                response = restClient.get("/_searchguard/config");
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                assertThat(response.getBodyAsDocNode().get("auth_token_service", "content"), equalTo(config.toMap()));
+            } finally {
+                DocNode configToRestore = config.with("max_tokens_per_user", MAX_TOKEN_PER_USER);
+                HttpResponse response = restClient.putJson("/_searchguard/config", DocNode.of("auth_token_service.content", configToRestore));
+                assertThat(response, isOk());
+            }
         }
     }
 

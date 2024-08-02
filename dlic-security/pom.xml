@@ -210,12 +210,6 @@
 
     <dependency>
       <groupId>com.floragunn</groupId>
-      <artifactId>dlic-search-guard-flx-dlsfls-legacy</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-security-legacy</artifactId>
       <scope>test</scope>
     </dependency>

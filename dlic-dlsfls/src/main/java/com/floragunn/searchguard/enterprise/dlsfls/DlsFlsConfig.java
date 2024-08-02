@@ -36,7 +36,7 @@ public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
     public static CType<DlsFlsConfig> TYPE = new CType<DlsFlsConfig>("authz_dlsfls", "Document Level Security and Field Level Security", 10011,
             DlsFlsConfig.class, DlsFlsConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
 
-    public static final DlsFlsConfig DEFAULT = new DlsFlsConfig(null, null, false, MetricsLevel.BASIC, Impl.LEGACY, false, Mode.ADAPTIVE);
+    public static final DlsFlsConfig DEFAULT = new DlsFlsConfig(null, FieldMasking.DEFAULT, false, MetricsLevel.BASIC, Impl.FLX, false, Mode.ADAPTIVE);
 
     private final DocNode source;
     private final FieldMasking fieldMasking;
@@ -70,7 +70,7 @@ public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
         FieldMasking fieldMasking = vNode.get("field_anonymization").withDefault(FieldMasking.DEFAULT).by(FieldMasking::parse);
         boolean debugEnabled = vNode.get("debug").withDefault(false).asBoolean();
         MetricsLevel metricsLevel = vNode.get("metrics").withDefault(MetricsLevel.BASIC).asEnum(MetricsLevel.class);
-        Impl enabledImpl = vNode.get("use_impl").withDefault(Impl.LEGACY).asEnum(Impl.class);
+        Impl enabledImpl = vNode.get("use_impl").withDefault(Impl.FLX).asEnum(Impl.class);
         boolean nowAllowedInQueries = vNode.get("dls.allow_now").withDefault(false).asBoolean();
         Mode dlsMode = vNode.get("dls.mode").withDefault(Mode.ADAPTIVE).asEnum(Mode.class);
 
