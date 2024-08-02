@@ -78,28 +78,25 @@
   </dependencies>
 
   <build>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.2.5</version>
-          <configuration>
-            <argLine>-Xmx3072m</argLine>
-            <rerunFailingTestsCount>0</rerunFailingTestsCount>
-            <forkCount>3</forkCount>
-            <reuseForks>true</reuseForks>
-            <systemPropertyVariables>
-              <forkno>fork_${surefire.forkNumber}</forkno>
-            </systemPropertyVariables>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>-Xmx3072m</argLine>
+          <rerunFailingTestsCount>0</rerunFailingTestsCount>
+          <forkCount>3</forkCount>
+          <reuseForks>true</reuseForks>
+          <systemPropertyVariables>
+            <forkno>fork_${surefire.forkNumber}</forkno>
+          </systemPropertyVariables>
 
-            <includes>
-              <include>**/*.java</include>
-            </includes>
-            <trimStackTrace>false</trimStackTrace>
-          </configuration>
-        </plugin>
-      </plugins>
-    </pluginManagement>
+          <includes>
+            <include>**/*.java</include>
+          </includes>
+          <trimStackTrace>false</trimStackTrace>
+        </configuration>
+      </plugin>
+    </plugins>
   </build>
 </project>

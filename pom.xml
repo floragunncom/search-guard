@@ -59,7 +59,7 @@
     <bc.version>1.70</bc.version>
     <log4j.version>2.23.1</log4j.version>
     <jackson.version>2.17.1</jackson.version>
-    <cxf.version>4.0.4</cxf.version>
+    <cxf.version>4.0.5</cxf.version>
     <http.commons.version>4.5.14</http.commons.version>
     <opensaml.version>4.3.0</opensaml.version>
     <opensaml.patch.version>4.3.0-1.0.3</opensaml.patch.version>
@@ -165,7 +165,7 @@
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>33.2.0-jre</version>
+        <version>33.2.1-jre</version>
       </dependency>
 
       <dependency>
@@ -182,7 +182,7 @@
       <dependency>
         <groupId>commons-codec</groupId>
         <artifactId>commons-codec</artifactId>
-        <version>1.17.0</version>
+        <version>1.17.1</version>
       </dependency>
 
       <dependency>
@@ -199,7 +199,7 @@
       <dependency>
         <groupId>commons-validator</groupId>
         <artifactId>commons-validator</artifactId>
-        <version>1.8.0</version>
+        <version>1.9.0</version>
       </dependency>
 
       <dependency>
@@ -357,7 +357,7 @@
       <dependency>
         <groupId>org.wiremock</groupId>
         <artifactId>wiremock</artifactId>
-        <version>3.5.4</version>
+        <version>3.9.1</version>
       </dependency>
 
       <dependency>
@@ -547,27 +547,27 @@
     <dependency>
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-compat</artifactId>
-      <version>3.9.6</version>
+      <version>3.9.8</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-embedder</artifactId>
-      <version>3.9.6</version>
+      <version>3.9.8</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.maven.resolver</groupId>
       <artifactId>maven-resolver-connector-basic</artifactId>
-      <version>1.9.18</version>
+      <version>2.0.0</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.maven.resolver</groupId>
       <artifactId>maven-resolver-transport-http</artifactId>
-      <version>1.9.18</version>
+      <version>1.9.21</version>
       <scope>test</scope>
     </dependency>
 
@@ -735,7 +735,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-release-plugin</artifactId>
-          <version>2.5.3</version>
+          <version>3.1.1</version>
           <configuration>
             <tagNameFormat>v@{project.version}</tagNameFormat>
             <pushChanges>false</pushChanges>
@@ -779,7 +779,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>3.4.1</version>
+          <version>3.4.2</version>
           <configuration>
             <excludes>
               <exclude>**/*cobertura*</exclude>
@@ -817,7 +817,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.2.5</version>
+          <version>3.3.1</version>
           <configuration>
             <!-- add-opens is necessary for powermock on Java 17 -->
             <!-- java.xml/jdk.xml.internal=ALL-UNNAMED required after wiremock bump to 3.5.4-->
@@ -851,7 +851,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>3.3.0</version>
+        <version>3.5.0</version>
         <executions>
           <execution>
             <id>enforce-maven</id>
@@ -885,7 +885,7 @@
       </plugin>
       <plugin>
         <artifactId>maven-clean-plugin</artifactId>
-        <version>3.3.1</version>
+        <version>3.4.0</version>
         <configuration>
           <filesets>
             <fileset>
