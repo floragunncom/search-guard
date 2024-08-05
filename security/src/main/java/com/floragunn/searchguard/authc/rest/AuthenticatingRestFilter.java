@@ -188,9 +188,10 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                     return;
                 }
 
-                authenticationProcessor.authenticate(request, channel, (result) -> {
+                SendOnceRestChannelWrapper channelWrapper = new SendOnceRestChannelWrapper(channel);
+                authenticationProcessor.authenticate(request, channelWrapper, (result) -> {
                     if (authenticationProcessor.isDebugEnabled() && DebugApi.PATH.equals(request.path())) {
-                        sendDebugInfo(channel, result);
+                        sendDebugInfo(channelWrapper, result);
                         return;
                     }
 
@@ -201,11 +202,11 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                         org.apache.logging.log4j.ThreadContext.put("user", result.getUser() != null ? result.getUser().getName() : null);
 
                         try {
-                            original.dispatchRequest(request, channel, threadContext);
+                            original.dispatchRequest(request, channelWrapper, threadContext);
                         } catch (Exception e) {
                             log.error("Error in " + original, e);
                             try {
-                                channel.sendResponse(new RestResponse(channel, e));
+                                channelWrapper.sendResponse(new RestResponse(channelWrapper, e));
                             } catch (IOException e1) {
                                 log.error(e1);
                             }
@@ -221,12 +222,12 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                                 result.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
                             }
 
-                            channel.sendResponse(response);
+                            channelWrapper.sendResponse(response); // the second response is sent here
                         }
                     }
                 }, (e) -> {
                     try {
-                        channel.sendResponse(new RestResponse(channel, e));
+                        channelWrapper.sendResponse(new RestResponse(channelWrapper, e));
                     } catch (IOException e1) {
                         log.error(e1);
                     }
