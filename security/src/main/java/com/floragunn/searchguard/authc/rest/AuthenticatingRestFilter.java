@@ -222,7 +222,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                                 result.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
                             }
 
-                            channelWrapper.sendResponse(response); // the second response is sent here
+                            channelWrapper.sendResponse(response);
                         }
                     }
                 }, (e) -> {

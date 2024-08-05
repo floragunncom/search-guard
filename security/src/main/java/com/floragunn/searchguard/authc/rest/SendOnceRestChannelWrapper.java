@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.io.stream.BytesStream;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
+import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
@@ -72,16 +73,24 @@ class SendOnceRestChannelWrapper implements RestChannel {
 
     @Override
     public void sendResponse(RestResponse response) {
-        if(sent) {
+        if (sent) {
             RestRequest request = request();
             long requestId = request.getRequestId();
             String spanId = request.getSpanId();
             String path = request.path();
-            RestRequest.Method method = request.method();
-            log.error("Rest response related to request '{} {}' ( with id '{}', spanId '{}') has already been sent", method, path, requestId, spanId);
+            Method method = request.method();
+            log.error(
+                "Rest response related to request '{} {}' ( with id '{}', spanId '{}') has already been sent",
+                method,
+                path,
+                requestId,
+                spanId);
         } else {
-            delegate.sendResponse(response);
-            sent = true;
+            try {
+                delegate.sendResponse(response);
+            } finally {
+                sent = true;
+            }
         }
     }
 }
