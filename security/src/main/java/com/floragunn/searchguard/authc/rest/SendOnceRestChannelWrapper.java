@@ -84,7 +84,7 @@ class SendOnceRestChannelWrapper implements RestChannel {
             String spanId = request.getSpanId();
             String path = request.path();
             Method method = request.method();
-            log.info(
+            log.debug(
                 "Rest response related to request '{} {}' ( with id '{}', spanId '{}') has already been sent",
                 method,
                 path,

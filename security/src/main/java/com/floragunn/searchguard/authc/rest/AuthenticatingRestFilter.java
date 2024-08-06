@@ -202,11 +202,11 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                         org.apache.logging.log4j.ThreadContext.put("user", result.getUser() != null ? result.getUser().getName() : null);
 
                         try {
-                            original.dispatchRequest(request, channelWrapper, threadContext);
+                            original.dispatchRequest(request, channel, threadContext);
                         } catch (Exception e) {
                             log.error("Error in " + original, e);
                             try {
-                                channelWrapper.sendResponse(new RestResponse(channelWrapper, e));
+                                channelWrapper.sendResponse(new RestResponse(channel, e));
                             } catch (IOException e1) {
                                 log.error(e1);
                             }
