@@ -31,6 +31,9 @@ import java.net.InetSocketAddress;
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestStatus.UNAUTHORIZED;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -99,6 +102,7 @@ public class Double401ResponsesIntTest {
         when(restRequest.method()).thenReturn(GET);
         when(restRequest.getHeaders()).thenReturn(ImmutableMap.of("Authorization", ImmutableList.of("Bearer invalid_token")));
         when(restRequest.getRequestId()).thenReturn(-1234L);
+        when((restRequest.getSpanId())).thenReturn("test span id");
         when(httpChannel.getRemoteAddress()).thenReturn(new InetSocketAddress("localhost", 0));
 
         searchGuarddispatcher.dispatchRequest(restRequest, restChannel, threadContext);
@@ -106,6 +110,7 @@ public class Double401ResponsesIntTest {
         verify(restChannel, times(1)).sendResponse(responseCaptor.capture());
         RestResponse response = responseCaptor.getValue();
         assertThat(response.status(), is(UNAUTHORIZED));
+        assertThat(response.getHeaders(), hasEntry(equalTo("WWW-Authenticate"), contains("Basic realm=\"Search Guard\"")));
         verifyNoInteractions(genuineDispatcher, threadContext);
     }
 }

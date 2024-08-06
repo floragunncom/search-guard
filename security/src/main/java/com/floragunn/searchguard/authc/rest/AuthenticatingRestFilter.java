@@ -188,7 +188,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                     return;
                 }
 
-                SendOnceRestChannelWrapper channelWrapper = new SendOnceRestChannelWrapper(channel);
+                RestChannel channelWrapper = new SendOnceRestChannelWrapper(channel);
                 authenticationProcessor.authenticate(request, channelWrapper, (result) -> {
                     if (authenticationProcessor.isDebugEnabled() && DebugApi.PATH.equals(request.path())) {
                         sendDebugInfo(channelWrapper, result);

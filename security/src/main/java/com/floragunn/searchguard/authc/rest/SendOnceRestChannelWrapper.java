@@ -14,6 +14,11 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Objects;
 
+/**
+ * This class should be removed together with legacy code in the legacy-security module.
+ * @see <a href="https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/352">Issue 352</a>
+ */
+@Deprecated
 class SendOnceRestChannelWrapper implements RestChannel {
     private static final Logger log = LogManager.getLogger(SendOnceRestChannelWrapper.class);
 
@@ -79,18 +84,15 @@ class SendOnceRestChannelWrapper implements RestChannel {
             String spanId = request.getSpanId();
             String path = request.path();
             Method method = request.method();
-            log.error(
+            log.info(
                 "Rest response related to request '{} {}' ( with id '{}', spanId '{}') has already been sent",
                 method,
                 path,
                 requestId,
                 spanId);
         } else {
-            try {
-                delegate.sendResponse(response);
-            } finally {
-                sent = true;
-            }
+            sent = true;
+            delegate.sendResponse(response);
         }
     }
 }
