@@ -136,6 +136,17 @@ public class IndexAuthorizationReadOnlyIntTests {
             .indexMatcher("read_top_level", limitedTo(alias_ab1))//
             .indexMatcher("get_alias", limitedTo(index_a1, index_a2, index_a3, index_b1, alias_ab1));
 
+    static TestSgConfig.User LIMITED_USER_ALIAS_AB1_EXCLUDE_INDEX_A3 = new TestSgConfig.User("limited_user_alias_AB1_exclude_index_a3")//
+            .description("alias_ab1_exclude_index_a3")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
+                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get").on("alias_ab1*")//
+                            .excludeIndexPermissions("*").on("index_a3"))//
+            .indexMatcher("read", limitedTo(index_a1, index_a2, index_b1))//
+            .indexMatcher("read_top_level", limitedToNone())// //todo matcher with this name is anyway not used at all, and can be removed from all users
+            .indexMatcher("get_alias", limitedTo(index_a1, index_a2, index_b1));
+
     static TestSgConfig.User LIMITED_USER_ALIAS_C1 = new TestSgConfig.User("limited_user_alias_C1")//
             .description("alias_c1")//
             .roles(//
@@ -212,7 +223,7 @@ public class IndexAuthorizationReadOnlyIntTests {
 
     static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B1, LIMITED_USER_C, LIMITED_USER_ALIAS_AB1,
             LIMITED_USER_ALIAS_C1, LIMITED_USER_A_HIDDEN, LIMITED_USER_A_SYSTEM, LIMITED_USER_NONE, INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS,
-            UNLIMITED_USER, SUPER_UNLIMITED_USER);
+            UNLIMITED_USER, SUPER_UNLIMITED_USER, LIMITED_USER_ALIAS_AB1_EXCLUDE_INDEX_A3);
 
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled()

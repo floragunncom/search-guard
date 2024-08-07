@@ -376,7 +376,7 @@ public class ResolvedIndices {
             return result;
         }
 
-        boolean hasAliasesOrDataStreams() {
+        public boolean hasAliasesOrDataStreams() {
             return !aliases.isEmpty() || !dataStreams.isEmpty();
         }
 

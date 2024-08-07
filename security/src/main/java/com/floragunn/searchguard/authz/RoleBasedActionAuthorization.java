@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import org.apache.logging.log4j.LogManager;
@@ -503,6 +504,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                 if (!deepCheckTable.isComplete() && !allActionsWellKnown) {
                     checkNonWellKnownActions(context, localContext, deepCheckTable, false, false, meter);
+                }
+
+                if (!deepCheckTable.isComplete() && resolved.getLocal().hasAliasesOrDataStreams()) {
+                    // If the indices have containing aliases or datastreams, we can check privileges via these
+                    checkWellKnownActionsWithIndexPatternsViaParentAliases(context, localContext, deepCheckTable, resolved, meter);
                 }
 
                 if (log.isTraceEnabled()) {
@@ -1827,6 +1833,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
             private final ComponentState componentState;
             private final Pattern universallyDeniedIndices;
+            private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> excludedActionToAliasToRoles;
+            private final ImmutableSet<String> rolesWithTemplatedExclusions;
 
             Alias(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Meta indexMetadata,
                     Pattern universallyDeniedIndices, ComponentState componentState) {
@@ -1835,6 +1843,17 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 .defaultValue((k) -> new ImmutableMap.Builder<String, ImmutableSet.Builder<String>>()
                                         .defaultValue((k2) -> new ImmutableSet.Builder<String>()));
 
+                ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> excludedActionToAliasToRoles = //
+                        new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
+                                .defaultValue((k) -> new ImmutableMap.Builder<String, ImmutableSet.Builder<String>>()
+                                        .defaultValue((k2) -> new ImmutableSet.Builder<String>()));
+
+                ImmutableSet.Builder<String> rolesWithTemplatedExclusions = new ImmutableSet.Builder<>();
+
+                ImmutableMap<String, Meta.Index> indicesByNames = ImmutableMap.of(indexMetadata.indices()
+                        .stream()
+                        .collect(Collectors.toMap(Meta.IndexLikeObject::name, index -> index)));
+
                 ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                         .defaultValue((k) -> new ImmutableList.Builder<Exception>());
 
@@ -1842,6 +1861,56 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     try {
                         String roleName = entry.getKey();
                         Role role = entry.getValue();
+
+                        for (Role.ExcludeIndex excludedIndexPermissions : role.getExcludeIndexPermissions()) {
+                            ImmutableSet<String> permissions = actionGroups.resolve(excludedIndexPermissions.getActions());
+
+                            if (excludedIndexPermissions.getIndexPatterns().getPattern().isWildcard()) {
+                                // This is handled in the static IndexPermissions object.
+                                continue;
+                            }
+
+                            if (!excludedIndexPermissions.getIndexPatterns().getPatternTemplates().isEmpty()
+                                    || !excludedIndexPermissions.getIndexPatterns().getDateMathExpressions().isEmpty()) {
+                                // This class can only work on non-templated index patterns.
+                                // If there are templated exclusions (which should be a very rare thing), we cannot do evaluation here
+                                // We record the role name to indicate that this class cannot evaluate these roles
+                                rolesWithTemplatedExclusions.add(roleName);
+                                continue;
+                            }
+
+                            for (String permission : permissions) {
+                                Pattern indexPattern = excludedIndexPermissions.getIndexPatterns().getPattern();
+
+                                if (Pattern.isConstant(permission)) {
+                                    Action action = actions.get(permission);
+
+                                    if (action instanceof WellKnownAction) {
+                                        for (String index : indexPattern.iterateMatching(indicesByNames.keySet())) {
+                                            Meta.Index currentIndex = indicesByNames.get(index);
+                                            for (Meta.Alias alias : currentIndex.parentAliases()) {
+                                                excludedActionToAliasToRoles.get((WellKnownAction<?, ?, ?>) action).get(alias.name()).add(roleName);
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    Pattern pattern = Pattern.create(permission);
+
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
+                                            .matching((a) -> pattern.matches(a.name()));
+
+                                    for (String index : indexPattern.iterateMatching(indicesByNames.keySet())) {
+                                        Meta.Index currentIndex = indicesByNames.get(index);
+                                        for (Meta.Alias alias : currentIndex.parentAliases()) {
+                                            for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
+                                                excludedActionToAliasToRoles.get(action).get(alias.name()).add(roleName);
+                                            }
+                                        }
+
+                                    }
+                                }
+                            }
+                        }
 
                         for (Role.Alias aliasPermissions : role.getAliasPermissions()) {
                             ImmutableSet<String> permissions = actionGroups.resolve(aliasPermissions.getAllowedActions());
@@ -1892,6 +1961,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 }
 
                 this.actionToAliasToRoles = actionToAliasToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
+                this.excludedActionToAliasToRoles = excludedActionToAliasToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
+                this.rolesWithTemplatedExclusions = rolesWithTemplatedExclusions.build();
                 this.indexMetadata = indexMetadata;
 
                 this.universallyDeniedIndices = universallyDeniedIndices;
@@ -1923,6 +1994,12 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                 if (!allActionsWellKnown) {
                     // This class can operate only on well known actions
+                    return null;
+                }
+
+                if (rolesWithTemplatedExclusions.containsAny(mappedRoles)) {
+                    // This class can only work on non-templated index patterns.
+                    // If there are templated exclusions (which should be a very rare thing), we cannot do evaluation here
                     return null;
                 }
 
@@ -1958,7 +2035,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     return true;
                 }
 
-                return false;
+                ImmutableMap<String, ImmutableSet<String>> rolesWithExclusion = excludedActionToAliasToRoles.get(action);
+
+                return rolesWithExclusion != null;
             }
 
             @Override
