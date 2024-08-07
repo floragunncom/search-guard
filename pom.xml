@@ -398,10 +398,10 @@
       <dependency>
         <groupId>org.awaitility</groupId>
         <artifactId>awaitility</artifactId>
-        <version>4.2.1</version>
+        <version>4.2.2</version>
         <scope>test</scope>
       </dependency>
-      
+
       <dependency>
     	<groupId>com.selectivem.collections</groupId>
     	<artifactId>special-collections-complete</artifactId>
@@ -602,7 +602,7 @@
       <artifactId>hamcrest-core</artifactId>
       <scope>test</scope>
     </dependency>
-     
+
     <dependency>
       <groupId>com.github.stephenc.jcip</groupId>
       <artifactId>jcip-annotations</artifactId>
