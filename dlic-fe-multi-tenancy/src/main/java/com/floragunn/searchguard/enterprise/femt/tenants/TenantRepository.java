@@ -20,12 +20,15 @@ import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
+import org.elasticsearch.action.admin.indices.get.GetIndexResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
@@ -34,22 +37,30 @@ import org.elasticsearch.search.aggregations.bucket.terms.StringTerms;
 import org.elasticsearch.search.aggregations.bucket.terms.StringTerms.Bucket;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.floragunn.searchguard.enterprise.femt.RequestResponseTenantData.SG_TENANT_FIELD;
+import static org.elasticsearch.action.support.IndicesOptions.ConcreteTargetOptions.ALLOW_UNAVAILABLE_TARGETS;
 
 public class TenantRepository {
 
     private static final Logger log = LogManager.getLogger(TenantRepository.class);
     public static final String AGGREGATION_NAME = "documents_per_tenant";
     public static final String MAIN_FRONTEND_INDEX_ALIAS = ".kibana";
-    public static final String[] FRONTEND_MULTI_TENANCY_ALIASES =
-        { MAIN_FRONTEND_INDEX_ALIAS, ".kibana_analytics", ".kibana_ingest", ".kibana_security_solution", ".kibana_alerting_cases" };
+    public static final String[] OPTIONAL_MULTI_TENANCY_ALIASES = {".kibana_ingest"};
+    public static final String[] REQUIRED_MULTI_TENANCY_ALIASES = { MAIN_FRONTEND_INDEX_ALIAS, ".kibana_analytics", ".kibana_security_solution", ".kibana_alerting_cases" };
+    public static final String[] FRONTEND_MULTI_TENANCY_ALIASES = new String[OPTIONAL_MULTI_TENANCY_ALIASES.length + REQUIRED_MULTI_TENANCY_ALIASES.length];
+    static {
+        System.arraycopy(REQUIRED_MULTI_TENANCY_ALIASES, 0, FRONTEND_MULTI_TENANCY_ALIASES, 0, REQUIRED_MULTI_TENANCY_ALIASES.length);
+        System.arraycopy(OPTIONAL_MULTI_TENANCY_ALIASES, 0, FRONTEND_MULTI_TENANCY_ALIASES, REQUIRED_MULTI_TENANCY_ALIASES.length, OPTIONAL_MULTI_TENANCY_ALIASES.length);
+    }
 
     private final PrivilegedConfigClient client;
 
@@ -120,8 +131,12 @@ public class TenantRepository {
 
     void extendTenantsIndexMappings(DocNode mappings) {
         mappings = mappings.hasNonNull("properties")? mappings : DocNode.of("properties", mappings);
-        PutMappingRequest putMappingRequest = new PutMappingRequest(FRONTEND_MULTI_TENANCY_ALIASES)
-                .source(mappings);
+        PutMappingRequest putMappingRequest = new PutMappingRequest(FRONTEND_MULTI_TENANCY_ALIASES).source(mappings);
+
+        IndicesOptions indicesOptions = IndicesOptions.builder(putMappingRequest.indicesOptions()) //
+            .concreteTargetOptions(ALLOW_UNAVAILABLE_TARGETS) //
+            .build();
+        putMappingRequest.indicesOptions(indicesOptions);
 
         client.admin().indices().putMapping(putMappingRequest)
                 .actionGet();
@@ -136,5 +151,20 @@ public class TenantRepository {
             .aggregation(AggregationBuilders.terms(AGGREGATION_NAME).size(10_000).field(SG_TENANT_FIELD));
         searchRequest.source(sources);
         return searchRequest;
+    }
+
+    public Set<String> findMultiTenancyRelatedAliases() {
+        IndicesOptions indicesOptions = IndicesOptions.builder(IndicesOptions.strictExpandHidden()) //
+            .concreteTargetOptions(ALLOW_UNAVAILABLE_TARGETS) //
+            .build();
+        GetIndexResponse response = client.admin() //
+            .indices() //
+            .getIndex(new GetIndexRequest().indices(FRONTEND_MULTI_TENANCY_ALIASES).indicesOptions(indicesOptions)).actionGet();
+        return response.getAliases() //
+            .values() //
+            .stream() //
+            .flatMap(Collection::stream) //
+            .map(AliasMetadata::alias) //
+            .collect(Collectors.toSet());
     }
 }
