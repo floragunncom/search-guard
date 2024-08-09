@@ -33,6 +33,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
@@ -41,6 +42,7 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.MappingMetadata;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.searchguard.test.GenericRestClient;
@@ -70,6 +72,8 @@ public class MultitenancyTests {
                     .clusterPermissions("cluster:admin:searchguard:femt:user/available_tenants/get")
                     .tenantPermission("SGS_KIBANA_ALL_WRITE").on(Tenant.GLOBAL_TENANT_ID)
             );
+    public static final String INDEX_VERSIOM = "_8.9.3";
+    public static final String INDEX_NUMBER = "_001";
 
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder()
@@ -602,30 +606,38 @@ public class MultitenancyTests {
     @Test
     public void shouldExtendsMappingsWhenMultiTenancyIsEnabled() throws Exception {
         try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient()) {
-            cluster.callAndRestoreConfig(FeMultiTenancyConfig.TYPE, () -> {
+            List<String> shortAliasName = Arrays
+                .asList(".kibana", ".kibana_analytics", ".kibana_ingest", ".kibana_security_solution", ".kibana_alerting_cases");
+            long numberOfIndicesWithExtendedMappings = cluster.callAndRestoreConfig(FeMultiTenancyConfig.TYPE, () -> {
                 GenericRestClient.HttpResponse response = adminCertClient.get("/_searchguard/config/fe_multi_tenancy");
                 assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
                 Client client = cluster.getInternalNodeClient();
-                List<String> indices = Arrays
-                    .asList(".kibana", ".kibana_analytics", ".kibana_ingest", ".kibana_security_solution", ".kibana_alerting_cases");
                 // disable MT
                 DocNode config = DocNode.of("enabled", false);
                 response = adminCertClient.putJson("/_searchguard/config/fe_multi_tenancy", config);
                 assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
                 // create all frontend indices
-                for(String indexName : indices) {
-                    response = adminCertClient.put("/" + indexName);
-                    assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
+                for(String shortAlias : shortAliasName) {
+                    String longAlias = shortAlias + INDEX_VERSIOM;
+                    String indexName = longAlias + INDEX_NUMBER;
+                    CreateIndexRequest request = new CreateIndexRequest(indexName);
+                    request.alias(new Alias(shortAlias));
+                    request.alias(new Alias(longAlias));
+                    request.mapping(DocNode.of("properties.field.type", "keyword"));// saved an object type, not related to MT
+                    request.settings(Settings.builder().put("index.hidden", true));
+                    CreateIndexResponse createIndexResponse = client.admin().indices().create(request).actionGet();
+                    assertThat(createIndexResponse.isAcknowledged(), equalTo(true));
                 }
 
                 // enable MT
                 response = adminCertClient.put("/_searchguard/config/fe_multi_tenancy/activation");
 
                 assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
-                GetMappingsRequest request = new GetMappingsRequest().indices(indices.toArray(String[]::new));
+                GetMappingsRequest request = new GetMappingsRequest().indices(shortAliasName.toArray(String[]::new));
                 GetMappingsResponse mappingsResponse = client.admin().indices().getMappings(request).actionGet();
                 Map<String, MappingMetadata> mappings = mappingsResponse.getMappings();
-                long numberOfIndicesWithExtendedMappings = indices.stream() //
+                return shortAliasName.stream() //
+                    .map(shortAlias -> shortAlias + INDEX_VERSIOM + INDEX_NUMBER) // index name like .kibana_8.9.3_001
                     .map(indexName -> mappings.get(indexName)) //
                     .filter(Objects::nonNull) //
                     .map(metadata -> metadata.sourceAsMap()) //
@@ -636,9 +648,8 @@ public class MultitenancyTests {
                     .map(fieldMappings -> fieldMappings.get("type")) //
                     .filter(fieldType -> "keyword".equals(fieldType)) //
                     .count();
-                assertThat(numberOfIndicesWithExtendedMappings, equalTo((long)indices.size()));
-                return null;
             });
+            assertThat(numberOfIndicesWithExtendedMappings, equalTo((long)shortAliasName.size()));
         }
     }
 

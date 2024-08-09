@@ -14,11 +14,15 @@
 package com.floragunn.searchguard.enterprise.femt.tenants;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.authz.TenantManager;
 import com.floragunn.searchguard.authz.config.Tenant;
+import com.floragunn.searchguard.configuration.ConcurrentConfigUpdateException;
+import com.floragunn.searchguard.configuration.ConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfig;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
@@ -30,11 +34,13 @@ import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestSgConfig.RoleMapping;
 import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchsupport.action.StandardResponse;
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
@@ -51,9 +57,16 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
@@ -61,6 +74,8 @@ import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.contains
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsNullValue;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsOnlyFields;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
+import static org.apache.http.HttpStatus.SC_BAD_REQUEST;
+import static org.apache.http.HttpStatus.SC_OK;
 import static org.apache.http.HttpStatus.SC_UNAUTHORIZED;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 import static org.elasticsearch.rest.RestStatus.CREATED;
@@ -70,7 +85,15 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.not;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
+@RunWith(MockitoJUnitRunner.class)
 public class TenantsTest {
 
     private static final Logger log = LogManager.getLogger(TenantsTest.class);
@@ -140,6 +163,13 @@ public class TenantsTest {
             IT_TENANT, PR_TENANT, QA_TENANT) //
             .embedded().build();
 
+    @Mock
+    private ConfigurationRepository configurationRepository;
+    @Mock
+    private FeMultiTenancyConfigurationProvider configurationProvider;
+    @Captor
+    private ArgumentCaptor<SgDynamicConfiguration<FeMultiTenancyConfig>> configurationCaptor;
+
     @Before
     public void setUpIndex() {
         Client client = cluster.getInternalNodeClient();
@@ -154,8 +184,6 @@ public class TenantsTest {
     @Before
     public void setUpTestedDependencies() {
         TenantRepository tenantRepository = new TenantRepository(PrivilegedConfigClient.adapt(cluster.getInjectable(NodeClient.class)));
-        ConfigurationRepository configurationRepository = cluster.getInjectable(ConfigurationRepository.class);
-        FeMultiTenancyConfigurationProvider configurationProvider = cluster.getInjectable(FeMultiTenancyConfigurationProvider.class);
         multitenancyActivationService = new MultitenancyActivationService(tenantRepository, configurationRepository, configurationProvider);
     }
 
@@ -388,24 +416,82 @@ public class TenantsTest {
     }
 
     @Test
-    public void tenantIndexMappingsExtender_shouldAddSgTenantFieldToMappings() {
+    public void tenantIndexMappingsExtender_shouldAddSgTenantFieldToMappings()
+        throws ConfigUpdateException, ConcurrentConfigUpdateException, ConfigValidationException {
+        when(configurationProvider.getConfig()).thenReturn(Optional.of(FeMultiTenancyConfig.DEFAULT));
         //there are no kibana indices
         removeKibanaRelatedIndices();
 
-        multitenancyActivationService.activate();
+        StandardResponse response = multitenancyActivationService.activate();
 
+        assertThat(response.getStatus(), equalTo(SC_OK));
+        verify(configurationRepository).update(eq(FeMultiTenancyConfig.TYPE), configurationCaptor.capture(), isNull(), eq(false));
+        FeMultiTenancyConfig multiTenancyConfig = configurationCaptor.getValue().getCEntry("default");
+        assertThat(multiTenancyConfig.isEnabled(), equalTo(true));
+        reset(configurationRepository);
         GetMappingsResponse getMappingsResponse = getKibanaIndicesMappings();
         assertThat(getMappingsResponse.getMappings(), anEmptyMap());
 
-        //there are kibana indices
-        createKibanaIndicesAndAliases();
+        // there are some kibana indices, but one required index is missed
+        createKibanaIndicesAndAliases(".kibana");
 
-        multitenancyActivationService.activate();
+        response = multitenancyActivationService.activate();
+
+        assertThat(response.getStatus(), equalTo(SC_BAD_REQUEST));
+        verifyNoInteractions(configurationRepository);
+        reset(configurationRepository);
         getMappingsResponse = getKibanaIndicesMappings();
         assertThat(
+            getMappingsResponse.getMappings().keySet(),
+            containsInAnyOrder(".kibana_analytics_1.2.3_001", ".kibana_ingest_1.2.3_001",
+                ".kibana_security_solution_1.2.3_001", ".kibana_alerting_cases_1.2.3_001"
+            )
+        );
+        for (MappingMetadata indexMapping : getMappingsResponse.getMappings().values()) {
+            // an index is missing, therefore, MT should not be enabled so that indices mappings are not extended
+            DocNode mappings = DocNode.wrap(indexMapping.sourceAsMap());
+            assertThat(mappings, hasKey("properties"));
+            assertThat(mappings.getAsNode("properties"), not(hasKey("sg_tenant")));
+        }
+        removeKibanaRelatedIndices();
+
+        // all required indices exists
+        createKibanaIndicesAndAliases(".kibana_ingest"); // the index is optional
+
+        response = multitenancyActivationService.activate();
+
+        assertThat(response.getStatus(), equalTo(SC_OK));
+        verify(configurationRepository).update(eq(FeMultiTenancyConfig.TYPE), any(), isNull(), eq(false));
+        reset(configurationRepository);
+        getMappingsResponse = getKibanaIndicesMappings();
+        assertThat(
+            getMappingsResponse.getMappings().keySet(),
+            containsInAnyOrder(".kibana_1.2.3_001", ".kibana_analytics_1.2.3_001",
+                ".kibana_security_solution_1.2.3_001", ".kibana_alerting_cases_1.2.3_001"
+            )
+        );
+        for (MappingMetadata indexMapping : getMappingsResponse.getMappings().values()) {
+            DocNode mappings = DocNode.wrap(indexMapping.sourceAsMap());
+            assertThat(mappings, hasKey("properties"));
+            assertThat(mappings.getAsNode("properties"), hasKey("sg_tenant"));
+            assertThat(mappings.getAsNode("properties").getAsNode("sg_tenant"), equalTo(DocNode.of("type", "keyword")));
+        }
+        removeKibanaRelatedIndices();
+
+        //there are all kibana indices
+        createKibanaIndicesAndAliases();
+
+        response = multitenancyActivationService.activate();
+        assertThat(response.getStatus(), equalTo(SC_OK));
+        multiTenancyConfig = configurationCaptor.getValue().getCEntry("default");
+        assertThat(multiTenancyConfig.isEnabled(), equalTo(true));
+        reset(configurationRepository);
+        getMappingsResponse = getKibanaIndicesMappings();
+
+        assertThat(
                 getMappingsResponse.getMappings().keySet(),
-                containsInAnyOrder(".kibana_1.2.3", ".kibana_analytics_1.2.3", ".kibana_ingest_1.2.3",
-                        ".kibana_security_solution_1.2.3", ".kibana_alerting_cases_1.2.3"
+                containsInAnyOrder(".kibana_1.2.3_001", ".kibana_analytics_1.2.3_001", ".kibana_ingest_1.2.3_001",
+                        ".kibana_security_solution_1.2.3_001", ".kibana_alerting_cases_1.2.3_001"
                 )
         );
         for (MappingMetadata indexMapping : getMappingsResponse.getMappings().values()) {
@@ -416,13 +502,17 @@ public class TenantsTest {
         }
 
         //mappings already extended
-        multitenancyActivationService.activate();
+        response = multitenancyActivationService.activate();
 
+        assertThat(response.getStatus(), equalTo(SC_OK));
+        multiTenancyConfig = configurationCaptor.getValue().getCEntry("default");
+        assertThat(multiTenancyConfig.isEnabled(), equalTo(true));
+        reset(configurationRepository);
         getMappingsResponse = getKibanaIndicesMappings();
         assertThat(
                 getMappingsResponse.getMappings().keySet(),
-                containsInAnyOrder(".kibana_1.2.3", ".kibana_analytics_1.2.3", ".kibana_ingest_1.2.3",
-                        ".kibana_security_solution_1.2.3", ".kibana_alerting_cases_1.2.3"
+                containsInAnyOrder(".kibana_1.2.3_001", ".kibana_analytics_1.2.3_001", ".kibana_ingest_1.2.3_001",
+                        ".kibana_security_solution_1.2.3_001", ".kibana_alerting_cases_1.2.3_001"
                 )
         );
         for (MappingMetadata indexMapping : getMappingsResponse.getMappings().values()) {
@@ -460,17 +550,24 @@ public class TenantsTest {
         return client.admin().indices().getMappings(new GetMappingsRequest().indices(".kibana*")).actionGet();
     }
 
-    private void createKibanaIndicesAndAliases() {
+    private void createKibanaIndicesAndAliases(String... omitAliases) {
+        Set<String> omitAliasesSet = Set.of(omitAliases);
         Client client = cluster.getInternalNodeClient();
         IndicesAliasesRequest addAliasesRequest = new IndicesAliasesRequest();
-        for (String alias : TenantRepository.FRONTEND_MULTI_TENANCY_ALIASES) {
-            String indexName = alias + "_1.2.3";
-            CreateIndexResponse createIndexResponse = client.admin().indices().create(new CreateIndexRequest(indexName)).actionGet();
+        for (String shortAlias : TenantRepository.FRONTEND_MULTI_TENANCY_ALIASES) {
+            if(omitAliasesSet.contains(shortAlias)) {
+                continue;
+            }
+            String longAlias = shortAlias + "_1.2.3";
+            String indexName = longAlias + "_001";
+            CreateIndexRequest request = new CreateIndexRequest(indexName);
+            request.alias(new Alias(shortAlias));
+            request.alias(new Alias(longAlias));
+            request.mapping(DocNode.of("properties.field.type", "keyword"));// saved an object type, not related to MT
+            request.settings(Settings.builder().put("index.hidden", true));
+            CreateIndexResponse createIndexResponse = client.admin().indices().create(request).actionGet();
             assertThat(createIndexResponse.isAcknowledged(), equalTo(true));
-            addAliasesRequest.addAliasAction(IndicesAliasesRequest.AliasActions.add().alias(alias).index(indexName));
         }
-        AcknowledgedResponse addAliasesResponse = client.admin().indices().aliases(addAliasesRequest).actionGet();
-        assertThat(addAliasesResponse.isAcknowledged(), equalTo(true));
     }
 
 }

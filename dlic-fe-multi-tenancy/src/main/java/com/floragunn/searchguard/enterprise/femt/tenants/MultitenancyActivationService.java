@@ -27,10 +27,14 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.
 import com.floragunn.searchsupport.action.StandardResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.index.IndexNotFoundException;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
+import static com.floragunn.searchguard.enterprise.femt.tenants.TenantRepository.REQUIRED_MULTI_TENANCY_ALIASES;
+import static org.apache.http.HttpStatus.SC_BAD_REQUEST;
 import static org.apache.http.HttpStatus.SC_INTERNAL_SERVER_ERROR;
 import static org.apache.http.HttpStatus.SC_OK;
 
@@ -53,7 +57,16 @@ public class MultitenancyActivationService {
     }
 
     public StandardResponse activate() throws StepException {
-        extendTenantsIndexMappings();
+        Set<String> multiTenancyAliases = tenantRepository.findMultiTenancyRelatedAliases();
+        if(!multiTenancyAliases.isEmpty()) {
+            Set<String> missingAliases = findMissingAliases(multiTenancyAliases);
+            if (!missingAliases.isEmpty()) {
+                String message = "Cannot enable multitenancy, missing required aliases: " + String.join(", ", missingAliases);
+                log.info(message);
+                return new StandardResponse(SC_BAD_REQUEST, message);
+            }
+            extendTenantsIndexMappings();
+        }
         FeMultiTenancyConfig configuration = configProvider.getConfig().orElse(FeMultiTenancyConfig.DEFAULT);
         if (configuration.isEnabled()) {
             return new StandardResponse(SC_OK, "Multitenancy is already enabled, nothing to be done");
@@ -62,15 +75,15 @@ public class MultitenancyActivationService {
         }
     }
 
+    private Set<String> findMissingAliases(Set<String> existingAliases) {
+        Set<String> missingAliases = new HashSet<>(Arrays.asList(REQUIRED_MULTI_TENANCY_ALIASES));
+        missingAliases.removeAll(existingAliases);
+        return missingAliases;
+    }
+
     private void extendTenantsIndexMappings() {
-        try {
-            tenantRepository.extendTenantsIndexMappings(getSgTenantFieldMapping());
-            log.debug("Successfully extended tenants index field mappings");
-        } catch (IndexNotFoundException e) {
-            // This is expected behavior. If frontend indices does not exist then SG intercept request used for index
-            // creation and adds appropriate mappings.
-            log.info("Frontend indices does not exist while trying to extend tenants index field mappings", e);
-        }
+        tenantRepository.extendTenantsIndexMappings(getSgTenantFieldMapping());
+        log.debug("Successfully extended tenants index field mappings");
     }
 
     public static DocNode getSgTenantFieldMapping() {
