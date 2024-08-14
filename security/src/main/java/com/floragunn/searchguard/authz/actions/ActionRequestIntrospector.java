@@ -328,11 +328,6 @@ public class ActionRequestIntrospector {
                     return PrivilegesEvaluationResult.OK;
                 }
 
-                // TODO check if this is really necessary here or checked before
-                //if (!replaceableIndicesRequest.indicesOptions().ignoreUnavailable() && !containsWildcard(replaceableIndicesRequest)) {
-                //    return PrivilegesEvaluationResult.INSUFFICIENT;
-                //}
-
                 ImmutableSet<String> newIndices = ImmutableSet.of(keepIndices).with(resolvedIndices.getRemoteIndices());
 
                 if (log.isTraceEnabled()) {
