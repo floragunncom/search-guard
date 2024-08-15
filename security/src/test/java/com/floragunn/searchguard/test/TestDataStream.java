@@ -56,6 +56,11 @@ public class TestDataStream implements TestIndexLike {
         return new Builder().name(name);
     }
 
+    @Override
+    public String toString() {
+        return "Test data stream '" + name + '\'';
+    }
+
     public static class Builder {
         private String name;
         private TestData.Builder testDataBuilder = new TestData.Builder().timestampAttributeName("@timestamp").deletedDocumentFraction(0);

@@ -69,6 +69,11 @@ public class TestIndex implements TestIndexLike {
         return name;
     }
 
+    @Override
+    public String toString() {
+        return "TestIndex '" + name + "'";
+    }
+
     public TestData getTestData() {
         return testData;
     }
