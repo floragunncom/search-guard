@@ -49,6 +49,11 @@ public class TestAlias implements TestIndexLike {
         return this;
     }
 
+    @Override
+    public String toString() {
+        return "Test alias name '" + name + "'";
+    }
+
     public void create(Client client) {
         client.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices(getIndexNamesAsArray()).alias(name)))
                 .actionGet();
