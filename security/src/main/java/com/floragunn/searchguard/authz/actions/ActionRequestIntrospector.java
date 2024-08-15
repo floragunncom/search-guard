@@ -700,8 +700,6 @@ public class ActionRequestIntrospector {
 
     static class IndicesRequestInfo {
 
-        private static final Logger log = LogManager.getLogger(IndicesRequestInfo.class);
-
         private final ImmutableList<String> indices;
         private final String[] indicesArray;
         private final IndicesOptions indicesOptions;
@@ -726,13 +724,7 @@ public class ActionRequestIntrospector {
             this.indicesArray = indicesRequest.indices();
             this.indicesOptions = indicesRequest.indicesOptions();
             this.allowsRemoteIndices = indicesRequest instanceof Replaceable ? ((Replaceable) indicesRequest).allowsRemoteIndices() : false;
-//          Another possible correction
-//            if(indicesRequest instanceof DeleteByQueryRequest) {
-//                this.includeDataStreams = false;
-//            } else {
             this.includeDataStreams = indicesRequest.includeDataStreams();
-//            }
-            log.debug("Include data stream for '{}' is finally '{}', partial request '{}', scope '{}' partial scope '{}'", indicesRequest.getClass().getSimpleName(), this.includeDataStreams, indicesRequest.includeDataStreams(), scope, scope.includeDataStreams());
             this.role = role;
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
