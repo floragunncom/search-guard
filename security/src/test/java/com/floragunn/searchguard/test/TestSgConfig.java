@@ -762,9 +762,8 @@ public class TestSgConfig {
             return this;
         }
 
-        public User addFieldValueMatcher(String documentFieldName, boolean multipleDocuments, Matcher<String>...matchers) {
-            Objects.requireNonNull(documentFieldName, "Document field name must not be null");
-            String fieldJsonPath = jsonPathForDocumentField(documentFieldName, multipleDocuments);
+        public User addFieldValueMatcher(String fieldJsonPath, boolean multipleDocuments, Matcher<?>...matchers) {
+            Objects.requireNonNull(fieldJsonPath, "Document field JSON patch name must not be null");
             if(documentFieldValueMatchers.containsKey(fieldJsonPath)) {
                 throw new IllegalArgumentException("Field matcher for " + fieldJsonPath + " already exists");
             }
@@ -779,14 +778,10 @@ public class TestSgConfig {
             return this;
         }
 
-        private static String jsonPathForDocumentField(String documentFieldName, boolean multipleDocuments) {
-            return multipleDocuments ? "hits.hits[*]._source." + documentFieldName : "_source." + documentFieldName;
-        }
-
-        public Matcher<HttpResponse> matcherForField(String fieldName, boolean multipleDocuments) {
-            Objects.requireNonNull(fieldName, "Field name must not be null");
-            Matcher<HttpResponse> matcher = documentFieldValueMatchers.get(jsonPathForDocumentField(fieldName, multipleDocuments));
-            return Objects.requireNonNull(matcher, "No field matcher found for " + fieldName);
+        public Matcher<HttpResponse> matcherForField(String fieldJsonPath) {
+            Objects.requireNonNull(fieldJsonPath, "Field JSON path must not be null");
+            Matcher<HttpResponse> matcher = documentFieldValueMatchers.get(fieldJsonPath);
+            return Objects.requireNonNull(matcher, "No field matcher found for " + fieldJsonPath);
         }
 
         @Override
