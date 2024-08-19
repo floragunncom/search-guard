@@ -96,9 +96,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
     private volatile StatefulPermissions stateful;
 
-    private final ComponentState statefulIndexState = new ComponentState("index_permissions_stateful");
-    private final ComponentState statefulAliasState = new ComponentState("alias_permissions_stateful");
-    private final ComponentState statefulDataStreamState = new ComponentState("data_stream_permissions_stateful");
 
     public RoleBasedActionAuthorization(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions,
         Meta indexMetadata, Set<String> tenants) {
@@ -125,25 +122,22 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
         this.componentState = new ComponentState("role_based_action_authorization");
         this.componentState.addParts(cluster.getComponentState(), clusterExclusions.getComponentState(), index.getComponentState(),
-                indexExclusions.getComponentState(), tenant.getComponentState(), statefulIndexState, statefulAliasState, statefulDataStreamState);
+                indexExclusions.getComponentState(), tenant.getComponentState());
 
         if (indexMetadata != null) {
             try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
                 StatefulPermissions.Index statefulIndex = new StatefulPermissions.Index(roles, actionGroups, actions, indexMetadata,
-                        universallyDeniedIndices, statefulIndexState);
+                        universallyDeniedIndices);
                 StatefulPermissions.Alias statefulAlias = new StatefulPermissions.Alias(roles, actionGroups, actions, indexMetadata,
-                        universallyDeniedIndices, statefulAliasState);
+                        universallyDeniedIndices);
                 StatefulPermissions.DataStream statefulDataStream = new StatefulPermissions.DataStream(roles, actionGroups, actions, indexMetadata,
-                        universallyDeniedIndices, statefulDataStreamState);
+                        universallyDeniedIndices);
 
                 this.stateful = new StatefulPermissions(statefulIndex, statefulAlias, statefulDataStream, indexMetadata);
+                this.componentState.addPart(this.stateful.getComponentState());
             }
 
-        } else {
-            this.statefulIndexState.setState(State.SUSPENDED, "no_meta_data");
-            this.statefulAliasState.setState(State.SUSPENDED, "no_meta_data");
-            this.statefulDataStreamState.setState(State.SUSPENDED, "no_meta_data");
-        }
+        } 
 
         this.componentState.updateStateFromParts();
         this.componentState.setConfigVersion(roles.getDocVersion());
@@ -1009,14 +1003,17 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 }
 
                 StatefulPermissions.Index statefulIndex = new StatefulPermissions.Index(roles, actionGroups, actions, indexMetadata,
-                        universallyDeniedIndices, statefulIndexState);
+                        universallyDeniedIndices);
                 StatefulPermissions.Alias statefulAlias = new StatefulPermissions.Alias(roles, actionGroups, actions, indexMetadata,
-                        universallyDeniedIndices, statefulAliasState);
+                        universallyDeniedIndices);
                 StatefulPermissions.DataStream statefulDataStream = new StatefulPermissions.DataStream(roles, actionGroups, actions, indexMetadata,
-                        universallyDeniedIndices, statefulDataStreamState);
+                        universallyDeniedIndices);
 
-                this.stateful = new StatefulPermissions(statefulIndex, statefulAlias, statefulDataStream, indexMetadata);
+                StatefulPermissions stateful = new StatefulPermissions(statefulIndex, statefulAlias, statefulDataStream, indexMetadata);
 
+                this.stateful = stateful;
+                
+                this.componentState.replacePart(stateful.getComponentState());
                 this.componentState.updateStateFromParts();
             }
         } else {
@@ -1533,18 +1530,26 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         }
     }
 
-    static class StatefulPermissions {
+    static class StatefulPermissions implements ComponentStateProvider {
 
         final Index index;
         final Alias alias;
         final DataStream dataStream;
         final Meta indexMetadata;
+        final ComponentState componentState;
 
         StatefulPermissions(Index index, Alias alias, DataStream dataStream, Meta indexMetadata) {
             this.index = index;
             this.alias = alias;
             this.dataStream = dataStream;
             this.indexMetadata = indexMetadata;
+            this.componentState = new ComponentState("stateful_permissions");
+            this.componentState.addParts(index.getComponentState(), alias.getComponentState(), dataStream.getComponentState());
+        }
+        
+        @Override
+        public ComponentState getComponentState() {
+            return this.componentState;
         }
 
         /**
@@ -1565,7 +1570,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             private final Pattern universallyDeniedIndices;
 
             Index(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Meta indexMetadata,
-                    Pattern universallyDeniedIndices, ComponentState componentState) {
+                    Pattern universallyDeniedIndices) {
                 ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> actionToIndexToRoles = //
                         new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
                                 .defaultValue((k) -> new ImmutableMap.Builder<String, ImmutableSet.Builder<String>>()
@@ -1731,8 +1736,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 this.universallyDeniedIndices = universallyDeniedIndices;
 
                 this.rolesToInitializationErrors = rolesToInitializationErrors.build(ImmutableList.Builder::build);
-                this.componentState = componentState;
+                this.componentState = new ComponentState("index_permissions_stateful");
                 this.componentState.setConfigVersion(roles.getDocVersion());
+                this.componentState.setConfigProperty("metadata_version", indexMetadata.version());
 
                 if (this.rolesToInitializationErrors.isEmpty()) {
                     this.componentState.setInitialized();
@@ -1742,6 +1748,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     this.componentState.setMessage("Roles with initialization errors: " + this.rolesToInitializationErrors.keySet());
                     this.componentState.addDetail(rolesToInitializationErrors);
                 }
+                
+                this.componentState.addPart(indexMetadata.getComponentState());
+                this.componentState.addMetrics("actionToIndexToRoles_leafs", new Count(this.actionToIndexToRoles.values().stream().flatMapToInt(m -> m.values().stream().mapToInt(set -> set.size())).sum()));
+                this.componentState.addMetrics("actionToIndexToRoles_index_nodes", new Count(this.actionToIndexToRoles.values().stream().mapToInt(m -> m.size()).sum()));
+
             }
 
             PrivilegesEvaluationResult hasPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,
@@ -1829,7 +1840,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             private final Pattern universallyDeniedIndices;
 
             Alias(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Meta indexMetadata,
-                    Pattern universallyDeniedIndices, ComponentState componentState) {
+                    Pattern universallyDeniedIndices) {
                 ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> actionToAliasToRoles = //
                         new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
                                 .defaultValue((k) -> new ImmutableMap.Builder<String, ImmutableSet.Builder<String>>()
@@ -1897,18 +1908,22 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 this.universallyDeniedIndices = universallyDeniedIndices;
 
                 this.rolesToInitializationErrors = rolesToInitializationErrors.build(ImmutableList.Builder::build);
-                this.componentState = componentState;
+                this.componentState = new ComponentState("alias_permissions_stateful");
                 this.componentState.setConfigVersion(roles.getDocVersion());
                 this.componentState.setConfigProperty("es_metadata_version", indexMetadata.version());
 
                 if (this.rolesToInitializationErrors.isEmpty()) {
                     this.componentState.setInitialized();
-                    this.componentState.setMessage("Initialized with " + indexMetadata.aliases().size());
+                    this.componentState.setMessage("Initialized with " + indexMetadata);
                 } else {
                     this.componentState.setState(State.PARTIALLY_INITIALIZED, "contains_invalid_roles");
                     this.componentState.setMessage("Roles with initialization errors: " + this.rolesToInitializationErrors.keySet());
                     this.componentState.addDetail(rolesToInitializationErrors);
                 }
+                
+                this.componentState.addPart(indexMetadata.getComponentState());
+                this.componentState.addMetrics("actionToAliasToRoles_leafs", new Count(this.actionToAliasToRoles.values().stream().flatMapToInt(m -> m.values().stream().mapToInt(set -> set.size())).sum()));
+                this.componentState.addMetrics("actionToAliasToRoles_index_nodes", new Count(this.actionToAliasToRoles.values().stream().mapToInt(m -> m.size()).sum()));
             }
 
             PrivilegesEvaluationResult hasPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,
@@ -1980,7 +1995,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             private final Pattern universallyDeniedIndices;
 
             DataStream(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Meta indexMetadata,
-                    Pattern universallyDeniedIndices, ComponentState componentState) {
+                    Pattern universallyDeniedIndices) {
                 ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> actionToDataStreamToRoles = //
                         new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
                                 .defaultValue((k) -> new ImmutableMap.Builder<String, ImmutableSet.Builder<String>>()
@@ -2098,7 +2113,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 this.universallyDeniedIndices = universallyDeniedIndices;
 
                 this.rolesToInitializationErrors = rolesToInitializationErrors.build(ImmutableList.Builder::build);
-                this.componentState = componentState;
+                this.componentState = new ComponentState("data_stream_permissions_stateful");
                 this.componentState.setConfigVersion(roles.getDocVersion());
                 this.componentState.setConfigProperty("es_metadata_version", indexMetadata.version());
 
@@ -2110,6 +2125,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     this.componentState.setMessage("Roles with initialization errors: " + this.rolesToInitializationErrors.keySet());
                     this.componentState.addDetail(rolesToInitializationErrors);
                 }
+                
+                this.componentState.addPart(indexMetadata.getComponentState());
+                this.componentState.addMetrics("actionToAliasToRoles_leafs", new Count(this.actionToAliasToRoles.values().stream().flatMapToInt(m -> m.values().stream().mapToInt(set -> set.size())).sum()));
+                this.componentState.addMetrics("actionToAliasToRoles_index_nodes", new Count(this.actionToAliasToRoles.values().stream().mapToInt(m -> m.size()).sum()));
             }
 
             PrivilegesEvaluationResult hasPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,

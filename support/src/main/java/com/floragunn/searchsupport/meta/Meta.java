@@ -23,6 +23,7 @@ import com.floragunn.codova.documents.Document;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.fluent.collections.UnmodifiableCollection;
+import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.meta.MetaImpl.DefaultMetaImpl;
 
 /**
@@ -30,7 +31,7 @@ import com.floragunn.searchsupport.meta.MetaImpl.DefaultMetaImpl;
  * 
  * Provides unified, controlled and uncluttered interfaces to the ES metadata.
  */
-public interface Meta extends Document<Meta> {
+public interface Meta extends Document<Meta>, ComponentStateProvider {
     ImmutableMap<String, IndexLikeObject> indexLikeObjects();
 
     ImmutableSet<Index> indices();

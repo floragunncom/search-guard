@@ -28,16 +28,15 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.index.IndexMode;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.fluent.collections.UnmodifiableCollection;
-import org.elasticsearch.cluster.metadata.IndexMetadata;
-import org.elasticsearch.common.collect.ImmutableOpenMap;
-import org.elasticsearch.index.Index;
-import org.elasticsearch.index.IndexMode;
+import com.floragunn.searchsupport.cstate.ComponentState;
+import com.floragunn.searchsupport.cstate.ComponentState.State;
 
 public abstract class MetaImpl implements Meta {
     private static final Logger log = LogManager.getLogger(MetaImpl.class);
@@ -486,6 +485,7 @@ public abstract class MetaImpl implements Meta {
         private final ImmutableSet<DataStream> nonHiddenDataStreams;
         private final ImmutableMap<String, Meta.IndexLikeObject> nameMap;
         private final org.elasticsearch.cluster.metadata.Metadata esMetadata;
+        private final ComponentState componentState;
 
         /**
          * For testing only!
@@ -542,6 +542,9 @@ public abstract class MetaImpl implements Meta {
             }
 
             this.esMetadata = esMetadataBuilder.build();
+            
+            this.componentState = new ComponentState(0, "meta", "default_meta_impl_for_testing");
+            this.componentState.setState(State.INITIALIZED);
         }
 
         public DefaultMetaImpl(org.elasticsearch.cluster.metadata.Metadata esMetadata) {
@@ -664,6 +667,19 @@ public abstract class MetaImpl implements Meta {
             this.nonHiddenAliases = this.aliases.matching(e -> !e.isHidden());
             this.nonHiddenDataStreams = this.dataStreams.matching(e -> !e.isHidden());
             this.nameMap = nameMap.build();
+            this.componentState = new ComponentState(0, "meta", "default_meta_impl");
+            this.componentState.setState(State.INITIALIZED);
+            this.componentState.setConfigProperty("es_metadata_version", esMetadata.version());
+            this.componentState.setConfigProperty("indices", this.indices.size());    
+            this.componentState.setConfigProperty("indicesWithoutParents", this.indicesWithoutParents.size());    
+            this.componentState.setConfigProperty("aliases", this.aliases.size());    
+            this.componentState.setConfigProperty("dataStreams", this.dataStreams.size());    
+            this.componentState.setConfigProperty("nonHiddenIndicesWithoutParents", this.nonHiddenIndicesWithoutParents.size());    
+            this.componentState.setConfigProperty("nonHiddenIndices", this.nonHiddenIndices.size());    
+            this.componentState.setConfigProperty("nonSystemIndices", this.nonSystemIndices.size());    
+            this.componentState.setConfigProperty("nonSystemIndicesWithoutParents", this.nonSystemIndicesWithoutParents.size());    
+            this.componentState.setConfigProperty("nonHiddenAliases", this.nonHiddenAliases.size());    
+            this.componentState.setConfigProperty("nonHiddenDataStreams", this.nonHiddenDataStreams.size());    
         }
 
         @Override
@@ -856,7 +872,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public String toString() {
-            return "{indices: " + indices.size() + "; collections: " + indexCollections.size() + "}";
+            return "{version: " + version() + "; indices: " + indices.size() + "; collections: " + indexCollections.size() + "}";
         }
 
         @Override
@@ -872,6 +888,11 @@ public abstract class MetaImpl implements Meta {
         @Override
         public long version() {
             return esMetadata != null ? esMetadata.version() : -1;
+        }
+        
+        @Override
+        public ComponentState getComponentState() {
+            return this.componentState;
         }
 
         /**
@@ -900,6 +921,7 @@ public abstract class MetaImpl implements Meta {
 
             return currentInstance;
         }
+
     }
 
     static class AliasBuilderImpl implements Meta.Mock.AliasBuilder {
