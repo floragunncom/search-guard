@@ -257,7 +257,7 @@ public class DataStreamAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_WRITE").on("ds_aw1")//
+                            .dataStreamPermissions("SGS_WRITE", "indices:admin/refresh").on("ds_aw1")//
                             .aliasPermissions("SGS_READ").on("alias_ab1w"))//
             .indexMatcher("read", limitedTo(ds_aw1, ds_aw2, ds_bw1))//
             .indexMatcher("write", limitedTo(ds_aw1)) // alias_ab1w is included because ds_aw1 is the write index of alias_ab1w
@@ -401,18 +401,13 @@ public class DataStreamAuthorizationReadWriteIntTests {
             HttpResponse httpResponse = restClient.postJson("/ds_aw*,ds_bw*/_delete_by_query?refresh=true&wait_for_completion=true",
                     DocNode.of("query.term.delete_by_query_test_delete", "yes"));
 
-            //DeleteByQueryRequest#includeDataStreams() returns false, indices are selected based on the following SearchRequest (read permissions)
-            if (containsExactly(ds_aw1, ds_aw2, ds_bw1, ds_bw2).at("_index").but(user.indexMatcher("read")).isEmpty()) {
-                //it won't delete anything
-                assertThat(httpResponse, isOk());
-            } else if (containsExactly(ds_aw1, ds_aw2, ds_bw1, ds_bw2).at("_index").but(user.indexMatcher("read")).isCoveredBy(user.indexMatcher("write"))) {
-                //user can remove all docs found by search request
+            if (containsExactly(ds_aw1, ds_aw2, ds_bw1, ds_bw2).at("_index").but(user.indexMatcher("write")).isEmpty()) {
+                assertThat(httpResponse, isForbidden());
+            } else {
+                //user can remove some or all docs found by search request
                 assertThat(httpResponse, isOk());
                 int expectedDeleteCount = containsExactly(ds_aw1, ds_bw1).at("_index").but(user.indexMatcher("write")).size();
                 assertThat(httpResponse, json(nodeAt("deleted", equalTo(expectedDeleteCount))));
-            } else {
-                //user cannot remove all docs found by search request
-                assertThat(httpResponse, isForbidden());
             }
         } finally {
             deleteTestDocs("deleteByQuery_indexPattern", "ds_aw*,ds_bw*");
