@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 by floragunn GmbH - All rights reserved
+ * Copyright 2016-2024 by floragunn GmbH - All rights reserved
  *
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -103,12 +103,25 @@ public class FmIntTest {
         .addFieldValueMatcher("aggregations.test_agg.buckets[*].key", true, matchesPattern(HEX_HASH_PATTERN), not(matchesPattern(LOCATION_PATTERN)))
         .addFieldValueMatcher("hits.total.value", false, equalTo(1));
 
+    /**
+     * The SUPER_UNLIMITED_USER authenticates with an admin cert, which will cause all access control code to be skipped.
+     * This serves as a base for comparison with the default behavior.
+     */
+    static TestSgConfig.User SUPER_UNLIMITED_USER = new TestSgConfig.User("super_unlimited_user")//
+            .description("super unlimited (admin cert)")//
+            .adminCertUser()//
+            .addFieldValueMatcher("hits.hits[*]._source.source_ip", true, not(matchesPattern(HEX_HASH_PATTERN)), matchesPattern(IP_ADDRESS_PATTERN))
+            .addFieldValueMatcher("_source.source_ip", false, not(matchesPattern(HEX_HASH_PATTERN)), matchesPattern(IP_ADDRESS_PATTERN))
+            .addFieldValueMatcher("hits.hits[*]._source.source_loc", true, not(matchesPattern(HEX_HASH_PATTERN)), matchesPattern(IP_ADDRESS_PATTERN))
+            .addFieldValueMatcher("aggregations.test_agg.buckets[*].key", true, not(matchesPattern(HEX_HASH_PATTERN)), matchesPattern(LOCATION_PATTERN))
+            .addFieldValueMatcher("hits.total.value", false, equalTo(1));
+
     static final TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db"));
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().useImpl("flx");
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
-            .users(ADMIN, HASHED_IP_INDEX_USER, HASHED_LOC_USER, HASHED_IP_ALIAS_USER, HASHED_IP_DATA_STREAM_USER)
+            .users(ADMIN, HASHED_IP_INDEX_USER, HASHED_LOC_USER, HASHED_IP_ALIAS_USER, HASHED_IP_DATA_STREAM_USER, SUPER_UNLIMITED_USER)
         .indices(TEST_INDEX)
         .aliases(TEST_ALIAS)
         .indexTemplates(new TestIndexTemplate("ds_test", TEST_DATA_STREAM.getName() + "*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
@@ -124,12 +137,15 @@ public class FmIntTest {
         return ImmutableList.of(
             new Object[] {TEST_INDEX, HASHED_IP_INDEX_USER},
             new Object[] {TEST_INDEX, ADMIN },
+            new Object[] {TEST_INDEX, SUPER_UNLIMITED_USER },
             new Object[] {TEST_INDEX, HASHED_LOC_USER },
             new Object[] {TEST_DATA_STREAM, HASHED_IP_DATA_STREAM_USER},
             new Object[] {TEST_DATA_STREAM, ADMIN },
+            new Object[] {TEST_DATA_STREAM, SUPER_UNLIMITED_USER },
             new Object[] {TEST_DATA_STREAM, HASHED_LOC_USER },
             new Object[] {TEST_ALIAS, HASHED_IP_ALIAS_USER },
             new Object[] {TEST_ALIAS, ADMIN },
+            new Object[] {TEST_ALIAS, SUPER_UNLIMITED_USER },
             new Object[] {TEST_ALIAS, HASHED_LOC_USER }
         );
     }
@@ -151,19 +167,19 @@ public class FmIntTest {
 
     @Test
     public void get_hashed() throws Exception {
-        if(indexLikeName instanceof TestDataStream) {
-            // TODO it seems that ES does not support GET document operation for data streams
-            return;
-        }
         String docId = TEST_DATA.anyDocument().getId();
         String docUrl = "/" + indexLikeName.getName() + "/_doc/" + docId + "?pretty";
 
         try (GenericRestClient client = cluster.getRestClient(user)) {
             GenericRestClient.HttpResponse response = client.get(docUrl);
 
-
-            assertThat(response, RestMatchers.isOk());
-            assertThat(response, user.matcherForField("_source.source_ip"));
+            if(indexLikeName instanceof TestDataStream) {
+                // it seems that ES does not support GET document operation for data streams
+                assertThat(response, RestMatchers.isNotFound());
+            } else {
+                assertThat(response, RestMatchers.isOk());
+                assertThat(response, user.matcherForField("_source.source_ip"));
+            }
         }
     }
 
