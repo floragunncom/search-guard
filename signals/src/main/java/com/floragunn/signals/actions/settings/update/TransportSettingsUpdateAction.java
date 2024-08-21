@@ -8,7 +8,6 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.nodes.BaseNodeResponse;
-import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -19,6 +18,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.signals.Signals;
@@ -67,24 +67,19 @@ public class TransportSettingsUpdateAction extends
         }
     }
 
-    public static class NodeRequest extends BaseNodesRequest {
-
-        SettingsUpdateRequest request;
+    public static class NodeRequest extends TransportRequest {
 
         public NodeRequest(StreamInput in) throws IOException {
             super(in);
-            request = new SettingsUpdateRequest(in);
         }
 
         public NodeRequest(final SettingsUpdateRequest request) {
-            super((String[]) null);
-            this.request = request;
+            super();
         }
 
         @Override
         public void writeTo(final StreamOutput out) throws IOException {
             super.writeTo(out);
-            request.writeTo(out);
         }
     }
 

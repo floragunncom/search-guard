@@ -54,6 +54,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -86,12 +87,6 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         private String moduleId;
         private boolean verbose;
 
-        public Request(StreamInput in) throws IOException {
-            super(in);
-            this.moduleId = in.readOptionalString();
-            this.verbose = in.readBoolean();
-        }
-
         public Request(String moduleId) {
             super(new String[0]);
             this.moduleId = moduleId;
@@ -103,13 +98,6 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
             this.verbose = verbose;
         }
 
-        @Override
-        public void writeTo(StreamOutput out) throws IOException {
-            super.writeTo(out);
-            out.writeOptionalString(moduleId);
-            out.writeBoolean(verbose);
-        }
-
         public boolean isVerbose() {
             return verbose;
         }
@@ -117,26 +105,36 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         public void setVerbose(boolean verbose) {
             this.verbose = verbose;
         }
+
+        public String getModuleId() {
+            return moduleId;
+        }
     }
 
-    public static class NodeRequest extends BaseNodesRequest {
+    public static class NodeRequest extends TransportRequest {
 
         Request request;
 
         public NodeRequest(StreamInput in) throws IOException {
             super(in);
-            request = new Request(in);
+            String moduleId = in.readOptionalString();
+            boolean verbosee = in.readBoolean();
+            request = new Request(moduleId, verbosee);
+            //todo replace Request request with
+            //        private String moduleId;
+            //        private boolean verbose; ???
         }
 
         public NodeRequest(Request request) {
-            super((String[]) null);
+            super();
             this.request = request;
         }
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {
             super.writeTo(out);
-            request.writeTo(out);
+            out.writeOptionalString(request.getModuleId());
+            out.writeBoolean(request.isVerbose());
         }
     }
 

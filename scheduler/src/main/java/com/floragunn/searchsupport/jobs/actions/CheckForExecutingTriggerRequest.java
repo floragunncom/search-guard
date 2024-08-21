@@ -14,7 +14,6 @@ public class CheckForExecutingTriggerRequest extends BaseNodesRequest<CheckForEx
     private List<String> triggerKeys;
 
     public CheckForExecutingTriggerRequest(StreamInput in) throws IOException {
-        super(in);
         this.schedulerName = in.readString();
         this.triggerKeys = in.readStringCollectionAsList();
     }
@@ -23,13 +22,6 @@ public class CheckForExecutingTriggerRequest extends BaseNodesRequest<CheckForEx
         super(new String[] {});
         this.schedulerName = schedulerName;
         this.triggerKeys = triggerKeys;
-    }
-
-    @Override
-    public void writeTo(final StreamOutput out) throws IOException {
-        super.writeTo(out);
-        out.writeString(schedulerName);
-        out.writeStringCollection(triggerKeys);
     }
 
     @Override

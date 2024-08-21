@@ -17,12 +17,8 @@
 
 package com.floragunn.searchsupport.jobs.actions;
 
-import java.io.IOException;
-
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
 
 public class SchedulerConfigUpdateRequest extends BaseNodesRequest<SchedulerConfigUpdateRequest> {
 
@@ -31,24 +27,9 @@ public class SchedulerConfigUpdateRequest extends BaseNodesRequest<SchedulerConf
     // private Collection<String> modifiedJobs;
     //private Collection<String> deletedJobs;
 
-    public SchedulerConfigUpdateRequest(StreamInput in) throws IOException {
-        super(in);
-        this.schedulerName = in.readString();
-
-    }
-
     public SchedulerConfigUpdateRequest(String schedulerName) {
         super(new String[] {});
         this.schedulerName = schedulerName;
-    }
-
-    @Override
-    public void writeTo(final StreamOutput out) throws IOException {
-        super.writeTo(out);
-        out.writeString(schedulerName);
-        //  out.writeStringCollection(this.addedJobs);
-        // out.writeStringCollection(this.modifiedJobs);
-        // out.writeStringCollection(this.deletedJobs);
     }
 
     @Override

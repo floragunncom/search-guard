@@ -21,23 +21,6 @@ public class AckWatchRequest extends BaseNodesRequest<AckWatchRequest> {
         this.ack = ack;
     }
 
-    public AckWatchRequest(StreamInput in) throws IOException {
-        super(in);
-        this.watchId = in.readString();
-        this.ack = in.readBoolean();
-        this.actionId = in.readOptionalString();
-
-    }
-
-    @Override
-    public void writeTo(final StreamOutput out) throws IOException {
-        super.writeTo(out);
-        out.writeString(watchId);
-        out.writeBoolean(ack);
-        out.writeOptionalString(actionId);
-
-    }
-
     @Override
     public ActionRequestValidationException validate() {
         if (watchId == null || watchId.length() == 0) {

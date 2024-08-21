@@ -37,6 +37,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 
 public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpdateAction.Response> {
@@ -54,26 +55,11 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
         private UpdateType updateType;
         private long newHash;
 
-        public Request(StreamInput in) throws IOException {
-            super(in);
-            this.updatedToken = new SessionToken(in);
-            this.updateType = in.readEnum(UpdateType.class);
-            this.newHash = in.readLong();
-        }
-
         public Request(SessionToken updatedToken, UpdateType updateType, long newHash) {
             super(new String[0]);
             this.updatedToken = updatedToken;
             this.updateType = updateType;
             this.newHash = newHash;
-        }
-
-        @Override
-        public void writeTo(final StreamOutput out) throws IOException {
-            super.writeTo(out);
-            updatedToken.writeTo(out);
-            out.writeEnum(updateType);
-            out.writeLong(newHash);
         }
 
         @Override
@@ -129,24 +115,33 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
         }
     }
 
-    public static class NodeRequest extends BaseNodesRequest {
+    public static class NodeRequest extends TransportRequest {
 
         Request request;
 
         public NodeRequest(StreamInput in) throws IOException {
             super(in);
-            request = new Request(in);
+            SessionToken updatedToken = new SessionToken(in);
+            Request.UpdateType updateType = in.readEnum(Request.UpdateType.class);
+            long newHash = in.readLong();
+            this.request = new Request(updatedToken, updateType, newHash);
+            //todo replace Request request with
+            //        private SessionToken updatedToken;
+            //        private UpdateType updateType;
+            //        private long newHash; ???
         }
 
         public NodeRequest(Request request) {
-            super((String[]) null);
+            super();
             this.request = request;
         }
 
         @Override
         public void writeTo(final StreamOutput out) throws IOException {
             super.writeTo(out);
-            request.writeTo(out);
+            request.getUpdatedToken().writeTo(out);
+            out.writeEnum(request.getUpdateType());
+            out.writeLong(request.getNewHash());
         }
     }
 

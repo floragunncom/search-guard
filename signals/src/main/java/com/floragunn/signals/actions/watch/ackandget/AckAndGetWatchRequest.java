@@ -1,12 +1,9 @@
 
 package com.floragunn.signals.actions.watch.ackandget;
 
-import java.io.IOException;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
 
 public class AckAndGetWatchRequest extends BaseNodesRequest<AckAndGetWatchRequest> {
 
@@ -19,23 +16,6 @@ public class AckAndGetWatchRequest extends BaseNodesRequest<AckAndGetWatchReques
         this.watchId = watchId;
         this.actionId = actionId;
         this.ack = ack;
-    }
-
-    public AckAndGetWatchRequest(StreamInput in) throws IOException {
-        super(in);
-        this.watchId = in.readString();
-        this.ack = in.readBoolean();
-        this.actionId = in.readOptionalString();
-
-    }
-
-    @Override
-    public void writeTo(final StreamOutput out) throws IOException {
-        super.writeTo(out);
-        out.writeString(watchId);
-        out.writeBoolean(ack);
-        out.writeOptionalString(actionId);
-
     }
 
     @Override
