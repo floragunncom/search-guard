@@ -92,7 +92,7 @@ public class TransportPushAuthTokenUpdateAction extends
 
     @Override
     protected PushAuthTokenUpdateNodeResponse nodeOperation(NodeRequest request, Task task) {
-        String status = authTokenService.pushAuthTokenUpdate(new PushAuthTokenUpdateRequest(request.updatedToken, request.updateType, request.newHash)); //todo handle in different way?
+        String status = authTokenService.pushAuthTokenUpdate(new PushAuthTokenUpdateRequest(request.updatedToken, request.updateType, request.newHash));
 
         return new PushAuthTokenUpdateNodeResponse(clusterService.localNode(), status);
     }

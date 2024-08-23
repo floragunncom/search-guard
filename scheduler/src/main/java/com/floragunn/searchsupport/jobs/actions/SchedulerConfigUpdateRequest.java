@@ -23,9 +23,6 @@ import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 public class SchedulerConfigUpdateRequest extends BaseNodesRequest<SchedulerConfigUpdateRequest> {
 
     private String schedulerName;
-    //private Collection<String> addedJobs;
-    // private Collection<String> modifiedJobs;
-    //private Collection<String> deletedJobs;
 
     public SchedulerConfigUpdateRequest(String schedulerName) {
         super(new String[] {});

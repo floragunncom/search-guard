@@ -117,31 +117,30 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
 
     public static class NodeRequest extends TransportRequest {
 
-        Request request;
+        private SessionToken updatedToken;
+        private Request.UpdateType updateType;
+        private long newHash;
 
         public NodeRequest(StreamInput in) throws IOException {
             super(in);
-            SessionToken updatedToken = new SessionToken(in);
-            Request.UpdateType updateType = in.readEnum(Request.UpdateType.class);
-            long newHash = in.readLong();
-            this.request = new Request(updatedToken, updateType, newHash);
-            //todo replace Request request with
-            //        private SessionToken updatedToken;
-            //        private UpdateType updateType;
-            //        private long newHash; ???
+            this.updatedToken = new SessionToken(in);
+            this.updateType = in.readEnum(Request.UpdateType.class);
+            this.newHash = in.readLong();
         }
 
         public NodeRequest(Request request) {
             super();
-            this.request = request;
+            this.updatedToken = request.getUpdatedToken();
+            this.updateType = request.getUpdateType();
+            this.newHash = request.getNewHash();
         }
 
         @Override
         public void writeTo(final StreamOutput out) throws IOException {
             super.writeTo(out);
-            request.getUpdatedToken().writeTo(out);
-            out.writeEnum(request.getUpdateType());
-            out.writeLong(request.getNewHash());
+            this.updatedToken.writeTo(out);
+            out.writeEnum(this.updateType);
+            out.writeLong(this.newHash);
         }
     }
 
@@ -208,7 +207,7 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
         protected NodeResponse nodeOperation(NodeRequest request, Task task) {
             String status;
 
-            status = sessionService.pushAuthTokenUpdate(request.request);
+            status = sessionService.pushAuthTokenUpdate(new Request(request.updatedToken, request.updateType, request.newHash));
 
             return new NodeResponse(clusterService.localNode(), status);
         }

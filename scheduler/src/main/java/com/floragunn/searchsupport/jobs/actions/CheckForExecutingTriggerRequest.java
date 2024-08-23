@@ -1,22 +1,14 @@
 package com.floragunn.searchsupport.jobs.actions;
 
-import java.io.IOException;
 import java.util.List;
 
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
 
 public class CheckForExecutingTriggerRequest extends BaseNodesRequest<CheckForExecutingTriggerRequest> {
 
     private String schedulerName;
     private List<String> triggerKeys;
-
-    public CheckForExecutingTriggerRequest(StreamInput in) throws IOException {
-        this.schedulerName = in.readString();
-        this.triggerKeys = in.readStringCollectionAsList();
-    }
 
     public CheckForExecutingTriggerRequest(String schedulerName, List<String> triggerKeys) {
         super(new String[] {});

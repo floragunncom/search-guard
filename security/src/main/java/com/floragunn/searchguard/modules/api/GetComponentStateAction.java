@@ -113,28 +113,26 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
 
     public static class NodeRequest extends TransportRequest {
 
-        Request request;
+        private String moduleId;
+        private boolean verbose;
 
         public NodeRequest(StreamInput in) throws IOException {
             super(in);
-            String moduleId = in.readOptionalString();
-            boolean verbosee = in.readBoolean();
-            request = new Request(moduleId, verbosee);
-            //todo replace Request request with
-            //        private String moduleId;
-            //        private boolean verbose; ???
+            this.moduleId = in.readOptionalString();
+            this.verbose = in.readBoolean();
         }
 
         public NodeRequest(Request request) {
             super();
-            this.request = request;
+            this.moduleId = request.getModuleId();
+            this.verbose = request.isVerbose();
         }
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {
             super.writeTo(out);
-            out.writeOptionalString(request.getModuleId());
-            out.writeBoolean(request.isVerbose());
+            out.writeOptionalString(this.moduleId);
+            out.writeBoolean(this.verbose);
         }
     }
 
@@ -483,8 +481,8 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
 
         @Override
         protected NodeResponse nodeOperation(NodeRequest request, Task task) {
-            if (request.request.moduleId != null && !request.request.moduleId.equals("_all")) {
-                ComponentState componentState = modulesRegistry.getComponentState(request.request.moduleId);
+            if (request.moduleId != null && !request.moduleId.equals("_all")) {
+                ComponentState componentState = modulesRegistry.getComponentState(request.moduleId);
 
                 if (componentState != null) {
                     return new NodeResponse(clusterService.localNode(), Collections.singletonList(componentState));
