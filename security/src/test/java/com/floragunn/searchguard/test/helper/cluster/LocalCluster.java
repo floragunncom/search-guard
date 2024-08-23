@@ -203,6 +203,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                 InetSocketAddress transportAddress = entry.getValue().localEsCluster.masterNode().getTransportAddress();
                 nodeOverride = Settings.builder().put(nodeOverride)
                         .putList("cluster.remote." + entry.getKey() + ".seeds", transportAddress.getHostString() + ":" + transportAddress.getPort())
+                        .put("cluster.remote." + entry.getKey() + ".skip_unavailable", false) //due to breaking change: https://github.com/elastic/elasticsearch/pull/105792
                         .build();
             }
 

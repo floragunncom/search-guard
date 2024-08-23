@@ -87,7 +87,8 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
     
     private Settings crossClusterNodeSettings(ClusterInfo remote) {
         Settings.Builder builder = Settings.builder()
-                .putList("cluster.remote.cross_cluster_two.seeds", remote.nodeHost+":"+remote.nodePort);
+                .putList("cluster.remote.cross_cluster_two.seeds", remote.nodeHost+":"+remote.nodePort)
+                .put("cluster.remote.cross_cluster_two.skip_unavailable", false); //due to breaking change: https://github.com/elastic/elasticsearch/pull/105792
         return builder.build();
     }
     
