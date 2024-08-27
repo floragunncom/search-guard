@@ -77,7 +77,7 @@ public class RoleBasedDocumentAuthorizationTest {
     static NamedXContentRegistry xContentRegistry = new NamedXContentRegistry(
             ImmutableList.of(new NamedXContentRegistry.Entry(QueryBuilder.class, new ParseField(TermQueryBuilder.NAME),
                     (CheckedFunction<XContentParser, TermQueryBuilder, IOException>) (p) -> TermQueryBuilder.fromXContent(p))));
-    static Parser.Context parserContext = new ConfigurationRepository.Context(null, null, null, xContentRegistry, null);
+    static ConfigurationRepository.Context parserContext = new ConfigurationRepository.Context(null, null, null, xContentRegistry, null);
 
     @RunWith(Parameterized.class)
     public static class IndicesAndAliases_getRestriction {

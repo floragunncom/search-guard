@@ -899,7 +899,7 @@ public class TestSgConfig {
             return toActualRole(new ConfigurationRepository.Context(null, null, null, null, null));
         }
 
-        public com.floragunn.searchguard.authz.config.Role toActualRole(Parser.Context parserContext) throws ConfigValidationException {
+        public com.floragunn.searchguard.authz.config.Role toActualRole(ConfigurationRepository.Context parserContext) throws ConfigValidationException {
             return com.floragunn.searchguard.authz.config.Role.parse(DocNode.wrap(this.toDeepBasicObject()), parserContext).get();
         }
 
@@ -912,7 +912,7 @@ public class TestSgConfig {
                             this.excludedClusterPermissions, "exclude_index_permissions", this.excludedIndexPermissions));
         }
 
-        public static SgDynamicConfiguration<com.floragunn.searchguard.authz.config.Role> toActualRole(Parser.Context parserContext,
+        public static SgDynamicConfiguration<com.floragunn.searchguard.authz.config.Role> toActualRole(ConfigurationRepository.Context parserContext,
                 TestSgConfig.Role... roles) throws ConfigValidationException {
             Map<String, com.floragunn.searchguard.authz.config.Role> parsedRoles = new HashMap<>();
 

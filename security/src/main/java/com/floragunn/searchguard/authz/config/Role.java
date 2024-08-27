@@ -25,6 +25,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.PatternSyntaxException;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.floragunn.codova.config.templates.Template;
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.DocNode;
@@ -37,6 +40,7 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.Hideable;
 import com.floragunn.searchguard.configuration.StaticDefinable;
 import com.floragunn.searchsupport.queries.Query;
@@ -44,8 +48,9 @@ import com.floragunn.searchsupport.xcontent.XContentParserContext;
 import com.google.common.base.Splitter;
 
 public class Role implements Document<Role>, Hideable, StaticDefinable {
+    private static final Logger log = LogManager.getLogger(Role.class);
 
-    public static ValidationResult<Role> parse(DocNode docNode, Parser.Context context) {
+    public static ValidationResult<Role> parse(DocNode docNode, ConfigurationRepository.Context context) {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
@@ -67,14 +72,22 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
                 .ofObjectsParsedBy((Parser<DataStream, Parser.Context>) DataStream::new);
         ImmutableList<Tenant> tenantPermissions = vNode.get("tenant_permissions").asList().withEmptyListAsDefault()
                 .ofObjectsParsedBy((Parser<Tenant, Parser.Context>) Tenant::new);
-        ImmutableList<ExcludeIndex> excludeIndexPermissions = vNode.get("exclude_index_permissions").asList().withEmptyListAsDefault()
-                .ofObjectsParsedBy((Parser<ExcludeIndex, Parser.Context>) ExcludeIndex::new);
+
+        List<String> excludeIndexPermissions = vNode.get("exclude_index_permissions").asList().withEmptyListAsDefault().ofStrings();
+        if (excludeIndexPermissions != null && !excludeIndexPermissions.isEmpty()) {
+            if (context != null && context.isLenientValidationRequested()) {
+                log.error("exclude_index_permissions in sg_roles is no longer supported");
+            } else {
+                validationErrors.add(new ValidationError("exclude_index_permissions", "This attribute is no longer supported"));
+            }
+        }
+
         String description = vNode.get("description").asString();
 
         vNode.checkForUnusedAttributes();
 
         return new ValidationResult<Role>(new Role(docNode, reserved, hidden, isStatic, description, clusterPermissions, indexPermissions,
-                aliasPermissions, dataStreamPermissions, tenantPermissions, excludeClusterPermissions, excludeIndexPermissions), validationErrors);
+                aliasPermissions, dataStreamPermissions, tenantPermissions, excludeClusterPermissions), validationErrors);
     }
 
     private final DocNode source;
@@ -89,12 +102,10 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
     private final ImmutableList<DataStream> dataStreamPermissions;
     private final ImmutableList<Tenant> tenantPermissions;
     private final ImmutableList<String> excludeClusterPermissions;
-    private final ImmutableList<ExcludeIndex> excludeIndexPermissions;
 
     public Role(DocNode source, boolean reserved, boolean hidden, boolean isStatic, String description, ImmutableList<String> clusterPermissions,
             ImmutableList<Index> indexPermissions, ImmutableList<Alias> aliasPermissions, ImmutableList<DataStream> dataStreamPermissions,
-            ImmutableList<Tenant> tenantPermissions, ImmutableList<String> excludeClusterPermissions,
-            ImmutableList<ExcludeIndex> excludeIndexPermissions) {
+            ImmutableList<Tenant> tenantPermissions, ImmutableList<String> excludeClusterPermissions) {
         this.source = source;
         this.reserved = reserved;
         this.isStatic = isStatic;
@@ -106,7 +117,6 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
         this.dataStreamPermissions = dataStreamPermissions;
         this.tenantPermissions = tenantPermissions;
         this.excludeClusterPermissions = excludeClusterPermissions;
-        this.excludeIndexPermissions = excludeIndexPermissions;
     }
 
     @Override
@@ -410,48 +420,6 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
     }
 
-    public static class ExcludeIndex {
-
-        private final IndexPatterns indexPatterns;
-        private final ImmutableList<String> actions;
-
-        public ExcludeIndex(DocNode docNode, Parser.Context context) throws ConfigValidationException {
-            ValidationErrors validationErrors = new ValidationErrors();
-            ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
-
-            // Just for validation: 
-            vNode.get("actions").by(Pattern::parse);
-            vNode.get("index_patterns").asList().ofTemplates(Pattern::create);
-
-            this.actions = ImmutableList.of(vNode.get("actions").asList().withEmptyListAsDefault().ofStrings());
-            ImmutableList<Template<String>> indexPatterns = ImmutableList
-                    .of(vNode.get("index_patterns").asList().withEmptyListAsDefault().ofTemplates());
-
-            this.indexPatterns = new IndexPatterns.Builder(indexPatterns).build();
-
-            vNode.checkForUnusedAttributes();
-            validationErrors.throwExceptionForPresentErrors();
-        }
-
-        public ExcludeIndex(ImmutableList<Template<Pattern>> indexPatterns, ImmutableList<String> actions) {
-            try {
-                this.indexPatterns = new IndexPatterns.Builder(indexPatterns.map(t -> t.toStringTemplate())).build();
-            } catch (ConfigValidationException e) {
-                // This should not happen
-                throw new RuntimeException(e);
-            }
-            this.actions = actions;
-        }
-
-        public IndexPatterns getIndexPatterns() {
-            return indexPatterns;
-        }
-
-        public ImmutableList<String> getActions() {
-            return actions;
-        }
-    }
-
     public static class IndexPatterns {
 
         private final Pattern pattern;
@@ -685,10 +653,6 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
     public ImmutableList<Index> getIndexPermissions() {
         return indexPermissions;
-    }
-
-    public ImmutableList<ExcludeIndex> getExcludeIndexPermissions() {
-        return excludeIndexPermissions;
     }
 
     public ImmutableList<Tenant> getTenantPermissions() {

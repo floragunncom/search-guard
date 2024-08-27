@@ -55,10 +55,6 @@ import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import com.floragunn.searchsupport.meta.Meta;
 
-/**
- * TODO aliases create deep exclusions
- *
- */
 public class RoleBasedActionAuthorization implements ActionAuthorization, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(RoleBasedActionAuthorization.class);
 
@@ -72,7 +68,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     private final IndexPermissions<Role.Index> index;
     private final IndexPermissions<Role.Alias> alias;
     private final IndexPermissions<Role.DataStream> dataStream;
-    private final IndexPermissionExclusions indexExclusions;
     private final TenantPermissions tenant;
     private final ComponentState componentState;
 
@@ -119,13 +114,12 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         this.alias = new IndexPermissions<Role.Alias>(roles, actionGroups, actions, Role::getAliasPermissions, "alias_permissions");
         this.dataStream = new IndexPermissions<Role.DataStream>(roles, actionGroups, actions, Role::getDataStreamPermissions,
                 "data_stream_permissions");
-        this.indexExclusions = new IndexPermissionExclusions(roles, actionGroups, actions);
         this.tenant = new TenantPermissions(roles, actionGroups, actions, this.tenantManager.getConfiguredTenantNames());
         this.universallyDeniedIndices = universallyDeniedIndices;
 
         this.componentState = new ComponentState("role_based_action_authorization");
         this.componentState.addParts(cluster.getComponentState(), clusterExclusions.getComponentState(), index.getComponentState(),
-                indexExclusions.getComponentState(), tenant.getComponentState(), statefulIndexState, statefulAliasState, statefulDataStreamState);
+                 tenant.getComponentState(), statefulIndexState, statefulAliasState, statefulDataStreamState);
 
         if (indexMetadata != null) {
             try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
@@ -244,7 +238,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         }
                     }
 
-                    if (checkTable.isComplete() && !indexExclusions.contains(mappedRoles, actions)) {
+                    if (checkTable.isComplete()) {
                         log.trace("Granting request on local_all");
                         indexActionCheckResults_ok.increment();
                         return PrivilegesEvaluationResult.OK;
@@ -349,12 +343,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 log.trace("Permissions after universallyDeniedIndices exclusions:\n" + shallowCheckTable);
             }
 
-            indexExclusions.uncheckExclusions(shallowCheckTable, user, mappedRoles, actions, resolved, context, meter);
-
-            if (log.isTraceEnabled()) {
-                log.trace("Permissions after exclusions:\n" + shallowCheckTable);
-            }
-
             if (shallowCheckTable.isComplete()) {
                 // TODO check whether we should move universallyDeniedUnchecking here because we will never gain these privileges later
                 indexActionCheckResults_ok.increment();
@@ -452,8 +440,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                     semiDeepCheckTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL)));
 
-                    indexExclusions.uncheckExclusions(semiDeepCheckTable, user, mappedRoles, actions, resolved, context, meter);
-
                     if (semiDeepCheckTable.isComplete()) {
                         indexActionCheckResults_partially.increment();
                         return PrivilegesEvaluationResult.OK_WHEN_RESOLVED.availableIndices(semiDeepCheckTable.getCompleteRows(),
@@ -514,8 +500,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 if (log.isTraceEnabled()) {
                     log.trace("Permissions after universallyDeniedIndices exclusions:\n{}", deepCheckTable);
                 }
-
-                indexExclusions.uncheckExclusions(deepCheckTable, user, mappedRoles, actions, resolved, context, meter);
 
                 if (log.isTraceEnabled()) {
                     log.trace("Permissions after exclusions:\n{}", deepCheckTable);
@@ -1359,180 +1343,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
     }
 
-    static class IndexPermissionExclusions implements ComponentStateProvider {
-        private final ImmutableMap<String, ImmutableMap<Action, IndexPattern>> rolesToActionToIndexPattern;
-        private final ImmutableMap<String, ImmutableMap<Pattern, IndexPattern>> rolesToActionPatternToIndexPattern;
-
-        private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
-        private final ComponentState componentState;
-
-        IndexPermissionExclusions(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions) {
-            this.componentState = new ComponentState("index_permission_exclusions");
-
-            ImmutableMap.Builder<String, ImmutableMap.Builder<Action, IndexPattern.Builder>> rolesToActionToIndexPattern = //
-                    new ImmutableMap.Builder<String, ImmutableMap.Builder<Action, IndexPattern.Builder>>().defaultValue(
-                            (k) -> new ImmutableMap.Builder<Action, IndexPattern.Builder>().defaultValue((k2) -> new IndexPattern.Builder()));
-
-            ImmutableMap.Builder<String, ImmutableMap.Builder<Pattern, IndexPattern.Builder>> rolesToActionPatternsToIndexPattern = //
-                    new ImmutableMap.Builder<String, ImmutableMap.Builder<Pattern, IndexPattern.Builder>>().defaultValue(
-                            (k) -> new ImmutableMap.Builder<Pattern, IndexPattern.Builder>().defaultValue((k2) -> new IndexPattern.Builder()));
-
-            ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
-                    .defaultValue((k) -> new ImmutableList.Builder<Exception>());
-
-            for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
-                try {
-                    String roleName = entry.getKey();
-                    Role role = entry.getValue();
-
-                    for (Role.ExcludeIndex indexPermissions : role.getExcludeIndexPermissions()) {
-                        ImmutableSet<String> permissions = actionGroups.resolve(indexPermissions.getActions());
-
-                        for (String permission : permissions) {
-
-                            if (Pattern.isConstant(permission)) {
-                                rolesToActionToIndexPattern.get(roleName).get(actions.get(permission)).add(indexPermissions.getIndexPatterns());
-                            } else {
-                                Pattern actionPattern = Pattern.create(permission);
-
-                                ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
-                                        .matching((a) -> actionPattern.matches(a.name()));
-
-                                for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
-                                    rolesToActionToIndexPattern.get(roleName).get(action).add(indexPermissions.getIndexPatterns());
-                                }
-
-                                rolesToActionPatternsToIndexPattern.get(roleName).get(actionPattern).add(indexPermissions.getIndexPatterns());
-                            }
-
-                        }
-
-                    }
-
-                } catch (ConfigValidationException e) {
-                    log.error("Invalid configuration in role: {}\nThis should have been caught before. Ignoring role.", entry, e);
-                    rolesToInitializationErrors.get(entry.getKey()).with(e);
-                } catch (Exception e) {
-                    log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
-                    rolesToInitializationErrors.get(entry.getKey()).with(e);
-                }
-            }
-
-            this.rolesToActionToIndexPattern = rolesToActionToIndexPattern.build((b) -> b.build(IndexPattern.Builder::build));
-            this.rolesToActionPatternToIndexPattern = rolesToActionPatternsToIndexPattern.build((b) -> b.build(IndexPattern.Builder::build));
-
-            this.rolesToInitializationErrors = rolesToInitializationErrors.build(ImmutableList.Builder::build);
-            this.componentState.setConfigVersion(roles.getDocVersion());
-
-            if (this.rolesToInitializationErrors.isEmpty()) {
-                this.componentState.setInitialized();
-            } else {
-                this.componentState.setState(State.PARTIALLY_INITIALIZED, "contains_invalid_roles");
-                this.componentState.setMessage("Roles with initialization errors: " + this.rolesToInitializationErrors.keySet());
-                this.componentState.addDetail(rolesToInitializationErrors);
-            }
-        }
-
-        boolean contains(ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions) {
-            boolean allActionsWellKnown = actions.forAllApplies((a) -> a instanceof WellKnownAction);
-
-            for (String role : mappedRoles) {
-                ImmutableMap<Action, IndexPattern> actionToIndexPattern = rolesToActionToIndexPattern.get(role);
-
-                if (actionToIndexPattern != null && actionToIndexPattern.containsAny(actions)) {
-                    return true;
-                }
-
-                if (!allActionsWellKnown) {
-                    // We need to check the patterns only if we have non-well-known actions to test
-
-                    ImmutableMap<Pattern, IndexPattern> actionPatternToIndexPattern = rolesToActionPatternToIndexPattern.get(role);
-
-                    if (actionPatternToIndexPattern != null) {
-                        for (Pattern pattern : actionPatternToIndexPattern.keySet()) {
-                            if (actions.forAnyApplies((a) -> pattern.test(a.name()))) {
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        void uncheckExclusions(CheckTable<Meta.IndexLikeObject, Action> checkTable, User user, ImmutableSet<String> mappedRoles,
-                ImmutableSet<Action> actions, ResolvedIndices resolved, PrivilegesEvaluationContext context, Meter meter)
-                throws PrivilegesEvaluationException {
-
-            try (Meter subMeter = meter.basic("well_known_actions_uncheck_exclusions")) {
-                top: for (String role : mappedRoles) {
-                    ImmutableMap<Action, IndexPattern> actionToIndexPattern = rolesToActionToIndexPattern.get(role);
-
-                    if (actionToIndexPattern != null) {
-                        for (Action action : actions) {
-                            IndexPattern indexPattern = actionToIndexPattern.get(action);
-
-                            if (indexPattern != null) {
-                                for (Meta.IndexLikeObject index : checkTable.iterateCheckedRows(action)) {
-                                    if (indexPattern.matches(index.name(), user, context, subMeter) || indexPattern
-                                            .matches(index.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL), user, context, subMeter)) {
-                                        checkTable.uncheck(index, action);
-                                    }
-                                }
-
-                                if (checkTable.isBlank()) {
-                                    break top;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            boolean allActionsWellKnown = actions.forAllApplies((a) -> a instanceof WellKnownAction);
-
-            if (!checkTable.isBlank() && !allActionsWellKnown) {
-                try (Meter subMeter = meter.basic("non_well_known_actions_uncheck_exclusions")) {
-                    top: for (String role : mappedRoles) {
-                        ImmutableMap<Pattern, IndexPattern> actionPatternToIndexPattern = rolesToActionPatternToIndexPattern.get(role);
-
-                        if (actionPatternToIndexPattern != null) {
-                            for (Action action : actions) {
-                                if (action instanceof WellKnownAction) {
-                                    continue;
-                                }
-
-                                for (Map.Entry<Pattern, IndexPattern> entry : actionPatternToIndexPattern.entrySet()) {
-                                    Pattern actionPattern = entry.getKey();
-                                    IndexPattern indexPattern = entry.getValue();
-
-                                    if (actionPattern.matches(action.name())) {
-                                        for (Meta.IndexLikeObject index : checkTable.iterateCheckedRows(action)) {
-                                            if (indexPattern.matches(index.name(), user, context, subMeter) || indexPattern
-                                                    .matches(index.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL), user, context, subMeter)) {
-                                                checkTable.uncheck(index, action);
-                                            }
-                                        }
-
-                                        if (checkTable.isBlank()) {
-                                            break top;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        @Override
-        public ComponentState getComponentState() {
-            return componentState;
-        }
-    }
-
     static class StatefulPermissions {
 
         final Index index;
@@ -1587,49 +1397,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     try {
                         String roleName = entry.getKey();
                         Role role = entry.getValue();
-
-                        for (Role.ExcludeIndex excludedIndexPermissions : role.getExcludeIndexPermissions()) {
-                            ImmutableSet<String> permissions = actionGroups.resolve(excludedIndexPermissions.getActions());
-
-                            if (excludedIndexPermissions.getIndexPatterns().getPattern().isWildcard()) {
-                                // This is handled in the static IndexPermissions object.
-                                continue;
-                            }
-
-                            if (!excludedIndexPermissions.getIndexPatterns().getPatternTemplates().isEmpty()
-                                    || !excludedIndexPermissions.getIndexPatterns().getDateMathExpressions().isEmpty()) {
-                                // This class can only work on non-templated index patterns. 
-                                // If there are templated exclusions (which should be a very rare thing), we cannot do evaluation here
-                                // We record the role name to indicate that this class cannot evaluate these roles
-                                rolesWithTemplatedExclusions.add(roleName);
-                                continue;
-                            }
-
-                            for (String permission : permissions) {
-                                Pattern indexPattern = excludedIndexPermissions.getIndexPatterns().getPattern();
-
-                                if (Pattern.isConstant(permission)) {
-                                    Action action = actions.get(permission);
-
-                                    if (action instanceof WellKnownAction) {
-                                        for (String index : indexPattern.iterateMatching(indexNames)) {
-                                            excludedActionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
-                                        }
-                                    }
-                                } else {
-                                    Pattern pattern = Pattern.create(permission);
-
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
-                                            .matching((a) -> pattern.matches(a.name()));
-
-                                    for (String index : indexPattern.iterateMatching(indexNames)) {
-                                        for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
-                                            excludedActionToIndexToRoles.get(action).get(index).add(roleName);
-                                        }
-                                    }
-                                }
-                            }
-                        }
 
                         for (Role.Index indexPermissions : role.getIndexPermissions()) {
                             ImmutableSet<String> permissions = actionGroups.resolve(indexPermissions.getAllowedActions());
