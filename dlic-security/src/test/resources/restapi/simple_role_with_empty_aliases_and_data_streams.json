@@ -6,7 +6,6 @@
 		"SGS_CLUSTER_COMPOSITE_OPS"
 	],
 	"exclude_cluster_permissions": [],
-	"exclude_index_permissions": [],
 	"alias_permissions": [],
 	"data_stream_permissions": []
 }
