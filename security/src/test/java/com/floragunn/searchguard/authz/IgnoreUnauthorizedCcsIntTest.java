@@ -21,6 +21,10 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.TestAlias;
+import com.floragunn.searchguard.test.TestIndex;
+import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.PitHolder;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.hamcrest.Matcher;
@@ -35,10 +39,6 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestAlias;
-import com.floragunn.searchguard.test.TestIndex;
-import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
@@ -352,13 +352,21 @@ public class IgnoreUnauthorizedCcsIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.get(query);
 
-            Assert.assertThat(httpResponse, isNotFound());
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("hits.hits", empty())));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.status", equalTo("skipped"))));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures", hasSize(1))));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures[0].reason.reason", containsString("no such index"))));
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
             HttpResponse httpResponse = restClient.get(query);
 
-            Assert.assertThat(httpResponse, isForbidden());
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("hits.hits", empty())));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.status", equalTo("skipped"))));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures", hasSize(1))));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures[0].reason.reason", equalTo("Insufficient permissions"))));
         }
     }
 
@@ -454,7 +462,11 @@ public class IgnoreUnauthorizedCcsIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
             HttpResponse httpResponse = restClient.get(query);
 
-            Assert.assertThat(httpResponse, isForbidden());
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("hits.hits", empty())));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.status", equalTo("skipped"))));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures", hasSize(1))));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures[0].reason.reason", equalTo("Insufficient permissions"))));
         }
 
     }
@@ -564,7 +576,10 @@ public class IgnoreUnauthorizedCcsIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
             HttpResponse httpResponse = restClient.get(query);
 
-            Assert.assertThat(httpResponse, isForbidden());
+            Assert.assertThat(httpResponse, json(nodeAt("hits.hits", empty())));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.status", equalTo("skipped"))));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures", hasSize(1))));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures[0].reason.reason", equalTo("Insufficient permissions"))));
         }
 
     }
@@ -593,7 +608,10 @@ public class IgnoreUnauthorizedCcsIntTest {
             HttpResponse httpResponse = restClient.postJson(query, msearchBody);
 
             Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].error.type", containsInAnyOrder("security_exception"))));
+            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].hits.hits", containsInAnyOrder(empty()))));
+            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*]._clusters.details.my_remote.status", containsInAnyOrder("skipped"))));
+            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*]._clusters.details.my_remote.failures", containsInAnyOrder(hasSize(1)))));
+            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*]._clusters.details.my_remote.failures[0].reason.reason", containsInAnyOrder("Insufficient permissions"))));
         }
     }
 
