@@ -57,6 +57,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     private ImmutableList<DataStreamPermissions> dataStreamPermissions;
     private ImmutableList<String> roles;
     private ImmutableList<String> excludedClusterPermissions;
+    @Deprecated
     private ImmutableList<ExcludedIndexPermissions> excludedIndexPermissions;
 
     public RequestedPrivileges(StreamInput in) throws IOException {
@@ -113,10 +114,6 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         return excludedClusterPermissions;
     }
 
-    public ImmutableList<ExcludedIndexPermissions> getExcludedIndexPermissions() {
-        return excludedIndexPermissions;
-    }
-
     public RequestedPrivileges excludeClusterPermissions(List<String> excludeAddionalClusterPermissions) {
         if (excludeAddionalClusterPermissions == null || excludeAddionalClusterPermissions.size() == 0) {
             return this;
@@ -131,24 +128,6 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         result.roles = this.roles;
         result.excludedIndexPermissions = this.excludedIndexPermissions;
         result.excludedClusterPermissions = this.excludedClusterPermissions.with(excludeAddionalClusterPermissions);
-
-        return result;
-    }
-
-    public RequestedPrivileges excludeIndexPermissions(List<ExcludedIndexPermissions> excludeAddionalIndexPermissions) {
-        if (excludeAddionalIndexPermissions == null || excludeAddionalIndexPermissions.size() == 0) {
-            return this;
-        }
-
-        RequestedPrivileges result = new RequestedPrivileges();
-        result.clusterPermissions = this.clusterPermissions;
-        result.indexPermissions = this.indexPermissions;
-        result.tenantPermissions = this.tenantPermissions;
-        result.aliasPermissions = this.aliasPermissions;
-        result.dataStreamPermissions = this.dataStreamPermissions;
-        result.roles = this.roles;
-        result.excludedClusterPermissions = this.excludedClusterPermissions;
-        result.excludedIndexPermissions = this.excludedIndexPermissions.with(excludeAddionalIndexPermissions);
 
         return result;
     }
@@ -208,12 +187,11 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
     SgDynamicConfiguration<Role> toRolesConfig() {
         ImmutableList<Role.Index> indexPermissions = this.indexPermissions.map((p) -> p.toRoleIndex());
         ImmutableList<Role.Tenant> tenantPermissions = this.tenantPermissions.map((p) -> p.toRoleTenant());
-        ImmutableList<Role.ExcludeIndex> excludeIndexPermissions = this.excludedIndexPermissions.map((p) -> p.toRoleExcludeIndex());
         ImmutableList<Role.Alias> aliasPermissions = this.aliasPermissions.map((p) -> p.toRoleAlias());
         ImmutableList<Role.DataStream> dataStreamPermissions = this.dataStreamPermissions.map((p) -> p.toRoleDataStream());
 
         Role role = new Role(null, false, false, false, "requested privileges", clusterPermissions, indexPermissions, aliasPermissions,
-                dataStreamPermissions, tenantPermissions, excludedClusterPermissions, excludeIndexPermissions);
+                dataStreamPermissions, tenantPermissions, excludedClusterPermissions);
         
         return SgDynamicConfiguration.of(CType.ROLES, RESTRICTION_ROLE, role);
     }
@@ -618,16 +596,14 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         }
     }
 
+    /**
+     * @deprecated no longer supported. This is only left for parsing StreamInput.
+     */
     public static class ExcludedIndexPermissions implements Writeable, ToXContentObject, Serializable {
 
         private static final long serialVersionUID = -2567351561923741922L;
         private ImmutableList<Template<Pattern>> indexPatterns;
         private ImmutableList<String> actions;
-
-        ExcludedIndexPermissions(ImmutableList<Template<Pattern>> indexPatterns, ImmutableList<String> actions) {
-            this.indexPatterns = indexPatterns;
-            this.actions = actions;
-        }
 
         ExcludedIndexPermissions(StreamInput in) throws IOException {
             this.indexPatterns =  ImmutableList.map(in.readStringCollectionAsList(), (s) -> {
@@ -645,18 +621,6 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         public void writeTo(StreamOutput out) throws IOException {
             out.writeStringCollection(indexPatterns.map((t) -> t.getSource()));
             out.writeStringCollection(actions);
-        }
-
-        public static ExcludedIndexPermissions parse(DocNode jsonNode) throws ConfigValidationException {
-            ValidationErrors validationErrors = new ValidationErrors();
-            ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
-
-            List<Template<Pattern>> indexPatterns = vJsonNode.get("index_patterns").required().asList().minElements(1).ofTemplates(Pattern::create);
-            List<String> actions = vJsonNode.get("actions").required().asList().minElements(1).ofStrings();
-
-            validationErrors.throwExceptionForPresentErrors();
-
-            return new ExcludedIndexPermissions(ImmutableList.of(indexPatterns), ImmutableList.of(actions));
         }
 
         @Override
@@ -703,10 +667,6 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
                 return false;
             return true;
         }
-        
-        Role.ExcludeIndex toRoleExcludeIndex() {
-            return new Role.ExcludeIndex(indexPatterns, actions);
-        }
     }
 
     public static RequestedPrivileges parse(DocNode jsonNode) throws ConfigValidationException {
@@ -726,7 +686,7 @@ public class RequestedPrivileges implements Writeable, ToXContentObject, Seriali
         result.aliasPermissions = vJsonNode.hasNonNull("alias_permissions") ? ImmutableList.of(vJsonNode.get("alias_permissions").asList(AliasPermissions::parse)) : null;
         result.dataStreamPermissions = vJsonNode.hasNonNull("data_stream_permissions") ? ImmutableList.of(vJsonNode.get("data_stream_permissions").asList(DataStreamPermissions::parse)) : null;
         result.excludedClusterPermissions = vJsonNode.hasNonNull("exclude_cluster_permissions") ? ImmutableList.of(vJsonNode.get("exclude_cluster_permissions").asListOfStrings()) : null;
-        result.excludedIndexPermissions =  vJsonNode.hasNonNull("exclude_index_permissions") ? ImmutableList.of(vJsonNode.get("exclude_index_permissions").asList(ExcludedIndexPermissions::parse)) : null;
+        result.excludedIndexPermissions =  null;
         result.roles = vJsonNode.hasNonNull("roles") ? ImmutableList.of(vJsonNode.get("roles").asListOfStrings()) : null;
 
         validationErrors.throwExceptionForPresentErrors();

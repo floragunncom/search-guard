@@ -57,7 +57,6 @@ import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
-import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.documents.patch.MergePatch;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
@@ -799,7 +798,6 @@ public class TestSgConfig {
         private List<String> excludedClusterPermissions = new ArrayList<>();
 
         private List<IndexLikePermission> indexPermissions = new ArrayList<>();
-        private List<ExcludedIndexPermission> excludedIndexPermissions = new ArrayList<>();
         private List<IndexLikePermission> aliasPermissions = new ArrayList<>();
         private List<IndexLikePermission> dataStreamPermissions = new ArrayList<>();
 
@@ -844,10 +842,6 @@ public class TestSgConfig {
             return new TenantPermission(this, tenantPermissions);
         }
 
-        public ExcludedIndexPermission excludeIndexPermissions(String... indexPermissions) {
-            return new ExcludedIndexPermission(this, indexPermissions);
-        }
-
         public String getName() {
             return name;
         }
@@ -883,10 +877,6 @@ public class TestSgConfig {
                 map.put(new NestedValueMap.Path(name, "exclude_cluster_permissions"), this.excludedClusterPermissions);
             }
 
-            if (this.excludedIndexPermissions.size() > 0) {
-                map.put(new NestedValueMap.Path(name, "exclude_index_permissions"), this.excludedIndexPermissions.stream()
-                    .map((p) -> NestedValueMap.of("index_patterns", p.indexPatterns, "actions", p.actions)).collect(Collectors.toList()));
-            }
             if (this.tenantPermissions.size() > 0) {
                 map.put(new NestedValueMap.Path(name, "tenant_permissions"), this.tenantPermissions.stream()
                     .map(TenantPermission::asNestedValueMap)
@@ -899,7 +889,7 @@ public class TestSgConfig {
             return toActualRole(new ConfigurationRepository.Context(null, null, null, null, null));
         }
 
-        public com.floragunn.searchguard.authz.config.Role toActualRole(Parser.Context parserContext) throws ConfigValidationException {
+        public com.floragunn.searchguard.authz.config.Role toActualRole(ConfigurationRepository.Context parserContext) throws ConfigValidationException {
             return com.floragunn.searchguard.authz.config.Role.parse(DocNode.wrap(this.toDeepBasicObject()), parserContext).get();
         }
 
@@ -909,10 +899,10 @@ public class TestSgConfig {
                     .ofNonNull("cluster_permissions", this.clusterPermissions, "index_permissions", this.indexPermissions, "alias_permissions",
                             this.aliasPermissions, "data_stream_permissions", this.dataStreamPermissions)
                     .with(ImmutableMap.ofNonNull("tenant_permissions", this.tenantPermissions, "exclude_cluster_permissions",
-                            this.excludedClusterPermissions, "exclude_index_permissions", this.excludedIndexPermissions));
+                            this.excludedClusterPermissions));
         }
 
-        public static SgDynamicConfiguration<com.floragunn.searchguard.authz.config.Role> toActualRole(Parser.Context parserContext,
+        public static SgDynamicConfiguration<com.floragunn.searchguard.authz.config.Role> toActualRole(ConfigurationRepository.Context parserContext,
                 TestSgConfig.Role... roles) throws ConfigValidationException {
             Map<String, com.floragunn.searchguard.authz.config.Role> parsedRoles = new HashMap<>();
 
@@ -1060,24 +1050,6 @@ public class TestSgConfig {
         public Object toBasicObject() {
             return ImmutableMap.ofNonNull(patternAttributeName, indexPatterns, "allowed_actions", allowedActions, "dls", dlsQuery, "fls", fls,
                     "masked_fields", maskedFields);
-        }
-
-    }
-
-    public static class ExcludedIndexPermission {
-        private List<String> actions;
-        private List<String> indexPatterns;
-        private Role role;
-
-        ExcludedIndexPermission(Role role, String... actions) {
-            this.actions = asList(actions);
-            this.role = role;
-        }
-
-        public Role on(String... indexPatterns) {
-            this.indexPatterns = asList(indexPatterns);
-            this.role.excludedIndexPermissions.add(this);
-            return this.role;
         }
 
     }

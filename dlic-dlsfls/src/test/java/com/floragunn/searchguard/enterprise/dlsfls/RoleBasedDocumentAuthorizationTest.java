@@ -52,7 +52,6 @@ import org.junit.runners.Suite;
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -77,7 +76,7 @@ public class RoleBasedDocumentAuthorizationTest {
     static NamedXContentRegistry xContentRegistry = new NamedXContentRegistry(
             ImmutableList.of(new NamedXContentRegistry.Entry(QueryBuilder.class, new ParseField(TermQueryBuilder.NAME),
                     (CheckedFunction<XContentParser, TermQueryBuilder, IOException>) (p) -> TermQueryBuilder.fromXContent(p))));
-    static Parser.Context parserContext = new ConfigurationRepository.Context(null, null, null, xContentRegistry, null);
+    static ConfigurationRepository.Context parserContext = new ConfigurationRepository.Context(null, null, null, xContentRegistry, null);
 
     @RunWith(Parameterized.class)
     public static class IndicesAndAliases_getRestriction {
