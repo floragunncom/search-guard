@@ -484,8 +484,7 @@ public class IgnoreUnauthorizedCcsIntTest {
                 GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A);
                 PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:b1/_pit?keep_alive=1m")) {
 
-            Assert.assertThat(pitHolder.getResponse(), isOk());
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), emptyArray());
+            Assert.assertThat(pitHolder.getResponse(), isForbidden());
         }
 
     }
