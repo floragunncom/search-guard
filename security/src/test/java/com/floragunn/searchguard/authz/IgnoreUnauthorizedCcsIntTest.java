@@ -14,6 +14,7 @@ import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.emptyArray;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
@@ -160,37 +161,43 @@ public class IgnoreUnauthorizedCcsIntTest {
 
     @Test
     public void search_localWildcard_withPit() throws Exception {
-        if("ccs_minimize_roundtrips=true".equals(ccsMinimizeRoundtrips)) {
-            // ccsMinimizeRoundtrips=true cannot be used with point in time
-            return;
-        }
         String query = "/_search?size=1000&" + ccsMinimizeRoundtrips;
 
         try (
-            GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/"+ "*" + "/_pit?keep_alive=1m")) {
+                GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
+                PitHolder pitHolder = PitHolder.of(restClient).post("/"+ "*" + "/_pit?keep_alive=1m")) {
 
             HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
-            Assert.assertThat(httpResponse, isOk());
-            TestIndex[] expectedIndices = { index_coord_a1, index_coord_a2, index_coord_b1, index_coord_b2, index_coord_c1 };
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches(expectedIndices))));
-            String[] expectedIndicesNames = ImmutableList.ofArray(expectedIndices) //
-                .map(TestIndex::getName)  //
-                .toArray(size -> new String[size]);
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder(expectedIndicesNames));
+            if (ccsMinimizeRoundtrips.contains("true")) {
+                Assert.assertThat(httpResponse, isBadRequest());
+                Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
+            } else {
+                Assert.assertThat(httpResponse, isOk());
+                TestIndex[] expectedIndices = { index_coord_a1, index_coord_a2, index_coord_b1, index_coord_b2, index_coord_c1 };
+                Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches(expectedIndices))));
+                String[] expectedIndicesNames = ImmutableList.ofArray(expectedIndices) //
+                        .map(TestIndex::getName)  //
+                        .toArray(size -> new String[size]);
+                Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder(expectedIndicesNames));
+            }
         }
 
         try (
-            GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/*/_pit?keep_alive=1m")) {
+                GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A);
+                PitHolder pitHolder = PitHolder.of(restClient).post("/*/_pit?keep_alive=1m")) {
             HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches(index_coord_a1, index_coord_a2))));
-            Assert.assertThat(
-                pitHolder.extractIndicesFromPit(nameRegistry),
-                arrayContainingInAnyOrder(index_coord_a1.getName(), index_coord_a2.getName()));
+            if (ccsMinimizeRoundtrips.contains("true")) {
+                Assert.assertThat(httpResponse, isBadRequest());
+                Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
+            } else {
+                Assert.assertThat(httpResponse, isOk());
+                Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches(index_coord_a1, index_coord_a2))));
+                Assert.assertThat(
+                        pitHolder.extractIndicesFromPit(nameRegistry),
+                        arrayContainingInAnyOrder(index_coord_a1.getName(), index_coord_a2.getName()));
+            }
         }
     }
 
@@ -396,30 +403,39 @@ public class IgnoreUnauthorizedCcsIntTest {
     }
 
     @Test
-    @Ignore("Remote search does not works with PIT") //https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/350
     public void search_indexPattern_withPit() throws Exception {
         String query = "/_search?size=1000&" + ccsMinimizeRoundtrips;
 
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:a*/_pit?keep_alive=1m")) {
+             PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:a*/_pit?keep_alive=1m")) {
 
             HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches("my_remote", index_remote_a1, index_remote_a2))));
-            // test contract with ES - indices name are expected
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("my_remote:a1", "my_remote:a2"));
+            if (ccsMinimizeRoundtrips.contains("true")) {
+                Assert.assertThat(httpResponse, isBadRequest());
+                Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
+            } else {
+                Assert.assertThat(httpResponse, isOk());
+                Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches("my_remote", index_remote_a1, index_remote_a2))));
+                // test contract with ES - indices name are expected
+                Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("my_remote:a1", "my_remote:a2"));
+            }
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:a*/_pit?keep_alive=1m")) {
+             PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:a*/_pit?keep_alive=1m")) {
 
             HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches("my_remote", index_remote_a1, index_remote_a2))));
-            // test contract with ES - indices name are expected
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("my_remote:a1", "my_remote:a2"));
+            if (ccsMinimizeRoundtrips.contains("true")) {
+                Assert.assertThat(httpResponse, isBadRequest());
+                Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
+            } else {
+                Assert.assertThat(httpResponse, isOk());
+                Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches("my_remote", index_remote_a1, index_remote_a2))));
+                // test contract with ES - indices name are expected
+                Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("my_remote:a1", "my_remote:a2"));
+            }
         }
 
     }
@@ -444,27 +460,32 @@ public class IgnoreUnauthorizedCcsIntTest {
     }
 
     @Test
-    @Ignore("Remote search does not works with PIT") // https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/350
     public void search_staticIndices_pit() throws Exception {
         String query = "/_search?size=1000&" + ccsMinimizeRoundtrips;
 
         try (
-            GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:b1/_pit?keep_alive=1m")) {
+                GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
+                PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:b1/_pit?keep_alive=1m")) {
 
             HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
-            Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("my_remote:b1"))));
-            // test contract with ES - indices name are expected
-            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("my_remote:b1"));
+            if (ccsMinimizeRoundtrips.contains("true")) {
+                Assert.assertThat(httpResponse, isBadRequest());
+                Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
+            } else {
+                Assert.assertThat(httpResponse, isOk());
+                Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("my_remote:b1"))));
+                // test contract with ES - indices name are expected
+                Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("my_remote:b1"));
+            }
         }
 
         try (
-            GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A);
-            PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:b1/_pit?keep_alive=1m")) {
+                GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A);
+                PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:b1/_pit?keep_alive=1m")) {
 
-            Assert.assertThat(pitHolder.getResponse(), isForbidden());
+            Assert.assertThat(pitHolder.getResponse(), isOk());
+            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), emptyArray());
         }
 
     }
