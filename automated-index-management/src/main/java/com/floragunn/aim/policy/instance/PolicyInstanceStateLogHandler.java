@@ -109,8 +109,9 @@ public class PolicyInstanceStateLogHandler {
             }
             AcknowledgedResponse putTemplateResponse = client.admin().indices().preparePutTemplate(indexTemplateName).setCreate(true)
                     .setPatterns(ImmutableList.of(indexNamePrefix + "*")).addAlias(new Alias(aliasName).isHidden(true).writeIndex(false))
-                    .setSettings(Settings.builder().put("index.hidden", true).put(settings.getStatic().getPolicyNameFieldName(), policyName)
-                            .put(settings.getStatic().getRolloverAliasFieldName(), writeAliasName))
+                    .setSettings(Settings.builder().put("index.hidden", true)
+                            .put(AutomatedIndexManagementSettings.Static.POLICY_NAME_FIELD.name(), policyName)
+                            .put(AutomatedIndexManagementSettings.Static.ROLLOVER_ALIAS_FIELD.name(), writeAliasName))
                     .get();
             if (!putTemplateResponse.isAcknowledged()) {
                 throw new StateLogInitializationException("Failed to create state log index template. Response was not acknowledged");

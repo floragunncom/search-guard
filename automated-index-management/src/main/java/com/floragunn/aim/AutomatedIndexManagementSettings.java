@@ -316,9 +316,11 @@ public final class AutomatedIndexManagementSettings {
                 .asString();
         public static final StaticSettings.Attribute<String> ROLLOVER_ALIAS_FIELD = StaticSettings.Attribute.define("index.aim.rollover_alias")
                 .index().dynamic().asString();
+        public static final StaticSettings.Attribute<Map<String, String>> ALIASES_FIELD = StaticSettings.Attribute.define("index.aim.alias_mapping")
+                .index().dynamic().asMapOfStrings();
 
         public static StaticSettings.AttributeSet getAvailableSettings() {
-            return StaticSettings.AttributeSet.of(ENABLED, THREAD_POOL_SIZE, POLICY_NAME_FIELD, ROLLOVER_ALIAS_FIELD, StateLog.ENABLED,
+            return StaticSettings.AttributeSet.of(ENABLED, THREAD_POOL_SIZE, POLICY_NAME_FIELD, ROLLOVER_ALIAS_FIELD, ALIASES_FIELD, StateLog.ENABLED,
                     StateLog.INDEX_TEMPLATE_NAME, StateLog.INDEX_NAME_PREFIX, StateLog.ALIAS_NAME, StateLog.POLICY_NAME);
         }
 
@@ -334,12 +336,16 @@ public final class AutomatedIndexManagementSettings {
             return settings.get(THREAD_POOL_SIZE);
         }
 
-        public String getPolicyNameFieldName() {
-            return POLICY_NAME_FIELD.name();
+        public String getPolicyName(Settings indexSettings) {
+            return POLICY_NAME_FIELD.getFrom(indexSettings);
         }
 
-        public String getRolloverAliasFieldName() {
-            return ROLLOVER_ALIAS_FIELD.name();
+        public String getRolloverAlias(Settings indexSettings) {
+            return ROLLOVER_ALIAS_FIELD.getFrom(indexSettings);
+        }
+
+        public Map<String, String> getAliases(Settings indexSettings) {
+            return ALIASES_FIELD.getFrom(indexSettings);
         }
 
         public StateLog stateLog() {

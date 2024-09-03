@@ -87,7 +87,6 @@ public class PolicyInstanceIntegrationTest {
         ClusterHelper.Internal.postSettingsUpdate(CLUSTER, AutomatedIndexManagementSettings.Dynamic.EXECUTION_DELAY, TimeValue.timeValueHours(1));
     }
 
-    @Execution(ExecutionMode.CONCURRENT)
     @Test
     public void testInstanceCreation() {
         String policyName = "instance_creation_test_policy";
@@ -418,6 +417,34 @@ public class PolicyInstanceIntegrationTest {
             Awaitility.await().until(() -> ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName),
                     InternalPolicyInstanceAPI.PostExecuteRetry.Response::isExists);
             ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
+        }
+
+        @Test
+        public void testIndexCountConditionExecution() throws Exception {
+            IndexCountCondition condition = new IndexCountCondition("all_alias", 1);
+            Policy policy = new Policy(new Policy.Step("first", ImmutableList.of(condition), ImmutableList.empty()));
+            String policyName = condition.getType() + "_condition_test_policy";
+            String aliasName = "concrete_all_alias";
+            String index1Name = condition.getType() + "_1_condition_test_index";
+            String index2Name = condition.getType() + "_2_condition_test_index";
+
+            ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
+
+            ClusterHelper.Index.createManagedIndex(CLUSTER, index1Name, policyName, aliasName,
+                    Settings.builder().put(AutomatedIndexManagementSettings.Static.ALIASES_FIELD.name() + ".all_alias", aliasName).build());
+            ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, index1Name);
+
+            ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, index1Name);
+            ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, index1Name, PolicyInstanceState.Status.WAITING);
+
+            ClusterHelper.Index.createManagedIndex(CLUSTER, index2Name, policyName, aliasName,
+                    Settings.builder().put(AutomatedIndexManagementSettings.Static.ALIASES_FIELD.name() + ".all_alias", aliasName).build());
+            ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, index2Name);
+
+            ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, index1Name);
+            ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, index1Name, PolicyInstanceState.Status.FINISHED);
+            ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, index2Name);
+            ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, index2Name, PolicyInstanceState.Status.WAITING);
         }
     }
 
