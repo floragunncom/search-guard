@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -48,6 +49,7 @@ import com.google.common.cache.CacheBuilder;
 
 public class TestData {
     private static final Logger log = LogManager.getLogger(TestData.class);
+    public static final String DEFAULT_TIMESTAMP_COLUMN = "timestamp";
 
     public static int DEFAULT_SEED = 1234;
     public static int DEFAULT_DOCUMENT_COUNT = 300;
@@ -81,8 +83,10 @@ public class TestData {
     private ImmutableMap<String, Object> additionalAttributes;
     private Set<String> deletedDocuments;
     private long subRandomSeed;
+    private final String timestampColumn;
 
-    public TestData(int seed, int size, int deletedDocumentCount, int refreshAfter, ImmutableMap<String, Object> additionalAttributes) {
+    public TestData(int seed, int size, int deletedDocumentCount, int refreshAfter,
+                    ImmutableMap<String, Object> additionalAttributes, String timestampColumn) {
         Random random = new Random(seed);
         this.ipAddresses = createRandomIpAddresses(random);
         this.locationNames = createRandomLocationNames(random);
@@ -90,11 +94,12 @@ public class TestData {
         this.deletedDocumentCount = deletedDocumentCount;
         this.refreshAfter = refreshAfter;
         this.additionalAttributes = additionalAttributes;
+        this.timestampColumn = Objects.requireNonNull(timestampColumn, "Timestamp column name must not be null");
         createTestDocuments(random);
         this.subRandomSeed = random.nextLong();
     }
 
-    public void createIndex(Client client, String name, Settings settings) {
+    public String createIndex(Client client, String name, Settings settings) {
         log.info("creating test index " + name + "; size: " + size + "; deletedDocumentCount: " + deletedDocumentCount + "; refreshAfter: "
                 + refreshAfter);
 
@@ -102,7 +107,7 @@ public class TestData {
         long start = System.currentTimeMillis();
 
         client.admin().indices()
-                .create(new CreateIndexRequest(name).settings(settings).simpleMapping("timestamp", "type=date,format=date_optional_time"))
+                .create(new CreateIndexRequest(name).settings(settings).simpleMapping(timestampColumn, "type=date,format=date_optional_time"))
                 .actionGet();
         int nextRefresh = (int) Math.floor((random.nextGaussian() * 0.5 + 0.5) * refreshAfter);
         int i = 0;
@@ -132,9 +137,10 @@ public class TestData {
 
         client.admin().indices().refresh(new RefreshRequest(name)).actionGet();
         log.info("Test index creation finished after " + (System.currentTimeMillis() - start) + " ms");
+        return getIndexMode(client, name);
     }
 
-    public void createIndex(GenericRestClient client, String name, Settings settings) {
+    public String createIndex(GenericRestClient client, String name, Settings settings) {
         try {
             log.info("creating test index " + name + "; size: " + size + "; deletedDocumentCount: " + deletedDocumentCount + "; refreshAfter: "
                     + refreshAfter);
@@ -187,8 +193,22 @@ public class TestData {
 
             client.post(name + "/_refresh");
             log.info("Test index creation finished after " + (System.currentTimeMillis() - start) + " ms");
+            return getIndexMode(client, name);
         } catch (Exception e) {
             throw new RuntimeException("Error while creating test index " + name, e);
+        }
+    }
+
+    public static String getIndexMode(Client client, String indexName) {
+        return client.admin().indices().prepareGetSettings(indexName).get().getSetting(indexName, "index.mode");
+    }
+
+    public static String getIndexMode(GenericRestClient client, String indexName) {
+        try {
+            GenericRestClient.HttpResponse response = client.get(indexName + "/_settings");
+            return response.getBodyAsDocNode().getAsNode(indexName).getAsNode("settings").getAsNode("index").getAsString("mode");
+        } catch (Exception e) {
+            throw new RuntimeException("Error while getting index mode for " + indexName, e);
         }
     }
 
@@ -200,7 +220,7 @@ public class TestData {
             ImmutableMap<String, Object> document = ImmutableMap
                     .<String, Object>of("source_ip", randomIpAddress(random), "dest_ip", randomIpAddress(random), "source_loc",
                             randomLocationName(random), "dest_loc", randomLocationName(random), "dept", randomDepartmentName(random))
-                    .with("timestamp", randomTimestamp(random));
+                    .with(timestampColumn, randomTimestamp(random));
 
             if (additionalAttributes != null && additionalAttributes.size() != 0) {
                 document = document.with(additionalAttributes);
@@ -345,14 +365,16 @@ public class TestData {
         private final int deletedDocumentCount;
         private final int refreshAfter;
         private final ImmutableMap<String, Object> additionalAttributes;
+        private final String timestampColumnName;
 
-        public Key(int seed, int size, int deletedDocumentCount, int refreshAfter, ImmutableMap<String, Object> additionalAttributes) {
+        public Key(int seed, int size, int deletedDocumentCount, int refreshAfter, ImmutableMap<String, Object> additionalAttributes, String timestampColumnName) {
             super();
             this.seed = seed;
             this.size = size;
             this.deletedDocumentCount = deletedDocumentCount;
             this.refreshAfter = refreshAfter;
             this.additionalAttributes = additionalAttributes;
+            this.timestampColumnName = Objects.requireNonNull(timestampColumnName);
         }
 
         @Override
@@ -364,6 +386,7 @@ public class TestData {
             result = prime * result + seed;
             result = prime * result + size;
             result = prime * result + additionalAttributes.hashCode();
+            result = prime * result + timestampColumnName.hashCode();
             return result;
         }
 
@@ -394,7 +417,7 @@ public class TestData {
             if (!additionalAttributes.equals(other.additionalAttributes)) {
                 return false;
             }
-            return true;
+            return timestampColumnName.equals(other.timestampColumnName);
         }
 
     }
@@ -408,6 +431,7 @@ public class TestData {
         private int refreshAfter = -1;
         private int segmentCount = 17;
         private Map<String, Object> additionalAttributes = new HashMap<>();
+        private String timestampColumnName = DEFAULT_TIMESTAMP_COLUMN;
 
         public Builder() {
             super();
@@ -448,6 +472,11 @@ public class TestData {
             return this;
         }
 
+        public Builder timestampColumnName(String timestampColumnName) {
+            this.timestampColumnName = timestampColumnName;
+            return this;
+        }
+
         public Key toKey() {
             if (deletedDocumentCount == -1) {
                 this.deletedDocumentCount = (int) (this.size * deletedDocumentFraction);
@@ -457,14 +486,14 @@ public class TestData {
                 this.refreshAfter = this.size / this.segmentCount;
             }
 
-            return new Key(seed, size, deletedDocumentCount, refreshAfter, ImmutableMap.of(additionalAttributes));
+            return new Key(seed, size, deletedDocumentCount, refreshAfter, ImmutableMap.of(additionalAttributes), timestampColumnName);
         }
 
         public TestData get() {
             Key key = toKey();
 
             try {
-                return cache.get(key, () -> new TestData(seed, size, deletedDocumentCount, refreshAfter, ImmutableMap.of(additionalAttributes)));
+                return cache.get(key, () -> new TestData(seed, size, deletedDocumentCount, refreshAfter, ImmutableMap.of(additionalAttributes), key.timestampColumnName));
             } catch (ExecutionException e) {
                 throw new RuntimeException(e);
             }
