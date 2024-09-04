@@ -181,7 +181,7 @@ public class IgnoreUnauthorizedCcsIntTest {
 
                 HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
-                if (ccsMinimizeRoundtrips.contains("true")) {
+                if (ccsMinimizeRoundtrips.equals("ccs_minimize_roundtrips=true")) {
                     Assert.assertThat(httpResponse, isBadRequest());
                     Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
                 } else {
@@ -200,7 +200,7 @@ public class IgnoreUnauthorizedCcsIntTest {
                     PitHolder pitHolder = PitHolder.of(restClient).post("/*/_pit?keep_alive=1m")) {
                 HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
-                if (ccsMinimizeRoundtrips.contains("true")) {
+                if (ccsMinimizeRoundtrips.equals("ccs_minimize_roundtrips=true")) {
                     Assert.assertThat(httpResponse, isBadRequest());
                     Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
                 } else {
@@ -263,7 +263,7 @@ public class IgnoreUnauthorizedCcsIntTest {
                     PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:*/_pit?keep_alive=1m")) {
                 HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
-                if (ccsMinimizeRoundtrips.contains("true")) {
+                if (ccsMinimizeRoundtrips.equals("ccs_minimize_roundtrips=true")) {
                     Assert.assertThat(httpResponse, isBadRequest());
                     Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
                 } else {
@@ -291,7 +291,7 @@ public class IgnoreUnauthorizedCcsIntTest {
 
                 HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
-                if (ccsMinimizeRoundtrips.contains("true")) {
+                if (ccsMinimizeRoundtrips.equals("ccs_minimize_roundtrips=true")) {
                     Assert.assertThat(httpResponse, isBadRequest());
                     Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
                 } else {
@@ -431,7 +431,7 @@ public class IgnoreUnauthorizedCcsIntTest {
 
                 HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
-                if (ccsMinimizeRoundtrips.contains("true")) {
+                if (ccsMinimizeRoundtrips.equals("ccs_minimize_roundtrips=true")) {
                     Assert.assertThat(httpResponse, isBadRequest());
                     Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
                 } else {
@@ -447,7 +447,7 @@ public class IgnoreUnauthorizedCcsIntTest {
 
                 HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
-                if (ccsMinimizeRoundtrips.contains("true")) {
+                if (ccsMinimizeRoundtrips.equals("ccs_minimize_roundtrips=true")) {
                     Assert.assertThat(httpResponse, isBadRequest());
                     Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
                 } else {
@@ -493,7 +493,7 @@ public class IgnoreUnauthorizedCcsIntTest {
 
                 HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
-                if (ccsMinimizeRoundtrips.contains("true")) {
+                if (ccsMinimizeRoundtrips.equals("ccs_minimize_roundtrips=true")) {
                     Assert.assertThat(httpResponse, isBadRequest());
                     Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
                 } else {
@@ -1139,7 +1139,7 @@ public class IgnoreUnauthorizedCcsIntTest {
 
                 HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
-                if (ccsMinimizeRoundtrips.contains("true")) {
+                if (ccsMinimizeRoundtrips.equals("ccs_minimize_roundtrips=true")) {
                     Assert.assertThat(httpResponse, isBadRequest());
                     Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
                 } else {
