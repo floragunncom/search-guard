@@ -20,6 +20,7 @@ package com.floragunn.searchguard.test;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,6 +32,7 @@ import java.util.Set;
 
 import javax.net.ssl.SSLContext;
 
+import com.floragunn.searchguard.test.helper.cluster.EsClientProvider;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -38,6 +40,7 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
+import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.client.methods.HttpOptions;
@@ -149,7 +152,22 @@ public class GenericRestClient implements AutoCloseable {
     }
 
     public HttpResponse delete(String path, Header... headers) throws Exception {
-        return executeRequest(new HttpDelete(getHttpServerUri() + "/" + path), headers);
+        return executeRequest(new HttpDelete(getHttpServerUri() + "/" + path), new RequestInfo().path(path).method("DELETE"), headers);
+    }
+
+    public HttpResponse deleteJson(String path, Map<String, Object> body, Header... headers) throws Exception {
+        HttpEntityEnclosingRequestBase uriRequest = new HttpEntityEnclosingRequestBase() {
+            {
+                setURI(URI.create(getHttpServerUri() + "/" + path));
+            }
+
+            @Override
+            public String getMethod() {
+                return "DELETE";
+            }
+        };
+        uriRequest.setEntity(new StringEntity(DocWriter.json().writeAsString(body), org.apache.http.entity.ContentType.APPLICATION_JSON));
+        return executeRequest(uriRequest, new RequestInfo().path(path).method("DELETE"), headers);
     }
 
     public HttpResponse postJson(String path, String body, Header... headers) throws Exception {
@@ -218,6 +236,36 @@ public class GenericRestClient implements AutoCloseable {
             HttpResponse res = new HttpResponse(innerExecuteRequest(httpClient, uriRequest));
             log.debug(res.getBody());
             return res;
+        } finally {
+
+            if (httpClient != null) {
+                httpClient.close();
+            }
+        }
+    }
+
+    public HttpResponse executeRequest(HttpUriRequest uriRequest, RequestInfo requestInfo, Header... requestSpecificHeaders) throws Exception {
+        CloseableHttpClient httpClient = null;
+        try {
+
+
+            httpClient = getHTTPClient();
+
+            if (requestSpecificHeaders != null && requestSpecificHeaders.length > 0) {
+                for (int i = 0; i < requestSpecificHeaders.length; i++) {
+                    Header h = requestSpecificHeaders[i];
+                    uriRequest.addHeader(h);
+                }
+            }
+
+            for (Header header : headers) {
+                uriRequest.addHeader(header);
+            }
+
+            HttpResponse response = new HttpResponse(innerExecuteRequest(httpClient, uriRequest));
+            requestInfo.response(response);
+            log.debug(response.getBody());
+            return response;
         } finally {
 
             if (httpClient != null) {
@@ -424,6 +472,118 @@ public class GenericRestClient implements AutoCloseable {
         public String toString() {
             return "HttpResponse [inner=" + inner + ", body=" + body + ", header=" + Arrays.toString(headers) + ", statusCode=" + statusCode
                     + ", statusReason=" + statusReason + "]";
+        }
+
+    }
+
+    public static class RequestInfo {
+        private EsClientProvider.UserCredentialsHolder user;
+        private String path;
+        private String method;
+        private String requestBody;
+        private HttpResponse response;
+
+        public RequestInfo() {
+        }
+
+        public EsClientProvider.UserCredentialsHolder getUser() {
+            return user;
+        }
+
+        public RequestInfo user(EsClientProvider.UserCredentialsHolder user) {
+            this.user = user;
+            return this;
+        }
+
+        public String getPath() {
+            return path;
+        }
+
+        public RequestInfo path(String path) {
+            if (path.length() == 0) {
+                path = "/";
+            } else if (!path.startsWith("/")) {
+                path = "/" + path;
+            }
+
+            this.path = path;
+            return this;
+        }
+
+        public String getMethod() {
+            return method;
+        }
+
+        public RequestInfo method(String method) {
+            this.method = method;
+            return this;
+        }
+
+        public String getRequestBody() {
+            return requestBody;
+        }
+
+        public RequestInfo requestBody(String requestBody) {
+            this.requestBody = requestBody;
+            return this;
+        }
+
+        public HttpResponse getResponse() {
+            return response;
+        }
+
+        public RequestInfo response(HttpResponse response) {
+            this.response = response;
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder result = new StringBuilder();
+
+            if (user != null) {
+                result.append(user.getName()).append(": ");
+            }
+
+            result.append(method).append(" ").append(path).append("\n");
+
+            if (requestBody != null) {
+                result.append(requestBody).append("\n");
+            }
+
+            result.append("\n");
+
+            if (response != null) {
+                result.append(response.statusCode).append(" ").append(response.statusReason).append("\n");
+                if (response.isJsonContentType()) {
+                    try {
+                        String prettyJson = response.getBodyAsDocNode().toPrettyJsonString();
+
+                        if (countOfLines(prettyJson) <= 25) {
+                            result.append(prettyJson).append("\n");
+                        } else {
+                            result.append(response.getBody()).append("\n");
+                        }
+
+                    } catch (DocumentParseException | UnknownDocTypeException e) {
+                        result.append(response.getBody()).append("\n");
+                    }
+                } else {
+                    result.append(response.getBody()).append("\n");
+                }
+            }
+
+            return result.toString();
+        }
+
+        private int countOfLines(String s) {
+            int result = 0;
+
+            for (int i = 0; i < s.length(); i++) {
+                if (s.charAt(i) == '\n') result++;
+            }
+
+            return result;
         }
 
     }
