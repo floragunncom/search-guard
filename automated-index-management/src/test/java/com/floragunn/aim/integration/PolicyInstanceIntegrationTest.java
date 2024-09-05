@@ -542,7 +542,8 @@ public class PolicyInstanceIntegrationTest {
             String aliasName = action.getType() + "_action_test_alias";
 
             ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
-            Settings settings = Settings.builder().put(AutomatedIndexManagementSettings.Static.ROLLOVER_ALIAS_FIELD.name(), aliasName).build();
+            Settings settings = Settings.builder().put(AutomatedIndexManagementSettings.Static.ALIASES_FIELD.name() + "."
+                    + AutomatedIndexManagementSettings.Static.DEFAULT_ROLLOVER_ALIAS_KEY, aliasName).build();
             ClusterHelper.Index.createManagedIndex(CLUSTER, indexName, policyName, aliasName, settings);
             ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);
 
@@ -578,13 +579,15 @@ public class PolicyInstanceIntegrationTest {
 
         @Test
         public void testRolloverActionAlreadyRolledOver() throws Exception {
-            RolloverAction action = new RolloverAction();
+            String customAliasKey = "test_key";
+            RolloverAction action = new RolloverAction(customAliasKey);
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_rolled_test_policy";
             String indexName = action.getType() + "_action_rolled_test_index-1";
             String aliasName = action.getType() + "_action_rolled_test_alias";
 
-            Settings settings = Settings.builder().put(AutomatedIndexManagementSettings.Static.ROLLOVER_ALIAS_FIELD.name(), aliasName).build();
+            Settings settings = Settings.builder().put(AutomatedIndexManagementSettings.Static.ALIASES_FIELD.name() + "." + customAliasKey, aliasName)
+                    .build();
             ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
             ClusterHelper.Index.createManagedIndex(CLUSTER, indexName, policyName, aliasName, settings);
             ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);

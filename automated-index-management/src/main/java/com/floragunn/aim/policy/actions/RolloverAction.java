@@ -1,18 +1,23 @@
 package com.floragunn.aim.policy.actions;
 
+import com.floragunn.aim.AutomatedIndexManagementSettings;
 import com.floragunn.aim.policy.Policy;
 import com.floragunn.aim.policy.instance.PolicyInstance;
 import com.floragunn.aim.policy.instance.PolicyInstanceState;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.fluent.collections.ImmutableMap;
 import org.elasticsearch.action.admin.indices.rollover.RolloverResponse;
+
+import java.util.Objects;
 
 public final class RolloverAction extends Action {
     public static final String TYPE = "rollover";
     public static final ValidatingParser VALIDATING_PARSER = new ValidatingParser() {
         @Override
         public Action parse(ValidatingDocNode node, ValidationErrors errors, Policy.ValidationContext validationContext) {
-            return new RolloverAction();
+            String aliasKey = node.get(ALIAS_KEY_FIELD).asString();
+            return new RolloverAction(aliasKey);
         }
 
         @Override
@@ -22,15 +27,23 @@ public final class RolloverAction extends Action {
             typeValidator.validateOnlyOnceInPolicy();
         }
     };
+    public static final String ALIAS_KEY_FIELD = "alias_key";
+
+    private final String aliasKey;
 
     public RolloverAction() {
+        aliasKey = null;
+    }
 
+    public RolloverAction(String aliasKey) {
+        this.aliasKey = aliasKey;
     }
 
     @Override
     public void execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-        String alias = executionContext.getAimSettings().getStatic()
-                .getRolloverAlias(executionContext.getClusterService().state().metadata().index(index).getSettings());
+        String aliasKey = this.aliasKey != null ? this.aliasKey : AutomatedIndexManagementSettings.Static.DEFAULT_ROLLOVER_ALIAS_KEY;
+        String alias = executionContext.getAimSettings().getStatic().getAlias(aliasKey,
+                executionContext.getClusterService().state().metadata().index(index).getSettings());
         if (alias == null || alias.isEmpty()) {
             throw new IllegalStateException("No rollover alias configured in index settings");
         }
@@ -45,7 +58,16 @@ public final class RolloverAction extends Action {
 
     @Override
     public boolean equals(Object other) {
-        return other instanceof RolloverAction;
+        if (!(other instanceof RolloverAction)) {
+            return false;
+        }
+        RolloverAction otherRolloverAction = (RolloverAction) other;
+        return Objects.equals(aliasKey, otherRolloverAction.aliasKey);
+    }
+
+    @Override
+    public ImmutableMap<String, Object> configToBasicMap() {
+        return aliasKey != null ? ImmutableMap.of(ALIAS_KEY_FIELD, aliasKey) : ImmutableMap.empty();
     }
 
     @Override

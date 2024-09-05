@@ -306,6 +306,7 @@ public final class AutomatedIndexManagementSettings {
     public static class Static {
         public static final Boolean DEFAULT_ENABLED = true;
         public static final Integer DEFAULT_THREAD_POOL_SIZE = 4;
+        public static final String DEFAULT_ROLLOVER_ALIAS_KEY = "rollover_alias";
 
         public static final StaticSettings.Attribute<Boolean> ENABLED = StaticSettings.Attribute.define("aim.enabled").withDefault(DEFAULT_ENABLED)
                 .asBoolean();
@@ -314,13 +315,11 @@ public final class AutomatedIndexManagementSettings {
 
         public static final StaticSettings.Attribute<String> POLICY_NAME_FIELD = StaticSettings.Attribute.define("index.aim.policy_name").index()
                 .asString();
-        public static final StaticSettings.Attribute<String> ROLLOVER_ALIAS_FIELD = StaticSettings.Attribute.define("index.aim.rollover_alias")
-                .index().dynamic().asString();
         public static final StaticSettings.Attribute<Map<String, String>> ALIASES_FIELD = StaticSettings.Attribute.define("index.aim.alias_mapping")
                 .index().dynamic().asMapOfStrings();
 
         public static StaticSettings.AttributeSet getAvailableSettings() {
-            return StaticSettings.AttributeSet.of(ENABLED, THREAD_POOL_SIZE, POLICY_NAME_FIELD, ROLLOVER_ALIAS_FIELD, ALIASES_FIELD, StateLog.ENABLED,
+            return StaticSettings.AttributeSet.of(ENABLED, THREAD_POOL_SIZE, POLICY_NAME_FIELD, ALIASES_FIELD, StateLog.ENABLED,
                     StateLog.INDEX_TEMPLATE_NAME, StateLog.INDEX_NAME_PREFIX, StateLog.ALIAS_NAME, StateLog.POLICY_NAME);
         }
 
@@ -340,12 +339,12 @@ public final class AutomatedIndexManagementSettings {
             return POLICY_NAME_FIELD.getFrom(indexSettings);
         }
 
-        public String getRolloverAlias(Settings indexSettings) {
-            return ROLLOVER_ALIAS_FIELD.getFrom(indexSettings);
-        }
-
         public Map<String, String> getAliases(Settings indexSettings) {
             return ALIASES_FIELD.getFrom(indexSettings);
+        }
+
+        public String getAlias(String aliasKey, Settings indexSettings) {
+            return getAliases(indexSettings).get(aliasKey);
         }
 
         public StateLog stateLog() {
