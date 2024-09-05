@@ -277,6 +277,8 @@ SGS_KIBANA_SERVER:
     - "*:.apm-*"
     - ".kibana-event-log-*"
     - ".ds-.kibana-event-log-*"
+    - ".kibana-reporting*"
+    - ".ds-.kibana-reporting*"
     - "*:.kibana-event-log-*"
     - ".fleet-agents"
     - "logs-cloud_security_posture*"
