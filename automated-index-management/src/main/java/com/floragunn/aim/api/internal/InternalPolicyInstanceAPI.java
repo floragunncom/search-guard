@@ -133,17 +133,8 @@ public class InternalPolicyInstanceAPI {
 
             @Override
             protected void masterOperation(Task task, Request request, ClusterState state, ActionListener<Response> listener) {
-                if (aim.getPolicyInstanceHandler().policyInstanceExistsForIndex(request.getIndex())) {
-                    if (request.isRetry()) {
-                        aim.getPolicyInstanceHandler().setPolicyInstanceRetry(request.getIndex(), true);
-                    }
-                    if (request.isExecute()) {
-                        aim.getPolicyInstanceHandler().executePolicyInstance(request.getIndex());
-                    }
-                    listener.onResponse(new Response(true));
-                } else {
-                    listener.onResponse(new Response(false));
-                }
+                listener.onResponse(new Response(
+                        aim.getPolicyInstanceHandler().executeRetryPolicyInstance(request.getIndex(), request.isExecute(), request.isRetry())));
             }
 
             @Override
