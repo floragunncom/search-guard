@@ -572,7 +572,7 @@ public class DlsTermsLookupCrossClusterTest {
                         searchResponse.clusters().details().get("my_remote").failures().get(0).reason().reason()
                 );
             } catch (Exception e) {
-                Assert.fail(); // exception is not expected
+                Assert.fail("Exception is not expected");
             }
         }
     }
