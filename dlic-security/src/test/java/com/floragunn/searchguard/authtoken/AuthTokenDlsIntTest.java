@@ -33,7 +33,14 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
+
+@RunWith(Parameterized.class)
 public class AuthTokenDlsIntTest {
 
     @ClassRule
@@ -43,21 +50,24 @@ public class AuthTokenDlsIntTest {
      * Increase DOC_COUNT for manual test runs with bigger test data sets
      */
     static final int DOC_COUNT = 200;
-    static final TestData TEST_DATA = TestData.documentCount(DOC_COUNT).get();
+    static final TestData TEST_DATA = TestData.documentCount(DOC_COUNT).timestampColumnName("@timestamp").get();
 
-    static final String INDEX = "logs";
+    static final String INDEX_NAME_PREFIX = "logs";
+    static final String INDEX_PATTERN = INDEX_NAME_PREFIX + "*";
+    static final String INDEX_NORMAL_MODE = INDEX_NAME_PREFIX + "_normal_index_mode";
+    static final String INDEX_LOGS_DB_MODE = INDEX_NAME_PREFIX + "_logs_db_index_mode";
 
     static final TestSgConfig.User ADMIN = new TestSgConfig.User("admin")
             .roles(new Role("all_access").indexPermissions("*").on("*").clusterPermissions("*"));
 
     static final TestSgConfig.User DEPT_A_USER = new TestSgConfig.User("dept_a")
-            .roles(new Role("dept_a").indexPermissions("SGS_READ").dls(DocNode.of("prefix.dept.value", "dept_a")).on(INDEX).clusterPermissions("*"));
+            .roles(new Role("dept_a").indexPermissions("SGS_READ").dls(DocNode.of("prefix.dept.value", "dept_a")).on(INDEX_PATTERN).clusterPermissions("*"));
     static final TestSgConfig.User DEPT_D_USER = new TestSgConfig.User("dept_d")
-            .roles(new Role("dept_d").indexPermissions("SGS_READ").dls(DocNode.of("term.dept.value", "dept_d")).on(INDEX).clusterPermissions("*"));
+            .roles(new Role("dept_d").indexPermissions("SGS_READ").dls(DocNode.of("term.dept.value", "dept_d")).on(INDEX_PATTERN).clusterPermissions("*"));
     static final TestSgConfig.User DEPT_D_TERMS_LOOKUP_USER = new TestSgConfig.User("dept_d_terms_lookup_user")
             .roles(new Role("dept_d").indexPermissions("SGS_READ")
                     .dls(DocNode.of("terms", DocNode.of("dept", DocNode.of("index", "user_dept_terms_lookup", "id", "${user.name}", "path", "dept"))))
-                    .on(INDEX).clusterPermissions("*"));
+                    .on(INDEX_PATTERN).clusterPermissions("*"));
 
     static final TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db"));
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().useImpl("flx").metrics("detailed");
@@ -69,22 +79,40 @@ public class AuthTokenDlsIntTest {
             .authTokenService(AUTH_TOKEN_SERVICE).users(ADMIN, DEPT_A_USER, DEPT_D_USER, DEPT_D_TERMS_LOOKUP_USER).resources(null)
             .enableModule(AuthTokenModule.class).embedded().build();
 
+    private final String indexName;
+
+    public AuthTokenDlsIntTest(String indexName) {
+        this.indexName = indexName;
+    }
+
+    @Parameterized.Parameters(name = "{0}")
+    public static Object[] parameters() {
+        return new Object[] { INDEX_NORMAL_MODE, INDEX_LOGS_DB_MODE };
+    }
+
     @BeforeClass
     public static void setupTestData() {
         Client client = cluster.getInternalNodeClient();
-        TEST_DATA.createIndex(client, INDEX, Settings.builder().put("index.number_of_shards", 5).build());
+        Settings settings = Settings.builder().put("index.number_of_shards", 5).build();
+        String indexMode = TEST_DATA.createIndex(client, INDEX_NORMAL_MODE, settings);
+        // null means default mode which is currently normal
+        assertThat(indexMode, anyOf(equalTo("normal"), nullValue()));
+        settings = Settings.builder().put("index.number_of_shards", 5).put("index.mode", "logsdb").build();
+        indexMode = TEST_DATA.createIndex(client, INDEX_LOGS_DB_MODE, settings);
+        assertThat(indexMode, equalTo("logsdb"));
 
         client.index(new IndexRequest("user_dept_terms_lookup").id("dept_d_terms_lookup_user").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .source("dept", "dept_d")).actionGet();
+
     }
 
     @Test
     public void get_authtoken() throws Exception {
 
         TestDocument testDocumentA1 = TEST_DATA.anyDocumentForDepartment("dept_a_1");
-        String documentUriA1 = "/logs/_doc/" + testDocumentA1.getId();
+        String documentUriA1 = "/" + indexName + "/_doc/" + testDocumentA1.getId();
         TestDocument testDocumentD = TEST_DATA.anyDocumentForDepartment("dept_d");
-        String documentUriD = "/logs/_doc/" + testDocumentD.getId();
+        String documentUriD = "/" + indexName + "/_doc/" + testDocumentD.getId();
 
         String token;
 
