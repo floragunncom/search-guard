@@ -46,6 +46,7 @@ public final class PolicyInstanceState implements Document<Object> {
         lastExecutedActionState = node.get(LAST_EXECUTED_ACTION_FIELD)
                 .by((Parser<ActionState, Parser.Context>) (docNode1, context) -> new ActionState(docNode1));
         snapshotName = node.get(SNAPSHOT_NAME).asString();
+        errors.throwExceptionForPresentErrors();
     }
 
     @Override

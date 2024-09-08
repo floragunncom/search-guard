@@ -68,10 +68,12 @@ public class InternalPolicyInstanceAPI {
 
             @Override
             public boolean equals(Object o) {
-                if (this == o)
+                if (this == o) {
                     return true;
-                if (o == null || getClass() != o.getClass())
+                }
+                if (o == null || getClass() != o.getClass()) {
                     return false;
+                }
                 Request request = (Request) o;
                 return execute == request.execute && retry == request.retry && Objects.equals(index, request.index);
             }
@@ -107,10 +109,12 @@ public class InternalPolicyInstanceAPI {
 
             @Override
             public boolean equals(Object o) {
-                if (this == o)
+                if (this == o) {
                     return true;
-                if (o == null || getClass() != o.getClass())
+                }
+                if (o == null || getClass() != o.getClass()) {
                     return false;
+                }
                 Response response = (Response) o;
                 return exists == response.exists;
             }

@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -45,7 +46,7 @@ public final class PolicyInstanceHandler {
     private final AutomatedIndexManagementSettings settings;
     private final PolicyInstanceService policyInstanceService;
     private final PolicyService policyService;
-    private final ScheduledThreadPoolExecutor scheduler;
+    private final ScheduledExecutorService scheduler;
     private final Map<String, Map.Entry<ScheduledFuture<?>, PolicyInstance>> scheduledPolicyInstances;
     private final ClusterStateListener clusterStateListener;
     private final AutomatedIndexManagementSettings.Dynamic.ChangeListener settingsChangeListener;
@@ -67,8 +68,11 @@ public final class PolicyInstanceHandler {
         this.policyInstanceService = policyInstanceService;
         this.policyService = policyService;
 
-        scheduler = new ScheduledThreadPoolExecutor(settings.getStatic().getThreadPoolSize());
+        ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(settings.getStatic().getThreadPoolSize());
         scheduler.setRemoveOnCancelPolicy(true);
+        scheduler.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
+        scheduler.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+        this.scheduler = scheduler;
         scheduledPolicyInstances = new HashMap<>();
         clusterStateListener = clusterChangedEvent -> {
             if (!clusterChangedEvent.metadataChanged()) {
@@ -96,7 +100,11 @@ public final class PolicyInstanceHandler {
             if (changed.contains(AutomatedIndexManagementSettings.Dynamic.EXECUTION_PERIOD)) {
                 synchronized (this) {
                     for (String index : scheduledPolicyInstances.keySet()) {
-                        scheduledPolicyInstances.remove(index).getKey().cancel(false);
+                        ScheduledFuture<?> instance = scheduledPolicyInstances.remove(index).getKey();
+                        instance.cancel(false);
+                        if (!instance.isCancelled() && !instance.isDone()) {
+                            LOG.debug("Could not cancel job for index '{}'", index);
+                        }
                     }
                 }
                 threadPool.generic().submit(PolicyInstanceHandler.this::checkAllIndices);
@@ -150,7 +158,15 @@ public final class PolicyInstanceHandler {
     public synchronized void stop() {
         clusterService.removeListener(clusterStateListener);
         settings.getDynamic().removeChangeListener(settingsChangeListener);
-        scheduler.shutdownNow();
+        scheduler.shutdown();
+        try {
+            if (!scheduler.awaitTermination(1, TimeUnit.MINUTES)) {
+                scheduler.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            scheduler.shutdownNow();
+        }
+        scheduledPolicyInstances.clear();
         stopStateLogHandler();
         initialized = false;
     }
@@ -224,6 +240,9 @@ public final class PolicyInstanceHandler {
                     LOG.trace("Deleting policy instance for index '{}'", index);
                     Map.Entry<ScheduledFuture<?>, PolicyInstance> instanceEntry = scheduledPolicyInstances.remove(index);
                     instanceEntry.getKey().cancel(true);
+                    if (!instanceEntry.getKey().isCancelled() && !instanceEntry.getKey().isDone()) {
+                        LOG.debug("Could not cancel job for deleted index '{}'", index);
+                    }
                     instanceEntry.getValue().handleDelete();
                 }
             }
