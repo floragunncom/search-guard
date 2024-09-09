@@ -12,6 +12,8 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 
+import java.util.Objects;
+
 import static org.elasticsearch.rest.RestStatus.ACCEPTED;
 import static org.elasticsearch.rest.RestStatus.OK;
 
@@ -65,10 +67,8 @@ public final class SnapshotAsyncAction extends Action.Async<SnapshotCreatedCondi
             return false;
         }
         SnapshotAsyncAction otherSnapshotAsyncAction = (SnapshotAsyncAction) other;
-        if (!snapshotNamePrefix.equals(otherSnapshotAsyncAction.snapshotNamePrefix)) {
-            return false;
-        }
-        return repositoryName.equals(otherSnapshotAsyncAction.repositoryName);
+        return Objects.equals(repositoryName, otherSnapshotAsyncAction.repositoryName)
+                && Objects.equals(snapshotNamePrefix, otherSnapshotAsyncAction.snapshotNamePrefix);
     }
 
     @Override

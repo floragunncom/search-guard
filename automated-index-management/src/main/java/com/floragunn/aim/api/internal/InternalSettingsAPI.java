@@ -107,10 +107,12 @@ public class InternalSettingsAPI {
 
             @Override
             public boolean equals(Object o) {
-                if (this == o)
+                if (this == o) {
                     return true;
-                if (o == null || getClass() != o.getClass())
+                }
+                if (o == null || getClass() != o.getClass()) {
                     return false;
+                }
                 Request request = (Request) o;
                 return Objects.equals(changed, request.changed) && Objects.equals(deleted, request.deleted);
             }
@@ -148,10 +150,12 @@ public class InternalSettingsAPI {
 
             @Override
             public boolean equals(Object o) {
-                if (this == o)
+                if (this == o) {
                     return true;
-                if (o == null || getClass() != o.getClass())
+                }
+                if (o == null || getClass() != o.getClass()) {
                     return false;
+                }
                 Response response = (Response) o;
                 return refreshFailed == response.refreshFailed && Objects.equals(failedAttributes, response.failedAttributes);
             }
@@ -266,10 +270,12 @@ public class InternalSettingsAPI {
 
             @Override
             public boolean equals(Object o) {
-                if (this == o)
+                if (this == o) {
                     return true;
-                if (o == null || getClass() != o.getClass())
+                }
+                if (o == null || getClass() != o.getClass()) {
                     return false;
+                }
                 Request request = (Request) o;
                 return Objects.equals(changed, request.changed) && Objects.equals(deleted, request.deleted);
             }
@@ -302,10 +308,12 @@ public class InternalSettingsAPI {
 
                 @Override
                 public boolean equals(Object o) {
-                    if (this == o)
+                    if (this == o) {
                         return true;
-                    if (o == null || getClass() != o.getClass())
+                    }
+                    if (o == null || getClass() != o.getClass()) {
                         return false;
+                    }
                     Node node = (Node) o;
                     return Objects.equals(request, node.request);
                 }
