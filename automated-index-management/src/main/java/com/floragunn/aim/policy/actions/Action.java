@@ -157,5 +157,9 @@ public abstract class Action implements Document<Object> {
             errors.throwExceptionForPresentErrors();
             return result;
         }
+
+        public boolean containsType(String type) {
+            return registry.containsKey(type);
+        }
     }
 }
