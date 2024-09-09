@@ -2,6 +2,7 @@ package com.floragunn.aim.integration;
 
 import com.floragunn.aim.AutomatedIndexManagementModule;
 import com.floragunn.aim.AutomatedIndexManagementSettings;
+import com.floragunn.aim.MockSupport;
 import com.floragunn.aim.api.internal.InternalSettingsAPI;
 import com.floragunn.aim.integration.support.ClusterHelper;
 import com.floragunn.aim.policy.Policy;
@@ -44,6 +45,7 @@ public class RestIntegrationTest {
 
     @BeforeAll
     public static void setup() {
+        MockSupport.init();
         CLUSTER = new LocalCluster.Builder().sslEnabled().resources("sg_config").enableModule(AutomatedIndexManagementModule.class)
                 .waitForComponents("aim").embedded().start();
         Awaitility.setDefaultTimeout(1, TimeUnit.MINUTES);

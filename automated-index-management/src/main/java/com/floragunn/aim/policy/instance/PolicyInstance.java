@@ -10,6 +10,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 
 import java.time.Instant;
+import java.util.Objects;
 
 import static com.floragunn.aim.policy.instance.PolicyInstanceState.Status.*;
 
@@ -58,6 +59,19 @@ public class PolicyInstance implements Runnable {
             LOG.warn("Policy instance for index '{}' is in no step", index);
             break;
         }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof PolicyInstance) {
+            return Objects.equals(index, ((PolicyInstance) obj).index);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return index.hashCode();
     }
 
     private void retry() {

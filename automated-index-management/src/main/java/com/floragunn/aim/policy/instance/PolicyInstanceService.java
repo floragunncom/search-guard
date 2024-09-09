@@ -3,6 +3,7 @@ package com.floragunn.aim.policy.instance;
 import com.floragunn.aim.AutomatedIndexManagementSettings;
 import com.floragunn.aim.api.internal.InternalPolicyInstanceAPI;
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.apache.logging.log4j.LogManager;
@@ -12,15 +13,17 @@ import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.delete.DeleteRequest;
-import org.elasticsearch.action.get.*;
+import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.get.MultiGetItemResponse;
+import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.rest.RestStatus;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 public class PolicyInstanceService {
@@ -33,15 +36,14 @@ public class PolicyInstanceService {
         this.client = PrivilegedConfigClient.adapt(client);
     }
 
-    protected void setPolicyInstanceStateLogHandler(PolicyInstanceStateLogHandler policyInstanceStateLogHandler) {
+    protected synchronized void setPolicyInstanceStateLogHandler(PolicyInstanceStateLogHandler policyInstanceStateLogHandler) {
         this.policyInstanceStateLogHandler = policyInstanceStateLogHandler;
     }
 
     public void updateState(String index, PolicyInstanceState state) {
-        IndexRequest request = new IndexRequest(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME).id(index)
-                .source(state.toDocNode());
         try {
-            DocWriteResponse response = client.index(request).actionGet();
+            DocWriteResponse response = client.prepareIndex(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME).setId(index)
+                    .setSource(state.toDocNode()).get();
             if (RestStatus.CREATED != response.status() && RestStatus.OK != response.status()) {
                 LOG.warn("Could not update policy instance state: {}", response);
             }
@@ -70,20 +72,21 @@ public class PolicyInstanceService {
         return result;
     }
 
-    public Map<String, PolicyInstanceState> getStates(Set<String> indexNames) {
-        MultiGetRequest request = new MultiGetRequest();
-        for (String indexName : indexNames) {
-            request.add(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexName);
-        }
+    public Map<String, PolicyInstanceState> getStates(Collection<String> indexNames) {
         Map<String, PolicyInstanceState> result = new HashMap<>();
         try {
-            MultiGetResponse response = client.multiGet(request).actionGet();
+            MultiGetResponse response = client.prepareMultiGet()
+                    .addIds(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexNames).get();
             for (MultiGetItemResponse item : response.getResponses()) {
-                if (item.isFailed()) {
-                    LOG.debug("Failed to get policy instance state for index '{}'\n{}", item.getId(), item.getFailure());
-                } else if (item.getResponse().isExists()) {
-                    result.put(item.getId(),
-                            new PolicyInstanceState(DocNode.parse(Format.JSON).from(item.getResponse().getSourceAsBytesRef().utf8ToString())));
+                try {
+                    if (item.isFailed()) {
+                        LOG.debug("Failed to get policy instance state for index '{}'\n{}", item.getId(), item.getFailure());
+                    } else if (item.getResponse().isExists()) {
+                        result.put(item.getId(),
+                                new PolicyInstanceState(DocNode.parse(Format.JSON).from(item.getResponse().getSourceAsBytesRef().utf8ToString())));
+                    }
+                } catch (DocumentParseException dpe) {
+                    LOG.debug("Failed to parse policy instance state for index '{}'\n{}", item.getId(), dpe);
                 }
             }
         } catch (Exception e) {
