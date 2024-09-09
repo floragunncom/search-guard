@@ -83,10 +83,6 @@ public class MultiTenancyAuthorizationFilterTest {
     @Mock
     private RequestHandlerFactory handlerFactory;
     @Mock
-    private ClusterService clusterServices;
-    @Mock
-    private IndicesService indicesService;
-    @Mock
     private ActionListener<?> listener;
     @Mock
     private PrivilegesEvaluationContext context;
@@ -112,14 +108,14 @@ public class MultiTenancyAuthorizationFilterTest {
         when(config.getServerUsername()).thenReturn("frontend_server_user");
         when(config.isPrivateTenantEnabled()).thenReturn(false);
         this.filter = new MultiTenancyAuthorizationFilter(config, tenantAuthorization, tenantManager, new Actions(null),
-            threadContext, null, handlerFactory, clusterServices, indicesService);
+            threadContext, null, handlerFactory);
     }
 
     @Test
     public void shouldAccessPrivateTenant_privateTenantEnabled() {
         when(config.isPrivateTenantEnabled()).thenReturn(true);
         MultiTenancyAuthorizationFilter filter = new MultiTenancyAuthorizationFilter(config, tenantAuthorization, tenantManager, new Actions(null),
-                threadContext, null, handlerFactory, clusterServices, indicesService);
+                threadContext, null, handlerFactory);
         when(context.getRequestInfo()).thenReturn(actionRequestInfo);
         when(actionRequestInfo.getResolvedIndices()).thenReturn(resolvedIndices);
         when(resolvedIndices.isLocalAll()).thenReturn(false);

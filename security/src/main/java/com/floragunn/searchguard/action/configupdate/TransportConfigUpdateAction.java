@@ -37,6 +37,7 @@ import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.configuration.CType;
@@ -65,24 +66,24 @@ TransportNodesAction<ConfigUpdateRequest, ConfigUpdateResponse, TransportConfigU
         this.configurationRepository = configurationRepository;
     }
 
-    public static class NodeConfigUpdateRequest extends BaseNodesRequest {
+    public static class NodeConfigUpdateRequest extends TransportRequest {
 
-        ConfigUpdateRequest request;
-        
+        private String[] configTypes;
+
         public NodeConfigUpdateRequest(StreamInput in) throws IOException {
             super(in);
-            request = new ConfigUpdateRequest(in);
+            configTypes = in.readStringArray();
         }
 
         public NodeConfigUpdateRequest(final ConfigUpdateRequest request) {
-            super((String[]) null);
-            this.request = request;
+            super();
+            this.configTypes = request.getConfigTypes();
         }
 
         @Override
         public void writeTo(final StreamOutput out) throws IOException {
             super.writeTo(out);
-            request.writeTo(out);
+            out.writeStringArray(configTypes);
         }
     }
 
@@ -101,9 +102,9 @@ TransportNodesAction<ConfigUpdateRequest, ConfigUpdateResponse, TransportConfigU
     @Override
     protected ConfigUpdateNodeResponse nodeOperation(final NodeConfigUpdateRequest request, Task task) {
         try {
-            configurationRepository.reloadConfiguration(CType.fromStringValues(request.request.getConfigTypes()), "Config Update " + request.request);
+            configurationRepository.reloadConfiguration(CType.fromStringValues(request.configTypes), "Config Update " + request);
            
-            return new ConfigUpdateNodeResponse(clusterService.localNode(), request.request.getConfigTypes(), null);
+            return new ConfigUpdateNodeResponse(clusterService.localNode(), request.configTypes, null);
         } catch (Exception e) {
             logger.error("Error in TransportConfigUpdateAction nodeOperation for " + request, e);
             throw new RuntimeException(e);

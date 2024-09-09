@@ -29,6 +29,7 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.action.RestToXContentListener;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -85,15 +86,11 @@ public class AuthcCacheApi {
             protected Request() {
                 super(new String[0]);
             }
-
-            protected Request(StreamInput in) throws IOException {
-                super(in);
-            }
         }
 
-        public static class NodeRequest extends BaseNodesRequest<NodeRequest> {
+        public static class NodeRequest extends TransportRequest {
             protected NodeRequest() {
-                super((String[]) null);
+                super();
             }
 
             protected NodeRequest(StreamInput in) throws IOException {

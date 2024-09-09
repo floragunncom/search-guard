@@ -43,12 +43,10 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
-import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 import org.elasticsearch.rest.RestController;
@@ -95,7 +93,6 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
 
     private volatile ImmutableSet<String> tenantNames = ImmutableSet.empty();
     private ThreadPool threadPool;
-    private ClusterService clusterService;
     private AdminDNs adminDns;
 
     private FeMultiTenancyEnabledFlagValidator feMultiTenancyEnabledFlagValidator;
@@ -109,7 +106,6 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
 
         FeMultiTenancyConfigurationProvider feMultiTenancyConfigurationProvider = new FeMultiTenancyConfigurationProvider(this);
         this.threadPool = baseDependencies.getThreadPool();
-        this.clusterService = baseDependencies.getClusterService();
         this.adminDns = new AdminDNs(baseDependencies.getSettings());
         this.feMultiTenancyEnabledFlagValidator = new FeMultiTenancyEnabledFlagValidator(
                 feMultiTenancyConfigurationProvider, baseDependencies.getClusterService(),
@@ -168,10 +164,8 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
 
             if (feMultiTenancyConfig.isEnabled()) {
                 enabled = true;
-                IndicesService indicesService = baseDependencies.getGuiceDependencies().getIndicesService();
                 multiTenancyAuthorizationFilter = new MultiTenancyAuthorizationFilter(feMultiTenancyConfig, tenantAuthorization, tenantManager, baseDependencies.getActions(),
-                        baseDependencies.getThreadPool().getThreadContext(), baseDependencies.getLocalClient(), requestHandlerFactory,
-                    clusterService, indicesService);
+                        baseDependencies.getThreadPool().getThreadContext(), baseDependencies.getLocalClient(), requestHandlerFactory);
             } else {
                 enabled = false;
                 componentState.setState(State.SUSPENDED, "disabled_by_config");

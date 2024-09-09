@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls;
 
+import java.io.IOException;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -36,7 +37,14 @@ import com.jayway.jsonpath.Configuration.Defaults;
 import com.jayway.jsonpath.Option;
 import com.jayway.jsonpath.spi.json.JsonProvider;
 import com.jayway.jsonpath.spi.mapper.MappingProvider;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
+
+@RunWith(Parameterized.class)
 public class FmIntTest {
     static {
         // TODO properly initialize JsonPath defaults
@@ -67,8 +75,11 @@ public class FmIntTest {
      * Increase DOC_COUNT for manual test runs with bigger test data sets
      */
     static final int DOC_COUNT = 200;
-    static final TestData TEST_DATA = TestData.documentCount(DOC_COUNT).get();
-    static final String INDEX = "logs";
+    static final TestData TEST_DATA = TestData.documentCount(DOC_COUNT).timestampColumnName("@timestamp").get();
+    static final String INDEX_NAME_PREFIX = "logs";
+    static final String INDEX_PATTERN = INDEX_NAME_PREFIX + "*";
+    static final String INDEX_NORMAL_MODE = INDEX_NAME_PREFIX + "_normal_index_mode";
+    static final String INDEX_LOGS_DB_MODE = INDEX_NAME_PREFIX + "_logs_db_index_mode";
 
     static final Pattern HEX_HASH_PATTERN = Pattern.compile("[0-9a-f]+");
     static final Pattern IP_ADDRESS_PATTERN = Pattern.compile("[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+");
@@ -77,28 +88,46 @@ public class FmIntTest {
             .roles(new Role("all_access").indexPermissions("*").on("*").clusterPermissions("*"));
 
     static final TestSgConfig.User HASHED_IP_USER = new TestSgConfig.User("hashed_ip").roles(
-            new Role("hashed_ip").indexPermissions("SGS_READ", "indices:admin/mappings/get").maskedFields("*_ip").on(INDEX).clusterPermissions("*"));
+            new Role("hashed_ip").indexPermissions("SGS_READ", "indices:admin/mappings/get").maskedFields("*_ip").on(INDEX_PATTERN).clusterPermissions("*"));
 
     static final TestSgConfig.User HASHED_LOC_USER = new TestSgConfig.User("hashed_loc").roles(
-            new Role("hashed_ip").indexPermissions("SGS_READ", "indices:admin/mappings/get").maskedFields("*_loc").on(INDEX).clusterPermissions("*"));
+            new Role("hashed_ip").indexPermissions("SGS_READ", "indices:admin/mappings/get").maskedFields("*_loc").on(INDEX_PATTERN).clusterPermissions("*"));
 
     static final TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db"));
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().useImpl("flx");
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
-            .users(ADMIN, HASHED_IP_USER, HASHED_LOC_USER).resources("dlsfls").build();
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled() //
+            .authc(AUTHC).dlsFls(DLSFLS).users(ADMIN, HASHED_IP_USER, HASHED_LOC_USER).resources("dlsfls") //
+            .build();
+
+    private final String indexName;
+
+    public FmIntTest(String indexName) {
+        this.indexName = indexName;
+    }
+
+    @Parameterized.Parameters(name = "{0}")
+    public static Object[] parameters() {
+        return new Object[] { INDEX_NORMAL_MODE, INDEX_LOGS_DB_MODE };
+    }
 
     @BeforeClass
-    public static void setupTestData() {
+    public static void setupTestData() throws IOException {
         Client client = cluster.getInternalNodeClient();
-        TEST_DATA.createIndex(client, INDEX, Settings.builder().put("index.number_of_shards", 5).build());
+        Settings settings = Settings.builder().put("index.number_of_shards", 5).build();
+        String indexMode = TEST_DATA.createIndex(client, INDEX_NORMAL_MODE, settings);
+        // null means default mode which is currently normal
+        assertThat(indexMode, anyOf(equalTo("normal"), nullValue()));
+        settings = Settings.builder().put("index.number_of_shards", 5).put("index.mode", "logsdb").build();
+        indexMode = TEST_DATA.createIndex(client, INDEX_LOGS_DB_MODE, settings);
+        assertThat(indexMode, equalTo("logsdb"));
     }
 
     @Test
     public void search_hashed() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(HASHED_IP_USER)) {
-            GenericRestClient.HttpResponse response = client.get("/logs/_search?pretty");
+            GenericRestClient.HttpResponse response = client.get("/" + indexName + "/_search?pretty");
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[*]._source.source_ip")
                     .map((n) -> n.toString()).forAllApplies((s) -> HEX_HASH_PATTERN.matcher(s).matches()));
@@ -107,7 +136,7 @@ public class FmIntTest {
         }
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
-            GenericRestClient.HttpResponse response = client.get("/logs/_search?pretty");
+            GenericRestClient.HttpResponse response = client.get("/" + indexName + "/_search?pretty");
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertFalse(response.getBody(), response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[*]._source.source_ip")
                     .map((n) -> n.toString()).forAllApplies((s) -> HEX_HASH_PATTERN.matcher(s).matches()));
@@ -119,7 +148,7 @@ public class FmIntTest {
     @Test
     public void get_hashed() throws Exception {
         String docId = TEST_DATA.anyDocument().getId();
-        String docUrl = "/logs/_doc/" + docId + "?pretty";
+        String docUrl = "/" + indexName + "/_doc/" + docId + "?pretty";
 
         try (GenericRestClient client = cluster.getRestClient(HASHED_IP_USER)) {
             GenericRestClient.HttpResponse response = client.get(docUrl);
@@ -143,7 +172,7 @@ public class FmIntTest {
                 + "\"test_agg\" : { \"terms\" : { \"field\" : \"source_loc.keyword\" } }" + "}" + "}";
 
         try (GenericRestClient client = cluster.getRestClient(HASHED_LOC_USER)) {
-            GenericRestClient.HttpResponse response = client.postJson("/logs/_search?pretty", query);
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_search?pretty", query);
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
             ImmutableList<String> keys = response.getBodyAsDocNode().findNodesByJsonPath("aggregations.test_agg.buckets[*].key")
@@ -152,7 +181,7 @@ public class FmIntTest {
         }
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
-            GenericRestClient.HttpResponse response = client.postJson("/logs/_search?pretty", query);
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_search?pretty", query);
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
             ImmutableList<String> keys = response.getBodyAsDocNode().findNodesByJsonPath("aggregations.test_agg.buckets[*].key")
@@ -165,14 +194,14 @@ public class FmIntTest {
     public void search_masked_terms() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
-            GenericRestClient.HttpResponse response = client.get("/logs/_search?pretty&q=source_ip:102.101.145.140");
+            GenericRestClient.HttpResponse response = client.get("/" + indexName + "/_search?pretty&q=source_ip:102.101.145.140");
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             System.out.println(response.getBody());
             Assert.assertFalse(response.getBody(), response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[*]").isEmpty());
         }
 
         try (GenericRestClient client = cluster.getRestClient(HASHED_IP_USER)) {
-            GenericRestClient.HttpResponse response = client.get("/logs/_search?pretty&q=source_ip:102.101.145.140");
+            GenericRestClient.HttpResponse response = client.get("/" + indexName + "/_search?pretty&q=source_ip:102.101.145.140");
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             System.out.println(response.getBody());
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[*]").isEmpty());

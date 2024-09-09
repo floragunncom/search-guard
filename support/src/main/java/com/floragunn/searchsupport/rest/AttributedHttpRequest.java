@@ -4,7 +4,7 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
-import org.elasticsearch.rest.ChunkedRestResponseBody;
+import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
@@ -97,7 +97,7 @@ public class AttributedHttpRequest implements HttpRequest {
     }
 
     @Override
-    public HttpResponse createResponse(RestStatus status, ChunkedRestResponseBody content) {
+    public HttpResponse createResponse(RestStatus status, ChunkedRestResponseBodyPart content) {
         return httpRequest.createResponse(status, content);
     }
 

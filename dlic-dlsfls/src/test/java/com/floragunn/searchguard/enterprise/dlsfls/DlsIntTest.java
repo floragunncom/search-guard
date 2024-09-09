@@ -16,15 +16,12 @@ package com.floragunn.searchguard.enterprise.dlsfls;
 
 import java.util.Collection;
 
+import com.floragunn.codova.documents.Format;
+import com.floragunn.searchguard.test.helper.PitHolder;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocumentParseException;
@@ -36,7 +33,19 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
+
+@RunWith(Parameterized.class)
 public class DlsIntTest {
 
     @ClassRule
@@ -46,21 +55,27 @@ public class DlsIntTest {
      * Increase DOC_COUNT for manual test runs with bigger test data sets
      */
     static final int DOC_COUNT = 200;
-    static final TestData TEST_DATA = TestData.documentCount(DOC_COUNT).get();
+    static final TestData TEST_DATA = TestData.documentCount(DOC_COUNT) //
+            .timestampColumnName("@timestamp") //
+            .get();
 
-    static final String INDEX = "logs";
+    static final String INDEX_NAME_PREFIX = "logs";
+    static final String INDEX_PATTERN = INDEX_NAME_PREFIX + "*";
+    static final String INDEX_NORMAL_MODE = INDEX_NAME_PREFIX + "_normal_index_mode";
+    static final String INDEX_LOGS_DB_MODE = INDEX_NAME_PREFIX + "_logs_db_index_mode";
+
 
     static final TestSgConfig.User ADMIN = new TestSgConfig.User("admin")
             .roles(new Role("all_access").indexPermissions("*").on("*").clusterPermissions("*"));
 
     static final TestSgConfig.User DEPT_A_USER = new TestSgConfig.User("dept_a")
-            .roles(new Role("dept_a").indexPermissions("SGS_READ").dls(DocNode.of("prefix.dept.value", "dept_a")).on(INDEX).clusterPermissions("*"));
+            .roles(new Role("dept_a").indexPermissions("SGS_READ").dls(DocNode.of("prefix.dept.value", "dept_a")).on(INDEX_PATTERN).clusterPermissions("*"));
     static final TestSgConfig.User DEPT_D_USER = new TestSgConfig.User("dept_d")
-            .roles(new Role("dept_d").indexPermissions("SGS_READ").dls(DocNode.of("term.dept.value", "dept_d")).on(INDEX).clusterPermissions("*"));
+            .roles(new Role("dept_d").indexPermissions("SGS_READ").dls(DocNode.of("term.dept.value", "dept_d")).on(INDEX_PATTERN).clusterPermissions("*"));
     static final TestSgConfig.User DEPT_D_TERMS_LOOKUP_USER = new TestSgConfig.User("dept_d_terms_lookup_user")
             .roles(new Role("dept_d").indexPermissions("SGS_READ")
                     .dls(DocNode.of("terms", DocNode.of("dept", DocNode.of("index", "user_dept_terms_lookup", "id", "${user.name}", "path", "dept"))))
-                    .on(INDEX).clusterPermissions("*"));
+                    .on(INDEX_PATTERN).clusterPermissions("*"));
 
     static final TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db"));
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().useImpl("flx").metrics("detailed");
@@ -72,18 +87,38 @@ public class DlsIntTest {
     @BeforeClass
     public static void setupTestData() {
         Client client = cluster.getInternalNodeClient();
-        TEST_DATA.createIndex(client, INDEX, Settings.builder().put("index.number_of_shards", 5).build());
+        Settings settings = Settings.builder().put("index.number_of_shards", 5).build();
+        TEST_DATA.createIndex(client, INDEX_NORMAL_MODE, settings);
+        settings = Settings.builder().put("index.number_of_shards", 5).put("index.mode", "logsdb").build();
+        TEST_DATA.createIndex(client, INDEX_LOGS_DB_MODE, settings);
 
         client.index(new IndexRequest("user_dept_terms_lookup").id("dept_d_terms_lookup_user").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                 .source("dept", "dept_d")).actionGet();
+
+        String indexMode = TEST_DATA.getIndexMode(client, INDEX_NORMAL_MODE);
+        // null means default mode which is currently normal
+        assertThat(indexMode, anyOf(equalTo("normal"), nullValue()));
+        indexMode = TEST_DATA.getIndexMode(client, INDEX_LOGS_DB_MODE);
+        assertThat(indexMode, equalTo("logsdb"));
+    }
+
+    private final String indexName;
+
+    public DlsIntTest(String indexName) {
+        this.indexName = indexName;
+    }
+
+    @Parameterized.Parameters(name = "{0}")
+    public static Object[] parameters() {
+        return new Object[] { INDEX_NORMAL_MODE, INDEX_LOGS_DB_MODE };
     }
 
     @Test
     public void get() throws Exception {
         TestDocument testDocumentA1 = TEST_DATA.anyDocumentForDepartment("dept_a_1");
-        String documentUriA1 = "/logs/_doc/" + testDocumentA1.getId();
+        String documentUriA1 = "/" + indexName + "/_doc/" + testDocumentA1.getId();
         TestDocument testDocumentD = TEST_DATA.anyDocumentForDepartment("dept_d");
-        String documentUriD = "/logs/_doc/" + testDocumentD.getId();
+        String documentUriD = "/" + indexName + "/_doc/" + testDocumentD.getId();
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_USER)) {
             GenericRestClient.HttpResponse response = client.get(documentUriA1);
@@ -102,8 +137,8 @@ public class DlsIntTest {
     public void get_termsLookup() throws Exception {
         TestDocument testDocumentA1 = TEST_DATA.anyDocumentForDepartment("dept_a_1");
         TestDocument testDocumentD = TEST_DATA.anyDocumentForDepartment("dept_d");
-        String documentUriA1 = "/logs/_doc/" + testDocumentA1.getId();
-        String documentUriD = "/logs/_doc/" + testDocumentD.getId();
+        String documentUriA1 = "/" + indexName + "/_doc/" + testDocumentA1.getId();
+        String documentUriD = "/" + indexName + "/_doc/" + testDocumentD.getId();
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER)) {
             GenericRestClient.HttpResponse response = client.get(documentUriA1);
@@ -127,7 +162,7 @@ public class DlsIntTest {
         TestDocument testDocumentD = TEST_DATA.anyDocumentForDepartment("dept_d");
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_USER)) {
-            GenericRestClient.HttpResponse response = client.postJson("/logs/_mget",
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_mget",
                     DocNode.of("docs", DocNode.array(DocNode.of("_id", testDocumentA1.getId()), DocNode.of("_id", testDocumentD.getId()))));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
@@ -137,7 +172,7 @@ public class DlsIntTest {
         }
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
-            GenericRestClient.HttpResponse response = client.postJson("/logs/_mget",
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_mget",
                     DocNode.of("docs", DocNode.array(DocNode.of("_id", testDocumentA1.getId()), DocNode.of("_id", testDocumentD.getId()))));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
@@ -153,7 +188,7 @@ public class DlsIntTest {
         TestDocument testDocumentD = TEST_DATA.anyDocumentForDepartment("dept_d");
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER)) {
-            GenericRestClient.HttpResponse response = client.postJson("/logs/_mget",
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_mget",
                     DocNode.of("docs", DocNode.array(DocNode.of("_id", testDocumentA1.getId()), DocNode.of("_id", testDocumentD.getId()))));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
@@ -163,7 +198,7 @@ public class DlsIntTest {
         }
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
-            GenericRestClient.HttpResponse response = client.postJson("/logs/_mget",
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_mget",
                     DocNode.of("docs", DocNode.array(DocNode.of("_id", testDocumentA1.getId()), DocNode.of("_id", testDocumentD.getId()))));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
@@ -177,7 +212,7 @@ public class DlsIntTest {
     public void search() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER)) {
-            GenericRestClient.HttpResponse response = client.get("/logs/_search?pretty");
+            GenericRestClient.HttpResponse response = client.get("/" + indexName + "/_search?pretty");
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_a.*/)]").size() == 10);
@@ -186,7 +221,32 @@ public class DlsIntTest {
         }
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
-            GenericRestClient.HttpResponse response = client.get("/logs/_search?pretty");
+            GenericRestClient.HttpResponse response = client.get("/" + indexName + "/_search?pretty");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_a.*/))]").size() != 0);
+        }
+    }
+
+    @Test
+    public void search_withPit() throws Exception {
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER);
+            PitHolder pitHolder = PitHolder.of(client).post("/" + indexName + "/_pit?keep_alive=1m")) {
+
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", DocNode.of("pit.id", pitHolder.getPitId()));
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_a.*/)]").size() == 10);
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_a.*/))]").size() == 0);
+
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN);
+            PitHolder pitHolder = PitHolder.of(client).post("/" + indexName + "/_pit?keep_alive=1m")) {
+
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", DocNode.of("pit.id", pitHolder.getPitId()));
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(!(@._source.dept =~ /dept_a.*/))]").size() != 0);
@@ -196,7 +256,7 @@ public class DlsIntTest {
     @Test
     public void search_termsLookup() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER)) {
-            GenericRestClient.HttpResponse response = client.get("/logs/_search?pretty");
+            GenericRestClient.HttpResponse response = client.get("/" + indexName + "/_search?pretty");
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == 10);
@@ -212,13 +272,36 @@ public class DlsIntTest {
         DocNode query = DocNode.of("suggest", DocNode.of("suggestion", DocNode.of("text", "rahnsthla", "term.field", "source_loc")));
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_USER)) {
-            GenericRestClient.HttpResponse response = client.postJson("/logs/_search?pretty", query);
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_search?pretty", query);
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
         }
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
-            GenericRestClient.HttpResponse response = client.postJson("/logs/_search?pretty", query);
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_search?pretty", query);
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+        }
+    }
+
+    @Test
+    public void search_suggest_withPit() throws Exception {
+        // TOOD test with exclusive term
+
+        DocNode query = DocNode.of("suggest", DocNode.of("suggestion", DocNode.of("text", "rahnsthla", "term.field", "source_loc")));
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_D_USER);
+            PitHolder pitHolder = PitHolder.of(client).post("/" + indexName + "/_pit?keep_alive=1m")) {
+
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitHolder.getPitId())));
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN);
+            PitHolder pitHolder = PitHolder.of(client).post("/" + indexName + "/_pit?keep_alive=1m")) {
+
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitHolder.getPitId())));
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
         }
@@ -228,7 +311,7 @@ public class DlsIntTest {
     public void scroll() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER)) {
-            GenericRestClient.HttpResponse response = client.get("/logs/_search?scroll=1m&pretty=true&size=5");
+            GenericRestClient.HttpResponse response = client.get("/" + indexName + "/_search?scroll=1m&pretty=true&size=5");
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_a.*/)]").size() == 5);
@@ -258,10 +341,21 @@ public class DlsIntTest {
     }
 
     @Test
+    public void scroll_withPit() throws Exception {
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER);
+            PitHolder pitHolder = PitHolder.of(client).post("/" + indexName + "/_pit?keep_alive=1m")) {
+
+            GenericRestClient.HttpResponse response = client.postJson("/_search?scroll=1m&pretty=true&size=5", DocNode.of("pit.id", pitHolder.getPitId()));
+            Assert.assertEquals(response.getBody(), 400, response.getStatusCode()); //using point in time is not allowed in a scroll context
+        }
+    }
+
+    @Test
     public void scroll_termsLookup() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_TERMS_LOOKUP_USER)) {
-            GenericRestClient.HttpResponse response = client.get("/logs/_search?scroll=1m&pretty=true&size=5");
+            GenericRestClient.HttpResponse response = client.get("/" + indexName + "/_search?scroll=1m&pretty=true&size=5");
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
                     response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.dept =~ /dept_d.*/)]").size() == 5);
@@ -300,7 +394,7 @@ public class DlsIntTest {
         int a2count;
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
-            GenericRestClient.HttpResponse response = client.postJson("/logs/_search?pretty", query);
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_search?pretty", query);
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
@@ -311,7 +405,43 @@ public class DlsIntTest {
         }
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER)) {
-            GenericRestClient.HttpResponse response = client.postJson("/logs/_search?pretty", query);
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_search?pretty", query);
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("aggregations.test_agg.buckets[?(@.key == 'dept_d')]").size() == 0);
+
+            Assert.assertEquals(response.getBody(), a1count, getInt(response, "aggregations.test_agg.buckets[?(@.key == 'dept_a_1')].doc_count"));
+            Assert.assertEquals(response.getBody(), a2count, getInt(response, "aggregations.test_agg.buckets[?(@.key == 'dept_a_2')].doc_count"));
+        }
+    }
+
+    @Test
+    public void terms_aggregation_withPit() throws Exception {
+
+        DocNode query = DocNode.parse(Format.JSON).from("{" + "\"query\" : {" + "\"match_all\": {}" + "}," + "\"aggs\" : {"
+                + "\"test_agg\" : { \"terms\" : { \"field\" : \"dept.keyword\" } }" + "}" + "}");
+
+        int a1count;
+        int a2count;
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN);
+            PitHolder pitHolder = PitHolder.of(client).post("/" + indexName + "/_pit?keep_alive=1m")) {
+
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitHolder.getPitId())));
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("aggregations.test_agg.buckets[?(@.key == 'dept_d')]").size() == 1);
+
+            a1count = getInt(response, "aggregations.test_agg.buckets[?(@.key == 'dept_a_1')].doc_count");
+            a2count = getInt(response, "aggregations.test_agg.buckets[?(@.key == 'dept_a_2')].doc_count");
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_A_USER);
+            PitHolder pitHolder = PitHolder.of(client).post("/" + indexName + "/_pit?keep_alive=1m")) {
+
+            GenericRestClient.HttpResponse response = client.postJson("/_search?pretty", query.with(DocNode.of("pit.id", pitHolder.getPitId())));
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertTrue(response.getBody(),
@@ -325,7 +455,7 @@ public class DlsIntTest {
     @Test
     public void termvectors() throws Exception {
         TestDocument doc = TEST_DATA.anyDocumentForDepartment("dept_a_1");
-        String docUrl = "/logs/_termvectors/" + doc.getId() + "?pretty=true";
+        String docUrl = "/" + indexName + "/_termvectors/" + doc.getId() + "?pretty=true";
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
             GenericRestClient.HttpResponse response = client.get(docUrl);
@@ -341,7 +471,7 @@ public class DlsIntTest {
 
         TestDocument allowedDoc = TEST_DATA.anyDocumentForDepartment("dept_d");
 
-        String allowedDocUrl = "/logs/_termvectors/" + allowedDoc.getId() + "?pretty=true";
+        String allowedDocUrl = "/" + indexName + "/_termvectors/" + allowedDoc.getId() + "?pretty=true";
 
         try (GenericRestClient client = cluster.getRestClient(DEPT_D_USER)) {
             GenericRestClient.HttpResponse response = client.get(allowedDocUrl);
