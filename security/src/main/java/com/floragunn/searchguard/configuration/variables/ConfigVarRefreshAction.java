@@ -39,6 +39,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 
 public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Response> {
@@ -77,10 +78,6 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
 
         public Request() {
             super((String[]) null);
-        }
-
-        public Request(StreamInput in) throws IOException {
-            super(in);
         }
     }
 
@@ -148,24 +145,19 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
             }
         }
 
-        public static class NodeRequest extends BaseNodesRequest {
-
-            Request request;
+        public static class NodeRequest extends TransportRequest {
 
             public NodeRequest(StreamInput in) throws IOException {
                 super(in);
-                request = new Request(in);
             }
 
             public NodeRequest(Request request) {
-                super((String[]) null);
-                this.request = request;
+                super();
             }
 
             @Override
             public void writeTo(StreamOutput out) throws IOException {
                 super.writeTo(out);
-                request.writeTo(out);
             }
         }
 

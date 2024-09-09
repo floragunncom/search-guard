@@ -214,7 +214,7 @@ class FrontendDataMigrationInterceptor {
                 .origin(request.origin())
                 .writeIndexOnly(request.writeIndexOnly())
                 .masterNodeTimeout(request.masterNodeTimeout())
-                .timeout(request.timeout())
+                .ackTimeout(request.ackTimeout())
                 .indicesOptions(request.indicesOptions());
         if(request.getConcreteIndex() != null) {
             extendedRequest.setConcreteIndex(request.getConcreteIndex());

@@ -14,12 +14,8 @@
 
 package com.floragunn.searchguard.authtoken.update;
 
-import java.io.IOException;
-
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
 
 import com.floragunn.searchguard.authtoken.AuthToken;
 
@@ -29,26 +25,11 @@ public class PushAuthTokenUpdateRequest extends BaseNodesRequest<PushAuthTokenUp
     private UpdateType updateType;
     private long newHash;
 
-    public PushAuthTokenUpdateRequest(StreamInput in) throws IOException {
-        super(in);
-        this.updatedToken = new AuthToken(in);
-        this.updateType = in.readEnum(UpdateType.class);
-        this.newHash = in.readLong();
-    }
-
     public PushAuthTokenUpdateRequest(AuthToken updatedToken, UpdateType updateType, long newHash) {
         super(new String[0]);
         this.updatedToken = updatedToken;
         this.updateType = updateType;
         this.newHash = newHash;
-    }
-
-    @Override
-    public void writeTo(final StreamOutput out) throws IOException {
-        super.writeTo(out);
-        updatedToken.writeTo(out);
-        out.writeEnum(updateType);
-        out.writeLong(newHash);
     }
 
     @Override

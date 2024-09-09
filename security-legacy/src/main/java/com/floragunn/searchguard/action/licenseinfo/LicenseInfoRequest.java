@@ -17,24 +17,13 @@
 
 package com.floragunn.searchguard.action.licenseinfo;
 
-import java.io.IOException;
 
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
 
 public class LicenseInfoRequest extends BaseNodesRequest<LicenseInfoRequest> {
-
-    public LicenseInfoRequest(StreamInput in) throws IOException {
-        super(in);
-    }
 
     public LicenseInfoRequest(String... nodesIds) {
         super(nodesIds);
     }
 
-    @Override
-    public void writeTo(final StreamOutput out) throws IOException {
-        super.writeTo(out);
-    }
 }

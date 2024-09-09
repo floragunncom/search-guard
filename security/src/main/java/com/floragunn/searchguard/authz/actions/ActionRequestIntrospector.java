@@ -47,6 +47,7 @@ import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchContextId;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.rest.root.MainRequest;
 import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
@@ -112,7 +113,7 @@ public class ActionRequestIntrospector {
         if (request instanceof SearchRequest searchRequest && (searchRequest.pointInTimeBuilder() != null)) {
             // In point-in-time queries, wildcards in index names are expanded when the open point-in-time request
             // is sent. Therefore, a list of indices in search requests with PIT can be treated literally.
-            String pointInTimeId = searchRequest.pointInTimeBuilder().getEncodedId();
+            BytesReference pointInTimeId = searchRequest.pointInTimeBuilder().getEncodedId();
             String[] indices = SearchContextId.decodeIndices(pointInTimeId);
             return new ActionRequestInfo(indices == null ? ImmutableList.empty() : ImmutableList.ofArray(indices), EXACT);
         } else if (request instanceof SingleShardRequest) {

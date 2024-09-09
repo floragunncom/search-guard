@@ -45,6 +45,7 @@ import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
+
 import java.util.stream.Stream;
 
 @RunWith(Parameterized.class)
@@ -69,8 +70,8 @@ public class IgnoreUnauthorizedCcsIntTest {
             new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("a*"));
 
     static TestSgConfig.User LIMITED_USER_REMOTE_A = new TestSgConfig.User("limited_user_A").roles(//
-            new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO")
-                    .indexPermissions("SGS_CRUD", "indices:admin/search/search_shards", "indices:admin/shards/search_shards", "indices:admin/resolve/cluster").on("a*"));
+            new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD",
+                    "indices:admin/search/search_shards", "indices:admin/shards/search_shards", "indices:admin/resolve/cluster").on("a*"));
 
     static TestSgConfig.User LIMITED_USER_COORD_B = new TestSgConfig.User("limited_user_B").roles(//
             new Role("limited_user_b_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("b*"));
@@ -80,8 +81,8 @@ public class IgnoreUnauthorizedCcsIntTest {
                     .indexPermissions("SGS_CRUD", "indices:admin/search/search_shards", "indices:admin/shards/search_shards").on("b*"));
 
     static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user").roles(//
-            new Role("unlimited_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO")
-                    .indexPermissions("SGS_CRUD", "indices:admin/search/search_shards", "indices:admin/shards/search_shards", "indices:admin/resolve/cluster").on("*"));
+            new Role("unlimited_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD",
+                    "indices:admin/search/search_shards", "indices:admin/shards/search_shards", "indices:admin/resolve/cluster").on("*"));
 
     static TestIndex index_coord_a1 = TestIndex.name("a1").documentCount(100).seed(1).attr("prefix", "a").attr("cluster", "local").build();
     static TestIndex index_coord_a2 = TestIndex.name("a2").documentCount(110).seed(2).attr("prefix", "a").attr("cluster", "local").build();
@@ -107,8 +108,9 @@ public class IgnoreUnauthorizedCcsIntTest {
             .embedded().build();
 
     @ClassRule
-    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext).remote("my_remote", anotherCluster)
-            .nodeSettings("searchguard.diagnosis.action_stack.enabled", true).users(LIMITED_USER_COORD_A, LIMITED_USER_COORD_B, UNLIMITED_USER)//
+    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
+            .remote("my_remote", anotherCluster).nodeSettings("searchguard.diagnosis.action_stack.enabled", true)
+            .nodeSettings("cluster.remote.my_remote.skip_unavailable", true).users(LIMITED_USER_COORD_A, LIMITED_USER_COORD_B, UNLIMITED_USER)//
             .indices(index_coord_a1, index_coord_a2, index_coord_b1, index_coord_b2, index_coord_c1)//
             .aliases(xalias_coord_ab1)//
             .embedded().build();
@@ -137,7 +139,7 @@ public class IgnoreUnauthorizedCcsIntTest {
             Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches(index_coord_a1, index_coord_a2))));
         }
     }
-
+    
     @Test
     public void search_localWildcard() throws Exception {
         String query = "*/_search?size=1000&" + ccsMinimizeRoundtrips;
@@ -351,13 +353,22 @@ public class IgnoreUnauthorizedCcsIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.get(query);
 
-            Assert.assertThat(httpResponse, isNotFound());
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("hits.hits", empty())));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.status", equalTo("skipped"))));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures", hasSize(1))));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures[0].reason.reason", containsString("no such index"))));
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
             HttpResponse httpResponse = restClient.get(query);
 
-            Assert.assertThat(httpResponse, isForbidden());
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("hits.hits", empty())));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.status", equalTo("skipped"))));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures", hasSize(1))));
+            Assert.assertThat(httpResponse,
+                    json(nodeAt("_clusters.details.my_remote.failures[0].reason.reason", equalTo("Insufficient permissions"))));
         }
     }
 
@@ -406,13 +417,14 @@ public class IgnoreUnauthorizedCcsIntTest {
         String query = "/_search?size=1000&" + ccsMinimizeRoundtrips;
 
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
-             PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:a*/_pit?keep_alive=1m")) {
+                PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:a*/_pit?keep_alive=1m")) {
 
             HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
             if (ccsMinimizeRoundtrips.equals("ccs_minimize_roundtrips=true")) {
                 Assert.assertThat(httpResponse, isBadRequest());
-                Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
+                Assert.assertThat(httpResponse,
+                        json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
             } else {
                 Assert.assertThat(httpResponse, isOk());
                 Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches("my_remote", index_remote_a1, index_remote_a2))));
@@ -422,13 +434,14 @@ public class IgnoreUnauthorizedCcsIntTest {
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A);
-             PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:a*/_pit?keep_alive=1m")) {
+                PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:a*/_pit?keep_alive=1m")) {
 
             HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
             if (ccsMinimizeRoundtrips.equals("ccs_minimize_roundtrips=true")) {
                 Assert.assertThat(httpResponse, isBadRequest());
-                Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
+                Assert.assertThat(httpResponse,
+                        json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
             } else {
                 Assert.assertThat(httpResponse, isOk());
                 Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches("my_remote", index_remote_a1, index_remote_a2))));
@@ -453,7 +466,12 @@ public class IgnoreUnauthorizedCcsIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
             HttpResponse httpResponse = restClient.get(query);
 
-            Assert.assertThat(httpResponse, isForbidden());
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(nodeAt("hits.hits", empty())));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.status", equalTo("skipped"))));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures", hasSize(1))));
+            Assert.assertThat(httpResponse,
+                    json(nodeAt("_clusters.details.my_remote.failures[0].reason.reason", equalTo("Insufficient permissions"))));
         }
 
     }
@@ -462,15 +480,15 @@ public class IgnoreUnauthorizedCcsIntTest {
     public void search_staticIndices_pit() throws Exception {
         String query = "/_search?size=1000&" + ccsMinimizeRoundtrips;
 
-        try (
-                GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
+        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER);
                 PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:b1/_pit?keep_alive=1m")) {
 
             HttpResponse httpResponse = restClient.postJson(query, pitHolder.asSearchBody());
 
             if (ccsMinimizeRoundtrips.equals("ccs_minimize_roundtrips=true")) {
                 Assert.assertThat(httpResponse, isBadRequest());
-                Assert.assertThat(httpResponse, json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
+                Assert.assertThat(httpResponse,
+                        json(nodeAt("error.reason", containsString("[ccs_minimize_roundtrips] cannot be used with point in time"))));
             } else {
                 Assert.assertThat(httpResponse, isOk());
                 Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("my_remote:b1"))));
@@ -479,11 +497,11 @@ public class IgnoreUnauthorizedCcsIntTest {
             }
         }
 
-        try (
-                GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A);
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A);
                 PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:b1/_pit?keep_alive=1m")) {
 
-            Assert.assertThat(pitHolder.getResponse(), isForbidden());
+            Assert.assertThat(pitHolder.getResponse(), isOk());
+            Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), emptyArray());
         }
 
     }
@@ -563,7 +581,11 @@ public class IgnoreUnauthorizedCcsIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
             HttpResponse httpResponse = restClient.get(query);
 
-            Assert.assertThat(httpResponse, isForbidden());
+            Assert.assertThat(httpResponse, json(nodeAt("hits.hits", empty())));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.status", equalTo("skipped"))));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures", hasSize(1))));
+            Assert.assertThat(httpResponse,
+                    json(nodeAt("_clusters.details.my_remote.failures[0].reason.reason", equalTo("Insufficient permissions"))));
         }
 
     }
@@ -592,7 +614,12 @@ public class IgnoreUnauthorizedCcsIntTest {
             HttpResponse httpResponse = restClient.postJson(query, msearchBody);
 
             Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].error.type", containsInAnyOrder("security_exception"))));
+            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].hits.hits", containsInAnyOrder(empty()))));
+            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*]._clusters.details.my_remote.status", containsInAnyOrder("skipped"))));
+            Assert.assertThat(httpResponse,
+                    json(distinctNodesAt("responses[*]._clusters.details.my_remote.failures", containsInAnyOrder(hasSize(1)))));
+            Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*]._clusters.details.my_remote.failures[0].reason.reason",
+                    containsInAnyOrder("Insufficient permissions"))));
         }
     }
 
@@ -718,7 +745,7 @@ public class IgnoreUnauthorizedCcsIntTest {
             Assert.assertThat(httpResponse, json(distinctNodesAt("aggregations.indices.buckets", matchesDocCount(ImmutableMap.of("b1", index_coord_b1)
                     .with("b2", index_coord_b2).with("my_remote:a1", index_remote_a1).with("my_remote:a2", index_remote_a2)))));
         }
-        
+
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
             HttpResponse httpResponse = restClient.postJson(query, body);
 
@@ -776,7 +803,7 @@ public class IgnoreUnauthorizedCcsIntTest {
 
             // This is slightly counter-intuitive, but correct:
             // The user does not have privileges for an index called notfound
-            // Thus, as the index expression contains wildcards, it is removed 
+            // Thus, as the index expression contains wildcards, it is removed
             // from the index expression. Thus, the search is successful.
 
             Assert.assertThat(httpResponse, isOk());
@@ -790,18 +817,17 @@ public class IgnoreUnauthorizedCcsIntTest {
         String query = "my_remote:*,notfound/_search?ignore_unavailable=true&" + ccsMinimizeRoundtrips;
         String body = "{\"size\":0,\"aggs\":{\"clusteragg\":{\"terms\":{\"field\":\"cluster.keyword\",\"size\":1000}}}}";
 
-        Matcher<HttpResponse> clustersCountMatcherCssRoundtripsMinTrue = allOf(
-                json(nodeAt("_clusters.successful", is(2))), json(nodeAt("_clusters.running", is(0)))
-        );
-        Matcher<HttpResponse> clustersCountMatcherCssRoundtripsMinFalse = allOf(
-                json(nodeAt("_clusters.successful", is(1))), json(nodeAt("_clusters.running", is(1)))
-        );
+        Matcher<HttpResponse> clustersCountMatcherCssRoundtripsMinTrue = allOf(json(nodeAt("_clusters.successful", is(2))),
+                json(nodeAt("_clusters.running", is(0))));
+        Matcher<HttpResponse> clustersCountMatcherCssRoundtripsMinFalse = allOf(json(nodeAt("_clusters.successful", is(1))),
+                json(nodeAt("_clusters.running", is(1))));
 
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.postJson(query, body);
 
             Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, roundtripsMinimized? clustersCountMatcherCssRoundtripsMinTrue : clustersCountMatcherCssRoundtripsMinFalse);
+            Assert.assertThat(httpResponse,
+                    roundtripsMinimized ? clustersCountMatcherCssRoundtripsMinTrue : clustersCountMatcherCssRoundtripsMinFalse);
 
             Assert.assertThat(httpResponse,
                     json(distinctNodesAt("aggregations.clusteragg.buckets[?(@.key == 'remote')].doc_count", containsInAnyOrder(342))));
@@ -811,14 +837,14 @@ public class IgnoreUnauthorizedCcsIntTest {
             HttpResponse httpResponse = restClient.postJson(query, body);
 
             Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse, roundtripsMinimized? clustersCountMatcherCssRoundtripsMinTrue : clustersCountMatcherCssRoundtripsMinFalse);
+            Assert.assertThat(httpResponse,
+                    roundtripsMinimized ? clustersCountMatcherCssRoundtripsMinTrue : clustersCountMatcherCssRoundtripsMinFalse);
 
             Assert.assertThat(httpResponse,
                     json(distinctNodesAt("aggregations.clusteragg.buckets[?(@.key == 'remote')].doc_count", containsInAnyOrder(236))));
         }
 
     }
-
 
     @Test
     public void resolve_cluster_local_static_match_ignore_unavailable_true_limited_user() throws Exception {
@@ -843,7 +869,6 @@ public class IgnoreUnauthorizedCcsIntTest {
             assertThat(httpResponse, json(distinctNodesAt("$.error.root_cause[0].type", equalTo("security_exception"))));
         }
     }
-
 
     @Test
     public void resolve_cluster_local_pattern_not_match_limited_user_limited_user() throws Exception {
@@ -994,7 +1019,6 @@ public class IgnoreUnauthorizedCcsIntTest {
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.get(query);
 
-
             assertThat(httpResponse, isOk());
             assertThat(httpResponse, json(distinctNodesAt("$['(local)'].matching_indices", equalTo(true))));
             assertThat(httpResponse, json(distinctNodesAt("$.my_remote.matching_indices", equalTo(true))));
@@ -1007,7 +1031,6 @@ public class IgnoreUnauthorizedCcsIntTest {
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_B)) {
             HttpResponse httpResponse = restClient.get(query);
-
 
             assertThat(httpResponse, isOk());
             assertThat(httpResponse, json(distinctNodesAt("$['(local)'].matching_indices", equalTo(false))));

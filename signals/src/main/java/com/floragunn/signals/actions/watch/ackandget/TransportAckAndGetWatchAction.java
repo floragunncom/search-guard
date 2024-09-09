@@ -44,6 +44,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -103,29 +104,29 @@ public class TransportAckAndGetWatchAction
                 return new NodeResponse(localNode, NO_SUCH_TENANT, "No such tenant: " + user.getRequestedTenant());
             }
 
-            if (request.request.getWatchId() == null) {
+            if (request.watchId == null) {
                 throw new IllegalArgumentException("request.watchId is null");
             }
 
-            if (!signalsTenant.runsWatchLocally(request.request.getWatchId())) {
-                return new NodeResponse(localNode, NO_SUCH_WATCH, "This node does not run " + request.request.getWatchId());
+            if (!signalsTenant.runsWatchLocally(request.watchId)) {
+                return new NodeResponse(localNode, NO_SUCH_WATCH, "This node does not run " + request.watchId);
             }
 
-            if (request.request.getActionId() != null) {
-                String actionId = request.request.getActionId();
-                if(signalsTenant.getWatchState(request.request.getWatchId()).isActionMissing(actionId)){
-                    String message = String.format("Watch %s does not contain action %s", request.request.getWatchId(), actionId);
+            if (request.actionId != null) {
+                String actionId = request.actionId;
+                if(signalsTenant.getWatchState(request.watchId).isActionMissing(actionId)){
+                    String message = String.format("Watch %s does not contain action %s", request.watchId, actionId);
                     return new NodeResponse(localNode, NO_SUCH_ACTION, message);
                 }
                 try {
-                    if (request.request.isAck()) {
-                        WatchState watchState = signalsTenant.ack(request.request.getWatchId(), actionId, user);
+                    if (request.ack) {
+                        WatchState watchState = signalsTenant.ack(request.watchId, actionId, user);
                         ActionState actionState = watchState.getActionState(actionId);
                         Ack acked = actionState.getAcked();
                         Acknowledgement acknowledgement = new Acknowledgement(acked.getOn(), acked.getBy(), actionId);
                         return new NodeResponse(localNode, AckAndGetWatchResponse.Status.SUCCESS, "Acknowledged", acknowledgement);
                     } else {
-                        signalsTenant.unack(request.request.getWatchId(), actionId, user);
+                        signalsTenant.unack(request.watchId, actionId, user);
                         List<String> unackedActionIds = Collections.singletonList(actionId);
                         return new NodeResponse(localNode, AckAndGetWatchResponse.Status.SUCCESS, "Un-acknowledged", unackedActionIds);
                     }
@@ -133,8 +134,8 @@ public class TransportAckAndGetWatchAction
                     return new NodeResponse(localNode, AckAndGetWatchResponse.Status.ILLEGAL_STATE, e.getMessage());
                 }
             } else {
-                if (request.request.isAck()) {
-                    Map<String, Ack> ackedActions = signalsTenant.ack(request.request.getWatchId(), user);
+                if (request.ack) {
+                    Map<String, Ack> ackedActions = signalsTenant.ack(request.watchId, user);
 
                     if (ackedActions.size() == 0) {
                         return new NodeResponse(localNode, AckAndGetWatchResponse.Status.ILLEGAL_STATE, "No actions are in an acknowlegable state");
@@ -147,7 +148,7 @@ public class TransportAckAndGetWatchAction
                         return new NodeResponse(localNode, AckAndGetWatchResponse.Status.SUCCESS, message, acknowledgements);
                     }
                 } else {
-                    List<String> unackedActions = signalsTenant.unack(request.request.getWatchId(), user);
+                    List<String> unackedActions = signalsTenant.unack(request.watchId, user);
 
                     if (unackedActions.size() == 0) {
                         return new NodeResponse(localNode, AckAndGetWatchResponse.Status.ILLEGAL_STATE, "No actions are in an un-acknowlegable state");
@@ -164,33 +165,41 @@ public class TransportAckAndGetWatchAction
         } catch (NotAcknowledgeableException e) {
             return new NodeResponse(clusterService.localNode(), AckAndGetWatchResponse.Status.NOT_ACKNOWLEDGEABLE, e.getMessage());
         } catch (Exception e) {
-            log.error("Error while acknowledging " + request.request, e);
+            log.error("Error while acknowledging " + request, e);
             return new NodeResponse(clusterService.localNode(), AckAndGetWatchResponse.Status.EXCEPTION, e.toString());
         }
     }
 
-    public static class NodeRequest extends BaseNodesRequest<NodeRequest> {
+    public static class NodeRequest extends TransportRequest {
 
-        AckAndGetWatchRequest request;
+        private String watchId;
+        private String actionId;
+        private boolean ack;
 
         public NodeRequest() {
-            super(new String [0]);
+            super();
         }
 
         public NodeRequest(final AckAndGetWatchRequest request) {
-            super(new String [0]);
-            this.request = request;
+            super();
+            this.watchId = request.getWatchId();
+            this.ack = request.isAck();
+            this.actionId = request.getActionId();
         }
 
         public NodeRequest(final StreamInput in) throws IOException {
             super(in);
-            request = new AckAndGetWatchRequest(in);
+            this.watchId = in.readString();
+            this.ack = in.readBoolean();
+            this.actionId = in.readOptionalString();
         }
 
         @Override
         public void writeTo(final StreamOutput out) throws IOException {
             super.writeTo(out);
-            request.writeTo(out);
+            out.writeString(watchId);
+            out.writeBoolean(ack);
+            out.writeOptionalString(actionId);
         }
     }
 
