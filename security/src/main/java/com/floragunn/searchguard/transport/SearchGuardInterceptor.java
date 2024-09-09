@@ -32,8 +32,8 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsAction;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsResponse;
+import org.elasticsearch.action.admin.cluster.shards.TransportClusterSearchShardsAction;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchShardsResponse;
@@ -147,7 +147,7 @@ public class SearchGuardInterceptor {
                         
             if (remoteClusterService.isCrossClusterSearchEnabled() 
                     && clusterInfoHolder.isInitialized()
-                    && (action.equals(ClusterSearchShardsAction.NAME)
+                    && (action.equals(TransportClusterSearchShardsAction.TYPE.name())
                             || action.equals(TransportSearchAction.NAME)
 )
                     && !clusterInfoHolder.hasNode(connection.getNode())) {
@@ -166,7 +166,7 @@ public class SearchGuardInterceptor {
             if (remoteClusterService.isCrossClusterSearchEnabled() 
                   && clusterInfoHolder.isInitialized()
                   && !action.startsWith("internal:") 
-                  && !action.equals(ClusterSearchShardsAction.NAME) 
+                  && !action.equals(TransportClusterSearchShardsAction.TYPE.name())
                   && !clusterInfoHolder.hasNode(connection.getNode())) {
                 
                 if (log.isDebugEnabled()) {

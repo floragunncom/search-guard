@@ -21,20 +21,15 @@ import java.io.IOException;
 
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
 
 public class WhoAmIRequest extends BaseNodesRequest<WhoAmIRequest> {
 
     public WhoAmIRequest(StreamInput in) throws IOException {
-        super(in);
+        //todo kept only due to compilation errors in TransportWhoAmIAction
     }
 
     public WhoAmIRequest() {
         super(new String[0]);
     }
 
-    @Override
-    public void writeTo(final StreamOutput out) throws IOException {
-        super.writeTo(out);
-    }
 }

@@ -103,7 +103,7 @@ signals_2:
        MAJOR="$(echo $ES_VERSION | cut -d. -f1-2)"
        TEST_IT_BRANCH="${MAJOR}.x"
        echo "TEST_IT_BRANCH: $TEST_IT_BRANCH"
-       git clone --depth 1 --branch $TEST_IT_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/sgi8.git > /dev/null
+       git clone --depth 1 --branch it-8.15-fix https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/sgi8.git > /dev/null
        cd sgi8/server
        rm -f docker/elasticsearch/search-guard.zip
        cp -a ../../plugin/target/releases/search-guard-flx-elasticsearch-plugin-${SNAPSHOT_REVISION}.zip docker/elasticsearch/search-guard.zip

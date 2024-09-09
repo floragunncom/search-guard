@@ -38,6 +38,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import com.floragunn.searchsupport.action.StandardRequests;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.TransportCreateIndexAction;
@@ -48,7 +50,6 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.transport.TransportRequest;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -190,7 +191,7 @@ public class AuditlogTest {
                 UserInformation.forName("testuser.transport.failedlogin"),
                 false,
                 UserInformation.forName("testuser.transport.failedlogin"),
-                new TransportRequest.Empty(),
+                new StandardRequests.EmptyRequest(),
                 null);
             assertAuditLogDoesNotContainDisabledFields();
         }
@@ -245,7 +246,7 @@ public class AuditlogTest {
                 UserInformation.forName("testuser.rest.failedlogin"),
                 false,
                 UserInformation.forName("testuser.rest.failedlogin"),
-                new TransportRequest.Empty(),
+                new StandardRequests.EmptyRequest(),
                 null,
                 null);
             assertAuditLogDoesNotContainDisabledFields();
@@ -294,7 +295,7 @@ public class AuditlogTest {
             .build();
         try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
-            al.logBadHeaders(new TransportRequest.Empty(),"action", null);
+            al.logBadHeaders(new StandardRequests.EmptyRequest(),"action", null);
             assertAuditLogDoesNotContainDisabledFields();
         }
     }
