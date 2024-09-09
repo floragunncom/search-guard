@@ -6,7 +6,6 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.client.internal.Client;
 
@@ -26,7 +25,7 @@ public class PolicyService {
 
     public CompletableFuture<GetResponse> getPolicyAsync(String policyName) {
         CompletableFuture<GetResponse> result = new CompletableFuture<>();
-        client.get(new GetRequest().index(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME).id(policyName), new ActionListener<>() {
+        client.prepareGet(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME, policyName).execute(new ActionListener<>() {
             @Override
             public void onResponse(GetResponse response) {
                 result.complete(response);
@@ -41,11 +40,7 @@ public class PolicyService {
     }
 
     public MultiGetResponse multiGetPolicy(Collection<String> policyNames) {
-        MultiGetRequest request = new MultiGetRequest();
-        for (String policyName : policyNames) {
-            request.add(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME, policyName);
-        }
-        return client.multiGet(request).actionGet();
+        return client.prepareMultiGet().addIds(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME, policyNames).get();
     }
 
     public InternalPolicyAPI.StatusResponse putPolicy(String policyName, Policy policy) {

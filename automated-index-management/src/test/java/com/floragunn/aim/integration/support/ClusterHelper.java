@@ -21,6 +21,8 @@ import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.elasticsearch.action.admin.indices.stats.ShardStats;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 
@@ -267,6 +269,22 @@ public class ClusterHelper {
                     }
                 }
                 return true;
+            });
+        }
+
+        public static void awaitSearchHitCount(LocalCluster.Embedded cluster, SearchRequest searchRequest, int count) {
+            Awaitility.await().until(() -> {
+                SearchResponse response = null;
+                try {
+                    response = cluster.getInternalNodeClient().search(searchRequest).actionGet();
+                    return Objects.requireNonNull(response.getHits().getTotalHits()).value == count;
+                } catch (NullPointerException e) {
+                    return false;
+                } finally {
+                    if (response != null) {
+                        response.decRef();
+                    }
+                }
             });
         }
     }

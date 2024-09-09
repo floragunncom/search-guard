@@ -21,6 +21,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,7 +33,7 @@ public class ScenarioTest {
     private static LocalCluster.Embedded CLUSTER;
 
     @BeforeAll
-    public static void setup() throws Exception {
+    public static void setup() {
         CLUSTER = new LocalCluster.Builder().sslEnabled().resources("sg_config").enableModule(AutomatedIndexManagementModule.class)
                 .clusterConfiguration(ClusterConfiguration.THREE_MASTERS)
                 .nodeSettings(AutomatedIndexManagementSettings.Static.StateLog.ENABLED.name(), false).waitForComponents("aim").embedded().start();
@@ -105,7 +106,7 @@ public class ScenarioTest {
 
     @Order(2)
     @Test
-    public void testMasterNodeShutdown() {
+    public void testMasterNodeShutdown() throws Exception {
         String policyName = "master_node_shutdown_test_policy";
         String indexName = "master_node_shutdown_test_index";
 
@@ -115,8 +116,9 @@ public class ScenarioTest {
         ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);
 
         ClusterService clusterService = CLUSTER.getInjectable(ClusterService.class);
-        String masterName = clusterService.state().getNodes().getMasterNode().getName();
+        String masterName = Objects.requireNonNull(clusterService.state().getNodes().getMasterNode()).getName();
         CLUSTER.getNodeByName(masterName).stop();
+        Thread.sleep(1000);
 
         ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.WAITING);
     }

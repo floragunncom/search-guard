@@ -1,6 +1,5 @@
 package com.floragunn.aim;
 
-import com.floragunn.aim.integration.support.ClusterHelper;
 import com.floragunn.aim.policy.Policy;
 import com.floragunn.aim.policy.actions.Action;
 import com.floragunn.aim.policy.conditions.Condition;
@@ -9,7 +8,6 @@ import com.floragunn.aim.policy.instance.PolicyInstanceState;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 import java.util.AbstractMap;
 import java.util.Map;
@@ -21,12 +19,13 @@ public class MockSupport {
     public static final MockCondition STATE_LOG_ROLLOVER_MAX_SIZE = new MockCondition("2f73b82f-d670-4e58-abd7-45501da3d9ce");
     public static final MockCondition STATE_LOG_DELETE_MAX_AGE = new MockCondition("95d1addf-bb29-4c94-80e3-5c8dbf056a18");
 
-    public static void init(LocalCluster.Embedded cluster) {
-        AutomatedIndexManagement aim = cluster.getInjectable(AutomatedIndexManagement.class);
-        aim.getConditionFactory().register(MockCondition.TYPE, MockCondition.VALIDATING_PARSER);
-        aim.getActionFactory().register(MockAction.TYPE, MockAction.VALIDATING_PARSER);
-        ClusterHelper.Internal.postSettingsUpdate(cluster, AutomatedIndexManagementSettings.Dynamic.STATE_LOG_ACTIVE, false);
-        ClusterHelper.Internal.postSettingsUpdate(cluster, AutomatedIndexManagementSettings.Dynamic.STATE_LOG_ACTIVE, true);
+    public static void init() {
+        if (!AutomatedIndexManagement.CONDITION_FACTORY.containsType(MockCondition.TYPE)) {
+            AutomatedIndexManagement.CONDITION_FACTORY.register(MockCondition.TYPE, MockCondition.VALIDATING_PARSER);
+        }
+        if (!AutomatedIndexManagement.ACTION_FACTORY.containsType(MockAction.TYPE)) {
+            AutomatedIndexManagement.ACTION_FACTORY.register(MockAction.TYPE, MockAction.VALIDATING_PARSER);
+        }
     }
 
     public static class MockCondition extends Condition {

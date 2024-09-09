@@ -68,10 +68,12 @@ public class InternalPolicyInstanceAPI {
 
             @Override
             public boolean equals(Object o) {
-                if (this == o)
+                if (this == o) {
                     return true;
-                if (o == null || getClass() != o.getClass())
+                }
+                if (o == null || getClass() != o.getClass()) {
                     return false;
+                }
                 Request request = (Request) o;
                 return execute == request.execute && retry == request.retry && Objects.equals(index, request.index);
             }
@@ -107,10 +109,12 @@ public class InternalPolicyInstanceAPI {
 
             @Override
             public boolean equals(Object o) {
-                if (this == o)
+                if (this == o) {
                     return true;
-                if (o == null || getClass() != o.getClass())
+                }
+                if (o == null || getClass() != o.getClass()) {
                     return false;
+                }
                 Response response = (Response) o;
                 return exists == response.exists;
             }
@@ -133,17 +137,8 @@ public class InternalPolicyInstanceAPI {
 
             @Override
             protected void masterOperation(Task task, Request request, ClusterState state, ActionListener<Response> listener) {
-                if (aim.getPolicyInstanceHandler().policyInstanceExistsForIndex(request.getIndex())) {
-                    if (request.isRetry()) {
-                        aim.getPolicyInstanceHandler().setPolicyInstanceRetry(request.getIndex(), true);
-                    }
-                    if (request.isExecute()) {
-                        aim.getPolicyInstanceHandler().executePolicyInstance(request.getIndex());
-                    }
-                    listener.onResponse(new Response(true));
-                } else {
-                    listener.onResponse(new Response(false));
-                }
+                listener.onResponse(new Response(
+                        aim.getPolicyInstanceHandler().executeRetryPolicyInstance(request.getIndex(), request.isExecute(), request.isRetry())));
             }
 
             @Override

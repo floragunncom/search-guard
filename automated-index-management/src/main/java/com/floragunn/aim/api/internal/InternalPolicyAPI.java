@@ -140,10 +140,12 @@ public class InternalPolicyAPI {
 
             @Override
             public boolean equals(Object o) {
-                if (this == o)
+                if (this == o) {
                     return true;
-                if (o == null || getClass() != o.getClass())
+                }
+                if (o == null || getClass() != o.getClass()) {
                     return false;
+                }
                 Request request = (Request) o;
                 return Objects.equals(policy, request.policy);
             }
@@ -232,10 +234,12 @@ public class InternalPolicyAPI {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o)
+            if (this == o) {
                 return true;
-            if (o == null || getClass() != o.getClass())
+            }
+            if (o == null || getClass() != o.getClass()) {
                 return false;
+            }
             BaseRequest<?> that = (BaseRequest<?>) o;
             return force == that.force && Objects.equals(policyName, that.policyName);
         }
@@ -271,10 +275,12 @@ public class InternalPolicyAPI {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o)
+            if (this == o) {
                 return true;
-            if (o == null || getClass() != o.getClass())
+            }
+            if (o == null || getClass() != o.getClass()) {
                 return false;
+            }
             StatusResponse that = (StatusResponse) o;
             return restStatus == that.restStatus;
         }

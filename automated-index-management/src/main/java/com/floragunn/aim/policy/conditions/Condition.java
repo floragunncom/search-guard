@@ -10,7 +10,6 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.fluent.collections.ImmutableMap;
-import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
 
 import java.util.Map;
@@ -38,9 +37,7 @@ public abstract class Condition implements Document<Object> {
     }
 
     public IndicesStatsResponse getIndexStats(String index, PolicyInstance.ExecutionContext executionContext) {
-        IndicesStatsRequest request = new IndicesStatsRequest().indices(index).clear().docs(true);
-        IndicesStatsResponse response;
-        response = executionContext.getClient().admin().indices().stats(request).actionGet();
+        IndicesStatsResponse response = executionContext.getClient().admin().indices().prepareStats(index).clear().setDocs(true).get();
         if (response.getStatus() != OK) {
             throw new IllegalStateException("Failed to get index settings. Response was not OK, shards failed");
         }
@@ -140,6 +137,10 @@ public abstract class Condition implements Document<Object> {
             node.checkForUnusedAttributes();
             errors.throwExceptionForPresentErrors();
             return result;
+        }
+
+        public boolean containsType(String type) {
+            return registry.containsKey(type);
         }
     }
 }

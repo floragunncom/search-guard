@@ -68,9 +68,28 @@ public final class AutomatedIndexManagementSettings {
         }
 
         public void init(PrivilegedConfigClient client) {
+            long start = System.currentTimeMillis();
+            MultiGetResponse response = null;
+            Exception lastException = null;
+            do {
+                try {
+                    response = client.prepareMultiGet()
+                            .addIds(ConfigIndices.SETTINGS_NAME,
+                                    getAvailableSettings().stream().map(DynamicAttribute::getName).collect(Collectors.toList()))
+                            .execute().actionGet();
+                } catch (Exception e) {
+                    lastException = e;
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+            } while (response == null && System.currentTimeMillis() < start + 5 * 60 * 1000);
+            if (response == null) {
+                throw new RuntimeException("Failed to retrieve AIM settings from config after 5min", lastException);
+            }
             try {
-                MultiGetResponse response = client.prepareMultiGet().addIds(ConfigIndices.SETTINGS_NAME,
-                        getAvailableSettings().stream().map(DynamicAttribute::getName).collect(Collectors.toList())).execute().actionGet();
                 for (MultiGetItemResponse item : response.getResponses()) {
                     if (!item.isFailed()) {
                         GetResponse getResponse = item.getResponse();
@@ -85,7 +104,7 @@ public final class AutomatedIndexManagementSettings {
                     }
                 }
             } catch (Exception e) {
-                LOG.error("Error while initializing settings", e);
+                throw new RuntimeException("Error while retrieving AIM settings", e);
             }
         }
 
@@ -133,14 +152,15 @@ public final class AutomatedIndexManagementSettings {
             for (Map.Entry<DynamicAttribute<?>, Object> attributeEntry : changed.entrySet()) {
                 settings.put(attributeEntry.getKey().getName(), attributeEntry.getValue());
             }
+            List<DynamicAttribute<?>> allChanges = new ArrayList<>(changed.size() + deleted.size());
+            allChanges.addAll(changed.keySet());
+            allChanges.addAll(deleted);
             for (ChangeListener listener : changeListeners) {
-                List<DynamicAttribute<?>> allChanges = new ArrayList<>(changed.size() + deleted.size());
-                allChanges.addAll(changed.keySet());
-                allChanges.addAll(deleted);
                 listener.onChange(allChanges);
             }
         }
 
+        @FunctionalInterface
         public interface ChangeListener {
             void onChange(List<DynamicAttribute<?>> changed);
         }

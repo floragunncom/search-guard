@@ -22,14 +22,15 @@ import java.util.Collection;
 import java.util.Collections;
 
 public class AutomatedIndexManagement extends AbstractLifecycleComponent {
+    public static final Condition.Factory CONDITION_FACTORY = Condition.Factory.defaultFactory();
+    public static final Action.Factory ACTION_FACTORY = Action.Factory.defaultFactory();
+
     private static final Logger LOG = LogManager.getLogger(AutomatedIndexManagement.class);
 
     private final AutomatedIndexManagementSettings aimSettings;
     private final ComponentState componentState;
     private final LocalNodeMasterListener localNodeMasterListener;
     private final AutomatedIndexManagementSettings.Dynamic.ChangeListener settingsChangeListener;
-    private final Condition.Factory conditionFactory = Condition.Factory.defaultFactory();
-    private final Action.Factory actionFactory = Action.Factory.defaultFactory();
 
     private Client client;
     private ThreadPool threadPool;
@@ -55,13 +56,11 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
             }
         };
         settingsChangeListener = changed -> {
-            if (changed.contains(AutomatedIndexManagementSettings.Dynamic.ACTIVE)) {
-                if (clusterService.state().nodes().isLocalNodeElectedMaster()) {
-                    if (aimSettings.getDynamic().getActive()) {
-                        threadPool.generic().submit(this::initMaster);
-                    } else {
-                        threadPool.generic().submit(this::stopMaster);
-                    }
+            if (changed.contains(AutomatedIndexManagementSettings.Dynamic.ACTIVE) && clusterService.state().nodes().isLocalNodeElectedMaster()) {
+                if (aimSettings.getDynamic().getActive()) {
+                    threadPool.generic().submit(this::initMaster);
+                } else {
+                    threadPool.generic().submit(this::stopMaster);
                 }
             }
         };
@@ -95,15 +94,17 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
 
     @Override
     protected void doClose() {
+        aimSettings.getDynamic().removeChangeListener(settingsChangeListener);
+        clusterService.removeListener(localNodeMasterListener);
         stopMaster();
     }
 
     public Condition.Factory getConditionFactory() {
-        return conditionFactory;
+        return CONDITION_FACTORY;
     }
 
     public Action.Factory getActionFactory() {
-        return actionFactory;
+        return ACTION_FACTORY;
     }
 
     public PolicyInstanceHandler getPolicyInstanceHandler() {
@@ -123,10 +124,10 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
     }
 
     private void initMaster() {
-        if (policyInstanceHandler == null && aimSettings.getDynamic().getStateLogActive()) {
+        if (policyInstanceHandler == null && aimSettings.getDynamic().getActive()) {
             LOG.info("Starting AIM policy instance handler");
             policyInstanceHandler = new PolicyInstanceHandler(aimSettings, policyService, policyInstanceService, client, threadPool, clusterService,
-                    conditionFactory, actionFactory);
+                    CONDITION_FACTORY, ACTION_FACTORY);
             policyInstanceHandler.init();
         }
     }
