@@ -43,6 +43,13 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 
+/**
+ * The test checks if field masking works as expected for indices, aliases and data stream. The test data contains information about IPs and
+ * locations. Various users have assigned distinct roles which impose IP and location field masking or not. The test outcome is verified with regular
+ * expressions, which checks if the returned information was properly hashed. The test uses a parametrized runner, which groups an index-like object
+ * and a user. The user object contains matchers that are used to verify whether SG returned data which was properly hashed. Matchers executed to
+ * users are based on defined regexps.
+ */
 @RunWith(Parameterized.class)
 public class FmIntTest {
 
