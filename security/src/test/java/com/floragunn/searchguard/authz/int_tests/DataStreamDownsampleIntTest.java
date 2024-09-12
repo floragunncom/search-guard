@@ -42,6 +42,8 @@ public class DataStreamDownsampleIntTest {
             .singleNode()
             .sslEnabled()
             .users(LIMITED_USER)
+            .dlsFls(new TestSgConfig.DlsFls().useImpl("flx")) // it doesn't work with legacy impl
+            .enterpriseModulesEnabled()
             .useExternalProcessCluster()
             .build();
 
