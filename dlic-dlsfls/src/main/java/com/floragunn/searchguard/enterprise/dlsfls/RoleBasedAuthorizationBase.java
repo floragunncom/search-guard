@@ -41,6 +41,9 @@ import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import com.floragunn.searchsupport.meta.Meta;
+import com.selectivem.collections.CompactMapGroupBuilder;
+import com.selectivem.collections.DeduplicatingCompactSubSetBuilder;
+import com.selectivem.collections.ImmutableCompactSubSet;
 
 public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> implements ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(RoleBasedDocumentAuthorization.class);
@@ -189,7 +192,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
             throws PrivilegesEvaluationException {
 
         if (statefulRules != null) {
-            ImmutableSet<String> roleWithoutRule = statefulRules.index.indexToRoleWithoutRule.get(index);
+            ImmutableCompactSubSet<String> roleWithoutRule = statefulRules.index.indexToRoleWithoutRule.get(index);
 
             if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
                 return false;
@@ -225,7 +228,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
             throws PrivilegesEvaluationException {
 
         if (statefulRules != null) {
-            ImmutableSet<String> roleWithoutRule = statefulRules.alias.aliasToRoleWithoutRule.get(alias);
+            ImmutableCompactSubSet<String> roleWithoutRule = statefulRules.alias.aliasToRoleWithoutRule.get(alias);
 
             if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
                 return false;
@@ -257,7 +260,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
 
         for (Meta.Alias alias : aliases) {
             if (statefulRules != null) {
-                ImmutableSet<String> roleWithoutRule = statefulRules.alias.aliasToRoleWithoutRule.get(alias);
+                ImmutableCompactSubSet<String> roleWithoutRule = statefulRules.alias.aliasToRoleWithoutRule.get(alias);
 
                 if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
                     return false;
@@ -280,7 +283,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
     private boolean hasRestrictions(PrivilegesEvaluationContext context, StatefulRules<SingleRule> statefulRules, Meta.DataStream dataStream)
             throws PrivilegesEvaluationException {
         if (statefulRules != null) {
-            ImmutableSet<String> roleWithoutRule = statefulRules.dataStream.dataStreamToRoleWithoutRule.get(dataStream);
+            ImmutableCompactSubSet<String> roleWithoutRule = statefulRules.dataStream.dataStreamToRoleWithoutRule.get(dataStream);
 
             if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
                 return false;
@@ -341,11 +344,11 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         }
 
         StatefulRules<SingleRule> statefulRules = this.statefulRules;
-        ImmutableMap<String, SingleRule> roleToQueryForIndex = null;
-        ImmutableMap<String, SingleRule> roleToQueryForDataStream = null;
+        Map<String, SingleRule> roleToQueryForIndex = null;
+        Map<String, SingleRule> roleToQueryForDataStream = null;
 
         if (statefulRules != null) {
-            ImmutableSet<String> roleWithoutQuery = statefulRules.index.indexToRoleWithoutRule.get(index);
+            ImmutableCompactSubSet<String> roleWithoutQuery = statefulRules.index.indexToRoleWithoutRule.get(index);
 
             if (roleWithoutQuery != null && roleWithoutQuery.containsAny(context.getMappedRoles())) {
                 return unrestricted();
@@ -355,7 +358,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         }
 
         if (statefulRules != null && parentDataStream != null) {
-            ImmutableSet<String> roleWithoutQuery = statefulRules.dataStream.dataStreamToRoleWithoutRule.get(parentDataStream);
+            ImmutableCompactSubSet<String> roleWithoutQuery = statefulRules.dataStream.dataStreamToRoleWithoutRule.get(parentDataStream);
 
             if (roleWithoutQuery != null && roleWithoutQuery.containsAny(context.getMappedRoles())) {
                 return unrestricted();
@@ -852,8 +855,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         }
 
         static class Index<SingleRule> implements ComponentStateProvider {
-            final ImmutableMap<Meta.Index, ImmutableMap<String, SingleRule>> indexToRoleToRule;
-            final ImmutableMap<Meta.Index, ImmutableSet<String>> indexToRoleWithoutRule;
+            final ImmutableMap<Meta.Index, Map<String, SingleRule>> indexToRoleToRule;
+            final ImmutableMap<Meta.Index, ImmutableCompactSubSet<String>> indexToRoleWithoutRule;
 
             final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
 
@@ -864,11 +867,14 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 this.componentState = new ComponentState("index");
                 this.roleToRuleFunction = roleToRuleFunction;
 
-                ImmutableMap.Builder<Meta.Index, ImmutableMap.Builder<String, SingleRule>> indexToRoleToRule = new ImmutableMap.Builder<Meta.Index, ImmutableMap.Builder<String, SingleRule>>()
-                        .defaultValue((k) -> new ImmutableMap.Builder<String, SingleRule>());
+                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roles.getCEntries().keySet());
+                CompactMapGroupBuilder<String, SingleRule> roleMapBuilder = new CompactMapGroupBuilder<>(roles.getCEntries().keySet());
 
-                ImmutableMap.Builder<Meta.Index, ImmutableSet.Builder<String>> indexToRoleWithoutRule = new ImmutableMap.Builder<Meta.Index, ImmutableSet.Builder<String>>()
-                        .defaultValue((k) -> new ImmutableSet.Builder<String>());
+                ImmutableMap.Builder<Meta.Index, CompactMapGroupBuilder.MapBuilder<String, SingleRule>> indexToRoleToRule = new ImmutableMap.Builder<Meta.Index, CompactMapGroupBuilder.MapBuilder<String, SingleRule>>()
+                        .defaultValue((k) -> roleMapBuilder.createMapBuilder());
+
+                ImmutableMap.Builder<Meta.Index, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>> indexToRoleWithoutRule = new ImmutableMap.Builder<Meta.Index, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>>()
+                        .defaultValue((k) -> roleSetBuilder.createSubSetBuilder());
 
                 ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                         .defaultValue((k) -> new ImmutableList.Builder<Exception>());
@@ -877,6 +883,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                     try {
                         String roleName = entry.getKey();
                         Role role = entry.getValue();
+                        roleSetBuilder.next(roleName);
 
                         for (Role.Index indexPermissions : role.getIndexPermissions()) {
                             Pattern indexPattern = indexPermissions.getIndexPatterns().getPattern();
@@ -941,8 +948,10 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                     }
                 }
 
+                DeduplicatingCompactSubSetBuilder.Completed<String> completed = roleSetBuilder.build();
+
                 this.indexToRoleToRule = indexToRoleToRule.build((b) -> b.build());
-                this.indexToRoleWithoutRule = indexToRoleWithoutRule.build((b) -> b.build());
+                this.indexToRoleWithoutRule = indexToRoleWithoutRule.build((b) -> b.build(completed));
                 this.rolesToInitializationErrors = rolesToInitializationErrors.build((b) -> b.build());
 
                 if (this.rolesToInitializationErrors.isEmpty()) {
@@ -965,8 +974,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         }
 
         static class Alias<SingleRule> implements ComponentStateProvider {
-            final ImmutableMap<Meta.Alias, ImmutableMap<String, SingleRule>> aliasToRoleToRule;
-            final ImmutableMap<Meta.Alias, ImmutableSet<String>> aliasToRoleWithoutRule;
+            final ImmutableMap<Meta.Alias, Map<String, SingleRule>> aliasToRoleToRule;
+            final ImmutableMap<Meta.Alias, ImmutableCompactSubSet<String>> aliasToRoleWithoutRule;
 
             final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
 
@@ -977,11 +986,14 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 this.componentState = new ComponentState("alias");
                 this.roleToRuleFunction = roleToRuleFunction;
 
-                ImmutableMap.Builder<Meta.Alias, ImmutableMap.Builder<String, SingleRule>> indexToRoleToQuery = new ImmutableMap.Builder<Meta.Alias, ImmutableMap.Builder<String, SingleRule>>()
-                        .defaultValue((k) -> new ImmutableMap.Builder<String, SingleRule>());
+                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roles.getCEntries().keySet());
+                CompactMapGroupBuilder<String, SingleRule> roleMapBuilder = new CompactMapGroupBuilder<>(roles.getCEntries().keySet());
+                
+                ImmutableMap.Builder<Meta.Alias, CompactMapGroupBuilder.MapBuilder<String, SingleRule>> indexToRoleToQuery = new ImmutableMap.Builder<Meta.Alias, CompactMapGroupBuilder.MapBuilder<String, SingleRule>>()
+                        .defaultValue((k) -> roleMapBuilder.createMapBuilder());
 
-                ImmutableMap.Builder<Meta.Alias, ImmutableSet.Builder<String>> indexToRoleWithoutQuery = new ImmutableMap.Builder<Meta.Alias, ImmutableSet.Builder<String>>()
-                        .defaultValue((k) -> new ImmutableSet.Builder<String>());
+                ImmutableMap.Builder<Meta.Alias, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>> indexToRoleWithoutQuery = new ImmutableMap.Builder<Meta.Alias, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>>()
+                        .defaultValue((k) ->  roleSetBuilder.createSubSetBuilder());
 
                 ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                         .defaultValue((k) -> new ImmutableList.Builder<Exception>());
@@ -990,6 +1002,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                     try {
                         String roleName = entry.getKey();
                         Role role = entry.getValue();
+                        roleSetBuilder.next(roleName);
 
                         for (Role.Alias aliasPermissions : role.getAliasPermissions()) {
                             Pattern aliasPattern = aliasPermissions.getIndexPatterns().getPattern();
@@ -1023,8 +1036,10 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                     }
                 }
 
+                DeduplicatingCompactSubSetBuilder.Completed<String> completed = roleSetBuilder.build();
+                
                 this.aliasToRoleToRule = indexToRoleToQuery.build((b) -> b.build());
-                this.aliasToRoleWithoutRule = indexToRoleWithoutQuery.build((b) -> b.build());
+                this.aliasToRoleWithoutRule = indexToRoleWithoutQuery.build((b) -> b.build(completed));
                 this.rolesToInitializationErrors = rolesToInitializationErrors.build((b) -> b.build());
 
                 if (this.rolesToInitializationErrors.isEmpty()) {
@@ -1047,8 +1062,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         }
 
         static class DataStream<SingleRule> implements ComponentStateProvider {
-            final ImmutableMap<Meta.DataStream, ImmutableMap<String, SingleRule>> dataStreamToRoleToRule;
-            final ImmutableMap<Meta.DataStream, ImmutableSet<String>> dataStreamToRoleWithoutRule;
+            final ImmutableMap<Meta.DataStream, Map<String, SingleRule>> dataStreamToRoleToRule;
+            final ImmutableMap<Meta.DataStream, ImmutableCompactSubSet<String>> dataStreamToRoleWithoutRule;
 
             final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
 
@@ -1058,12 +1073,15 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
             DataStream(SgDynamicConfiguration<Role> roles, Meta indexMetadata, Function<Role.Index, SingleRule> roleToRuleFunction) {
                 this.componentState = new ComponentState("data_stream");
                 this.roleToRuleFunction = roleToRuleFunction;
+                
+                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roles.getCEntries().keySet());
+                CompactMapGroupBuilder<String, SingleRule> roleMapBuilder = new CompactMapGroupBuilder<>(roles.getCEntries().keySet());
 
-                ImmutableMap.Builder<Meta.DataStream, ImmutableMap.Builder<String, SingleRule>> indexToRoleToQuery = new ImmutableMap.Builder<Meta.DataStream, ImmutableMap.Builder<String, SingleRule>>()
-                        .defaultValue((k) -> new ImmutableMap.Builder<String, SingleRule>());
+                ImmutableMap.Builder<Meta.DataStream, CompactMapGroupBuilder.MapBuilder<String, SingleRule>> indexToRoleToQuery = new ImmutableMap.Builder<Meta.DataStream, CompactMapGroupBuilder.MapBuilder<String, SingleRule>>()
+                        .defaultValue((k) -> roleMapBuilder.createMapBuilder());
 
-                ImmutableMap.Builder<Meta.DataStream, ImmutableSet.Builder<String>> indexToRoleWithoutQuery = new ImmutableMap.Builder<Meta.DataStream, ImmutableSet.Builder<String>>()
-                        .defaultValue((k) -> new ImmutableSet.Builder<String>());
+                ImmutableMap.Builder<Meta.DataStream, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>> indexToRoleWithoutQuery = new ImmutableMap.Builder<Meta.DataStream, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>>()
+                        .defaultValue((k) -> roleSetBuilder.createSubSetBuilder());
 
                 ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                         .defaultValue((k) -> new ImmutableList.Builder<Exception>());
@@ -1072,7 +1090,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                     try {
                         String roleName = entry.getKey();
                         Role role = entry.getValue();
-
+                        roleSetBuilder.next(roleName);
+                        
                         for (Role.DataStream dataStreamPermissions : role.getDataStreamPermissions()) {
                             Pattern dataStreamPattern = dataStreamPermissions.getIndexPatterns().getPattern();
 
@@ -1141,8 +1160,10 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                     }
                 }
 
+                DeduplicatingCompactSubSetBuilder.Completed<String> completed = roleSetBuilder.build();
+                
                 this.dataStreamToRoleToRule = indexToRoleToQuery.build((b) -> b.build());
-                this.dataStreamToRoleWithoutRule = indexToRoleWithoutQuery.build((b) -> b.build());
+                this.dataStreamToRoleWithoutRule = indexToRoleWithoutQuery.build((b) -> b.build(completed));
                 this.rolesToInitializationErrors = rolesToInitializationErrors.build((b) -> b.build());
 
                 if (this.rolesToInitializationErrors.isEmpty()) {

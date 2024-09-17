@@ -26,6 +26,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.elasticsearch.common.unit.ByteSizeUnit;
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -56,6 +58,7 @@ import com.floragunn.searchsupport.meta.Meta;
 public class RoleBasedActionAuthorizationTests {
 
     private static final Actions actions = new Actions(null);
+    private static final ByteSizeValue STATEFUL_SIZE = new ByteSizeValue(10, ByteSizeUnit.MB);
 
     public static class ClusterPermissions {
 
@@ -74,7 +77,8 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants,
+                    STATEFUL_SIZE);
 
             User user = User.forUser("test").build();
 
@@ -98,7 +102,8 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants,
+                    STATEFUL_SIZE);
 
             User user = User.forUser("test").build();
 
@@ -128,7 +133,8 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants,
+                    STATEFUL_SIZE);
 
             User user = User.forUser("test").build();
 
@@ -315,7 +321,7 @@ public class RoleBasedActionAuthorizationTests {
                     : ImmutableSet.of(actions.get("indices:foobar/unknown"));
 
             this.subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions,
-                    statefulness == Statefulness.STATEFUL ? BASIC : null, ImmutableSet.empty());
+                    statefulness == Statefulness.STATEFUL ? BASIC : null, ImmutableSet.empty(), STATEFUL_SIZE);
         }
 
     }
@@ -344,7 +350,8 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants,
+                    STATEFUL_SIZE);
 
             User user = User.forUser("test").attribute("dept_no", "a11").build();
 
@@ -404,7 +411,8 @@ public class RoleBasedActionAuthorizationTests {
 
             ImmutableSet<String> tenants = ImmutableSet.empty();
 
-            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants);
+            RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, null, tenants,
+                    STATEFUL_SIZE);
 
             User user = User.forUser("test").build();
 
@@ -600,7 +608,7 @@ public class RoleBasedActionAuthorizationTests {
                     : ImmutableSet.of(actions.get("indices:foobar/unknown"));
 
             this.subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions,
-                    statefulness == Statefulness.STATEFUL ? BASIC : null, ImmutableSet.empty());
+                    statefulness == Statefulness.STATEFUL ? BASIC : null, ImmutableSet.empty(), STATEFUL_SIZE);
         }
 
     }
@@ -626,7 +634,7 @@ public class RoleBasedActionAuthorizationTests {
                     .alias("alias_constant_a").of("index_a1", "index_a2");
 
             RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, indexMetadata,
-                    tenants);
+                    tenants, STATEFUL_SIZE);
 
             User user = User.forUser("test").build();
             ResolvedIndices aliasConstantA = ResolvedIndices.of(indexMetadata, "alias_constant_a");
@@ -674,7 +682,7 @@ public class RoleBasedActionAuthorizationTests {
                     .alias("alias_b").of("index_b1", "index_b2");
 
             RoleBasedActionAuthorization subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions, indexMetadata,
-                    tenants);
+                    tenants, STATEFUL_SIZE);
 
             User user = User.forUser("test").build();
             ResolvedIndices aliasA1 = ResolvedIndices.of(indexMetadata, "alias_a1");
@@ -905,7 +913,7 @@ public class RoleBasedActionAuthorizationTests {
                     : ImmutableSet.of(actions.get("indices:foobar/unknown"));
 
             this.subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions,
-                    statefulness == Statefulness.STATEFUL ? BASIC : null, ImmutableSet.empty());
+                    statefulness == Statefulness.STATEFUL ? BASIC : null, ImmutableSet.empty(), STATEFUL_SIZE);
         }
 
     }

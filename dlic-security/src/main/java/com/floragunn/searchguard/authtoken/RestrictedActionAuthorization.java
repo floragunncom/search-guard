@@ -16,6 +16,8 @@ package com.floragunn.searchguard.authtoken;
 
 import java.util.Set;
 
+import org.elasticsearch.common.unit.ByteSizeValue;
+
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
@@ -35,10 +37,10 @@ public class RestrictedActionAuthorization implements ActionAuthorization {
     private final RequestedPrivileges restriction;
 
     RestrictedActionAuthorization(ActionAuthorization base, RequestedPrivileges restriction, ActionGroup.FlattenedIndex actionGroups, Actions actions,
-            Meta meta, Set<String> tenants) {
+            Meta meta, Set<String> tenants,  ByteSizeValue statefulIndexMaxHeapSize) {
         this.base = base;
         this.restriction = restriction;
-        this.restrictionSgRoles = new RoleBasedActionAuthorization(restriction.toRolesConfig(), actionGroups, actions, meta, tenants);
+        this.restrictionSgRoles = new RoleBasedActionAuthorization(restriction.toRolesConfig(), actionGroups, actions, meta, tenants, statefulIndexMaxHeapSize);
     }
 
     @Override
