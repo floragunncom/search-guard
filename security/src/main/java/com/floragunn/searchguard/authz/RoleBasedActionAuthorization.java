@@ -1366,8 +1366,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
          */
         static class Index implements ComponentStateProvider {
             private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> actionToIndexToRoles;
-            private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> excludedActionToIndexToRoles;
-            private final ImmutableSet<String> rolesWithTemplatedExclusions;
             private final Meta indexMetadata;
 
             private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
@@ -1380,13 +1378,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
                                 .defaultValue((k) -> new ImmutableMap.Builder<String, ImmutableSet.Builder<String>>()
                                         .defaultValue((k2) -> new ImmutableSet.Builder<String>()));
-
-                ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> excludedActionToIndexToRoles = //
-                        new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
-                                .defaultValue((k) -> new ImmutableMap.Builder<String, ImmutableSet.Builder<String>>()
-                                        .defaultValue((k2) -> new ImmutableSet.Builder<String>()));
-
-                ImmutableSet.Builder<String> rolesWithTemplatedExclusions = new ImmutableSet.Builder<>();
 
                 ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                         .defaultValue((k) -> new ImmutableList.Builder<Exception>());
@@ -1491,8 +1482,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 }
 
                 this.actionToIndexToRoles = actionToIndexToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
-                this.excludedActionToIndexToRoles = excludedActionToIndexToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
-                this.rolesWithTemplatedExclusions = rolesWithTemplatedExclusions.build();
                 this.indexMetadata = indexMetadata;
 
                 this.universallyDeniedIndices = universallyDeniedIndices;
@@ -1525,11 +1514,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     return null;
                 }
 
-                if (rolesWithTemplatedExclusions.containsAny(mappedRoles)) {
-                    // This class can only work on non-templated index patterns. 
-                    // If there are templated exclusions (which should be a very rare thing), we cannot do evaluation here
-                    return null;
-                }
 
                 top: for (Action action : actions) {
                     ImmutableMap<String, ImmutableSet<String>> indexToRoles = actionToIndexToRoles.get(action);
@@ -1558,23 +1542,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             private boolean isExcluded(Action action, String index, User user, ImmutableSet<String> mappedRoles,
                     PrivilegesEvaluationContext context) {
-                if (universallyDeniedIndices.matches(index)) {
-                    return true;
-                }
-
-                ImmutableMap<String, ImmutableSet<String>> indexToRoles = excludedActionToIndexToRoles.get(action);
-
-                if (indexToRoles == null) {
-                    return false;
-                }
-
-                ImmutableSet<String> rolesWithPrivileges = indexToRoles.get(index);
-
-                if (rolesWithPrivileges == null) {
-                    return false;
-                }
-
-                return rolesWithPrivileges.containsAny(mappedRoles);
+                return universallyDeniedIndices.matches(index);
             }
 
             @Override
