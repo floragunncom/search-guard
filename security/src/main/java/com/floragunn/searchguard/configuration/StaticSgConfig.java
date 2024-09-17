@@ -42,7 +42,7 @@ public class StaticSgConfig {
         
         checkForOverriddenEntries(original, staticConfig);
 
-        SgDynamicConfiguration<T> result = original.withStatic(staticConfig.getCEntries());
+        SgDynamicConfiguration<T> result = original.with(staticConfig.getCEntries());
 
         if (log.isDebugEnabled()) {
             log.debug(staticConfig.getCEntries().size() + " static " + original.getCType().toLCString() + " loaded");
