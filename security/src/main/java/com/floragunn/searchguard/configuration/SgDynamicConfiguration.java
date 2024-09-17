@@ -17,7 +17,6 @@
 
 package com.floragunn.searchguard.configuration;
 
-import com.floragunn.fluent.collections.OrderedImmutableMap.Builder;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -64,8 +63,6 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     private final ComponentState componentState;
 
     private final OrderedImmutableMap<String, T> centries;
-    private final OrderedImmutableMap<String, T> nonStaticCEntries;
-    private final OrderedImmutableMap<String, T> staticCEntries;
     private long seqNo = SequenceNumbers.UNASSIGNED_SEQ_NO;
     private long primaryTerm = SequenceNumbers.UNASSIGNED_PRIMARY_TERM;
     private String uninterpolatedJson;
@@ -143,25 +140,21 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         }
 
         return new ValidationResult<SgDynamicConfiguration<T>>(
-                new SgDynamicConfiguration<>(ctype, entries.build(), OrderedImmutableMap.empty(), seqNo, primaryTerm, docVersion, uninterpolatedJson, validationErrors),
+                new SgDynamicConfiguration<>(ctype, entries.build(), seqNo, primaryTerm, docVersion, uninterpolatedJson, validationErrors),
                 validationErrors);
     }
 
     private SgDynamicConfiguration(CType<T> ctype, OrderedImmutableMap<String, T> entries) {
         this.ctype = ctype;
         this.centries = entries;
-        this.nonStaticCEntries = entries;
-        this.staticCEntries = OrderedImmutableMap.empty();
         this.componentState = new ComponentState(0, "config", ctype.getName());
         this.validationErrors = new ValidationErrors();
     }
 
-    private SgDynamicConfiguration(CType<T> ctype, OrderedImmutableMap<String, T> nonStaticCEntries, OrderedImmutableMap<String, T> staticCEntries, long seqNo, long primaryTerm, long docVersion,
+    private SgDynamicConfiguration(CType<T> ctype, OrderedImmutableMap<String, T> entries, long seqNo, long primaryTerm, long docVersion,
             String uninterpolatedJson, ValidationErrors validationErrors) {
         super();
-        this.centries = staticCEntries.with(nonStaticCEntries);
-        this.nonStaticCEntries = nonStaticCEntries;
-        this.staticCEntries = staticCEntries;
+        this.centries = entries;
         this.ctype = ctype;
         this.seqNo = seqNo;
         this.primaryTerm = primaryTerm;
@@ -190,43 +183,40 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
     }
 
     public SgDynamicConfiguration<T> with(String key, T entry) {
-        return new SgDynamicConfiguration<>(ctype, centries.with(key, entry), staticCEntries, seqNo, primaryTerm, docVersion, null, validationErrors);
+        return new SgDynamicConfiguration<>(ctype, centries.with(key, entry), seqNo, primaryTerm, docVersion, null, validationErrors);
     }
 
     public SgDynamicConfiguration<T> with(Map<String, T> map) {
-        return new SgDynamicConfiguration<>(ctype, centries.with(OrderedImmutableMap.of(map)), OrderedImmutableMap.empty(), seqNo, primaryTerm, docVersion, uninterpolatedJson,
+        return new SgDynamicConfiguration<>(ctype, centries.with(OrderedImmutableMap.of(map)), seqNo, primaryTerm, docVersion, uninterpolatedJson,
                 validationErrors);
     }
 
-    public SgDynamicConfiguration<T> withStatic(Map<String, T> staticEntries) {
-        return new SgDynamicConfiguration<>(ctype, nonStaticCEntries, OrderedImmutableMap.of(staticEntries), seqNo, primaryTerm, docVersion, uninterpolatedJson,
-            validationErrors);
-    }
-
     public SgDynamicConfiguration<T> without(String key) {
-        return new SgDynamicConfiguration<>(ctype, centries.without(key), staticCEntries, seqNo, primaryTerm, docVersion, null, validationErrors);
+        return new SgDynamicConfiguration<>(ctype, centries.without(key), seqNo, primaryTerm, docVersion, null, validationErrors);
     }
 
     public SgDynamicConfiguration<T> withoutStatic() {
-        return new SgDynamicConfiguration<>(ctype, nonStaticCEntries, OrderedImmutableMap.empty(), seqNo, primaryTerm, docVersion, uninterpolatedJson, validationErrors);
+        OrderedImmutableMap.Builder<String, T> entries = new OrderedImmutableMap.Builder<>(centries.size());
+
+        for (Entry<String, T> entry : new HashMap<String, T>(centries).entrySet()) {
+            if (!(entry.getValue() instanceof StaticDefinable) || !((StaticDefinable) entry.getValue()).isStatic()) {
+                entries.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        return new SgDynamicConfiguration<>(ctype, entries.build(), seqNo, primaryTerm, docVersion, uninterpolatedJson, validationErrors);
     }
 
     public SgDynamicConfiguration<T> withoutHidden() {
-        OrderedImmutableMap.Builder<String, T> nonStaticEntries = new OrderedImmutableMap.Builder<>(this.nonStaticCEntries.size());
-        OrderedImmutableMap.Builder<String, T> staticEntries = new OrderedImmutableMap.Builder<>(this.staticCEntries.size());
+        OrderedImmutableMap.Builder<String, T> entries = new OrderedImmutableMap.Builder<>(centries.size());
 
-        filterOutHiddenEntries(nonStaticEntries);
-        filterOutHiddenEntries(staticEntries);
-
-        return new SgDynamicConfiguration<>(ctype, nonStaticEntries.build(), staticEntries.build(), seqNo, primaryTerm, docVersion, uninterpolatedJson, validationErrors);
-    }
-
-    private void filterOutHiddenEntries(Builder<String, T> entries) {
-        for (Entry<String, T> entry : new HashMap<>(centries).entrySet()) {
+        for (Entry<String, T> entry : new HashMap<String, T>(centries).entrySet()) {
             if (!(entry.getValue() instanceof Hideable && ((Hideable) entry.getValue()).isHidden())) {
                 entries.put(entry.getKey(), entry.getValue());
             }
         }
+
+        return new SgDynamicConfiguration<>(ctype, entries.build(), seqNo, primaryTerm, docVersion, uninterpolatedJson, validationErrors);
     }
 
     public SgDynamicConfiguration<T> only(String key) {
@@ -235,7 +225,7 @@ public class SgDynamicConfiguration<T> implements ToXContent, Document<Object>, 
         if (entry == null) {
             return empty(ctype);
         } else {
-            return new SgDynamicConfiguration<>(ctype, OrderedImmutableMap.of(key, entry), OrderedImmutableMap.empty(), seqNo, primaryTerm, docVersion, null, validationErrors);
+            return new SgDynamicConfiguration<>(ctype, OrderedImmutableMap.of(key, entry), seqNo, primaryTerm, docVersion, null, validationErrors);
         }
     }
 

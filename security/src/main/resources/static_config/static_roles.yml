@@ -6,6 +6,7 @@ _sg_meta:
 SGS_ALL_ACCESS:
   reserved: true
   hidden: false
+  static: true
   description: "Allow full access to all indices and all cluster APIs"
   cluster_permissions:
     - "*"
@@ -59,6 +60,7 @@ SGS_KIBANA_USER_NO_GLOBAL_TENANT:
 SGS_KIBANA_USER_NO_MT:
   reserved: true
   hidden: false
+  static: true
   description: "Provide the minimum permissions for a kibana user who does not use front-end multi-tenancy"
   cluster_permissions:
     - "SGS_CLUSTER_COMPOSITE_OPS"
@@ -96,6 +98,7 @@ SGS_KIBANA_USER_NO_MT:
 SGS_KIBANA_USER_NO_DEFAULT_TENANT:
   reserved: true
   hidden: false
+  static: true
   description: "Deprecated. Use SGS_KIBANA_USER_NO_GLOBAL_TENANT instead."
   cluster_permissions:
     - "SGS_CLUSTER_COMPOSITE_OPS"
@@ -153,6 +156,7 @@ SGS_KIBANA_USER:
 SGS_OWN_INDEX:
   reserved: true
   hidden: false
+  static: true
   description: "Allow all for indices named like the current user"
   cluster_permissions:
   - "SGS_CLUSTER_COMPOSITE_OPS"
@@ -165,6 +169,7 @@ SGS_OWN_INDEX:
 SGS_XP_MONITORING:
   reserved: true
   hidden: false
+  static: true
   description: "Provide the minimum permissions for x-pack monitoring"
   cluster_permissions:
   - "SGS_CLUSTER_MONITOR"
@@ -182,6 +187,7 @@ SGS_XP_MONITORING:
 SGS_MANAGE_SNAPSHOTS:
   reserved: true
   hidden: false
+  static: true
   description: "Provide the minimum permissions for managing snapshots"
   cluster_permissions:
   - "SGS_MANAGE_SNAPSHOTS"
@@ -195,6 +201,7 @@ SGS_MANAGE_SNAPSHOTS:
 SGS_XP_ALERTING:
   reserved: true
   hidden: false
+  static: true
   description: "Provide the minimum permissions for x-pack alerting"
   cluster_permissions:
   - "SGS_CLUSTER_MONITOR"
@@ -220,6 +227,7 @@ SGS_XP_ALERTING:
 SGS_XP_MACHINE_LEARNING:
   reserved: true
   hidden: false
+  static: true
   description: "Provide the minimum permissions for x-pack machine learning"
   cluster_permissions:
   - "SGS_CLUSTER_MONITOR"
@@ -243,6 +251,7 @@ SGS_XP_MACHINE_LEARNING:
 SGS_KIBANA_SERVER:
   reserved: true
   hidden: false
+  static: true
   description: "Provide the minimum permissions for the Kibana server"
   cluster_permissions:
   - "SGS_CLUSTER_MONITOR"
@@ -309,6 +318,7 @@ SGS_KIBANA_SERVER:
 SGS_LOGSTASH:
   reserved: true
   hidden: false
+  static: true
   description: "Provide the minimum permissions for logstash and beats"
   cluster_permissions:
   - "SGS_CLUSTER_MONITOR"
@@ -333,6 +343,7 @@ SGS_LOGSTASH:
 SGS_READALL_AND_MONITOR:
   reserved: true
   hidden: false
+  static: true
   description: "Provide the minimum permissions for to readall indices and monitor the cluster"
   cluster_permissions:
   - "SGS_CLUSTER_MONITOR"
@@ -346,6 +357,7 @@ SGS_READALL_AND_MONITOR:
 SGS_READALL:
   reserved: true
   hidden: false
+  static: true
   description: "Provide the minimum permissions for to readall indices"
   cluster_permissions:
   - "SGS_CLUSTER_COMPOSITE_OPS_RO"

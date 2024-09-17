@@ -6,4 +6,5 @@ _sg_meta:
 SGS_GLOBAL_TENANT:
   reserved: true
   hidden: false
+  static: true
   description: "Global tenant"

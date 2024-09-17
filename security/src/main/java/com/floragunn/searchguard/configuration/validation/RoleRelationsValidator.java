@@ -87,7 +87,7 @@ public class RoleRelationsValidator extends ConfigModificationValidator<Role> {
         SgDynamicConfiguration<Tenant> existingTenantsConfig = getConfigFromMap(CType.TENANTS);
 
         SgDynamicConfiguration<Tenant> newTenantsConfig = findConfigOfType(CType.TENANTS.getType(), newConfigs)
-                .map(newTenants -> newTenants.withStatic(getStaticConfigEntries(existingTenantsConfig)))
+                .map(newTenants -> newTenants.with(getStaticConfigEntries(existingTenantsConfig)))
                 .orElse(existingTenantsConfig);
 
         newRolesConfig.getCEntries().forEach((roleName, role) -> {
