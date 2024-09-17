@@ -5,6 +5,7 @@ _sg_meta:
 SGS_KIBANA_ALL_WRITE:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "kibana:saved_objects/*/write"
   type: "kibana"
@@ -12,6 +13,7 @@ SGS_KIBANA_ALL_WRITE:
 SGS_KIBANA_ALL_READ:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "kibana:saved_objects/*/read"
   type: "kibana"
@@ -19,6 +21,7 @@ SGS_KIBANA_ALL_READ:
 SGS_CLUSTER_ALL:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "cluster:*"
   type: "cluster"
@@ -26,6 +29,7 @@ SGS_CLUSTER_ALL:
 SGS_CRUD:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "SGS_READ"
   - "SGS_WRITE"
@@ -34,6 +38,7 @@ SGS_CRUD:
 SGS_SEARCH:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:data/read/search*"
   - "indices:data/read/msearch*"
@@ -43,6 +48,7 @@ SGS_SEARCH:
 SGS_DATA_ACCESS:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:data/*"
   - "SGS_CRUD"
@@ -51,6 +57,7 @@ SGS_DATA_ACCESS:
 SGS_CREATE_INDEX:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:admin/create"
   - "indices:admin/mapping/put"
@@ -61,6 +68,7 @@ SGS_CREATE_INDEX:
 SGS_WRITE:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:data/write*"
   - "indices:admin/mapping/put"
@@ -70,6 +78,7 @@ SGS_WRITE:
 SGS_MANAGE_ALIASES:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:admin/aliases*"
   type: "index"
@@ -77,6 +86,7 @@ SGS_MANAGE_ALIASES:
 SGS_READ:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:data/read*"
   - "indices:admin/mappings/fields/get*"
@@ -87,6 +97,7 @@ SGS_READ:
 SGS_INDICES_ALL:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:*"
   type: "index"
@@ -94,6 +105,7 @@ SGS_INDICES_ALL:
 SGS_DELETE:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:data/write/delete*"
   type: "index"
@@ -101,6 +113,7 @@ SGS_DELETE:
 SGS_CLUSTER_COMPOSITE_OPS:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:data/write/bulk"
   - "indices:admin/aliases*"
@@ -111,6 +124,7 @@ SGS_CLUSTER_COMPOSITE_OPS:
 SGS_CLUSTER_COMPOSITE_OPS_RO:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:data/read/mget"
   - "indices:data/read/msearch"
@@ -127,6 +141,7 @@ SGS_CLUSTER_COMPOSITE_OPS_RO:
 SGS_GET:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:data/read/get*"
   - "indices:data/read/mget*"
@@ -135,6 +150,7 @@ SGS_GET:
 SGS_MANAGE:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:monitor/*"
   - "indices:admin/*"
@@ -143,6 +159,7 @@ SGS_MANAGE:
 SGS_CLUSTER_MONITOR:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "cluster:monitor/*"
   type: "cluster"
@@ -150,6 +167,7 @@ SGS_CLUSTER_MONITOR:
 SGS_MANAGE_SNAPSHOTS:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "cluster:admin/snapshot/*"
   - "cluster:admin/repository/*"
@@ -158,6 +176,7 @@ SGS_MANAGE_SNAPSHOTS:
 SGS_INDEX:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:data/write/index*"
   - "indices:data/write/update*"
@@ -169,6 +188,7 @@ SGS_INDEX:
 SGS_UNLIMITED:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "*"
   type: "all"
@@ -176,6 +196,7 @@ SGS_UNLIMITED:
 SGS_INDICES_MONITOR:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:monitor/*"
   type: "index"
@@ -183,6 +204,7 @@ SGS_INDICES_MONITOR:
 SGS_SUGGEST:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:data/read/suggest*"
   type: "index"
@@ -190,6 +212,7 @@ SGS_SUGGEST:
 SGS_CLUSTER_MANAGE_ILM:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "cluster:admin/ilm/*"
   type: "cluster"
@@ -197,6 +220,7 @@ SGS_CLUSTER_MANAGE_ILM:
 SGS_CLUSTER_READ_ILM:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "cluster:admin/ilm/get"
   - "cluster:admin/ilm/operation_mode/get"
@@ -205,6 +229,7 @@ SGS_CLUSTER_READ_ILM:
 SGS_INDICES_MANAGE_ILM:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:admin/ilm/*"
   type: "index"
@@ -212,6 +237,7 @@ SGS_INDICES_MANAGE_ILM:
 SGS_CLUSTER_MANAGE_INDEX_TEMPLATES:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:admin/template/*"
   - "indices:admin/index_template/*"
@@ -221,6 +247,7 @@ SGS_CLUSTER_MANAGE_INDEX_TEMPLATES:
 SGS_CLUSTER_MANAGE_PIPELINES:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "cluster:admin/ingest/pipeline/*"
   type: "cluster"
@@ -228,6 +255,7 @@ SGS_CLUSTER_MANAGE_PIPELINES:
 SGS_SEARCH_TEMPLATES:  
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "indices:data/read/search/template"
   - "indices:data/read/msearch/template"
@@ -236,6 +264,7 @@ SGS_SEARCH_TEMPLATES:
 SGS_PERSONAL_SESSIONS:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
     - "cluster:admin:searchguard:login/session"
     - "cluster:admin:searchguard:session/_own/get/extended"
@@ -249,6 +278,7 @@ SGS_PERSONAL_SESSIONS:
 SGS_CREATE_MANAGE_OWN_AUTH_TOKEN:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "cluster:admin:searchguard:authtoken/_own/create"
   - "cluster:admin:searchguard:authtoken/_own/get"
@@ -261,6 +291,7 @@ SGS_CREATE_MANAGE_OWN_AUTH_TOKEN:
 SGS_MANAGE_ALL_AUTH_TOKEN:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
   - "cluster:admin:searchguard:authtoken/_own/get"
   - "cluster:admin:searchguard:authtoken/_own/revoke"
@@ -277,6 +308,7 @@ SGS_MANAGE_ALL_AUTH_TOKEN:
 SGS_SIGNALS_ALL:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
     - "cluster:admin:searchguard:tenant:signals:*"
     - "cluster:admin:searchguard:signals:*"
@@ -288,6 +320,7 @@ SGS_SIGNALS_ALL:
 SGS_SIGNALS_WATCH_READ:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
     - "cluster:admin:searchguard:tenant:signals:watch/get"
     - "cluster:admin:searchguard:tenant:signals:watch/search"
@@ -299,6 +332,7 @@ SGS_SIGNALS_WATCH_READ:
 SGS_SIGNALS_WATCH_MANAGE:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
     - SGS_SIGNALS_WATCH_READ
     - "cluster:admin:searchguard:tenant:signals:watch/put"
@@ -312,6 +346,7 @@ SGS_SIGNALS_WATCH_MANAGE:
 SGS_SIGNALS_WATCH_EXECUTE:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
     - "cluster:admin:searchguard:tenant:signals:watch/execute"
   type: "signals"
@@ -320,6 +355,7 @@ SGS_SIGNALS_WATCH_EXECUTE:
 SGS_SIGNALS_WATCH_ACTIVATE:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
     - "cluster:admin:searchguard:tenant:signals:watch/activate_deactivate"
   type: "signals"
@@ -328,6 +364,7 @@ SGS_SIGNALS_WATCH_ACTIVATE:
 SGS_SIGNALS_WATCH_ACKNOWLEDGE:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
     - "cluster:admin:searchguard:tenant:signals:watch/ack"
   type: "signals"
@@ -339,6 +376,7 @@ SGS_SIGNALS_WATCH_ACKNOWLEDGE:
 SGS_SIGNALS_ACCOUNT_READ:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
     - "cluster:admin:searchguard:signals:account/get"
     - "cluster:admin:searchguard:signals:account/search"
@@ -348,6 +386,7 @@ SGS_SIGNALS_ACCOUNT_READ:
 SGS_SIGNALS_ACCOUNT_MANAGE:
   reserved: true
   hidden: false
+  static: true
   allowed_actions:
     - SGS_SIGNALS_ACCOUNT_READ
     - "cluster:admin:searchguard:signals:account/put"
