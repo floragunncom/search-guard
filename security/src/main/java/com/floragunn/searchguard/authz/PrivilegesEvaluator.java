@@ -46,6 +46,7 @@ import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -120,6 +121,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     private final Pattern adminOnlyIndices;
     private final Actions actions;
     private final ComponentState componentState = new ComponentState(10, null, "privileges_evaluator");
+    private final ByteSizeValue statefulIndexMaxHeapSize;
 
     private volatile AuthorizationConfig authzConfig = AuthorizationConfig.DEFAULT;
     private volatile RoleBasedActionAuthorization actionAuthorization = null;
@@ -149,6 +151,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         this.snapshotRestoreEvaluator = new SnapshotRestoreEvaluator(auditLog, guiceDependencies, settings.get(UNSUPPORTED_RESTORE_SGINDEX_ENABLED));
         this.adminOnlyActions = settings.get(ADMIN_ONLY_ACTIONS);
         this.adminOnlyIndices = settings.get(ADMIN_ONLY_INDICES);
+        this.statefulIndexMaxHeapSize = settings.get(RoleBasedActionAuthorization.PRECOMPUTED_PRIVILEGES_MAX_HEAP_SIZE);
 
         configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
 
@@ -189,7 +192,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
                 tenantManager = new TenantManager(tenants.getCEntries().keySet(), multiTenancyConfigurationProvider);
                 actionAuthorization = new RoleBasedActionAuthorization(roles, actionGroups, actions, Meta.from(clusterService.state().metadata()),
-                        tenants.getCEntries().keySet(), adminOnlyIndices, authzConfig.getMetricsLevel(), multiTenancyConfigurationProvider);
+                        tenants.getCEntries().keySet(), statefulIndexMaxHeapSize, adminOnlyIndices, authzConfig.getMetricsLevel(), multiTenancyConfigurationProvider);
 
                 componentState.setConfigVersion(configMap.getVersionsAsString());
                 componentState.replacePart(actionAuthorization.getComponentState());
@@ -205,7 +208,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 RoleBasedActionAuthorization actionAuthorization = PrivilegesEvaluator.this.actionAuthorization;
 
                 if (actionAuthorization != null) {
-                    actionAuthorization.update(Meta.from(event.state().metadata()));
+                    actionAuthorization.updateStatefulIndexPrivilegesAsync(clusterService, threadPool);
                 }
             }
         });

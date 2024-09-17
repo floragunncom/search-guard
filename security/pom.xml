@@ -88,6 +88,11 @@
     </dependency>
 
     <dependency>
+      <groupId>com.selectivem.collections</groupId>
+      <artifactId>special-collections-complete</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-ssl</artifactId>
       <scope>provided</scope>

@@ -26,6 +26,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.env.Environment;
 
@@ -159,6 +160,13 @@ public class StaticSettings {
                 return new PatternBuilder(castedBuilder);
             }
 
+            public ByteSizeValueBuilder withDefault(ByteSizeValue defaultValue) {
+                @SuppressWarnings({ "unchecked", "rawtypes" })
+                Builder<ByteSizeValue> castedBuilder = (Builder<ByteSizeValue>) (Builder) this;
+                castedBuilder.defaultValue = defaultValue;
+                return new ByteSizeValueBuilder(castedBuilder);
+            }
+            
             public StringListAttribute asListOfStrings() {
                 return new StringListAttribute(name, ImmutableList.empty(), filtered);
             }
@@ -225,6 +233,17 @@ public class StaticSettings {
             }
         }
 
+        public static class ByteSizeValueBuilder {
+            private final Builder<ByteSizeValue> parent;
+
+            ByteSizeValueBuilder(Builder<ByteSizeValue> parent) {
+                this.parent = parent;
+            }
+
+            public Attribute<ByteSizeValue> asByteSizeValue() {
+                return new ByteSizeValueAttribute(parent.name, parent.defaultValue, parent.filtered);
+            }
+        }
     }
 
     static class StringAttribute extends Attribute<String> {
@@ -315,6 +334,18 @@ public class StaticSettings {
         }
     }
 
+
+    static class ByteSizeValueAttribute extends Attribute<ByteSizeValue> {
+        ByteSizeValueAttribute(String name, ByteSizeValue defaultValue, boolean filtered) {
+            super(name, defaultValue, filtered);
+        }
+
+        @Override
+        protected org.elasticsearch.common.settings.Setting<ByteSizeValue> toPlatformInstance() {
+            return org.elasticsearch.common.settings.Setting.memorySizeSetting(name, defaultValue, toPlatformProperties());
+        }
+    }
+    
     public static class AttributeSet {
         private static final AttributeSet EMPTY = new AttributeSet(ImmutableList.empty());
 

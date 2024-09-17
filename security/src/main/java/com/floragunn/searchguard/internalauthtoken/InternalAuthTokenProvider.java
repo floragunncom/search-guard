@@ -142,7 +142,7 @@ public class InternalAuthTokenProvider {
             ImmutableSet<String> roleNames = ImmutableSet.of(rolesConfig.getCEntries().keySet());
 
             ActionAuthorization actionAuthorization = new RoleBasedActionAuthorization(rolesConfig, privilegesEvaluator.getActionGroups(), actions,
-                    null, privilegesEvaluator.getAllConfiguredTenantNames());
+                    null, privilegesEvaluator.getAllConfiguredTenantNames(), null);
             String userName = verifiedToken.getClaims().getSubject();
             User user = User.forUser(userName).authDomainInfo(AuthDomainInfo.STORED_AUTH).searchGuardRoles(roleNames).build();
             AuthFromInternalAuthToken userAuth = new AuthFromInternalAuthToken(user, roleNames, actionAuthorization, rolesConfig);
