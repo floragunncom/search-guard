@@ -1834,7 +1834,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             DataStream(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Meta indexMetadata,
                     Pattern universallyDeniedIndices, ByteSizeValue statefulIndexMaxHeapSize, ComponentState componentState) {
-                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roles.getCEntries().keySet());
+                Set<String> keys = roles.getCEntries().keySet();
+
+                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(keys);
                 CompactMapGroupBuilder<String, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>> indexMapBuilder = new CompactMapGroupBuilder<>(
                         indexMetadata.indexLikeObjects().keySet(), (k2) -> roleSetBuilder.createSubSetBuilder());
 
@@ -1847,10 +1849,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                 Set<String> dataStreamNames = indexMetadata.dataStreams().map(Meta.DataStream::name);
 
-                top: for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
+                top:                 for (String roleName : keys) {
                     try {
-                        String roleName = entry.getKey();
-                        Role role = entry.getValue();
+                        //String roleName = entry.getKey();
+                        Role role = roles.getCEntries().get(roleName);
                         roleSetBuilder.next(roleName);
 
                         for (Role.DataStream dataStreamPermissions : role.getDataStreamPermissions()) {
@@ -1947,11 +1949,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         }
 
                     } catch (ConfigValidationException e) {
-                        log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", entry, e);
-                        rolesToInitializationErrors.get(entry.getKey()).with(e);
+                        log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", roleName, e);
+                        rolesToInitializationErrors.get(roleName).with(e);
                     } catch (Exception e) {
-                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
-                        rolesToInitializationErrors.get(entry.getKey()).with(e);
+                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", roleName, e);
+                        rolesToInitializationErrors.get(roleName).with(e);
                     }
                 }
 
