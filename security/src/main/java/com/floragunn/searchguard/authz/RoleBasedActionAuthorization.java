@@ -14,6 +14,10 @@
  * limitations under the License.
  * 
  */
+/*
+ * Includes code from https://github.com/opensearch-project/security/blob/780a6b95a70a91d2425731fff09b624f88ef2c1a/src/main/java/org/opensearch/security/privileges/ActionPrivileges.java
+ * which is Copyright OpenSearch Contributors
+ */
 
 package com.floragunn.searchguard.authz;
 
