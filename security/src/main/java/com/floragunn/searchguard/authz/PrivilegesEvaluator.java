@@ -100,7 +100,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
     public static final StaticSettings.AttributeSet STATIC_SETTINGS = //
             StaticSettings.AttributeSet.of(ADMIN_ONLY_ACTIONS, ADMIN_ONLY_INDICES, CHECK_SNAPSHOT_RESTORE_WRITE_PRIVILEGES,
-                    UNSUPPORTED_RESTORE_SGINDEX_ENABLED);
+                    UNSUPPORTED_RESTORE_SGINDEX_ENABLED, RoleBasedActionAuthorization.PRECOMPUTED_PRIVILEGES_MAX_HEAP_SIZE);
 
     private static final Logger log = LogManager.getLogger(PrivilegesEvaluator.class);
     private final ClusterService clusterService;
