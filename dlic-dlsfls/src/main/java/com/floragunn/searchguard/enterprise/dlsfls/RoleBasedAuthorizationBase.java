@@ -10,6 +10,10 @@
  * from https://floragunn.com
  * 
  */
+/*
+ * Includes code from https://github.com/opensearch-project/security/blob/780a6b95a70a91d2425731fff09b624f88ef2c1a/src/main/java/org/opensearch/security/privileges/dlsfls/AbstractRuleBasedPrivileges.java
+ * which is Copyright OpenSearch Contributors
+ */
 
 package com.floragunn.searchguard.enterprise.dlsfls;
 
