@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 
+import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
@@ -24,8 +25,23 @@ public class DataStreamDownsampleIntTest {
 
     private static final String DATA_STREAM_NAME = "tsds-iot";
 
-    static TestSgConfig.User LIMITED_USER = new TestSgConfig.User("limited_user")//
-            .description("unlimited complete")//
+    static TestSgConfig.User USER_WITH_ACCESS_TO_DATA_STREAM_AND_TARGET_INDEX = new TestSgConfig.User("ds_target_access")//
+            .description("access to ds and downsample target index")//
+            .roles(//
+                    new TestSgConfig.Role("r1")
+                            .dataStreamPermissions(
+                                    "indices:admin/data_stream/get",
+                                    "indices:admin/rollover", "indices:monitor/stats",
+                                    "indices:admin/block/add",
+                                    "indices:admin/xpack/downsample"
+                            ).on(DATA_STREAM_NAME)
+                            .indexPermissions("indices:admin/create")
+                            .on("downsample_target*")
+
+            );
+
+    static TestSgConfig.User USER_WITH_ACCESS_ONLY_TO_DATA_STREAM = new TestSgConfig.User("only_ds_access")//
+            .description("access only to ds")//
             .roles(//
                     new TestSgConfig.Role("r1")
                             .dataStreamPermissions(
@@ -41,7 +57,8 @@ public class DataStreamDownsampleIntTest {
     public static LocalCluster cluster = new LocalCluster.Builder()
             .singleNode()
             .sslEnabled()
-            .users(LIMITED_USER)
+            .authzDebug(true)
+            .users(USER_WITH_ACCESS_TO_DATA_STREAM_AND_TARGET_INDEX, USER_WITH_ACCESS_ONLY_TO_DATA_STREAM)
             .dlsFls(new TestSgConfig.DlsFls().useImpl("flx")) // it doesn't work with legacy impl
             .enterpriseModulesEnabled()
             .useExternalProcessCluster()
@@ -93,7 +110,7 @@ public class DataStreamDownsampleIntTest {
 
     @Test
     public void testDownsampleTimeSeriesDataStreamIndex() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient(LIMITED_USER)) {
+        try (GenericRestClient client = cluster.getRestClient(USER_WITH_ACCESS_TO_DATA_STREAM_AND_TARGET_INDEX)) {
             GenericRestClient.HttpResponse response = client.get("/_data_stream/" + DATA_STREAM_NAME);
             assertThat(response, isOk());
 
@@ -105,8 +122,24 @@ public class DataStreamDownsampleIntTest {
             response = client.put(dataStreamBackingIndex + "/_block/write");
             assertThat(response, isOk());
 
-            response = client.postJson(dataStreamBackingIndex + "/_downsample/" + "downsample_target", DocNode.of("fixed_interval", "1h"));
+            response = client.postJson(dataStreamBackingIndex + "/_downsample/" + "downsample_target_1", DocNode.of("fixed_interval", "1h"));
             assertThat(response, isOk());
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(USER_WITH_ACCESS_ONLY_TO_DATA_STREAM)) {
+            GenericRestClient.HttpResponse response = client.get("/_data_stream/" + DATA_STREAM_NAME);
+            assertThat(response, isOk());
+
+            String dataStreamBackingIndex = response.getBodyAsDocNode().findSingleValueByJsonPath("$.data_streams[0].indices[0].index_name", String.class);
+
+            response = client.post(DATA_STREAM_NAME + "/_rollover");
+            assertThat(response, isOk());
+
+            response = client.put(dataStreamBackingIndex + "/_block/write");
+            assertThat(response, isOk());
+
+            response = client.postJson(dataStreamBackingIndex + "/_downsample/" + "downsample_target_2", DocNode.of("fixed_interval", "1h"));
+            assertThat(response, isForbidden());
         }
     }
 }

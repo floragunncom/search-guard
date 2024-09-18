@@ -47,6 +47,7 @@ import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.resolve.ResolveIndexAction;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.downsample.DownsampleAction;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesRequest;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.index.IndexRequest;
@@ -202,6 +203,10 @@ public class ActionRequestIntrospector {
 
                 return new ActionRequestInfo(resizeRequest.getSourceIndex(), EXACT, IndicesRequestInfo.Scope.ANY).additional(
                         Action.AdditionalDimension.RESIZE_TARGET, ((ResizeRequest) request).getTargetIndexRequest(), IndicesRequestInfo.Scope.ANY);
+            } else if (request instanceof DownsampleAction.Request downsampleRequest) {
+
+                return new ActionRequestInfo(downsampleRequest.getSourceIndex(), downsampleRequest.indicesOptions(), IndicesRequestInfo.Scope.ANY).additional(
+                        Action.AdditionalDimension.DOWNSAMPLE_TARGET, ImmutableList.of(downsampleRequest.getTargetIndex()), EXACT, IndicesRequestInfo.Scope.ANY);
             } else if (request instanceof ResolveIndexAction.Request) {
                 return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.ANY_DISTINCT);
             } else {

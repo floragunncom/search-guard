@@ -123,6 +123,7 @@ import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.bulk.TransportShardBulkAction;
 import org.elasticsearch.action.delete.DeleteAction;
+import org.elasticsearch.action.downsample.DownsampleAction;
 import org.elasticsearch.action.explain.TransportExplainAction;
 import org.elasticsearch.action.fieldcaps.FieldCapabilitiesAction;
 import org.elasticsearch.action.get.GetAction;
@@ -242,6 +243,7 @@ public class Actions {
         index(OpenIndexAction.INSTANCE);
         index(CloseIndexAction.INSTANCE);
         index(ResizeAction.INSTANCE).additionalDimensions(RESIZE_TARGET);
+        index(DownsampleAction.INSTANCE).additionalDimensions(DOWNSAMPLE_TARGET);
 
         indexLike(RolloverAction.INSTANCE);
         indexLike(DeleteIndexAction.INSTANCE);
