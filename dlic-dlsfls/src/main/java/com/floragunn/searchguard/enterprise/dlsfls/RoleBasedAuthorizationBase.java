@@ -1078,8 +1078,10 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 this.componentState = new ComponentState("data_stream");
                 this.roleToRuleFunction = roleToRuleFunction;
                 
-                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roles.getCEntries().keySet());
-                CompactMapGroupBuilder<String, SingleRule> roleMapBuilder = new CompactMapGroupBuilder<>(roles.getCEntries().keySet());
+                Set<String> keys = roles.getCEntries().keySet();
+                
+                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(keys);
+                CompactMapGroupBuilder<String, SingleRule> roleMapBuilder = new CompactMapGroupBuilder<>(keys);
 
                 ImmutableMap.Builder<Meta.DataStream, CompactMapGroupBuilder.MapBuilder<String, SingleRule>> indexToRoleToQuery = new ImmutableMap.Builder<Meta.DataStream, CompactMapGroupBuilder.MapBuilder<String, SingleRule>>()
                         .defaultValue((k) -> roleMapBuilder.createMapBuilder());
@@ -1090,10 +1092,10 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                         .defaultValue((k) -> new ImmutableList.Builder<Exception>());
 
-                for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
+                for (String roleName : keys) {
                     try {
-                        String roleName = entry.getKey();
-                        Role role = entry.getValue();
+                        //String roleName = entry.getKey();
+                        Role role = roles.getCEntries().get(roleName);
                         roleSetBuilder.next(roleName);
                         
                         for (Role.DataStream dataStreamPermissions : role.getDataStreamPermissions()) {
@@ -1159,8 +1161,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                         }
 
                     } catch (Exception e) {
-                        log.error("Unexpected exception while processing role: " + entry + "\nIgnoring role.", e);
-                        rolesToInitializationErrors.get(entry.getKey()).with(e);
+                        log.error("Unexpected exception while processing role: " + roleName + "\nIgnoring role.", e);
+                        rolesToInitializationErrors.get(roleName).with(e);
                     }
                 }
 
