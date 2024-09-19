@@ -22,6 +22,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsFlsBaseContext;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.Query;
@@ -59,9 +61,11 @@ public class SearchGuardFlsDlsIndexSearcherWrapper implements CheckedFunction<Di
     private final ThreadContext threadContext;
     private final Index index;
     private final AtomicReference<DlsFlsProcessedConfig> config;
+    private final DlsFlsBaseContext dlsFlsBaseContext;
 
     public SearchGuardFlsDlsIndexSearcherWrapper(final IndexService indexService, final Settings settings, final ClusterService clusterService,
-            final AuditLog auditlog, final DlsFlsComplianceConfig complianceConfig, AtomicReference<DlsFlsProcessedConfig> config, NamedXContentRegistry xContentRegistry) {
+                                                 final AuditLog auditlog, final DlsFlsComplianceConfig complianceConfig, AtomicReference<DlsFlsProcessedConfig> config, NamedXContentRegistry xContentRegistry,
+                                                 DlsFlsBaseContext dlsFlsBaseContext) {
         this.clusterService = clusterService;
         this.indexService = indexService;
         this.complianceConfig = complianceConfig;
@@ -78,11 +82,18 @@ public class SearchGuardFlsDlsIndexSearcherWrapper implements CheckedFunction<Di
                 throw new IllegalArgumentException("'now' is not allowed in DLS queries");
             };
         }
+        this.dlsFlsBaseContext = dlsFlsBaseContext;
     }
 
     @Override
     public final DirectoryReader apply(DirectoryReader reader) throws IOException {       
         if (!config.get().isEnabled()) {
+            return reader;
+        }
+
+        PrivilegesEvaluationContext privilegesEvaluationContext = dlsFlsBaseContext.getPrivilegesEvaluationContext();
+
+        if (privilegesEvaluationContext == null) {
             return reader;
         }
 
