@@ -67,6 +67,7 @@ import com.floragunn.searchsupport.meta.Meta;
 import com.selectivem.collections.CompactMapGroupBuilder;
 import com.selectivem.collections.DeduplicatingCompactSubSetBuilder;
 import com.selectivem.collections.ImmutableCompactSubSet;
+import com.selectivem.collections.IndexedImmutableSet;
 
 public class RoleBasedActionAuthorization implements ActionAuthorization, ComponentStateProvider {
     static final StaticSettings.Attribute<ByteSizeValue> PRECOMPUTED_PRIVILEGES_MAX_HEAP_SIZE = //
@@ -1458,7 +1459,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             Index(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Meta indexMetadata,
                     Pattern universallyDeniedIndices, ByteSizeValue statefulIndexMaxHeapSize, ComponentState componentState) {
-                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roles.getCEntries().keySet());
+                Set<String> roleNames = IndexedImmutableSet.of(roles.getCEntries().keySet());                
+                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roleNames);
                 CompactMapGroupBuilder<String, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>> indexMapBuilder = new CompactMapGroupBuilder<>(
                         indexMetadata.indexLikeObjects().keySet(), (k2) -> roleSetBuilder.createSubSetBuilder());
 
@@ -1471,10 +1473,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                 Iterable<String> indexNames = indexMetadata.namesOfIndices();
 
-                top: for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
+                top: for (String roleName : roleNames) {
                     try {
-                        String roleName = entry.getKey();
-                        Role role = entry.getValue();
+                        Role role = roles.getCEntry(roleName);
                         roleSetBuilder.next(roleName);
 
                         for (Role.Index indexPermissions : role.getIndexPermissions()) {
@@ -1568,11 +1569,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         // we do not need to have an ultra-fast solution for this. On the other hand, there might be many backing indices, which could lead to a blow up of required heap
 
                     } catch (ConfigValidationException e) {
-                        log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", entry, e);
-                        rolesToInitializationErrors.get(entry.getKey()).with(e);
+                        log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", roleName, e);
+                        rolesToInitializationErrors.get(roleName).with(e);
                     } catch (Exception e) {
-                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
-                        rolesToInitializationErrors.get(entry.getKey()).with(e);
+                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", roleName, e);
+                        rolesToInitializationErrors.get(roleName).with(e);
                     }
                 }
 
@@ -1666,7 +1667,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             Alias(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Meta indexMetadata,
                     Pattern universallyDeniedIndices, ByteSizeValue statefulIndexMaxHeapSize, ComponentState componentState) {
-                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roles.getCEntries().keySet());
+                Set<String> roleNames = IndexedImmutableSet.of(roles.getCEntries().keySet());                
+                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roleNames);
                 CompactMapGroupBuilder<String, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>> indexMapBuilder = new CompactMapGroupBuilder<>(
                         indexMetadata.indexLikeObjects().keySet(), (k2) -> roleSetBuilder.createSubSetBuilder());
 
@@ -1677,10 +1679,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                         .defaultValue((k) -> new ImmutableList.Builder<Exception>());
 
-                top: for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
+                top: for (String roleName : roleNames) {
                     try {
-                        String roleName = entry.getKey();
-                        Role role = entry.getValue();
+                        Role role = roles.getCEntry(roleName);
                         roleSetBuilder.next(roleName);
 
                         for (Role.Alias aliasPermissions : role.getAliasPermissions()) {
@@ -1731,11 +1732,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         }
 
                     } catch (ConfigValidationException e) {
-                        log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", entry, e);
-                        rolesToInitializationErrors.get(entry.getKey()).with(e);
+                        log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", roleName, e);
+                        rolesToInitializationErrors.get(roleName).with(e);
                     } catch (Exception e) {
-                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
-                        rolesToInitializationErrors.get(entry.getKey()).with(e);
+                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", roleName, e);
+                        rolesToInitializationErrors.get(roleName).with(e);
                     }
                 }
 
@@ -1834,9 +1835,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
             DataStream(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Meta indexMetadata,
                     Pattern universallyDeniedIndices, ByteSizeValue statefulIndexMaxHeapSize, ComponentState componentState) {
-                Set<String> keys = roles.getCEntries().keySet();
-
-                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(keys);
+                Set<String> roleNames = IndexedImmutableSet.of(roles.getCEntries().keySet());                
+                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roleNames);
                 CompactMapGroupBuilder<String, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>> indexMapBuilder = new CompactMapGroupBuilder<>(
                         indexMetadata.indexLikeObjects().keySet(), (k2) -> roleSetBuilder.createSubSetBuilder());
 
@@ -1849,9 +1849,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                 Set<String> dataStreamNames = indexMetadata.dataStreams().map(Meta.DataStream::name);
 
-                top:                 for (String roleName : keys) {
+                top: for (String roleName : roleNames) {
                     try {
-                        //String roleName = entry.getKey();
                         Role role = roles.getCEntries().get(roleName);
                         roleSetBuilder.next(roleName);
 
