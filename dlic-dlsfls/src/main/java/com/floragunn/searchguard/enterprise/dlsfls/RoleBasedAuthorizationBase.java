@@ -101,9 +101,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 // We get a request for an index unknown to this instance. Usually, this is the case because the index simply does not exist.
                 // For non-existing indices, it is safe to assume that no documents can be accessed.
 
-                if (log.isDebugEnabled()) {
-                    log.debug("ResolvedIndices {} contain non-existing indices. Assuming full document restriction.", resolved);
-                }
+
+                log.debug("ResolvedIndices {} contain non-existing indices. Assuming full document restriction.", resolved);
 
                 return true;
             }
@@ -166,9 +165,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 // We get a request for an index unknown to this instance. Usually, this is the case because the index simply does not exist.
                 // For non-existing indices, it is safe to assume that no documents can be accessed.
 
-                if (log.isDebugEnabled()) {
-                    log.debug("Index {} does not exist. Assuming full document restriction.", index);
-                }
+                log.debug("Index {} does not exist. Assuming full document restriction.", index);
 
                 return true;
             }
