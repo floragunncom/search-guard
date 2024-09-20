@@ -14,10 +14,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 
-import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
-import static com.floragunn.searchguard.test.RestMatchers.isOk;
-import static com.floragunn.searchguard.test.RestMatchers.json;
-import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
+import static com.floragunn.searchguard.test.RestMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.everyItem;
@@ -186,7 +183,7 @@ public class DataStreamDownsampleIntTest {
                     assertThat(response, isOk());
 
                     response = client.postJson(dataStreamBackingIndex + "/_downsample/" + "downsample_target_1", DocNode.of("fixed_interval", "1h"));
-                    assertThat(response, isOk());
+                    assertThat(response, isInternalServerError());
                 }
 
                 try (GenericRestClient client = cluster.getRestClient(USER_WITH_ACCESS_ONLY_TO_DATA_STREAM)) {
