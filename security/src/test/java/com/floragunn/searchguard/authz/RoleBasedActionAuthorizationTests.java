@@ -19,6 +19,7 @@ package com.floragunn.searchguard.authz;
 
 import static com.floragunn.searchsupport.meta.Meta.Mock.dataStream;
 import static com.floragunn.searchsupport.meta.Meta.Mock.indices;
+import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,7 +27,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -720,6 +726,12 @@ public class RoleBasedActionAuthorizationTests {
         final ImmutableSet<Action> otherActions;
         final RoleBasedActionAuthorization subject;
         final User user = User.forUser("test").attribute("dept_no", "a1").build();
+        long noBackingIndexResolution = 0;
+
+        @Before
+        public void updateIndexResolutionNumber() {
+            noBackingIndexResolution = getResolutionNumberOfDataStreamBackingIndices();
+        }
 
         @Test
         public void positive_datastream_full() throws Exception {
@@ -735,6 +747,8 @@ public class RoleBasedActionAuthorizationTests {
                 Assert.assertTrue(result.toString(),
                         result.getAvailableIndices().equals(ImmutableSet.of(".ds-datastream_a1-xyz-0001", ".ds-datastream_a1-xyz-0002")));
             }
+            long count = getResolutionNumberOfDataStreamBackingIndices() - this.noBackingIndexResolution;
+            assertEquals("Data stream backing indices should not be resolved, but resolved " + count + " times", 0, count);
         }
 
         @Test
@@ -743,6 +757,8 @@ public class RoleBasedActionAuthorizationTests {
                     = subject.hasIndexPermission(ctx(user, "test_role"), primaryAction, requiredActions,
                             ResolvedIndices.of(BASIC, ".ds-datastream_a1-xyz-0002"));
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+            long count = getResolutionNumberOfDataStreamBackingIndices() - this.noBackingIndexResolution;
+            assertEquals("Data stream backing indices should not be resolved, but resolved " + count + " times", 0, count);
         }
 
         @Test
@@ -771,6 +787,8 @@ public class RoleBasedActionAuthorizationTests {
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of(".ds-datastream_a1-xyz-0001",
                         ".ds-datastream_a1-xyz-0002", ".ds-datastream_a2-xyz-0001", ".ds-datastream_a2-xyz-0002")));
             }
+            long count = getResolutionNumberOfDataStreamBackingIndices() - this.noBackingIndexResolution;
+            assertEquals("Data stream backing indices should not be resolved, but resolved " + count + " times", 0, count);
         }
 
         @Test
@@ -803,6 +821,8 @@ public class RoleBasedActionAuthorizationTests {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of("datastream_a1")));
             }
+            long count = getResolutionNumberOfDataStreamBackingIndices() - this.noBackingIndexResolution;
+            assertEquals("Data stream backing indices should not be resolved, but resolved " + count + " times", 0, count);
         }
 
         @Test
@@ -817,6 +837,8 @@ public class RoleBasedActionAuthorizationTests {
                 Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
                 Assert.assertTrue(result.toString(), result.getAvailableIndices().equals(ImmutableSet.of(".ds-datastream_a1-xyz-0001")));
             }
+            long count = getResolutionNumberOfDataStreamBackingIndices() - this.noBackingIndexResolution;
+            assertEquals("Data stream backing indices should not be resolved, but resolved " + count + " times", 0, count);
         }
 
         @Test
@@ -825,6 +847,13 @@ public class RoleBasedActionAuthorizationTests {
                     = subject.hasIndexPermission(ctx(user, "other_role"), primaryAction, requiredActions, ResolvedIndices.of(BASIC, "datastream_a1"),
                             Action.Scope.INDEX_LIKE);
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+            long count = getResolutionNumberOfDataStreamBackingIndices() - this.noBackingIndexResolution;
+            assertEquals("Data stream backing indices should not be resolved, but resolved " + count + " times", 0, count);
+        }
+
+        private long getResolutionNumberOfDataStreamBackingIndices() {
+            return ((TimeAggregation.Nanoseconds) subject.getComponentState().getMetrics().get("index_action_checks")).getSubAggregation(
+                    "resolve_all_aliases").getCount();
         }
 
         @Test
@@ -833,6 +862,8 @@ public class RoleBasedActionAuthorizationTests {
                     = subject.hasIndexPermission(ctx(user, "test_role"), otherActions.any(), otherActions, ResolvedIndices.of(BASIC, "datastream_a1"),
                             Action.Scope.INDEX_LIKE);
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+            long count = getResolutionNumberOfDataStreamBackingIndices() - this.noBackingIndexResolution;
+            assertEquals("Data stream backing indices should not be resolved, but resolved " + count + " times", 0, count);
         }
 
         @Test
@@ -841,6 +872,8 @@ public class RoleBasedActionAuthorizationTests {
                     = subject.hasIndexPermission(ctx(user, "other_role"), primaryAction, requiredActions, ResolvedIndices.of(BASIC, "datastream_a"),
                             Action.Scope.INDEX_LIKE);
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+            long count = getResolutionNumberOfDataStreamBackingIndices() - this.noBackingIndexResolution;
+            assertEquals("Data stream backing indices should not be resolved, but resolved " + count + " times", 0, count);
         }
 
         @Test
@@ -849,6 +882,8 @@ public class RoleBasedActionAuthorizationTests {
                     = subject.hasIndexPermission(ctx(user, "test_role"), otherActions.any(), otherActions, ResolvedIndices.of(BASIC, "datastream_a"),
                             Action.Scope.INDEX_LIKE);
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+            long count = getResolutionNumberOfDataStreamBackingIndices() - this.noBackingIndexResolution;
+            assertEquals("Data stream backing indices should not be resolved, but resolved " + count + " times", 0, count);
         }
 
         final static Meta BASIC = dataStream("datastream_a1").of(".ds-datastream_a1-xyz-0001", ".ds-datastream_a1-xyz-0002")//
@@ -905,7 +940,9 @@ public class RoleBasedActionAuthorizationTests {
                     : ImmutableSet.of(actions.get("indices:foobar/unknown"));
 
             this.subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions,
-                    statefulness == Statefulness.STATEFUL ? BASIC : null, ImmutableSet.empty());
+                    statefulness == Statefulness.STATEFUL ? BASIC : null, ImmutableSet.empty(), Pattern.blank(), MetricsLevel.DETAILED,
+                    MultiTenancyConfigurationProvider.DEFAULT);
+
         }
 
     }
