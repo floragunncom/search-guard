@@ -136,7 +136,7 @@ public class FmIntTest {
         .resources("dlsfls")
         .useExternalProcessCluster().build();
 
-    private final TestIndexLike indexLikeName;
+    private final TestIndexLike testIndexLike;
     private final TestSgConfig.User user;
 
     @Parameterized.Parameters(name = "{0} {1}")
@@ -157,15 +157,15 @@ public class FmIntTest {
         );
     }
 
-    public FmIntTest(TestIndexLike indexLikeName, TestSgConfig.User user) {
-        this.indexLikeName = indexLikeName;
+    public FmIntTest(TestIndexLike testIndexLike, TestSgConfig.User user) {
+        this.testIndexLike = testIndexLike;
         this.user = user;
     }
 
     @Test
     public void search_hashed() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(user)) {
-            GenericRestClient.HttpResponse response = client.get("/" + indexLikeName.getName() + "/_search?pretty");
+            GenericRestClient.HttpResponse response = client.get("/" + testIndexLike.getName() + "/_search?pretty");
 
             assertThat(response, RestMatchers.isOk());
             assertThat(response, user.matcherForField("hits.hits[*]._source.source_ip"));
@@ -175,12 +175,12 @@ public class FmIntTest {
     @Test
     public void get_hashed() throws Exception {
         String docId = TEST_DATA.anyDocument().getId();
-        String docUrl = "/" + indexLikeName.getName() + "/_doc/" + docId + "?pretty";
+        String docUrl = "/" + testIndexLike.getName() + "/_doc/" + docId + "?pretty";
 
         try (GenericRestClient client = cluster.getRestClient(user)) {
             GenericRestClient.HttpResponse response = client.get(docUrl);
 
-            if(indexLikeName instanceof TestDataStream) {
+            if(testIndexLike instanceof TestDataStream) {
                 // it seems that ES does not support GET document operation for data streams
                 assertThat(response, RestMatchers.isNotFound());
             } else {
@@ -197,7 +197,7 @@ public class FmIntTest {
                 + "\"test_agg\" : { \"terms\" : { \"field\" : \"source_loc.keyword\" } }" + "}" + "}";
 
         try (GenericRestClient client = cluster.getRestClient(user)) {
-            GenericRestClient.HttpResponse response = client.postJson("/" + indexLikeName.getName() + "/_search?size=0&pretty", query);
+            GenericRestClient.HttpResponse response = client.postJson("/" + testIndexLike.getName() + "/_search?size=0&pretty", query);
             assertThat(response, RestMatchers.isOk());
 
             assertThat(response, user.matcherForField("aggregations.test_agg.buckets[*].key"));
@@ -207,7 +207,7 @@ public class FmIntTest {
     @Test
     public void search_masked_terms() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(user)) {
-            GenericRestClient.HttpResponse response = client.get("/" + indexLikeName.getName() + "/_search?pretty&q=source_ip:" + SOURCE_IP);
+            GenericRestClient.HttpResponse response = client.get("/" + testIndexLike.getName() + "/_search?pretty&q=source_ip:" + SOURCE_IP);
             assertThat(response, RestMatchers.isOk());
             assertThat(response, user.matcherForField("hits.total.value"));
         }
