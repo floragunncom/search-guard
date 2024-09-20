@@ -4,8 +4,6 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import org.apache.http.HttpStatus;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -14,7 +12,10 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 
-import static com.floragunn.searchguard.test.RestMatchers.*;
+import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
+import static com.floragunn.searchguard.test.RestMatchers.isOk;
+import static com.floragunn.searchguard.test.RestMatchers.json;
+import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.everyItem;
@@ -59,6 +60,7 @@ public class DataStreamDownsampleIntTest {
             .authzDebug(true)
             .users(USER_WITH_ACCESS_TO_DATA_STREAM_AND_TARGET_INDEX, USER_WITH_ACCESS_ONLY_TO_DATA_STREAM)
             .enterpriseModulesEnabled()
+            .dlsFls(new TestSgConfig.DlsFls().useImpl("flx"))
             .useExternalProcessCluster()
             .build();
 
@@ -107,104 +109,38 @@ public class DataStreamDownsampleIntTest {
     }
 
     @Test
-    public void testDownsampleTimeSeriesDataStreamIndex_flxDlsFlsImpl() throws Exception {
-        try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient()) {
-            DocNode initialDlsFlsConfig = DocNode.EMPTY;
+    public void testDownsampleTimeSeriesDataStreamIndex() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_WITH_ACCESS_TO_DATA_STREAM_AND_TARGET_INDEX)) {
+            GenericRestClient.HttpResponse response = client.get("/_data_stream/" + DATA_STREAM_NAME);
+            assertThat(response, isOk());
 
-            GenericRestClient.HttpResponse configResponse = adminCertClient.get("/_searchguard/config/authz_dlsfls");
-            if (configResponse.getStatusCode() != HttpStatus.SC_NOT_FOUND) {
-                initialDlsFlsConfig = configResponse.getBodyAsDocNode().getAsNode("content");
-            }
-            configResponse = adminCertClient.putJson("/_searchguard/config/authz_dlsfls", initialDlsFlsConfig.with("use_impl", "flx"));
-            assertThat(configResponse, isOk());
+            String dataStreamBackingIndex = response.getBodyAsDocNode().findSingleValueByJsonPath("$.data_streams[0].indices[0].index_name", String.class);
 
-            try {
-                try (GenericRestClient client = cluster.getRestClient(USER_WITH_ACCESS_TO_DATA_STREAM_AND_TARGET_INDEX)) {
-                    GenericRestClient.HttpResponse response = client.get("/_data_stream/" + DATA_STREAM_NAME);
-                    assertThat(response, isOk());
+            response = client.post(DATA_STREAM_NAME + "/_rollover");
+            assertThat(response, isOk());
 
-                    String dataStreamBackingIndex = response.getBodyAsDocNode().findSingleValueByJsonPath("$.data_streams[0].indices[0].index_name", String.class);
+            response = client.put(dataStreamBackingIndex + "/_block/write");
+            assertThat(response, isOk());
 
-                    response = client.post(DATA_STREAM_NAME + "/_rollover");
-                    assertThat(response, isOk());
+            response = client.postJson(dataStreamBackingIndex + "/_downsample/" + "downsample_target_1", DocNode.of("fixed_interval", "1h"));
+            assertThat(response, isOk());
+        }
 
-                    response = client.put(dataStreamBackingIndex + "/_block/write");
-                    assertThat(response, isOk());
+        try (GenericRestClient client = cluster.getRestClient(USER_WITH_ACCESS_ONLY_TO_DATA_STREAM)) {
+            GenericRestClient.HttpResponse response = client.get("/_data_stream/" + DATA_STREAM_NAME);
+            assertThat(response, isOk());
 
-                    response = client.postJson(dataStreamBackingIndex + "/_downsample/" + "downsample_target_1", DocNode.of("fixed_interval", "1h"));
-                    assertThat(response, isOk());
-                }
+            String dataStreamBackingIndex = response.getBodyAsDocNode().findSingleValueByJsonPath("$.data_streams[0].indices[0].index_name", String.class);
 
-                try (GenericRestClient client = cluster.getRestClient(USER_WITH_ACCESS_ONLY_TO_DATA_STREAM)) {
-                    GenericRestClient.HttpResponse response = client.get("/_data_stream/" + DATA_STREAM_NAME);
-                    assertThat(response, isOk());
+            response = client.post(DATA_STREAM_NAME + "/_rollover");
+            assertThat(response, isOk());
 
-                    String dataStreamBackingIndex = response.getBodyAsDocNode().findSingleValueByJsonPath("$.data_streams[0].indices[0].index_name", String.class);
+            response = client.put(dataStreamBackingIndex + "/_block/write");
+            assertThat(response, isOk());
 
-                    response = client.post(DATA_STREAM_NAME + "/_rollover");
-                    assertThat(response, isOk());
-
-                    response = client.put(dataStreamBackingIndex + "/_block/write");
-                    assertThat(response, isOk());
-
-                    response = client.postJson(dataStreamBackingIndex + "/_downsample/" + "downsample_target_2", DocNode.of("fixed_interval", "1h"));
-                    assertThat(response, isForbidden());
-                }
-            } finally {
-                configResponse = adminCertClient.putJson("/_searchguard/config/authz_dlsfls", initialDlsFlsConfig);
-                assertThat(configResponse, isOk());
-            }
+            response = client.postJson(dataStreamBackingIndex + "/_downsample/" + "downsample_target_2", DocNode.of("fixed_interval", "1h"));
+            assertThat(response, isForbidden());
         }
     }
 
-    @Test
-    public void testDownsampleTimeSeriesDataStreamIndex_legacyDlsFlsImpl() throws Exception {
-        try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient()) {
-            DocNode initialDlsFlsConfig = DocNode.EMPTY;
-
-            GenericRestClient.HttpResponse configResponse = adminCertClient.get("/_searchguard/config/authz_dlsfls");
-            if (configResponse.getStatusCode() != HttpStatus.SC_NOT_FOUND) {
-                initialDlsFlsConfig = configResponse.getBodyAsDocNode().getAsNode("content");
-            }
-            configResponse = adminCertClient.putJson("/_searchguard/config/authz_dlsfls", initialDlsFlsConfig.with("use_impl", "legacy"));
-            assertThat(configResponse, isOk());
-
-            try {
-                try (GenericRestClient client = cluster.getRestClient(USER_WITH_ACCESS_TO_DATA_STREAM_AND_TARGET_INDEX)) {
-                    GenericRestClient.HttpResponse response = client.get("/_data_stream/" + DATA_STREAM_NAME);
-                    assertThat(response, isOk());
-
-                    String dataStreamBackingIndex = response.getBodyAsDocNode().findSingleValueByJsonPath("$.data_streams[0].indices[0].index_name", String.class);
-
-                    response = client.post(DATA_STREAM_NAME + "/_rollover");
-                    assertThat(response, isOk());
-
-                    response = client.put(dataStreamBackingIndex + "/_block/write");
-                    assertThat(response, isOk());
-
-                    response = client.postJson(dataStreamBackingIndex + "/_downsample/" + "downsample_target_1", DocNode.of("fixed_interval", "1h"));
-                    assertThat(response, isInternalServerError());
-                }
-
-                try (GenericRestClient client = cluster.getRestClient(USER_WITH_ACCESS_ONLY_TO_DATA_STREAM)) {
-                    GenericRestClient.HttpResponse response = client.get("/_data_stream/" + DATA_STREAM_NAME);
-                    assertThat(response, isOk());
-
-                    String dataStreamBackingIndex = response.getBodyAsDocNode().findSingleValueByJsonPath("$.data_streams[0].indices[0].index_name", String.class);
-
-                    response = client.post(DATA_STREAM_NAME + "/_rollover");
-                    assertThat(response, isOk());
-
-                    response = client.put(dataStreamBackingIndex + "/_block/write");
-                    assertThat(response, isOk());
-
-                    response = client.postJson(dataStreamBackingIndex + "/_downsample/" + "downsample_target_2", DocNode.of("fixed_interval", "1h"));
-                    assertThat(response, isForbidden());
-                }
-            } finally {
-                configResponse = adminCertClient.putJson("/_searchguard/config/authz_dlsfls", initialDlsFlsConfig);
-                assertThat(configResponse, isOk());
-            }
-        }
-    }
 }
