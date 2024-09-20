@@ -75,10 +75,6 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.authz.SystemIndexAccess;
 import com.floragunn.searchsupport.meta.Meta;
 
-/**
- * TODO do not resolve data streams for write requests
- *
- */
 public class ActionRequestIntrospector {
 
     static final IndicesOptions EXACT = new IndicesOptions(EnumSet.noneOf(IndicesOptions.Option.class),

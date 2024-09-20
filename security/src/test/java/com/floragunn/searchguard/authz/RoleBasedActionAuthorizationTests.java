@@ -19,6 +19,7 @@ package com.floragunn.searchguard.authz;
 
 import static com.floragunn.searchsupport.meta.Meta.Mock.dataStream;
 import static com.floragunn.searchsupport.meta.Meta.Mock.indices;
+import static org.hamcrest.Matchers.equalTo;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,8 +27,18 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.common.unit.ByteSizeUnit;
+import org.elasticsearch.common.unit.ByteSizeValue;
+import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
+import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
+import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import org.hamcrest.MatcherAssert;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -54,7 +65,8 @@ import com.floragunn.searchsupport.meta.Meta;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({ RoleBasedActionAuthorizationTests.ClusterPermissions.class, RoleBasedActionAuthorizationTests.IndexPermissions.class,
         RoleBasedActionAuthorizationTests.IndexPermissionsSpecial.class, RoleBasedActionAuthorizationTests.AliasPermissions.class,
-        RoleBasedActionAuthorizationTests.AliasPermissionsSpecial.class, RoleBasedActionAuthorizationTests.DataStreamPermissions.class })
+        RoleBasedActionAuthorizationTests.AliasPermissionsSpecial.class, RoleBasedActionAuthorizationTests.DataStreamPermissions.class,
+        RoleBasedActionAuthorizationTests.WriteResolveDataStreamIndicesTest.class })
 public class RoleBasedActionAuthorizationTests {
 
     private static final Actions actions = new Actions(null);
@@ -915,6 +927,85 @@ public class RoleBasedActionAuthorizationTests {
 
             this.subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions,
                     statefulness == Statefulness.STATEFUL ? BASIC : null, ImmutableSet.empty(), STATEFUL_SIZE);
+        }
+
+    }
+
+    @RunWith(Parameterized.class)
+    public static class WriteResolveDataStreamIndicesTest {
+
+        private record IndexSpecAndInstance(IndexSpec indexSpec, String actualIndexName) {
+
+        }
+
+        private final static User USER = User.forUser("my_test").build();
+
+        public static final String DATA_STREAM_ONE = "my_data_stream_one";
+        public static final String DATA_STREAM_TWO = "my_data_stream_two";
+        final static Meta BASIC = dataStream(DATA_STREAM_ONE).of(".ds-my_data_stream_one-xyz-0001", ".ds-my_data_stream_one-xyz-0002")//
+                .dataStream(DATA_STREAM_TWO).of(".ds-my_data_stream_two-xyz-0001", ".ds-my_data_stream_two-xyz-0002")//
+                .alias("prohibited_alias").of(DATA_STREAM_ONE, DATA_STREAM_TWO);
+
+        private final ActionSpec actionSpec;
+        private final String indexName;
+
+        // under test
+        private final RoleBasedActionAuthorization subject;
+
+        public WriteResolveDataStreamIndicesTest(ActionSpec actionSpec, IndexSpec indexSpec, String indexName) {
+            this.actionSpec = actionSpec;
+            SgDynamicConfiguration<Role> role = indexSpec.toRolesConfig(actionSpec);
+            this.indexName = indexName;
+            this.subject = new RoleBasedActionAuthorization(role, ActionGroup.FlattenedIndex.EMPTY, actions, BASIC, ImmutableSet.empty(), STATEFUL_SIZE,
+                    Pattern.blank(), MetricsLevel.DETAILED, MultiTenancyConfigurationProvider.DEFAULT);
+        }
+
+        @Parameters(name = "action {0} index like {1} actual index {2}")
+        public static Collection<Object[]> params() {
+            List<Object[]> parameters = new ArrayList<>();
+
+            List<ActionSpec> actions = ImmutableList.of(new ActionSpec("constant, index document")//
+                            .givenPrivs("indices:data/write/index").requiredPrivs("indices:data/write/index"), //
+                    new ActionSpec("pattern, index document") //
+                            .givenPrivs("indices:data/write*").requiredPrivs("indices:data/write/index"));
+            List<IndexSpecAndInstance> indices = ImmutableList.of(
+                    new IndexSpecAndInstance(new IndexSpec().givenDataStreamPrivs(DATA_STREAM_ONE), DATA_STREAM_ONE), //
+                    new IndexSpecAndInstance(new IndexSpec().givenDataStreamPrivs("my_data_stream_t*"), DATA_STREAM_TWO)//
+            );
+
+            for (ActionSpec actionSpec : actions) {
+                for (IndexSpecAndInstance indexSpecAndInstance : indices) {
+                    parameters.add(new Object[] { actionSpec, indexSpecAndInstance.indexSpec, indexSpecAndInstance.actualIndexName });
+                }
+            }
+            return parameters;
+        }
+
+        @Test
+        public void shouldNotResolveDataStreamBackingIndices() throws PrivilegesEvaluationException {
+            ResolvedIndices resolvedIndices = ResolvedIndices.of(BASIC, indexName);
+
+            PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(USER, "test_role"), actionSpec.primaryAction, //
+                    actionSpec.requiredPrivs, resolvedIndices, Action.Scope.INDEX_LIKE);
+
+            MatcherAssert.assertThat(result.getStatus(), equalTo(PrivilegesEvaluationResult.Status.OK));
+            MatcherAssert.assertThat(getNumberOfPerformedDataStreamIndicesResolutions(), equalTo(0L));
+        }
+
+        @Test
+        public void shouldResolveDataStreamBackingIndices() throws PrivilegesEvaluationException {
+            ResolvedIndices resolvedIndices = ResolvedIndices.of(BASIC, "prohibited_alias");
+
+            PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(USER, "test_role"), actionSpec.primaryAction, //
+                    actionSpec.requiredPrivs, resolvedIndices, Action.Scope.INDEX_LIKE);
+
+            MatcherAssert.assertThat(result.getStatus(), equalTo(PrivilegesEvaluationResult.Status.INSUFFICIENT));
+            MatcherAssert.assertThat(getNumberOfPerformedDataStreamIndicesResolutions(), equalTo(1L));
+        }
+
+        private long getNumberOfPerformedDataStreamIndicesResolutions() {
+            return ((TimeAggregation.Nanoseconds) subject.getComponentState().getMetrics().get("index_action_checks")).getSubAggregation(
+                    "resolve_all_aliases").getCount();
         }
 
     }
