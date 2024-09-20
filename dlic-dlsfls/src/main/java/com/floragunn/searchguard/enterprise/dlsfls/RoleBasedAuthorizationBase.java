@@ -48,6 +48,7 @@ import com.floragunn.searchsupport.meta.Meta;
 import com.selectivem.collections.CompactMapGroupBuilder;
 import com.selectivem.collections.DeduplicatingCompactSubSetBuilder;
 import com.selectivem.collections.ImmutableCompactSubSet;
+import com.selectivem.collections.IndexedImmutableSet;
 
 public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> implements ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(RoleBasedDocumentAuthorization.class);
@@ -871,8 +872,9 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 this.componentState = new ComponentState("index");
                 this.roleToRuleFunction = roleToRuleFunction;
 
-                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roles.getCEntries().keySet());
-                CompactMapGroupBuilder<String, SingleRule> roleMapBuilder = new CompactMapGroupBuilder<>(roles.getCEntries().keySet());
+                Set<String> roleNames = IndexedImmutableSet.of(roles.getCEntries().keySet());                
+                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roleNames);
+                CompactMapGroupBuilder<String, SingleRule> roleMapBuilder = new CompactMapGroupBuilder<>(roleNames);
 
                 ImmutableMap.Builder<Meta.Index, CompactMapGroupBuilder.MapBuilder<String, SingleRule>> indexToRoleToRule = new ImmutableMap.Builder<Meta.Index, CompactMapGroupBuilder.MapBuilder<String, SingleRule>>()
                         .defaultValue((k) -> roleMapBuilder.createMapBuilder());
@@ -883,10 +885,9 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                         .defaultValue((k) -> new ImmutableList.Builder<Exception>());
 
-                for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
+                for (String roleName : roleNames) {
                     try {
-                        String roleName = entry.getKey();
-                        Role role = entry.getValue();
+                        Role role = roles.getCEntries().get(roleName);
                         roleSetBuilder.next(roleName);
 
                         for (Role.Index indexPermissions : role.getIndexPermissions()) {
@@ -947,8 +948,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                         }
 
                     } catch (Exception e) {
-                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
-                        rolesToInitializationErrors.get(entry.getKey()).with(e);
+                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", roleName, e);
+                        rolesToInitializationErrors.get(roleName).with(e);
                     }
                 }
 
@@ -989,9 +990,10 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
             Alias(SgDynamicConfiguration<Role> roles, Meta indexMetadata, Function<Role.Index, SingleRule> roleToRuleFunction) {
                 this.componentState = new ComponentState("alias");
                 this.roleToRuleFunction = roleToRuleFunction;
-
-                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roles.getCEntries().keySet());
-                CompactMapGroupBuilder<String, SingleRule> roleMapBuilder = new CompactMapGroupBuilder<>(roles.getCEntries().keySet());
+                
+                Set<String> roleNames = IndexedImmutableSet.of(roles.getCEntries().keySet());                
+                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roleNames);
+                CompactMapGroupBuilder<String, SingleRule> roleMapBuilder = new CompactMapGroupBuilder<>(roleNames);
                 
                 ImmutableMap.Builder<Meta.Alias, CompactMapGroupBuilder.MapBuilder<String, SingleRule>> indexToRoleToQuery = new ImmutableMap.Builder<Meta.Alias, CompactMapGroupBuilder.MapBuilder<String, SingleRule>>()
                         .defaultValue((k) -> roleMapBuilder.createMapBuilder());
@@ -1002,10 +1004,9 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                         .defaultValue((k) -> new ImmutableList.Builder<Exception>());
 
-                for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
+                for (String roleName : roleNames) {
                     try {
-                        String roleName = entry.getKey();
-                        Role role = entry.getValue();
+                        Role role = roles.getCEntries().get(roleName);
                         roleSetBuilder.next(roleName);
 
                         for (Role.Alias aliasPermissions : role.getAliasPermissions()) {
@@ -1035,8 +1036,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                         }
 
                     } catch (Exception e) {
-                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
-                        rolesToInitializationErrors.get(entry.getKey()).with(e);
+                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", roleName, e);
+                        rolesToInitializationErrors.get(roleName).with(e);
                     }
                 }
 
@@ -1078,10 +1079,9 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 this.componentState = new ComponentState("data_stream");
                 this.roleToRuleFunction = roleToRuleFunction;
                 
-                Set<String> keys = roles.getCEntries().keySet();
-                
-                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(keys);
-                CompactMapGroupBuilder<String, SingleRule> roleMapBuilder = new CompactMapGroupBuilder<>(keys);
+                Set<String> roleNames = IndexedImmutableSet.of(roles.getCEntries().keySet());                
+                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roleNames);
+                CompactMapGroupBuilder<String, SingleRule> roleMapBuilder = new CompactMapGroupBuilder<>(roleNames);
 
                 ImmutableMap.Builder<Meta.DataStream, CompactMapGroupBuilder.MapBuilder<String, SingleRule>> indexToRoleToQuery = new ImmutableMap.Builder<Meta.DataStream, CompactMapGroupBuilder.MapBuilder<String, SingleRule>>()
                         .defaultValue((k) -> roleMapBuilder.createMapBuilder());
@@ -1092,9 +1092,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                         .defaultValue((k) -> new ImmutableList.Builder<Exception>());
 
-                for (String roleName : keys) {
+                for (String roleName : roleNames) {
                     try {
-                        //String roleName = entry.getKey();
                         Role role = roles.getCEntries().get(roleName);
                         roleSetBuilder.next(roleName);
                         
