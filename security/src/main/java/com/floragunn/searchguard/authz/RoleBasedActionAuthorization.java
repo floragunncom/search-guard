@@ -346,14 +346,14 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             // If all actions are well-known and performance critical, the index.rolesToActionToIndexPattern data structure that was evaluated above,
             // would have contained all the actions if privileges are provided. If there are non-well-known actions among the
             // actions, we also have to evaluate action patterns to check the authorization
-            boolean allActionsWellKnown = actions.forAllApplies((a) -> a instanceof WellKnownAction && ((WellKnownAction<?,?,?>) a).isPerformanceCritical());
+            boolean coveredByStateful = stateful != null && actions.forAllApplies((a) -> a instanceof WellKnownAction && ((WellKnownAction<?,?,?>) a).isPerformanceCritical()) && stateful.covers(resolved.getLocal().getUnion());
 
-            if (!shallowCheckTable.isComplete() && !allActionsWellKnown) {
+            if (!shallowCheckTable.isComplete() && !coveredByStateful) {
                 checkNonWellKnownActions(context, localContext, shallowCheckTable, !resolved.getLocal().getAliases().isEmpty(),
                         !resolved.getLocal().getDataStreams().isEmpty(), meter);
             }
 
-            if (!shallowCheckTable.isComplete() && !allActionsWellKnown && resolved.getLocal().hasAliasOrDataStreamMembers()) {
+            if (!shallowCheckTable.isComplete() && !coveredByStateful && resolved.getLocal().hasAliasOrDataStreamMembers()) {
                 checkNonWellKnownActionsViaParentAliases(context, localContext, shallowCheckTable, resolved, meter);
             }
 
@@ -458,7 +458,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     // would have contained all the actions if privileges are provided. If there are non-well-known actions among the
                     // actions, we also have to evaluate action patterns to check the authorization
 
-                    if (!semiDeepCheckTable.isComplete() && !allActionsWellKnown) {
+                    if (!semiDeepCheckTable.isComplete() && !coveredByStateful) {
                         checkNonWellKnownActions(context, localContext, semiDeepCheckTable, false, true, meter);
                     }
 
@@ -511,7 +511,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 // would have contained all the actions if privileges are provided. If there are non-well-known actions among the
                 // actions, we also have to evaluate action patterns to check the authorization
 
-                if (!deepCheckTable.isComplete() && !allActionsWellKnown) {
+                if (!deepCheckTable.isComplete() && !coveredByStateful) {
                     checkNonWellKnownActions(context, localContext, deepCheckTable, false, false, meter);
                 }
 
@@ -790,11 +790,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                 if (actionPatternToIndexPattern != null || actionPatternToAliasPattern != null || actionPatternToDataStreamPattern != null) {
 
-                    for (Action action : checkTable.getColumns()) {
-                        if (action instanceof WellKnownAction && ((WellKnownAction<?,?,?>) action).isPerformanceCritical()) {
-                            continue;
-                        }
-
+                    for (Action action : checkTable.getIncompleteColumns()) {
                         if (actionPatternToIndexPattern != null) {
                             for (Map.Entry<Pattern, IndexPattern> entry : actionPatternToIndexPattern.entrySet()) {
                                 Pattern actionPattern = entry.getKey();
@@ -896,10 +892,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                     if (actionToAliasPattern != null || actionToDataStreamPattern != null) {
                         for (Action action : checkTable.iterateUncheckedColumns(index)) {
-                            if (action instanceof WellKnownAction && ((WellKnownAction<?,?,?>) action).isPerformanceCritical()) {
-                                continue;
-                            }
-
                             if (index.parentDataStreamName() != null && actionToDataStreamPattern != null) {
                                 for (Map.Entry<Pattern, IndexPattern> entry : actionToDataStreamPattern.entrySet()) {
                                     Pattern actionPattern = entry.getKey();
@@ -1442,6 +1434,22 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             this.indexMetadata = indexMetadata;
         }
 
+        boolean covers(Set<Meta.IndexLikeObject> indexLikeObjects) {
+            for (Meta.IndexLikeObject indexLike : indexLikeObjects) {
+                if (!indexLike.exists()) {
+                    return false;
+                }
+                
+                Meta.IndexLikeObject covered = indexMetadata.getIndexOrLike(indexLike.name());
+                
+                if (covered == null || !covered.equals(indexLike)) {
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+        
         /**
          * Objects of this class collect permissions related to concrete, existing indices. These permissions are sourced from the roles configuration; in particular: the index_permissions attribute.
          * In addition, the alias_permissions attribute is also used to source permissions for the concrete indices that are members of the aliases.
