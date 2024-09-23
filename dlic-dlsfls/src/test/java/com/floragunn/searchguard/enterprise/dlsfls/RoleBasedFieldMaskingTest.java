@@ -158,7 +158,6 @@ public class RoleBasedFieldMaskingTest {
 
         final static Meta.Index INDEX_A1 = (Meta.Index) META.getIndexOrLike("index_a1");
         final static Meta.Index INDEX_HR = (Meta.Index) META.getIndexOrLike("hr");
-        final static Meta.Index INDEX_IT = (Meta.Index) META.getIndexOrLike("it");
 
         private final DlsFlsConfig.FieldMasking fieldMaskingConfig;
 
