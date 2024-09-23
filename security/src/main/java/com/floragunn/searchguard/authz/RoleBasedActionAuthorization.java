@@ -459,7 +459,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             ImmutableSet<Meta.IndexCollection> incompleteAliasesAndDataStreams = prevCheckTable.getIncompleteRows()
                     .map(i -> i instanceof Meta.IndexCollection ? (Meta.IndexCollection) i : null);
 
-            try (Meter subMeter = meter.basic("resolve_all_aliases")) {// TODO value of this metric is needed
+            try (Meter subMeter = meter.basic("resolve_all_aliases")) {
                 ImmutableSet<Meta.Index> incompleteDeepResolved = Meta.IndexCollection.resolveDeep(incompleteAliasesAndDataStreams,
                         primaryAction.aliasResolutionMode());
                 ImmutableSet<Meta.IndexLikeObject> retainedIndices = prevCheckTable.getRows().without(incompleteAliasesAndDataStreams);
