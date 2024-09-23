@@ -343,10 +343,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 checkWellKnownActionsWithIndexPatternsViaParentAliases(context, localContext, shallowCheckTable, resolved, meter);
             }
 
-            // If all actions are well-known, the index.rolesToActionToIndexPattern data structure that was evaluated above,
+            // If all actions are well-known and performance critical, the index.rolesToActionToIndexPattern data structure that was evaluated above,
             // would have contained all the actions if privileges are provided. If there are non-well-known actions among the
             // actions, we also have to evaluate action patterns to check the authorization
-            boolean allActionsWellKnown = actions.forAllApplies((a) -> a instanceof WellKnownAction);
+            boolean allActionsWellKnown = actions.forAllApplies((a) -> a instanceof WellKnownAction && ((WellKnownAction<?,?,?>) a).isPerformanceCritical());
 
             if (!shallowCheckTable.isComplete() && !allActionsWellKnown) {
                 checkNonWellKnownActions(context, localContext, shallowCheckTable, !resolved.getLocal().getAliases().isEmpty(),
@@ -624,7 +624,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 }
             }
         }
-    }
+    } 
+
 
     private void checkWellKnownActionsWithIndexPatternsForDeepCheckTable(PrivilegesEvaluationContext context, LocalContext localContext,
             CheckTable<Meta.IndexLikeObject, Action> deepCheckTable, ResolvedIndices resolved, Meter meter) {
@@ -790,7 +791,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 if (actionPatternToIndexPattern != null || actionPatternToAliasPattern != null || actionPatternToDataStreamPattern != null) {
 
                     for (Action action : checkTable.getColumns()) {
-                        if (action instanceof WellKnownAction) {
+                        if (action instanceof WellKnownAction && ((WellKnownAction<?,?,?>) action).isPerformanceCritical()) {
                             continue;
                         }
 
@@ -895,7 +896,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                     if (actionToAliasPattern != null || actionToDataStreamPattern != null) {
                         for (Action action : checkTable.iterateUncheckedColumns(index)) {
-                            if (action instanceof WellKnownAction) {
+                            if (action instanceof WellKnownAction && ((WellKnownAction<?,?,?>) action).isPerformanceCritical()) {
                                 continue;
                             }
 
@@ -1609,14 +1610,12 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     return null;
                 }
 
-                boolean allActionsWellKnown = actions.forAllApplies((a) -> a instanceof WellKnownAction);
-
-                if (!allActionsWellKnown) {
-                    // This class can operate only on well known actions
-                    return null;
-                }
 
                 top: for (Action action : actions) {
+                    if (!(action instanceof WellKnownAction && ((WellKnownAction<?, ?,?>) action).isPerformanceCritical())) {
+                        continue;
+                    }
+                    
                     Map<String, ImmutableCompactSubSet<String>> indexToRoles = actionToIndexToRoles.get(action);
 
                     if (indexToRoles != null) {
@@ -1772,14 +1771,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     return null;
                 }
 
-                boolean allActionsWellKnown = actions.forAllApplies((a) -> a instanceof WellKnownAction);
-
-                if (!allActionsWellKnown) {
-                    // This class can operate only on well known actions
-                    return null;
-                }
-
                 top: for (Action action : actions) {
+                    if (!(action instanceof WellKnownAction && ((WellKnownAction<?, ?,?>) action).isPerformanceCritical())) {
+                        continue;
+                    }
+                    
                     Map<String, ImmutableCompactSubSet<String>> aliasToRoles = actionToAliasToRoles.get(action);
 
                     if (aliasToRoles != null) {
@@ -1989,14 +1985,12 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     return null;
                 }
 
-                boolean allActionsWellKnown = actions.forAllApplies((a) -> a instanceof WellKnownAction);
-
-                if (!allActionsWellKnown) {
-                    // This class can operate only on well known actions
-                    return null;
-                }
-
+         
                 top: for (Action action : actions) {
+                    if (!(action instanceof WellKnownAction && ((WellKnownAction<?, ?,?>) action).isPerformanceCritical())) {
+                        continue;
+                    }
+                    
                     Map<String, ImmutableCompactSubSet<String>> aliasToRoles = actionToAliasToRoles.get(action);
 
                     if (aliasToRoles != null) {
