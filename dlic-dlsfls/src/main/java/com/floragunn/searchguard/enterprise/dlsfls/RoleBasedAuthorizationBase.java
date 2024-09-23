@@ -195,8 +195,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
 
     private boolean hasRestrictions(PrivilegesEvaluationContext context, StatefulRules<SingleRule> statefulRules, Meta.Index index)
             throws PrivilegesEvaluationException {
-
-        if (statefulRules != null) {
+        
+        if (statefulRules != null && statefulRules.covers(index.name())) {
             ImmutableCompactSubSet<String> roleWithoutRule = statefulRules.index.indexToRoleWithoutRule.get(index);
 
             if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
@@ -232,7 +232,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
     private boolean hasRestrictions(PrivilegesEvaluationContext context, StatefulRules<SingleRule> statefulRules, Meta.Alias alias)
             throws PrivilegesEvaluationException {
 
-        if (statefulRules != null) {
+        if (statefulRules != null && statefulRules.covers(alias.name())) {
             ImmutableCompactSubSet<String> roleWithoutRule = statefulRules.alias.aliasToRoleWithoutRule.get(alias);
 
             if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
@@ -264,7 +264,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         }
 
         for (Meta.Alias alias : aliases) {
-            if (statefulRules != null) {
+            if (statefulRules != null && statefulRules.covers(alias.name())) {
                 ImmutableCompactSubSet<String> roleWithoutRule = statefulRules.alias.aliasToRoleWithoutRule.get(alias);
 
                 if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
@@ -287,7 +287,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
 
     private boolean hasRestrictions(PrivilegesEvaluationContext context, StatefulRules<SingleRule> statefulRules, Meta.DataStream dataStream)
             throws PrivilegesEvaluationException {
-        if (statefulRules != null) {
+        if (statefulRules != null && statefulRules.covers(dataStream.name())) {
             ImmutableCompactSubSet<String> roleWithoutRule = statefulRules.dataStream.dataStreamToRoleWithoutRule.get(dataStream);
 
             if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
@@ -351,6 +351,11 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         StatefulRules<SingleRule> statefulRules = this.statefulRules;
         Map<String, SingleRule> roleToQueryForIndex = null;
         Map<String, SingleRule> roleToQueryForDataStream = null;
+        
+        if (statefulRules != null && !statefulRules.covers(index.name())) {
+            // if the stateful rules do not cover the index, we won't use it. Slower static rules will be used as fallback instead.
+            statefulRules = null;
+        }
 
         if (statefulRules != null) {
             ImmutableCompactSubSet<String> roleWithoutQuery = statefulRules.index.indexToRoleWithoutRule.get(index);
