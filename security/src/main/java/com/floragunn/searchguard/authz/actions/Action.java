@@ -595,6 +595,8 @@ public interface Action {
         public static final AdditionalDimension ALIASES = new AdditionalDimension("aliases", Scope.ALIAS);
         public static final AdditionalDimension RESIZE_TARGET = new AdditionalDimension("resize_target", Scope.INDEX,
                 ImmutableSet.ofArray("indices:admin/create"));
+        public static final AdditionalDimension DOWNSAMPLE_TARGET = new AdditionalDimension("downsample_target", Scope.INDEX,
+                ImmutableSet.ofArray("indices:admin/create"));
         public static final AdditionalDimension MANAGE_ALIASES = new AdditionalDimension("manage_aliases", Scope.ALIAS,
                 ImmutableSet.ofArray("indices:admin/aliases"));
         public static final AdditionalDimension DELETE_INDEX = new AdditionalDimension("delete_index", Scope.INDEX_LIKE,
