@@ -12,6 +12,10 @@ import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.jobs.actions.CheckForExecutingTriggerAction;
+import com.floragunn.searchsupport.jobs.actions.SchedulerConfigUpdateAction;
+import com.floragunn.searchsupport.jobs.actions.TransportCheckForExecutingTriggerAction;
+import com.floragunn.searchsupport.jobs.actions.TransportSchedulerConfigUpdateAction;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -66,6 +70,8 @@ public class AutomatedIndexManagementModule implements SearchGuardModule, Compon
             handlers.addAll(PolicyAPI.HANDLERS);
             handlers.addAll(PolicyInstanceAPI.HANDLERS);
             handlers.addAll(SettingsAPI.HANDLERS);
+            handlers.add(new ActionPlugin.ActionHandler<>(SchedulerConfigUpdateAction.INSTANCE, TransportSchedulerConfigUpdateAction.class));
+            handlers.add(new ActionPlugin.ActionHandler<>(CheckForExecutingTriggerAction.INSTANCE, TransportCheckForExecutingTriggerAction.class));
             return ImmutableList.of(handlers);
         }
         return Collections.emptyList();
@@ -75,7 +81,7 @@ public class AutomatedIndexManagementModule implements SearchGuardModule, Compon
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
         if (enabled) {
             return new AutomatedIndexManagement(baseDependencies.getSettings(), componentState).createComponents(baseDependencies.getLocalClient(),
-                    baseDependencies.getClusterService(), baseDependencies.getThreadPool(), baseDependencies.getProtectedConfigIndexService());
+                    baseDependencies.getClusterService(), baseDependencies.getProtectedConfigIndexService());
         }
         return Collections.emptyList();
     }

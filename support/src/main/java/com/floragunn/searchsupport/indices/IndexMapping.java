@@ -121,6 +121,12 @@ public class IndexMapping implements Document<IndexMapping> {
         }
     }
 
+    public static class IntegerProperty extends Property {
+        public IntegerProperty(String name) {
+            super(name, "integer");
+        }
+    }
+
     /**
      * Fields which is indexed twice using the following data types text, keyword. Such field can be used to perform full text search just
      * with field name and match query. When the postfix <code>.keyword</code> is appended to the field name then it is possible to search
@@ -143,6 +149,12 @@ public class IndexMapping implements Document<IndexMapping> {
     public static class BinaryProperty extends Property {
         public BinaryProperty(String name) {
             super(name, "binary");
+        }
+    }
+
+    public static class BooleanProperty extends Property {
+        public BooleanProperty(String name) {
+            super(name, "boolean");
         }
     }
 

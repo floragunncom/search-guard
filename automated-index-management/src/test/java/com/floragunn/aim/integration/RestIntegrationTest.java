@@ -44,7 +44,7 @@ public class RestIntegrationTest {
     private static LocalCluster.Embedded CLUSTER;
 
     @BeforeAll
-    public static void setup() {
+    public static void setup() throws Exception {
         MockSupport.init();
         CLUSTER = new LocalCluster.Builder().sslEnabled().resources("sg_config").enableModule(AutomatedIndexManagementModule.class)
                 .waitForComponents("aim").embedded().start();

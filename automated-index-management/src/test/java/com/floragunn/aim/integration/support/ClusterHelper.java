@@ -224,9 +224,10 @@ public class ClusterHelper {
             return response.isExists() && status.name().equals(response.getSource().get(PolicyInstanceState.STATUS_FIELD));
         }
 
-        public static void awaitPolicyInstanceStatusExists(LocalCluster.Embedded cluster, String indexName) {
+        public static void awaitPolicyInstanceStatusExists(LocalCluster.Embedded cluster, String indexName) throws InterruptedException {
             Awaitility.await().until(() -> get(cluster, AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexName),
                     GetResponse::isExists);
+            Thread.sleep(100);
         }
 
         public static void awaitPolicyInstanceStatusEqual(LocalCluster.Embedded cluster, String indexName, PolicyInstanceState.Status status,
@@ -234,7 +235,7 @@ public class ClusterHelper {
             Awaitility.await().until(() -> {
                 task.run();
                 return getPolicyInstanceStatus(cluster, indexName);
-            }, s -> status.name().equals(s.getSource().get(PolicyInstanceState.STATUS_FIELD)));
+            }, s -> s.getSource() != null && status.name().equals(s.getSource().get(PolicyInstanceState.STATUS_FIELD)));
         }
 
         public static void awaitPolicyInstanceStatusEqual(LocalCluster.Embedded cluster, String indexName, PolicyInstanceState.Status status) {
