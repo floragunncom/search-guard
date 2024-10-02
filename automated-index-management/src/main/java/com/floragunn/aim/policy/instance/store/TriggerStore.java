@@ -1,10 +1,8 @@
 package com.floragunn.aim.policy.instance.store;
 
+import com.floragunn.aim.api.internal.InternalSchedulerAPI;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
-import com.floragunn.searchsupport.jobs.actions.CheckForExecutingTriggerAction;
-import com.floragunn.searchsupport.jobs.actions.CheckForExecutingTriggerRequest;
-import com.floragunn.searchsupport.jobs.actions.CheckForExecutingTriggerResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -637,13 +635,12 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
                 return;
             }
             try {
-                CheckForExecutingTriggerResponse response = client
-                        .execute(CheckForExecutingTriggerAction.INSTANCE,
-                                new CheckForExecutingTriggerRequest(schedulerName,
-                                        triggers.stream().map(internalOperableTrigger -> internalOperableTrigger.getKey().toString()).toList()))
+                InternalSchedulerAPI.CheckExecutingTriggers.Response response = client
+                        .execute(InternalSchedulerAPI.CheckExecutingTriggers.INSTANCE, new InternalSchedulerAPI.CheckExecutingTriggers.Request(
+                                schedulerName, triggers.stream().map(AbstractDelegateTrigger::getKey).collect(Collectors.toSet())))
                         .get();
                 Set<InternalOperableTrigger> remainingTriggers = new HashSet<>(triggers);
-                remainingTriggers.removeIf(internalOperableTrigger -> response.getAllRunningTriggerKeys().contains(internalOperableTrigger.getKey()));
+                remainingTriggers.removeIf(internalOperableTrigger -> response.getTriggerKeys().contains(internalOperableTrigger.getKey()));
                 LOG.info("Triggers to be reset after execution on other node check: {}", remainingTriggers);
                 if (!remainingTriggers.isEmpty()) {
                     resetTriggerFromOtherNode(remainingTriggers, jobs);

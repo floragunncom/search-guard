@@ -2,6 +2,7 @@ package com.floragunn.aim;
 
 import com.floragunn.aim.api.internal.InternalPolicyAPI;
 import com.floragunn.aim.api.internal.InternalPolicyInstanceAPI;
+import com.floragunn.aim.api.internal.InternalSchedulerAPI;
 import com.floragunn.aim.api.internal.InternalSettingsAPI;
 import com.floragunn.aim.api.rest.PolicyAPI;
 import com.floragunn.aim.api.rest.PolicyInstanceAPI;
@@ -12,10 +13,6 @@ import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
-import com.floragunn.searchsupport.jobs.actions.CheckForExecutingTriggerAction;
-import com.floragunn.searchsupport.jobs.actions.SchedulerConfigUpdateAction;
-import com.floragunn.searchsupport.jobs.actions.TransportCheckForExecutingTriggerAction;
-import com.floragunn.searchsupport.jobs.actions.TransportSchedulerConfigUpdateAction;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
@@ -70,8 +67,7 @@ public class AutomatedIndexManagementModule implements SearchGuardModule, Compon
             handlers.addAll(PolicyAPI.HANDLERS);
             handlers.addAll(PolicyInstanceAPI.HANDLERS);
             handlers.addAll(SettingsAPI.HANDLERS);
-            handlers.add(new ActionPlugin.ActionHandler<>(SchedulerConfigUpdateAction.INSTANCE, TransportSchedulerConfigUpdateAction.class));
-            handlers.add(new ActionPlugin.ActionHandler<>(CheckForExecutingTriggerAction.INSTANCE, TransportCheckForExecutingTriggerAction.class));
+            handlers.addAll(InternalSchedulerAPI.HANDLERS);
             return ImmutableList.of(handlers);
         }
         return Collections.emptyList();

@@ -46,7 +46,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class InternalSettingsAPI {
-    public final static List<ActionPlugin.ActionHandler<? extends ActionRequest, ? extends ActionResponse>> HANDLERS = ImmutableList.of(
+    public static final List<ActionPlugin.ActionHandler<? extends ActionRequest, ? extends ActionResponse>> HANDLERS = ImmutableList.of(
             new ActionPlugin.ActionHandler<>(Update.INSTANCE, Update.Handler.class),
             new ActionPlugin.ActionHandler<>(Refresh.INSTANCE, Refresh.Handler.class));
 

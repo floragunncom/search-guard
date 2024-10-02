@@ -39,8 +39,8 @@ public class PolicyAPI {
             new ActionPlugin.ActionHandler<>(Get.INSTANCE, Get.Handler.class), new ActionPlugin.ActionHandler<>(Put.INSTANCE, Put.Handler.class));
 
     public static class Delete extends Action<StandardRequests.IdRequest, StandardResponse> {
-        public final static Delete INSTANCE = new Delete();
-        public final static String NAME = "cluster:admin:searchguard:aim:policy/delete";
+        public static final Delete INSTANCE = new Delete();
+        public static final String NAME = "cluster:admin:searchguard:aim:policy/delete";
 
         private Delete() {
             super(NAME, StandardRequests.IdRequest::new, StandardResponse::new);
@@ -143,8 +143,8 @@ public class PolicyAPI {
     }
 
     public static class Put extends Action<Put.Request, StandardResponse> {
-        public final static Put INSTANCE = new Put();
-        public final static String NAME = "cluster:admin:searchguard:aim:policy/put";
+        public static final Put INSTANCE = new Put();
+        public static final String NAME = "cluster:admin:searchguard:aim:policy/put";
 
         private Put() {
             super(NAME, Request::new, StandardResponse::new);

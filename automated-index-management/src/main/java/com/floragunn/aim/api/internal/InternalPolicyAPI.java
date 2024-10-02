@@ -40,13 +40,13 @@ import java.util.List;
 import java.util.Objects;
 
 public class InternalPolicyAPI {
-    public final static List<ActionPlugin.ActionHandler<? extends ActionRequest, ? extends ActionResponse>> HANDLERS = ImmutableList.of(
+    public static final List<ActionPlugin.ActionHandler<? extends ActionRequest, ? extends ActionResponse>> HANDLERS = ImmutableList.of(
             new ActionPlugin.ActionHandler<>(Delete.INSTANCE, Delete.Handler.class),
             new ActionPlugin.ActionHandler<>(Put.INSTANCE, Put.Handler.class));
 
     public static class Delete extends ActionType<StatusResponse> {
-        public final static String NAME = "cluster:admin:searchguard:aim:internal:policy/delete";
-        public final static Delete INSTANCE = new Delete();
+        public static final String NAME = "cluster:admin:searchguard:aim:internal:policy/delete";
+        public static final Delete INSTANCE = new Delete();
 
         private Delete() {
             super(NAME);
@@ -113,8 +113,8 @@ public class InternalPolicyAPI {
     }
 
     public static class Put extends ActionType<StatusResponse> {
-        public final static String NAME = "cluster:admin:searchguard:aim:internal:policy/put";
-        public final static Put INSTANCE = new Put();
+        public static final String NAME = "cluster:admin:searchguard:aim:internal:policy/put";
+        public static final Put INSTANCE = new Put();
 
         private Put() {
             super(NAME);
