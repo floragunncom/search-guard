@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Objects;
 
 public class InternalPolicyInstanceAPI {
-    public final static List<ActionPlugin.ActionHandler<? extends ActionRequest, ? extends ActionResponse>> HANDLERS = ImmutableList
+    public static final List<ActionPlugin.ActionHandler<? extends ActionRequest, ? extends ActionResponse>> HANDLERS = ImmutableList
             .of(new ActionPlugin.ActionHandler<>(PostExecuteRetry.INSTANCE, PostExecuteRetry.Handler.class));
 
     public static class PostExecuteRetry extends ActionType<PostExecuteRetry.Response> {
