@@ -2,25 +2,52 @@ package com.floragunn.aim.policy;
 
 import com.floragunn.aim.AutomatedIndexManagementSettings;
 import com.floragunn.aim.api.internal.InternalPolicyAPI;
+import com.floragunn.aim.policy.actions.Action;
+import com.floragunn.aim.policy.conditions.Condition;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.client.internal.Client;
 
-import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 public class PolicyService {
-    private final PrivilegedConfigClient client;
+    private static final Logger LOG = LogManager.getLogger(PolicyService.class);
 
-    public PolicyService(Client client) {
+    private final PrivilegedConfigClient client;
+    private final Condition.Factory conditionFactory;
+    private final Action.Factory actionFactory;
+
+    public PolicyService(Client client, Condition.Factory conditionFactory, Action.Factory actionFactory) {
         this.client = PrivilegedConfigClient.adapt(client);
+        this.conditionFactory = conditionFactory;
+        this.actionFactory = actionFactory;
     }
 
     public GetResponse getPolicy(String policyName) {
         return client.get(new GetRequest().index(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME).id(policyName)).actionGet();
+    }
+
+    public Policy getPolicyNew(String policyName) {
+        try {
+            GetResponse response = client.get(new GetRequest().index(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME).id(policyName))
+                    .actionGet();
+            if (response.isExists()) {
+                DocNode node = DocNode.parse(Format.JSON).from(response.getSourceAsBytesRef().utf8ToString());
+                return Policy.parse(node, Policy.ParsingContext.lenient(conditionFactory, actionFactory));
+            }
+        } catch (ConfigValidationException e) {
+            LOG.warn("Failed to parse policy '{}'. Policy is invalid", policyName, e);
+        } catch (Exception e) {
+            LOG.error("Failed to retrieve policy '{}' from index", policyName, e);
+        }
+        return null;
     }
 
     public CompletableFuture<GetResponse> getPolicyAsync(String policyName) {
@@ -37,10 +64,6 @@ public class PolicyService {
             }
         });
         return result;
-    }
-
-    public MultiGetResponse multiGetPolicy(Collection<String> policyNames) {
-        return client.prepareMultiGet().addIds(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME, policyNames).get();
     }
 
     public InternalPolicyAPI.StatusResponse putPolicy(String policyName, Policy policy) {

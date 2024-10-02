@@ -7,23 +7,36 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchsupport.indices.IndexMapping;
 
 import java.time.Instant;
 import java.util.Objects;
 
 public final class PolicyInstanceState implements Document<Object> {
-
     public static final String POLICY_NAME_FIELD = "policy_name";
     public static final String STATUS_FIELD = "status";
     public static final String CURRENT_STEP_FIELD = "current_step";
+    public static final String RETRY_ON_NEXT_EXECUTION_FIELD = "retry_on_next_execution";
     public static final String LAST_EXECUTED_STEP_FIELD = "last_executed_step";
     public static final String LAST_EXECUTED_CONDITION_FIELD = "last_executed_condition";
     public static final String LAST_EXECUTED_ACTION_FIELD = "last_executed_action";
     public static final String SNAPSHOT_NAME = "snapshot_name";
 
+    public static final IndexMapping.Property[] INDEX_MAPPING_PROPERTIES = new IndexMapping.Property[] {
+            new IndexMapping.KeywordProperty(POLICY_NAME_FIELD), //
+            new IndexMapping.KeywordProperty(STATUS_FIELD), //
+            new IndexMapping.KeywordProperty(CURRENT_STEP_FIELD), //
+            new IndexMapping.BooleanProperty(RETRY_ON_NEXT_EXECUTION_FIELD), //
+            new IndexMapping.ObjectProperty(LAST_EXECUTED_STEP_FIELD, StepState.INDEX_MAPPING_PROPERTIES), //
+            new IndexMapping.ObjectProperty(LAST_EXECUTED_CONDITION_FIELD, ConditionState.INDEX_MAPPING_PROPERTIES), //
+            new IndexMapping.ObjectProperty(LAST_EXECUTED_ACTION_FIELD, ActionState.INDEX_MAPPING_PROPERTIES), //
+            new IndexMapping.KeywordProperty(SNAPSHOT_NAME) };
+    public static final IndexMapping INDEX_MAPPING = new IndexMapping.DynamicIndexMapping(INDEX_MAPPING_PROPERTIES);
+
     private final String policyName;
     private Status status = Status.NOT_STARTED;
     private String currentStepName = "none";
+    private boolean retryOnNextExecution = false;
     private StepState lastExecutedStepState = null;
     private ConditionState lastExecutedConditionState = null;
     private ActionState lastExecutedActionState = null;
@@ -39,6 +52,7 @@ public final class PolicyInstanceState implements Document<Object> {
         policyName = node.get(POLICY_NAME_FIELD).required().asString();
         status = node.get(STATUS_FIELD).required().asEnum(Status.class);
         currentStepName = node.get(CURRENT_STEP_FIELD).required().asString();
+        retryOnNextExecution = node.get(RETRY_ON_NEXT_EXECUTION_FIELD).required().asBoolean();
         lastExecutedStepState = node.get(LAST_EXECUTED_STEP_FIELD)
                 .by((Parser<StepState, Parser.Context>) (docNode1, context) -> new StepState(docNode1));
         lastExecutedConditionState = node.get(LAST_EXECUTED_CONDITION_FIELD)
@@ -52,7 +66,7 @@ public final class PolicyInstanceState implements Document<Object> {
     @Override
     public Object toBasicObject() {
         ImmutableMap<String, Object> res = ImmutableMap.of(POLICY_NAME_FIELD, policyName, STATUS_FIELD, status.name(), CURRENT_STEP_FIELD,
-                currentStepName);
+                currentStepName, RETRY_ON_NEXT_EXECUTION_FIELD, retryOnNextExecution);
         if (snapshotName != null) {
             res = res.with(SNAPSHOT_NAME, snapshotName);
         }
@@ -76,7 +90,7 @@ public final class PolicyInstanceState implements Document<Object> {
             return false;
         PolicyInstanceState state = (PolicyInstanceState) o;
         return Objects.equals(policyName, state.policyName) && status == state.status && Objects.equals(currentStepName, state.currentStepName)
-                && Objects.equals(lastExecutedStepState, state.lastExecutedStepState)
+                && retryOnNextExecution == state.retryOnNextExecution && Objects.equals(lastExecutedStepState, state.lastExecutedStepState)
                 && Objects.equals(lastExecutedConditionState, state.lastExecutedConditionState)
                 && Objects.equals(lastExecutedActionState, state.lastExecutedActionState) && Objects.equals(snapshotName, state.snapshotName);
     }
@@ -84,8 +98,9 @@ public final class PolicyInstanceState implements Document<Object> {
     @Override
     public String toString() {
         return "PolicyInstanceState{" + "policyName='" + policyName + '\'' + ", status=" + status + ", currentStepName='" + currentStepName + '\''
-                + ", lastExecutedStepState=" + lastExecutedStepState + ", lastExecutedConditionState=" + lastExecutedConditionState
-                + ", lastExecutedActionState=" + lastExecutedActionState + ", snapshotName='" + snapshotName + '\'' + '}';
+                + ", retryOnNextExecution=" + retryOnNextExecution + ", lastExecutedStepState=" + lastExecutedStepState
+                + ", lastExecutedConditionState=" + lastExecutedConditionState + ", lastExecutedActionState=" + lastExecutedActionState
+                + ", snapshotName='" + snapshotName + '\'' + '}';
     }
 
     public String getPolicyName() {
@@ -98,6 +113,10 @@ public final class PolicyInstanceState implements Document<Object> {
 
     public String getCurrentStepName() {
         return currentStepName;
+    }
+
+    public boolean isRetryOnNextExecution() {
+        return retryOnNextExecution;
     }
 
     public StepState getLastExecutedStepState() {
@@ -119,6 +138,11 @@ public final class PolicyInstanceState implements Document<Object> {
 
     public PolicyInstanceState setCurrentStepName(String currentStepName) {
         this.currentStepName = currentStepName;
+        return this;
+    }
+
+    public PolicyInstanceState setRetryOnNextExecution(boolean retryOnNextExecution) {
+        this.retryOnNextExecution = retryOnNextExecution;
         return this;
     }
 
@@ -151,6 +175,12 @@ public final class PolicyInstanceState implements Document<Object> {
         public static final String START_TIME_FIELD = "start_time";
         public static final String RETRY_COUNT_FIELD = "retry_count";
         public static final String ERROR_FIELD = "error";
+
+        public static final IndexMapping.Property[] INDEX_MAPPING_PROPERTIES = new IndexMapping.Property[] {
+                new IndexMapping.KeywordProperty(NAME_FIELD), //
+                new IndexMapping.DateProperty(START_TIME_FIELD), //
+                new IndexMapping.IntegerProperty(RETRY_COUNT_FIELD), //
+                new IndexMapping.ObjectProperty(ERROR_FIELD, Error.INDEX_MAPPING_PROPERTIES) };
 
         private final String name;
         private final Instant startTime;
@@ -216,6 +246,12 @@ public final class PolicyInstanceState implements Document<Object> {
         public static final String RESULT_FIELD = "result";
         public static final String ERROR_FIELD = "error";
 
+        public static final IndexMapping.Property[] INDEX_MAPPING_PROPERTIES = new IndexMapping.Property[] {
+                new IndexMapping.KeywordProperty(TYPE_FIELD), //
+                new IndexMapping.DateProperty(START_TIME_FIELD), //
+                new IndexMapping.BooleanProperty(RESULT_FIELD), //
+                new IndexMapping.ObjectProperty(ERROR_FIELD, Error.INDEX_MAPPING_PROPERTIES) };
+
         private final String type;
         private final Instant startTime;
         private final Boolean result;
@@ -275,6 +311,12 @@ public final class PolicyInstanceState implements Document<Object> {
         public static final String START_TIME_FIELD = "start_time";
         public static final String RETRIES_FIELD = "retries";
         public static final String ERROR_FIELD = "error";
+
+        public static final IndexMapping.Property[] INDEX_MAPPING_PROPERTIES = new IndexMapping.Property[] {
+                new IndexMapping.KeywordProperty(TYPE_FIELD), //
+                new IndexMapping.DateProperty(START_TIME_FIELD), //
+                new IndexMapping.LongProperty(RETRIES_FIELD), //
+                new IndexMapping.ObjectProperty(ERROR_FIELD, Error.INDEX_MAPPING_PROPERTIES) };
 
         private final String type;
         private final Instant startTime;
@@ -344,6 +386,10 @@ public final class PolicyInstanceState implements Document<Object> {
 
         public static final String TYPE_FIELD = "type";
         public static final String MESSAGE_FIELD = "message";
+
+        public static final IndexMapping.Property[] INDEX_MAPPING_PROPERTIES = new IndexMapping.Property[] {
+                new IndexMapping.TextWithKeywordProperty(TYPE_FIELD), //
+                new IndexMapping.TextProperty(MESSAGE_FIELD) };
 
         private final String type;
         private final String message;

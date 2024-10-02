@@ -12,6 +12,7 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchsupport.indices.IndexMapping;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 
 public class Policy implements Document<Object> {
     public static final String STEPS_FIELD = "steps";
+    public static final IndexMapping INDEX_MAPPING = new IndexMapping.DynamicIndexMapping(Step.INDEX_MAPPING_PROPERTIES);
 
     public static Policy parse(DocNode docNode, ParsingContext parsingContext) throws ConfigValidationException {
         ValidationErrors errors = new ValidationErrors();
@@ -92,9 +94,13 @@ public class Policy implements Document<Object> {
     }
 
     public static class Step implements Document<Object> {
-        public final static String NAME_FIELD = "name";
+        public static final String NAME_FIELD = "name";
         public static final String CONDITIONS_FIELD = "conditions";
         public static final String ACTIONS_FIELD = "actions";
+
+        public static final IndexMapping.Property[] INDEX_MAPPING_PROPERTIES = new IndexMapping.Property[] {
+                new IndexMapping.KeywordProperty(NAME_FIELD), new IndexMapping.ObjectProperty(CONDITIONS_FIELD, Condition.INDEX_MAPPING_PROPERTIES),
+                new IndexMapping.ObjectProperty(ACTIONS_FIELD, Action.INDEX_MAPPING_PROPERTIES) };
 
         public static Step parse(DocNode docNode, ParsingContext parsingContext) throws ConfigValidationException {
             ValidationErrors errors = new ValidationErrors();

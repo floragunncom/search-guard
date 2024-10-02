@@ -28,6 +28,12 @@
 
         <dependency>
             <groupId>com.floragunn</groupId>
+            <artifactId>search-guard-flx-scheduler</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.floragunn</groupId>
             <artifactId>search-guard-flx-ssl</artifactId>
             <scope>test</scope>
         </dependency>

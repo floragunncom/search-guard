@@ -155,8 +155,13 @@ public final class AutomatedIndexManagementSettings {
             List<DynamicAttribute<?>> allChanges = new ArrayList<>(changed.size() + deleted.size());
             allChanges.addAll(changed.keySet());
             allChanges.addAll(deleted);
+            LOG.debug("Notifying listeners {}", changeListeners);
             for (ChangeListener listener : changeListeners) {
-                listener.onChange(allChanges);
+                try {
+                    listener.onChange(allChanges);
+                } catch (Exception e) {
+                    LOG.debug("Failed to notify listener", e);
+                }
             }
         }
 
@@ -421,5 +426,6 @@ public final class AutomatedIndexManagementSettings {
         public static final String SETTINGS_NAME = ".aim_settings";
         public static final String POLICIES_NAME = ".aim_policies";
         public static final String POLICY_INSTANCE_STATES_NAME = ".aim_states";
+        public static final String POLICY_INSTANCE_TRIGGER_STATES_NAME = ".aim_trigger_states";
     }
 }

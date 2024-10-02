@@ -1,10 +1,12 @@
 package com.floragunn.aim;
 
+import com.floragunn.aim.policy.Policy;
 import com.floragunn.aim.policy.PolicyService;
-import com.floragunn.aim.policy.actions.*;
-import com.floragunn.aim.policy.conditions.*;
-import com.floragunn.aim.policy.instance.PolicyInstanceHandler;
+import com.floragunn.aim.policy.actions.Action;
+import com.floragunn.aim.policy.conditions.Condition;
+import com.floragunn.aim.policy.instance.PolicyInstanceManager;
 import com.floragunn.aim.policy.instance.PolicyInstanceService;
+import com.floragunn.aim.policy.instance.PolicyInstanceState;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.cstate.ComponentState;
@@ -16,7 +18,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.threadpool.ThreadPool;
+import org.quartz.SchedulerException;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -33,11 +35,10 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
     private final AutomatedIndexManagementSettings.Dynamic.ChangeListener settingsChangeListener;
 
     private Client client;
-    private ThreadPool threadPool;
     private ClusterService clusterService;
-    private PolicyInstanceHandler policyInstanceHandler;
     private PolicyService policyService;
     private PolicyInstanceService policyInstanceService;
+    private PolicyInstanceManager policyInstanceManager;
 
     @Inject
     public AutomatedIndexManagement(Settings settings, ComponentState componentState) {
@@ -47,7 +48,7 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
         localNodeMasterListener = new LocalNodeMasterListener() {
             @Override
             public void onMaster() {
-                initMaster();
+                initMasterAsync();
             }
 
             @Override
@@ -58,28 +59,12 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
         settingsChangeListener = changed -> {
             if (changed.contains(AutomatedIndexManagementSettings.Dynamic.ACTIVE) && clusterService.state().nodes().isLocalNodeElectedMaster()) {
                 if (aimSettings.getDynamic().getActive()) {
-                    threadPool.generic().submit(this::initMaster);
+                    initMasterAsync();
                 } else {
-                    threadPool.generic().submit(this::stopMaster);
+                    stopMaster();
                 }
             }
         };
-    }
-
-    public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool,
-            ProtectedConfigIndexService protectedConfigIndexService) {
-        try {
-            this.client = client;
-            this.threadPool = threadPool;
-            this.clusterService = clusterService;
-
-            initIndices(protectedConfigIndexService);
-            return Collections.singleton(this);
-        } catch (Exception e) {
-            componentState.setState(ComponentState.State.FAILED);
-            LOG.error("AIM initialization failed", e);
-            throw (RuntimeException) e;
-        }
     }
 
     @Override
@@ -99,6 +84,21 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
         stopMaster();
     }
 
+    public Collection<Object> createComponents(Client client, ClusterService clusterService,
+            ProtectedConfigIndexService protectedConfigIndexService) {
+        try {
+            this.client = client;
+            this.clusterService = clusterService;
+
+            initIndices(protectedConfigIndexService);
+            return Collections.singleton(this);
+        } catch (Exception e) {
+            componentState.setState(ComponentState.State.FAILED);
+            LOG.error("AIM initialization failed", e);
+            throw (RuntimeException) e;
+        }
+    }
+
     public Condition.Factory getConditionFactory() {
         return CONDITION_FACTORY;
     }
@@ -107,8 +107,8 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
         return ACTION_FACTORY;
     }
 
-    public PolicyInstanceHandler getPolicyInstanceHandler() {
-        return policyInstanceHandler;
+    public PolicyInstanceManager getPolicyInstanceHandler() {
+        return policyInstanceManager;
     }
 
     public AutomatedIndexManagementSettings getAimSettings() {
@@ -123,20 +123,28 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
         return policyInstanceService;
     }
 
-    private void initMaster() {
-        if (policyInstanceHandler == null && aimSettings.getDynamic().getActive()) {
+    private synchronized void initMaster() throws SchedulerException {
+        if (!policyInstanceManager.isInitialized()) {
             LOG.info("Starting AIM policy instance handler");
-            policyInstanceHandler = new PolicyInstanceHandler(aimSettings, policyService, policyInstanceService, client, threadPool, clusterService,
-                    CONDITION_FACTORY, ACTION_FACTORY);
-            policyInstanceHandler.init();
+            policyInstanceManager.start();
         }
     }
 
-    private void stopMaster() {
-        if (policyInstanceHandler != null) {
+    private void initMasterAsync() {
+        new Thread(() -> {
+            try {
+                initMaster();
+            } catch (SchedulerException e) {
+                LOG.error("Scheduler failed to start", e);
+                componentState.setFailed(e);
+            }
+        }).start();
+    }
+
+    private synchronized void stopMaster() {
+        if (policyInstanceManager.isInitialized() && !policyInstanceManager.isShutdown()) {
             LOG.info("Stopping AIM policy instance handler");
-            policyInstanceHandler.stop();
-            policyInstanceHandler = null;
+            policyInstanceManager.stop();
         }
     }
 
@@ -147,8 +155,10 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
             }
             LOG.info("Initializing AIM");
             aimSettings.getDynamic().init(PrivilegedConfigClient.adapt(client));
-            policyService = new PolicyService(client);
+            policyService = new PolicyService(client, getConditionFactory(), getActionFactory());
             policyInstanceService = new PolicyInstanceService(client);
+            policyInstanceManager = new PolicyInstanceManager(aimSettings, policyService, policyInstanceService, client, clusterService,
+                    CONDITION_FACTORY, ACTION_FACTORY);
             if (aimSettings.getDynamic().getActive() && clusterService.state().nodes().isLocalNodeElectedMaster()) {
                 initMaster();
             }
@@ -166,12 +176,17 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
     private void initIndices(ProtectedConfigIndexService protectedConfigIndexService) {
         componentState.addPart(protectedConfigIndexService
                 .createIndex(new ProtectedConfigIndexService.ConfigIndex(AutomatedIndexManagementSettings.ConfigIndices.SETTINGS_NAME)));
+        componentState.addPart(protectedConfigIndexService
+                .createIndex(new ProtectedConfigIndexService.ConfigIndex(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME)
+                        .mapping(PolicyInstanceState.INDEX_MAPPING)));
         componentState.addPart(protectedConfigIndexService.createIndex(
-                new ProtectedConfigIndexService.ConfigIndex(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME)));
+                new ProtectedConfigIndexService.ConfigIndex(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_TRIGGER_STATES_NAME)));
         componentState.addPart(protectedConfigIndexService
                 .createIndex(new ProtectedConfigIndexService.ConfigIndex(AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME)
+                        .mapping(Policy.INDEX_MAPPING)
                         .dependsOnIndices(AutomatedIndexManagementSettings.ConfigIndices.SETTINGS_NAME,
                                 AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME,
+                                AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_TRIGGER_STATES_NAME,
                                 AutomatedIndexManagementSettings.ConfigIndices.POLICIES_NAME)
                         .onIndexReady(this::init)));
     }

@@ -3,13 +3,26 @@ package com.floragunn.aim.integration;
 import com.floragunn.aim.AutomatedIndexManagementModule;
 import com.floragunn.aim.AutomatedIndexManagementSettings;
 import com.floragunn.aim.MockSupport;
+import com.floragunn.aim.api.internal.InternalPolicyAPI;
 import com.floragunn.aim.api.internal.InternalPolicyInstanceAPI;
 import com.floragunn.aim.integration.support.ClusterHelper;
 import com.floragunn.aim.policy.Policy;
-import com.floragunn.aim.policy.actions.*;
-import com.floragunn.aim.policy.conditions.*;
+import com.floragunn.aim.policy.actions.AllocationAction;
+import com.floragunn.aim.policy.actions.CloseAction;
+import com.floragunn.aim.policy.actions.DeleteAction;
+import com.floragunn.aim.policy.actions.ForceMergeAsyncAction;
+import com.floragunn.aim.policy.actions.RolloverAction;
+import com.floragunn.aim.policy.actions.SetPriorityAction;
+import com.floragunn.aim.policy.actions.SetReadOnlyAction;
+import com.floragunn.aim.policy.actions.SetReplicaCountAction;
+import com.floragunn.aim.policy.actions.SnapshotAsyncAction;
+import com.floragunn.aim.policy.conditions.AgeCondition;
+import com.floragunn.aim.policy.conditions.DocCountCondition;
+import com.floragunn.aim.policy.conditions.ForceMergeDoneCondition;
+import com.floragunn.aim.policy.conditions.SizeCondition;
+import com.floragunn.aim.policy.conditions.SnapshotCreatedCondition;
 import com.floragunn.aim.policy.instance.PolicyInstanceState;
-import com.floragunn.aim.policy.instance.PolicyInstanceStateLogHandler;
+import com.floragunn.aim.policy.instance.PolicyInstanceStateLogManager;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.Format;
@@ -45,7 +58,10 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
@@ -81,7 +97,7 @@ public class PolicyInstanceIntegrationTest {
     }
 
     @Test
-    public void testInstanceCreation() {
+    public void testInstanceCreation() throws Exception {
         String policyName = "instance_creation_test_policy";
         String indexName = "instance_creation_test_index";
         Policy policy = new Policy(
@@ -97,7 +113,7 @@ public class PolicyInstanceIntegrationTest {
     }
 
     @Test
-    public void testInstanceCreationNoPolicy() {
+    public void testInstanceCreationNoPolicy() throws Exception {
         String policyName = "instance_creation_no_policy_test_policy";
         String indexName = "instance_creation_no_policy_test_index";
         Policy policy = new Policy(
@@ -115,7 +131,7 @@ public class PolicyInstanceIntegrationTest {
     }
 
     @Test
-    public void testExecuteRetry() {
+    public void testExecuteRetry() throws Exception {
         String policyName = "execute_retry_test_policy";
         String indexName = "execute_retry_test_index";
 
@@ -164,9 +180,8 @@ public class PolicyInstanceIntegrationTest {
 
         ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FAILED);
         GetResponse statusResponse = ClusterHelper.Index.getPolicyInstanceStatus(CLUSTER, indexName);
-        DocNode statusNode = DocNode.wrap(DocReader.json().readObject(statusResponse.getSourceAsString()));
-        assertEquals(1, statusNode.get(PolicyInstanceState.LAST_EXECUTED_ACTION_FIELD, PolicyInstanceState.ActionState.RETRIES_FIELD),
-                "Expected one retry: " + statusNode.toPrettyJsonString());
+        PolicyInstanceState state = new PolicyInstanceState(DocNode.parse(Format.JSON).from(statusResponse.getSourceAsBytesRef().utf8ToString()));
+        assertEquals(1, state.getLastExecutedStepState().getRetries(), "Expected one retry: " + state.toPrettyJsonString());
 
         ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
         assertEquals(2, mockAction.getExecutionCount());
@@ -178,12 +193,11 @@ public class PolicyInstanceIntegrationTest {
         assertTrue(response.isExists());
 
         ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
-
         ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
+
         statusResponse = ClusterHelper.Index.getPolicyInstanceStatus(CLUSTER, indexName);
-        statusNode = DocNode.wrap(DocReader.json().readObject(statusResponse.getSourceAsString()));
-        assertEquals(2, statusNode.get(PolicyInstanceState.LAST_EXECUTED_STEP_FIELD, PolicyInstanceState.StepState.RETRY_COUNT_FIELD),
-                "Expected two retries");
+        state = new PolicyInstanceState(DocNode.parse(Format.JSON).from(statusResponse.getSourceAsBytesRef().utf8ToString()));
+        assertEquals(2, state.getLastExecutedStepState().getRetries(), "Expected two retries: " + state.toPrettyJsonString());
         assertEquals(3, mockAction.getExecutionCount());
     }
 
@@ -204,7 +218,7 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);
 
             SearchRequest statesLogSearchRequest = new SearchRequest(AutomatedIndexManagementSettings.Static.StateLog.DEFAULT_ALIAS_NAME).source(
-                    new SearchSourceBuilder().query(QueryBuilders.termQuery(PolicyInstanceStateLogHandler.StateLogEntry.INDEX_FIELD, indexName)));
+                    new SearchSourceBuilder().query(QueryBuilders.termQuery(PolicyInstanceStateLogManager.StateLogEntry.INDEX_FIELD, indexName)));
             SearchResponse searchResponse = CLUSTER.getInternalNodeClient().search(statesLogSearchRequest).actionGet();
             assertEquals(0, Objects.requireNonNull(searchResponse.getHits().getTotalHits()).value, searchResponse.toString());
             searchResponse.decRef();
@@ -219,19 +233,19 @@ public class PolicyInstanceIntegrationTest {
 
             Thread.sleep(1000);
             SearchResponse searchResponse1 = CLUSTER.getInternalNodeClient().search(statesLogSearchRequest).actionGet();
-            assertEquals(1, Objects.requireNonNull(searchResponse1.getHits().getTotalHits()).value, searchResponse1.toString());
+            assertEquals(2, Objects.requireNonNull(searchResponse1.getHits().getTotalHits()).value, searchResponse1.toString());
             searchResponse1.decRef();
 
             mockCondition.setResult(true);
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
-            ClusterHelper.Index.awaitSearchHitCount(CLUSTER, statesLogSearchRequest, 1);
+            ClusterHelper.Index.awaitSearchHitCount(CLUSTER, statesLogSearchRequest, 2);
         }
 
         @Test
-        public void testStateLogPolicy() {
+        public void testStateLogPolicy() throws Exception {
             String indexPrefix = AutomatedIndexManagementSettings.Static.StateLog.DEFAULT_INDEX_NAME_PREFIX;
             String alias = AutomatedIndexManagementSettings.Static.StateLog.DEFAULT_ALIAS_NAME;
-            String writeAlias = PolicyInstanceStateLogHandler.getWriteAliasName(alias);
+            String writeAlias = PolicyInstanceStateLogManager.getWriteAliasName(alias);
 
             String indexName = indexPrefix + "-000001";
             ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);
@@ -365,7 +379,7 @@ public class PolicyInstanceIntegrationTest {
         }
 
         @Test
-        public void testSnapshotCreatedConditionExecution() {
+        public void testSnapshotCreatedConditionExecution() throws Exception {
             String snapshotName = "snapshot_condition_test_snap";
             SnapshotCreatedCondition condition = new SnapshotCreatedCondition(SNAPSHOT_REPO_NAME);
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.of(condition), ImmutableList.empty()));
@@ -383,8 +397,7 @@ public class PolicyInstanceIntegrationTest {
                             .setSnapshots(snapshotName).execute().actionGet(),
                     snapshotsStatusResponse -> SnapshotsInProgress.State.SUCCESS.equals(snapshotsStatusResponse.getSnapshots().get(0).getState()));
 
-            PolicyInstanceState mockState = new PolicyInstanceState(policyName);
-            mockState.setSnapshotName(snapshotName);
+            PolicyInstanceState mockState = new PolicyInstanceState(policyName).setSnapshotName(snapshotName);
             DocWriteResponse indexResponse = CLUSTER.getPrivilegedInternalNodeClient()
                     .index(new IndexRequest(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME).id(indexName)
                             .source(mockState.toDocNode()))
@@ -392,7 +405,8 @@ public class PolicyInstanceIntegrationTest {
             assertEquals(RestStatus.CREATED, indexResponse.status(), Strings.toString(indexResponse, true, true));
             ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);
 
-            ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
+            InternalPolicyAPI.StatusResponse response = ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
+            assertEquals(RestStatus.CREATED, response.status(), "Failed to create policy");
             ClusterHelper.Index.awaitPolicyExists(CLUSTER, policyName);
 
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
@@ -432,7 +446,7 @@ public class PolicyInstanceIntegrationTest {
     @Nested
     public class ActionTest {
         @Test
-        public void testAllocationActionExecution() {
+        public void testAllocationActionExecution() throws Exception {
             AllocationAction action = new AllocationAction(ImmutableMap.of("_name", "some_node_name"), ImmutableMap.empty(), ImmutableMap.empty());
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_test_policy";
@@ -451,7 +465,7 @@ public class PolicyInstanceIntegrationTest {
         }
 
         @Test
-        public void testCloseActionExecution() {
+        public void testCloseActionExecution() throws Exception {
             CloseAction action = new CloseAction();
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_test_policy";
@@ -469,7 +483,7 @@ public class PolicyInstanceIntegrationTest {
         }
 
         @Test
-        public void testDeleteActionExecution() {
+        public void testDeleteActionExecution() throws Exception {
             DeleteAction action = new DeleteAction();
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_test_policy";
@@ -514,7 +528,7 @@ public class PolicyInstanceIntegrationTest {
         }
 
         @Test
-        public void testRolloverActionExecution() {
+        public void testRolloverActionExecution() throws Exception {
             RolloverAction action = new RolloverAction();
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_test_policy";
@@ -586,7 +600,7 @@ public class PolicyInstanceIntegrationTest {
         }
 
         @Test
-        public void testSetPriorityActionExecution() {
+        public void testSetPriorityActionExecution() throws Exception {
             SetPriorityAction action = new SetPriorityAction(50);
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_test_policy";
@@ -604,7 +618,7 @@ public class PolicyInstanceIntegrationTest {
         }
 
         @Test
-        public void testSetReadOnlyActionExecution() {
+        public void testSetReadOnlyActionExecution() throws Exception {
             SetReadOnlyAction action = new SetReadOnlyAction();
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_test_policy";
@@ -623,7 +637,7 @@ public class PolicyInstanceIntegrationTest {
         }
 
         @Test
-        public void testSetReplicaCountActionExecution() {
+        public void testSetReplicaCountActionExecution() throws Exception {
             SetReplicaCountAction action = new SetReplicaCountAction(2);
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_test_policy";

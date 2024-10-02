@@ -10,6 +10,7 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchsupport.indices.IndexMapping;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
 
 import java.util.Map;
@@ -19,6 +20,8 @@ import static org.elasticsearch.rest.RestStatus.OK;
 
 public abstract class Condition implements Document<Object> {
     public static final String TYPE_FIELD = "type";
+    public static final IndexMapping.Property[] INDEX_MAPPING_PROPERTIES = new IndexMapping.Property[] {
+            new IndexMapping.KeywordProperty(TYPE_FIELD), };
 
     public abstract boolean execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception;
 

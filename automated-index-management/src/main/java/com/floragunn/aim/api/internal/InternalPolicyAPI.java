@@ -9,7 +9,12 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import org.elasticsearch.action.*;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionRequestValidationException;
+import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.WriteRequest;
@@ -78,7 +83,7 @@ public class InternalPolicyAPI {
 
             @Override
             protected void masterOperation(Task task, Request request, ClusterState state, ActionListener<StatusResponse> listener) {
-                if (aim.getPolicyInstanceHandler().policyInstanceExistsForPolicy(request.getPolicyName())) {
+                if (aim.getPolicyInstanceService().activeStateExistsForPolicy(request.getPolicyName())) {
                     if (request.isForce()) {
                         aim.getPolicyInstanceHandler().handlePoliciesDelete(ImmutableList.of(request.getPolicyName()));
                     } else {
@@ -171,7 +176,7 @@ public class InternalPolicyAPI {
 
             @Override
             protected void masterOperation(Task task, Request request, ClusterState state, ActionListener<StatusResponse> listener) {
-                if (aim.getPolicyInstanceHandler().policyInstanceExistsForPolicy(request.getPolicyName())) {
+                if (aim.getPolicyInstanceService().activeStateExistsForPolicy(request.getPolicyName())) {
                     if (request.isForce()) {
                         aim.getPolicyInstanceHandler().handlePoliciesDelete(ImmutableList.of(request.getPolicyName()));
                     } else {

@@ -59,16 +59,27 @@ public class MockSupport {
 
         @Override
         public boolean execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-            Configuration mockConfiguration = CONFIGURATION.get(uuid).getKey();
-            mockConfiguration.executionCount++;
-            if (CONFIGURATION.get(uuid).getValue().get(index) != null) {
-                mockConfiguration = getConfiguration(index);
-                mockConfiguration.executionCount++;
+            Configuration configuration = CONFIGURATION.get(uuid).getKey();
+            configuration.executionCount++;
+            Boolean fail = configuration.fail;
+            Boolean result = configuration.result;
+
+            Configuration indexConfiguration = getConfiguration(index);
+            indexConfiguration.executionCount++;
+
+            if (indexConfiguration.fail != null) {
+                fail = indexConfiguration.fail;
             }
-            if (mockConfiguration.fail) {
+            if (indexConfiguration.result != null) {
+                result = indexConfiguration.result;
+            }
+            if (fail != null && fail) {
                 throw new IllegalStateException("error");
             }
-            return mockConfiguration.result;
+            if (result != null) {
+                return result;
+            }
+            return false;
         }
 
         public int getExecutionCount() {
@@ -100,11 +111,7 @@ public class MockSupport {
         }
 
         private Configuration getConfiguration(String index) {
-            if (CONFIGURATION.get(uuid).getValue().get(index) == null) {
-                Configuration general = CONFIGURATION.get(uuid).getKey();
-                CONFIGURATION.get(uuid).getValue().put(index, new Configuration(general));
-            }
-            return CONFIGURATION.get(uuid).getValue().get(index);
+            return CONFIGURATION.get(uuid).getValue().computeIfAbsent(index, k -> new Configuration());
         }
 
         @Override
@@ -129,19 +136,9 @@ public class MockSupport {
         }
 
         private static class Configuration {
-            private boolean result = false;
-            private boolean fail = false;
+            private Boolean result = null;
+            private Boolean fail = null;
             private int executionCount = 0;
-
-            public Configuration() {
-
-            }
-
-            public Configuration(Configuration other) {
-                result = other.result;
-                fail = other.fail;
-                executionCount = 0;
-            }
         }
     }
 
@@ -191,23 +188,41 @@ public class MockSupport {
             return getConfiguration(index).executionCount;
         }
 
+        public MockAction setRunnable(Runnable runnable) {
+            CONFIGURATION.get(uuid).getKey().runnable = runnable;
+            return this;
+        }
+
+        public MockAction setRunnable(String index, Runnable runnable) {
+            getConfiguration(index).runnable = runnable;
+            return this;
+        }
+
         private Configuration getConfiguration(String index) {
-            if (CONFIGURATION.get(uuid).getValue().get(index) == null) {
-                Configuration general = CONFIGURATION.get(uuid).getKey();
-                CONFIGURATION.get(uuid).getValue().put(index, new Configuration(general));
-            }
-            return CONFIGURATION.get(uuid).getValue().get(index);
+            return CONFIGURATION.get(uuid).getValue().computeIfAbsent(index, k -> new Configuration());
         }
 
         @Override
         public void execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
             Configuration configuration = CONFIGURATION.get(uuid).getKey();
             configuration.executionCount++;
-            if (CONFIGURATION.get(uuid).getValue().get(index) != null) {
-                configuration = getConfiguration(index);
-                configuration.executionCount++;
+            Runnable runnable = configuration.runnable;
+            Boolean fail = configuration.fail;
+
+            Configuration indexConfiguration = getConfiguration(index);
+
+            indexConfiguration.executionCount++;
+            if (indexConfiguration.runnable != null) {
+                runnable = indexConfiguration.runnable;
             }
-            if (configuration.fail) {
+            if (indexConfiguration.fail != null) {
+                fail = indexConfiguration.fail;
+            }
+
+            if (runnable != null) {
+                runnable.run();
+            }
+            if (fail != null && fail) {
                 throw new IllegalStateException("error");
             }
         }
@@ -234,18 +249,9 @@ public class MockSupport {
         }
 
         private static class Configuration {
-
             int executionCount = 0;
-            boolean fail = false;
-
-            public Configuration() {
-
-            }
-
-            public Configuration(Configuration other) {
-                fail = other.fail;
-                executionCount = 0;
-            }
+            Boolean fail = null;
+            Runnable runnable = null;
         }
     }
 }
