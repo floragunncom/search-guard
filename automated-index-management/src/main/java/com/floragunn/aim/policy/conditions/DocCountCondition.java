@@ -26,7 +26,7 @@ public final class DocCountCondition extends Condition {
             typeValidator.validateIndexNotDeleted();
         }
     };
-    public static final String MAX_DOC_COUNT_FIELD = "max_count";
+    public static final String MAX_DOC_COUNT_FIELD = "max_doc_count";
 
     private final long maxCount;
 

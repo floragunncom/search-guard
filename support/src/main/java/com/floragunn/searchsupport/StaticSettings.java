@@ -20,10 +20,13 @@ package com.floragunn.searchsupport;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeValue;
@@ -79,17 +82,21 @@ public class StaticSettings {
         protected final String name;
         protected final V defaultValue;
         protected final boolean filtered;
+        protected final boolean indexScope;
+        protected final boolean dynamic;
         protected final org.elasticsearch.common.settings.Setting<?> platformInstance;
 
-        Attribute(String name, V defaultValue, boolean filtered) {
+        Attribute(String name, V defaultValue, boolean filtered, boolean indexScope, boolean dynamic) {
             this.name = name;
             this.defaultValue = defaultValue;
             this.filtered = filtered;
+            this.indexScope = indexScope;
+            this.dynamic = dynamic;
             this.platformInstance = toPlatformInstance();
         }
 
         @SuppressWarnings("unchecked")
-        V getFrom(org.elasticsearch.common.settings.Settings settings) {
+        public V getFrom(org.elasticsearch.common.settings.Settings settings) {
             return (V) platformInstance.get(settings);
         }
 
@@ -102,7 +109,11 @@ public class StaticSettings {
         protected org.elasticsearch.common.settings.Setting.Property[] toPlatformProperties() {
             List<Property> result = new ArrayList<>(3);
 
-            result.add(Property.NodeScope);
+            if (indexScope) {
+                result.add(Property.IndexScope);
+            } else {
+                result.add(Property.NodeScope);
+            }
 
             if (filtered) {
                 result.add(Property.Filtered);
@@ -115,6 +126,8 @@ public class StaticSettings {
             private final String name;
             private V defaultValue = null;
             private boolean filtered = false;
+            private boolean indexScope = false;
+            private boolean dynamic = false;
 
             Builder(String name) {
                 this.name = name;
@@ -122,6 +135,16 @@ public class StaticSettings {
 
             public Builder<V> filterValueFromUI() {
                 this.filtered = true;
+                return this;
+            }
+
+            public Builder<V> index() {
+                this.indexScope = true;
+                return this;
+            }
+
+            public Builder<V> dynamic() {
+                this.dynamic = true;
                 return this;
             }
 
@@ -167,14 +190,16 @@ public class StaticSettings {
                 return new ByteSizeValueBuilder(castedBuilder);
             }
 
-            public StringListAttribute asListOfStrings() {
-                return new StringListAttribute(name, ImmutableList.empty(), filtered);
+            public StringAttribute asString() {
+                return new StringAttribute(name, null, filtered, indexScope, dynamic);
             }
 
-            public StringIndexBuilder index() {
-                @SuppressWarnings({ "unchecked" })
-                Builder<String> castedBuilder = (Builder<String>) this;
-                return new StringIndexBuilder(castedBuilder);
+            public StringListAttribute asListOfStrings() {
+                return new StringListAttribute(name, ImmutableList.empty(), filtered, indexScope, dynamic);
+            }
+
+            public StringMapAttribute asMapOfStrings() {
+                return new StringMapAttribute(name, ImmutableMap.empty(), filtered, indexScope, dynamic);
             }
         }
 
@@ -186,7 +211,7 @@ public class StaticSettings {
             }
 
             public Attribute<String> asString() {
-                return new StringAttribute(parent.name, parent.defaultValue, parent.filtered);
+                return new StringAttribute(parent.name, parent.defaultValue, parent.filtered, parent.indexScope, parent.dynamic);
             }
         }
 
@@ -198,7 +223,7 @@ public class StaticSettings {
             }
 
             public Attribute<Boolean> asBoolean() {
-                return new BooleanAttribute(parent.name, parent.defaultValue, parent.filtered);
+                return new BooleanAttribute(parent.name, parent.defaultValue, parent.filtered, parent.indexScope, parent.dynamic);
             }
         }
 
@@ -210,7 +235,7 @@ public class StaticSettings {
             }
 
             public Attribute<Integer> asInteger() {
-                return new IntegerAttribute(parent.name, parent.defaultValue, parent.filtered);
+                return new IntegerAttribute(parent.name, parent.defaultValue, parent.filtered, parent.indexScope, parent.dynamic);
             }
         }
 
@@ -222,7 +247,7 @@ public class StaticSettings {
             }
 
             public Attribute<TimeValue> asTimeValue() {
-                return new TimeValueAttribute(parent.name, parent.defaultValue, parent.filtered);
+                return new TimeValueAttribute(parent.name, parent.defaultValue, parent.filtered, parent.indexScope, parent.dynamic);
             }
         }
 
@@ -234,7 +259,7 @@ public class StaticSettings {
             }
 
             public Attribute<Pattern> asPattern() {
-                return new PatternAttribute(parent.name, parent.defaultValue, parent.filtered);
+                return new PatternAttribute(parent.name, parent.defaultValue, parent.filtered, parent.indexScope, parent.dynamic);
             }
         }
 
@@ -249,28 +274,11 @@ public class StaticSettings {
                 return new ByteSizeValueAttribute(parent.name, parent.defaultValue, parent.filtered);
             }
         }
-        public static class StringIndexBuilder {
-            private final Builder<String> parent;
-            private boolean dynamic = false;
-
-            StringIndexBuilder(Builder<String> parent) {
-                this.parent = parent;
-            }
-
-            public StringIndexBuilder dynamic() {
-                dynamic = true;
-                return this;
-            }
-
-            public Attribute<String> asString() {
-                return new StringIndexAttribute(parent.name, parent.defaultValue, dynamic);
-            }
-        }
     }
 
     static class StringAttribute extends Attribute<String> {
-        StringAttribute(String name, String defaultValue, boolean filtered) {
-            super(name, defaultValue, filtered);
+        StringAttribute(String name, String defaultValue, boolean filtered, boolean indexScope, boolean dynamic) {
+            super(name, defaultValue, filtered, indexScope, dynamic);
         }
 
         @Override
@@ -284,8 +292,8 @@ public class StaticSettings {
     }
 
     static class IntegerAttribute extends Attribute<Integer> {
-        IntegerAttribute(String name, Integer defaultValue, boolean filtered) {
-            super(name, defaultValue, filtered);
+        IntegerAttribute(String name, Integer defaultValue, boolean filtered, boolean indexScope, boolean dynamic) {
+            super(name, defaultValue, filtered, indexScope, dynamic);
         }
 
         @Override
@@ -295,8 +303,8 @@ public class StaticSettings {
     }
 
     static class BooleanAttribute extends Attribute<Boolean> {
-        BooleanAttribute(String name, Boolean defaultValue, boolean filtered) {
-            super(name, defaultValue, filtered);
+        BooleanAttribute(String name, Boolean defaultValue, boolean filtered, boolean indexScope, boolean dynamic) {
+            super(name, defaultValue, filtered, indexScope, dynamic);
         }
 
         @Override
@@ -306,8 +314,8 @@ public class StaticSettings {
     }
 
     static class TimeValueAttribute extends Attribute<TimeValue> {
-        TimeValueAttribute(String name, TimeValue defaultValue, boolean filtered) {
-            super(name, defaultValue, filtered);
+        TimeValueAttribute(String name, TimeValue defaultValue, boolean filtered, boolean indexScope, boolean dynamic) {
+            super(name, defaultValue, filtered, indexScope, dynamic);
         }
 
         @Override
@@ -319,8 +327,8 @@ public class StaticSettings {
     static class PatternAttribute extends Attribute<Pattern> {
         private static final List<String> EMPTY_DEFAULT = ImmutableList.of("___empty");
 
-        PatternAttribute(String name, Pattern defaultValue, boolean filtered) {
-            super(name, defaultValue, filtered);
+        PatternAttribute(String name, Pattern defaultValue, boolean filtered, boolean indexScope, boolean dynamic) {
+            super(name, defaultValue, filtered, indexScope, dynamic);
         }
 
         @Override
@@ -329,7 +337,7 @@ public class StaticSettings {
         }
 
         @Override
-        Pattern getFrom(Settings settings) {
+        public Pattern getFrom(Settings settings) {
             @SuppressWarnings("unchecked")
             List<String> value = (List<String>) platformInstance.get(settings);
             if (value.equals(EMPTY_DEFAULT)) {
@@ -346,8 +354,8 @@ public class StaticSettings {
     }
 
     static class StringListAttribute extends Attribute<List<String>> {
-        StringListAttribute(String name, List<String> defaultValue, boolean filtered) {
-            super(name, defaultValue, filtered);
+        StringListAttribute(String name, List<String> defaultValue, boolean filtered, boolean indexScope, boolean dynamic) {
+            super(name, defaultValue, filtered, indexScope, dynamic);
         }
 
         @Override
@@ -368,20 +376,21 @@ public class StaticSettings {
         }
     }
 
-    static class StringIndexAttribute extends Attribute<String> {
-        private final boolean dynamic;
-
-        StringIndexAttribute(String name, String defaultValue, boolean dynamic) {
-            super(name, defaultValue, false);
-            this.dynamic = dynamic;
+    static class StringMapAttribute extends Attribute<Map<String, String>> {
+        StringMapAttribute(String name, Map<String, String> defaultValue, boolean filtered, boolean indexScope, boolean dynamic) {
+            super(name, defaultValue, filtered, indexScope, dynamic);
         }
 
         @Override
-        protected org.elasticsearch.common.settings.Setting<String> toPlatformInstance() {
-            if (dynamic) {
-                return org.elasticsearch.common.settings.Setting.simpleString(name, Property.IndexScope, Property.Dynamic);
-            }
-            return org.elasticsearch.common.settings.Setting.simpleString(name, Property.IndexScope);
+        protected Setting<?> toPlatformInstance() {
+            return org.elasticsearch.common.settings.Setting.prefixKeySetting(name + ".", key -> Setting.simpleString(key, toPlatformProperties()));
+        }
+
+        @Override
+        public Map<String, String> getFrom(Settings settings) {
+            @SuppressWarnings("unchecked")
+            Setting. AffixSetting<String> value = (Setting.AffixSetting<String>) platformInstance;
+            return value.getAsMap(settings);
         }
     }
 
@@ -405,6 +414,5 @@ public class StaticSettings {
         public ImmutableList<org.elasticsearch.common.settings.Setting<?>> toPlatform() {
             return options.map(Attribute::toPlatformInstance);
         }
-
     }
 }
