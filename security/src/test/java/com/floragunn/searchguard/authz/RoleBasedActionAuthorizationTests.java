@@ -19,6 +19,7 @@ package com.floragunn.searchguard.authz;
 
 import java.util.Arrays;
 
+import org.elasticsearch.common.logging.LogConfigurator;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -37,7 +38,11 @@ import com.floragunn.searchguard.user.User;
 
 public class RoleBasedActionAuthorizationTests {
 
-    private static final Actions actions = new Actions(null);
+    private static final Actions actions;
+    static {
+        LogConfigurator.configureESLogging();
+        actions = new Actions(null);
+    }
 
     @Test
     public void clusterAction_wellKnown() throws Exception {
