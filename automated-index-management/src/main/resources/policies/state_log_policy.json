@@ -5,7 +5,7 @@
       "conditions" : [
         {
           "type": "doc_count",
-          "max_count": 2000000
+          "max_doc_count": 2000000
         },
         {
           "type": "age",

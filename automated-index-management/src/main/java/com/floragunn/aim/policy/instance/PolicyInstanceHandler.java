@@ -82,13 +82,13 @@ public final class PolicyInstanceHandler {
             Map<String, String> createdIndices = new HashMap<>();
             for (Index index : clusterChangedEvent.indicesDeleted()) {
                 IndexMetadata indexMetadata = clusterChangedEvent.previousState().metadata().index(index);
-                String policyName = indexMetadata.getSettings().get(settings.getStatic().getPolicyNameFieldName());
+                String policyName = settings.getStatic().getPolicyName(indexMetadata.getSettings());
                 if (!Strings.isNullOrEmpty(policyName)) {
                     deletedIndices.add(index.getName());
                 }
             }
             for (Map.Entry<String, IndexMetadata> index : clusterChangedEvent.state().metadata().indices().entrySet()) {
-                String policyName = index.getValue().getSettings().get(settings.getStatic().getPolicyNameFieldName());
+                String policyName = settings.getStatic().getPolicyName(index.getValue().getSettings());
                 if (!Strings.isNullOrEmpty(policyName)) {
                     LOG.trace("New index '{}' with settings:\n{}", index.getKey(), Strings.toString(index.getValue().getSettings(), true, true));
                     createdIndices.put(index.getKey(), policyName);
@@ -183,7 +183,7 @@ public final class PolicyInstanceHandler {
         Map<String, String> created = new HashMap<>();
         List<String> deleted = new ArrayList<>();
         for (Map.Entry<String, IndexMetadata> index : clusterService.state().metadata().indices().entrySet()) {
-            String policyName = index.getValue().getSettings().get(settings.getStatic().getPolicyNameFieldName());
+            String policyName = settings.getStatic().getPolicyName(index.getValue().getSettings());
             if (!Strings.isNullOrEmpty(policyName)) {
                 created.put(index.getKey(), policyName);
             } else if (policyInstanceExistsForIndex(index.getKey())) {
@@ -199,7 +199,7 @@ public final class PolicyInstanceHandler {
         }
         Map<String, String> indices = new HashMap<>();
         for (Map.Entry<String, IndexMetadata> index : clusterService.state().metadata().indices().entrySet()) {
-            String currentPolicyName = index.getValue().getSettings().get(settings.getStatic().getPolicyNameFieldName());
+            String currentPolicyName = settings.getStatic().getPolicyName(index.getValue().getSettings());
             if (currentPolicyName != null && policyNames.contains(currentPolicyName)) {
                 indices.put(index.getKey(), currentPolicyName);
             }
@@ -215,7 +215,7 @@ public final class PolicyInstanceHandler {
         }
         List<String> indices = new ArrayList<>();
         for (Map.Entry<String, IndexMetadata> index : clusterService.state().metadata().indices().entrySet()) {
-            String currentPolicyName = index.getValue().getSettings().get(settings.getStatic().getPolicyNameFieldName());
+            String currentPolicyName = settings.getStatic().getPolicyName(index.getValue().getSettings());
             if (currentPolicyName != null && policyNames.contains(currentPolicyName)) {
                 indices.add(index.getKey());
             }

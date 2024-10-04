@@ -50,7 +50,8 @@ public class ParsingTest {
 
     private static Stream<Condition> conditionStream() {
         return ImmutableList.of(new ForceMergeDoneCondition(2), new AgeCondition(TimeValue.timeValueSeconds(3)), new DocCountCondition(0),
-                new SizeCondition(ByteSizeValue.ofBytes(5)), new SnapshotCreatedCondition("test_repo")).stream();
+                new IndexCountCondition("test_alias_key", 50), new SizeCondition(ByteSizeValue.ofBytes(5)), new SnapshotCreatedCondition("test_repo"))
+                .stream();
     }
 
     private static Stream<Policy.Step> stepStream() {
