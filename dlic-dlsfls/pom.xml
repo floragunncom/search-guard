@@ -55,50 +55,5 @@
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
-
   </dependencies>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.jacoco</groupId>
-        <artifactId>jacoco-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>prepare-agent</id>
-            <goals>
-              <goal>prepare-agent</goal>
-            </goals>
-            <configuration>
-              <propertyName>surefireArgLine</propertyName>
-            </configuration>
-          </execution>
-          <execution>
-            <id>default-report</id>
-            <goals>
-              <goal>report</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <argLine>-Xmx3072m ${surefireArgLine}</argLine>
-          <rerunFailingTestsCount>0</rerunFailingTestsCount>
-          <forkCount>3</forkCount>
-          <reuseForks>true</reuseForks>
-          <systemPropertyVariables>
-            <forkno>fork_${surefire.forkNumber}</forkno>
-          </systemPropertyVariables>
-
-          <includes>
-            <include>**/*.java</include>
-          </includes>
-          <trimStackTrace>false</trimStackTrace>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
 </project>

@@ -11,6 +11,9 @@ test_security:
     - ci/run_tests.sh security
   artifacts:
     when: always
+    paths:
+      - "*/target/jacoco.exec"
+      - "*/target/site/jacoco/*"
     reports:
       junit:
         - "*/target/surefire-reports/TEST-*.xml"
@@ -35,6 +38,9 @@ test_security_legacy:
     - ci/run_tests.sh security-legacy
   artifacts:
     when: always
+    paths:
+      - "*/target/jacoco.exec"
+      - "*/target/site/jacoco/*"
     reports:
       junit:
         - "*/target/surefire-reports/TEST-*.xml"
@@ -59,6 +65,9 @@ test_ssl:
     - ci/run_tests.sh ssl
   artifacts:
     when: always
+    paths:
+      - "*/target/jacoco.exec"
+      - "*/target/site/jacoco/*"
     reports:
       junit:
         - "*/target/surefire-reports/TEST-*.xml"
@@ -83,6 +92,9 @@ test_signals:
     - ci/run_tests.sh signals
   artifacts:
     when: always
+    paths:
+      - "*/target/jacoco.exec"
+      - "*/target/site/jacoco/*"
     reports:
       junit:
         - "*/target/surefire-reports/TEST-*.xml"
@@ -107,6 +119,9 @@ test_scheduler:
     - ci/run_tests.sh scheduler
   artifacts:
     when: always
+    paths:
+      - "*/target/jacoco.exec"
+      - "*/target/site/jacoco/*"
     reports:
       junit:
         - "*/target/surefire-reports/TEST-*.xml"
@@ -131,6 +146,9 @@ test_support:
     - ci/run_tests.sh support
   artifacts:
     when: always
+    paths:
+      - "*/target/jacoco.exec"
+      - "*/target/site/jacoco/*"
     reports:
       junit:
         - "*/target/surefire-reports/TEST-*.xml"
@@ -155,6 +173,9 @@ test_dlic_security:
     - ci/run_tests.sh dlic-security
   artifacts:
     when: always
+    paths:
+      - "*/target/jacoco.exec"
+      - "*/target/site/jacoco/*"
     reports:
       junit:
         - "*/target/surefire-reports/TEST-*.xml"
@@ -179,6 +200,9 @@ test_dlic_security_legacy:
     - ci/run_tests.sh dlic-security-legacy
   artifacts:
     when: always
+    paths:
+      - "*/target/jacoco.exec"
+      - "*/target/site/jacoco/*"
     reports:
       junit:
         - "*/target/surefire-reports/TEST-*.xml"
@@ -203,6 +227,9 @@ test_dlic_dlsfls:
     - ci/run_tests.sh dlic-dlsfls
   artifacts:
     when: always
+    paths:
+      - "*/target/jacoco.exec"
+      - "*/target/site/jacoco/*"
     reports:
       junit:
         - "*/target/surefire-reports/TEST-*.xml"
@@ -227,6 +254,9 @@ test_dlic_dlsfls_legacy:
     - ci/run_tests.sh dlic-dlsfls-legacy
   artifacts:
     when: always
+    paths:
+      - "*/target/jacoco.exec"
+      - "*/target/site/jacoco/*"
     reports:
       junit:
         - "*/target/surefire-reports/TEST-*.xml"
@@ -250,6 +280,9 @@ test_dlic_femt:
   script:
     - ci/run_tests.sh dlic-fe-multi-tenancy
   artifacts:
+    paths:
+      - "*/target/jacoco.exec"
+      - "*/target/site/jacoco/*"
     when: always
     reports:
       junit:
@@ -275,6 +308,9 @@ test_dlic_auditlog:
     - ci/run_tests.sh dlic-auditlog
   artifacts:
     when: always
+    paths:
+      - "*/target/jacoco.exec"
+      - "*/target/site/jacoco/*"
     reports:
       junit:
         - "*/target/surefire-reports/TEST-*.xml"
@@ -299,6 +335,9 @@ test_dlic_signals:
     - ci/run_tests.sh dlic-signals
   artifacts:
     when: always
+    paths:
+      - "*/target/jacoco.exec"
+      - "*/target/site/jacoco/*"
     reports:
       junit:
         - "*/target/surefire-reports/TEST-*.xml"

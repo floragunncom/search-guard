@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.elasticsearch.common.logging.LogConfigurator;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -55,7 +56,11 @@ import com.floragunn.searchsupport.meta.Meta;
         RoleBasedActionAuthorizationTests.AliasPermissionsSpecial.class, RoleBasedActionAuthorizationTests.DataStreamPermissions.class })
 public class RoleBasedActionAuthorizationTests {
 
-    private static final Actions actions = new Actions(null);
+    private static final Actions actions;
+    static {
+        LogConfigurator.configureESLogging();
+        actions = new Actions(null);
+    }
 
     public static class ClusterPermissions {
 
