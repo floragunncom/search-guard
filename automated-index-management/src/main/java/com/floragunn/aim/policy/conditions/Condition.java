@@ -103,6 +103,7 @@ public abstract class Condition implements Document<Object> {
             factory.register(AgeCondition.TYPE, AgeCondition.VALIDATING_PARSER);
             factory.register(DocCountCondition.TYPE, DocCountCondition.VALIDATING_PARSER);
             factory.register(ForceMergeDoneCondition.TYPE, ForceMergeDoneCondition.VALIDATING_PARSER);
+            factory.register(IndexCountCondition.TYPE, IndexCountCondition.VALIDATING_PARSER);
             factory.register(SizeCondition.TYPE, SizeCondition.VALIDATING_PARSER);
             factory.register(SnapshotCreatedCondition.TYPE, SnapshotCreatedCondition.VALIDATING_PARSER);
             return factory;

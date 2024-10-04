@@ -80,7 +80,6 @@ public class PolicyInstanceIntegrationTest {
         assertTrue(response.isAcknowledged(), Strings.toString(response, true, true));
     }
 
-    @Execution(ExecutionMode.CONCURRENT)
     @Test
     public void testInstanceCreation() {
         String policyName = "instance_creation_test_policy";
@@ -399,6 +398,34 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
             ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
         }
+
+        @Test
+        public void testIndexCountConditionExecution() throws Exception {
+            IndexCountCondition condition = new IndexCountCondition("all_alias", 1);
+            Policy policy = new Policy(new Policy.Step("first", ImmutableList.of(condition), ImmutableList.empty()));
+            String policyName = condition.getType() + "_condition_test_policy";
+            String aliasName = "concrete_all_alias";
+            String index1Name = condition.getType() + "_1_condition_test_index";
+            String index2Name = condition.getType() + "_2_condition_test_index";
+
+            ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
+
+            ClusterHelper.Index.createManagedIndex(CLUSTER, index1Name, policyName, aliasName,
+                    Settings.builder().put(AutomatedIndexManagementSettings.Static.ALIASES_FIELD.name() + ".all_alias", aliasName).build());
+            ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, index1Name);
+
+            ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, index1Name);
+            ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, index1Name, PolicyInstanceState.Status.WAITING);
+
+            ClusterHelper.Index.createManagedIndex(CLUSTER, index2Name, policyName, aliasName,
+                    Settings.builder().put(AutomatedIndexManagementSettings.Static.ALIASES_FIELD.name() + ".all_alias", aliasName).build());
+            ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, index2Name);
+
+            ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, index1Name);
+            ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, index1Name, PolicyInstanceState.Status.FINISHED);
+            ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, index2Name);
+            ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, index2Name, PolicyInstanceState.Status.WAITING);
+        }
     }
 
     @Execution(ExecutionMode.CONCURRENT)
@@ -495,7 +522,8 @@ public class PolicyInstanceIntegrationTest {
             String aliasName = action.getType() + "_action_test_alias";
 
             ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
-            Settings settings = Settings.builder().put(AutomatedIndexManagementSettings.Static.ROLLOVER_ALIAS_FIELD.name(), aliasName).build();
+            Settings settings = Settings.builder().put(AutomatedIndexManagementSettings.Static.ALIASES_FIELD.name() + "."
+                    + AutomatedIndexManagementSettings.Static.DEFAULT_ROLLOVER_ALIAS_KEY, aliasName).build();
             ClusterHelper.Index.createManagedIndex(CLUSTER, indexName, policyName, aliasName, settings);
             ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);
 
@@ -531,13 +559,15 @@ public class PolicyInstanceIntegrationTest {
 
         @Test
         public void testRolloverActionAlreadyRolledOver() throws Exception {
-            RolloverAction action = new RolloverAction();
+            String customAliasKey = "test_key";
+            RolloverAction action = new RolloverAction(customAliasKey);
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_rolled_test_policy";
             String indexName = action.getType() + "_action_rolled_test_index-1";
             String aliasName = action.getType() + "_action_rolled_test_alias";
 
-            Settings settings = Settings.builder().put(AutomatedIndexManagementSettings.Static.ROLLOVER_ALIAS_FIELD.name(), aliasName).build();
+            Settings settings = Settings.builder().put(AutomatedIndexManagementSettings.Static.ALIASES_FIELD.name() + "." + customAliasKey, aliasName)
+                    .build();
             ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
             ClusterHelper.Index.createManagedIndex(CLUSTER, indexName, policyName, aliasName, settings);
             ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);
