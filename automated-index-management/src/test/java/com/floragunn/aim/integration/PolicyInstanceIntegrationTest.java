@@ -19,6 +19,7 @@ import com.floragunn.aim.policy.actions.SnapshotAsyncAction;
 import com.floragunn.aim.policy.conditions.AgeCondition;
 import com.floragunn.aim.policy.conditions.DocCountCondition;
 import com.floragunn.aim.policy.conditions.ForceMergeDoneCondition;
+import com.floragunn.aim.policy.conditions.IndexCountCondition;
 import com.floragunn.aim.policy.conditions.SizeCondition;
 import com.floragunn.aim.policy.conditions.SnapshotCreatedCondition;
 import com.floragunn.aim.policy.instance.PolicyInstanceState;

@@ -150,7 +150,7 @@ public final class PolicyInstanceManager {
         Map<String, Settings> indices = new HashMap<>();
         for (Map.Entry<String, IndexMetadata> index : clusterService.state().metadata().indices().entrySet()) {
             Settings indexSettings = index.getValue().getSettings();
-            String currentPolicyName = indexSettings.get(settings.getStatic().getPolicyNameFieldName());
+            String currentPolicyName = settings.getStatic().getPolicyName(indexSettings);
             if (currentPolicyName != null && policyNames.contains(currentPolicyName)) {
                 indices.put(index.getKey(), indexSettings);
             }
@@ -166,7 +166,7 @@ public final class PolicyInstanceManager {
         }
         List<String> indices = new ArrayList<>();
         for (Map.Entry<String, IndexMetadata> index : clusterService.state().metadata().indices().entrySet()) {
-            String currentPolicyName = index.getValue().getSettings().get(settings.getStatic().getPolicyNameFieldName());
+            String currentPolicyName = settings.getStatic().getPolicyName(index.getValue().getSettings());
             if (currentPolicyName != null && policyNames.contains(currentPolicyName)) {
                 indices.add(index.getKey());
             }
@@ -287,14 +287,14 @@ public final class PolicyInstanceManager {
         Map<String, Settings> createdIndices = new HashMap<>();
         for (Index index : event.indicesDeleted()) {
             IndexMetadata indexMetadata = event.previousState().metadata().index(index);
-            String policyName = indexMetadata.getSettings().get(settings.getStatic().getPolicyNameFieldName());
+            String policyName = settings.getStatic().getPolicyName(indexMetadata.getSettings());
             if (!Strings.isNullOrEmpty(policyName)) {
                 deletedIndices.add(index.getName());
             }
         }
         for (Map.Entry<String, IndexMetadata> index : event.state().metadata().indices().entrySet()) {
             Settings indexSettings = index.getValue().getSettings();
-            String policyName = indexSettings.get(settings.getStatic().getPolicyNameFieldName());
+            String policyName = settings.getStatic().getPolicyName(indexSettings);
             if (!Strings.isNullOrEmpty(policyName)) {
                 //LOG.trace("New index '{}' with settings:\n{}", index.getKey(), Strings.toString(index.getValue().getSettings(), true, true));
                 createdIndices.put(index.getKey(), indexSettings);
