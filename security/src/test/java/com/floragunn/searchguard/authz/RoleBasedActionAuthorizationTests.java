@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.junit.Assert;
@@ -57,7 +58,11 @@ import com.floragunn.searchsupport.meta.Meta;
         RoleBasedActionAuthorizationTests.AliasPermissionsSpecial.class, RoleBasedActionAuthorizationTests.DataStreamPermissions.class })
 public class RoleBasedActionAuthorizationTests {
 
-    private static final Actions actions = new Actions(null);
+    private static final Actions actions;
+    static {
+        LogConfigurator.configureESLogging();
+        actions = new Actions(null);
+    }
     private static final ByteSizeValue STATEFUL_SIZE = new ByteSizeValue(10, ByteSizeUnit.MB);
 
     public static class ClusterPermissions {
