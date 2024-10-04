@@ -464,7 +464,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         public Builder sslEnabled() {
             sslEnabled(TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
                     .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard").addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-                    .addAdminClients("CN=admin-0.example.com;OU=SearchGuard;O=SearchGuard").build());
+                    .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard").build());
             return this;
         }
 
