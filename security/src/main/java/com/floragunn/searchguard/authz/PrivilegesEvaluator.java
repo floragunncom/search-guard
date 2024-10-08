@@ -222,7 +222,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     }
 
     public boolean isInitialized() {
-        return actionAuthorization != null;
+        return actionAuthorization.get() != null;
     }
 
     public PrivilegesEvaluationResult evaluate(User user, ImmutableSet<String> mappedRoles, String action0, ActionRequest request, Task task,
