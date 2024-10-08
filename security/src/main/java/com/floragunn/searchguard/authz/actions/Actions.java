@@ -455,7 +455,7 @@ public class Actions {
     }
 
     public ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActionsPerformanceCritical() {
-        return indexLikeActions;
+        return indexLikeActionsPerformanceCritical;
     }
     
     public ImmutableSet<WellKnownAction<?, ?, ?>> tenantActions() {
