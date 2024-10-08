@@ -560,11 +560,11 @@ public class EmailAction extends ActionHandler {
             message.setSubject(email.getSubject(), "UTF-8");
             message.setFrom(new InternetAddress(email.getFromRecipient().getAddress(), email.getFromRecipient().getName(), "UTF-8"));
 
-            if (email.getReplyToRecipient() != null) {
-                message.setReplyTo(toInternetAddressArray(email.getReplyToRecipient()));
+            if (! email.getReplyToRecipients().isEmpty()) {
+                message.setReplyTo(toInternetAddressArray(email.getReplyToRecipients()));
             }
 
-            if (email.getRecipients() != null) {
+            if (! email.getRecipients().isEmpty()) {
                 for (Recipient recipient : email.getRecipients()) {
                     message.setRecipient(recipient.getType(), toInternetAddress(recipient));
                 }
@@ -614,16 +614,9 @@ public class EmailAction extends ActionHandler {
         return internedAddresses;
     }
 
-    private static Address[] toInternetAddressArray(Recipient recipient) {
-        try {
-            if (recipient != null) {
-                return new Address[] { new InternetAddress(recipient.getAddress(), recipient.getName(), "UTF-8") };
-            } else {
-                return null;
-            }
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
+    private static Address[] toInternetAddressArray(List<Recipient> recipient) {
+        return  recipient.stream().map(EmailAction::toInternetAddress)
+                .toArray(Address[]::new);
     }
 
     private static Address toInternetAddress(Recipient recipient) {
