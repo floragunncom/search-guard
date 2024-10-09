@@ -347,9 +347,13 @@ public class Signals extends AbstractLifecycleComponent {
         log.debug("Creating signals_log_template for {}", signalsLogIndex);
 
         TransportPutComposableIndexTemplateAction.Request putRequest = new TransportPutComposableIndexTemplateAction.Request("signals_log_template");
+        Settings logsIndexSettings = Settings.builder() //
+                .put("index.hidden", true) //
+                .put("mapping.total_fields.limit", 2000) //
+                .build();
         ComposableIndexTemplate composableIndexTemplate = ComposableIndexTemplate.builder() //
             .indexPatterns(ImmutableList.of(signalsLogIndex)) //
-            .template(new Template(Settings.builder().put("index.hidden", true).build(), null, null)) //
+            .template(new Template(logsIndexSettings, null, null)) //
             .build();
         putRequest.indexTemplate(composableIndexTemplate);
 

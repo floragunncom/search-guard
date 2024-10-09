@@ -80,6 +80,7 @@ public class WatchBuilder {
     List<ResolveAction> resolveActions = new ArrayList<>();
     SeverityMapping severityMapping;
     DurationExpression throttlePeriod;
+    private Boolean logRuntimeData;
 
     final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private boolean active = true;
@@ -167,6 +168,11 @@ public class WatchBuilder {
         return this;
     }
 
+    public WatchBuilder logRuntimeData(boolean logRuntimeData) {
+        this.logRuntimeData = logRuntimeData;
+        return this;
+    }
+
     public TransformBuilder transform(String script) {
         return new TransformBuilder(this, script);
     }
@@ -195,7 +201,9 @@ public class WatchBuilder {
         result.setDescription(description);
         result.setActive(active);
         result.setThrottlePeriod(throttlePeriod);
-
+        if(logRuntimeData != null) {
+            result.setLogRuntimeData(logRuntimeData);
+        }
         return result;
     }
 
