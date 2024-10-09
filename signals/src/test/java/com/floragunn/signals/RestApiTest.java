@@ -48,6 +48,7 @@ import org.apache.http.entity.ContentType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
@@ -58,6 +59,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.MatchAllQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -114,6 +116,9 @@ public class RestApiTest {
     private static final Logger log = LogManager.getLogger(RestApiTest.class);
     public static final String USERNAME_UHURA = "uhura";
     public static final String UPLOADED_TRUSTSTORE_ID = "uploaded-truststore-id";
+    public static final String SIGNALS_LOGS_INDEX_NAME = ".signals__main_log";
+    public static final String HUGE_DOCUMENT_INDEX = "huge_document_index";
+    public static final int HUGE_DOCUMENT_FIELD_COUNT = 970;
 
     private static ScriptService scriptService;
     private static ThrottlePeriodParser throttlePeriodParser;
@@ -137,7 +142,7 @@ public class RestApiTest {
 
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
-            .nodeSettings("signals.enabled", true, "signals.index_names.log", "signals__main_log", "signals.enterprise.enabled", false,
+            .nodeSettings("signals.enabled", true, "signals.index_names.log", SIGNALS_LOGS_INDEX_NAME, "signals.enterprise.enabled", false,
                     "searchguard.diagnosis.action_stack.enabled", true, "signals.watch_log.refresh_policy", "immediate",
                     "signals.watch_log.sync_indexing", true, "searchguard.unsupported.single_index_mt_enabled", true)
             .user(USER_CERTIFICATE)
@@ -152,6 +157,17 @@ public class RestApiTest {
         client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "x", "b", "y"))
                 .actionGet();
         client.index(new IndexRequest("testsource").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "a", "xx", "b", "yy"))
+                .actionGet();
+
+        CreateIndexRequest createIndexRequest = new CreateIndexRequest(HUGE_DOCUMENT_INDEX).settings(
+                Settings.builder().put("mapping.total_fields.limit", 3000).build());
+        client.admin().indices().create(createIndexRequest).actionGet();
+        Object[] hugeDocument = new String[HUGE_DOCUMENT_FIELD_COUNT * 2];
+        for (int i = 0; i < hugeDocument.length; i += 2) {
+            hugeDocument[i] = "key_" + i;
+            hugeDocument[i + 1] = "value_" + i;
+        }
+        client.index(new IndexRequest(HUGE_DOCUMENT_INDEX).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, hugeDocument))
                 .actionGet();
 
     }
@@ -2814,7 +2830,7 @@ public class RestApiTest {
 
             long watchVersion = Long.parseLong(response.getBodyAsDocNode().getAsString("_version"));
             
-            List<WatchLog> watchLogs = new WatchLogSearch(client).index("signals__main_log").watchId(watchId).watchVersion(watchVersion)
+            List<WatchLog> watchLogs = new WatchLogSearch(client).index(SIGNALS_LOGS_INDEX_NAME).watchId(watchId).watchVersion(watchVersion)
                     .fromTheStart().count(3).await();
 
             log.info("First pass watchLogs: " + watchLogs);
@@ -2835,7 +2851,7 @@ public class RestApiTest {
             
             Assert.assertNotEquals(response.getBody(), watchVersion, newWatchVersion);
 
-            watchLogs = new WatchLogSearch(client).index("signals__main_log").watchId(watchId).watchVersion(newWatchVersion).fromTheStart().count(3)
+            watchLogs = new WatchLogSearch(client).index(SIGNALS_LOGS_INDEX_NAME).watchId(watchId).watchVersion(newWatchVersion).fromTheStart().count(3)
                     .await();
 
             log.info("Second pass watchLogs: " + watchLogs);
@@ -2844,6 +2860,44 @@ public class RestApiTest {
                     Arrays.asList(Status.Code.ACTION_EXECUTED, Status.Code.ACTION_THROTTLED, Status.Code.ACTION_THROTTLED),
                     watchLogs.stream().map((logEntry) -> logEntry.getStatus().getCode()).collect(Collectors.toList()));
 
+        }
+    }
+
+    @Test
+    public void testWatchLogContainsDocumentWithHugeFieldCount() throws Exception {
+        String tenant = "_main";
+        String watchId = "watch_which_creates_huge_logs";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String testSink = "testsink_" + watchId;
+
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            Client client = cluster.getInternalNodeClient();
+
+            // The log index is deleted to create an index with fresh (empty) mapping. This way, other tests do not affect this test.
+            client.admin().indices().delete(new DeleteIndexRequest(SIGNALS_LOGS_INDEX_NAME));
+
+            client.admin().indices().create(new CreateIndexRequest(testSink).settings(Settings.builder().put("mapping.total_fields.limit", 3000).build())).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).logRuntimeData(true).atMsInterval(100).search(HUGE_DOCUMENT_INDEX).query("{\"match_all\" : {} }").as("testsearch")
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index(testSink).throttledFor("1000h").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            long watchVersion = Long.parseLong(response.getBodyAsDocNode().getAsString("_version"));
+
+            List<WatchLog> watchLogs = new WatchLogSearch(client).index(SIGNALS_LOGS_INDEX_NAME).watchId(watchId).watchVersion(watchVersion)
+                    .fromTheStart().count(1).await();
+
+            log.info("Huge watch logs: {}", watchLogs);
+
+            int watchSearchResultsCount = DocNode.wrap(watchLogs.get(0).getData()).getAsNode("testsearch") //
+                    .getAsNode("hits") //
+                    .getAsListOfNodes("hits") //
+                    .get(0) //
+                    .getAsNode("_source") //
+                    .size();
+            assertThat(watchSearchResultsCount, equalTo(HUGE_DOCUMENT_FIELD_COUNT));
         }
     }
 
@@ -3232,7 +3286,7 @@ public class RestApiTest {
                         .must(new TermQueryBuilder("watch_version", watchVersion));
             }
 
-            SearchResponse searchResponse = client.search(new SearchRequest("signals_" + tenantName + "_log")
+            SearchResponse searchResponse = client.search(new SearchRequest(".signals_" + tenantName + "_log")
                     .source(new SearchSourceBuilder().size(count).sort("execution_end", SortOrder.DESC).query(queryBuilder))).actionGet();
 
             try {

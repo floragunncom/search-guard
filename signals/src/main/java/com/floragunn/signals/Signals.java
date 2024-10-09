@@ -31,12 +31,10 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.set.Sets;
-import org.elasticsearch.env.Environment;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.watcher.ResourceWatcherService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -324,14 +322,10 @@ public class Signals extends AbstractLifecycleComponent {
 
     private void createSignalsLogIndex() {
         String signalsLogIndex = signalsSettings.getDynamicSettings().getWatchLogIndex();
+        log.debug("Request to create signals_log_template for {}", signalsLogIndex);
 
         if (!clusterService.state().nodes().isLocalNodeElectedMaster()) {
             log.debug("Not checking signals_log index because local node is not master");
-            return;
-        }
-
-        if (clusterService.state().getMetadata().componentTemplates().containsKey("signals_log_template")) {
-            log.debug("Template signals_log_template does already exist.");
             return;
         }
 
@@ -347,16 +341,20 @@ public class Signals extends AbstractLifecycleComponent {
         log.debug("Creating signals_log_template for {}", signalsLogIndex);
 
         TransportPutComposableIndexTemplateAction.Request putRequest = new TransportPutComposableIndexTemplateAction.Request("signals_log_template");
+        Settings logsIndexSettings = Settings.builder() //
+                .put("index.hidden", true) //
+                .put("mapping.total_fields.limit", signalsSettings.getStaticSettings().getWatchLogMappingTotalFieldsLimit()) //
+                .build();
         ComposableIndexTemplate composableIndexTemplate = ComposableIndexTemplate.builder() //
             .indexPatterns(ImmutableList.of(signalsLogIndex)) //
-            .template(new Template(Settings.builder().put("index.hidden", true).build(), null, null)) //
+            .template(new Template(logsIndexSettings, null, null)) //
             .build();
         putRequest.indexTemplate(composableIndexTemplate);
 
         client.execute(TransportPutComposableIndexTemplateAction.TYPE, putRequest, new ActionListener<AcknowledgedResponse>() {
 
             @Override public void onResponse(AcknowledgedResponse response) {
-                log.debug("Created signals_log_template");
+                log.info("Created signals_log_template");
             }
 
             @Override public void onFailure(Exception e) {
