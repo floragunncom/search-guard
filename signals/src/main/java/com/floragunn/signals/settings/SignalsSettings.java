@@ -529,7 +529,7 @@ public class SignalsSettings {
         public static StaticSettings.Attribute<Boolean> ENTERPRISE_ENABLED = StaticSettings.Attribute.define("signals.enterprise.enabled")
                 .withDefault(true).asBoolean();
         public static StaticSettings.Attribute<Integer> MAX_THREADS = StaticSettings.Attribute.define("signals.worker_threads.pool.max_size")
-                .withDefault(3).asInteger();
+                .withDefault(5).asInteger();
         public static StaticSettings.Attribute<TimeValue> THREAD_KEEP_ALIVE = StaticSettings.Attribute
                 .define("signals.worker_threads.pool.keep_alive").withDefault(TimeValue.timeValueMinutes(100)).asTimeValue();
         public static StaticSettings.Attribute<Integer> THREAD_PRIO =  StaticSettings.Attribute.define("signals.worker_threads.prio").withDefault(Thread.NORM_PRIORITY).asInteger();
