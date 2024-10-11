@@ -198,6 +198,8 @@ public class SignalsTenant implements Closeable {
 
         WatchInitializationService initContext = new WatchInitializationService(accountRegistry, scriptService, trustManagerRegistry,
                 httpProxyHostRegistry, new DefaultThrottlePeriodParser(settings), LENIENT);
+        int maxThreads = settings.getStaticSettings().getMaxThreads();
+        log.debug("Max thread pool size in scope '{}' is equal to {}", scopedName, maxThreads);
         this.scheduler = new SchedulerBuilder<Watch>()//
                 .client(privilegedConfigClient)//
                 .name(scopedName)//
@@ -209,7 +211,7 @@ public class SignalsTenant implements Closeable {
                 .jobFactory(jobFactory)//
                 .nodeFilter(nodeFilter)//
                 .jobConfigListener(jobConfigListener)//
-                .maxThreads(settings.getStaticSettings().getMaxThreads())//
+                .maxThreads(maxThreads)//
                 .threadKeepAlive(settings.getStaticSettings().getThreadKeepAlive())//
                 .threadPriority(settings.getStaticSettings().getThreadPrio())//
                 .build();
