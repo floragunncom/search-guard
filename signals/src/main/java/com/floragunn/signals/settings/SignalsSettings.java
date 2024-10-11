@@ -537,6 +537,7 @@ public class SignalsSettings {
         public static StaticSettings.Attribute<Boolean> ACTIVE_BY_DEFAULT =  StaticSettings.Attribute.define("signals.all_tenants_active_by_default").withDefault(true).asBoolean();
         public static StaticSettings.Attribute<String> WATCH_LOG_REFRESH_POLICY =  StaticSettings.Attribute.define("signals.watch_log.refresh_policy").withDefault((String) null).asString();
         public static StaticSettings.Attribute<Boolean> WATCH_LOG_SYNC_INDEXING =  StaticSettings.Attribute.define("signals.watch_log.sync_indexing").withDefault(false).asBoolean();
+        public static StaticSettings.Attribute<Integer> WATCH_LOG_MAPPING_TOTAL_FIELDS_LIMIT =  StaticSettings.Attribute.define("signals.watch_log.mapping_total_fields_limit").withDefault(2000).asInteger();
 
         public static class IndexNames {
 
@@ -582,10 +583,10 @@ public class SignalsSettings {
 
         }
 
-        public static StaticSettings.AttributeSet  getAvailableSettings() {
+        public static StaticSettings.AttributeSet getAvailableSettings() {
             return StaticSettings.AttributeSet.of(ENABLED, ENTERPRISE_ENABLED, MAX_THREADS, THREAD_KEEP_ALIVE, THREAD_PRIO, ACTIVE_BY_DEFAULT,
-                    WATCH_LOG_REFRESH_POLICY, WATCH_LOG_SYNC_INDEXING, IndexNames.WATCHES, IndexNames.WATCHES_STATE, IndexNames.WATCHES_TRIGGER_STATE,
-                    IndexNames.ACCOUNTS, IndexNames.LOG);
+                    WATCH_LOG_REFRESH_POLICY, WATCH_LOG_SYNC_INDEXING, WATCH_LOG_MAPPING_TOTAL_FIELDS_LIMIT, IndexNames.WATCHES,
+                    IndexNames.WATCHES_STATE, IndexNames.WATCHES_TRIGGER_STATE, IndexNames.ACCOUNTS, IndexNames.LOG);
         }
 
         private final StaticSettings settings;
@@ -642,6 +643,10 @@ public class SignalsSettings {
 
         public boolean isWatchLogSyncIndexingEnabled() {
             return settings.get(WATCH_LOG_SYNC_INDEXING);
+        }
+
+        public int getWatchLogMappingTotalFieldsLimit() {
+            return settings.get(WATCH_LOG_MAPPING_TOTAL_FIELDS_LIMIT);
         }
     }
 
