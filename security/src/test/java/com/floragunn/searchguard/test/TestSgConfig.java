@@ -17,7 +17,13 @@
 
 package com.floragunn.searchguard.test;
 
+import static com.floragunn.searchguard.test.RestMatchers.distinctNodesAt;
+import static com.floragunn.searchguard.test.RestMatchers.json;
 import static java.util.Arrays.asList;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.not;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -659,6 +665,7 @@ public class TestSgConfig {
         private Map<String, Object> attributes = new HashMap<>();
         private BiFunction<String, List<String>, Matcher<HttpResponse>> restMatcher;
         private Map<String, IndexApiMatchers.IndexMatcher> indexMatchers = new HashMap<>();
+        private Map<String, Matcher<HttpResponse>> documentFieldValueMatchers = new LinkedHashMap<>();
         private boolean adminCertUser = false;
 
         public User(String name) {
@@ -753,6 +760,33 @@ public class TestSgConfig {
         public User adminCertUser() {
             this.adminCertUser = true;
             return this;
+        }
+
+        public User addFieldValueMatcher(String fieldJsonPath, boolean multipleDocuments, Matcher<?>...matchers) {
+            Objects.requireNonNull(fieldJsonPath, "Document field JSON patch name must not be null");
+            if(documentFieldValueMatchers.containsKey(fieldJsonPath)) {
+                throw new IllegalArgumentException("Field matcher for " + fieldJsonPath + " already exists");
+            }
+            if(matchers == null || matchers.length == 0) {
+                throw new IllegalArgumentException("At least one pattern must be provided");
+            }
+            Matcher<? super Iterable<? extends String>>[] everyFieldValueMatchers = Arrays.stream(matchers) //
+                .map(m -> multipleDocuments ? everyItem(m) : m) //
+                .toArray(Matcher[]::new);
+            Matcher<GenericRestClient.HttpResponse> fieldValueMatcher = json(distinctNodesAt(fieldJsonPath, allOf(not(emptyIterable()), allOf(everyFieldValueMatchers))));
+            documentFieldValueMatchers.put(fieldJsonPath, fieldValueMatcher);
+            return this;
+        }
+
+        public Matcher<HttpResponse> matcherForField(String fieldJsonPath) {
+            Objects.requireNonNull(fieldJsonPath, "Field JSON path must not be null");
+            Matcher<HttpResponse> matcher = documentFieldValueMatchers.get(fieldJsonPath);
+            return Objects.requireNonNull(matcher, "No field matcher found for " + fieldJsonPath);
+        }
+
+        @Override
+        public String toString() {
+            return "User name '" + name + '\'';
         }
     }
 
