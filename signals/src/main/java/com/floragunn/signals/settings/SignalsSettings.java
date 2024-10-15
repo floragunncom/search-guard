@@ -538,6 +538,9 @@ public class SignalsSettings {
         public static StaticSettings.Attribute<String> WATCH_LOG_REFRESH_POLICY =  StaticSettings.Attribute.define("signals.watch_log.refresh_policy").withDefault((String) null).asString();
         public static StaticSettings.Attribute<Boolean> WATCH_LOG_SYNC_INDEXING =  StaticSettings.Attribute.define("signals.watch_log.sync_indexing").withDefault(false).asBoolean();
 
+        public static StaticSettings.Attribute<Integer> CRON_MISFIRE_STRATEGY =  StaticSettings.Attribute.define("signals.cron_misfire_strategy").withDefault(-1).asInteger();
+        public static StaticSettings.Attribute<Integer> SIMPLE_MISFIRE_STRATEGY =  StaticSettings.Attribute.define("signals.simple_misfire_strategy").withDefault(-1).asInteger();
+
         public static class IndexNames {
 
             public static final String TRUSTSTORES = ".signals_truststores";
@@ -584,8 +587,8 @@ public class SignalsSettings {
 
         public static StaticSettings.AttributeSet  getAvailableSettings() {
             return StaticSettings.AttributeSet.of(ENABLED, ENTERPRISE_ENABLED, MAX_THREADS, THREAD_KEEP_ALIVE, THREAD_PRIO, ACTIVE_BY_DEFAULT,
-                    WATCH_LOG_REFRESH_POLICY, WATCH_LOG_SYNC_INDEXING, IndexNames.WATCHES, IndexNames.WATCHES_STATE, IndexNames.WATCHES_TRIGGER_STATE,
-                    IndexNames.ACCOUNTS, IndexNames.LOG);
+                    WATCH_LOG_REFRESH_POLICY, WATCH_LOG_SYNC_INDEXING, CRON_MISFIRE_STRATEGY, SIMPLE_MISFIRE_STRATEGY,
+                    IndexNames.WATCHES, IndexNames.WATCHES_STATE, IndexNames.WATCHES_TRIGGER_STATE, IndexNames.ACCOUNTS, IndexNames.LOG);
         }
 
         private final StaticSettings settings;
@@ -642,6 +645,14 @@ public class SignalsSettings {
 
         public boolean isWatchLogSyncIndexingEnabled() {
             return settings.get(WATCH_LOG_SYNC_INDEXING);
+        }
+
+        public int getCronMisfireStrategy() {
+            return settings.get(CRON_MISFIRE_STRATEGY);
+        }
+
+        public int getSimpleMisfireStrategy() {
+            return settings.get(SIMPLE_MISFIRE_STRATEGY);
         }
     }
 
