@@ -38,6 +38,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
+import com.floragunn.signals.job.SignalsScheduleFactory;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
@@ -117,8 +118,9 @@ public class RestApiTest {
 
     private static ScriptService scriptService;
     private static ThrottlePeriodParser throttlePeriodParser;
+    private static SignalsScheduleFactory signalsScheduleFactory;
     private final WatchInitializationService watchInitializationService = new WatchInitializationService(null, scriptService,
-            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
+            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, signalsScheduleFactory, STRICT);
 
     private static final WireMockRequestHeaderAddingFilter REQUEST_HEADER_ADDING_FILTER = new WireMockRequestHeaderAddingFilter("Proxy", "wire-mock");
 
@@ -160,6 +162,7 @@ public class RestApiTest {
     public static void setupDependencies() throws Exception {
         scriptService = cluster.getInjectable(ScriptService.class);
         throttlePeriodParser = new ValidatingThrottlePeriodParser(cluster.getInjectable(Signals.class).getSignalsSettings());
+        signalsScheduleFactory = cluster.getInjectable(Signals.class).getSignalsScheduleFactory();
     }
 
     @Test

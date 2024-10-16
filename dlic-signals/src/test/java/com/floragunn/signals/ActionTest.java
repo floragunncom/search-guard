@@ -4,6 +4,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
+import com.floragunn.signals.job.SignalsScheduleFactory;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.watch.common.HttpClientConfig;
 import com.floragunn.signals.watch.common.HttpProxyConfig;
@@ -68,7 +69,8 @@ public class ActionTest {
 	private final ClusterService clusterService = Mockito.mock(ClusterService.class);
 	private final FeatureService featureService = Mockito.mock(FeatureService.class);
 	private final AccountRegistry accountRegistry = Mockito.mock(AccountRegistry.class);
-	private final WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService, trustManagerRegistry, httpProxyHostRegistry, null, STRICT);
+	private final SignalsScheduleFactory signalsScheduleFactory = Mockito.mock(SignalsScheduleFactory.class);
+	private final WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService, trustManagerRegistry, httpProxyHostRegistry, null, signalsScheduleFactory, STRICT);
 
 	private static final WireMockRequestHeaderAddingFilter REQUEST_HEADER_ADDING_FILTER = new WireMockRequestHeaderAddingFilter("Proxy", "wire-mock");
 

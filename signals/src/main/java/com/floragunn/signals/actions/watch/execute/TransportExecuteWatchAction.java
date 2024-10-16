@@ -141,7 +141,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                                 }
                                 WatchInitializationService initService = new WatchInitializationService(signals.getAccountRegistry(), scriptService,
                                         signals.getTruststoreRegistry(), signals.getHttpProxyHostRegistry(),
-                                        new ValidatingThrottlePeriodParser(signals.getSignalsSettings()), LENIENT
+                                        new ValidatingThrottlePeriodParser(signals.getSignalsSettings()), signals.getSignalsScheduleFactory(), LENIENT
                                 );
                                 Watch watch = Watch.parse(initService, signalsTenant.getName(), request.getWatchId(),//
                                     response.getSourceAsString(), response.getVersion());
@@ -188,7 +188,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
         try {
             WatchInitializationService initService = new WatchInitializationService(signals.getAccountRegistry(), scriptService,
                     signals.getTruststoreRegistry(), signals.getHttpProxyHostRegistry(),
-                    new ValidatingThrottlePeriodParser(signals.getSignalsSettings()), LENIENT
+                    new ValidatingThrottlePeriodParser(signals.getSignalsSettings()), signals.getSignalsScheduleFactory(), LENIENT
             );
             Watch watch = Watch.parse(initService, signalsTenant.getName(),
                     "__inline_watch", request.getWatchJson(), -1);

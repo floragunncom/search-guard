@@ -435,7 +435,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
             result.description = vJsonNode.get("description").asString();
         }
 
-        result.schedule = vJsonNode.get("trigger").by((triggerNode) -> DefaultScheduleFactory.INSTANCE.create(jobKey, triggerNode));
+        result.schedule = vJsonNode.get("trigger").by((triggerNode) -> ctx.getSignalsScheduleFactory().create(jobKey, triggerNode));
         
         try {
             if (vJsonNode.get("inputs").asAnything() instanceof List) {
@@ -646,7 +646,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         private final String tenant;
 
         public JobConfigFactory(String tenant, String tenantIdPrefix, WatchInitializationService initContext) {
-            super(WatchRunner.class, DefaultScheduleFactory.INSTANCE);
+            super(WatchRunner.class, initContext.getSignalsScheduleFactory());
             this.initContext = initContext;
             this.tenant = tenant;
             this.tenantIdPrefix = tenantIdPrefix;

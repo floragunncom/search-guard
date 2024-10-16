@@ -16,6 +16,7 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
 import com.floragunn.signals.accounts.AccountRegistry;
+import com.floragunn.signals.job.SignalsScheduleFactory;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
@@ -99,6 +100,7 @@ public class CheckTest {
     private static ClusterService clusterService;
     private static FeatureService featureService;
     private static ThrottlePeriodParser throttlePeriodParser;
+    private static SignalsScheduleFactory signalsScheduleFactory;
 
     private static TestCertificates testCertificates = TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
             .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard").addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
@@ -134,7 +136,7 @@ public class CheckTest {
     private HttpProxyHostRegistry httpProxyHostRegistry;
     @Mock
     private X509ExtendedTrustManager trustManager;
-    private final WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService, trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, STRICT);
+    private final WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService, trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, signalsScheduleFactory, STRICT);
 
     @BeforeClass
     public static void setupTestData() {
@@ -159,6 +161,7 @@ public class CheckTest {
         throttlePeriodParser = new ValidatingThrottlePeriodParser(cluster.getInjectable(Signals.class).getSignalsSettings());
         clusterService = cluster.getInjectable(ClusterService.class);
         featureService = cluster.getInjectable(FeatureService.class);
+        signalsScheduleFactory = cluster.getInjectable(Signals.class).getSignalsScheduleFactory();
     }
 
     @Before
