@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import com.floragunn.signals.job.SignalsScheduleFactory;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.script.SignalsScriptContextFactory;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
@@ -42,16 +43,19 @@ public class WatchInitializationService {
     private final HttpProxyHostRegistry httpProxyHostRegistry;
 
     private final ValidationLevel validationLevel;
+    private final SignalsScheduleFactory signalsScheduleFactory;
 
     public WatchInitializationService(AccountRegistry accountRegistry, ScriptService scriptService,
                                       TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry,
-                                      ThrottlePeriodParser throttlePeriodParser, ValidationLevel validationLevel) {
+                                      ThrottlePeriodParser throttlePeriodParser, SignalsScheduleFactory signalsScheduleFactory,
+                                      ValidationLevel validationLevel) {
         this.accountRegistry = accountRegistry;
         this.scriptService = scriptService;
         this.trustManagerRegistry = trustManagerRegistry;
         this.httpProxyHostRegistry = httpProxyHostRegistry;
         this.throttlePeriodParser = throttlePeriodParser;
         this.validationLevel = Objects.requireNonNull(validationLevel, "Life cycle stage is required");
+        this.signalsScheduleFactory = signalsScheduleFactory;
     }
 
     public ScriptService getScriptService() {
@@ -166,6 +170,10 @@ public class WatchInitializationService {
 
     public ValidationLevel getValidationLevel() {
         return this.validationLevel;
+    }
+
+    public SignalsScheduleFactory getSignalsScheduleFactory() {
+        return signalsScheduleFactory;
     }
 
     @Override

@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.signals.job.SignalsScheduleFactory;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.proxy.service.ProxyCrudService;
 import com.floragunn.signals.proxy.service.persistence.ProxyData;
@@ -31,12 +32,10 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.set.Sets;
-import org.elasticsearch.env.Environment;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.watcher.ResourceWatcherService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -83,6 +82,7 @@ public class Signals extends AbstractLifecycleComponent {
     private TrustManagerRegistry trustManagerRegistry;
     private HttpProxyHostRegistry httpProxyHostRegistry;
     private FeatureService featureService;
+    private SignalsScheduleFactory signalsScheduleFactory;
 
     public Signals(Settings settings, ComponentState componentState) {
         this.componentState = componentState;
@@ -129,6 +129,7 @@ public class Signals extends AbstractLifecycleComponent {
             ProxyRepository proxyRepository = new ProxyRepository(signalsSettings, privilegedConfigClient);
             ProxyCrudService proxyCrudService = new ProxyCrudService(proxyRepository);
             this.httpProxyHostRegistry = new HttpProxyHostRegistry(proxyCrudService);
+            this.signalsScheduleFactory = new SignalsScheduleFactory(signalsSettings);
             this.featureService = featureService;
             return Collections.singletonList(this);
 
@@ -222,7 +223,7 @@ public class Signals extends AbstractLifecycleComponent {
 
             SignalsTenant signalsTenant = SignalsTenant.create(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
                     internalAuthTokenProvider, signalsSettings, accountRegistry, tenantState, diagnosticContext, threadPool,
-                    trustManagerRegistry, httpProxyHostRegistry, featureService);
+                    trustManagerRegistry, httpProxyHostRegistry, featureService, signalsScheduleFactory);
 
             tenants.put(name, signalsTenant);
 
@@ -461,6 +462,10 @@ public class Signals extends AbstractLifecycleComponent {
     }
     public HttpProxyHostRegistry getHttpProxyHostRegistry() {
         return httpProxyHostRegistry;
+    }
+
+    public SignalsScheduleFactory getSignalsScheduleFactory() {
+        return signalsScheduleFactory;
     }
 
     public ClusterService getClusterService() {

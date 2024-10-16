@@ -20,6 +20,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.signals.job.SignalsScheduleFactory;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.watch.common.HttpClientConfig;
 import com.floragunn.signals.watch.common.HttpProxyConfig;
@@ -288,7 +289,7 @@ public class WatchBuilder {
                 propertyMap.put(Path.parse(String.valueOf(properties[i])), properties[i + 1]);
             }
             WatchInitializationService watchInitService = new WatchInitializationService(null, null,
-                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, STRICT);
+                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, Mockito.mock(SignalsScheduleFactory.class), STRICT);
             ActionHandler actionHandler = ActionHandler.factoryRegistry.get(actionType).create(
                 watchInitService, DocNode.parse(Format.JSON).from(propertyMap.toJsonString()));
 

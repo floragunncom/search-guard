@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.floragunn.signals.job.SignalsScheduleFactory;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
@@ -41,11 +42,13 @@ public class ExecuteWatchApiAction extends SignalsTenantAwareRestHandler {
     private final Logger log = LogManager.getLogger(this.getClass());
     private final ScriptService scriptService;
     private final ThrottlePeriodParser throttlePeriodParser;
+    private final SignalsScheduleFactory signalsScheduleFactory;
 
     public ExecuteWatchApiAction(Settings settings, ScriptService scriptService, SignalsSettings signalsSettings) {
         super(settings);
         this.scriptService = scriptService;
         this.throttlePeriodParser = new ValidatingThrottlePeriodParser(signalsSettings);
+        this.signalsScheduleFactory = new SignalsScheduleFactory(signalsSettings);
     }
 
     @Override
@@ -64,7 +67,7 @@ public class ExecuteWatchApiAction extends SignalsTenantAwareRestHandler {
             //if not ES 8 throws an exception
             request.param("tenant");
             WatchInitializationService watchInitializationService = new WatchInitializationService(null, scriptService,
-                null, null, throttlePeriodParser, LENIENT);
+                null, null, throttlePeriodParser, signalsScheduleFactory, LENIENT);
             final RequestBody requestBody = RequestBody.parse(watchInitializationService, request.content().utf8ToString());
 
             if (log.isDebugEnabled()) {
