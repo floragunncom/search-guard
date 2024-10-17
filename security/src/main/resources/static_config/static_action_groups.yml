@@ -253,6 +253,28 @@ SGS_PERSONAL_SESSIONS:
   type: "cluster"
   description: "Actions necessary for logging in and out of sessions for Kibana"
   
+  
+### Data streams
+
+SGS_MANAGE_DATA_STREAMS:
+  reserved: true
+  hidden: false
+  allowed_actions:
+    - "indices:admin/data_stream/*"
+    - "indices:monitor/data_stream/*"
+  type: "index"
+  description: "Permissions for creating and maintaining data streams"
+  
+SGS_MONITOR_DATA_STREAMS:
+  reserved: true
+  hidden: false
+  allowed_actions:
+    - "indices:admin/data_stream/get"
+    - "indices:monitor/data_stream/*"
+  type: "index"
+  description: "Permissions for monitoring data streams"
+  
+  
 ### Auth Tokens
 
 SGS_CREATE_MANAGE_OWN_AUTH_TOKEN:
