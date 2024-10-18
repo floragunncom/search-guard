@@ -137,7 +137,7 @@ public interface Meta extends Document<Meta> {
                 if (object instanceof Meta.Index) {
                     return ImmutableSet.of((Meta.Index) object);
                 } else if (object instanceof Meta.IndexCollection) {
-                    ((Meta.IndexCollection) object).resolveDeepAsIndex(resolutionMode);
+                    return ((Meta.IndexCollection) object).resolveDeepAsIndex(resolutionMode);
                 }
             }
 
@@ -148,6 +148,34 @@ public interface Meta extends Document<Meta> {
                     result.add((Meta.Index) object);
                 } else if (object instanceof Meta.IndexCollection) {
                     result.addAll(((Meta.IndexCollection) object).resolveDeepAsIndex(resolutionMode));
+                }
+            }
+
+            return result.build();
+        }
+        
+        static ImmutableSet<String> resolveDeepToNames(ImmutableSet<? extends Meta.IndexLikeObject> objects, Alias.ResolutionMode resolutionMode) {
+            if (objects.size() == 0) {
+                return ImmutableSet.empty();
+            }
+
+            if (objects.size() == 1) {
+                Meta.IndexLikeObject object = objects.only();
+
+                if (object instanceof Meta.Index) {
+                    return ImmutableSet.of(object.name());
+                } else if (object instanceof Meta.IndexCollection) {
+                    return ((Meta.IndexCollection) object).resolveDeepToNames(resolutionMode);
+                }
+            }
+
+            ImmutableSet.Builder<String> result = new ImmutableSet.Builder<>(objects.size() * 20);
+
+            for (Meta.IndexLikeObject object : objects) {
+                if (object instanceof Meta.Index) {
+                    result.add(object.name());
+                } else if (object instanceof Meta.IndexCollection) {
+                    result.addAll(((Meta.IndexCollection) object).resolveDeepToNames(resolutionMode));
                 }
             }
 

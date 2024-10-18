@@ -82,7 +82,6 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         }
 
         this.componentState.addPart(this.staticIndexRules.getComponentState());
-        // this.componentState.addPart(this.statefulIndexQueries.getComponentState()); TODO
         this.componentState.setConfigVersion(roles.getDocVersion());
         this.componentState.updateStateFromParts();
 
