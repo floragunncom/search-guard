@@ -6,6 +6,7 @@ Foundation (http://www.apache.org/).
 This product includes software developed by The Legion of the Bouncy Castle Inc.
 (http://www.bouncycastle.org)
 
+This product includes software developed by The OpenSearch Contributors
 This product includes software developed by Amazon.com, Inc.
 (https://github.com/opendistro-for-elasticsearch/security)
 (https://github.com/opensearch-project/security)

@@ -875,7 +875,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
                     RestrictedActionAuthorization restrictedSgRoles = new RestrictedActionAuthorization(configModelSnapshot.getActionAuthorization(),
                             authToken.getRequestedPrivileges(), configModelSnapshot.getActionGroups(), actions, null,
-                            privilegesEvaluator.getAllConfiguredTenantNames());
+                            privilegesEvaluator.getAllConfiguredTenantNames(), null);
 
                     try (StoredContext restoredCtx = restorableCtx.get()) {
                         onResult.accept(new SpecialPrivilegesEvaluationContextImpl(userWithRoles, mappedBaseRoles, restrictedSgRoles,

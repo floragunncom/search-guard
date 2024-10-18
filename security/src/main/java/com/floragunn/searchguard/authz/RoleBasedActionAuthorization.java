@@ -14,6 +14,10 @@
  * limitations under the License.
  * 
  */
+/*
+ * Includes code from https://github.com/opensearch-project/security/blob/780a6b95a70a91d2425731fff09b624f88ef2c1a/src/main/java/org/opensearch/security/privileges/ActionPrivileges.java
+ * which is Copyright OpenSearch Contributors
+ */
 
 package com.floragunn.searchguard.authz;
 
@@ -22,11 +26,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Future;
 import java.util.function.Function;
 
-import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.unit.ByteSizeUnit;
+import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
 import com.floragunn.codova.config.templates.Template;
@@ -41,9 +49,11 @@ import com.floragunn.searchguard.authz.actions.Action.WellKnownAction;
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.actions.ResolvedIndices;
 import com.floragunn.searchguard.authz.config.ActionGroup;
+import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
@@ -54,8 +64,16 @@ import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import com.floragunn.searchsupport.meta.Meta;
+import com.selectivem.collections.CompactMapGroupBuilder;
+import com.selectivem.collections.DeduplicatingCompactSubSetBuilder;
+import com.selectivem.collections.ImmutableCompactSubSet;
+import com.selectivem.collections.IndexedImmutableSet;
 
 public class RoleBasedActionAuthorization implements ActionAuthorization, ComponentStateProvider {
+    static final StaticSettings.Attribute<ByteSizeValue> PRECOMPUTED_PRIVILEGES_MAX_HEAP_SIZE = //
+            StaticSettings.Attribute.define("searchguard.privileges_evaluation.precomputed_privileges.max_heap_size")
+                    .withDefault(new ByteSizeValue(10, ByteSizeUnit.MB)).asByteSizeValue();
+
     private static final Logger log = LogManager.getLogger(RoleBasedActionAuthorization.class);
 
     private final SgDynamicConfiguration<Role> roles;
@@ -70,6 +88,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     private final IndexPermissions<Role.DataStream> dataStream;
     private final TenantPermissions tenant;
     private final ComponentState componentState;
+    private final ByteSizeValue statefulIndexMaxHeapSize;
 
     private final Pattern universallyDeniedIndices;
 
@@ -95,17 +114,22 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     private final ComponentState statefulAliasState = new ComponentState("alias_permissions_stateful");
     private final ComponentState statefulDataStreamState = new ComponentState("data_stream_permissions_stateful");
 
+    private Future<?> updateFuture;
+    
     public RoleBasedActionAuthorization(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions,
-        Meta indexMetadata, Set<String> tenants) {
-        this(roles, actionGroups, actions, indexMetadata, tenants, Pattern.blank(), MetricsLevel.NONE, MultiTenancyConfigurationProvider.DEFAULT);
+            Meta indexMetadata, Set<String> tenants, ByteSizeValue statefulIndexMaxHeapSize) {
+        this(roles, actionGroups, actions, indexMetadata, tenants, statefulIndexMaxHeapSize, Pattern.blank(), MetricsLevel.NONE,
+                MultiTenancyConfigurationProvider.DEFAULT);
     }
 
     public RoleBasedActionAuthorization(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions,
-            Meta indexMetadata, Set<String> tenants, Pattern universallyDeniedIndices, MetricsLevel metricsLevel, MultiTenancyConfigurationProvider multiTenancyConfigurationProvider) {
+            Meta indexMetadata, Set<String> tenants, ByteSizeValue statefulIndexMaxHeapSize, Pattern universallyDeniedIndices,
+            MetricsLevel metricsLevel, MultiTenancyConfigurationProvider multiTenancyConfigurationProvider) {
         this.roles = roles;
         this.actionGroups = actionGroups;
         this.actions = actions;
         this.metricsLevel = metricsLevel;
+        this.statefulIndexMaxHeapSize = statefulIndexMaxHeapSize;
         this.tenantManager = new TenantManager(tenants, multiTenancyConfigurationProvider);
 
         this.cluster = new ClusterPermissions(roles, actionGroups, actions, metricsLevel);
@@ -119,16 +143,16 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
         this.componentState = new ComponentState("role_based_action_authorization");
         this.componentState.addParts(cluster.getComponentState(), clusterExclusions.getComponentState(), index.getComponentState(),
-                 tenant.getComponentState(), statefulIndexState, statefulAliasState, statefulDataStreamState);
+                tenant.getComponentState(), statefulIndexState, statefulAliasState, statefulDataStreamState);
 
         if (indexMetadata != null) {
             try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
                 StatefulPermissions.Index statefulIndex = new StatefulPermissions.Index(roles, actionGroups, actions, indexMetadata,
-                        universallyDeniedIndices, statefulIndexState);
+                        universallyDeniedIndices, statefulIndexMaxHeapSize, statefulIndexState);
                 StatefulPermissions.Alias statefulAlias = new StatefulPermissions.Alias(roles, actionGroups, actions, indexMetadata,
-                        universallyDeniedIndices, statefulAliasState);
+                        universallyDeniedIndices, statefulIndexMaxHeapSize, statefulAliasState);
                 StatefulPermissions.DataStream statefulDataStream = new StatefulPermissions.DataStream(roles, actionGroups, actions, indexMetadata,
-                        universallyDeniedIndices, statefulDataStreamState);
+                        universallyDeniedIndices, statefulIndexMaxHeapSize, statefulDataStreamState);
 
                 this.stateful = new StatefulPermissions(statefulIndex, statefulAlias, statefulDataStream, indexMetadata);
             }
@@ -319,17 +343,17 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 checkWellKnownActionsWithIndexPatternsViaParentAliases(context, localContext, shallowCheckTable, resolved, meter);
             }
 
-            // If all actions are well-known, the index.rolesToActionToIndexPattern data structure that was evaluated above,
+            // If all actions are well-known and performance critical, the index.rolesToActionToIndexPattern data structure that was evaluated above,
             // would have contained all the actions if privileges are provided. If there are non-well-known actions among the
             // actions, we also have to evaluate action patterns to check the authorization
-            boolean allActionsWellKnown = actions.forAllApplies((a) -> a instanceof WellKnownAction);
+            boolean coveredByStateful = stateful != null && actions.forAllApplies((a) -> a instanceof WellKnownAction && ((WellKnownAction<?,?,?>) a).isPerformanceCritical()) && stateful.covers(resolved.getLocal().getUnion());
 
-            if (!shallowCheckTable.isComplete() && !allActionsWellKnown) {
+            if (!shallowCheckTable.isComplete() && !coveredByStateful) {
                 checkNonWellKnownActions(context, localContext, shallowCheckTable, !resolved.getLocal().getAliases().isEmpty(),
                         !resolved.getLocal().getDataStreams().isEmpty(), meter);
             }
 
-            if (!shallowCheckTable.isComplete() && !allActionsWellKnown && resolved.getLocal().hasAliasOrDataStreamMembers()) {
+            if (!shallowCheckTable.isComplete() && !coveredByStateful && resolved.getLocal().hasAliasOrDataStreamMembers()) {
                 checkNonWellKnownActionsViaParentAliases(context, localContext, shallowCheckTable, resolved, meter);
             }
 
@@ -434,7 +458,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     // would have contained all the actions if privileges are provided. If there are non-well-known actions among the
                     // actions, we also have to evaluate action patterns to check the authorization
 
-                    if (!semiDeepCheckTable.isComplete() && !allActionsWellKnown) {
+                    if (!semiDeepCheckTable.isComplete() && !coveredByStateful) {
                         checkNonWellKnownActions(context, localContext, semiDeepCheckTable, false, true, meter);
                     }
 
@@ -487,7 +511,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 // would have contained all the actions if privileges are provided. If there are non-well-known actions among the
                 // actions, we also have to evaluate action patterns to check the authorization
 
-                if (!deepCheckTable.isComplete() && !allActionsWellKnown) {
+                if (!deepCheckTable.isComplete() && !coveredByStateful) {
                     checkNonWellKnownActions(context, localContext, deepCheckTable, false, false, meter);
                 }
 
@@ -600,7 +624,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 }
             }
         }
-    }
+    } 
+
 
     private void checkWellKnownActionsWithIndexPatternsForDeepCheckTable(PrivilegesEvaluationContext context, LocalContext localContext,
             CheckTable<Meta.IndexLikeObject, Action> deepCheckTable, ResolvedIndices resolved, Meter meter) {
@@ -725,7 +750,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                             }
 
                             Collection<String> ancestorAliasNames = index.ancestorAliasNames();
-                            if (!ancestorAliasNames.isEmpty() && actionToAliasPattern != null ) {
+                            if (!ancestorAliasNames.isEmpty() && actionToAliasPattern != null) {
                                 IndexPattern indexPattern = actionToAliasPattern.get(action);
 
                                 if (indexPattern != null) {
@@ -765,11 +790,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                 if (actionPatternToIndexPattern != null || actionPatternToAliasPattern != null || actionPatternToDataStreamPattern != null) {
 
-                    for (Action action : checkTable.getColumns()) {
-                        if (action instanceof WellKnownAction) {
-                            continue;
-                        }
-
+                    for (Action action : checkTable.getIncompleteColumns()) {
                         if (actionPatternToIndexPattern != null) {
                             for (Map.Entry<Pattern, IndexPattern> entry : actionPatternToIndexPattern.entrySet()) {
                                 Pattern actionPattern = entry.getKey();
@@ -871,10 +892,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                     if (actionToAliasPattern != null || actionToDataStreamPattern != null) {
                         for (Action action : checkTable.iterateUncheckedColumns(index)) {
-                            if (action instanceof WellKnownAction) {
-                                continue;
-                            }
-
                             if (index.parentDataStreamName() != null && actionToDataStreamPattern != null) {
                                 for (Map.Entry<Pattern, IndexPattern> entry : actionToDataStreamPattern.entrySet()) {
                                     Pattern actionPattern = entry.getKey();
@@ -985,7 +1002,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         }
     }
 
-    public void update(Meta indexMetadata) {
+    private void update(Meta indexMetadata) {
         if (stateful == null || !stateful.indexMetadata.equals(indexMetadata)) {
             try (Meter meter = Meter.basic(metricsLevel, statefulIndexRebuild)) {
                 if (log.isTraceEnabled()) {
@@ -993,11 +1010,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 }
 
                 StatefulPermissions.Index statefulIndex = new StatefulPermissions.Index(roles, actionGroups, actions, indexMetadata,
-                        universallyDeniedIndices, statefulIndexState);
+                        universallyDeniedIndices, statefulIndexMaxHeapSize, statefulIndexState);
                 StatefulPermissions.Alias statefulAlias = new StatefulPermissions.Alias(roles, actionGroups, actions, indexMetadata,
-                        universallyDeniedIndices, statefulAliasState);
+                        universallyDeniedIndices, statefulIndexMaxHeapSize, statefulAliasState);
                 StatefulPermissions.DataStream statefulDataStream = new StatefulPermissions.DataStream(roles, actionGroups, actions, indexMetadata,
-                        universallyDeniedIndices, statefulDataStreamState);
+                        universallyDeniedIndices, statefulIndexMaxHeapSize, statefulDataStreamState);
 
                 this.stateful = new StatefulPermissions(statefulIndex, statefulAlias, statefulDataStream, indexMetadata);
 
@@ -1009,6 +1026,66 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             }
         }
     }
+    
+
+    /**
+     * Updates the stateful index configuration asynchronously with the index metadata from the current cluster state.
+     * As the update process can take some seconds for clusters with many indices, this method "de-bounces" the updates,
+     * i.e., a further update will be only initiated after the previous update has finished. This is okay as this class
+     * can handle the case that it do not have the most recent information. It will fall back to slower methods then.
+     */
+    public synchronized void updateStatefulIndexPrivilegesAsync(ClusterService clusterService, ThreadPool threadPool) {
+        long currentMetadataVersion = clusterService.state().metadata().version();
+
+        StatefulPermissions stateful = this.stateful;
+
+        if (stateful != null && currentMetadataVersion <= stateful.indexMetadata.version()) {
+            return;
+        }
+
+        if (this.updateFuture == null || this.updateFuture.isDone()) {
+            this.updateFuture = threadPool.generic().submit(() -> {
+                for (int i = 0;; i++) {
+                    if (i > 10) {
+                        try {
+                            // In case we got many consecutive updates, let's sleep a little to let
+                            // other operations catch up.
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            return;
+                        }
+                    }
+                    
+                    Meta indexMetadata = Meta.from(clusterService);
+
+                    synchronized (RoleBasedActionAuthorization.this) {
+                        if (indexMetadata.version() <= RoleBasedActionAuthorization.this.stateful.indexMetadata.version()) {
+                            return;
+                        }
+                    }
+
+                    try {
+                        log.debug("Updating ActionPrivileges with metadata version {}", indexMetadata.version());
+                        update(indexMetadata);
+                    } catch (Exception e) {
+                        log.error("Error while updating ActionPrivileges", e);
+                    } finally {
+                        synchronized (RoleBasedActionAuthorization.this) {
+                            if (RoleBasedActionAuthorization.this.updateFuture.isCancelled()) {
+                                return;
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    public synchronized void shutdown() {
+        if (this.updateFuture != null && !this.updateFuture.isDone()) {
+            this.updateFuture.cancel(true);
+        }
+    }    
 
     static class ClusterPermissions implements ComponentStateProvider {
         private final ImmutableMap<Action, ImmutableSet<String>> actionToRoles;
@@ -1357,6 +1434,22 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             this.indexMetadata = indexMetadata;
         }
 
+        boolean covers(Set<Meta.IndexLikeObject> indexLikeObjects) {
+            for (Meta.IndexLikeObject indexLike : indexLikeObjects) {
+                if (!indexLike.exists()) {
+                    return false;
+                }
+                
+                Meta.IndexLikeObject covered = indexMetadata.getIndexOrLike(indexLike.name());
+                
+                if (covered == null || !covered.equals(indexLike)) {
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+        
         /**
          * Objects of this class collect permissions related to concrete, existing indices. These permissions are sourced from the roles configuration; in particular: the index_permissions attribute.
          * In addition, the alias_permissions attribute is also used to source permissions for the concrete indices that are members of the aliases.
@@ -1365,29 +1458,34 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
          *s we do not need to have an ultra-fast solution for this. On the other hand, there might be many backing indices, which could lead to a blow up of required heap
          */
         static class Index implements ComponentStateProvider {
-            private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> actionToIndexToRoles;
+            private final ImmutableMap<WellKnownAction<?, ?, ?>, Map<String, ImmutableCompactSubSet<String>>> actionToIndexToRoles;
             private final Meta indexMetadata;
 
             private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
             private final ComponentState componentState;
             private final Pattern universallyDeniedIndices;
+            private final int estimatedByteSize;
 
             Index(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Meta indexMetadata,
-                    Pattern universallyDeniedIndices, ComponentState componentState) {
-                ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> actionToIndexToRoles = //
-                        new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
-                                .defaultValue((k) -> new ImmutableMap.Builder<String, ImmutableSet.Builder<String>>()
-                                        .defaultValue((k2) -> new ImmutableSet.Builder<String>()));
+                    Pattern universallyDeniedIndices, ByteSizeValue statefulIndexMaxHeapSize, ComponentState componentState) {
+                Set<String> roleNames = IndexedImmutableSet.of(roles.getCEntries().keySet());                
+                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roleNames);
+                CompactMapGroupBuilder<String, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>> indexMapBuilder = new CompactMapGroupBuilder<>(
+                        indexMetadata.indexLikeObjects().keySet(), (k2) -> roleSetBuilder.createSubSetBuilder());
+
+                ImmutableMap.Builder<WellKnownAction<?, ?, ?>, CompactMapGroupBuilder.MapBuilder<String, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>>> actionToIndexToRoles = //
+                        new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, CompactMapGroupBuilder.MapBuilder<String, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>>>()
+                                .defaultValue((k) -> indexMapBuilder.createMapBuilder());
 
                 ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                         .defaultValue((k) -> new ImmutableList.Builder<Exception>());
 
                 Iterable<String> indexNames = indexMetadata.namesOfIndices();
 
-                for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
+                top: for (String roleName : roleNames) {
                     try {
-                        String roleName = entry.getKey();
-                        Role role = entry.getValue();
+                        Role role = roles.getCEntry(roleName);
+                        roleSetBuilder.next(roleName);
 
                         for (Role.Index indexPermissions : role.getIndexPermissions()) {
                             ImmutableSet<String> permissions = actionGroups.resolve(indexPermissions.getAllowedActions());
@@ -1415,7 +1513,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
 
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActionsPerformanceCritical()
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (String index : indexPattern.iterateMatching(indexNames)) {
@@ -1455,7 +1553,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
 
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActionsPerformanceCritical()
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.IndexCollection::name)) {
@@ -1469,19 +1567,30 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                             }
                         }
 
+                        if (roleSetBuilder.getEstimatedByteSize() + indexMapBuilder.getEstimatedByteSize() > statefulIndexMaxHeapSize.getBytes()) {
+                            log.info("Size of precomputed index privileges exceeds configured limit ({}). Using capped data structure."
+                                    + "This might lead to slightly lower performance during privilege evaluation. Consider raising {} or closing unneeded indices.",
+                                    statefulIndexMaxHeapSize, PRECOMPUTED_PRIVILEGES_MAX_HEAP_SIZE);
+                            break top;
+                        }
+
                         // We do not create a stateful map for backing indices for data streams. As data streams backing indices are usually not supposed to directly used,
                         // we do not need to have an ultra-fast solution for this. On the other hand, there might be many backing indices, which could lead to a blow up of required heap
 
                     } catch (ConfigValidationException e) {
-                        log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", entry, e);
-                        rolesToInitializationErrors.get(entry.getKey()).with(e);
+                        log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", roleName, e);
+                        rolesToInitializationErrors.get(roleName).with(e);
                     } catch (Exception e) {
-                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
-                        rolesToInitializationErrors.get(entry.getKey()).with(e);
+                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", roleName, e);
+                        rolesToInitializationErrors.get(roleName).with(e);
                     }
                 }
 
-                this.actionToIndexToRoles = actionToIndexToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
+                DeduplicatingCompactSubSetBuilder.Completed<String> completedRoleSetBuilder = roleSetBuilder.build();
+
+                this.estimatedByteSize = roleSetBuilder.getEstimatedByteSize() + indexMapBuilder.getEstimatedByteSize();
+
+                this.actionToIndexToRoles = actionToIndexToRoles.build((b) -> b.build(subSetBuilder -> subSetBuilder.build(completedRoleSetBuilder)));
                 this.indexMetadata = indexMetadata;
 
                 this.universallyDeniedIndices = universallyDeniedIndices;
@@ -1498,6 +1607,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     this.componentState.setMessage("Roles with initialization errors: " + this.rolesToInitializationErrors.keySet());
                     this.componentState.addDetail(rolesToInitializationErrors);
                 }
+
+                this.componentState.addMetrics("estimated_byte_size", new Count(this.estimatedByteSize));
             }
 
             PrivilegesEvaluationResult hasPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,
@@ -1507,20 +1618,17 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     return null;
                 }
 
-                boolean allActionsWellKnown = actions.forAllApplies((a) -> a instanceof WellKnownAction);
-
-                if (!allActionsWellKnown) {
-                    // This class can operate only on well known actions
-                    return null;
-                }
-
 
                 top: for (Action action : actions) {
-                    ImmutableMap<String, ImmutableSet<String>> indexToRoles = actionToIndexToRoles.get(action);
+                    if (!(action instanceof WellKnownAction && ((WellKnownAction<?, ?,?>) action).isPerformanceCritical())) {
+                        continue;
+                    }
+                    
+                    Map<String, ImmutableCompactSubSet<String>> indexToRoles = actionToIndexToRoles.get(action);
 
                     if (indexToRoles != null) {
                         for (Meta.Index index : indices) {
-                            ImmutableSet<String> rolesWithPrivileges = indexToRoles.get(index.name());
+                            ImmutableCompactSubSet<String> rolesWithPrivileges = indexToRoles.get(index.name());
 
                             if (rolesWithPrivileges != null && rolesWithPrivileges.containsAny(mappedRoles)
                                     && !isExcluded(action, index.name(), user, mappedRoles, context)) {
@@ -1556,27 +1664,32 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
          * Objects of this class collect permissions related to concrete aliases. These permissions are sourced from the alias_permissions attribute of the roles configuration
          */
         static class Alias implements ComponentStateProvider {
-            private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> actionToAliasToRoles;
+            private final ImmutableMap<WellKnownAction<?, ?, ?>, Map<String, ImmutableCompactSubSet<String>>> actionToAliasToRoles;
             private final Meta indexMetadata;
 
             private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
             private final ComponentState componentState;
             private final Pattern universallyDeniedIndices;
+            private final int estimatedByteSize;
 
             Alias(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Meta indexMetadata,
-                    Pattern universallyDeniedIndices, ComponentState componentState) {
-                ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> actionToAliasToRoles = //
-                        new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
-                                .defaultValue((k) -> new ImmutableMap.Builder<String, ImmutableSet.Builder<String>>()
-                                        .defaultValue((k2) -> new ImmutableSet.Builder<String>()));
+                    Pattern universallyDeniedIndices, ByteSizeValue statefulIndexMaxHeapSize, ComponentState componentState) {
+                Set<String> roleNames = IndexedImmutableSet.of(roles.getCEntries().keySet());                
+                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roleNames);
+                CompactMapGroupBuilder<String, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>> indexMapBuilder = new CompactMapGroupBuilder<>(
+                        indexMetadata.indexLikeObjects().keySet(), (k2) -> roleSetBuilder.createSubSetBuilder());
+
+                ImmutableMap.Builder<WellKnownAction<?, ?, ?>, CompactMapGroupBuilder.MapBuilder<String, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>>> actionToAliasToRoles = //
+                        new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, CompactMapGroupBuilder.MapBuilder<String, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>>>()
+                                .defaultValue((k) -> indexMapBuilder.createMapBuilder());
 
                 ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                         .defaultValue((k) -> new ImmutableList.Builder<Exception>());
 
-                for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
+                top: for (String roleName : roleNames) {
                     try {
-                        String roleName = entry.getKey();
-                        Role role = entry.getValue();
+                        Role role = roles.getCEntry(roleName);
+                        roleSetBuilder.next(roleName);
 
                         for (Role.Alias aliasPermissions : role.getAliasPermissions()) {
                             ImmutableSet<String> permissions = actionGroups.resolve(aliasPermissions.getAllowedActions());
@@ -1605,7 +1718,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
 
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActionsPerformanceCritical()
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (Meta.Alias alias : indexPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::name)) {
@@ -1615,18 +1728,28 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     }
                                 }
                             }
+
+                            if (roleSetBuilder.getEstimatedByteSize() + indexMapBuilder.getEstimatedByteSize() > statefulIndexMaxHeapSize
+                                    .getBytes()) {
+                                log.info("Size of precomputed index privileges exceeds configured limit ({}). Using capped data structure."
+                                        + "This might lead to slightly lower performance during privilege evaluation. Consider raising {} or closing unneeded indices.",
+                                        statefulIndexMaxHeapSize, PRECOMPUTED_PRIVILEGES_MAX_HEAP_SIZE);
+                                break top;
+                            }
                         }
 
                     } catch (ConfigValidationException e) {
-                        log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", entry, e);
-                        rolesToInitializationErrors.get(entry.getKey()).with(e);
+                        log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", roleName, e);
+                        rolesToInitializationErrors.get(roleName).with(e);
                     } catch (Exception e) {
-                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
-                        rolesToInitializationErrors.get(entry.getKey()).with(e);
+                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", roleName, e);
+                        rolesToInitializationErrors.get(roleName).with(e);
                     }
                 }
 
-                this.actionToAliasToRoles = actionToAliasToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
+                DeduplicatingCompactSubSetBuilder.Completed<String> completedRoleSetBuilder = roleSetBuilder.build();
+                this.estimatedByteSize = roleSetBuilder.getEstimatedByteSize() + indexMapBuilder.getEstimatedByteSize();
+                this.actionToAliasToRoles = actionToAliasToRoles.build((b) -> b.build(subSetBuilder -> subSetBuilder.build(completedRoleSetBuilder)));
                 this.indexMetadata = indexMetadata;
 
                 this.universallyDeniedIndices = universallyDeniedIndices;
@@ -1644,6 +1767,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     this.componentState.setMessage("Roles with initialization errors: " + this.rolesToInitializationErrors.keySet());
                     this.componentState.addDetail(rolesToInitializationErrors);
                 }
+
+                this.componentState.addMetrics("estimated_byte_size", new Count(this.estimatedByteSize));
             }
 
             PrivilegesEvaluationResult hasPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,
@@ -1654,19 +1779,16 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     return null;
                 }
 
-                boolean allActionsWellKnown = actions.forAllApplies((a) -> a instanceof WellKnownAction);
-
-                if (!allActionsWellKnown) {
-                    // This class can operate only on well known actions
-                    return null;
-                }
-
                 top: for (Action action : actions) {
-                    ImmutableMap<String, ImmutableSet<String>> aliasToRoles = actionToAliasToRoles.get(action);
+                    if (!(action instanceof WellKnownAction && ((WellKnownAction<?, ?,?>) action).isPerformanceCritical())) {
+                        continue;
+                    }
+                    
+                    Map<String, ImmutableCompactSubSet<String>> aliasToRoles = actionToAliasToRoles.get(action);
 
                     if (aliasToRoles != null) {
                         for (Meta.Alias alias : aliases) {
-                            ImmutableSet<String> rolesWithPrivileges = aliasToRoles.get(alias.name());
+                            ImmutableCompactSubSet<String> rolesWithPrivileges = aliasToRoles.get(alias.name());
 
                             if (rolesWithPrivileges != null && rolesWithPrivileges.containsAny(mappedRoles)
                                     && !isExcluded(action, alias.name(), user, mappedRoles, context)) {
@@ -1707,29 +1829,34 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
          * Objects of this class collect permissions related to concrete data streams. These permissions are sourced from the data_stream_permissions attribute of the roles configuration
          */
         static class DataStream implements ComponentStateProvider {
-            private final ImmutableMap<WellKnownAction<?, ?, ?>, ImmutableMap<String, ImmutableSet<String>>> actionToAliasToRoles;
+            private final ImmutableMap<WellKnownAction<?, ?, ?>, Map<String, ImmutableCompactSubSet<String>>> actionToAliasToRoles;
             private final Meta indexMetadata;
 
             private final ImmutableMap<String, ImmutableList<Exception>> rolesToInitializationErrors;
             private final ComponentState componentState;
             private final Pattern universallyDeniedIndices;
+            private final int estimatedByteSize;
 
             DataStream(SgDynamicConfiguration<Role> roles, ActionGroup.FlattenedIndex actionGroups, Actions actions, Meta indexMetadata,
-                    Pattern universallyDeniedIndices, ComponentState componentState) {
-                ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>> actionToDataStreamToRoles = //
-                        new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, ImmutableMap.Builder<String, ImmutableSet.Builder<String>>>()
-                                .defaultValue((k) -> new ImmutableMap.Builder<String, ImmutableSet.Builder<String>>()
-                                        .defaultValue((k2) -> new ImmutableSet.Builder<String>()));
+                    Pattern universallyDeniedIndices, ByteSizeValue statefulIndexMaxHeapSize, ComponentState componentState) {
+                Set<String> roleNames = IndexedImmutableSet.of(roles.getCEntries().keySet());                
+                DeduplicatingCompactSubSetBuilder<String> roleSetBuilder = new DeduplicatingCompactSubSetBuilder<>(roleNames);
+                CompactMapGroupBuilder<String, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>> indexMapBuilder = new CompactMapGroupBuilder<>(
+                        indexMetadata.indexLikeObjects().keySet(), (k2) -> roleSetBuilder.createSubSetBuilder());
+
+                ImmutableMap.Builder<WellKnownAction<?, ?, ?>, CompactMapGroupBuilder.MapBuilder<String, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>>> actionToDataStreamToRoles = //
+                        new ImmutableMap.Builder<WellKnownAction<?, ?, ?>, CompactMapGroupBuilder.MapBuilder<String, DeduplicatingCompactSubSetBuilder.SubSetBuilder<String>>>()
+                                .defaultValue((k) -> indexMapBuilder.createMapBuilder());
 
                 ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                         .defaultValue((k) -> new ImmutableList.Builder<Exception>());
 
                 Set<String> dataStreamNames = indexMetadata.dataStreams().map(Meta.DataStream::name);
 
-                for (Map.Entry<String, Role> entry : roles.getCEntries().entrySet()) {
+                top: for (String roleName : roleNames) {
                     try {
-                        String roleName = entry.getKey();
-                        Role role = entry.getValue();
+                        Role role = roles.getCEntries().get(roleName);
+                        roleSetBuilder.next(roleName);
 
                         for (Role.DataStream dataStreamPermissions : role.getDataStreamPermissions()) {
                             ImmutableSet<String> permissions = actionGroups.resolve(dataStreamPermissions.getAllowedActions());
@@ -1757,8 +1884,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     }
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
-
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActionsPerformanceCritical()
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (String alias : indexPattern.iterateMatching(dataStreamNames)) {
@@ -1801,7 +1927,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 } else {
                                     Pattern pattern = Pattern.create(permission);
 
-                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActions()
+                                    ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActionsPerformanceCritical()
                                             .matching((a) -> pattern.matches(a.name()));
 
                                     for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.IndexCollection::name)) {
@@ -1818,16 +1944,28 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                             }
                         }
 
+                        if (roleSetBuilder.getEstimatedByteSize() + indexMapBuilder.getEstimatedByteSize() > statefulIndexMaxHeapSize.getBytes()) {
+                            log.info("Size of precomputed index privileges exceeds configured limit ({}). Using capped data structure."
+                                    + "This might lead to slightly lower performance during privilege evaluation. Consider raising {} or closing unneeded indices.",
+                                    statefulIndexMaxHeapSize, PRECOMPUTED_PRIVILEGES_MAX_HEAP_SIZE);
+                            break top;
+                        }
+
                     } catch (ConfigValidationException e) {
-                        log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", entry, e);
-                        rolesToInitializationErrors.get(entry.getKey()).with(e);
+                        log.error("Invalid pattern in role: {}\nThis should have been caught before. Ignoring role.", roleName, e);
+                        rolesToInitializationErrors.get(roleName).with(e);
                     } catch (Exception e) {
-                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", entry, e);
-                        rolesToInitializationErrors.get(entry.getKey()).with(e);
+                        log.error("Unexpected exception while processing role: {}\nIgnoring role.", roleName, e);
+                        rolesToInitializationErrors.get(roleName).with(e);
                     }
                 }
 
-                this.actionToAliasToRoles = actionToDataStreamToRoles.build((b) -> b.build(ImmutableSet.Builder::build));
+                DeduplicatingCompactSubSetBuilder.Completed<String> completedRoleSetBuilder = roleSetBuilder.build();
+
+                this.estimatedByteSize = roleSetBuilder.getEstimatedByteSize() + indexMapBuilder.getEstimatedByteSize();
+
+                this.actionToAliasToRoles = actionToDataStreamToRoles
+                        .build((b) -> b.build(subSetBuilder -> subSetBuilder.build(completedRoleSetBuilder)));
                 this.indexMetadata = indexMetadata;
 
                 this.universallyDeniedIndices = universallyDeniedIndices;
@@ -1855,19 +1993,17 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     return null;
                 }
 
-                boolean allActionsWellKnown = actions.forAllApplies((a) -> a instanceof WellKnownAction);
-
-                if (!allActionsWellKnown) {
-                    // This class can operate only on well known actions
-                    return null;
-                }
-
+         
                 top: for (Action action : actions) {
-                    ImmutableMap<String, ImmutableSet<String>> aliasToRoles = actionToAliasToRoles.get(action);
+                    if (!(action instanceof WellKnownAction && ((WellKnownAction<?, ?,?>) action).isPerformanceCritical())) {
+                        continue;
+                    }
+                    
+                    Map<String, ImmutableCompactSubSet<String>> aliasToRoles = actionToAliasToRoles.get(action);
 
                     if (aliasToRoles != null) {
                         for (Meta.DataStream dataStream : dataStreams) {
-                            ImmutableSet<String> rolesWithPrivileges = aliasToRoles.get(dataStream.name());
+                            ImmutableCompactSubSet<String> rolesWithPrivileges = aliasToRoles.get(dataStream.name());
 
                             if (rolesWithPrivileges != null && rolesWithPrivileges.containsAny(mappedRoles)
                                     && !isExcluded(action, dataStream.name(), user, mappedRoles, context)) {

@@ -20,11 +20,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Future;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
@@ -50,6 +52,8 @@ public class DlsFlsProcessedConfig {
     private final boolean validationErrorsPresent;
     private final String validationErrorDescription;
     private final String uniqueValidationErrorToken;
+    private Future<?> updateFuture;
+    private long metadataVersionEffective;
 
     DlsFlsProcessedConfig(DlsFlsConfig dlsFlsConfig, RoleBasedDocumentAuthorization documentAuthorization,
             RoleBasedFieldAuthorization fieldAuthorization, RoleBasedFieldMasking fieldMasking, ValidationErrors rolesValidationErrors,
@@ -141,7 +145,7 @@ public class DlsFlsProcessedConfig {
         return dlsFlsConfig.getMetricsLevel();
     }
 
-    public void updateIndices(Meta indexMetadata) {
+    private void updateIndices(Meta indexMetadata) {
         if (documentAuthorization != null) {
             documentAuthorization.updateIndices(indexMetadata);
         }
@@ -154,6 +158,59 @@ public class DlsFlsProcessedConfig {
             fieldMasking.updateIndices(indexMetadata);
         }
     }
+    
+    public synchronized void updateIndicesAsync(ClusterService clusterService, ThreadPool threadPool) {
+        long currentMetadataVersion = clusterService.state().metadata().version();
+
+        if (currentMetadataVersion <= this.metadataVersionEffective) {
+            return;
+        }
+
+        if (this.updateFuture == null || this.updateFuture.isDone()) {
+            this.updateFuture = threadPool.generic().submit(() -> {
+                for (int i = 0;; i++) {
+                    if (i > 10) {
+                        try {
+                            // In case we got many consecutive updates, let's sleep a little to let
+                            // other operations catch up.
+                            Thread.sleep(100);
+                        } catch (InterruptedException e) {
+                            return;
+                        }
+                    }
+
+                    Meta indexMetadata = Meta.from(clusterService);
+
+                    synchronized (DlsFlsProcessedConfig.this) {
+                        if (indexMetadata.version() <= DlsFlsProcessedConfig.this.metadataVersionEffective) {
+                            return;
+                        }
+                    }
+
+                    try {
+                        log.debug("Updating DlsFlsProcessedConfig with metadata version {}", indexMetadata.version());
+                        updateIndices(indexMetadata);
+                    } catch (Exception e) {
+                        log.error("Error while updating DlsFlsProcessedConfig", e);
+                    } finally {
+                        synchronized (DlsFlsProcessedConfig.this) {
+                            DlsFlsProcessedConfig.this.metadataVersionEffective = indexMetadata.version();
+                            if (DlsFlsProcessedConfig.this.updateFuture.isCancelled()) {
+                                return;
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    public synchronized void shutdown() {
+        if (this.updateFuture != null && !this.updateFuture.isDone()) {
+            this.updateFuture.cancel(true);
+        }
+    }
+    
     public boolean containsValidationError() {
         return validationErrorsPresent;
     }

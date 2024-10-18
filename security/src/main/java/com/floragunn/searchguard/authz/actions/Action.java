@@ -108,14 +108,14 @@ public interface Action {
         private final AliasDataStreamHandling aliasDataStreamHandling;
         private final Meta.Alias.ResolutionMode aliasResolutionMode;
         private final ImmutableSet<AdditionalDimension> additionalDimensions;
-
+        private final boolean performanceCritical;
 
         public WellKnownAction(String actionName, Scope scope, Class<RequestType> requestType, String requestTypeName,
                 ImmutableList<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges,
                 ImmutableMap<RequestItemType, ImmutableSet<String>> additionalPrivilegesByItemType,
                 RequestItems<RequestType, RequestItem, RequestItemType> requestItems, Resources resources,
                 AliasDataStreamHandling aliasDataStreamHandling, Meta.Alias.ResolutionMode aliasResolutionMode,
-                ImmutableSet<AdditionalDimension> additionalDimensions, Actions actions) {
+                ImmutableSet<AdditionalDimension> additionalDimensions, boolean performanceCritical, Actions actions) {
             this.actionName = actionName;
             this.scope = scope;
             this.requestType = requestType;
@@ -129,6 +129,7 @@ public interface Action {
             this.aliasDataStreamHandling = aliasDataStreamHandling;
             this.aliasResolutionMode = aliasResolutionMode;
             this.additionalDimensions = additionalDimensions;
+            this.performanceCritical = performanceCritical;
         }
 
         @Override
@@ -484,6 +485,10 @@ public interface Action {
         @Override
         public ImmutableSet<AdditionalDimension> additionalDimensions() {
             return additionalDimensions;
+        }
+
+        public boolean isPerformanceCritical() {
+            return performanceCritical;
         }
     }
 
