@@ -634,8 +634,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             ImmutableSet<String> mappedRoles = context.getMappedRoles();
 
             for (String role : mappedRoles) {
-                // TODO optimize conversion to Collection<ResolvedType> resolvedIndexLikeObjects
-                if (checkWellKnownActionsWithIndexPatterns2(context, localContext, user, deepCheckTable, role, deepCheckTable.getRows(), this.index,
+                if (checkWellKnownActionsWithIndexPatterns(context, localContext, user, deepCheckTable, role, deepCheckTable.getRows(), this.index,
                         subMeter)) {
                     return;
                 }
@@ -658,41 +657,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         if (!checkTable.isChecked(indexLike, action)) {
                             try {
                                 if (indexPattern.matches(indexLike.name(), user, context, meter) && checkTable.check(indexLike, action)) {
-                                    return true;
-                                }
-                            } catch (PrivilegesEvaluationException e) {
-                                // We can ignore these errors, as this max leads to fewer privileges than available
-                                log.error("Error while evaluating index pattern of role {}. Ignoring entry", role, e);
-                                this.componentState.addLastException("has_index_permission", e);
-                                localContext.add(new PrivilegesEvaluationResult.Error("Error while evaluating index pattern", e, role));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * TODO merge with checkWellKnownActionsWithIndexPatterns
-     */
-    private <PrivilegeType extends Role.Index, ResolvedType extends Meta.IndexLikeObject> boolean checkWellKnownActionsWithIndexPatterns2(
-            PrivilegesEvaluationContext context, LocalContext localContext, User user, CheckTable<Meta.IndexLikeObject, Action> checkTable,
-            String role, Collection<Meta.IndexLikeObject> resolvedIndexLikeObjects, IndexPermissions<PrivilegeType> indexPermissions, Meter meter) {
-
-        ImmutableMap<Action, IndexPattern> actionToIndexPattern = indexPermissions.rolesToActionToIndexPattern.get(role);
-
-        if (actionToIndexPattern != null) {
-            for (Action action : checkTable.getColumns()) {
-                IndexPattern indexPattern = actionToIndexPattern.get(action);
-
-                if (indexPattern != null) {
-                    for (Meta.IndexLikeObject index : resolvedIndexLikeObjects) {
-                        if (!checkTable.isChecked(index, action)) {
-                            try {
-                                if (indexPattern.matches(index.name(), user, context, meter) && checkTable.check(index, action)) {
                                     return true;
                                 }
                             } catch (PrivilegesEvaluationException e) {

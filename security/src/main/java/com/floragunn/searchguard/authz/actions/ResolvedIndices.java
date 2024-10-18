@@ -40,9 +40,8 @@ import com.floragunn.searchsupport.queries.DateMathExpressionResolver;
 import com.floragunn.searchsupport.queries.WildcardExpressionResolver;
 
 public class ResolvedIndices {
-    
-    final static ResolvedIndices LOCAL_ALL = new ResolvedIndices(true, ResolvedIndices.Local.EMPTY, ImmutableSet.empty(),
-            ImmutableSet.empty());
+
+    final static ResolvedIndices LOCAL_ALL = new ResolvedIndices(true, ResolvedIndices.Local.EMPTY, ImmutableSet.empty(), ImmutableSet.empty());
     final static ResolvedIndices EMPTY = new ResolvedIndices(false, ResolvedIndices.Local.EMPTY, ImmutableSet.empty(), ImmutableSet.empty());
 
     private final static Logger log = LogManager.getLogger(ResolvedIndices.class);
@@ -166,13 +165,6 @@ public class ResolvedIndices {
     /**
      * Only for testing!
      */
-    public ResolvedIndices localIndices(String... localIndices) {
-        return new ResolvedIndices(false, new Local(ImmutableSet.ofArray(localIndices)), remoteIndices, ImmutableSet.empty());
-    }
-
-    /**
-     * Only for testing!
-     */
     public ResolvedIndices local(ResolvedIndices.Local local) {
         return new ResolvedIndices(false, local, remoteIndices, ImmutableSet.empty());
     }
@@ -200,18 +192,6 @@ public class ResolvedIndices {
             this.nonExistingIndices = nonExistingIndices;
             this.unionOfAliasesAndDataStreams = aliases.map(Meta.Alias::name).with(dataStreams.map(Meta.DataStream::name));
             this.union = ImmutableSet.<Meta.IndexLikeObject>of(pureIndices).with(aliases).with(dataStreams).with(this.nonExistingIndices);
-        }
-
-        /**
-         * Only for testing! TODO remove
-         */
-        Local(ImmutableSet<String> localIndices) {
-            this.pureIndices = ImmutableSet.empty();
-            this.aliases = ImmutableSet.empty();
-            this.dataStreams = ImmutableSet.empty();
-            this.nonExistingIndices = localIndices.map(Meta.NonExistent::of);
-            this.unionOfAliasesAndDataStreams = ImmutableSet.empty();
-            this.union = ImmutableSet.<Meta.IndexLikeObject>of(this.nonExistingIndices);
         }
 
         private Local(ImmutableSet<Meta.Index> pureIndices, ImmutableSet<Meta.Alias> aliases, ImmutableSet<Meta.DataStream> dataStreams,
@@ -304,50 +284,15 @@ public class ResolvedIndices {
             ImmutableSet<String> result = this.deepUnion;
 
             if (result == null) {
-                result = this.resolveDeep(aliases).with(resolveDeep(dataStreams)).with(this.union.map(Meta.IndexLikeObject::name));
+                result = Meta.IndexLikeObject.resolveDeepToNames(aliases, Meta.Alias.ResolutionMode.NORMAL)
+                        .with(Meta.IndexLikeObject.resolveDeepToNames(aliases, Meta.Alias.ResolutionMode.NORMAL))
+                        .with(this.union.map(Meta.IndexLikeObject::name));
                 this.deepUnion = result;
             }
 
             return result;
         }
-
-        /**
-         * Resolves the named alias or dataStream to its contained concrete indices. If the named alias or dataStream does not exist, or if it is an index, an empty set is returned.
-         */
-        /*
-        public ImmutableSet<String> resolveDeep(Meta.IndexCollection aliasOrDataStream) {
-            Meta.Alias alias = this.aliases.get(aliasOrDataStream);
-            if (alias != null) {
-                return alias.resolveDeepToNames();
-            }
         
-            Meta.DataStream dataStream = this.dataStreams.get(aliasOrDataStream);
-            if (dataStream != null) {
-                return dataStream.resolveDeepToNames();
-            }
-        
-            return ImmutableSet.empty();
-        }*/
-
-        public ImmutableSet<String> resolveDeep(ImmutableSet<? extends Meta.IndexCollection> aliasesAndDataStreams) {
-            // TODO think about moving to meta
-            if (aliasesAndDataStreams.size() == 0) {
-                return ImmutableSet.empty();
-            }
-
-            if (aliasesAndDataStreams.size() == 1) {
-                return aliasesAndDataStreams.only().resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL);
-            }
-
-            ImmutableSet.Builder<String> result = new ImmutableSet.Builder<>(aliasesAndDataStreams.size() * 20);
-
-            for (Meta.IndexCollection object : aliasesAndDataStreams) {
-                result.addAll(object.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL));
-            }
-
-            return result.build();
-        }
-
         public boolean hasAliasOrDataStreamMembers() {
             Boolean result = this.containsAliasOrDataStreamMembers;
 
@@ -879,11 +824,11 @@ public class ResolvedIndices {
                 // Negation is implemented in ES inconsistently:
                 // Some actions (like search) only perform it properly on indicies, but not on aliases and data streams. Thus /my_datastreams_*,-my_datastream_1/ does not have the effect one might expect.
                 // Other actions do implement it properly. The flag request.isNegationOnlyEffectiveForIndices() indicated the way we need to use
-                return;                
-            }   
+                return;
+            }
 
             excludeNames.add(index);
-            
+
             if (indexLikeObject != null) {
                 if (indexLikeObject.parentDataStreamName() != null) {
                     partiallyExcludedObjects.add(indexLikeObject.parentDataStreamName());

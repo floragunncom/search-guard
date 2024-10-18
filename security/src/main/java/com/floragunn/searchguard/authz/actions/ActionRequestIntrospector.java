@@ -362,7 +362,6 @@ public class ActionRequestIntrospector {
             log.debug("Reduced request to:\n{}\n{}", request, newInfo);
         }
 
-        // TODO optimize and check
         if (!keepIndices.containsAll(newInfo.getMainResolvedIndices().getLocal().getUnion().map(Meta.IndexLikeObject::name))) {
             throw new PrivilegesEvaluationException("Indices were not properly reduced: " + request + "; new resolved:"
                     + newInfo.getMainResolvedIndices() + "; keep: " + keepIndices);
