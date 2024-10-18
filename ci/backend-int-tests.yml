@@ -82,7 +82,7 @@ compliance_2:
   allow_failure: false
   stage: "Backend Int Tests Core"
   tags:
-    - test-large
+    - hetzner-gitlab-runner-1
   rules:
     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-SGI.*/'
       when: never
