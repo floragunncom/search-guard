@@ -112,7 +112,7 @@ public class RoleBasedFieldAuthorization
             return new FlsRule.MultiRole(entries.build());
         }
 
-        public static final FlsRule ALLOW_ALL = new FlsRule.SingleRole(ImmutableList.empty());
+        public static final FlsRule ALLOW_ALL = new FlsRule.SingleRole(ImmutableList.of(Role.Index.FlsPattern.INCLUDE_ALL));
         public static final FlsRule DENY_ALL = new FlsRule.SingleRole(ImmutableList.of(Role.Index.FlsPattern.EXCLUDE_ALL));
 
         public abstract boolean isAllowed(String field);
@@ -172,6 +172,10 @@ public class RoleBasedFieldAuthorization
             }
 
             public boolean isAllowed(String field) {
+                if (allowAll) {
+                    return true;
+                }
+                
                 if (cache == null) {
                     return internalIsAllowed(field);
                 } else {
@@ -190,7 +194,7 @@ public class RoleBasedFieldAuthorization
             private boolean internalIsAllowed(String field) {
                 field = stripKeywordSuffix(field);
 
-                boolean allowed = true;
+                boolean allowed = false;
 
                 for (Role.Index.FlsPattern pattern : this.patterns) {
                     if (pattern.getPattern().matches(field)) {
