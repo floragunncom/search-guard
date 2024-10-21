@@ -93,6 +93,7 @@ build:
        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
        echo "ES_VERSION=$ES_VERSION" >> snapshot.env
        cat snapshot.env
+       echo "Size of .m2/repository $(du -sm $CI_PROJECT_DIR/.m2/repository | awk '{print $1}') MB"
   artifacts:
     when: on_success
     paths:
@@ -105,7 +106,7 @@ build:
     key: mavenrepo
     paths:
       - .m2/repository
-   
+    policy: push
 
 
 deploy_release:
