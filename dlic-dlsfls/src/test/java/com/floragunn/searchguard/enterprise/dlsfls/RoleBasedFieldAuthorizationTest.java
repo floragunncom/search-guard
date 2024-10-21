@@ -18,7 +18,6 @@ import static com.floragunn.searchsupport.meta.Meta.Mock.indices;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
@@ -101,8 +100,6 @@ public class RoleBasedFieldAuthorizationTest {
             assertFalse(subject.toString(), subject.isAllowed(""));
         }
 
-        // TODO
-        @Ignore
         @Test
         public void singleRole_mixed() throws Exception {
             Role role = new TestSgConfig.Role("role").indexPermissions("*").fls("a*", "~a1*").on("*").toActualRole();
