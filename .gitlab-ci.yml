@@ -98,7 +98,7 @@ build:
     paths:
       - "plugin/target/releases/"
       - "snapshot.env"
-    expire_in: 12h
+    expire_in: 1 week
     reports:
       dotenv: snapshot.env
   cache:
