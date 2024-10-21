@@ -317,7 +317,23 @@ public class DataStreamAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
-    // TODO permissions on backing indices
+    /**
+     * Even if we give WRITE privileges on backing indices, bulk insert operations will not be supported, as DNFOF functionality is not available for the bulk operation.
+     * However, it would be necessary, as we get into the OK_WHEN_RESOLVED status. Delete by query will be supported, though.
+     */
+    static TestSgConfig.User LIMITED_USER_PERMISSIONS_ON_BACKING_INDICES = new TestSgConfig.User("limited_user_permissions_on_backing_indices")//
+            .description("ds_a* on backing indices")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on(".ds-ds_a*")//
+                            .indexPermissions("SGS_WRITE").on(".ds-ds_aw*"))//
+            .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2))//
+            .indexMatcher("write", limitedTo(ds_aw1, ds_aw2))//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
+            .indexMatcher("manage_alias", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user")//
             .description("unlimited")//
@@ -354,7 +370,7 @@ public class DataStreamAuthorizationReadWriteIntTests {
             LIMITED_USER_B_AUTO_PUT_ON_ALL, LIMITED_USER_B_CREATE_DS, LIMITED_USER_B_MANAGE_DS, LIMITED_USER_B_MANAGE_INDEX_ALIAS,
             LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS, LIMITED_USER_AB_MANAGE_INDEX, LIMITED_USER_C, LIMITED_USER_AB1_ALIAS,
             LIMITED_USER_AB1_ALIAS_READ_ONLY, LIMITED_READ_ONLY_ALL, LIMITED_READ_ONLY_A, LIMITED_USER_NONE,
-            INVALID_USER_INDEX_PERMISSIONS_FOR_DATA_STREAM, UNLIMITED_USER, SUPER_UNLIMITED_USER);
+            INVALID_USER_INDEX_PERMISSIONS_FOR_DATA_STREAM, LIMITED_USER_PERMISSIONS_ON_BACKING_INDICES, UNLIMITED_USER, SUPER_UNLIMITED_USER);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
@@ -423,8 +439,17 @@ public class DataStreamAuthorizationReadWriteIntTests {
                     DocNode.of("create._index", "ds_bw1", "create._id", "d1"),
                     DocNode.of("b", 1, "test", "putDocument_bulk", "@timestamp", Instant.now().toString()));
 
-            assertThat(httpResponse, containsExactly(ds_aw1, ds_bw1).at("items[*].create[?(@.result == 'created')]._index")
-                    .but(user.indexMatcher("write")).whenEmpty(200));
+            if (user == LIMITED_USER_PERMISSIONS_ON_BACKING_INDICES) {
+                // special case for this user: As there is no DNFOF functionality available for bulk[s] operations,
+                // these will also fail, even if we have write privileges on the backing indices. This is because
+                // privilege evaluation will yield OK_WHEN_RESOLVED which will need DNFOF functionality.
+                assertThat(httpResponse,
+                        containsExactly().at("items[*].create[?(@.result == 'created')]._index").but(user.indexMatcher("write")).whenEmpty(200));
+            } else {
+                assertThat(httpResponse, containsExactly(ds_aw1, ds_bw1).at("items[*].create[?(@.result == 'created')]._index")
+                        .but(user.indexMatcher("write")).whenEmpty(200));
+            }
+
         } finally {
             deleteTestDocs("putDocument_bulk", "ds_aw*,ds_bw*");
         }

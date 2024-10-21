@@ -403,6 +403,11 @@ public class IndexApiMatchers {
             return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCode);
         }
 
+        @Override
+        public boolean covers(TestIndex testIndex) {
+            return indexNameMap.containsKey(testIndex.getName());
+        }
+
     }
 
     public static class LimitedToMatcher extends AbstractIndexMatcher implements IndexMatcher {
@@ -468,6 +473,12 @@ public class IndexApiMatchers {
             } else {
                 throw new RuntimeException("Unexpected argument " + other);
             }
+        }
+        
+
+        @Override
+        public boolean covers(TestIndex testIndex) {
+            return indexNameMap.containsKey(testIndex.getName());
         }
 
         @Override
@@ -632,6 +643,12 @@ public class IndexApiMatchers {
         public boolean containsDocument(String id) {
             return true;
         }
+        
+
+        @Override
+        public boolean covers(TestIndex testIndex) {
+            return true;
+        }
     }
 
     public static class StatusCodeMatcher extends DiagnosingMatcher<Object> implements IndexMatcher {
@@ -725,6 +742,10 @@ public class IndexApiMatchers {
             return false;
         }
 
+        @Override
+        public boolean covers(TestIndex testIndex) {
+            return false;
+        }
     }
 
     public static interface IndexMatcher extends Matcher<Object> {
@@ -753,7 +774,8 @@ public class IndexApiMatchers {
         boolean containsEsInternalIndices();
         
         boolean containsDocument(String id);
-
+        
+        boolean covers(TestIndex testIndex);
     }
 
     static abstract class AbstractIndexMatcher extends DiagnosingMatcher<Object> implements IndexMatcher {
@@ -1001,6 +1023,11 @@ public class IndexApiMatchers {
             AbstractIndexMatcher base = (AbstractIndexMatcher) this.base.whenEmpty(statusCode);
             return new TermAggregationMatcher(this.term, base.indexNameMap, base.containsSearchGuardIndices, base.containsEsInternalIndices,
                     base.jsonPath, statusCode, base);
+        }
+
+        @Override
+        public boolean covers(TestIndex testIndex) {
+            return base.covers(testIndex);
         }
 
     }

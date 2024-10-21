@@ -28,6 +28,8 @@ import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.indices.SystemIndices;
 
+import com.floragunn.codova.documents.DocNode;
+
 public class TestIndex implements TestIndexLike {
 
     private final String name;
@@ -76,6 +78,10 @@ public class TestIndex implements TestIndexLike {
 
     public TestData getTestData() {
         return testData;
+    }
+    
+    public TestIndex withAdditionalDocument(String id, DocNode docNode) {
+        return new TestIndex(name, settings, testData.withAdditionalDocument(id, docNode.toMap()));
     }
 
     public static Builder name(String name) {

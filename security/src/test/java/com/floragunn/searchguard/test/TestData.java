@@ -86,8 +86,7 @@ public class TestData {
     private String timestampAttributeName;
 
     public TestData(int seed, int size, int deletedDocumentCount, int refreshAfter, int rolloverAfter,
-                    ImmutableMap<String, Object> additionalAttributes, String timestampAttributeName,
-                    Map<String, Map<String, Object>> customDocuments) {
+            ImmutableMap<String, Object> additionalAttributes, String timestampAttributeName, Map<String, Map<String, Object>> customDocuments) {
         Random random = new Random(seed);
         this.ipAddresses = createRandomIpAddresses(random);
         this.locationNames = createRandomLocationNames(random);
@@ -101,13 +100,39 @@ public class TestData {
         this.subRandomSeed = random.nextLong();
     }
 
+    private TestData(String[] ipAddresses, String[] locationNames, String[] departments, int size, int deletedDocumentCount, int refreshAfter,
+            int rolloverAfter, Map<String, Map<String, ?>> allDocuments, Map<String, Map<String, ?>> retainedDocuments,
+            Map<String, Map<String, Map<String, ?>>> documentsByDepartment, ImmutableMap<String, Object> additionalAttributes,
+            Set<String> deletedDocuments, long subRandomSeed, String timestampAttributeName) {
+        super();
+        this.ipAddresses = ipAddresses;
+        this.locationNames = locationNames;
+        this.departments = departments;
+        this.size = size;
+        this.deletedDocumentCount = deletedDocumentCount;
+        this.refreshAfter = refreshAfter;
+        this.rolloverAfter = rolloverAfter;
+        this.allDocuments = allDocuments;
+        this.retainedDocuments = retainedDocuments;
+        this.documentsByDepartment = documentsByDepartment;
+        this.additionalAttributes = additionalAttributes;
+        this.deletedDocuments = deletedDocuments;
+        this.subRandomSeed = subRandomSeed;
+        this.timestampAttributeName = timestampAttributeName;
+    }
+
+    public TestData withAdditionalDocument(String id, Map<String, Object> content) {
+        return new TestData(ipAddresses, locationNames, departments, size, deletedDocumentCount, refreshAfter, rolloverAfter,
+                ImmutableMap.of(allDocuments).with(id, content), ImmutableMap.of(retainedDocuments).with(id, content), documentsByDepartment,
+                additionalAttributes, deletedDocuments, subRandomSeed, timestampAttributeName);
+    }
+
     public void createIndex(Client client, String name, Settings settings) {
         log.info("creating test index " + name + "; size: " + size + "; deletedDocumentCount: " + deletedDocumentCount + "; refreshAfter: "
                 + refreshAfter);
 
         Random random = new Random(subRandomSeed);
         long start = System.currentTimeMillis();
-
 
         client.admin().indices()
                 .create(new CreateIndexRequest(name).settings(settings).simpleMapping(timestampAttributeName, "type=date,format=date_optional_time"))
@@ -294,19 +319,17 @@ public class TestData {
         return result.toArray(new String[result.size()]);
     }
 
-    private ImmutableMap<String, Object>  randomDocument(Random random) {
+    private ImmutableMap<String, Object> randomDocument(Random random) {
         return ImmutableMap
                 .<String, Object>of("source_ip", randomIpAddress(random), "dest_ip", randomIpAddress(random), "source_loc",
                         randomLocationName(random), "dest_loc", randomLocationName(random), "dept", randomDepartmentName(random))
-                .with(timestampAttributeName, randomTimestamp(random))
-                .with(Optional.ofNullable(additionalAttributes).orElse(ImmutableMap.empty()));
+                .with(timestampAttributeName, randomTimestamp(random)).with(Optional.ofNullable(additionalAttributes).orElse(ImmutableMap.empty()));
     }
 
     private Map<String, Map<String, Object>> addTestDocAttributesToCustomDocuments(Random random, Map<String, Map<String, Object>> customDocuments) {
         HashMap<String, Map<String, Object>> customDocsWithTestAttributes = new HashMap<>(customDocuments.size());
         customDocuments.forEach((customDocId, customDocSource) -> {
-            ImmutableMap<String, Object> customDocWithTestAttributes = randomDocument(random)
-                    .with(ImmutableMap.of(customDocSource));
+            ImmutableMap<String, Object> customDocWithTestAttributes = randomDocument(random).with(ImmutableMap.of(customDocSource));
             customDocsWithTestAttributes.put(customDocId, customDocWithTestAttributes);
 
         });
@@ -369,7 +392,7 @@ public class TestData {
 
         return new TestDocument(entry.getKey(), entry.getValue());
     }
-    
+
     public TestDocument anyDocumentForDepartment(String dept) {
         Map<String, Map<String, ?>> docs = this.documentsByDepartment.get(dept);
 
@@ -392,7 +415,7 @@ public class TestData {
         private final ImmutableMap<String, Map<String, Object>> customDocuments;
 
         public Key(int seed, int size, int deletedDocumentCount, int refreshAfter, ImmutableMap<String, Object> additionalAttributes,
-                   ImmutableMap<String, Map<String, Object>> customDocuments) {
+                ImmutableMap<String, Map<String, Object>> customDocuments) {
             super();
             this.seed = seed;
             this.size = size;
@@ -562,4 +585,5 @@ public class TestData {
             return "/" + index + "/_doc/" + id;
         }
     }
+
 }

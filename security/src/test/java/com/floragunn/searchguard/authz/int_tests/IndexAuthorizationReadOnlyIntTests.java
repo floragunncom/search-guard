@@ -62,10 +62,6 @@ import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
-/**
- * TODO negation auf static: aa,-a*
- *
- */
 @RunWith(Parameterized.class)
 public class IndexAuthorizationReadOnlyIntTests {
     @ClassRule
