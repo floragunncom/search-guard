@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -55,6 +56,7 @@ import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.plugins.Plugin;
 import org.junit.rules.ExternalResource;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.fluent.collections.CheckList;
@@ -85,6 +87,8 @@ import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.TestSgConfig.UserPassword;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.google.common.base.Strings;
+
+import static java.util.stream.Collectors.joining;
 
 /**
  * Test resource class for starting ES clusters for integration tests.
@@ -315,6 +319,25 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         return localEsCluster.random;
     }
 
+    /**
+     * Returns the documents stored in the given indices in the form of a search result. 
+     * 
+     * Note: This method is not supposed to be used for testing the search API - this is reflected by the use of the admin cert user. 
+     * Rather, this method can be used to verify the existence or non-existence of documents as a pre- oder post-condition of other operations. It pairs well with 
+     * the IndexApiMatchers class.
+     */
+    public List<DocNode> documents(TestIndex ...indices) throws Exception {        
+        try (GenericRestClient client = getAdminCertRestClient()) {
+            GenericRestClient.HttpResponse response = client.get("/" + Stream.of(indices).map(TestIndex::getName).collect(joining(",")) + "/_search?size=10000");
+            
+            if (response.getStatusCode() == 404) {
+                return ImmutableList.empty();
+            }
+            
+            return response.getBodyAsDocNode().getAsNode("hits").getAsListOfNodes("hits");
+        }
+    }
+    
     protected void start() {
         try {
             if (externalProcessCluster) {

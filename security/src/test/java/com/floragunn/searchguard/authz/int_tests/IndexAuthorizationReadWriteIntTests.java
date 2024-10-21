@@ -25,6 +25,7 @@ import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncluding
 import static com.floragunn.searchguard.test.RestMatchers.isBadRequest;
 import static com.floragunn.searchguard.test.RestMatchers.isCreated;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
+import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
@@ -34,6 +35,8 @@ import static org.hamcrest.core.IsEqual.equalTo;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+
+import javax.annotation.concurrent.NotThreadSafe;
 
 import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
@@ -51,20 +54,16 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.IndexApiMatchers.IndexMatcher;
 import com.floragunn.searchguard.test.TestAlias;
 import com.floragunn.searchguard.test.TestIndex;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-
-import javax.annotation.concurrent.NotThreadSafe;
 
 @RunWith(Parameterized.class)
 @NotThreadSafe
 public class IndexAuthorizationReadWriteIntTests {
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     static TestIndex index_ar1 = TestIndex.name("index_ar1").documentCount(10).build();
     static TestIndex index_ar2 = TestIndex.name("index_ar2").documentCount(10).build();
@@ -82,7 +81,7 @@ public class IndexAuthorizationReadWriteIntTests {
     static TestAlias alias_ab1w = new TestAlias("alias_ab1w", index_aw1, index_aw2, index_bw1).writeIndex(index_aw1);
     static TestAlias alias_ab1w_nowriteindex = new TestAlias("alias_ab1w_nowriteindex", index_aw1, index_aw2, index_bw1);
 
-    static TestAlias alias_c1 = new TestAlias("alias_c1", index_cr1);
+    static TestAlias alias_c1 = new TestAlias("alias_c1", index_cr1, index_cw1);
 
     static TestIndex index_bwx1 = TestIndex.name("index_bwx1").documentCount(0).build(); // not initially created
     static TestIndex index_bwx2 = TestIndex.name("index_bwx2").documentCount(0).build(); // not initially created
@@ -233,7 +232,8 @@ public class IndexAuthorizationReadWriteIntTests {
                             .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get").on("alias_ab1r")//
                             .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get", "SGS_WRITE", "indices:admin/refresh*")
                             .on("alias_ab1w*"))//
-            .indexMatcher("read", limitedTo(index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_bw1, alias_ab1r, alias_ab1w, alias_ab1w_nowriteindex))//
+            .indexMatcher("read",
+                    limitedTo(index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_bw1, alias_ab1r, alias_ab1w, alias_ab1w_nowriteindex))//
             .indexMatcher("write", limitedTo(index_aw1, index_aw2, index_bw1, alias_ab1w, alias_ab1w_nowriteindex))//
             .indexMatcher("create_index", limitedTo(index_aw1, index_aw2, index_bw1))//
             .indexMatcher("manage_index", limitedToNone())//
@@ -253,16 +253,18 @@ public class IndexAuthorizationReadWriteIntTests {
             .indexMatcher("manage_index", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone());
 
-    /* TODO
     static TestSgConfig.User LIMITED_USER_ALIAS_C1 = new TestSgConfig.User("limited_user_alias_C1")//
             .description("alias_c1")//
             .roles(//
                     new Role("r1")//
-                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
-                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("alias_c1"))//
-            .indexMatcher("read", limitedTo(index_cr1, alias_c1))//
-            .indexMatcher("get_alias", limitedToNone());
-            */
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .aliasPermissions("SGS_READ", "SGS_WRITE", "SGS_INDICES_MONITOR").on("alias_c1"))//
+            .indexMatcher("read", limitedTo(index_cr1, index_cw1, alias_c1))//
+            .indexMatcher("write", limitedTo(index_cr1, index_cw1, alias_c1)) // 
+            .indexMatcher("create_index", limitedTo(index_cw1))//
+            .indexMatcher("manage_index", limitedToNone())//
+            .indexMatcher("manage_alias", limitedToNone())//
+            .indexMatcher("get_alias", limitedTo(alias_c1));
 
     static TestSgConfig.User LIMITED_READ_ONLY_ALL = new TestSgConfig.User("limited_read_only_all")//
             .description("read/only on *")//
@@ -346,24 +348,10 @@ public class IndexAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", unlimitedIncludingSearchGuardIndices())//
             .indexMatcher("get_alias", unlimitedIncludingSearchGuardIndices());
 
-    /*
-    static TestSgConfig.User LIMITED_USER_D = new TestSgConfig.User("limited_user_D").roles(//
-            new Role("limited_user_d_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")
-                    .indexPermissions("SGS_CRUD", "indices:admin/refresh", "indices:data/write/delete/byquery").on("d*"));
-    
-    static TestSgConfig.User LIMITED_USER_A_B1 = new TestSgConfig.User("limited_user_A_B1").roles(//
-            new Role("limited_user_a_b1_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("a*")
-                    .indexPermissions("SGS_CRUD").on("b1"));
-    */
-
-    /*
-    static TestSgConfig.User LIMITED_USER_A_WITHOUT_ANALYZE = new TestSgConfig.User("limited_user_A_without_analyze").roles(//
-            new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("indices:data/read*").on("a*"));
-    */
     static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B_CREATE_INDEX, LIMITED_USER_B_MANAGE_INDEX,
             LIMITED_USER_B_MANAGE_INDEX_ALIAS, LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS, LIMITED_USER_AB_MANAGE_INDEX, LIMITED_USER_C,
-            LIMITED_USER_AB1_ALIAS, LIMITED_USER_AB1_ALIAS_READ_ONLY, LIMITED_READ_ONLY_ALL, LIMITED_READ_ONLY_A, LIMITED_USER_NONE,
-            INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS, UNLIMITED_USER, SUPER_UNLIMITED_USER);
+            LIMITED_USER_AB1_ALIAS, LIMITED_USER_AB1_ALIAS_READ_ONLY, LIMITED_USER_ALIAS_C1, LIMITED_READ_ONLY_ALL, LIMITED_READ_ONLY_A,
+            LIMITED_USER_NONE, INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS, UNLIMITED_USER, SUPER_UNLIMITED_USER);
 
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled() //
@@ -432,18 +420,26 @@ public class IndexAuthorizationReadWriteIntTests {
     @Test
     public void putDocument_bulk() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
-            restClient.deleteWhenClosed("/index_aw1/_doc/d1", "/index_bw1/_doc/d1", "/index_cw1/_doc/d1");
+            restClient.deleteWhenClosed("/index_aw1/_doc/new_doc_aw1", "/index_bw1/_doc/new_doc_bw1", "/index_cw1/_doc/new_doc_cw1");
+            IndexMatcher writePrivileges = user.indexMatcher("write");
+
+            DocNode testDoc = DocNode.of("a", 1);
 
             HttpResponse httpResponse = restClient.putNdJson("/_bulk?refresh=true", //
-                    DocNode.of("index._index", "index_aw1", "index._id", "d1"), DocNode.of("a", 1), //
-                    DocNode.of("index._index", "index_bw1", "index._id", "d1"), DocNode.of("b", 1), //
-                    DocNode.of("index._index", "index_cw1", "index._id", "d1"), DocNode.of("c", 1)//
+                    DocNode.of("index._index", "index_aw1", "index._id", "new_doc_aw1"), testDoc, //
+                    DocNode.of("index._index", "index_bw1", "index._id", "new_doc_bw1"), testDoc, //
+                    DocNode.of("index._index", "index_cw1", "index._id", "new_doc_cw1"), testDoc//
             );
 
             assertThat(httpResponse, containsExactly(index_aw1, index_bw1, index_cw1).at("items[*].index[?(@.result == 'created')]._index")
-                    .but(user.indexMatcher("write")).whenEmpty(200));
+                    .but(writePrivileges).whenEmpty(200));
 
-            // TODO test for absense of docs
+            // Verify presence/absence of the potentially created docs
+            assertThat(cluster.documents(index_aw1, index_bw1, index_cw1), containsExactly(//
+                    writePrivileges.covers(index_aw1) ? index_aw1.withAdditionalDocument("new_doc_aw1", testDoc) : index_aw1,
+                    writePrivileges.covers(index_bw1) ? index_bw1.withAdditionalDocument("new_doc_bw1", testDoc) : index_bw1,
+                    writePrivileges.covers(index_cw1) ? index_cw1.withAdditionalDocument("new_doc_cw1", testDoc) : index_cw1));
+
         }
     }
 
@@ -472,7 +468,7 @@ public class IndexAuthorizationReadWriteIntTests {
             }
         }
     }
-    
+
     @Test
     public void putDocument_bulk_alias() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
@@ -686,12 +682,11 @@ public class IndexAuthorizationReadWriteIntTests {
             HttpResponse httpResponse = restClient.postJson("/_reindex", DocNode.of("source.index", "index_br1", "dest.index", "index_bwx1"));
             if (containsExactly(index_bwx1).but(user.indexMatcher("create_index")).isEmpty()) {
                 assertThat(httpResponse, isForbidden());
+                assertThat(cluster.getAdminCertRestClient().get("/index_bwx1/_search"), isNotFound());                                
             } else {
                 assertThat(httpResponse, isOk());
+                assertThat(cluster.getAdminCertRestClient().get("/index_bwx1/_search"), isOk());                                
             }
-
-            // TODO test for absense of docs
-
         }
     }
 
@@ -707,9 +702,6 @@ public class IndexAuthorizationReadWriteIntTests {
             } else {
                 assertThat(httpResponse, isForbidden());
             }
-
-            // TODO test for absense of docs
-
         }
     }
 
@@ -731,10 +723,9 @@ public class IndexAuthorizationReadWriteIntTests {
             assertThat(httpResponse, containsExactly(index_bwx1).at("index").but(user.indexMatcher("manage_index")).whenEmpty(403));
 
         } finally {
-            cluster.getInternalNodeClient()
-                .admin().indices()
-                .updateSettings(new UpdateSettingsRequest(sourceIndex).settings(Settings.builder().put("index.blocks.write", false).build()))
-                .actionGet();
+            cluster.getInternalNodeClient().admin().indices()
+                    .updateSettings(new UpdateSettingsRequest(sourceIndex).settings(Settings.builder().put("index.blocks.write", false).build()))
+                    .actionGet();
         }
     }
 
@@ -744,8 +735,7 @@ public class IndexAuthorizationReadWriteIntTests {
             HttpResponse httpResponse = restClient.post("/index_bw1/_close");
             assertThat(httpResponse, containsExactly(index_bw1).at("indices.keys()").but(user.indexMatcher("manage_index")).whenEmpty(403));
         } finally {
-            cluster.getInternalNodeClient()
-                .admin().indices().open(new OpenIndexRequest("index_bw1")).actionGet();
+            cluster.getInternalNodeClient().admin().indices().open(new OpenIndexRequest("index_bw1")).actionGet();
         }
     }
 
@@ -757,8 +747,7 @@ public class IndexAuthorizationReadWriteIntTests {
                     containsExactly(index_ar1, index_ar2, index_aw1, index_aw2, index_br1, index_br2, index_bw1, index_bw2, index_cr1, index_cw1)
                             .at("indices.keys()").but(user.indexMatcher("manage_index")).whenEmpty(403));
         } finally {
-            cluster.getInternalNodeClient()
-                .admin().indices().open(new OpenIndexRequest("*")).actionGet();
+            cluster.getInternalNodeClient().admin().indices().open(new OpenIndexRequest("*")).actionGet();
         }
     }
 
@@ -775,8 +764,7 @@ public class IndexAuthorizationReadWriteIntTests {
                 assertThat(httpResponse, isOk());
             }
         } finally {
-            cluster.getInternalNodeClient()
-                .admin().indices().open(new OpenIndexRequest("index_bw1")).actionGet();
+            cluster.getInternalNodeClient().admin().indices().open(new OpenIndexRequest("index_bw1")).actionGet();
         }
     }
 
@@ -795,15 +783,13 @@ public class IndexAuthorizationReadWriteIntTests {
                 assertThat(httpResponse, isOk());
             }
         } finally {
-            cluster.getInternalNodeClient()
-                .admin().indices().open(new OpenIndexRequest("*")).actionGet();
+            cluster.getInternalNodeClient().admin().indices().open(new OpenIndexRequest("*")).actionGet();
         }
     }
 
     @After
     public void refresh() {
-        cluster.getInternalNodeClient()
-            .admin().indices().refresh(new RefreshRequest("*")).actionGet();
+        cluster.getInternalNodeClient().admin().indices().refresh(new RefreshRequest("*")).actionGet();
     }
 
     @Parameters(name = "{1}")
