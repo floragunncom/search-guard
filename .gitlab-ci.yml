@@ -105,7 +105,7 @@ build:
     key: mavenrepo
     paths:
       - .m2/repository
-   
+    policy: push
 
 
 deploy_release:
