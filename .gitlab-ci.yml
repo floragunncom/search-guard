@@ -80,7 +80,7 @@ build:
       - ".m2/repository/com/floragunn/*"
     expire_in: 12h
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository
     policy: push
@@ -111,7 +111,7 @@ build_for_tag_version:
       - ".m2/repository/com/floragunn/*"
     expire_in: 12h
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository
     policy: push
@@ -138,7 +138,7 @@ test_security:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository
     policy: pull
@@ -162,7 +162,7 @@ test_security_legacy:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository
     policy: pull
@@ -186,7 +186,7 @@ test_ssl:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository
     policy: pull
@@ -210,7 +210,7 @@ test_signals:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository
     policy: pull
@@ -234,7 +234,7 @@ test_scheduler:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository
     policy: pull
@@ -258,7 +258,7 @@ test_support:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository
     policy: pull
@@ -282,7 +282,7 @@ test_dlic_security:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository
     policy: pull
@@ -306,7 +306,7 @@ test_dlic_security_legacy:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository
     policy: pull    
@@ -330,7 +330,7 @@ test_dlic_dlsfls:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository
     policy: pull
@@ -354,7 +354,7 @@ test_dlic_dlsfls_legacy:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository
     policy: pull    
@@ -378,7 +378,7 @@ test_dlic_femt:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository
     policy: pull
@@ -402,7 +402,7 @@ test_dlic_auditlog:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository
     policy: pull
@@ -426,7 +426,7 @@ test_dlic_signals:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository
     policy: pull
@@ -487,7 +487,7 @@ deploy_snapshot:
     reports:
       dotenv: build.env
   cache:
-    key: mavenrepopackage
+    key: mavenrepo-masterpackage
     paths:
       - .m2/repository
 
@@ -538,7 +538,7 @@ deploy_staging:
     reports:
       dotenv: build.env
   cache:
-    key: mavenrepopackage
+    key: mavenrepo-masterpackage
     paths:
       - .m2/repository
 
