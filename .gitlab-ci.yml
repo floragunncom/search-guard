@@ -103,7 +103,7 @@ build:
     reports:
       dotenv: snapshot.env
   cache:
-    key: mavenrepo
+    key: mavenrepo-main-es8
     paths:
       - .m2/repository
     policy: push
