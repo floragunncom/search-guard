@@ -58,7 +58,7 @@ build:
       - ".m2/repository/com/floragunn/*"
     expire_in: 12h
   cache:
-    key: mavenrepo
+    key: mavenrepo-main-sg-classic
     paths:
       - .m2/repository
     policy: push
@@ -87,7 +87,7 @@ build_for_tag_version:
       - ".m2/repository/com/floragunn/*"
     expire_in: 12h
   cache:
-    key: mavenrepo
+    key: mavenrepo-main-sg-classic
     paths:
       - .m2/repository
     policy: push
@@ -111,7 +111,7 @@ test_security:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-main-sg-classic
     paths:
       - .m2/repository
     policy: pull
@@ -131,7 +131,7 @@ test_signals:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-main-sg-classic
     paths:
       - .m2/repository
     policy: pull
@@ -151,7 +151,7 @@ test_scheduler:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-main-sg-classic
     paths:
       - .m2/repository
     policy: pull
@@ -171,7 +171,7 @@ test_support:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-main-sg-classic
     paths:
       - .m2/repository
     policy: pull
@@ -191,7 +191,7 @@ test_dlic_security:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-main-sg-classic
     paths:
       - .m2/repository
     policy: pull
@@ -211,7 +211,7 @@ test_dlic_signals:
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo
+    key: mavenrepo-main-sg-classic
     paths:
       - .m2/repository
     policy: pull
@@ -274,7 +274,7 @@ deploy_snapshot:
     reports:
       dotenv: build.env
   cache:
-    key: mavenrepopackage
+    key: mavenrepo-main-sg-classic
     paths:
       - .m2/repository
 
@@ -322,7 +322,7 @@ deploy_staging:
     reports:
       dotenv: build.env
   cache:
-    key: mavenrepopackage
+    key: mavenrepo-main-sg-classic
     paths:
       - .m2/repository
 
