@@ -46,7 +46,7 @@ veracode_build:
       - "plugin/target/releases/search-guard-veracode.jar"
     expire_in: 12h
   cache:
-    key: mavenrepo
+    key: mavenrepo-master
     paths:
       - .m2/repository   
 
