@@ -487,7 +487,7 @@ deploy_snapshot:
     reports:
       dotenv: build.env
   cache:
-    key: mavenrepo-masterpackage
+    key: mavenrepo-master
     paths:
       - .m2/repository
 
@@ -538,7 +538,7 @@ deploy_staging:
     reports:
       dotenv: build.env
   cache:
-    key: mavenrepo-masterpackage
+    key: mavenrepo-master
     paths:
       - .m2/repository
 
