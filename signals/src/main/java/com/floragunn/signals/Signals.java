@@ -25,7 +25,6 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.template.put.TransportPutComposableIndexTemplateAction;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.cluster.metadata.ComponentTemplate;
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
 import org.elasticsearch.cluster.metadata.Template;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -327,13 +326,6 @@ public class Signals extends AbstractLifecycleComponent {
 
         if (!clusterService.state().nodes().isLocalNodeElectedMaster()) {
             log.debug("Not checking signals_log index because local node is not master");
-            return;
-        }
-
-        if (clusterService.state().getMetadata().componentTemplates().containsKey("signals_log_template")) {
-            // in single node cluster this condition is always false so that
-            // the index template is always created.
-            log.debug("Template signals_log_template does already exist.");
             return;
         }
 
