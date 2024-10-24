@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import com.floragunn.searchsupport.xcontent.XContentObjectConverter;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
@@ -142,6 +141,7 @@ import org.elasticsearch.action.search.TransportSearchShardsAction;
 import org.elasticsearch.action.termvectors.MultiTermVectorsAction;
 import org.elasticsearch.action.termvectors.TermVectorsAction;
 import org.elasticsearch.action.update.TransportUpdateAction;
+import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.index.reindex.ReindexAction;
 import org.elasticsearch.index.reindex.UpdateByQueryAction;
@@ -173,6 +173,7 @@ import com.floragunn.searchguard.configuration.variables.ConfigVarApi;
 import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
 import com.floragunn.searchguard.modules.api.GetComponentStateAction;
 import com.floragunn.searchsupport.xcontent.AttributeValueFromXContent;
+import com.floragunn.searchsupport.xcontent.XContentObjectConverter;
 
 public class Actions {
     private final ImmutableMap<String, Action> actionMap;
@@ -732,6 +733,20 @@ public class Actions {
 
     static <Request extends ActionRequest> Predicate<Request> always() {
         return (request) -> true;
+    }
+    
+    private static Actions forTestsInstance;
+    
+    /**
+     * For testing only
+     */
+    public synchronized static Actions forTests() {
+        if (forTestsInstance == null) {
+            LogConfigurator.configureESLogging();
+            forTestsInstance = new Actions(null);
+        }
+        
+        return forTestsInstance;
     }
 
 }

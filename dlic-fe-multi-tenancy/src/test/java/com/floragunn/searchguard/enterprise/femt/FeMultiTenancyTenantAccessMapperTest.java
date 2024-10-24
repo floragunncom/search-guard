@@ -21,12 +21,8 @@ import com.floragunn.searchguard.authz.TenantManager;
 import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
-import org.elasticsearch.common.logging.LogConfigurator;
-import org.elasticsearch.common.logging.internal.LoggerFactoryImpl;
-import org.elasticsearch.logging.internal.spi.LoggerFactory;
 import org.hamcrest.Matchers;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
@@ -50,16 +46,10 @@ public class FeMultiTenancyTenantAccessMapperTest {
 
     private static final ActionGroup.FlattenedIndex emptyActionGroups = new ActionGroup.FlattenedIndex(
             SgDynamicConfiguration.empty(CType.ACTIONGROUPS));
-    private static Actions actions;
+    private static Actions actions = Actions.forTests();
 
     @Mock
     private MultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
-
-    @BeforeClass
-    public static void beforeClass() {
-        LogConfigurator.configureESLogging();
-        actions = new Actions(null);
-    }
 
     @Before
     public void setUp() throws Exception {
