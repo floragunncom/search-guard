@@ -59,27 +59,24 @@ public class IgnoreUnauthorizedIntTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     static TestSgConfig.User LIMITED_USER_A = new TestSgConfig.User("limited_user_A").roles(//
-            new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "indices:data/read/close_point_in_time") //
-                .indexPermissions("SGS_CRUD").on("a*"));
+            new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("a*"));;
 
     static TestSgConfig.User LIMITED_USER_B = new TestSgConfig.User("limited_user_B").roles(//
             new Role("limited_user_b_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("b*"));
 
     static TestSgConfig.User LIMITED_USER_C = new TestSgConfig.User("limited_user_C").roles(//
-            new Role("limited_user_c_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "indices:data/read/close_point_in_time") //
-                .indexPermissions("SGS_CRUD").on("c*"));
+            new Role("limited_user_c_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("c*"));
 
     static TestSgConfig.User LIMITED_USER_D = new TestSgConfig.User("limited_user_D").roles(//
             new Role("limited_user_d_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS")
                     .indexPermissions("SGS_CRUD", "indices:admin/refresh", "indices:data/write/delete/byquery").on("d*"));
 
     static TestSgConfig.User LIMITED_USER_A_B1 = new TestSgConfig.User("limited_user_A_B1").roles(//
-            new Role("limited_user_a_b1_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "indices:data/read/close_point_in_time") //
-                .indexPermissions("SGS_CRUD").on("a*").indexPermissions("SGS_CRUD").on("b1"));
+            new Role("limited_user_a_b1_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("a*")
+                                .indexPermissions("SGS_CRUD").on("b1"));
 
     static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user").roles(//
-            new Role("unlimited_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "indices:data/read/close_point_in_time")//
-                .indexPermissions("SGS_CRUD").on("*"));
+            new Role("unlimited_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("*"));
 
     static TestSgConfig.User LIMITED_USER_A_WITHOUT_ANALYZE = new TestSgConfig.User("limited_user_A_without_analyze").roles(//
             new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("indices:data/read*").on("a*"));
