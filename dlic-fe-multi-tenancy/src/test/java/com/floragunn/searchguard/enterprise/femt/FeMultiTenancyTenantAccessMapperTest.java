@@ -46,7 +46,8 @@ public class FeMultiTenancyTenantAccessMapperTest {
 
     private static final ActionGroup.FlattenedIndex emptyActionGroups = new ActionGroup.FlattenedIndex(
             SgDynamicConfiguration.empty(CType.ACTIONGROUPS));
-    private static final Actions actions = new Actions(null);
+
+    private static Actions actions = Actions.forTests();
 
     @Mock
     private MultiTenancyConfigurationProvider multiTenancyConfigurationProvider;
