@@ -80,26 +80,11 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.support.SnapshotRestoreHelper;
-
-import static org.elasticsearch.action.support.IndicesOptions.ConcreteTargetOptions.ALLOW_UNAVAILABLE_TARGETS;
+import com.floragunn.searchsupport.action.IndicesOptionsSupport;
 
 public class ActionRequestIntrospector {
 
-    private static final IndicesOptions EXACT = new IndicesOptions(
-            new IndicesOptions.ConcreteTargetOptions(false),
-            IndicesOptions.WildcardOptions.builder()
-                    .resolveAliases(true)
-                    .matchClosed(false)
-                    .includeHidden(false)
-                    .allowEmptyExpressions(false)
-                    .matchOpen(false)
-                    .build(),
-            IndicesOptions.GatekeeperOptions.builder()
-                    .allowClosedIndices(true)
-                    .allowAliasToMultipleIndices(true)
-                    .ignoreThrottled(false)
-                    .build()
-    );
+    private static final IndicesOptions EXACT = IndicesOptionsSupport.EXACT;
 
     private static final Set<String> NAME_BASED_SHORTCUTS_FOR_CLUSTER_ACTIONS = ImmutableSet.of("indices:data/read/msearch/template",
             "indices:data/read/search/template", "indices:data/read/sql/translate", "indices:data/read/sql", "indices:data/read/sql/close_cursor",
@@ -774,14 +759,7 @@ public class ActionRequestIntrospector {
         }
 
         private IndicesOptions allowNoIndices(IndicesOptions indicesOptions) {
-            if (indicesOptions.allowNoIndices()) {
-                return indicesOptions;
-            } else {
-                IndicesOptions.Builder builder = IndicesOptions.builder(indicesOptions);
-                builder.wildcardOptions(IndicesOptions.WildcardOptions.builder(indicesOptions.wildcardOptions())
-                        .allowEmptyExpressions(true).build());
-                return builder.build();
-            }
+            return IndicesOptionsSupport.allowNoIndices(indicesOptions);
         }
 
         private ImmutableSet<String> resolveDateMathExpressions() {
@@ -919,13 +897,7 @@ public class ActionRequestIntrospector {
             };
         }
         private IndicesOptions ignoreUnavailable(IndicesOptions indicesOptions) {
-            if (indicesOptions.ignoreUnavailable()) {
-                return indicesOptions;
-            } else {
-                IndicesOptions.Builder builder = IndicesOptions.builder(indicesOptions);
-                builder.concreteTargetOptions(ALLOW_UNAVAILABLE_TARGETS);
-                return builder.build();
-            }
+            return IndicesOptionsSupport.ignoreUnavailable(indicesOptions);
         }
     }
 
