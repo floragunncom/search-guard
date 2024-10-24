@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -78,11 +77,11 @@ import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.support.SnapshotRestoreHelper;
+import com.floragunn.searchsupport.action.IndicesOptionsSupport;
 
 public class ActionRequestIntrospector {
 
-    private static final IndicesOptions EXACT = new IndicesOptions(EnumSet.noneOf(IndicesOptions.Option.class),
-            EnumSet.noneOf(IndicesOptions.WildcardStates.class));
+    private static final IndicesOptions EXACT = IndicesOptionsSupport.EXACT;
 
     private static final Set<String> NAME_BASED_SHORTCUTS_FOR_CLUSTER_ACTIONS = ImmutableSet.of("indices:data/read/msearch/template",
             "indices:data/read/search/template", "indices:data/read/sql/translate", "indices:data/read/sql", "indices:data/read/sql/close_cursor",
@@ -752,13 +751,7 @@ public class ActionRequestIntrospector {
         }
 
         private IndicesOptions allowNoIndices(IndicesOptions indicesOptions) {
-            if (indicesOptions.allowNoIndices()) {
-                return indicesOptions;
-            } else {
-                EnumSet<IndicesOptions.Option> newOptions = indicesOptions.options().clone();
-                newOptions.add(IndicesOptions.Option.ALLOW_NO_INDICES);
-                return new IndicesOptions(newOptions, indicesOptions.expandWildcards());
-            }
+            return IndicesOptionsSupport.allowNoIndices(indicesOptions);
         }
 
         private ImmutableSet<String> resolveDateMathExpressions() {
@@ -896,13 +889,7 @@ public class ActionRequestIntrospector {
             };
         }
         private IndicesOptions ignoreUnavailable(IndicesOptions indicesOptions) {
-            if (indicesOptions.ignoreUnavailable()) {
-                return indicesOptions;
-            } else {
-                EnumSet<IndicesOptions.Option> newOptions = indicesOptions.options().clone();
-                newOptions.add(IndicesOptions.Option.IGNORE_UNAVAILABLE);
-                return new IndicesOptions(newOptions, indicesOptions.expandWildcards());
-            }
+            return IndicesOptionsSupport.ignoreUnavailable(indicesOptions);
         }
     }
 
