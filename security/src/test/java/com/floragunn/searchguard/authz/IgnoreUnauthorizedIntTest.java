@@ -30,6 +30,7 @@ import com.floragunn.searchguard.test.helper.PitHolder;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import com.floragunn.codova.documents.DocNode;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -49,6 +50,7 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 public class IgnoreUnauthorizedIntTest {
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
+
 
     static TestSgConfig.User LIMITED_USER_A = new TestSgConfig.User("limited_user_A").roles(//
             new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD", "SGS_MANAGE_ALIASES")
@@ -93,6 +95,11 @@ public class IgnoreUnauthorizedIntTest {
             .indices(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1)//
             .aliases(xalias_ab1)//
             .embedded().build();
+
+    @BeforeClass
+    public static void beforeClass() {
+        nameRegistry = cluster.getInjectable(NamedWriteableRegistry.class);
+    }
 
     @Test
     public void createAlias() throws Exception {
