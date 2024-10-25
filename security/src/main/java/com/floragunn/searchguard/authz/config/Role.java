@@ -239,7 +239,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
             public static final FieldMaskingExpression MASK_ALL = new FieldMaskingExpression(Pattern.wildcard(), "*");
 
             private final Pattern pattern;
-            private final MessageDigest algo;
+            private final String algo;
             private final List<RegexReplacement> regexReplacements;
             private final String source;
 
@@ -254,11 +254,16 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
                     regexReplacements = null;
                 } else if (tokens.size() == 2) {
                     regexReplacements = null;
+
                     try {
-                        algo = MessageDigest.getInstance(tokens.get(1));
+                        // Check if the algorithm is available
+                        String algorithm = tokens.get(1);
+                        MessageDigest.getInstance(algorithm);
+                        this.algo = algorithm;
                     } catch (NoSuchAlgorithmException e) {
                         throw new ConfigValidationException(new ValidationError(null, "Invalid algorithm " + tokens.get(1)));
                     }
+
                 } else {
                     algo = null;
                     regexReplacements = new ArrayList<>((tokens.size() - 1) / 2);
@@ -314,7 +319,15 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
             }
 
             public MessageDigest getAlgo() {
-                return algo;
+                try {
+                    // Check if the algorithm is available
+                    if(algo == null) {
+                        return null;
+                    }
+                    return MessageDigest.getInstance(this.algo);
+                } catch (NoSuchAlgorithmException e) {
+                    throw new RuntimeException("Algorithm " + this.algo + " has been already validated", e);
+                }
             }
 
             public List<RegexReplacement> getRegexReplacements() {
