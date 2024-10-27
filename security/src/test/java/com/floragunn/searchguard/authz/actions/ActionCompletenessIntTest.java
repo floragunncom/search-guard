@@ -38,7 +38,6 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
-
 /**
  * This test can be used to discover when new actions are added to ES or when actions are removed. In such cases, the test will fail and report these actions.
  * If new actions are added, these should be reviewed whether special authorization is necessary.
@@ -276,7 +275,16 @@ public class ActionCompletenessIntTest {
             "cluster:monitor/main", //
             "cluster:admin:searchguard:config_vars/refresh", //
             "cluster:monitor/nodes/usage", //
-            "cluster:admin/searchguard/license/info");
+            "cluster:admin/searchguard/license/info", //
+            "indices:admin/data_stream/delete", //
+            "indices:admin/data_stream/get", //
+            "indices:monitor/data_stream/stats", // 
+            "indices:admin/data_stream/promote", //
+            "indices:admin/data_stream/create", //
+            "indices:admin/xpack/downsample", //
+            "indices:admin/data_stream/modify", //
+            "indices:data/read/mget[shard]", //
+            "indices:admin/data_stream/migrate");
 
     static final ImmutableSet<String> IGNORED_ACTIONS = IGNORED_CLUSTER_ACTIONS.with(IGNORED_INDICES_ACTIONS).with(IGNORED_OTHER_ACTIONS);
 
