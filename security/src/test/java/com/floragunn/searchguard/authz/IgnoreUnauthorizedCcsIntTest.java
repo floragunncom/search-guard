@@ -10,26 +10,18 @@ import static com.floragunn.searchguard.test.RestMatchers.matches;
 import static com.floragunn.searchguard.test.RestMatchers.matchesDocCount;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
 import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.emptyArray;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestAlias;
-import com.floragunn.searchguard.test.TestIndex;
-import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.helper.PitHolder;
-import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
+import java.util.stream.Stream;
+
 import org.hamcrest.Matcher;
 import org.junit.Assert;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -37,16 +29,19 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
-
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
-import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.junit.runners.Suite;
 
-import java.util.stream.Stream;
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestAlias;
+import com.floragunn.searchguard.test.TestIndex;
+import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.TestSgConfig.Role;
+import com.floragunn.searchguard.test.helper.PitHolder;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
+import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
@@ -58,9 +53,6 @@ public class IgnoreUnauthorizedCcsIntTest {
     private static TestCertificates certificatesContext = TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
             .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard").addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
             .addAdminClients("CN=admin-0.example.com;OU=SearchGuard;O=SearchGuard").build();
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     static TestSgConfig.User LIMITED_USER_COORD_A = new TestSgConfig.User("limited_user_A").roles(//
             new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("a*"));
@@ -114,21 +106,14 @@ public class IgnoreUnauthorizedCcsIntTest {
         }
 
         @ClassRule
-        public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
+        public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
                 .remote("my_remote", anotherCluster)
                 .nodeSettings("searchguard.diagnosis.action_stack.enabled", true)
                 .nodeSettings("cluster.remote.my_remote.skip_unavailable", true)
                 .users(LIMITED_USER_COORD_A, LIMITED_USER_COORD_B, UNLIMITED_USER)//
                 .indices(index_coord_a1, index_coord_a2, index_coord_b1, index_coord_b2, index_coord_c1)//
                 .aliases(xalias_coord_ab1)//
-                .embedded().build();
-
-        static NamedWriteableRegistry nameRegistry;
-
-        @BeforeClass
-        public static void beforeClass() {
-            nameRegistry = cluster.getInjectable(NamedWriteableRegistry.class);
-        }
+                .useExternalProcessCluster().build();
 
         @Test
         public void search_noPattern() throws Exception {
@@ -190,7 +175,6 @@ public class IgnoreUnauthorizedCcsIntTest {
                     String[] expectedIndicesNames = ImmutableList.ofArray(expectedIndices) //
                             .map(TestIndex::getName)  //
                             .toArray(size -> new String[size]);
-                    Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder(expectedIndicesNames));
                 }
             }
 
@@ -205,9 +189,7 @@ public class IgnoreUnauthorizedCcsIntTest {
                 } else {
                     Assert.assertThat(httpResponse, isOk());
                     Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches(index_coord_a1, index_coord_a2))));
-                    Assert.assertThat(
-                            pitHolder.extractIndicesFromPit(nameRegistry),
-                            arrayContainingInAnyOrder(index_coord_a1.getName(), index_coord_a2.getName()));
+                 
                 }
             }
         }
@@ -277,10 +259,6 @@ public class IgnoreUnauthorizedCcsIntTest {
                             .map(TestIndex::getName)  //
                             .map(indexName -> "my_remote:" + indexName) //
                             .toArray(size -> new String[size]);
-                    // test contract with ES - indices name are expected
-                    Assert.assertThat(
-                            pitHolder.extractIndicesFromPit(nameRegistry),
-                            arrayContainingInAnyOrder(expectedIndicesWithRemoteClusterPrefix));
                 }
             }
 
@@ -305,10 +283,6 @@ public class IgnoreUnauthorizedCcsIntTest {
                             .map(TestIndex::getName)  //
                             .map(indexName -> "my_remote:" + indexName) //
                             .toArray(size -> new String[size]);
-                    // test contract with ES - indices name are expected
-                    Assert.assertThat(
-                            pitHolder.extractIndicesFromPit(nameRegistry),
-                            arrayContainingInAnyOrder(expectedIndicesWithRemoteClusterPrefix));
                 }
 
             }
@@ -436,8 +410,6 @@ public class IgnoreUnauthorizedCcsIntTest {
                 } else {
                     Assert.assertThat(httpResponse, isOk());
                     Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches("my_remote", index_remote_a1, index_remote_a2))));
-                    // test contract with ES - indices name are expected
-                    Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("my_remote:a1", "my_remote:a2"));
                 }
             }
 
@@ -452,8 +424,6 @@ public class IgnoreUnauthorizedCcsIntTest {
                 } else {
                     Assert.assertThat(httpResponse, isOk());
                     Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches("my_remote", index_remote_a1, index_remote_a2))));
-                    // test contract with ES - indices name are expected
-                    Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("my_remote:a1", "my_remote:a2"));
                 }
             }
 
@@ -498,8 +468,6 @@ public class IgnoreUnauthorizedCcsIntTest {
                 } else {
                     Assert.assertThat(httpResponse, isOk());
                     Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("my_remote:b1"))));
-                    // test contract with ES - indices name are expected
-                    Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("my_remote:b1"));
                 }
             }
 
@@ -508,7 +476,6 @@ public class IgnoreUnauthorizedCcsIntTest {
                     PitHolder pitHolder = PitHolder.of(restClient).post("/my_remote:b1/_pit?keep_alive=1m")) {
 
                 Assert.assertThat(pitHolder.getResponse(), isOk());
-                Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), emptyArray());
             }
 
         }
@@ -1076,22 +1043,16 @@ public class IgnoreUnauthorizedCcsIntTest {
         }
 
         @ClassRule
-        public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
+        public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
                 .remote("my_remote", anotherCluster)
                 .nodeSettings("searchguard.diagnosis.action_stack.enabled", true)
                 .nodeSettings("cluster.remote.my_remote.skip_unavailable", false)
                 .users(LIMITED_USER_COORD_A, LIMITED_USER_COORD_B, UNLIMITED_USER)//
                 .indices(index_coord_a1, index_coord_a2, index_coord_b1, index_coord_b2, index_coord_c1)//
                 .aliases(xalias_coord_ab1)//
-                .embedded().build();
-
-        static NamedWriteableRegistry nameRegistry;
-
-        @BeforeClass
-        public static void beforeClass() {
-            nameRegistry = cluster.getInjectable(NamedWriteableRegistry.class);
-        }
-
+                .useExternalProcessCluster()//
+                .build();
+      
         @Test
         public void search_clusterWildcard() throws Exception {
             String query = "*:/_search?size=1000&" + ccsMinimizeRoundtrips;
@@ -1144,8 +1105,6 @@ public class IgnoreUnauthorizedCcsIntTest {
                 } else {
                     Assert.assertThat(httpResponse, isOk());
                     Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("my_remote:b1"))));
-                    // test contract with ES - indices name are expected
-                    Assert.assertThat(pitHolder.extractIndicesFromPit(nameRegistry), arrayContainingInAnyOrder("my_remote:b1"));
                 }
             }
 
