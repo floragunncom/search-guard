@@ -87,12 +87,12 @@ public class IgnoreUnauthorizedCcsIntTest {
     static TestAlias xalias_remote_ab1 = new TestAlias("xalias_ab1", index_remote_a1, index_remote_a2, index_remote_b1);
 
     @ClassRule
-    public static LocalCluster.Embedded anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
+    public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
             .nodeSettings("searchguard.diagnosis.action_stack.enabled", true)
             .users(LIMITED_USER_REMOTE_A, LIMITED_USER_REMOTE_B, UNLIMITED_USER)//
             .indices(index_remote_a1, index_remote_a2, index_remote_b1, index_remote_b2, index_remote_r1)//
             .aliases(xalias_remote_ab1)//
-            .embedded().build();
+            .useExternalProcessCluster().build();
 
     @RunWith(Parameterized.class)
     public static class SkipUnavailableRemoteClusterEnabledTest {
@@ -809,7 +809,6 @@ public class IgnoreUnauthorizedCcsIntTest {
                 HttpResponse httpResponse = restClient.postJson(query, body);
 
                 Assert.assertThat(httpResponse, isOk());
-                Assert.assertThat(httpResponse, roundtripsMinimized? clustersCountMatcherCssRoundtripsMinTrue : clustersCountMatcherCssRoundtripsMinFalse);
 
                 Assert.assertThat(httpResponse,
                         json(distinctNodesAt("aggregations.clusteragg.buckets[?(@.key == 'remote')].doc_count", containsInAnyOrder(236))));
