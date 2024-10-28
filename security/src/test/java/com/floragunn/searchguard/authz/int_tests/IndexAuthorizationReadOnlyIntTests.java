@@ -25,6 +25,8 @@ import static com.floragunn.searchguard.test.IndexApiMatchers.unlimited;
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncludingSearchGuardIndices;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
+import static com.floragunn.searchguard.test.RestMatchers.isBadRequest;
+
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
@@ -59,14 +61,11 @@ import com.floragunn.searchguard.test.TestData.TestDocument;
 import com.floragunn.searchguard.test.TestIndex;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 @RunWith(Parameterized.class)
 public class IndexAuthorizationReadOnlyIntTests {
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-
+  
     static TestIndex index_a1 = TestIndex.name("index_a1").documentCount(100).seed(1).attr("prefix", "a").build();
     static TestIndex index_a2 = TestIndex.name("index_a2").documentCount(110).seed(2).attr("prefix", "a").build();
     static TestIndex index_a3 = TestIndex.name("index_a3").documentCount(120).seed(3).attr("prefix", "a").build();
@@ -521,6 +520,67 @@ public class IndexAuthorizationReadOnlyIntTests {
             }
         }
     }
+    
+    @Test
+    public void search_pit() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {            
+            HttpResponse httpResponse = restClient.post("/index_*/_pit?keep_alive=1m");
+            assertThat(httpResponse, isOk());
+                        
+            String pitId = httpResponse.getBodyAsDocNode().getAsString("id");                            
+            httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitId));
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1).at("hits.hits[*]._index")
+                    .but(user.indexMatcher("read")).whenEmpty(200));            
+        }
+    }
+    
+    @Test
+    public void search_pit_all() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {            
+            HttpResponse httpResponse = restClient.post("/_all/_pit?keep_alive=1m");
+            assertThat(httpResponse, isOk());
+                        
+            String pitId = httpResponse.getBodyAsDocNode().getAsString("id");                            
+            httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitId));
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1).at("hits.hits[*]._index")
+                    .but(user.indexMatcher("read")).whenEmpty(200));            
+        }
+    }
+
+    @Test
+    public void search_pit_static() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {            
+            HttpResponse httpResponse = restClient.post("/index_a1/_pit?keep_alive=1m");
+            
+            if (containsExactly(index_a1).but(user.indexMatcher("read")).isEmpty()) {
+                assertThat(httpResponse, isForbidden());
+            } else {
+                assertThat(httpResponse, isOk());                
+            }
+            
+                        
+            String pitId = httpResponse.getBodyAsDocNode().getAsString("id");                            
+            httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitId));
+            assertThat(httpResponse, containsExactly(index_a1).at("hits.hits[*]._index")
+                    .but(user.indexMatcher("read")).whenEmpty(403));            
+        }
+    }
+    
+    
+    @Test
+    public void search_pit_wrongIndex() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {            
+            HttpResponse httpResponse = restClient.post("/index_a*/_pit?keep_alive=1m");
+            assertThat(httpResponse, isOk());
+                        
+            String pitId = httpResponse.getBodyAsDocNode().getAsString("id");                            
+            httpResponse = restClient.postJson("/index_b*/_search?size=1000", DocNode.of("pit.id", pitId));
+            assertThat(httpResponse, isBadRequest("error.reason", "*[indices] cannot be used with point in time*"));
+        }
+    }
+    
 
     @Test
     public void msearch_staticIndices() throws Exception {

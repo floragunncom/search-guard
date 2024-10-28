@@ -26,6 +26,7 @@ import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncluding
 import static com.floragunn.searchguard.test.IndexApiMatchers.unlimitedIncludingSearchGuardIndices;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
+import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -49,6 +50,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
@@ -441,6 +443,22 @@ public class DataStreamAuthorizationReadOnlyIntTests {
         }
     }
 
+    
+    @Test
+    public void search_pit() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {            
+            HttpResponse httpResponse = restClient.post("/ds_a*/_pit?keep_alive=1m");
+            assertThat(httpResponse, isOk());
+                        
+            String pitId = httpResponse.getBodyAsDocNode().getAsString("id");                            
+            httpResponse = restClient.postJson("/_search?size=1000", DocNode.of("pit.id", pitId));
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3).at("hits.hits[*]._index")
+                    .but(user.indexMatcher("read")).whenEmpty(200));            
+        }
+    }
+    
+    
     @Test
     public void msearch_staticIndices() throws Exception {
         String msearchBody = "{\"index\":\"ds_b1\"}\n" //
