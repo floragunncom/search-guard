@@ -100,8 +100,12 @@ signals_2:
        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION"
        echo "TEST_DEFINITIONS $TEST_DEFINITIONS"
        echo "ES_VERSION: $ES_VERSION"
-       MAJOR="$(echo $ES_VERSION | cut -d. -f1-2)"
-       TEST_IT_BRANCH="${MAJOR}.x"
+       if [ -z "$IT_BRANCH" ]; then
+         MAJOR="$(echo $ES_VERSION | cut -d. -f1-2)"
+         TEST_IT_BRANCH="${MAJOR}.x"
+       else
+         TEST_IT_BRANCH=$IT_BRANCH
+       fi    
        echo "TEST_IT_BRANCH: $TEST_IT_BRANCH"
        git clone --depth 1 --branch it-8.15-fix https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/sgi8.git > /dev/null
        cd sgi8/server
