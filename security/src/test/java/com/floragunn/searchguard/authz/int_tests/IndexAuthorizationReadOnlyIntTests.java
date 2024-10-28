@@ -556,6 +556,7 @@ public class IndexAuthorizationReadOnlyIntTests {
             
             if (containsExactly(index_a1).but(user.indexMatcher("read")).isEmpty()) {
                 assertThat(httpResponse, isForbidden());
+                return;
             } else {
                 assertThat(httpResponse, isOk());                
             }
