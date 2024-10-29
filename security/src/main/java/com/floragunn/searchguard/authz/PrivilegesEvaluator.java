@@ -436,7 +436,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         }
 
         if (privilegesEvaluationResult.getStatus() == Status.OK_WHEN_RESOLVED) {
-            if (authzConfig.isIgnoreUnauthorizedIndices()) {
+            if (authzConfig.isIgnoreUnauthorizedIndices() && authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action.name())) {
                 privilegesEvaluationResult = PrivilegesEvaluationResult.OK;
             } else if (actionRequestInfo.getResolvedIndices().getLocal().getAliases().size() == 1
                     && actionRequestInfo.getResolvedIndices().getLocal().getAliases().only().resolve(action.aliasResolutionMode()).size() == 1
