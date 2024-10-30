@@ -80,7 +80,8 @@ public class FlsFieldFilter implements Function<String, Predicate<String>>, Comp
             }
 
             FlsRule flsRule = fieldAuthorization.getFlsRule(privilegesEvaluationContext, indexName, meter);
-            return (field) -> flsRule.isAllowed(removeSuffix(field));
+
+            return createFieldPredicate((field) -> flsRule.isAllowed(removeSuffix(field)));
         } catch (PrivilegesEvaluationException e) {
             log.error("Error while evaluating FLS for index " + indexName, e);
             componentState.addLastException("filter_fields", e);
@@ -90,6 +91,13 @@ public class FlsFieldFilter implements Function<String, Predicate<String>>, Comp
             componentState.addLastException("filter_fields", e);
             throw e;
         }
+    }
+    
+    /**
+     * Converts a Predicate<String> simplePredicate into a FieldPredicate. For ES versions before 8.14.x, this will just return the original object. This avoids code conflicts.
+     */
+    private Predicate<String> createFieldPredicate(Predicate<String> simplePredicate) {
+        return simplePredicate;
     }
 
     private static String removeSuffix(String field) {
