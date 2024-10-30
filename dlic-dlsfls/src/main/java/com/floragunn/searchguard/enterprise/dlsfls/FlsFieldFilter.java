@@ -81,22 +81,7 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
             }
 
             FlsRule flsRule = fieldAuthorization.getFlsRule(privilegesEvaluationContext, indexName, meter);
-            return new FieldPredicate() {
-                @Override
-                public long ramBytesUsed() {
-                    return 0; //todo
-                }
-
-                @Override
-                public boolean test(String field) {
-                    return flsRule.isAllowed(removeSuffix(field));
-                }
-
-                @Override
-                public String modifyHash(String hash) {
-                    return hash; //todo
-                }
-            };
+            return createFieldPredicate((field) -> flsRule.isAllowed(removeSuffix(field)));
         } catch (PrivilegesEvaluationException e) {
             log.error("Error while evaluating FLS for index " + indexName, e);
             componentState.addLastException("filter_fields", e);
@@ -106,6 +91,28 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
             componentState.addLastException("filter_fields", e);
             throw e;
         }
+    }
+    
+    /**
+     * Converts a Predicate<String> simplePredicate into a FieldPredicate. For ES versions before 8.14.x, this will just return the original object. This avoids code conflicts.
+     */
+    private FieldPredicate createFieldPredicate(Predicate<String> simplePredicate) {
+        return new FieldPredicate() {
+            @Override
+            public long ramBytesUsed() {
+                return 0; // TODO See https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/379
+            }
+
+            @Override
+            public boolean test(String field) {
+                return simplePredicate.test(field);
+            }
+
+            @Override
+            public String modifyHash(String hash) {
+                return hash; // TODO See https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/379
+            }
+        };
     }
 
     private static String removeSuffix(String field) {
