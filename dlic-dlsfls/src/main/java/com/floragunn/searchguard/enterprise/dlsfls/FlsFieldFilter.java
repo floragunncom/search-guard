@@ -54,7 +54,7 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
     }
 
     @Override
-    public FieldPredicate apply(String index) {
+    public FieldPredicate apply(String indexName) {
         DlsFlsProcessedConfig config = this.config.get();
 
         if (!config.isEnabled()) {
@@ -77,10 +77,10 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
             if (privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext() != null
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
-                fieldAuthorization = new RoleBasedFieldAuthorization(roles, ImmutableSet.of(index), MetricsLevel.NONE);
+                fieldAuthorization = new RoleBasedFieldAuthorization(roles, ImmutableSet.of(indexName), MetricsLevel.NONE);
             }
 
-            FlsRule flsRule = fieldAuthorization.getFlsRule(privilegesEvaluationContext, index, meter);
+            FlsRule flsRule = fieldAuthorization.getFlsRule(privilegesEvaluationContext, indexName, meter);
             return new FieldPredicate() {
                 @Override
                 public long ramBytesUsed() {
@@ -98,11 +98,11 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
                 }
             };
         } catch (PrivilegesEvaluationException e) {
-            log.error("Error while evaluating FLS for index " + index, e);
+            log.error("Error while evaluating FLS for index " + indexName, e);
             componentState.addLastException("filter_fields", e);
-            throw new RuntimeException("Error while evaluating FLS for index " + index, e);
+            throw new RuntimeException("Error while evaluating FLS for index " + indexName, e);
         } catch (RuntimeException e) {
-            log.error("Error while evaluating FLS for index " + index, e);
+            log.error("Error while evaluating FLS for index " + indexName, e);
             componentState.addLastException("filter_fields", e);
             throw e;
         }
