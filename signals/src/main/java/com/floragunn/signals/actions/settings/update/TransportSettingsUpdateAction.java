@@ -30,6 +30,7 @@ public class TransportSettingsUpdateAction extends
 
     private final Signals signals;
     private final Client client;
+    private final ThreadPool threadPool;
 
     @Inject
     public TransportSettingsUpdateAction(Signals signals, final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
@@ -39,6 +40,7 @@ public class TransportSettingsUpdateAction extends
 
         this.signals = signals;
         this.client = client;
+        this.threadPool = threadPool;
 
     }
 
@@ -56,15 +58,16 @@ public class TransportSettingsUpdateAction extends
     @Override
     protected NodeResponse nodeOperation(final NodeRequest request, Task task) {
         DiscoveryNode localNode = clusterService.localNode();
+                
+        threadPool.generic().execute(() -> {
+            try {
+                signals.getSignalsSettings().refresh(client);
+            } catch (Exception e) {
+                log.error("Error while updating settings", e);
+            }
+        });
 
-        try {
-            signals.getSignalsSettings().refresh(client);
-
-            return new NodeResponse(localNode, NodeResponse.Status.SUCCESS, "");
-        } catch (Exception e) {
-            log.error("Error while updating settings", e);
-            return new NodeResponse(localNode, NodeResponse.Status.EXCEPTION, e.toString());
-        }
+        return new NodeResponse(localNode, NodeResponse.Status.SUCCESS, "");
     }
 
     public static class NodeRequest extends TransportRequest {
