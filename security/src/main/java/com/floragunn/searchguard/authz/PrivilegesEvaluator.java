@@ -36,7 +36,6 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
-import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -468,7 +467,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             }
             ResizeRequest resizeRequest = (ResizeRequest) request;
             CreateIndexRequest createIndexRequest = resizeRequest.getTargetIndexRequest();
-            PrivilegesEvaluationResult subResponse = evaluate(user, mappedRoles, CreateIndexAction.NAME, createIndexRequest, task, context,
+            PrivilegesEvaluationResult subResponse = evaluate(user, mappedRoles, "indices:admin/create", createIndexRequest, task, context,
                     specialPrivilegesEvaluationContext);
 
             if (!subResponse.isOk()) {
