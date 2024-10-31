@@ -13,6 +13,7 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
 import org.awaitility.Awaitility;
+import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.alias.Alias;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
@@ -21,6 +22,7 @@ import org.elasticsearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.elasticsearch.action.admin.indices.stats.ShardStats;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.Strings;
@@ -29,6 +31,7 @@ import org.elasticsearch.common.settings.Settings;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -190,25 +193,30 @@ public class ClusterHelper {
         }
 
         public static CreateIndexResponse createManagedIndex(LocalCluster.Embedded cluster, String indexName, String policyName) {
-            Settings.Builder builder = Settings.builder().put(AutomatedIndexManagementSettings.Static.POLICY_NAME_FIELD.name(), policyName);
+            Settings.Builder builder = Settings.builder().put(AutomatedIndexManagementSettings.Index.POLICY_NAME.name(), policyName);
             Settings indexSettings = builder.build();
             CreateIndexRequest request = new CreateIndexRequest(indexName, indexSettings);
             return cluster.getInternalNodeClient().admin().indices().create(request).actionGet();
         }
 
         public static CreateIndexResponse createManagedIndex(LocalCluster.Embedded cluster, String indexName, String policyName, Settings settings) {
-            Settings.Builder builder = Settings.builder().put(AutomatedIndexManagementSettings.Static.POLICY_NAME_FIELD.name(), policyName)
-                    .put(settings);
+            Settings.Builder builder = Settings.builder().put(AutomatedIndexManagementSettings.Index.POLICY_NAME.name(), policyName).put(settings);
             CreateIndexRequest request = new CreateIndexRequest(indexName, builder.build());
             return cluster.getInternalNodeClient().admin().indices().create(request).actionGet();
         }
 
         public static CreateIndexResponse createManagedIndex(LocalCluster.Embedded cluster, String indexName, String policyName, String alias,
                 Settings settings) {
-            Settings.Builder builder = Settings.builder().put(AutomatedIndexManagementSettings.Static.POLICY_NAME_FIELD.name(), policyName)
-                    .put(settings);
+            Settings.Builder builder = Settings.builder().put(AutomatedIndexManagementSettings.Index.POLICY_NAME.name(), policyName).put(settings);
             CreateIndexRequest request = new CreateIndexRequest(indexName, builder.build()).alias(new Alias(alias));
             return cluster.getInternalNodeClient().admin().indices().create(request).actionGet();
+        }
+
+        public static DocWriteResponse createMockState(LocalCluster.Embedded cluster, String indexName, PolicyInstanceState mockState) {
+            return cluster.getPrivilegedInternalNodeClient()
+                    .index(new IndexRequest(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME).id(indexName)
+                            .source(mockState.toDocNode()))
+                    .actionGet();
         }
 
         public static GetResponse getPolicyInstanceStatus(LocalCluster.Embedded cluster, String indexName) {
@@ -274,19 +282,21 @@ public class ClusterHelper {
         }
 
         public static void awaitSearchHitCount(LocalCluster.Embedded cluster, SearchRequest searchRequest, int count) {
-            Awaitility.await().until(() -> {
-                SearchResponse response = null;
-                try {
-                    response = cluster.getInternalNodeClient().search(searchRequest).actionGet();
-                    return Objects.requireNonNull(response.getHits().getTotalHits()).value == count;
-                } catch (NullPointerException e) {
-                    return false;
-                } finally {
-                    if (response != null) {
-                        response.decRef();
+            AtomicReference<SearchResponse> previousResponse = new AtomicReference<>();
+            try {
+                Awaitility.await().until(() -> cluster.getInternalNodeClient().search(searchRequest).actionGet(), searchResponse -> {
+                    if (searchResponse == null) {
+                        return false;
                     }
-                }
-            });
+                    if (previousResponse.get() != null) {
+                        previousResponse.get().decRef();
+                    }
+                    previousResponse.set(searchResponse);
+                    return searchResponse.getHits().getTotalHits() != null && searchResponse.getHits().getTotalHits().value == count;
+                });
+            } finally {
+                previousResponse.get().decRef();
+            }
         }
     }
 }

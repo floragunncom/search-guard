@@ -4,6 +4,7 @@ import com.floragunn.aim.AutomatedIndexManagementSettings;
 import com.floragunn.aim.api.internal.InternalPolicyAPI;
 import com.floragunn.aim.policy.actions.Action;
 import com.floragunn.aim.policy.conditions.Condition;
+import com.floragunn.aim.policy.schedule.Schedule;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -21,11 +22,13 @@ public class PolicyService {
     private static final Logger LOG = LogManager.getLogger(PolicyService.class);
 
     private final PrivilegedConfigClient client;
+    private final Schedule.Factory scheduleFactory;
     private final Condition.Factory conditionFactory;
     private final Action.Factory actionFactory;
 
-    public PolicyService(Client client, Condition.Factory conditionFactory, Action.Factory actionFactory) {
+    public PolicyService(Client client, Schedule.Factory scheduleFactory, Condition.Factory conditionFactory, Action.Factory actionFactory) {
         this.client = PrivilegedConfigClient.adapt(client);
+        this.scheduleFactory = scheduleFactory;
         this.conditionFactory = conditionFactory;
         this.actionFactory = actionFactory;
     }
@@ -40,7 +43,7 @@ public class PolicyService {
                     .actionGet();
             if (response.isExists()) {
                 DocNode node = DocNode.parse(Format.JSON).from(response.getSourceAsBytesRef().utf8ToString());
-                return Policy.parse(node, Policy.ParsingContext.lenient(conditionFactory, actionFactory));
+                return Policy.parse(node, Policy.ParsingContext.lenient(scheduleFactory, conditionFactory, actionFactory));
             }
         } catch (ConfigValidationException e) {
             LOG.warn("Failed to parse policy '{}'. Policy is invalid", policyName, e);

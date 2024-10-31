@@ -5,7 +5,6 @@ import com.floragunn.aim.policy.instance.PolicyInstance;
 import com.floragunn.aim.policy.instance.PolicyInstanceState;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
-import org.elasticsearch.common.settings.Settings;
 
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_BLOCKS_WRITE;
 
@@ -34,8 +33,9 @@ public final class SetReadOnlyAction extends Action {
 
     @Override
     public void execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-        Settings.Builder builder = Settings.builder().put(SETTING_BLOCKS_WRITE, true);
-        setIndexSetting(index, executionContext, builder);
+        if (!executionContext.updateIndexSetting(index, SETTING_BLOCKS_WRITE, true)) {
+            throw new IllegalStateException("Failed to set index read only. Response was not acknowledged");
+        }
     }
 
     @Override

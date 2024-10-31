@@ -2,17 +2,17 @@ package com.floragunn.aim.api.internal;
 
 import com.floragunn.aim.AutomatedIndexManagement;
 import com.floragunn.fluent.collections.ImmutableList;
-import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
+import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.master.MasterNodeRequest;
-import org.elasticsearch.action.support.master.TransportMasterNodeAction;
-import org.elasticsearch.cluster.ClusterState;
-import org.elasticsearch.cluster.block.ClusterBlockException;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.action.support.nodes.BaseNodeResponse;
+import org.elasticsearch.action.support.nodes.BaseNodesRequest;
+import org.elasticsearch.action.support.nodes.BaseNodesResponse;
+import org.elasticsearch.action.support.nodes.TransportNodesAction;
+import org.elasticsearch.cluster.ClusterName;
+import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -20,6 +20,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
@@ -38,13 +39,13 @@ public class InternalPolicyInstanceAPI {
             super(NAME);
         }
 
-        public static class Request extends MasterNodeRequest<Request> {
+        public static class Request extends BaseNodesRequest<Request> {
             private final String index;
             private final boolean execute;
             private final boolean retry;
 
             public Request(String index, boolean execute, boolean retry) {
-                super();
+                super((String[]) null);
                 this.index = index;
                 this.execute = execute;
                 this.retry = retry;
@@ -55,11 +56,6 @@ public class InternalPolicyInstanceAPI {
                 index = input.readString();
                 execute = input.readBoolean();
                 retry = input.readBoolean();
-            }
-
-            @Override
-            public ActionRequestValidationException validate() {
-                return null;
             }
 
             @Override
@@ -93,61 +89,130 @@ public class InternalPolicyInstanceAPI {
             public boolean isRetry() {
                 return retry;
             }
+
+            public static class Node extends TransportRequest {
+                private final Request request;
+
+                public Node(Request request) {
+                    this.request = request;
+                }
+
+                protected Node(StreamInput input) throws IOException {
+                    super(input);
+                    request = new Request(input);
+                }
+
+                @Override
+                public void writeTo(StreamOutput out) throws IOException {
+                    super.writeTo(out);
+                    request.writeTo(out);
+                }
+
+                @Override
+                public boolean equals(Object o) {
+                    if (this == o) {
+                        return true;
+                    }
+                    if (o == null || getClass() != o.getClass()) {
+                        return false;
+                    }
+                    Node node = (Node) o;
+                    return Objects.equals(request, node.request);
+                }
+
+                public Request getRequest() {
+                    return request;
+                }
+            }
         }
 
-        public static class Response extends ActionResponse {
-            private final boolean exists;
+        public static class Response extends BaseNodesResponse<Response.Node> {
+            private final boolean successful;
 
-            public Response(boolean exists) {
-                this.exists = exists;
+            public Response(ClusterName clusterName, List<Response.Node> nodeResponses, List<FailedNodeException> failed) {
+                super(clusterName, nodeResponses, failed);
+                boolean successful = false;
+                for (Response.Node nodeResponse : nodeResponses) {
+                    successful |= nodeResponse.isSuccessful();
+                }
+                this.successful = successful;
             }
 
-            public Response(StreamInput input) throws IOException {
-                exists = input.readBoolean();
+            protected Response(StreamInput in) throws IOException {
+                super(in);
+                successful = in.readBoolean();
             }
 
             @Override
-            public void writeTo(StreamOutput out) throws IOException {
-                out.writeBoolean(exists);
+            protected List<Node> readNodesFrom(StreamInput in) throws IOException {
+                return in.readCollectionAsImmutableList(Node::new);
             }
 
             @Override
-            public boolean equals(Object o) {
-                if (this == o) {
-                    return true;
-                }
-                if (o == null || getClass() != o.getClass()) {
-                    return false;
-                }
-                Response response = (Response) o;
-                return exists == response.exists;
+            protected void writeNodesTo(StreamOutput out, List<Node> nodes) throws IOException {
+                out.writeCollection(nodes);
+                out.writeBoolean(successful);
             }
 
-            public boolean isExists() {
-                return exists;
+            public boolean isSuccessful() {
+                return successful;
+            }
+
+            public static class Node extends BaseNodeResponse {
+                private final boolean successful;
+
+                public Node(DiscoveryNode discoveryNode, boolean successful) {
+                    super(discoveryNode);
+                    this.successful = successful;
+                }
+
+                protected Node(StreamInput input) throws IOException {
+                    super(input);
+                    successful = input.readBoolean();
+                }
+
+                @Override
+                public void writeTo(StreamOutput out) throws IOException {
+                    super.writeTo(out);
+                    out.writeBoolean(successful);
+                }
+
+                public boolean isSuccessful() {
+                    return successful;
+                }
             }
         }
 
-        public static class Handler extends TransportMasterNodeAction<Request, Response> {
+        public static class Handler extends TransportNodesAction<Request, Response, Request.Node, Response.Node> {
             private final AutomatedIndexManagement aim;
 
             @Inject
-            public Handler(AutomatedIndexManagement aim, TransportService transportService, ClusterService clusterService, ThreadPool threadPool,
-                    ActionFilters actionFilters, IndexNameExpressionResolver indexNameExpressionResolver) {
-                super(NAME, transportService, clusterService, threadPool, actionFilters, Request::new, indexNameExpressionResolver, Response::new,
-                        threadPool.generic());
+            public Handler(AutomatedIndexManagement aim, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
+                    ActionFilters actionFilters) {
+                super(NAME, clusterService, transportService, actionFilters, Request.Node::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
                 this.aim = aim;
             }
 
             @Override
-            protected void masterOperation(Task task, Request request, ClusterState state, ActionListener<Response> listener) {
-                listener.onResponse(new Response(
-                        aim.getPolicyInstanceHandler().executeRetryPolicyInstance(request.getIndex(), request.isExecute(), request.isRetry())));
+            protected Response newResponse(Request request, List<Response.Node> nodes, List<FailedNodeException> failures) {
+                return new Response(clusterService.getClusterName(), nodes, failures);
             }
 
             @Override
-            protected ClusterBlockException checkBlock(Request request, ClusterState state) {
-                return null;
+            protected Request.Node newNodeRequest(Request request) {
+                return new Request.Node(request);
+            }
+
+            @Override
+            protected Response.Node newNodeResponse(StreamInput in, DiscoveryNode node) throws IOException {
+                return new Response.Node(in);
+            }
+
+            @Override
+            protected Response.Node nodeOperation(Request.Node request, Task task) {
+                boolean successful = aim.getPolicyInstanceManager().executeRetryPolicyInstance(request.getRequest().getIndex(),
+                        request.getRequest().isExecute(), request.getRequest().isRetry());
+                return new Response.Node(clusterService.localNode(), successful);
             }
         }
     }

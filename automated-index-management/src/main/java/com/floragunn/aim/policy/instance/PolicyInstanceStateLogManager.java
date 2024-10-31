@@ -6,6 +6,7 @@ import com.floragunn.aim.policy.Policy;
 import com.floragunn.aim.policy.PolicyService;
 import com.floragunn.aim.policy.actions.Action;
 import com.floragunn.aim.policy.conditions.Condition;
+import com.floragunn.aim.policy.schedule.Schedule;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Format;
@@ -24,6 +25,7 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.rest.RestStatus;
@@ -39,20 +41,25 @@ public class PolicyInstanceStateLogManager {
 
     private final AutomatedIndexManagementSettings settings;
     private final Client client;
+    private final ClusterService clusterService;
     private final PolicyService policyService;
     private final PolicyInstanceService policyInstanceService;
+    private final Schedule.Factory scheduleFactory;
     private final Condition.Factory conditionFactory;
     private final Action.Factory actionFactory;
 
     private volatile boolean initialized;
     private volatile boolean active;
 
-    public PolicyInstanceStateLogManager(AutomatedIndexManagementSettings settings, Client client, PolicyService policyService,
-            PolicyInstanceService policyInstanceService, Condition.Factory conditionFactory, Action.Factory actionFactory) {
+    public PolicyInstanceStateLogManager(AutomatedIndexManagementSettings settings, Client client, ClusterService clusterService,
+            PolicyService policyService, PolicyInstanceService policyInstanceService, Schedule.Factory scheduleFactory,
+            Condition.Factory conditionFactory, Action.Factory actionFactory) {
         this.settings = settings;
         this.client = client;
+        this.clusterService = clusterService;
         this.policyService = policyService;
         this.policyInstanceService = policyInstanceService;
+        this.scheduleFactory = scheduleFactory;
         this.conditionFactory = conditionFactory;
         this.actionFactory = actionFactory;
 
@@ -88,14 +95,16 @@ public class PolicyInstanceStateLogManager {
 
     private synchronized void init() throws StateLogInitializationException {
         LOG.info("Initializing policy instance state log manager");
-        setupPolicy();
-        setupIndexTemplate();
-        setupIndex();
+        if (clusterService.state().nodes().isLocalNodeElectedMaster()) {
+            setupPolicy();
+            setupIndexTemplate();
+            setupIndex();
+        }
         initialized = true;
     }
 
     private void putStateLogEntry(String index, PolicyInstanceState state) {
-        if (active && initialized && settings.getDynamic().getStateLogActive()) {
+        if (active) {
             if (PolicyInstanceState.Status.NOT_STARTED.equals(state.getStatus()) || PolicyInstanceState.Status.WAITING.equals(state.getStatus())
                     || PolicyInstanceState.Status.RUNNING.equals(state.getStatus())) {
                 return;
@@ -124,9 +133,9 @@ public class PolicyInstanceStateLogManager {
             }
             DocNode policyNode = DocNode.parse(Format.JSON)
                     .from(PolicyInstanceStateLogManager.class.getResourceAsStream("/policies/state_log_policy.json"));
-            Policy policy = Policy.parse(policyNode, Policy.ParsingContext.strict(conditionFactory, actionFactory));
+            Policy policy = Policy.parse(policyNode, Policy.ParsingContext.strict(scheduleFactory, conditionFactory, actionFactory));
             InternalPolicyAPI.StatusResponse response = policyService.putPolicy(policyName, policy);
-            if (response.status() != RestStatus.CREATED) {
+            if (response.status() != RestStatus.CREATED && response.status() != RestStatus.OK) {
                 throw new IllegalStateException("Unexpected response status on policy create: " + response.status().name());
             }
         } catch (ConfigValidationException e) {
@@ -150,11 +159,11 @@ public class PolicyInstanceStateLogManager {
             }
             AcknowledgedResponse putTemplateResponse = client.admin().indices().preparePutTemplate(indexTemplateName).setCreate(true)
                     .setPatterns(ImmutableList.of(indexNamePrefix + "*")).addAlias(new Alias(aliasName).isHidden(true).writeIndex(false))
-                    .setSettings(Settings.builder().put("index.hidden", true)
-                            .put(AutomatedIndexManagementSettings.Static.POLICY_NAME_FIELD.name(), policyName)
-                            .put(AutomatedIndexManagementSettings.Static.ALIASES_FIELD.name() + "."
-                                    + AutomatedIndexManagementSettings.Static.DEFAULT_ROLLOVER_ALIAS_KEY, writeAliasName)
-                            .put(AutomatedIndexManagementSettings.Static.ALIASES_FIELD.name() + ".read_alias", aliasName))
+                    .setSettings(
+                            Settings.builder().put("index.hidden", true).put(AutomatedIndexManagementSettings.Index.POLICY_NAME.name(), policyName)
+                                    .put(AutomatedIndexManagementSettings.Index.ALIAS_MAPPING.name() + "."
+                                            + AutomatedIndexManagementSettings.Index.DEFAULT_ROLLOVER_ALIAS_KEY, writeAliasName)
+                                    .put(AutomatedIndexManagementSettings.Index.ALIAS_MAPPING.name() + ".read_alias", aliasName))
                     .get();
             if (!putTemplateResponse.isAcknowledged()) {
                 throw new StateLogInitializationException("Failed to create state log index template. Response was not acknowledged");

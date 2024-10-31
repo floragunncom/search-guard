@@ -11,6 +11,8 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.get.GetResponse;
+import org.elasticsearch.action.get.MultiGetItemResponse;
+import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.client.internal.Client;
@@ -18,7 +20,10 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class PolicyInstanceService {
@@ -40,20 +45,6 @@ public class PolicyInstanceService {
         stateUpdateListeners.remove(listener);
     }
 
-    public boolean activeStateExistsForIndex(String index) {
-        try {
-            GetResponse response = client.prepareGet(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, index).get();
-            if (!response.isExists()) {
-                return false;
-            }
-            PolicyInstanceState state = new PolicyInstanceState(DocNode.parse(Format.JSON).from(response.getSourceAsBytesRef().utf8ToString()));
-            return PolicyInstanceState.Status.DELETED != state.getStatus();
-        } catch (Exception e) {
-            LOG.warn("Could not retrieve policy instance state for index {}", index, e);
-            return false;
-        }
-    }
-
     public boolean activeStateExistsForPolicy(String policy) {
         try {
             SearchResponse response = client.prepareSearch(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME)
@@ -72,6 +63,7 @@ public class PolicyInstanceService {
     }
 
     public void updateState(String index, PolicyInstanceState state) {
+        LOG.trace("Updating policy instance state for index '{}':\n{}", index, state.toPrettyJsonString());
         try {
             DocWriteResponse response = client.prepareIndex(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME).setId(index)
                     .setSource(state.toDocNode()).setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).get();
@@ -106,8 +98,8 @@ public class PolicyInstanceService {
     }
 
     public PolicyInstanceState getState(String index) {
-        GetResponse response = client.prepareGet(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, index).get();
         try {
+            GetResponse response = client.prepareGet(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, index).get();
             if (response.isExists()) {
                 return new PolicyInstanceState(DocNode.parse(Format.JSON).from(response.getSourceAsBytesRef().utf8ToString()));
             }
@@ -117,6 +109,29 @@ public class PolicyInstanceService {
             LOG.error("Error while retrieving policy instance state for index '{}'", index, e);
         }
         return null;
+    }
+
+    public Map<String, PolicyInstanceState> getStates(Collection<String> indexNames) {
+        Map<String, PolicyInstanceState> result = new HashMap<>(indexNames.size());
+        try {
+            MultiGetResponse response = client.prepareMultiGet()
+                    .addIds(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME, indexNames).get();
+            for (MultiGetItemResponse item : response) {
+                if (item.isFailed()) {
+                    LOG.warn("Failed to retrieve policy instance state for index '{}'", item.getIndex());
+                } else if (item.getResponse().isExists()) {
+                    try {
+                        result.put(item.getResponse().getIndex(),
+                                new PolicyInstanceState(DocNode.parse(Format.JSON).from(item.getResponse().getSourceAsBytesRef().utf8ToString())));
+                    } catch (ConfigValidationException e) {
+                        LOG.warn("Failed to parse policy instance state for index '{}'. State is invalid", item.getIndex(), e);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOG.error("Error while retrieving policy instance state for indices '{}'", indexNames, e);
+        }
+        return result;
     }
 
     public CompletableFuture<InternalPolicyInstanceAPI.PostExecuteRetry.Response> postExecuteRetryAsync(String index, boolean execute,

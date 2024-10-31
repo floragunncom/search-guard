@@ -8,6 +8,8 @@ import com.floragunn.aim.policy.Policy;
 import com.floragunn.aim.policy.actions.SetReadOnlyAction;
 import com.floragunn.aim.policy.conditions.SizeCondition;
 import com.floragunn.aim.policy.instance.PolicyInstanceState;
+import com.floragunn.aim.policy.schedule.Schedule;
+import com.floragunn.aim.scheduler.store.Store;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocumentParseException;
@@ -15,10 +17,11 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.cluster.LocalEsCluster;
 import org.awaitility.Awaitility;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.unit.ByteSizeValue;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -28,10 +31,10 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -41,6 +44,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class ScenarioTest {
     private static LocalCluster.Embedded CLUSTER;
+    static {
+        Store.INCLUDE_NODE_ID_IN_SCHEDULER_STORE = true;
+    }
 
     @BeforeAll
     public static void setup() {
@@ -48,7 +54,8 @@ public class ScenarioTest {
         CLUSTER = new LocalCluster.Builder().sslEnabled().resources("sg_config").enableModule(AutomatedIndexManagementModule.class)
                 .clusterConfiguration(ClusterConfiguration.THREE_MASTERS)
                 .nodeSettings(AutomatedIndexManagementSettings.Static.StateLog.ENABLED.name(), false).waitForComponents("aim").embedded().start();
-        ClusterHelper.Internal.postSettingsUpdate(CLUSTER, AutomatedIndexManagementSettings.Dynamic.EXECUTION_DELAY_RANDOM_ENABLED, false);
+        ClusterHelper.Internal.postSettingsUpdate(CLUSTER, AutomatedIndexManagementSettings.Dynamic.DEFAULT_SCHEDULE,
+                new MockSupport.MockSchedule(Schedule.Scope.DEFAULT, Duration.ofSeconds(0), Duration.ofMinutes(5)));
         ClusterHelper.Internal.postSettingsUpdate(CLUSTER, AutomatedIndexManagementSettings.Dynamic.STATE_LOG_ACTIVE, false);
         Awaitility.setDefaultTimeout(60, TimeUnit.SECONDS);
     }
@@ -81,7 +88,7 @@ public class ScenarioTest {
                         .getIndex(new GetIndexRequest().indices(indexNames.toArray(new String[] {}))).actionGet(),
                         getIndexResponse -> Arrays.asList(getIndexResponse.indices()).containsAll(indexNames));
         ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
-        Awaitility.await().until(() -> mockAction.getExecutionCount() == testIndexCount);
+        Awaitility.await().until(mockAction::getExecutionCount, count -> count == testIndexCount);
         for (int i = 0; i < testIndexCount; i++) {
             assertEquals(1, mockCondition.getExecutionCount(indexPrefix + i),
                     "Expected every mock condition to be executed once. Failed for index '" + indexPrefix + i + "'");
@@ -158,20 +165,38 @@ public class ScenarioTest {
 
     @Order(3)
     @Test
-    public void testMasterNodeShutdown() throws Exception {
-        String policyName = "master_node_shutdown_test_policy";
-        String indexName = "master_node_shutdown_test_index";
+    public void testNodeShutdownResilience() throws Exception {
+        String policyName = "node_shutdown_test_policy";
+        String indexNamePrefix = "node_shutdown_test_index_";
 
-        Policy policy = new Policy(new Policy.Step("first", ImmutableList.of(new SizeCondition(ByteSizeValue.ofGb(4))), ImmutableList.empty()));
+        MockSupport.MockCondition mockCondition = new MockSupport.MockCondition().setResult(false).setFail(false);
+        Policy policy = new Policy(new Policy.Step("first", ImmutableList.of(mockCondition), ImmutableList.empty()));
         ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
-        ClusterHelper.Index.createManagedIndex(CLUSTER, indexName, policyName);
-        ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);
 
-        ClusterService clusterService = CLUSTER.getInjectable(ClusterService.class);
-        String masterName = Objects.requireNonNull(clusterService.state().getNodes().getMasterNode()).getName();
-        CLUSTER.getNodeByName(masterName).stop();
+        int indexCount = CLUSTER.nodes().size() * 2;
+
+        for (int i = 0; i < indexCount; i++) {
+            ClusterHelper.Index.createManagedIndex(CLUSTER, indexNamePrefix + i, policyName);
+        }
+
+        for (int i = 0; i < indexCount; i++) {
+            ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexNamePrefix + i, PolicyInstanceState.Status.WAITING);
+        }
+        mockCondition.setResult(true);
+
+        LocalEsCluster.Node node = CLUSTER.getNodeByName(CLUSTER.nodes().get(0).getNodeName());
+        node.stop();
+        System.err.println("Shutting down node '" + node.getNodeName() + "'");
         Thread.sleep(1000);
 
-        ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.WAITING);
+        for (int i = 0; i < indexCount; i++) {
+            ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexNamePrefix + i);
+        }
+
+        for (int i = 0; i < indexCount; i++) {
+            ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexNamePrefix + i, PolicyInstanceState.Status.FINISHED);
+            Assertions.assertEquals(2, mockCondition.getExecutionCount(indexNamePrefix + i),
+                    "Expected every mock condition to be executed twice. Failed for index '" + indexNamePrefix + i + "'");
+        }
     }
 }

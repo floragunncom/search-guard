@@ -1,8 +1,10 @@
-package com.floragunn.aim.policy.instance.store;
+package com.floragunn.aim.scheduler.store;
 
 import com.floragunn.aim.api.internal.InternalSchedulerAPI;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.searchsupport.jobs.config.JobConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.bulk.BulkItemResponse;
@@ -46,27 +48,27 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
+public interface TriggerStore<JobConfigType extends JobConfig> {
     void initialize(SchedulerSignaler signaler, Client client, String node, String schedulerName, ScheduledExecutorService maintenanceExecutor)
             throws SchedulerConfigException;
 
     void shutdown();
 
-    void load(Map<JobKey, InternalJobDetail> jobs);
+    void load(Map<JobKey, InternalJobDetail<JobConfigType>> jobs);
 
-    TriggerType add(OperableTrigger newTrigger, boolean replaceExisting) throws ObjectAlreadyExistsException, JobPersistenceException;
+    InternalOperableTrigger add(OperableTrigger newTrigger, boolean replaceExisting) throws ObjectAlreadyExistsException, JobPersistenceException;
 
     void addAll(Set<? extends Trigger> newTriggers, boolean replaceExisting) throws ObjectAlreadyExistsException, JobPersistenceException;
 
     boolean contains(TriggerKey triggerKey) throws JobPersistenceException;
 
-    TriggerType get(TriggerKey triggerKey) throws JobPersistenceException;
+    InternalOperableTrigger get(TriggerKey triggerKey) throws JobPersistenceException;
 
-    List<TriggerType> getAll(JobKey jobKey) throws JobPersistenceException;
+    List<InternalOperableTrigger> getAll(JobKey jobKey) throws JobPersistenceException;
 
-    TriggerType remove(TriggerKey triggerKey) throws JobPersistenceException;
+    InternalOperableTrigger remove(TriggerKey triggerKey) throws JobPersistenceException;
 
-    boolean removeAll(JobKey jobKey) throws JobPersistenceException;
+    List<InternalOperableTrigger> removeAll(JobKey jobKey) throws JobPersistenceException;
 
     boolean replace(TriggerKey triggerKey, OperableTrigger newTrigger) throws JobPersistenceException;
 
@@ -100,14 +102,14 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
 
     Set<String> getPausedGroups() throws JobPersistenceException;
 
-    class HeapIndexTriggerStore implements TriggerStore<InternalOperableTrigger> {
+    class HeapIndexTriggerStore<JobConfigType extends JobConfig> implements TriggerStore<JobConfigType> {
         private static final Logger LOG = LogManager.getLogger(HeapIndexTriggerStore.class);
-        private static final long MISFIRE_THRESHOLD = 5000;
+        private static final long MISFIRE_THRESHOLD = 10000;
 
         private final String index;
 
         private final Map<TriggerKey, InternalOperableTrigger> keyToTriggerMap;
-        private final ActiveTriggerQueue<InternalOperableTrigger> activeTriggerQueue;
+        private final ActiveTriggerQueue activeTriggerQueue;
         private final Set<JobKey> blockedJobs;
         private final Set<TriggerKey> pausedTriggers;
         private final Set<InternalOperableTrigger> dirty;
@@ -124,7 +126,7 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
             this.index = index;
 
             keyToTriggerMap = new HashMap<>();
-            activeTriggerQueue = new ActiveTriggerQueue<>();
+            activeTriggerQueue = new ActiveTriggerQueue();
             blockedJobs = new HashSet<>();
             pausedTriggers = new HashSet<>();
             dirty = new HashSet<>();
@@ -155,33 +157,42 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
         }
 
         @Override
-        public void load(Map<JobKey, InternalJobDetail> jobs) {
+        public void load(Map<JobKey, InternalJobDetail<JobConfigType>> jobs) {
             long startTime = System.currentTimeMillis();
             Map<String, Trigger> triggerIdToTrigger = new HashMap<>(jobs.size());
-            for (InternalJobDetail jobDetail : jobs.values()) {
-                Collection<Trigger> triggers = jobDetail.getBaseConfig().getTriggers();
+            for (InternalJobDetail<JobConfigType> jobDetail : jobs.values()) {
+                Collection<Trigger> triggers = jobDetail.getJobConfig().getTriggers();
                 triggerIdToTrigger.putAll(triggers.stream().collect(Collectors.toMap(trigger -> trigger.getKey().toString(), Function.identity())));
+                LOG.trace("Loading triggers {}", triggers);
             }
             if (triggerIdToTrigger.isEmpty()) {
                 return;
             }
             try {
                 MultiGetResponse response = client.prepareMultiGet().addIds(index, triggerIdToTrigger.keySet()).get();
-                activeTriggerQueue.clear();
+                //activeTriggerQueue.clear();
                 for (MultiGetItemResponse item : response) {
                     if (item.isFailed()) {
                         LOG.error("Failed to load trigger {}", item.getId(), item.getFailure().getFailure());
                         continue;
                     }
-                    if (!item.getResponse().isExists()) {
-                        LOG.warn("Failed to load trigger {}. Does not exist in trigger state index", item.getId());
-                        continue;
-                    }
+
                     OperableTrigger operableTrigger = (OperableTrigger) triggerIdToTrigger.get(item.getId());
-                    DocNode triggerState = DocNode.parse(Format.JSON).from(item.getResponse().getSourceAsBytesRef().utf8ToString());
-                    InternalOperableTrigger internalOperableTrigger = InternalOperableTrigger.from(operableTrigger, triggerState);
-                    if (internalOperableTrigger.isExecutingOnOtherNodeAfterRecovery(node, blockedJobs)) {
-                        stillExecutingOnOtherNode.add(internalOperableTrigger);
+                    InternalOperableTrigger internalOperableTrigger;
+                    if (item.getResponse().isExists()) {
+                        try {
+                            DocNode triggerState = DocNode.parse(Format.JSON).from(item.getResponse().getSourceAsBytesRef().utf8ToString());
+                            internalOperableTrigger = InternalOperableTrigger.from(operableTrigger, triggerState);
+                            if (internalOperableTrigger.isExecutingOnOtherNodeAfterRecovery(node, blockedJobs)) {
+                                stillExecutingOnOtherNode.add(internalOperableTrigger);
+                            }
+                        } catch (ConfigValidationException e) {
+                            LOG.warn("Trigger state was invalid", e);
+                            internalOperableTrigger = InternalOperableTrigger.from(node, operableTrigger);
+                        }
+                    } else {
+                        internalOperableTrigger = InternalOperableTrigger.from(node, operableTrigger);
+                        internalOperableTrigger.computeFirstFireTime(null);
                     }
                     keyToTriggerMap.put(internalOperableTrigger.getKey(), internalOperableTrigger);
                     if (internalOperableTrigger.getState() == InternalOperableTrigger.State.WAITING) {
@@ -251,11 +262,14 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
         }
 
         @Override
-        public boolean removeAll(JobKey jobKey) throws JobPersistenceException {
-            boolean result = true;
+        public List<InternalOperableTrigger> removeAll(JobKey jobKey) throws JobPersistenceException {
+            List<InternalOperableTrigger> result = new ArrayList<>();
             for (TriggerKey key : keyToTriggerMap.entrySet().stream().filter(entry -> jobKey.equals(entry.getValue().getJobKey()))
                     .map(Map.Entry::getKey).toList()) {
-                result &= remove(key) != null;
+                InternalOperableTrigger trigger = remove(key);
+                if (trigger != null) {
+                    result.add(trigger);
+                }
             }
             return result;
         }
@@ -266,14 +280,7 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
             if (trigger == null) {
                 return false;
             }
-            trigger.setDelegate(newTrigger);
-            if (trigger.isNotBlockedAfterUpdateToIdle(blockedJobs)) {
-                activeTriggerQueue.add(trigger);
-            } else {
-                activeTriggerQueue.remove(triggerKey);
-            }
-            markDirty(trigger);
-            flushDirty();
+            add(newTrigger, true);
             return true;
         }
 
@@ -305,7 +312,7 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
         @Override
         public void clear() throws JobPersistenceException {
             keyToTriggerMap.clear();
-            //activeTriggerQueue.clear();
+            activeTriggerQueue.clear();
         }
 
         @Override
@@ -398,7 +405,7 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
             long misfireIsBefore = System.currentTimeMillis() - MISFIRE_THRESHOLD;
             long batchEnd = noLaterThan;
 
-            for (ActiveTriggerQueue.ActiveTrigger<InternalOperableTrigger> activeTrigger = activeTriggerQueue
+            for (ActiveTriggerQueue.ActiveTrigger activeTrigger = activeTriggerQueue
                     .pollFirst(); activeTrigger != null; activeTrigger = activeTriggerQueue.pollFirst()) {
                 if (activeTrigger.getNextFireTime() == null) {
                     LOG.trace("Next fire time is null for trigger: {}", activeTrigger);
@@ -617,7 +624,7 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
             return !nextFireTime.equals(trigger.getNextFireTime());
         }
 
-        private void checkTriggersExecutingOnOtherNode(Map<JobKey, InternalJobDetail> jobs) {
+        private void checkTriggersExecutingOnOtherNode(Map<JobKey, InternalJobDetail<JobConfigType>> jobs) {
             if (stillExecutingOnOtherNode.isEmpty()) {
                 return;
             }
@@ -637,7 +644,7 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
             try {
                 InternalSchedulerAPI.CheckExecutingTriggers.Response response = client
                         .execute(InternalSchedulerAPI.CheckExecutingTriggers.INSTANCE, new InternalSchedulerAPI.CheckExecutingTriggers.Request(
-                                schedulerName, triggers.stream().map(AbstractDelegateTrigger::getKey).collect(Collectors.toSet())))
+                                schedulerName, triggers.stream().map(InternalOperableTrigger::getKey).collect(Collectors.toSet())))
                         .get();
                 Set<InternalOperableTrigger> remainingTriggers = new HashSet<>(triggers);
                 remainingTriggers.removeIf(internalOperableTrigger -> response.getTriggerKeys().contains(internalOperableTrigger.getKey()));
@@ -653,7 +660,7 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
             }
         }
 
-        private void resetTriggerFromOtherNode(Set<InternalOperableTrigger> triggers, Map<JobKey, InternalJobDetail> jobs) {
+        private void resetTriggerFromOtherNode(Set<InternalOperableTrigger> triggers, Map<JobKey, InternalJobDetail<JobConfigType>> jobs) {
             Map<String, InternalOperableTrigger> triggerIdToTrigger = triggers.stream()
                     .collect(Collectors.toMap(internalOperableTrigger -> internalOperableTrigger.getKey().toString(), Function.identity()));
             try {
@@ -679,7 +686,7 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
                     }
                     actualTrigger.setNode(node);
                     if (actualTrigger.getState() == InternalOperableTrigger.State.WAITING) {
-                        InternalJobDetail jobDetail = jobs.get(actualTrigger.getJobKey());
+                        InternalJobDetail<JobConfigType> jobDetail = jobs.get(actualTrigger.getJobKey());
                         if (jobDetail != null && jobDetail.isConcurrentExectionDisallowed()) {
                             unblockTriggers(jobDetail.getKey());
                             signaler.signalSchedulingChange(0);
@@ -736,10 +743,10 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
         }
     }
 
-    class ActiveTriggerQueue<TriggerType extends Trigger> {
+    class ActiveTriggerQueue {
         private static final Logger LOG = LogManager.getLogger(ActiveTriggerQueue.class);
-        private final TreeSet<ActiveTrigger<TriggerType>> queue;
-        private final Map<TriggerKey, ActiveTrigger<TriggerType>> keyToTriggerMap;
+        private final TreeSet<ActiveTrigger> queue;
+        private final Map<TriggerKey, ActiveTrigger> keyToTriggerMap;
 
         public ActiveTriggerQueue() {
             queue = new TreeSet<>(new Trigger.TriggerTimeComparator());
@@ -751,9 +758,9 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
             return queue.toString();
         }
 
-        synchronized void add(TriggerType newTrigger) {
-            ActiveTrigger<TriggerType> trigger = new ActiveTrigger<>(newTrigger);
-            ActiveTrigger<TriggerType> existing = keyToTriggerMap.put(trigger.getKey(), trigger);
+        synchronized void add(InternalOperableTrigger newTrigger) {
+            ActiveTrigger trigger = new ActiveTrigger(newTrigger);
+            ActiveTrigger existing = keyToTriggerMap.put(trigger.getKey(), trigger);
             if (existing != null) {
                 LOG.trace("Replacing trigger {} from active queue", existing);
                 queue.remove(existing);
@@ -761,15 +768,15 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
             queue.add(trigger);
         }
 
-        synchronized void addAll(Collection<TriggerType> triggers) {
-            for (TriggerType trigger : triggers) {
+        synchronized void addAll(Collection<InternalOperableTrigger> triggers) {
+            for (InternalOperableTrigger trigger : triggers) {
                 add(trigger);
             }
         }
 
-        synchronized ActiveTrigger<TriggerType> remove(TriggerKey triggerKey) {
+        synchronized ActiveTrigger remove(TriggerKey triggerKey) {
             LOG.trace("Removing trigger {} from active queue", triggerKey);
-            ActiveTrigger<TriggerType> trigger = keyToTriggerMap.remove(triggerKey);
+            ActiveTrigger trigger = keyToTriggerMap.remove(triggerKey);
             if (trigger != null) {
                 queue.remove(trigger);
             }
@@ -790,8 +797,8 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
             keyToTriggerMap.clear();
         }
 
-        synchronized ActiveTrigger<TriggerType> pollFirst() {
-            ActiveTrigger<TriggerType> trigger = queue.pollFirst();
+        synchronized ActiveTrigger pollFirst() {
+            ActiveTrigger trigger = queue.pollFirst();
             if (trigger != null) {
                 LOG.trace("Polling trigger {}", trigger.getKey());
                 keyToTriggerMap.remove(trigger.getKey());
@@ -799,7 +806,7 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
             return trigger;
         }
 
-        static class ActiveTrigger<TriggerType extends Trigger> extends AbstractDelegateTrigger<TriggerType> {
+        static class ActiveTrigger extends AbstractDelegateTrigger<InternalOperableTrigger> {
             private static final long serialVersionUID = -7663283588734212055L;
 
             private static final TriggerTimeComparator COMPARATOR = new TriggerTimeComparator();
@@ -815,7 +822,7 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
                 return date != null ? (Date) date.clone() : null;
             }
 
-            public ActiveTrigger(TriggerType delegate) {
+            public ActiveTrigger(InternalOperableTrigger delegate) {
                 super(delegate);
                 mayFireAgain = delegate.mayFireAgain();
                 startTime = cloneDate(delegate.getStartTime());
@@ -862,13 +869,16 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
 
             @Override
             public boolean equals(Object o) {
-                if (this == o)
+                if (this == o) {
                     return true;
-                if (!(o instanceof ActiveTrigger<?> that))
+                }
+                if (!(o instanceof ActiveTrigger)) {
                     return false;
-                return mayFireAgain == that.mayFireAgain && Objects.equals(startTime, that.startTime) && Objects.equals(endTime, that.endTime)
-                        && Objects.equals(nextFireTime, that.nextFireTime) && Objects.equals(previousFireTime, that.previousFireTime)
-                        && Objects.equals(finalFireTime, that.finalFireTime);
+                }
+                ActiveTrigger other = (ActiveTrigger) o;
+                return mayFireAgain == other.mayFireAgain && Objects.equals(startTime, other.startTime) && Objects.equals(endTime, other.endTime)
+                        && Objects.equals(nextFireTime, other.nextFireTime) && Objects.equals(previousFireTime, other.previousFireTime)
+                        && Objects.equals(finalFireTime, other.finalFireTime);
             }
 
             @Override
@@ -881,7 +891,7 @@ public interface TriggerStore<TriggerType extends InternalOperableTrigger> {
                 return getKey().toString();
             }
 
-            public TriggerType getDelegate() {
+            public InternalOperableTrigger getDelegate() {
                 return delegate;
             }
         }

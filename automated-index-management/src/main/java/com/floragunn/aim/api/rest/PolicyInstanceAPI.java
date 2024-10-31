@@ -109,7 +109,7 @@ public class PolicyInstanceAPI {
                     return result;
                 }
                 return aim.getPolicyInstanceService().postExecuteRetryAsync(request.getId(), true, request.isRetry()).thenApply(response -> {
-                    if (response.isExists()) {
+                    if (response.isSuccessful()) {
                         return new StandardResponse(200);
                     }
                     return new StandardResponse(404).message("Not found");
@@ -143,7 +143,7 @@ public class PolicyInstanceAPI {
                     return result;
                 }
                 return aim.getPolicyInstanceService().postExecuteRetryAsync(request.getId(), false, true).thenApply(response -> {
-                    if (response.isExists()) {
+                    if (response.isSuccessful()) {
                         return new StandardResponse(200);
                     }
                     return new StandardResponse(404).message("Not found");

@@ -1,6 +1,9 @@
 package com.floragunn.aim;
 
+import com.floragunn.aim.policy.schedule.IntervalSchedule;
+import com.floragunn.aim.policy.schedule.Schedule;
 import com.floragunn.aim.support.ParsingSupport;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.ValidationError;
@@ -9,12 +12,14 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.StaticSettings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetItemResponse;
 import org.elasticsearch.action.get.MultiGetResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,17 +47,14 @@ public final class AutomatedIndexManagementSettings {
     public static class Dynamic {
         private static final Logger LOG = LogManager.getLogger(Dynamic.class);
         public static final DynamicAttribute<Boolean> ACTIVE = DynamicAttribute.define("active").withDefault(Boolean.TRUE).asBoolean();
-        public static final DynamicAttribute<Boolean> EXECUTION_DELAY_RANDOM_ENABLED = DynamicAttribute.define("execution.delay.random.enabled")
-                .withDefault(Boolean.TRUE).asBoolean();
-        public static final DynamicAttribute<TimeValue> EXECUTION_DELAY = DynamicAttribute.define("execution.delay").withDefault(TimeValue.ZERO)
-                .asTimeValue();
-        public static final DynamicAttribute<TimeValue> EXECUTION_PERIOD = DynamicAttribute.define("execution.period")
-                .withDefault(TimeValue.timeValueMinutes(5)).asTimeValue();
+        public static final DynamicAttribute<Schedule> DEFAULT_SCHEDULE = DynamicAttribute.define("execution.default.schedule")
+                .withDefault(new IntervalSchedule(Duration.ofMinutes(5), true, Schedule.Scope.DEFAULT)).asSchedule();
         public static final DynamicAttribute<Boolean> STATE_LOG_ACTIVE = DynamicAttribute.define("state_log.active").withDefault(Boolean.TRUE)
                 .asBoolean();
+        public static final DynamicAttribute<String> NODE_FILTER = DynamicAttribute.define("node_filter").asString();
 
         public static List<DynamicAttribute<?>> getAvailableSettings() {
-            return ImmutableList.of(ACTIVE, EXECUTION_DELAY_RANDOM_ENABLED, EXECUTION_DELAY, EXECUTION_PERIOD, STATE_LOG_ACTIVE);
+            return ImmutableList.of(ACTIVE, DEFAULT_SCHEDULE, STATE_LOG_ACTIVE, NODE_FILTER);
         }
 
         public static DynamicAttribute<?> findAvailableSettingByKey(String key) {
@@ -68,28 +70,17 @@ public final class AutomatedIndexManagementSettings {
         }
 
         public void init(PrivilegedConfigClient client) {
-            long start = System.currentTimeMillis();
-            MultiGetResponse response = null;
-            Exception lastException = null;
-            do {
-                try {
-                    response = client.prepareMultiGet()
-                            .addIds(ConfigIndices.SETTINGS_NAME,
-                                    getAvailableSettings().stream().map(DynamicAttribute::getName).collect(Collectors.toList()))
-                            .execute().actionGet();
-                } catch (Exception e) {
-                    lastException = e;
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException ex) {
-                        throw new RuntimeException(ex);
-                    }
-                }
-            } while (response == null && System.currentTimeMillis() < start + 5 * 60 * 1000);
-            if (response == null) {
-                throw new RuntimeException("Failed to retrieve AIM settings from config after 5min", lastException);
-            }
             try {
+                ClusterHealthResponse clusterHealthResponse = client.admin().cluster().prepareHealth().setWaitForYellowStatus()
+                        .setWaitForNoInitializingShards(true).get(TimeValue.timeValueMinutes(5));
+                LOG.debug("Cluster health before loading dynamic settings: {}", clusterHealthResponse);
+                if (clusterHealthResponse.isTimedOut()) {
+                    throw new RuntimeException(
+                            "Failed to retrieve AIM settings from config index after 5min. Cluster health did not reach yellow state: "
+                                    + clusterHealthResponse);
+                }
+                MultiGetResponse response = client.prepareMultiGet().addIds(ConfigIndices.SETTINGS_NAME,
+                        getAvailableSettings().stream().map(DynamicAttribute::getName).collect(Collectors.toList())).get();
                 for (MultiGetItemResponse item : response.getResponses()) {
                     if (!item.isFailed()) {
                         GetResponse getResponse = item.getResponse();
@@ -100,7 +91,7 @@ public final class AutomatedIndexManagementSettings {
                             settings.put(item.getId(), value);
                         }
                     } else {
-                        LOG.warn("Failed to retrieve setting '{}' from settings index\n{}", item.getId(), item.getFailure().getFailure());
+                        LOG.warn("Failed to retrieve setting '{}' from settings index:\n{}", item.getId(), item.getFailure().getFailure());
                     }
                 }
             } catch (Exception e) {
@@ -129,20 +120,16 @@ public final class AutomatedIndexManagementSettings {
             return get(ACTIVE);
         }
 
-        public boolean getExecutionRandomDelayEnabled() {
-            return get(EXECUTION_DELAY_RANDOM_ENABLED);
-        }
-
-        public TimeValue getExecutionFixedDelay() {
-            return get(EXECUTION_DELAY);
-        }
-
-        public TimeValue getExecutionPeriod() {
-            return get(EXECUTION_PERIOD);
+        public Schedule getDefaultSchedule() {
+            return get(DEFAULT_SCHEDULE);
         }
 
         public boolean getStateLogActive() {
             return get(STATE_LOG_ACTIVE);
+        }
+
+        public String getNodeFilter() {
+            return get(NODE_FILTER);
         }
 
         public void refresh(Map<DynamicAttribute<?>, Object> changed, List<DynamicAttribute<?>> deleted) {
@@ -310,6 +297,41 @@ public final class AutomatedIndexManagementSettings {
                         }
                     });
                 }
+
+                public DynamicAttribute<Schedule> asSchedule() {
+                    Builder<Schedule> scheduleBuilder;
+                    if (defaultValue == null) {
+                        scheduleBuilder = new Builder<>(name, null);
+                    } else if (defaultValue instanceof Schedule) {
+                        scheduleBuilder = new Builder<>(name, (Schedule) defaultValue);
+                    } else {
+                        throw new IllegalArgumentException("Default value for '" + name + "' is not a schedule");
+                    }
+                    return scheduleBuilder.asGeneric(new StringParser<>() {
+                        @Override
+                        public Schedule fromBasicObject(Object obj) {
+                            try {
+                                return AutomatedIndexManagement.SCHEDULE_FACTORY.parse(DocNode.wrap(obj), Schedule.Scope.DEFAULT);
+                            } catch (ConfigValidationException e) {
+                                LOG.error("Could not read setting '{}'", name, e);
+                                return (Schedule) defaultValue;
+                            }
+                        }
+
+                        @Override
+                        public Object toBasicObject(Object value) {
+                            return ((Schedule) value).toBasicObject();
+                        }
+
+                        @Override
+                        public void validate(Object value) throws ConfigValidationException {
+                            if (!(value instanceof Schedule)) {
+                                throw new ConfigValidationException(new ValidationError(name, "Expected schedule value"));
+                            }
+                            AutomatedIndexManagement.SCHEDULE_FACTORY.parse(DocNode.wrap(value), Schedule.Scope.DEFAULT);
+                        }
+                    });
+                }
             }
 
             private interface StringParser<V> {
@@ -331,21 +353,14 @@ public final class AutomatedIndexManagementSettings {
     public static class Static {
         public static final Boolean DEFAULT_ENABLED = true;
         public static final Integer DEFAULT_THREAD_POOL_SIZE = 4;
-        public static final String DEFAULT_ROLLOVER_ALIAS_KEY = "rollover_alias";
 
         public static final StaticSettings.Attribute<Boolean> ENABLED = StaticSettings.Attribute.define("aim.enabled").withDefault(DEFAULT_ENABLED)
                 .asBoolean();
         public static final StaticSettings.Attribute<Integer> THREAD_POOL_SIZE = StaticSettings.Attribute.define("aim.thread_pool.size")
                 .withDefault(DEFAULT_THREAD_POOL_SIZE).asInteger();
 
-        public static final StaticSettings.Attribute<String> POLICY_NAME_FIELD = StaticSettings.Attribute.define("index.aim.policy_name").index()
-                .asString();
-        public static final StaticSettings.Attribute<Map<String, String>> ALIASES_FIELD = StaticSettings.Attribute.define("index.aim.alias_mapping")
-                .index().dynamic().asMapOfStrings();
-
         public static StaticSettings.AttributeSet getAvailableSettings() {
-            return StaticSettings.AttributeSet.of(ENABLED, THREAD_POOL_SIZE, POLICY_NAME_FIELD, ALIASES_FIELD, StateLog.ENABLED,
-                    StateLog.INDEX_TEMPLATE_NAME, StateLog.INDEX_NAME_PREFIX, StateLog.ALIAS_NAME, StateLog.POLICY_NAME);
+            return StaticSettings.AttributeSet.of(ENABLED, THREAD_POOL_SIZE).with(StateLog.getAvailableSettings());
         }
 
         private final StaticSettings settings;
@@ -353,30 +368,22 @@ public final class AutomatedIndexManagementSettings {
 
         protected Static(Settings settings) {
             this.settings = new StaticSettings(settings, null);
-            stateLog = new StateLog(this.settings);
+            stateLog = new StateLog();
+        }
+
+        public boolean isEnabled() {
+            return settings.get(ENABLED);
         }
 
         public int getThreadPoolSize() {
             return settings.get(THREAD_POOL_SIZE);
         }
 
-        public String getPolicyName(Settings indexSettings) {
-            return POLICY_NAME_FIELD.getFrom(indexSettings);
-        }
-
-        public Map<String, String> getAliases(Settings indexSettings) {
-            return ALIASES_FIELD.getFrom(indexSettings);
-        }
-
-        public String getAlias(String aliasKey, Settings indexSettings) {
-            return getAliases(indexSettings).get(aliasKey);
-        }
-
         public StateLog stateLog() {
             return stateLog;
         }
 
-        public static class StateLog {
+        public class StateLog {
             public static final Boolean DEFAULT_ENABLED = true;
             public static final String DEFAULT_INDEX_TEMPLATE_NAME = ".aim_state_log";
             public static final String DEFAULT_INDEX_NAME_PREFIX = ".aim_state_log";
@@ -394,10 +401,12 @@ public final class AutomatedIndexManagementSettings {
             public static final StaticSettings.Attribute<String> POLICY_NAME = StaticSettings.Attribute.define("aim.state_log.policy.name")
                     .withDefault(DEFAULT_POLICY_NAME).asString();
 
-            private final StaticSettings settings;
+            public static StaticSettings.AttributeSet getAvailableSettings() {
+                return StaticSettings.AttributeSet.of(ENABLED, INDEX_TEMPLATE_NAME, INDEX_NAME_PREFIX, ALIAS_NAME, POLICY_NAME);
+            }
 
-            protected StateLog(StaticSettings settings) {
-                this.settings = settings;
+            private StateLog() {
+
             }
 
             public boolean isEnabled() {
@@ -419,6 +428,50 @@ public final class AutomatedIndexManagementSettings {
             public String getPolicyName() {
                 return settings.get(POLICY_NAME);
             }
+        }
+    }
+
+    public static class Index {
+        public static final String DEFAULT_ROLLOVER_ALIAS_KEY = "rollover_alias";
+
+        public static final StaticSettings.Attribute<String> POLICY_NAME = StaticSettings.Attribute.define("index.aim.policy_name").index()
+                .asString();
+        public static final StaticSettings.Attribute<Map<String, String>> ALIAS_MAPPING = StaticSettings.Attribute.define("index.aim.alias_mapping")
+                .index().dynamic().asMapOfStrings();
+
+        public static StaticSettings.AttributeSet getAvailableSettings() {
+            return StaticSettings.AttributeSet.of(POLICY_NAME, ALIAS_MAPPING);
+        }
+
+        public static boolean isManagedIndex(Settings indexSettings) {
+            return indexSettings.hasValue(POLICY_NAME.name());
+        }
+
+        private final Settings settings;
+
+        public Index(Settings indexSettings) {
+            settings = indexSettings;
+        }
+
+        @Override
+        public String toString() {
+            return "Index{" + "settings=" + settings + '}';
+        }
+
+        public String getPolicyName() {
+            return POLICY_NAME.getFrom(settings);
+        }
+
+        public Map<String, String> getAliases() {
+            return ALIAS_MAPPING.getFrom(settings);
+        }
+
+        public String getAlias(String aliasKey) {
+            return getAliases().get(aliasKey);
+        }
+
+        public boolean containsAliasKey(String aliasKey) {
+            return getAliases().containsKey(aliasKey);
         }
     }
 

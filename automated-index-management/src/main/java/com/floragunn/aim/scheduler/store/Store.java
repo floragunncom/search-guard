@@ -1,13 +1,11 @@
-package com.floragunn.aim.policy.instance.store;
+package com.floragunn.aim.scheduler.store;
 
-import com.floragunn.searchsupport.jobs.cluster.DistributedJobStore;
-import com.floragunn.searchsupport.util.SingleElementBlockingQueue;
+import com.floragunn.searchsupport.jobs.config.JobConfig;
 import com.google.common.collect.MapMaker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.core.TimeValue;
 import org.quartz.Calendar;
 import org.quartz.JobDetail;
@@ -25,25 +23,24 @@ import org.quartz.spi.SchedulerSignaler;
 import org.quartz.spi.TriggerFiredResult;
 import org.quartz.utils.Key;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-public class Store<TriggerType extends InternalOperableTrigger, JobType extends InternalJobDetail> implements DistributedJobStore {
+public class Store<JobConfigType extends JobConfig> implements org.quartz.spi.JobStore {
     public static boolean INCLUDE_NODE_ID_IN_SCHEDULER_STORE = false;
 
-    public static Store<?, ?> getInstance(String node, String name) {
+    public static Store<?> getInstance(String node, String name) {
         return SCHEDULER_STORE.get(getInstanceName(node, name));
     }
 
     private static final Logger LOG = LogManager.getLogger(Store.class);
-    private static final Map<String, Store<?, ?>> SCHEDULER_STORE = new MapMaker().concurrencyLevel(4).weakKeys().makeMap();
+    private static final Map<String, Store<?>> SCHEDULER_STORE = new MapMaker().concurrencyLevel(4).weakKeys().makeMap();
 
     private static String getInstanceName(String node, String name) {
         return INCLUDE_NODE_ID_IN_SCHEDULER_STORE ? node + "::" + name : name;
@@ -52,10 +49,10 @@ public class Store<TriggerType extends InternalOperableTrigger, JobType extends 
     private final String schedulerName;
     private final String node;
     private final Client client;
-    private final TriggerStore<TriggerType> triggerStore;
-    private final JobStore<JobType> jobStore;
+    private final TriggerStore<JobConfigType> triggerStore;
+    private final JobStore<JobConfigType> jobStore;
+    private final ConfigSource<JobConfigType> configSource;
 
-    private final ExecutorService configUpdateExecutor;
     private final ScheduledThreadPoolExecutor maintenanceExecutor;
 
     private volatile boolean shutdown;
@@ -63,54 +60,19 @@ public class Store<TriggerType extends InternalOperableTrigger, JobType extends 
 
     private SchedulerSignaler signaler;
 
-    public Store(String schedulerName, String node, Client client, TriggerStore<TriggerType> triggerStore, JobStore<JobType> jobStore) {
+    public Store(String schedulerName, String node, Client client, TriggerStore<JobConfigType> triggerStore, JobStore<JobConfigType> jobStore,
+            ConfigSource<JobConfigType> configSource) {
         this.schedulerName = schedulerName;
         this.node = node;
         this.client = client;
         this.triggerStore = triggerStore;
         this.jobStore = jobStore;
+        this.configSource = configSource;
 
-        configUpdateExecutor = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, new SingleElementBlockingQueue<>());
         maintenanceExecutor = new ScheduledThreadPoolExecutor(1);
 
         shutdown = false;
         initialized = false;
-    }
-
-    @Override
-    public void clusterConfigChanged(ClusterChangedEvent event) {
-        LOG.debug("Cluster config changed; shutdown: {}", shutdown);
-        if (shutdown) {
-            return;
-        }
-        try {
-            clearAllSchedulingData();
-        } catch (JobPersistenceException e) {
-            LOG.error("Could not clear scheduling data on cluster config change", e);
-        }
-        configUpdateExecutor.submit(() -> {
-            try {
-                LOG.info("Reinitializing jobs for {}", schedulerName);
-                maintenanceExecutor.getQueue().clear();
-                load();
-                signaler.signalSchedulingChange(0);
-                LOG.debug("Finished initializing jobs for {}", schedulerName);
-            } catch (Exception e) {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e1) {
-                    LOG.debug(e1);
-                }
-                if (!shutdown) {
-                    LOG.error("Error initializing jobs for {}", schedulerName, e);
-                }
-            }
-        });
-    }
-
-    @Override
-    public boolean isInitialized() {
-        return initialized;
     }
 
     @Override
@@ -134,7 +96,7 @@ public class Store<TriggerType extends InternalOperableTrigger, JobType extends 
         }
         jobStore.initialize(signaler, client, node, schedulerName, maintenanceExecutor);
         triggerStore.initialize(signaler, client, node, schedulerName, maintenanceExecutor);
-        load();
+        load(configSource.getConfigs());
         initialized = true;
         LOG.debug("Store initialization for '{}' finished successfully", schedulerName);
     }
@@ -159,24 +121,19 @@ public class Store<TriggerType extends InternalOperableTrigger, JobType extends 
         if (!shutdown) {
             LOG.info("Shutting down {}", this);
             shutdown = true;
+
             jobStore.shutdown();
             triggerStore.shutdown();
-            configUpdateExecutor.shutdown();
-            try {
-                if (configUpdateExecutor.awaitTermination(1, TimeUnit.MINUTES)) {
-                    configUpdateExecutor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                configUpdateExecutor.shutdownNow();
-            }
+
             maintenanceExecutor.shutdown();
             try {
-                if (maintenanceExecutor.awaitTermination(1, TimeUnit.MINUTES)) {
+                if (!maintenanceExecutor.awaitTermination(1, TimeUnit.MINUTES)) {
                     maintenanceExecutor.shutdownNow();
                 }
             } catch (InterruptedException e) {
-                configUpdateExecutor.shutdownNow();
+                maintenanceExecutor.shutdownNow();
             }
+            SCHEDULER_STORE.remove(getInstanceName(node, schedulerName));
         }
     }
 
@@ -221,8 +178,8 @@ public class Store<TriggerType extends InternalOperableTrigger, JobType extends 
 
     @Override
     public synchronized boolean removeJob(JobKey jobKey) throws JobPersistenceException {
-        boolean result = triggerStore.removeAll(jobKey);
-        return result && jobStore.remove(jobKey);
+        boolean result = triggerStore.getAll(jobKey).size() == triggerStore.removeAll(jobKey).size();
+        return result && jobStore.remove(jobKey) != null;
     }
 
     @Override
@@ -467,12 +424,12 @@ public class Store<TriggerType extends InternalOperableTrigger, JobType extends 
     }
 
     @Override
-    public void setInstanceId(String schedInstId) {
+    public void setInstanceId(String schedulerInstanceId) {
 
     }
 
     @Override
-    public void setInstanceName(String schedName) {
+    public void setInstanceName(String schedulerName) {
 
     }
 
@@ -492,8 +449,56 @@ public class Store<TriggerType extends InternalOperableTrigger, JobType extends 
                 + jobStore + '}';
     }
 
-    private synchronized void load() {
-        Map<JobKey, InternalJobDetail> jobs = jobStore.load();
+    public List<InternalJobDetail<JobConfigType>> handleConfigUpdate(List<JobKey> deleted, Iterable<JobConfigType> created) {
+        if (shutdown || !initialized) {
+            return List.of();
+        }
+        List<InternalJobDetail<JobConfigType>> result = new ArrayList<>(deleted.size());
+        try {
+            for (JobKey jobKey : deleted) {
+                triggerStore.removeAll(jobKey);
+                InternalJobDetail<JobConfigType> jobDetail = jobStore.remove(jobKey);
+                if (jobDetail != null) {
+                    result.add(jobDetail);
+                }
+            }
+        } catch (JobPersistenceException e) {
+            LOG.error("Failed to remove jobs after config update", e);
+        }
+        load(created);
+        return result;
+    }
+
+    public void reschedule() {
+        LOG.debug("Rescheduling; shutdown: {}", shutdown);
+        if (shutdown || !initialized) {
+            return;
+        }
+        try {
+            LOG.info("Reinitializing jobs for {}", schedulerName);
+            synchronized (this) {
+                clearAllSchedulingData();
+                maintenanceExecutor.getQueue().clear();
+                load(configSource.getConfigs());
+                signaler.signalSchedulingChange(0);
+            }
+            LOG.debug("Finished initializing jobs for {}", schedulerName);
+        } catch (JobPersistenceException e) {
+            LOG.error("Could not clear scheduling data on cluster config change", e);
+        } catch (Exception e) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e1) {
+                LOG.debug(e1);
+            }
+            if (!shutdown) {
+                LOG.error("Error initializing jobs for {}", schedulerName, e);
+            }
+        }
+    }
+
+    private synchronized void load(Iterable<JobConfigType> source) {
+        Map<JobKey, InternalJobDetail<JobConfigType>> jobs = jobStore.load(source);
         triggerStore.load(jobs);
     }
 }

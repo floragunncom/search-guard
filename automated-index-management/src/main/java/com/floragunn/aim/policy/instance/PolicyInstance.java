@@ -5,16 +5,20 @@ import com.floragunn.aim.policy.Policy;
 import com.floragunn.aim.policy.PolicyService;
 import com.floragunn.aim.policy.actions.Action;
 import com.floragunn.aim.policy.conditions.Condition;
-import com.floragunn.aim.policy.instance.store.InternalJobDetail;
-import com.floragunn.aim.policy.instance.store.JobConfigFactory;
+import com.floragunn.aim.policy.schedule.Schedule;
+import com.floragunn.aim.scheduler.store.ConfigJobDetail;
+import com.floragunn.aim.scheduler.store.JobConfigFactory;
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchsupport.jobs.config.JobConfig;
-import com.floragunn.searchsupport.jobs.config.JobDetailWithBaseConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.admin.indices.stats.IndexStats;
+import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.rest.RestStatus;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobBuilder;
@@ -25,25 +29,28 @@ import org.quartz.JobExecutionException;
 import org.quartz.JobKey;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
-import org.quartz.SimpleScheduleBuilder;
 import org.quartz.Trigger;
-import org.quartz.TriggerBuilder;
 import org.quartz.TriggerKey;
 import org.quartz.spi.JobFactory;
 import org.quartz.spi.TriggerFiredBundle;
 
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Collection;
-import java.util.Date;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 
 import static com.floragunn.aim.policy.instance.PolicyInstanceState.Status.*;
 
 @DisallowConcurrentExecution
 public class PolicyInstance implements Job {
+    public static JobKey jobKeyFromIndexName(String indexName) {
+        return new JobKey(indexName, defaultGroupName());
+    }
+
+    public static String defaultGroupName() {
+        return "_main";
+    }
+
     private static final Logger LOG = LogManager.getLogger(PolicyInstance.class);
 
     private final Config config;
@@ -73,7 +80,6 @@ public class PolicyInstance implements Job {
         case FAILED:
             if (config.getState().isRetryOnNextExecution()) {
                 LOG.debug("Retrying policy instance '{}'", config.getIndex());
-                config.getState().setRetryOnNextExecution(false);
                 retry();
             }
             break;
@@ -103,6 +109,8 @@ public class PolicyInstance implements Job {
     private void retry() {
         try {
             config.getState().setStatus(RUNNING);
+            config.getState().setLastResponsibleNode(executionContext.getClusterService().localNode().getName());
+            config.getState().setRetryOnNextExecution(false);
             updateState();
             Policy.Step currentStep = config.getPolicy().getStep(config.getState().getCurrentStepName());
             Action failedAction = null;
@@ -120,18 +128,16 @@ public class PolicyInstance implements Job {
                 Policy.Step nextStep = config.getPolicy().getNextStep(currentStep.getName());
                 if (nextStep != null) {
                     config.getState().setCurrentStepName(nextStep.getName());
-                    execute();
+                    execute0();
                 } else {
                     config.getState().setStatus(FINISHED);
-                    updateState();
                 }
-            } else {
-                updateState();
             }
         } catch (Exception e) {
             LOG.warn("Unexpected error while retrying policy instance for index '{}'", config.getIndex(), e);
             config.getState().setLastExecutedStepState(new PolicyInstanceState.StepState("unknown", Instant.now(), 0, e));
             config.getState().setStatus(FAILED);
+        } finally {
             updateState();
         }
     }
@@ -139,34 +145,39 @@ public class PolicyInstance implements Job {
     private void execute() {
         try {
             config.getState().setStatus(RUNNING);
+            config.getState().setLastResponsibleNode(executionContext.getClusterService().localNode().getName());
             updateState();
-            while (config.getState().getStatus() == RUNNING) {
-                Policy.Step currentStep = config.getPolicy().getStep(config.getState().getCurrentStepName());
-                if (currentStep != null) {
-                    executeStep(currentStep, 0);
-                } else {
-                    LOG.warn("Could not find step to execute for index '{}'", config.getIndex());
-                    config.getState().setLastExecutedStepState(new PolicyInstanceState.StepState("unknown", Instant.now(), 0,
-                            new IllegalStateException("Could not find step to execute")));
-                    config.getState().setStatus(FAILED);
-                    break;
-                }
-                if (config.getState().getStatus() == RUNNING) {
-                    Policy.Step nextStep = config.getPolicy().getNextStep(currentStep.getName());
-                    if (nextStep != null) {
-                        config.getState().setCurrentStepName(nextStep.getName());
-                    } else {
-                        config.getState().setStatus(FINISHED);
-                        break;
-                    }
-                }
-            }
+            execute0();
         } catch (Exception e) {
             LOG.warn("Unexpected error while executing policy instance for index '{}'", config.getIndex(), e);
             config.getState().setLastExecutedStepState(new PolicyInstanceState.StepState("unknown", Instant.now(), 0, e));
             config.getState().setStatus(FAILED);
         } finally {
             updateState();
+        }
+    }
+
+    private void execute0() throws Exception {
+        while (config.getState().getStatus() == RUNNING) {
+            Policy.Step currentStep = config.getPolicy().getStep(config.getState().getCurrentStepName());
+            if (currentStep != null) {
+                executeStep(currentStep, 0);
+            } else {
+                LOG.warn("Could not find step to execute for index '{}'", config.getIndex());
+                config.getState().setLastExecutedStepState(
+                        new PolicyInstanceState.StepState("unknown", Instant.now(), 0, new IllegalStateException("Could not find step to execute")));
+                config.getState().setStatus(FAILED);
+                break;
+            }
+            if (config.getState().getStatus() == RUNNING) {
+                Policy.Step nextStep = config.getPolicy().getNextStep(currentStep.getName());
+                if (nextStep != null) {
+                    config.getState().setCurrentStepName(nextStep.getName());
+                } else {
+                    config.getState().setStatus(FINISHED);
+                    break;
+                }
+            }
         }
     }
 
@@ -238,10 +249,6 @@ public class PolicyInstance implements Job {
         config.update(executionContext.getStateService());
     }
 
-    public String getPolicyName() {
-        return config.getState().getPolicyName();
-    }
-
     public static class ExecutionException extends Exception {
         public ExecutionException(String message) {
             super(message);
@@ -277,6 +284,30 @@ public class PolicyInstance implements Job {
         public PolicyInstanceService getStateService() {
             return stateService;
         }
+
+        public AutomatedIndexManagementSettings.Index getIndexSettings(String index) {
+            return new AutomatedIndexManagementSettings.Index(clusterService.state().metadata().index(index).getSettings());
+        }
+
+        public boolean updateIndexSetting(String index, String key, Object value) {
+            return updateIndexSettings(index, ImmutableMap.of(key, value));
+        }
+
+        public boolean updateIndexSettings(String index, Map<String, Object> settings) {
+            AcknowledgedResponse response = client.admin().indices().prepareUpdateSettings(index).setSettings(settings).get();
+            if (!response.isAcknowledged()) {
+                LOG.warn("Could not update index settings for index '{}'", index);
+            }
+            return response.isAcknowledged();
+        }
+
+        public IndexStats getIndexStats(String index) {
+            IndicesStatsResponse response = client.admin().indices().prepareStats(index).clear().setDocs(true).get();
+            if (response.getStatus() != RestStatus.OK || response.getIndex(index) == null) {
+                LOG.debug("Failed to receive index stats for index '{}'. Response was: {}", index, response);
+            }
+            return response.getIndex(index);
+        }
     }
 
     public static class Factory implements JobFactory {
@@ -289,23 +320,53 @@ public class PolicyInstance implements Job {
 
         @Override
         public Job newJob(TriggerFiredBundle bundle, Scheduler scheduler) throws SchedulerException {
-            Config config = ((JobDetailWithBaseConfig) bundle.getJobDetail()).getBaseConfig(Config.class);
+            @SuppressWarnings("unchecked")
+            Config config = ((ConfigJobDetail<Config>) bundle.getJobDetail()).getJobConfig();
             LOG.trace("Building new job {} for index {}", config.getJobKey().toString(), config.getJobKey().getName());
             return new PolicyInstance(config, executionContext);
         }
     }
 
     public static class Config implements JobConfig {
+        public static Schedule evaluateSchedule(Policy policy, PolicyInstanceState state, AutomatedIndexManagementSettings settings) {
+            String currentStepName = state.getCurrentStepName();
+            if ("none".equals(currentStepName) && policy.getFirstStep().getSchedule() != null) {
+                return policy.getFirstStep().getSchedule();
+            }
+            if (!"none".equals(currentStepName) && policy.getStep(currentStepName).getSchedule() != null) {
+                return policy.getStep(currentStepName).getSchedule();
+            }
+            if (policy.getSchedule() != null) {
+                return policy.getSchedule();
+            }
+            return settings.getDynamic().getDefaultSchedule();
+        }
+
+        public static Schedule evaluateSchedule(Config config, AutomatedIndexManagementSettings settings) {
+            return evaluateSchedule(config.getPolicy(), config.getState(), settings);
+        }
+
+        public static boolean isReschedule(Config config, Schedule schedule) {
+            TriggerKey currentTriggerKey = config.getCurrentTrigger().getKey();
+            TriggerKey newTriggerKey = schedule.getTriggerKey(config.getJobKey());
+            if (newTriggerKey.equals(currentTriggerKey)) {
+                return false;
+            }
+            return schedule.getScope() != Schedule.Scope.DEFAULT || !currentTriggerKey.getName().startsWith(Schedule.Scope.DEFAULT.getPrefix());
+        }
+
         private final JobKey jobKey;
-        private final Collection<Trigger> triggers;
         private final Policy policy;
         private final PolicyInstanceState state;
 
-        private Config(JobKey jobKey, Collection<Trigger> triggers, Policy policy, PolicyInstanceState state) {
+        private Trigger currentTrigger;
+
+        private Config(JobKey jobKey, Policy policy, PolicyInstanceState state, Trigger initialTrigger) {
             this.jobKey = jobKey;
-            this.triggers = triggers;
             this.policy = policy;
             this.state = state;
+
+            currentTrigger = initialTrigger;
         }
 
         @Override
@@ -350,7 +411,7 @@ public class PolicyInstance implements Job {
 
         @Override
         public Collection<Trigger> getTriggers() {
-            return triggers;
+            return ImmutableList.of(currentTrigger);
         }
 
         @Override
@@ -359,8 +420,8 @@ public class PolicyInstance implements Job {
                 return true;
             if (!(o instanceof Config config))
                 return false;
-            return Objects.equals(jobKey, config.jobKey) && Objects.equals(triggers, config.triggers) && Objects.equals(policy, config.policy)
-                    && Objects.equals(state, config.state);
+            return Objects.equals(jobKey, config.jobKey) && Objects.equals(currentTrigger, config.currentTrigger)
+                    && Objects.equals(policy, config.policy) && Objects.equals(state, config.state);
         }
 
         @Override
@@ -368,8 +429,17 @@ public class PolicyInstance implements Job {
             return Objects.hash(jobKey);
         }
 
+        @Override
+        public String toString() {
+            return "Config{" + "jobKey=" + jobKey + ", currentTrigger=" + currentTrigger + ", policy=" + policy + ", state=" + state + '}';
+        }
+
         public String getIndex() {
             return jobKey.getName();
+        }
+
+        public Trigger getCurrentTrigger() {
+            return currentTrigger;
         }
 
         public Policy getPolicy() {
@@ -380,6 +450,10 @@ public class PolicyInstance implements Job {
             return state;
         }
 
+        public synchronized void setCurrentTrigger(Trigger trigger) {
+            this.currentTrigger = trigger;
+        }
+
         public synchronized void setRetryOnNextExecution(boolean retryOnNextExecution, PolicyInstanceService policyInstanceService) {
             state.setRetryOnNextExecution(retryOnNextExecution);
             update(policyInstanceService);
@@ -387,7 +461,6 @@ public class PolicyInstance implements Job {
 
         public synchronized void setDeleted(PolicyInstanceService policyInstanceService) {
             state.setStatus(DELETED);
-            LOG.trace("Updating policy instance state for index '{}' to deleted status: \n{}", getIndex(), state.toPrettyJsonString());
             policyInstanceService.updateState(getIndex(), state);
         }
 
@@ -396,25 +469,10 @@ public class PolicyInstance implements Job {
                 LOG.debug("Ignoring policy instance state update for index '{}' because policy instance is deleted", getIndex());
                 return;
             }
-            LOG.trace("Updating policy instance state for index '{}':\n{}", getIndex(), state.toPrettyJsonString());
             policyInstanceService.updateState(getIndex(), state);
         }
 
         public static class Factory implements JobConfigFactory<Config> {
-            public static Trigger buildDefaultTrigger(JobKey jobKey, AutomatedIndexManagementSettings settings) {
-                long executionDelay = settings.getDynamic().getExecutionFixedDelay().getMillis();
-                long executionPeriod = settings.getDynamic().getExecutionPeriod().getMillis();
-                if (settings.getDynamic().getExecutionRandomDelayEnabled()) {
-                    SecureRandom random = new SecureRandom();
-                    executionDelay += random.nextLong(executionPeriod);
-                }
-                return TriggerBuilder.newTrigger().forJob(jobKey)
-                        .withIdentity(new TriggerKey(jobKey.getName() + "___" + UUID.randomUUID(), jobKey.getGroup()))
-                        .withSchedule(SimpleScheduleBuilder.simpleSchedule().withIntervalInMilliseconds(executionPeriod).repeatForever()
-                                .withMisfireHandlingInstructionFireNow())
-                        .startAt(new Date(System.currentTimeMillis() + executionDelay)).build();
-            }
-
             private final AutomatedIndexManagementSettings settings;
             private final PolicyService policyService;
             private final PolicyInstanceService policyInstanceService;
@@ -425,12 +483,19 @@ public class PolicyInstance implements Job {
                 this.policyInstanceService = policyInstanceService;
             }
 
-            public JobDetailWithBaseConfig createJobDetailWithBaseConfig(Config config) {
-                return new InternalJobDetail(createJobDetail(config), config);
+            @Override
+            public JobDetail createJobDetail(Config config) {
+                JobBuilder jobBuilder = JobBuilder.newJob(config.getJobClass()).withIdentity(config.getJobKey()) //
+                        .withDescription(config.getDescription()) //
+                        .storeDurably(config.isDurable());
+                if (config.getJobDataMap() != null) {
+                    jobBuilder.setJobData(new JobDataMap(config.getJobDataMap()));
+                }
+                return jobBuilder.build();
             }
 
-            public Config create(String index, Settings indexSettings) {
-                String policyName = indexSettings.get(AutomatedIndexManagementSettings.Static.POLICY_NAME_FIELD.name());
+            public Config create(String index, AutomatedIndexManagementSettings.Index indexSettings) {
+                String policyName = indexSettings.getPolicyName();
                 if (policyName == null || policyName.isEmpty()) {
                     LOG.debug("Policy instance creation failed for index '{}': Invalid index settings: Policy name field missing", index);
                     return null;
@@ -443,27 +508,15 @@ public class PolicyInstance implements Job {
                 }
                 PolicyInstanceState state = policyInstanceService.getState(index);
                 if (state == null || state.getStatus() == PolicyInstanceState.Status.DELETED) {
+                    LOG.trace("Creating new state for index '{}'", index);
                     state = new PolicyInstanceState(policyName);
+                    policyInstanceService.updateState(index, state);
+                } else {
+                    LOG.trace("Found existing state for index '{}': {}", index, state.toPrettyJsonString());
                 }
-                JobKey jobKey = new JobKey(index, "aim");
-                Config config = new Config(jobKey, ImmutableList.of(buildDefaultTrigger(jobKey, settings)), policy, state);
-                config.update(policyInstanceService);
-                return config;
-            }
-
-            @Override
-            public JobDetail createJobDetail(Config jobType) {
-                JobBuilder jobBuilder = JobBuilder.newJob(jobType.getJobClass());
-
-                jobBuilder.withIdentity(jobType.getJobKey());
-
-                if (jobType.getJobDataMap() != null) {
-                    jobBuilder.setJobData(new JobDataMap(jobType.getJobDataMap()));
-                }
-
-                jobBuilder.withDescription(jobType.getDescription());
-                jobBuilder.storeDurably(jobType.isDurable());
-                return jobBuilder.build();
+                JobKey jobKey = jobKeyFromIndexName(index);
+                Schedule schedule = evaluateSchedule(policy, state, settings);
+                return new Config(jobKey, policy, state, schedule.buildTrigger(jobKey));
             }
         }
     }

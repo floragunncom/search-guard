@@ -1,7 +1,6 @@
-package com.floragunn.aim.policy.instance.store;
+package com.floragunn.aim.scheduler.store;
 
 import com.floragunn.searchsupport.jobs.config.JobConfig;
-import com.floragunn.searchsupport.jobs.config.JobDetailWithBaseConfig;
 import org.quartz.Job;
 import org.quartz.JobBuilder;
 import org.quartz.JobDataMap;
@@ -10,25 +9,20 @@ import org.quartz.JobKey;
 
 import java.util.Objects;
 
-public class InternalJobDetail implements JobDetail, JobDetailWithBaseConfig {
+public class InternalJobDetail<JobConfigType extends JobConfig> implements ConfigJobDetail<JobConfigType> {
     private static final long serialVersionUID = -3283802307736834293L;
 
-    private final JobConfig jobConfig;
+    private final JobConfigType jobConfig;
     private JobDetail delegate;
 
-    public InternalJobDetail(JobDetail delegate, JobConfig jobConfig) {
+    public InternalJobDetail(JobDetail delegate, JobConfigType jobConfig) {
         this.delegate = delegate;
         this.jobConfig = jobConfig;
     }
 
     @Override
-    public JobConfig getBaseConfig() {
+    public JobConfigType getJobConfig() {
         return jobConfig;
-    }
-
-    @Override
-    public <T> T getBaseConfig(Class<T> type) {
-        return type.cast(jobConfig);
     }
 
     @Override
@@ -74,7 +68,7 @@ public class InternalJobDetail implements JobDetail, JobDetailWithBaseConfig {
     @SuppressWarnings("MethodDoesntCallSuperMethod")
     @Override
     public Object clone() {
-        return new InternalJobDetail(delegate, jobConfig);
+        return new InternalJobDetail<>(delegate, jobConfig);
     }
 
     @Override
@@ -84,11 +78,14 @@ public class InternalJobDetail implements JobDetail, JobDetailWithBaseConfig {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
+        if (this == o) {
             return true;
-        if (!(o instanceof InternalJobDetail jobDetail))
+        }
+        if (!(o instanceof InternalJobDetail<?>)) {
             return false;
-        return Objects.equals(jobConfig, jobDetail.jobConfig) && Objects.equals(delegate, jobDetail.delegate);
+        }
+        InternalJobDetail<?> other = (InternalJobDetail<?>) o;
+        return Objects.equals(jobConfig, other.jobConfig) && Objects.equals(delegate, other.delegate);
     }
 
     @Override

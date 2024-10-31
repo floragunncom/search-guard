@@ -49,8 +49,8 @@ public class AutomatedIndexManagementModule implements SearchGuardModule, Compon
 
     @Override
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
-                                             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-                                             ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
+            IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
+            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
         if (enabled) {
             return Arrays.asList(PolicyAPI.REST, PolicyInstanceAPI.REST, SettingsAPI.REST);
         }
@@ -64,10 +64,10 @@ public class AutomatedIndexManagementModule implements SearchGuardModule, Compon
             handlers.addAll(InternalPolicyAPI.HANDLERS);
             handlers.addAll(InternalPolicyInstanceAPI.HANDLERS);
             handlers.addAll(InternalSettingsAPI.HANDLERS);
+            handlers.addAll(InternalSchedulerAPI.HANDLERS);
             handlers.addAll(PolicyAPI.HANDLERS);
             handlers.addAll(PolicyInstanceAPI.HANDLERS);
             handlers.addAll(SettingsAPI.HANDLERS);
-            handlers.addAll(InternalSchedulerAPI.HANDLERS);
             return ImmutableList.of(handlers);
         }
         return Collections.emptyList();
@@ -76,15 +76,16 @@ public class AutomatedIndexManagementModule implements SearchGuardModule, Compon
     @Override
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
         if (enabled) {
-            return new AutomatedIndexManagement(baseDependencies.getSettings(), componentState).createComponents(baseDependencies.getLocalClient(),
-                    baseDependencies.getClusterService(), baseDependencies.getProtectedConfigIndexService());
+            return new AutomatedIndexManagement(baseDependencies.getSettings(), componentState, baseDependencies.getNodeEnvironment())
+                    .createComponents(baseDependencies.getLocalClient(), baseDependencies.getClusterService(),
+                            baseDependencies.getProtectedConfigIndexService());
         }
         return Collections.emptyList();
     }
 
     @Override
     public StaticSettings.AttributeSet getSettings() {
-        return AutomatedIndexManagementSettings.Static.getAvailableSettings();
+        return AutomatedIndexManagementSettings.Static.getAvailableSettings().with(AutomatedIndexManagementSettings.Index.getAvailableSettings());
     }
 
     @Override

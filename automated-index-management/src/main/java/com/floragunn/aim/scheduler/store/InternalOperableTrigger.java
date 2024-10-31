@@ -1,4 +1,4 @@
-package com.floragunn.aim.policy.instance.store;
+package com.floragunn.aim.scheduler.store;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
@@ -371,11 +371,13 @@ public class InternalOperableTrigger extends AbstractDelegateTrigger<OperableTri
         private Date previousFireTime;
         private Integer timesTriggered;
 
-        public ParsedOperableTrigger(TriggerKey key, ValidatingDocNode vNode) {
+        public ParsedOperableTrigger(TriggerKey key, ValidatingDocNode node) {
             triggerKey = key;
-            nextFireTime = new Date(vNode.get(NEXT_FIRE_TIME_FIELD).required().asLong());
-            previousFireTime = new Date(vNode.get(PREVIOUS_FIRE_TIME_FIELD).required().asLong());
-            timesTriggered = vNode.get(TIMES_TRIGGERED_FIELD).asInteger();
+            Long nextFireTimeLong = node.get(NEXT_FIRE_TIME_FIELD).required().asLong();
+            nextFireTime = nextFireTimeLong == null ? null : new Date(nextFireTimeLong);
+            Long previousFireTimeLong = node.get(PREVIOUS_FIRE_TIME_FIELD).required().asLong();
+            previousFireTime = previousFireTimeLong == null ? null : new Date(previousFireTimeLong);
+            timesTriggered = node.get(TIMES_TRIGGERED_FIELD).asInteger();
         }
 
         @Override

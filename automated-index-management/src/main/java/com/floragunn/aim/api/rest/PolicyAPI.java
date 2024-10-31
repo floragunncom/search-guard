@@ -128,7 +128,7 @@ public class PolicyAPI {
                     if (response.isExists()) {
                         try {
                             Policy policy = Policy.parse(DocNode.parse(Format.JSON).from(response.getSourceAsBytesRef().utf8ToString()),
-                                    Policy.ParsingContext.lenient(aim.getConditionFactory(), aim.getActionFactory()));
+                                    Policy.ParsingContext.lenient(aim.getScheduleFactory(), aim.getConditionFactory(), aim.getActionFactory()));
                             return new StandardResponse(200)
                                     .data(request.isShowInternalSteps() ? policy.toBasicObject() : policy.toBasicObjectExcludeInternal());
                         } catch (ConfigValidationException e) {
@@ -195,7 +195,7 @@ public class PolicyAPI {
                 }
                 try {
                     Policy policy = Policy.parse(request.getPolicy().parseAsDocNode(),
-                            Policy.ParsingContext.strict(aim.getConditionFactory(), aim.getActionFactory()));
+                            Policy.ParsingContext.strict(aim.getScheduleFactory(), aim.getConditionFactory(), aim.getActionFactory()));
                     result = aim.getPolicyService().putPolicyAsync(request.getPolicyName(), policy).thenApply(statusResponse -> {
                         if (statusResponse.status() == RestStatus.PRECONDITION_FAILED) {
                             return new StandardResponse(412).message("Could not override existing policy because it is still in use");

@@ -1,4 +1,4 @@
-package com.floragunn.aim.policy.instance.store;
+package com.floragunn.aim.scheduler.store;
 
 import org.quartz.JobDataMap;
 import org.quartz.JobKey;

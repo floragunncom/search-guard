@@ -11,12 +11,9 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchsupport.indices.IndexMapping;
-import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
-import static org.elasticsearch.rest.RestStatus.OK;
 
 public abstract class Condition implements Document<Object> {
     public static final String TYPE_FIELD = "type";
@@ -39,14 +36,6 @@ public abstract class Condition implements Document<Object> {
         return res.with(configToBasicMap());
     }
 
-    public IndicesStatsResponse getIndexStats(String index, PolicyInstance.ExecutionContext executionContext) {
-        IndicesStatsResponse response = executionContext.getClient().admin().indices().prepareStats(index).clear().setDocs(true).get();
-        if (response.getStatus() != OK) {
-            throw new IllegalStateException("Failed to get index settings. Response was not OK, shards failed");
-        }
-        return response;
-    }
-
     public static abstract class Async extends Condition {
         public abstract String getStepName();
     }
@@ -64,15 +53,15 @@ public abstract class Condition implements Document<Object> {
 
         public void validateType(String type, Condition.ValidatingParser validatingParser) {
             if (validationContext != null && type != null) {
-                validatingParser.validateType(new TypeValidator(type));
+                validatingParser.validateType(new TypedValidator(type));
                 validationContext.addExecutable(type);
             }
         }
 
-        public class TypeValidator {
+        public class TypedValidator {
             private final String type;
 
-            private TypeValidator(String type) {
+            private TypedValidator(String type) {
                 this.type = type;
             }
 
@@ -97,7 +86,7 @@ public abstract class Condition implements Document<Object> {
     public interface ValidatingParser {
         Condition parse(ValidatingDocNode node, ValidationErrors errors, Policy.ValidationContext validationContext);
 
-        void validateType(Validator.TypeValidator typeValidator);
+        void validateType(Validator.TypedValidator typedValidator);
     }
 
     public static class Factory {
