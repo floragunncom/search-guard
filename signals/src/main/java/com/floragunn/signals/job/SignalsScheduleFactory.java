@@ -42,6 +42,7 @@ public class SignalsScheduleFactory extends DefaultScheduleFactory {
     private final Integer simpleMisfireStrategy;
 
     public SignalsScheduleFactory(SignalsSettings signalsSettings) {
+        super(new SignalsJobTriggerPostProcessor(signalsSettings));
         this.cronMisfireStrategy = signalsSettings.getStaticSettings().getCronMisfireStrategy();
         this.simpleMisfireStrategy = signalsSettings.getStaticSettings().getSimpleMisfireStrategy();
     }

@@ -7,7 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.signals.job.SignalsScheduleFactory;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.apache.logging.log4j.LogManager;
@@ -80,7 +80,7 @@ public class SignalsTenantTest {
     private static DiagnosticContext diagnosticContext;
     private static TrustManagerRegistry trustManagerRegistry;
     private static HttpProxyHostRegistry httpProxyHostRegistry;
-    private static SignalsScheduleFactory signalsScheduleFactory;
+    private static DefaultScheduleFactory signalsScheduleFactory;
     private static FeatureService featureService;
     private static final User UHURA = User.forUser("uhura").backendRoles("signals_admin", "all_access").build();
 

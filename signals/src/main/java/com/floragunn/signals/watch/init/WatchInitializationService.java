@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-import com.floragunn.signals.job.SignalsScheduleFactory;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.script.SignalsScriptContextFactory;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
@@ -43,11 +43,11 @@ public class WatchInitializationService {
     private final HttpProxyHostRegistry httpProxyHostRegistry;
 
     private final ValidationLevel validationLevel;
-    private final SignalsScheduleFactory signalsScheduleFactory;
+    private final DefaultScheduleFactory signalsScheduleFactory;
 
     public WatchInitializationService(AccountRegistry accountRegistry, ScriptService scriptService,
                                       TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry,
-                                      ThrottlePeriodParser throttlePeriodParser, SignalsScheduleFactory signalsScheduleFactory,
+                                      ThrottlePeriodParser throttlePeriodParser, DefaultScheduleFactory signalsScheduleFactory,
                                       ValidationLevel validationLevel) {
         this.accountRegistry = accountRegistry;
         this.scriptService = scriptService;
@@ -172,7 +172,7 @@ public class WatchInitializationService {
         return this.validationLevel;
     }
 
-    public SignalsScheduleFactory getSignalsScheduleFactory() {
+    public DefaultScheduleFactory getSignalsScheduleFactory() {
         return signalsScheduleFactory;
     }
 

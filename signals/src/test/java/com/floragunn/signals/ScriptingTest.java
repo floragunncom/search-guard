@@ -5,7 +5,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
-import com.floragunn.signals.job.SignalsScheduleFactory;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -62,7 +62,7 @@ public class ScriptingTest {
         xContentRegistry = cluster.getInjectable(NamedXContentRegistry.class);
         scriptService = cluster.getInjectable(ScriptService.class);
         watchInitService = new WatchInitializationService(null, scriptService, Mockito.mock(TrustManagerRegistry.class),
-                Mockito.mock(HttpProxyHostRegistry.class), null, Mockito.mock(SignalsScheduleFactory.class), STRICT);
+                Mockito.mock(HttpProxyHostRegistry.class), null, Mockito.mock(DefaultScheduleFactory.class), STRICT);
         signalsModule = cluster.getInjectable(SignalsModule.class);
     }
 

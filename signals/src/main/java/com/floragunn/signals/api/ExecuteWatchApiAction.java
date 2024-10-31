@@ -5,7 +5,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import com.floragunn.signals.job.SignalsScheduleFactory;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
+import com.floragunn.signals.job.SignalsJobTriggerPostProcessor;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
@@ -42,13 +43,13 @@ public class ExecuteWatchApiAction extends SignalsTenantAwareRestHandler {
     private final Logger log = LogManager.getLogger(this.getClass());
     private final ScriptService scriptService;
     private final ThrottlePeriodParser throttlePeriodParser;
-    private final SignalsScheduleFactory signalsScheduleFactory;
+    private final DefaultScheduleFactory signalsScheduleFactory;
 
     public ExecuteWatchApiAction(Settings settings, ScriptService scriptService, SignalsSettings signalsSettings) {
         super(settings);
         this.scriptService = scriptService;
         this.throttlePeriodParser = new ValidatingThrottlePeriodParser(signalsSettings);
-        this.signalsScheduleFactory = new SignalsScheduleFactory(signalsSettings);
+        this.signalsScheduleFactory = new DefaultScheduleFactory(new SignalsJobTriggerPostProcessor(signalsSettings));
     }
 
     @Override

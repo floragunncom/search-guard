@@ -11,7 +11,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import com.floragunn.signals.job.SignalsScheduleFactory;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
+import com.floragunn.signals.job.SignalsJobTriggerPostProcessor;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.proxy.service.ProxyCrudService;
 import com.floragunn.signals.proxy.service.persistence.ProxyData;
@@ -82,7 +83,7 @@ public class Signals extends AbstractLifecycleComponent {
     private TrustManagerRegistry trustManagerRegistry;
     private HttpProxyHostRegistry httpProxyHostRegistry;
     private FeatureService featureService;
-    private SignalsScheduleFactory signalsScheduleFactory;
+    private DefaultScheduleFactory signalsScheduleFactory;
 
     public Signals(Settings settings, ComponentState componentState) {
         this.componentState = componentState;
@@ -129,7 +130,7 @@ public class Signals extends AbstractLifecycleComponent {
             ProxyRepository proxyRepository = new ProxyRepository(signalsSettings, privilegedConfigClient);
             ProxyCrudService proxyCrudService = new ProxyCrudService(proxyRepository);
             this.httpProxyHostRegistry = new HttpProxyHostRegistry(proxyCrudService);
-            this.signalsScheduleFactory = new SignalsScheduleFactory(signalsSettings);
+            this.signalsScheduleFactory = new DefaultScheduleFactory(new SignalsJobTriggerPostProcessor(signalsSettings));
             this.featureService = featureService;
             return Collections.singletonList(this);
 
@@ -464,7 +465,7 @@ public class Signals extends AbstractLifecycleComponent {
         return httpProxyHostRegistry;
     }
 
-    public SignalsScheduleFactory getSignalsScheduleFactory() {
+    public DefaultScheduleFactory getSignalsScheduleFactory() {
         return signalsScheduleFactory;
     }
 

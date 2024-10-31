@@ -14,9 +14,9 @@ import java.util.Optional;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
 import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
 import com.floragunn.signals.accounts.AccountRegistry;
-import com.floragunn.signals.job.SignalsScheduleFactory;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
@@ -100,7 +100,7 @@ public class CheckTest {
     private static ClusterService clusterService;
     private static FeatureService featureService;
     private static ThrottlePeriodParser throttlePeriodParser;
-    private static SignalsScheduleFactory signalsScheduleFactory;
+    private static DefaultScheduleFactory signalsScheduleFactory;
 
     private static TestCertificates testCertificates = TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
             .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard").addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")

@@ -3,7 +3,7 @@ package com.floragunn.signals;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 
-import com.floragunn.signals.job.SignalsScheduleFactory;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
@@ -48,7 +48,7 @@ public class RestApiTestMultiTenancyOff {
     private static ThrottlePeriodParser throttlePeriodParser;
     private final WatchInitializationService watchInitializationService = new WatchInitializationService(null, scriptService,
             Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser,
-            Mockito.mock(SignalsScheduleFactory.class), STRICT);
+            Mockito.mock(DefaultScheduleFactory.class), STRICT);
 
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();

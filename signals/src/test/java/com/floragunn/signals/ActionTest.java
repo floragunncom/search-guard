@@ -14,12 +14,12 @@ import java.util.Optional;
 import com.floragunn.codova.documents.DocWriter;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
 import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
 import com.floragunn.signals.execution.ActionExecutionException;
 import com.floragunn.signals.execution.ExecutionEnvironment;
 import com.floragunn.signals.execution.WatchExecutionContext;
 import com.floragunn.signals.execution.WatchExecutionContextData;
-import com.floragunn.signals.job.SignalsScheduleFactory;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.watch.common.HttpClientConfig;
 import com.floragunn.signals.watch.common.HttpProxyConfig;
@@ -236,7 +236,7 @@ public class ActionTest {
     private final TrustManagerRegistry trustManagerRegistry = Mockito.mock(TrustManagerRegistry.class);
     private final X509ExtendedTrustManager trustManager = Mockito.mock(X509ExtendedTrustManager.class);
     private final HttpProxyHostRegistry httpProxyHostRegistry = Mockito.mock(HttpProxyHostRegistry.class);
-    private final SignalsScheduleFactory signalsScheduleFactory = Mockito.mock(SignalsScheduleFactory.class);
+    private final DefaultScheduleFactory signalsScheduleFactory = Mockito.mock(DefaultScheduleFactory.class);
     private final WatchInitializationService watchInitializationService = new WatchInitializationService(accountRegistry, scriptService, trustManagerRegistry, httpProxyHostRegistry, null, signalsScheduleFactory, STRICT);
 
     @BeforeClass

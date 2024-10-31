@@ -19,7 +19,7 @@ package com.floragunn.signals;
 
 import java.util.concurrent.ExecutionException;
 
-import com.floragunn.signals.job.SignalsScheduleFactory;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
@@ -64,7 +64,7 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
     private static ThrottlePeriodParser throttlePeriodParser;
     private static TrustManagerRegistry trustManagerRegistry;
     private static HttpProxyHostRegistry httpProxyHostRegistry;
-    private static SignalsScheduleFactory signalsScheduleFactory;
+    private static DefaultScheduleFactory signalsScheduleFactory;
 
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().resources("sg_config/signals").nodeSettings("signals.enabled", true,

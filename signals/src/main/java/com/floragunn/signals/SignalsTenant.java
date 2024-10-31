@@ -27,7 +27,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.floragunn.signals.job.SignalsScheduleFactory;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import com.floragunn.signals.watch.common.Ack;
@@ -105,7 +105,7 @@ public class SignalsTenant implements Closeable {
             ScriptService scriptService, NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider,
             SignalsSettings settings, AccountRegistry accountRegistry, ComponentState tenantState, DiagnosticContext diagnosticContext,
             ThreadPool threadPool, TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry,
-                                       FeatureService featureService, SignalsScheduleFactory signalsScheduleFactory)
+                                       FeatureService featureService, DefaultScheduleFactory signalsScheduleFactory)
             throws SchedulerException {
         SignalsTenant instance = new SignalsTenant(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
                 internalAuthTokenProvider, settings, accountRegistry, tenantState, diagnosticContext, threadPool,
@@ -142,13 +142,13 @@ public class SignalsTenant implements Closeable {
     private final TrustManagerRegistry trustManagerRegistry;
     private final HttpProxyHostRegistry httpProxyHostRegistry;
     private final FeatureService featureService;
-    private final SignalsScheduleFactory signalsScheduleFactory;
+    private final DefaultScheduleFactory signalsScheduleFactory;
 
     public SignalsTenant(String name, Client client, ClusterService clusterService, NodeEnvironment nodeEnvironment, ScriptService scriptService,
             NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
             AccountRegistry accountRegistry, ComponentState tenantState, DiagnosticContext diagnosticContext, ThreadPool threadPool,
         TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry, FeatureService featureService,
-                         SignalsScheduleFactory signalsScheduleFactory) {
+                         DefaultScheduleFactory signalsScheduleFactory) {
         this.name = name;
         this.settings = settings;
         this.scopedName = "signals/" + name;
@@ -183,7 +183,7 @@ public class SignalsTenant implements Closeable {
             NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
             AccountRegistry accountRegistry, DiagnosticContext diagnosticContext, ThreadPool threadPool,
             TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry, FeatureService featureService,
-                         SignalsScheduleFactory signalsScheduleFactory) {
+                         DefaultScheduleFactory signalsScheduleFactory) {
         this(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry, internalAuthTokenProvider, settings, accountRegistry,
                 new ComponentState(0, null, "tenant"), diagnosticContext, threadPool, trustManagerRegistry, httpProxyHostRegistry,
                 featureService, signalsScheduleFactory

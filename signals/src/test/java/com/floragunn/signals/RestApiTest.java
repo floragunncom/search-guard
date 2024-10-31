@@ -37,8 +37,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory;
 import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
-import com.floragunn.signals.job.SignalsScheduleFactory;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
@@ -118,7 +118,7 @@ public class RestApiTest {
 
     private static ScriptService scriptService;
     private static ThrottlePeriodParser throttlePeriodParser;
-    private static SignalsScheduleFactory signalsScheduleFactory;
+    private static DefaultScheduleFactory signalsScheduleFactory;
     private final WatchInitializationService watchInitializationService = new WatchInitializationService(null, scriptService,
             Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, signalsScheduleFactory, STRICT);
 

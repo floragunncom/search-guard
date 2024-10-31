@@ -29,9 +29,7 @@ import org.quartz.CronScheduleBuilder;
 import org.quartz.JobKey;
 import org.quartz.SimpleScheduleBuilder;
 import org.quartz.Trigger;
-import org.quartz.TriggerBuilder;
 import org.quartz.TriggerKey;
-import org.quartz.impl.triggers.AbstractTrigger;
 
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.documents.DocNode;
@@ -40,11 +38,17 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.TriggerFactory;
+import org.quartz.spi.MutableTrigger;
 
 public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
-    public static DefaultScheduleFactory INSTANCE = new DefaultScheduleFactory();
+    public static DefaultScheduleFactory INSTANCE = new DefaultScheduleFactory(TriggerPostProcessor.NO_OP);
 
     protected String group = "main";
+    private final TriggerPostProcessor triggerPostProcessor;
+
+    public DefaultScheduleFactory(TriggerPostProcessor triggerPostProcessor) {
+        this.triggerPostProcessor = triggerPostProcessor;
+    }
 
     @Override
     public ScheduleImpl create(JobKey jobKey, DocNode objectNode) throws ConfigValidationException {
@@ -101,8 +105,12 @@ public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
         String triggerKey = getTriggerKey(cronExpression);
 
         try {
-            return TriggerBuilder.newTrigger().withIdentity(jobKey.getName() + "___" + triggerKey, group).forJob(jobKey)
-                    .withSchedule(CronScheduleBuilder.cronScheduleNonvalidatedExpression(cronExpression).inTimeZone(timeZone)).build();
+            MutableTrigger trigger = CronScheduleBuilder.cronScheduleNonvalidatedExpression(cronExpression).inTimeZone(timeZone).build();
+            trigger.setKey(new TriggerKey(jobKey.getName() + "___" + triggerKey, group));
+            trigger.setJobKey(jobKey);
+            triggerPostProcessor.processTrigger(trigger);
+
+            return trigger;
         } catch (ParseException e) {
             throw new ConfigValidationException(new InvalidAttributeValue(null, cronExpression,
                     "Quartz Cron Expression: <Seconds: 0-59|*> <Minutes: 0-59|*> <Hours: 0-23|*> <Day-of-Month: 1-31|?|*> <Month: JAN-DEC|*> <Day-of-Week: SUN-SAT|?|*> <Year: 1970-2199|*>?. Numeric ranges: 1-2; Several distinct values: 1,2; Increments: 0/15")
@@ -114,17 +122,22 @@ public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
         String triggerKey = getTriggerKey(interval);
         Duration duration = DurationFormat.INSTANCE.parse(interval);
 
-        return TriggerBuilder.newTrigger().withIdentity(jobKey.getName() + "___" + triggerKey, group).forJob(jobKey)
-                .withSchedule(SimpleScheduleBuilder.simpleSchedule().repeatForever().withIntervalInMilliseconds(duration.toMillis())).build();
+        MutableTrigger trigger = SimpleScheduleBuilder.simpleSchedule().repeatForever().withIntervalInMilliseconds(duration.toMillis()).build();
+        trigger.setKey(new TriggerKey(jobKey.getName() + "___" + triggerKey, group));
+        trigger.setJobKey(jobKey);
+        triggerPostProcessor.processTrigger(trigger);
+
+        return trigger;
     }
 
     protected Trigger createTrigger(JobKey jobKey, DocNode jsonNode, TimeZone timeZone, TriggerFactory<?> scheduleFactory)
             throws ConfigValidationException {
         String triggerKey = getTriggerKey(jsonNode.toString());
 
-        AbstractTrigger<?> trigger = (AbstractTrigger<?>) scheduleFactory.create(jsonNode, timeZone);
+        MutableTrigger trigger = scheduleFactory.create(jsonNode, timeZone);
         trigger.setJobKey(jobKey);
         trigger.setKey(new TriggerKey(jobKey.getName() + "___" + triggerKey, group));
+        triggerPostProcessor.processTrigger(trigger);
 
         return trigger;
     }

@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import com.floragunn.searchsupport.jobs.config.schedule.TriggerPostProcessor;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.quartz.Job;
 import org.quartz.JobBuilder;
@@ -30,7 +31,7 @@ public abstract class AbstractJobConfigFactory<JobConfigType extends JobConfig> 
 
     public AbstractJobConfigFactory(Class<? extends Job> jobClass, ScheduleFactory<?> triggerFactory) {
         this.jobClass = jobClass;
-        this.triggerFactory = triggerFactory != null ? triggerFactory : new DefaultScheduleFactory();
+        this.triggerFactory = triggerFactory != null ? triggerFactory : new DefaultScheduleFactory(TriggerPostProcessor.NO_OP);
     }
 
     public AbstractJobConfigFactory(Class<? extends Job> jobClass) {
