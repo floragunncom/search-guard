@@ -399,10 +399,10 @@ public class OpenIdProviderClient {
         private final String accessToken;
         private final String tokenType;
         private final String refreshToken;
-        private final long expiresIn;
+        private final Long expiresIn;
         private final String idToken;
 
-        TokenResponse(String accessToken, String tokenType, String refreshToken, long expiresIn, String idToken) {
+        TokenResponse(String accessToken, String tokenType, String refreshToken, Long expiresIn, String idToken) {
             this.accessToken = accessToken;
             this.tokenType = tokenType;
             this.refreshToken = refreshToken;
@@ -430,7 +430,7 @@ public class OpenIdProviderClient {
             return refreshToken;
         }
 
-        public long getExpiresIn() {
+        public Long getExpiresIn() {
             return expiresIn;
         }
 
