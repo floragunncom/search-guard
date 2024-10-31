@@ -32,13 +32,14 @@ import org.quartz.TriggerBuilder;
 
 import java.text.ParseException;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.TimeZone;
 
 public class SignalsScheduleFactory extends DefaultScheduleFactory {
 
     private static final Logger LOG = LogManager.getLogger(SignalsScheduleFactory.class);
-    private final int cronMisfireStrategy;
-    private final int simpleMisfireStrategy;
+    private final Integer cronMisfireStrategy;
+    private final Integer simpleMisfireStrategy;
 
     public SignalsScheduleFactory(SignalsSettings signalsSettings) {
         this.cronMisfireStrategy = signalsSettings.getStaticSettings().getCronMisfireStrategy();
@@ -53,7 +54,7 @@ public class SignalsScheduleFactory extends DefaultScheduleFactory {
 
             CronScheduleBuilder schedule = CronScheduleBuilder.cronScheduleNonvalidatedExpression(cronExpression).inTimeZone(timeZone);
 
-            if(cronMisfireStrategy > Integer.MIN_VALUE) {
+            if(Objects.nonNull(cronMisfireStrategy)) {
 
                 switch (cronMisfireStrategy) {
                     case 1: schedule.withMisfireHandlingInstructionFireAndProceed(); break;
@@ -63,6 +64,8 @@ public class SignalsScheduleFactory extends DefaultScheduleFactory {
                 }
 
                 LOG.debug("Cron misfire strategy: {}", cronMisfireStrategy);
+            } else {
+                LOG.debug("Using quartz's default cron misfire strategy");
             }
 
             return TriggerBuilder.newTrigger().withIdentity(jobKey.getName() + "___" + triggerKey, group).forJob(jobKey)
@@ -81,7 +84,7 @@ public class SignalsScheduleFactory extends DefaultScheduleFactory {
         SimpleScheduleBuilder schedule = SimpleScheduleBuilder.simpleSchedule()
                 .repeatForever().withIntervalInMilliseconds(duration.toMillis());
 
-        if(simpleMisfireStrategy > Integer.MIN_VALUE) {
+        if(Objects.nonNull(simpleMisfireStrategy)) {
 
             switch (simpleMisfireStrategy) {
                 case 1: schedule.withMisfireHandlingInstructionFireNow();break;
@@ -94,6 +97,8 @@ public class SignalsScheduleFactory extends DefaultScheduleFactory {
             }
 
             LOG.debug("Simple misfire strategy: {}", simpleMisfireStrategy);
+        } else {
+            LOG.debug("Using quartz's default simple misfire strategy");
         }
 
 

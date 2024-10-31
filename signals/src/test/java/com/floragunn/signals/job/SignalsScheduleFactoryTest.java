@@ -39,7 +39,7 @@ public class SignalsScheduleFactoryTest {
         SignalsScheduleFactory signalsScheduleFactory = new SignalsScheduleFactory(emptySettings());
 
         Trigger trigger = signalsScheduleFactory.createCronTrigger(new JobKey("test-job"), CRON, null);
-        int expectedInstruction = -1; //default setting value
+        int expectedInstruction = CronScheduleBuilder.cronSchedule(CRON).build().getMisfireInstruction();; //quartz default
         assertThat(trigger.getMisfireInstruction(), equalTo(expectedInstruction));
     }
 
@@ -84,7 +84,7 @@ public class SignalsScheduleFactoryTest {
         SignalsScheduleFactory signalsScheduleFactory = new SignalsScheduleFactory(emptySettings());
 
         Trigger trigger = signalsScheduleFactory.createIntervalScheduleTrigger(new JobKey("test-job"), INTERVAL);
-        int expectedInstruction = -1; //default setting value
+        int expectedInstruction = SimpleScheduleBuilder.simpleSchedule().build().getMisfireInstruction(); //quartz default
         assertThat(trigger.getMisfireInstruction(), equalTo(expectedInstruction));
     }
 
