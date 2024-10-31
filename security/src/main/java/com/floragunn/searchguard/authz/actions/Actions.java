@@ -53,24 +53,20 @@ import org.elasticsearch.action.admin.cluster.repositories.delete.TransportDelet
 import org.elasticsearch.action.admin.cluster.repositories.get.GetRepositoriesAction;
 import org.elasticsearch.action.admin.cluster.repositories.put.TransportPutRepositoryAction;
 import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryAction;
-import org.elasticsearch.action.admin.cluster.reroute.TransportClusterRerouteAction;
+import org.elasticsearch.action.admin.cluster.reroute.ClusterRerouteAction;
 import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsAction;
-import org.elasticsearch.action.admin.cluster.shards.TransportClusterSearchShardsAction;
+import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsAction;
 import org.elasticsearch.action.admin.cluster.snapshots.clone.TransportCloneSnapshotAction;
-import org.elasticsearch.action.admin.cluster.snapshots.create.TransportCreateSnapshotAction;
+import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotAction;
 import org.elasticsearch.action.admin.cluster.snapshots.delete.TransportDeleteSnapshotAction;
-import org.elasticsearch.action.admin.cluster.snapshots.get.TransportGetSnapshotsAction;
+import org.elasticsearch.action.admin.cluster.snapshots.get.GetSnapshotsAction;
+import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotAction;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
-import org.elasticsearch.action.admin.cluster.snapshots.restore.TransportRestoreSnapshotAction;
+import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusAction;
 import org.elasticsearch.action.admin.cluster.snapshots.status.TransportNodesSnapshotsStatus;
-import org.elasticsearch.action.admin.cluster.snapshots.status.TransportSnapshotsStatusAction;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateAction;
-import org.elasticsearch.action.admin.cluster.stats.TransportClusterStatsAction;
-import org.elasticsearch.action.admin.cluster.storedscripts.GetScriptContextAction;
-import org.elasticsearch.action.admin.cluster.storedscripts.GetScriptLanguageAction;
-import org.elasticsearch.action.admin.cluster.storedscripts.GetStoredScriptAction;
-import org.elasticsearch.action.admin.cluster.storedscripts.TransportDeleteStoredScriptAction;
-import org.elasticsearch.action.admin.cluster.storedscripts.TransportPutStoredScriptAction;
+import org.elasticsearch.action.admin.cluster.stats.ClusterStatsAction;
+import org.elasticsearch.action.admin.cluster.storedscripts.*;
 import org.elasticsearch.action.admin.cluster.tasks.TransportPendingClusterTasksAction;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
@@ -212,7 +208,7 @@ public class Actions {
                 .requiresAdditionalPrivilegesForItemType(DocWriteRequest.OpType.CREATE, "indices:data/write/index")
                 .requiresAdditionalPrivilegesForItemType(DocWriteRequest.OpType.UPDATE, "indices:data/write/index");
 
-        index(TransportClusterSearchShardsAction.TYPE) //
+        index(ClusterSearchShardsAction.INSTANCE) //
                 .requiresAdditionalPrivileges(always(), "indices:data/read/search");
         index(TransportSearchShardsAction.TYPE) //
                 .requiresAdditionalPrivileges(always(), "indices:data/read/search");
@@ -286,27 +282,27 @@ public class Actions {
         cluster(TransportAddVotingConfigExclusionsAction.TYPE);
         cluster(TransportClearVotingConfigExclusionsAction.TYPE);
         cluster(TransportClusterAllocationExplainAction.TYPE);
-        cluster(TransportClusterStatsAction.TYPE);
+        cluster(ClusterStatsAction.INSTANCE);
         cluster(ClusterStateAction.INSTANCE);
         cluster(TransportClusterHealthAction.TYPE);
         cluster(ClusterUpdateSettingsAction.INSTANCE);
-        cluster(TransportClusterRerouteAction.TYPE);
+        cluster(ClusterRerouteAction.INSTANCE);
         cluster(TransportPendingClusterTasksAction.TYPE);
         cluster(TransportPutRepositoryAction.TYPE);
         cluster(GetRepositoriesAction.INSTANCE);
         cluster(TransportDeleteRepositoryAction.TYPE);
         cluster(VerifyRepositoryAction.INSTANCE);
         cluster(TransportCleanupRepositoryAction.TYPE);
-        cluster(TransportGetSnapshotsAction.TYPE);
+        cluster(GetSnapshotsAction.INSTANCE);
         cluster(TransportDeleteSnapshotAction.TYPE);
-        cluster(TransportCreateSnapshotAction.TYPE);
+        cluster(CreateSnapshotAction.INSTANCE);
         cluster(TransportCloneSnapshotAction.TYPE);
 
-        cluster(TransportRestoreSnapshotAction.TYPE)//
+        cluster(RestoreSnapshotAction.INSTANCE)//
                 .requestType(RestoreSnapshotRequest.class)//
                 .requiresAdditionalPrivileges(always(), "indices:admin/create", "indices:data/write/index");
 
-        cluster(TransportSnapshotsStatusAction.TYPE);
+        cluster(SnapshotsStatusAction.INSTANCE);
 
         cluster(ReindexAction.INSTANCE);
 

@@ -37,7 +37,6 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 
 public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpdateAction.Response> {
@@ -55,11 +54,26 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
         private UpdateType updateType;
         private long newHash;
 
+        public Request(StreamInput in) throws IOException {
+            super(in);
+            this.updatedToken = new SessionToken(in);
+            this.updateType = in.readEnum(UpdateType.class);
+            this.newHash = in.readLong();
+        }
+
         public Request(SessionToken updatedToken, UpdateType updateType, long newHash) {
             super(new String[0]);
             this.updatedToken = updatedToken;
             this.updateType = updateType;
             this.newHash = newHash;
+        }
+
+        @Override
+        public void writeTo(final StreamOutput out) throws IOException {
+            super.writeTo(out);
+            updatedToken.writeTo(out);
+            out.writeEnum(updateType);
+            out.writeLong(newHash);
         }
 
         @Override
@@ -115,32 +129,24 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
         }
     }
 
-    public static class NodeRequest extends TransportRequest {
+    public static class NodeRequest extends BaseNodesRequest {
 
-        private SessionToken updatedToken;
-        private Request.UpdateType updateType;
-        private long newHash;
+        Request request;
 
         public NodeRequest(StreamInput in) throws IOException {
             super(in);
-            this.updatedToken = new SessionToken(in);
-            this.updateType = in.readEnum(Request.UpdateType.class);
-            this.newHash = in.readLong();
+            request = new Request(in);
         }
 
         public NodeRequest(Request request) {
-            super();
-            this.updatedToken = request.getUpdatedToken();
-            this.updateType = request.getUpdateType();
-            this.newHash = request.getNewHash();
+            super((String[]) null);
+            this.request = request;
         }
 
         @Override
         public void writeTo(final StreamOutput out) throws IOException {
             super.writeTo(out);
-            this.updatedToken.writeTo(out);
-            out.writeEnum(this.updateType);
-            out.writeLong(this.newHash);
+            request.writeTo(out);
         }
     }
 
@@ -207,7 +213,7 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
         protected NodeResponse nodeOperation(NodeRequest request, Task task) {
             String status;
 
-            status = sessionService.pushAuthTokenUpdate(new Request(request.updatedToken, request.updateType, request.newHash));
+            status = sessionService.pushAuthTokenUpdate(request.request);
 
             return new NodeResponse(clusterService.localNode(), status);
         }

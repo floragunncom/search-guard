@@ -53,7 +53,6 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.ActionNotFoundTransportException;
 import org.elasticsearch.transport.RemoteTransportException;
-import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -334,8 +333,17 @@ public class SearchGuardCapabilities {
                 super(new String[0]);
             }
 
+            Request(StreamInput in) throws IOException {
+                super(in);
+            }
+
             Request(Collection<DiscoveryNode> concreteNodes) {
                 super(concreteNodes.toArray(new DiscoveryNode[concreteNodes.size()]));
+            }
+
+            @Override
+            public void writeTo(final StreamOutput out) throws IOException {
+                super.writeTo(out);
             }
         }
 
@@ -384,19 +392,24 @@ public class SearchGuardCapabilities {
             }
         }
 
-        public static class NodeRequest extends TransportRequest {
+        public static class NodeRequest extends BaseNodesRequest {
+
+            private Request request;
 
             public NodeRequest(StreamInput in) throws IOException {
                 super(in);
+                request = new Request(in);
             }
 
             public NodeRequest(Request request) {
-                super();
+                super((String[]) null);
+                this.request = request;
             }
 
             @Override
             public void writeTo(StreamOutput out) throws IOException {
                 super.writeTo(out);
+                request.writeTo(out);
             }
         }
 
