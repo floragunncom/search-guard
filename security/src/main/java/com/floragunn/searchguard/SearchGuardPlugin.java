@@ -184,7 +184,6 @@ import org.elasticsearch.index.shard.IndexingOperationListener;
 import org.elasticsearch.index.shard.SearchOperationListener;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.plugins.ClusterPlugin;
-import org.elasticsearch.plugins.FieldPredicate;
 import org.elasticsearch.plugins.MapperPlugin;
 import org.elasticsearch.plugins.ScriptPlugin;
 import org.elasticsearch.repositories.RepositoriesService;
@@ -1261,15 +1260,25 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     }
 
     @Override
-    public Function<String, FieldPredicate> getFieldFilter() {
+    public Function<String, Predicate<String>> getFieldFilter() {        
         return (index) -> {
-            ImmutableList<Function<String, FieldPredicate>> fieldFilters = this.moduleRegistry.getFieldFilters();
+            ImmutableList<Function<String, Predicate<String>>> fieldFilters = this.moduleRegistry.getFieldFilters();
 
-            List<FieldPredicate> predicates = fieldFilters
-                    .stream().map(filter -> filter.apply(index))
-                    .toList();
-
-            return predicates.stream().reduce(FieldPredicate.ACCEPT_ALL, FieldPredicate.And::new);
+            List<Predicate<String>> predicates = new ArrayList<>(fieldFilters.size());
+            
+            for (Function<String, Predicate<String>> filter : fieldFilters) {
+                predicates.add(filter.apply(index));                
+            }
+            
+            return (field) -> {
+                for (Predicate<String> predicate : predicates) {
+                    if (!predicate.test(field)) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            };
         };
     }
 

@@ -45,7 +45,6 @@ import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.shard.IndexingOperationListener;
 import org.elasticsearch.index.shard.SearchOperationListener;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
-import org.elasticsearch.plugins.FieldPredicate;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptContext;
@@ -132,7 +131,7 @@ public interface SearchGuardModule {
         return ImmutableList.empty();
     }
 
-    default ImmutableList<Function<String, FieldPredicate>> getFieldFilters() {
+    default ImmutableList<Function<String, Predicate<String>>> getFieldFilters() {
         return ImmutableList.empty();
     }
 
