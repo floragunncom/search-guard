@@ -539,8 +539,8 @@ public abstract class MetaImpl implements Meta {
 
             for (DataStream dataStream : datastreams) {
                 esMetadataBuilder.put(new org.elasticsearch.cluster.metadata.DataStream(dataStream.name(),
-                    ImmutableList.of(dataStream.members()).map(i -> new org.elasticsearch.index.Index(i.name(), i.name())), 1L,
-                        ImmutableMap.empty(), false, false, false, false, IndexMode.STANDARD, new DataStreamLifecycle(), false, ImmutableList.empty(), false, null));
+                        ImmutableList.of(dataStream.members()).map(i -> new org.elasticsearch.index.Index(i.name(), i.name())), 1L,
+                            ImmutableMap.empty(), false, false, false, false, IndexMode.STANDARD));
             }
 
             this.esMetadata = esMetadataBuilder.build();
