@@ -314,11 +314,6 @@ public class AttributeValueFromXContent implements XContent {
         }
 
         @Override
-        public void writeRawValue(String s) throws IOException {
-            setObject(s); //todo is it ok?
-        }
-
-        @Override
         public void copyCurrentStructure(XContentParser parser) throws IOException {
             int nestingDepth = 0;
 

@@ -39,8 +39,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
+import org.elasticsearch.action.admin.indices.create.CreateIndexAction;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
-import org.elasticsearch.action.admin.indices.create.TransportCreateIndexAction;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.search.SearchRequest;
@@ -422,7 +422,7 @@ public class AuditlogTest {
                 .origin(origin);
         try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
-            al.logIndexCreated(indexName, TransportCreateIndexAction.TYPE.name(), request);
+            al.logIndexCreated(indexName, CreateIndexAction.NAME, request);
             Assert.assertEquals(1, TestAuditlogImpl.messages.size());
             DocNode message = DocNode.wrap(TestAuditlogImpl.messages.get(0).getAsMap());
             DocNode requestBody = DocNode.parse(Format.JSON).from(message.getAsString(AuditMessage.REQUEST_BODY));
@@ -452,7 +452,7 @@ public class AuditlogTest {
                 .origin(origin);
         try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
-            al.logIndexCreated(indexName, TransportCreateIndexAction.TYPE.name(), request);
+            al.logIndexCreated(indexName, CreateIndexAction.NAME, request);
             Assert.assertEquals(1, TestAuditlogImpl.messages.size());
             DocNode message = DocNode.wrap(TestAuditlogImpl.messages.get(0).getAsMap());
             DocNode requestBody = DocNode.parse(Format.JSON).from(message.getAsString(AuditMessage.REQUEST_BODY));
@@ -480,7 +480,7 @@ public class AuditlogTest {
                 .origin(origin);
         try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
-            al.logIndexCreated(indexName, TransportCreateIndexAction.TYPE.name(), request);
+            al.logIndexCreated(indexName, CreateIndexAction.NAME, request);
             Assert.assertEquals(1, TestAuditlogImpl.messages.size());
             DocNode message = DocNode.wrap(TestAuditlogImpl.messages.get(0).getAsMap());
             DocNode requestBody = DocNode.parse(Format.JSON).from(message.getAsString(AuditMessage.REQUEST_BODY));

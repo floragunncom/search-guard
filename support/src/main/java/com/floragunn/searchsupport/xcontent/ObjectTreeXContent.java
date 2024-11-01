@@ -363,11 +363,6 @@ public class ObjectTreeXContent implements XContent {
         }
 
         @Override
-        public void writeRawValue(String s) throws IOException {
-            addObject(s); //todo is it ok?
-        }
-
-        @Override
         public void copyCurrentStructure(XContentParser parser) throws IOException {
             int nestingDepth = 0;
 
