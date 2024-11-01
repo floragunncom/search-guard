@@ -71,11 +71,7 @@ public class ProxyRepository {
                 .source(searchSourceBuilder)
                 .indicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN);
         SearchResponse searchResponse = client.search(searchWatchesRequest).actionGet();
-        try {
-            return searchResponse.getHits().getTotalHits().value > 0;
-        } finally {
-            searchResponse.decRef();
-        }
+        return searchResponse.getHits().getTotalHits().value > 0;
 
     }
 

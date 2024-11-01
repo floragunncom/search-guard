@@ -7,8 +7,6 @@ import java.util.List;
 
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
@@ -17,6 +15,7 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.codova.validation.ValidationErrors;
@@ -92,7 +91,9 @@ public class ScriptingTest {
         WatchExecutionContextData watchExecutionContextData = new WatchExecutionContextData(new NestedValueMap(),
                 new WatchInfo("test_id", "test_tenant"), new TriggerInfo(new Date(1234), new Date(4567), new Date(), new Date()), null);
 
-        WatchExecutionContext ctx = buildWatchExecutionContext(watchExecutionContextData);
+        WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.TEST,
+                ActionInvocationType.ALERT, watchExecutionContextData, null, SimulationMode.SIMULATE_ACTIONS, null, null, null, null,
+                Mockito.mock(TrustManagerRegistry.class));
 
         SignalsObjectFunctionScript script = factory.newInstance(new HashMap<String, Object>(), ctx);
 
@@ -113,18 +114,14 @@ public class ScriptingTest {
         WatchExecutionContextData watchExecutionContextData = new WatchExecutionContextData(new NestedValueMap(),
                 new WatchInfo("test_id", "test_tenant"), new TriggerInfo(new Date(1234), new Date(4567), new Date(), new Date()), null);
 
-        WatchExecutionContext ctx = buildWatchExecutionContext(watchExecutionContextData);
+        WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.TEST,
+                ActionInvocationType.ALERT, watchExecutionContextData, null, SimulationMode.SIMULATE_ACTIONS, null, null, null, null,
+                Mockito.mock(TrustManagerRegistry.class));
 
         SignalsObjectFunctionScript script = factory.newInstance(new HashMap<String, Object>(), ctx);
 
         Object result = script.execute();
 
         Assert.assertEquals(watchExecutionContextData.getWatch().getId(), result);
-    }
-
-    private WatchExecutionContext buildWatchExecutionContext(WatchExecutionContextData watchExecutionContextData) {
-        return new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.TEST,
-                ActionInvocationType.ALERT, watchExecutionContextData, null, SimulationMode.SIMULATE_ACTIONS, null, null, null, null,
-                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(ClusterService.class), Mockito.mock(FeatureService.class));
     }
 }

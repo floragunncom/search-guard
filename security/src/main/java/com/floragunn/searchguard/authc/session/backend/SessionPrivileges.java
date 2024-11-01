@@ -62,7 +62,7 @@ public class SessionPrivileges implements ToXContentObject, Writeable, Serializa
     public SessionPrivileges(StreamInput in) throws IOException {
         this.backendRoles = in.readStringCollectionAsList();
         this.searchGuardRoles = in.readStringCollectionAsList();
-        this.attributes = in.readGenericMap();
+        this.attributes = in.readMap();
     }
 
     public List<String> getBackendRoles() {

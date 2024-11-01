@@ -56,7 +56,7 @@ public class AuditLogModuleTest {
                 null,null, environment,null,null,null,
                 configurationRepository, licenseRepository,null,null,null,
                 null,null,null,null,null,null,
-                null,null,null,null,null,null, null, null
+                null,null,null,null,null,null, null
         );
     }
 }

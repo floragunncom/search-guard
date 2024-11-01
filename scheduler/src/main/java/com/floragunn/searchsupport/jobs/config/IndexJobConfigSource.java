@@ -103,7 +103,6 @@ public class IndexJobConfigSource<JobType extends JobConfig> implements Iterable
                 }
 
                 if (!this.searchHitIterator.hasNext()) {
-                    this.searchResponse.decRef();
                     this.searchResponse = client.prepareSearchScroll(this.searchResponse.getScrollId()).setScroll(new TimeValue(10000)).execute()
                             .actionGet();
                     this.searchHits = this.searchResponse.getHits();
@@ -139,8 +138,8 @@ public class IndexJobConfigSource<JobType extends JobConfig> implements Iterable
                 if (log.isDebugEnabled()) {
                     log.debug("Loaded jobs from " + indexName + ": " + loaded + "; filtered: " + filtered);
                 }
-                this.searchResponse.decRef();
             }
+
         }
 
     }

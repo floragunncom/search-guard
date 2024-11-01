@@ -114,7 +114,7 @@ public class TransportSearchWatchAction extends HandledTransportAction<SearchWat
                     @Override
                     public void onResponse(SearchResponse response) {
 
-                        ActionListener.respondAndRelease(listener, new SearchWatchResponse(response));
+                        listener.onResponse(new SearchWatchResponse(response));
                     }
 
                     @Override

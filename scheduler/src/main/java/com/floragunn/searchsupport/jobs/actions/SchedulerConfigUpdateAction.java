@@ -30,7 +30,10 @@ public class SchedulerConfigUpdateAction extends ActionType<SchedulerConfigUpdat
     public static final String NAME = "cluster:admin/searchsupport/scheduler/config/update";
 
     protected SchedulerConfigUpdateAction() {
-        super(NAME);
+        super(NAME, in -> {
+            SchedulerConfigUpdateResponse response = new SchedulerConfigUpdateResponse(in);
+            return response;
+        });
     }
 
     public static void send(Client client, String schedulerName) {

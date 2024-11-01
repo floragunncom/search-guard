@@ -22,8 +22,6 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
@@ -39,8 +37,6 @@ public class WatchExecutionContext {
     private final Client client;
     private final NamedXContentRegistry xContentRegistry;
     private final ScriptService scriptService;
-    private final ClusterService clusterService;
-    private final FeatureService featureService;
     private final Map<String, Object> metadata;
     private final ExecutionEnvironment executionEnvironment;
     private final ActionInvocationType actionInvocationType;
@@ -60,20 +56,17 @@ public class WatchExecutionContext {
 
     public WatchExecutionContext(Client client, ScriptService scriptService, NamedXContentRegistry xContentRegistry, AccountRegistry accountRegistry,
             ExecutionEnvironment executionEnvironment, ActionInvocationType actionInvocationType, WatchExecutionContextData contextData,
-            TrustManagerRegistry trustManagerRegistry, ClusterService clusterService, FeatureService featureService) {
+            TrustManagerRegistry trustManagerRegistry) {
         this(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment, actionInvocationType, contextData, null,
-                SimulationMode.FOR_REAL, null, null, null, null, trustManagerRegistry, clusterService, featureService);
+                SimulationMode.FOR_REAL, null, null, null, null, trustManagerRegistry);
     }
 
     public WatchExecutionContext(Client client, ScriptService scriptService, NamedXContentRegistry xContentRegistry, AccountRegistry accountRegistry,
-                                 ExecutionEnvironment executionEnvironment, ActionInvocationType actionInvocationType, WatchExecutionContextData contextData,
-                                 WatchExecutionContextData resolvedContextData, SimulationMode simulationMode, HttpEndpointWhitelist httpEndpointWhitelist,
-                                 HttpProxyConfig httpProxyConfig, String frontendBaseUrl, ActionInvoker actionInvoker, TrustManagerRegistry trustManagerRegistry,
-                                 ClusterService clusterService, FeatureService featureService) {
+            ExecutionEnvironment executionEnvironment, ActionInvocationType actionInvocationType, WatchExecutionContextData contextData,
+            WatchExecutionContextData resolvedContextData, SimulationMode simulationMode, HttpEndpointWhitelist httpEndpointWhitelist,
+        HttpProxyConfig httpProxyConfig, String frontendBaseUrl, ActionInvoker actionInvoker, TrustManagerRegistry trustManagerRegistry) {
         this.client = client;
         this.scriptService = scriptService;
-        this.clusterService = clusterService;
-        this.featureService = featureService;
         this.xContentRegistry = xContentRegistry;
         this.metadata = null;
         this.executionEnvironment = executionEnvironment;
@@ -99,14 +92,6 @@ public class WatchExecutionContext {
 
     public ScriptService getScriptService() {
         return scriptService;
-    }
-
-    public ClusterService getClusterService() {
-        return clusterService;
-    }
-
-    public FeatureService getFeatureService() {
-        return featureService;
     }
 
     public ExecutionEnvironment getExecutionEnvironment() {
@@ -154,19 +139,19 @@ public class WatchExecutionContext {
     public WatchExecutionContext with(WatchExecutionContextData contextData, ActionInvoker actionInvoker) {
         return new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment, actionInvocationType,
                 contextData, resolvedContextData, simulationMode, httpEndpointWhitelist, httpProxyConfig, frontendBaseUrl, actionInvoker,
-                trustManagerRegistry, clusterService, featureService);
+                trustManagerRegistry);
     }
 
     public WatchExecutionContext with(ActionInvocationType actionInvocationType) {
         return new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment, actionInvocationType,
                 contextData, resolvedContextData, simulationMode, httpEndpointWhitelist, httpProxyConfig, frontendBaseUrl, actionInvoker,
-                trustManagerRegistry, clusterService, featureService);
+                trustManagerRegistry);
     }
 
     public WatchExecutionContext clone() {
         return new WatchExecutionContext(client, scriptService, xContentRegistry, accountRegistry, executionEnvironment, actionInvocationType,
                 contextData != null ? contextData.clone() : null, resolvedContextData != null ? resolvedContextData.clone() : null, simulationMode,
-                httpEndpointWhitelist, httpProxyConfig, frontendBaseUrl, actionInvoker, trustManagerRegistry, clusterService, featureService);
+                httpEndpointWhitelist, httpProxyConfig, frontendBaseUrl, actionInvoker, trustManagerRegistry);
     }
 
     public WatchExecutionContextData getResolvedContextData() {

@@ -554,39 +554,33 @@ public class ConfigurationRepository implements ComponentStateProvider {
         PrivilegedConfigClient privilegedConfigClient = PrivilegedConfigClient.adapt(client);
 
         SearchResponse searchResponse = null;
-        BulkRequest bulkRequest;
+
         try {
-            try {
-                searchResponse = privilegedConfigClient.search(
-                        new SearchRequest(effectiveSearchGuardIndex).source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery()).size(1000)))
-                        .actionGet();
+            searchResponse = privilegedConfigClient.search(
+                    new SearchRequest(effectiveSearchGuardIndex).source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery()).size(1000)))
+                    .actionGet();
 
-                if (searchResponse.getHits().getHits().length == 0) {
-                    throw new Exception("Search request returned too few entries: " + Strings.toString(searchResponse));
-                }
-            } catch (Exception e) {
-                LOGGER.error("Error while reading data from existing index for migration", e);
-                return new StandardResponse(500, "Error while reading data from old index: " + e.getMessage());
+            if (searchResponse.getHits().getHits().length == 0) {
+                throw new Exception("Search request returned too few entries: " + Strings.toString(searchResponse));
             }
+        } catch (Exception e) {
+            LOGGER.error("Error while reading data from existing index for migration", e);
+            return new StandardResponse(500, "Error while reading data from old index: " + e.getMessage());
+        }
 
-            try {
-                createConfigIndex(configuredSearchguardIndexNew);
-            } catch (Exception e) {
-                LOGGER.error("Error while creating new index for migration", e);
-                return new StandardResponse(500, e.getMessage());
-            }
+        try {
+            createConfigIndex(configuredSearchguardIndexNew);
+        } catch (Exception e) {
+            LOGGER.error("Error while creating new index for migration", e);
+            return new StandardResponse(500, e.getMessage());
+        }
 
-            bulkRequest = new BulkRequest(configuredSearchguardIndexNew).setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+        BulkRequest bulkRequest = new BulkRequest(configuredSearchguardIndexNew).setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
-            for (SearchHit searchHit : searchResponse.getHits().getHits()) {
-                bulkRequest
-                        .add(new IndexRequest(configuredSearchguardIndexNew).id(searchHit.getId()).source(searchHit.getSourceRef(), XContentType.JSON));
-            }
-       } finally {
-            if(searchResponse != null) {
-                searchResponse.decRef();
-            }
-       }
+        for (SearchHit searchHit : searchResponse.getHits().getHits()) {
+            bulkRequest
+                    .add(new IndexRequest(configuredSearchguardIndexNew).id(searchHit.getId()).source(searchHit.getSourceRef(), XContentType.JSON));
+        }
 
         try {
             BulkResponse bulkResponse = privilegedConfigClient.bulk(bulkRequest).actionGet();

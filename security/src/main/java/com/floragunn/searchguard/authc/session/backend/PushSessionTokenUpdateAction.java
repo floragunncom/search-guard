@@ -45,7 +45,7 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
     public static final String NAME = "cluster:admin/searchguard/session_token/update/push";
 
     protected PushSessionTokenUpdateAction() {
-        super(NAME);
+        super(NAME, Response::new);
     }
 
     public static class Request extends BaseNodesRequest<Request> {
@@ -192,7 +192,7 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
         @Inject
         public TransportAction(Settings settings, ThreadPool threadPool, ClusterService clusterService, TransportService transportService,
                 ActionFilters actionFilters, SessionService sessionService) {
-            super(PushSessionTokenUpdateAction.NAME, clusterService, transportService, actionFilters, NodeRequest::new,
+            super(PushSessionTokenUpdateAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new, NodeRequest::new,
                     threadPool.executor(ThreadPool.Names.MANAGEMENT));
 
             this.sessionService = sessionService;

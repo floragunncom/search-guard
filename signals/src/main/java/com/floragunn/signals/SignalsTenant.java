@@ -40,6 +40,7 @@ import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
@@ -47,7 +48,6 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.env.NodeEnvironment;
-import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.script.ScriptService;
@@ -103,11 +103,10 @@ public class SignalsTenant implements Closeable {
     public static SignalsTenant create(String name, Client client, ClusterService clusterService, NodeEnvironment nodeEnvironment,
             ScriptService scriptService, NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider,
             SignalsSettings settings, AccountRegistry accountRegistry, ComponentState tenantState, DiagnosticContext diagnosticContext,
-            ThreadPool threadPool, TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry,
-                                       FeatureService featureService)
+            ThreadPool threadPool, TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry)
             throws SchedulerException {
         SignalsTenant instance = new SignalsTenant(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                internalAuthTokenProvider, settings, accountRegistry, tenantState, diagnosticContext, threadPool, trustManagerRegistry, httpProxyHostRegistry, featureService);
+                internalAuthTokenProvider, settings, accountRegistry, tenantState, diagnosticContext, threadPool, trustManagerRegistry, httpProxyHostRegistry);
 
         instance.init();
 
@@ -139,12 +138,11 @@ public class SignalsTenant implements Closeable {
 
     private final TrustManagerRegistry trustManagerRegistry;
     private final HttpProxyHostRegistry httpProxyHostRegistry;
-    private final FeatureService featureService;
 
     public SignalsTenant(String name, Client client, ClusterService clusterService, NodeEnvironment nodeEnvironment, ScriptService scriptService,
             NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
             AccountRegistry accountRegistry, ComponentState tenantState, DiagnosticContext diagnosticContext, ThreadPool threadPool,
-        TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry, FeatureService featureService) {
+        TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry) {
         this.name = name;
         this.settings = settings;
         this.scopedName = "signals/" + name;
@@ -170,18 +168,15 @@ public class SignalsTenant implements Closeable {
         this.diagnosticContext = diagnosticContext;
         this.trustManagerRegistry = Objects.requireNonNull(trustManagerRegistry, "Trust manager registry is required");
         this.httpProxyHostRegistry = Objects.requireNonNull(httpProxyHostRegistry, "Http proxy host registry is required");
-        this.featureService = Objects.requireNonNull(featureService, "Feature service is required");
         settings.addChangeListener(this.settingsChangeListener);
     }
 
     public SignalsTenant(String name, Client client, ClusterService clusterService, NodeEnvironment nodeEnvironment, ScriptService scriptService,
             NamedXContentRegistry xContentRegistry, InternalAuthTokenProvider internalAuthTokenProvider, SignalsSettings settings,
             AccountRegistry accountRegistry, DiagnosticContext diagnosticContext, ThreadPool threadPool,
-            TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry, FeatureService featureService) {
+            TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry) {
         this(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry, internalAuthTokenProvider, settings, accountRegistry,
-                new ComponentState(0, null, "tenant"), diagnosticContext, threadPool, trustManagerRegistry, httpProxyHostRegistry,
-                featureService
-        );
+                new ComponentState(0, null, "tenant"), diagnosticContext, threadPool, trustManagerRegistry, httpProxyHostRegistry);
     }
 
     public void init() throws SchedulerException {
@@ -495,36 +490,28 @@ public class SignalsTenant implements Closeable {
 
         SearchRequest searchRequest = new SearchRequest(this.configIndexName);
         searchRequest.source(new SearchSourceBuilder().query(getConfigQuery(this.name)).size(10000));
+        // TODO scrolling
 
         SearchResponse searchResponse = this.privilegedConfigClient.search(searchRequest).actionGet();
-        try {
 
-            int seen = 0;
-            int deletedWatches = 0;
-            int deletedWatchStates = 0;
+        int seen = 0;
+        int deletedWatches = 0;
+        int deletedWatchStates = 0;
 
-            for (SearchHit hit : searchResponse.getHits()) {
-                seen++;
+        for (SearchHit hit : searchResponse.getHits()) {
+            seen++;
 
-                DeleteResponse
-                    watchDeleteResponse =
-                    this.privilegedConfigClient.delete(new DeleteRequest(this.configIndexName, hit.getId())).actionGet();
-                deletedWatches += watchDeleteResponse.getResult() == Result.DELETED ? 1 : 0;
+            DeleteResponse watchDeleteResponse = this.privilegedConfigClient.delete(new DeleteRequest(this.configIndexName, hit.getId())).actionGet();
+            deletedWatches += watchDeleteResponse.getResult() == Result.DELETED ? 1 : 0;
 
-                DeleteResponse
-                    watchStateDeleteResponse =
-                    this.privilegedConfigClient.delete(new DeleteRequest(this.settings.getStaticSettings()
-                        .getIndexNames()
-                        .getWatchesState(), hit.getId())).actionGet();
-                deletedWatchStates += watchStateDeleteResponse.getResult() == Result.DELETED ? 1 : 0;
+            DeleteResponse watchStateDeleteResponse = this.privilegedConfigClient
+                    .delete(new DeleteRequest(this.settings.getStaticSettings().getIndexNames().getWatchesState(), hit.getId())).actionGet();
+            deletedWatchStates += watchStateDeleteResponse.getResult() == Result.DELETED ? 1 : 0;
 
-                // TODO triggers
-            }
-
-            log.info("Deleted of  " + seen + ":\n" + deletedWatches + " watches\n" + deletedWatchStates + " watch states");
-        } finally {
-            searchResponse.decRef();
+            // TODO triggers
         }
+
+        log.info("Deleted of  " + seen + ":\n" + deletedWatches + " watches\n" + deletedWatchStates + " watch states");
     }
 
     public void delete() {
@@ -553,7 +540,7 @@ public class SignalsTenant implements Closeable {
 
             return new WatchRunner(watch, client, accountRegistry, scriptService, watchLogWriter, watchStateWriter, diagnosticContext, watchState,
                     ExecutionEnvironment.SCHEDULED, SimulationMode.FOR_REAL, xContentRegistry, settings, nodeName, null, null,
-                    trustManagerRegistry, clusterService, featureService);
+                    trustManagerRegistry);
         }
 
         private Watch getConfig(TriggerFiredBundle bundle) {

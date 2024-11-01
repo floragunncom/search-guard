@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.floragunn.searchsupport.client.RefCountedGuard;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -83,8 +82,7 @@ public class WatchStateIndexReader {
             SearchResponse searchResponse = client.prepareSearch(this.indexName).setQuery(queryBuilder).setSize(1000).setScroll(new TimeValue(10000))
                     .get();
 
-            try (RefCountedGuard<SearchResponse> guard = new RefCountedGuard<>()){
-                guard.add(searchResponse);
+            try {
                 do {
                     for (SearchHit searchHit : searchResponse.getHits().getHits()) {
                         try {
@@ -94,10 +92,8 @@ public class WatchStateIndexReader {
                             log.error("Error while loading " + searchHit, e);
                         }
                     }
-                    String scrollId = searchResponse.getScrollId();
-                    guard.release();
-                    searchResponse = client.prepareSearchScroll(scrollId).setScroll(new TimeValue(10000)).execute().actionGet();
-                    guard.add(searchResponse);
+                    searchResponse = client.prepareSearchScroll(searchResponse.getScrollId()).setScroll(new TimeValue(10000)).execute().actionGet();
+
                 } while (searchResponse.getHits().getHits().length != 0);
 
                 if (log.isDebugEnabled()) {

@@ -30,7 +30,6 @@ import java.util.function.Supplier;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
-import com.floragunn.fluent.collections.ImmutableList;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.AliasesRequest;
@@ -50,7 +49,6 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.downsample.DownsampleAction;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.search.SearchContextId;
 import org.elasticsearch.rest.root.MainRequest;
 import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
@@ -69,6 +67,7 @@ import org.elasticsearch.snapshots.SnapshotUtils;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
 import com.floragunn.searchsupport.action.IndicesOptionsSupport;
@@ -106,13 +105,8 @@ public class ActionRequestIntrospector {
         if (NAME_BASED_SHORTCUTS_FOR_CLUSTER_ACTIONS.contains(action.name())) {
             return CLUSTER_REQUEST;
         }
-        if (request instanceof SearchRequest searchRequest && (searchRequest.pointInTimeBuilder() != null)) {
-            // In point-in-time queries, wildcards in index names are expanded when the open point-in-time request
-            // is sent. Therefore, a list of indices in search requests with PIT can be treated literally.
-            String pointInTimeId = searchRequest.pointInTimeBuilder().getEncodedId();
-            String[] indices = SearchContextId.decodeIndices(pointInTimeId);
-            return new ActionRequestInfo(indices == null ? ImmutableList.empty() : ImmutableList.ofArray(indices), EXACT, IndicesRequestInfo.Scope.ANY);
-        } else if (request instanceof SingleShardRequest) {
+
+        if (request instanceof SingleShardRequest) {
             // SingleShardRequest can reference exactly one index or no indices at all (which might be a bit surprising)
             SingleShardRequest<?> singleShardRequest = (SingleShardRequest<?>) request;
 

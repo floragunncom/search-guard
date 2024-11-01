@@ -8,6 +8,9 @@ public class GetSettingsAction extends ActionType<GetSettingsResponse> {
     public static final String NAME = "cluster:admin:searchguard:signals:settings/get";
 
     protected GetSettingsAction() {
-        super(NAME);
+        super(NAME, in -> {
+            GetSettingsResponse response = new GetSettingsResponse(in);
+            return response;
+        });
     }
 }

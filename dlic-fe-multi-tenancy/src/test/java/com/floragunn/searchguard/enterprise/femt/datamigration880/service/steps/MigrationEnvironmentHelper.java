@@ -201,12 +201,8 @@ public class MigrationEnvironmentHelper extends ExternalResource {
         SearchRequest request = new SearchRequest(indexName);
         request.source(SearchSourceBuilder.searchSource().size(0).trackTotalHits(true).query(QueryBuilders.matchAllQuery()));
         SearchResponse response = client.search(request).actionGet();
-        try {
-            assertThat(response.getFailedShards(), equalTo(0));
-            return response.getHits().getTotalHits().value;
-        } finally {
-            response.decRef();
-        }
+        assertThat(response.getFailedShards(), equalTo(0));
+        return response.getHits().getTotalHits().value;
     }
 
     public Optional<String> getDocumentSource(String indexName, String documentId) {

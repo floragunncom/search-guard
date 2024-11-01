@@ -492,16 +492,16 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     }
 
     @Override
-    public List<RestHandler> getRestHandlers(Settings settings, NamedWriteableRegistry namedWriteableRegistry, RestController restController, ClusterSettings clusterSettings,
-                                             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-                                             Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
+    public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
+            IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
+            Supplier<DiscoveryNodes> nodesInCluster) {
 
         final List<RestHandler> handlers = new ArrayList<RestHandler>();
 
         if (!disabled) {
 
-            handlers.addAll(super.getRestHandlers(settings, namedWriteableRegistry, restController, clusterSettings, indexScopedSettings, settingsFilter,
-                    indexNameExpressionResolver, nodesInCluster, clusterSupportsFeature));
+            handlers.addAll(super.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
+                    indexNameExpressionResolver, nodesInCluster));
 
             if (!sslOnly) {
                 handlers.add(
@@ -541,7 +541,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             }
 
             handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
-                    indexNameExpressionResolver, scriptService, nodesInCluster, clusterSupportsFeature));
+                    indexNameExpressionResolver, scriptService, nodesInCluster));
         }
 
         return handlers;
@@ -917,7 +917,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 licenseRepository, protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, configVarService,
                 diagnosticContext, auditLog, evaluator, blockedIpRegistry, blockedUserRegistry, moduleRegistry,
                 internalUsersDatabase,
-            actions, authorizationService, guiceDependencies, authInfoService, actionRequestIntrospector, services.featureService());
+            actions, authorizationService, guiceDependencies, authInfoService, actionRequestIntrospector);
 
         sgi = new SearchGuardInterceptor(settings, services.threadPool(), auditLog, principalExtractor, interClusterRequestEvaluator,
             services.clusterService(),

@@ -17,8 +17,6 @@
 
 package org.elasticsearch.node;
 
-import org.apache.lucene.util.SetOnce;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
@@ -76,10 +74,5 @@ public class PluginAwareNode extends Node {
 
     public boolean isMasterEligible() {
         return masterEligible;
-    }
-
-    @Override
-    protected void configureNodeAndClusterIdStateListener(ClusterService clusterService) {
-
     }
 }

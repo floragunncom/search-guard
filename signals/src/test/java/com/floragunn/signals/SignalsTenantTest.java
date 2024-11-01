@@ -18,7 +18,6 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.NodeEnvironment;
-import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -79,7 +78,6 @@ public class SignalsTenantTest {
     private static DiagnosticContext diagnosticContext;
     private static TrustManagerRegistry trustManagerRegistry;
     private static HttpProxyHostRegistry httpProxyHostRegistry;
-    private static FeatureService featureService;
     private static final User UHURA = User.forUser("uhura").backendRoles("signals_admin", "all_access").build();
 
     @BeforeClass
@@ -98,7 +96,6 @@ public class SignalsTenantTest {
         diagnosticContext = node.injector().getInstance(DiagnosticContext.class);
         trustManagerRegistry =  cluster.getInjectable(Signals.class).getTruststoreRegistry();
         httpProxyHostRegistry =  cluster.getInjectable(Signals.class).getHttpProxyHostRegistry();
-        featureService =  cluster.getInjectable(Signals.class).getFeatureService();
 
         Client privilegedConfigClient = PrivilegedConfigClient.adapt(cluster.getInternalNodeClient());
         Client client = cluster.getInternalNodeClient();
@@ -134,7 +131,7 @@ public class SignalsTenantTest {
 
         try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
                 internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext, //
-                Mockito.mock(ThreadPool.class), trustManagerRegistry, httpProxyHostRegistry, featureService)) {
+                Mockito.mock(ThreadPool.class), trustManagerRegistry, httpProxyHostRegistry)) {
             tenant.init();
             Assert.assertEquals(1, tenant.getLocalWatchCount());
             Assert.assertTrue(tenant.runsWatchLocally("test_watch"));
@@ -152,7 +149,7 @@ public class SignalsTenantTest {
 
         try (SignalsTenant tenant = new SignalsTenant("test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
                 internalAuthTokenProvider, settings, null, diagnosticContext, Mockito.mock(ThreadPool.class),
-                trustManagerRegistry, httpProxyHostRegistry, featureService)) {
+                trustManagerRegistry, httpProxyHostRegistry)) {
             tenant.init();
 
             Assert.assertEquals(0, tenant.getLocalWatchCount());
@@ -170,7 +167,7 @@ public class SignalsTenantTest {
 
         try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
                 internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext, Mockito.mock(ThreadPool.class),
-                trustManagerRegistry, httpProxyHostRegistry, featureService)) {
+                trustManagerRegistry, httpProxyHostRegistry)) {
             tenant.init();
 
             Watch watch = new WatchBuilder("test_watch").atInterval("100ms").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
@@ -205,7 +202,7 @@ public class SignalsTenantTest {
 
         try (SignalsTenant tenant = new SignalsTenant("failover_test", client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
                 internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext, Mockito.mock(ThreadPool.class),
-                trustManagerRegistry, httpProxyHostRegistry, featureService)) {
+                trustManagerRegistry, httpProxyHostRegistry)) {
             tenant.init();
 
             for (int i = 0; i < 20; i++) {
@@ -235,7 +232,7 @@ public class SignalsTenantTest {
 
         try (SignalsTenant tenant = new SignalsTenant("failover_while_running_test", client, clusterService, nodeEnvironment, scriptService,
                 xContentRegistry, internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext,//
-                Mockito.mock(ThreadPool.class), trustManagerRegistry, httpProxyHostRegistry, featureService)) {
+                Mockito.mock(ThreadPool.class), trustManagerRegistry, httpProxyHostRegistry)) {
             tenant.init();
 
             Watch watch = new WatchBuilder("test_watch").atInterval("100ms").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
@@ -268,7 +265,7 @@ public class SignalsTenantTest {
 
         try (SignalsTenant tenant = new SignalsTenant("failover_while_running_test", client, clusterService, nodeEnvironment, scriptService,
                 xContentRegistry, internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext,
-                Mockito.mock(ThreadPool.class), trustManagerRegistry, httpProxyHostRegistry, featureService)) {
+                Mockito.mock(ThreadPool.class), trustManagerRegistry, httpProxyHostRegistry)) {
             tenant.init();
 
             for (int i = 0; i < 20; i++) {
@@ -303,7 +300,7 @@ public class SignalsTenantTest {
             Settings settings = Settings.builder().build();
             try (SignalsTenant tenant = new SignalsTenant(tenantName, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
                 internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext, Mockito.mock(ThreadPool.class),
-                trustManagerRegistry, httpProxyHostRegistry, featureService)) {
+                trustManagerRegistry, httpProxyHostRegistry)) {
                 tenant.init();
 
                 tenant.addWatch(watch, UHURA, STRICT);
@@ -321,7 +318,7 @@ public class SignalsTenantTest {
 
             try (SignalsTenant tenant = new SignalsTenant(tenantName, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
                 internalAuthTokenProvider, new SignalsSettings(settings), null, diagnosticContext, Mockito.mock(ThreadPool.class),
-                trustManagerRegistry, httpProxyHostRegistry, featureService)) {
+                trustManagerRegistry, httpProxyHostRegistry)) {
                 tenant.init();
                 Awaitility.await().until(() -> tenant.getLocalWatchCount() != 0);
                 Assert.assertEquals(1, tenant.getLocalWatchCount());

@@ -47,7 +47,7 @@ public class SearchRequestHandler extends RequestHandler<SearchRequest> {
             threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
 
             SearchRequest scopedRequest = searchMapper.toScopedSearchRequest(request, requestedTenant);
-            var listenerWrapper = new TenantScopedActionListenerWrapper<>(listener, storedContext, searchMapper, SearchResponse::decRef);
+            var listenerWrapper = new TenantScopedActionListenerWrapper<>(listener, storedContext, searchMapper);
             nodeClient.search(scopedRequest, listenerWrapper);
 
             return SyncAuthorizationFilter.Result.INTERCEPTED;
