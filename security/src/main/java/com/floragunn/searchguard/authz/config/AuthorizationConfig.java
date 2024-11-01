@@ -40,12 +40,12 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
             "indices:admin/mappings/fields/get", "indices:admin/shards/search_shards", "indices:admin/search/search_shards", "indices:admin/resolve/index", "indices:admin/delete",
             "indices:admin/mapping/put", "indices:admin/settings/update", "indices:monitor/settings/get", "indices:monitor/stats",
             "indices:admin/upgrade", "indices:admin/refresh", "indices:admin/synced_flush", "indices:admin/aliases/get",
-            "indices:admin/data_stream/get", "indices:admin/get", AnalyzeAction.NAME, "indices:admin/resolve/cluster");
+            "indices:admin/data_stream/get", "indices:admin/get", AnalyzeAction.NAME);
 
     static final Pattern DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT = Pattern.createUnchecked("indices:data/read/*",
             "indices:admin/mappings/fields/get", "indices:admin/shards/search_shards", "indices:admin/search/search_shards", "indices:admin/resolve/index", "indices:monitor/settings/get",
             "indices:monitor/stats", "indices:admin/refresh", "indices:admin/synced_flush", "indices:admin/aliases/get",
-            "indices:admin/data_stream/get", "indices:admin/get", "indices:admin/resolve/cluster");
+            "indices:admin/data_stream/get", "indices:admin/get");
 
     public static final AuthorizationConfig DEFAULT = new AuthorizationConfig(DocNode.EMPTY, true, DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS,
             DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT, null, RoleMapping.ResolutionMode.MAPPING_ONLY, false,
