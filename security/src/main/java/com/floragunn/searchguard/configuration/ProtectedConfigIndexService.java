@@ -69,7 +69,6 @@ import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -680,8 +679,17 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
                 super(new String[0]);
             }
 
+            Request(StreamInput in) throws IOException {
+                super(in);
+            }
+
             Request(Collection<DiscoveryNode> concreteNodes) {
                 super(concreteNodes.toArray(new DiscoveryNode[concreteNodes.size()]));
+            }
+
+            @Override
+            public void writeTo(final StreamOutput out) throws IOException {
+                super.writeTo(out);
             }
         }
 
@@ -730,14 +738,14 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
             }
         }
 
-        public static class NodeRequest extends TransportRequest {
+        public static class NodeRequest extends BaseNodesRequest {
 
             public NodeRequest(StreamInput in) throws IOException {
                 super(in);
             }
 
             public NodeRequest() {
-                super();
+                super((String[]) null);
             }
 
             @Override

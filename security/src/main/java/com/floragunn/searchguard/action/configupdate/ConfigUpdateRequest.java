@@ -17,12 +17,21 @@
 
 package com.floragunn.searchguard.action.configupdate;
 
+import java.io.IOException;
+
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
 
 public class ConfigUpdateRequest extends BaseNodesRequest<ConfigUpdateRequest> {
 
     private String[] configTypes;
+
+    public ConfigUpdateRequest(StreamInput in) throws IOException {
+        super(in);
+        this.configTypes = in.readStringArray();
+    }
 
     public ConfigUpdateRequest() {
         super(new String[0]);
@@ -31,6 +40,12 @@ public class ConfigUpdateRequest extends BaseNodesRequest<ConfigUpdateRequest> {
     public ConfigUpdateRequest(String[] configTypes) {
         this();
         setConfigTypes(configTypes);
+    }
+
+    @Override
+    public void writeTo(final StreamOutput out) throws IOException {
+        super.writeTo(out);
+        out.writeStringArray(configTypes);
     }
 
     public String[] getConfigTypes() {

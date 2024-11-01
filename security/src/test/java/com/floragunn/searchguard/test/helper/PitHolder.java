@@ -22,10 +22,8 @@ import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import org.elasticsearch.action.search.SearchContextId;
-import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 
-import java.util.Base64;
 import java.util.Objects;
 
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
@@ -66,7 +64,7 @@ public class PitHolder implements AutoCloseable {
 
     public String[] extractIndicesFromPit(NamedWriteableRegistry namedWriteableRegistry) {
         Objects.requireNonNull(namedWriteableRegistry, "Name writeable registry cannot be null");
-        SearchContextId searchContextId = SearchContextId.decode(namedWriteableRegistry, new BytesArray(Base64.getUrlDecoder().decode(getPitId())));
+        SearchContextId searchContextId = SearchContextId.decode(namedWriteableRegistry, getPitId());
         return searchContextId.getActualIndices();
     }
 

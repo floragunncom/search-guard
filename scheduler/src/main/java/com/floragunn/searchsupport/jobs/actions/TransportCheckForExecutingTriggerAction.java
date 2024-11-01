@@ -20,7 +20,6 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 import org.quartz.JobExecutionContext;
 import org.quartz.Scheduler;
@@ -51,7 +50,7 @@ public class TransportCheckForExecutingTriggerAction extends
         DiscoveryNode localNode = clusterService.localNode();
 
         try {
-            Scheduler scheduler = DirectSchedulerFactory.getInstance().getScheduler(request.schedulerName);
+            Scheduler scheduler = DirectSchedulerFactory.getInstance().getScheduler(request.request.getSchedulerName());
 
             if (scheduler == null) {
                 return new NodeResponse(clusterService.localNode(), new ArrayList<>());
@@ -63,7 +62,7 @@ public class TransportCheckForExecutingTriggerAction extends
                 return new NodeResponse(clusterService.localNode(), new ArrayList<>());
             }
 
-            HashSet<String> requestedTriggerKeys = new HashSet<>(request.triggerKeys);
+            HashSet<String> requestedTriggerKeys = new HashSet<>(request.request.getTriggerKeys());
             ArrayList<String> foundTriggerKeys = new ArrayList<>(requestedTriggerKeys.size());
 
             for (JobExecutionContext executingJob : executingJobs) {
@@ -85,28 +84,24 @@ public class TransportCheckForExecutingTriggerAction extends
         }
     }
 
-    public static class NodeRequest extends TransportRequest {
+    public static class NodeRequest extends BaseNodesRequest {
 
-        private String schedulerName;
-        private List<String> triggerKeys;
+        CheckForExecutingTriggerRequest request;
 
         public NodeRequest(final CheckForExecutingTriggerRequest request) {
-            super();
-            this.schedulerName = request.getSchedulerName();
-            this.triggerKeys = request.getTriggerKeys();
+            super((String[]) null);
+            this.request = request;
         }
 
         public NodeRequest(final StreamInput in) throws IOException {
             super(in);
-            this.schedulerName = in.readString();
-            this.triggerKeys = in.readStringCollectionAsList();
+            request = new CheckForExecutingTriggerRequest(in);
         }
 
         @Override
         public void writeTo(final StreamOutput out) throws IOException {
             super.writeTo(out);
-            out.writeString(this.schedulerName);
-            out.writeStringCollection(this.triggerKeys);
+            request.writeTo(out);
         }
     }
 
