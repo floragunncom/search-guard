@@ -22,7 +22,6 @@ public class SearchWatchStateResponse extends ActionResponse implements ToXConte
 
     public SearchWatchStateResponse(SearchResponse searchResponse) {
         this.searchResponse = searchResponse;
-        this.searchResponse.incRef();
     }
 
     public SearchWatchStateResponse(StreamInput in) throws IOException {
@@ -47,11 +46,6 @@ public class SearchWatchStateResponse extends ActionResponse implements ToXConte
 
     public RestStatus status() {
         return searchResponse.status();
-    }
-
-    @Override
-    public boolean decRef() {
-        return this.searchResponse.decRef();
     }
 
 }

@@ -8,6 +8,9 @@ public class GetAccountAction extends ActionType<GetAccountResponse> {
     public static final String NAME = "cluster:admin:searchguard:signals:account/get";
 
     protected GetAccountAction() {
-        super(NAME);
+        super(NAME, in -> {
+            GetAccountResponse response = new GetAccountResponse(in);
+            return response;
+        });
     }
 }

@@ -17,34 +17,22 @@
 
 package com.floragunn.searchsupport.action;
 
+import java.util.EnumSet;
+
 import org.elasticsearch.action.support.IndicesOptions;
 
 public class IndicesOptionsSupport {
 
-    public static final IndicesOptions EXACT = new IndicesOptions(
-            new IndicesOptions.ConcreteTargetOptions(false),
-            IndicesOptions.WildcardOptions.builder()
-                    .resolveAliases(true)
-                    .matchClosed(false)
-                    .includeHidden(false)
-                    .allowEmptyExpressions(false)
-                    .matchOpen(false)
-                    .build(),
-            IndicesOptions.GeneralOptions.builder()
-                    .allowClosedIndices(true)
-                    .allowAliasToMultipleIndices(true)
-                    .ignoreThrottled(false)
-                    .build()
-    );
+    public static final IndicesOptions EXACT  = new IndicesOptions(EnumSet.noneOf(IndicesOptions.Option.class),
+            EnumSet.noneOf(IndicesOptions.WildcardStates.class));
 
     public static IndicesOptions allowNoIndices(IndicesOptions indicesOptions) {
         if (indicesOptions.allowNoIndices()) {
             return indicesOptions;
         } else {
-            IndicesOptions.Builder builder = IndicesOptions.builder(indicesOptions);
-            builder.wildcardOptions(IndicesOptions.WildcardOptions.builder(indicesOptions.wildcardOptions())
-                    .allowEmptyExpressions(true).build());
-            return builder.build();
+            EnumSet<IndicesOptions.Option> newOptions = indicesOptions.options().clone();
+            newOptions.add(IndicesOptions.Option.ALLOW_NO_INDICES);
+            return new IndicesOptions(newOptions, indicesOptions.expandWildcards());
         }
     }
 
@@ -52,9 +40,9 @@ public class IndicesOptionsSupport {
         if (indicesOptions.ignoreUnavailable()) {
             return indicesOptions;
         } else {
-            IndicesOptions.Builder builder = IndicesOptions.builder(indicesOptions);
-            builder.concreteTargetOptions(IndicesOptions.ConcreteTargetOptions.ALLOW_UNAVAILABLE_TARGETS);
-            return builder.build();
+            EnumSet<IndicesOptions.Option> newOptions = indicesOptions.options().clone();
+            newOptions.add(IndicesOptions.Option.IGNORE_UNAVAILABLE);
+            return new IndicesOptions(newOptions, indicesOptions.expandWildcards());
         }
     }
 

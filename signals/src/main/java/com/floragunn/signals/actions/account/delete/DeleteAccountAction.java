@@ -8,7 +8,10 @@ public class DeleteAccountAction extends ActionType<DeleteAccountResponse> {
     public static final String NAME = "cluster:admin:searchguard:signals:account/delete";
 
     protected DeleteAccountAction() {
-        super(NAME);
+        super(NAME, in -> {
+            DeleteAccountResponse response = new DeleteAccountResponse(in);
+            return response;
+        });
     }
 
 }

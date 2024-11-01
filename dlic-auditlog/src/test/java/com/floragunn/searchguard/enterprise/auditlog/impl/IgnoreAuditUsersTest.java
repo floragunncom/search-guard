@@ -25,7 +25,6 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.telemetry.metric.MeterRegistry;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.junit.Assert;
 import org.junit.Before;
@@ -196,7 +195,7 @@ public class IgnoreAuditUsersTest {
     }
 
     private static ThreadPool newThreadPool(Object... transients) {
-        ThreadPool tp = new ThreadPool(Settings.builder().put("node.name",  "mock").build(), MeterRegistry.NOOP);
+        ThreadPool tp = new ThreadPool(Settings.builder().put("node.name",  "mock").build());
         for(int i=0;i<transients.length;i=i+2)
             tp.getThreadContext().putTransient((String)transients[i], transients[i+1]);
         return tp;

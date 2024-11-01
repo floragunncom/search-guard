@@ -63,29 +63,24 @@ public class AccountRegistry {
 
             Map<String, Account> tmp = new HashMap<>();
 
-
             SearchResponse searchResponse = LuckySisyphos
                     .tryHard(() -> client.prepareSearch(settings.getStaticSettings().getIndexNames().getAccounts())
                             .setSource(new SearchSourceBuilder()).setSize(10 * 1000).get());
 
-            try {
-                for (SearchHit hit : searchResponse.getHits()) {
+            for (SearchHit hit : searchResponse.getHits()) {
 
-                    try {
-                        String id = unscopeId(hit.getId());
-                        String accountType = getAccountType(hit.getId());
+                try {
+                    String id = unscopeId(hit.getId());
+                    String accountType = getAccountType(hit.getId());
 
-                        tmp.put(hit.getId(), Account.parse(accountType, id, hit.getSourceAsString()));
-                    } catch (Exception e) {
-                        log.error("Error while parsing " + hit, e);
-                    }
+                    tmp.put(hit.getId(), Account.parse(accountType, id, hit.getSourceAsString()));
+                } catch (Exception e) {
+                    log.error("Error while parsing " + hit, e);
                 }
-
-                accounts = Collections.unmodifiableMap(tmp);
-                log.debug("Loaded {} accounts", accounts.size());
-            } finally {
-                searchResponse.decRef();
             }
+
+            accounts = Collections.unmodifiableMap(tmp);
+            log.debug("Loaded {} accounts", accounts.size());
         }
     }
 

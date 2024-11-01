@@ -47,7 +47,7 @@ public class TransportSchedulerConfigUpdateAction extends
     @Inject
     public TransportSchedulerConfigUpdateAction(final Settings settings, final ThreadPool threadPool, final ClusterService clusterService,
             final TransportService transportService, final ActionFilters actionFilters) {
-        super(SchedulerConfigUpdateAction.NAME, clusterService, transportService, actionFilters,
+        super(SchedulerConfigUpdateAction.NAME, threadPool, clusterService, transportService, actionFilters, SchedulerConfigUpdateRequest::new,
                 TransportSchedulerConfigUpdateAction.NodeRequest::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
 
     }

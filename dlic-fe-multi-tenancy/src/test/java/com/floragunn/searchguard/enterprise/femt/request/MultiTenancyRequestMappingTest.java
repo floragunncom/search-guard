@@ -51,7 +51,6 @@ import org.elasticsearch.core.Tuple;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.net.URI;
@@ -1812,14 +1811,12 @@ public class MultiTenancyRequestMappingTest {
         String scopedId = scopedId(DOC_ID);
         addDocumentToIndex(scopedId, DocNode.of("a", "a", "sg_tenant", internalTenantName()));
         try (GenericRestClient client = cluster.getRestClient(LIMITED_USER)) {
-            // PIT is open with an explicit index name
             HttpResponse response = client.post("/" + KIBANA_INDEX + "/_pit?keep_alive=500ms", tenantHeader());
             assertThat(response.getStatusCode(), equalTo(SC_OK));
             String pitId = response.getBodyAsDocNode().getAsString("id");
             assertThat(pitId, not(emptyOrNullString()));
             DocNode searchRequestBody = DocNode.of("pit", DocNode.of("id", pitId, "keep_alive", "250ms"));
 
-            // PIT queries implicit index name, but the query works with index provided in the opening time.
             HttpResponse responseWithoutTenant = client.postJson("/_search/", searchRequestBody);
             HttpResponse responseWithTenant = client.postJson("/_search/", searchRequestBody, tenantHeader());
             assertThat(responseWithoutTenant.getBody(), responseWithoutTenant.getStatusCode(), equalTo(HttpStatus.SC_OK));

@@ -121,25 +121,21 @@ public class WatchLogSearch {
                                     .aggregation(AggregationBuilders.topHits("execution_end").sort("execution_end", searchSortOrder).size(count))))
                     .actionGet();
 
-            try {
-                if (searchResponse.getAggregations() == null) {
-                    return Collections.emptyList();
-                }
-
-                TopHits topHits = (TopHits) searchResponse.getAggregations().get("execution_end");
-
-                ArrayList<WatchLog> result = new ArrayList<>(count);
-
-                if (topHits != null) {
-                    for (SearchHit searchHit : topHits.getHits().getHits()) {
-                        result.add(WatchLog.parse(searchHit.getId(), searchHit.getSourceAsString()));
-                    }
-                }
-
-                return result;
-            } finally {
-                searchResponse.decRef();
+            if (searchResponse.getAggregations() == null) {
+                return Collections.emptyList();
             }
+
+            TopHits topHits = (TopHits) searchResponse.getAggregations().get("execution_end");
+
+            ArrayList<WatchLog> result = new ArrayList<>(count);
+
+            if (topHits != null) {
+                for (SearchHit searchHit : topHits.getHits().getHits()) {
+                    result.add(WatchLog.parse(searchHit.getId(), searchHit.getSourceAsString()));
+                }
+            }
+
+            return result;
         } catch (org.elasticsearch.index.IndexNotFoundException | SearchPhaseExecutionException e) {
             throw e;
         } catch (Exception e) {
