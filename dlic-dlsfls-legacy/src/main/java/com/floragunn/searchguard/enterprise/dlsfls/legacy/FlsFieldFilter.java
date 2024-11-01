@@ -22,8 +22,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
-import org.elasticsearch.plugins.FieldPredicate;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -31,7 +31,7 @@ import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SgUtils;
 import com.floragunn.searchguard.support.WildcardMatcher;
 
-public class FlsFieldFilter implements Function<String, FieldPredicate> {
+public class FlsFieldFilter implements Function<String, Predicate<String>> {
     private static final String KEYWORD = ".keyword";
     private final ThreadPool threadPool;
     private final AtomicReference<DlsFlsProcessedConfig> config;
@@ -42,13 +42,13 @@ public class FlsFieldFilter implements Function<String, FieldPredicate> {
     }
 
     @Override
-    public FieldPredicate apply(String index) {
+    public Predicate<String> apply(String index) {
         if (threadPool == null) {
-            return FieldPredicate.ACCEPT_ALL;
+            return field -> true;
         }
 
         if (!config.get().isEnabled()) {
-            return FieldPredicate.ACCEPT_ALL;
+            return field -> true;
         }
         
         final Map<String, Set<String>> allowedFlsFields = (Map<String, Set<String>>) HeaderHelper
@@ -57,7 +57,7 @@ public class FlsFieldFilter implements Function<String, FieldPredicate> {
         final String eval = SgUtils.evalMap(allowedFlsFields, index);
 
         if (eval == null) {
-            return FieldPredicate.ACCEPT_ALL;
+            return field -> true;
         } else {
 
             final Set<String> includesExcludes = allowedFlsFields.get(eval);
@@ -75,28 +75,13 @@ public class FlsFieldFilter implements Function<String, FieldPredicate> {
                 }
             }
 
-            return new FieldPredicate() {
-                @Override
-                public boolean test(String field) {
-                    if (!excludesSet.isEmpty()) {
-                        return !WildcardMatcher.matchAny(excludesSet, handleKeyword(field));
-                    } else {
-                        return WildcardMatcher.matchAny(includesSet, handleKeyword(field));
-                    }
-                }
-
-                @Override
-                public String modifyHash(String hash) {
-                    return hash; //todo
-                }
-
-                @Override
-                public long ramBytesUsed() {
-                    return 0; //todo
-                }
-            };
+            if (!excludesSet.isEmpty()) {
+                return field -> !WildcardMatcher.matchAny(excludesSet, handleKeyword(field));
+            } else {
+                return field -> WildcardMatcher.matchAny(includesSet, handleKeyword(field));
+            }
         }
-    }
+    };
     
     private static String handleKeyword(final String field) {
         if (field != null && field.endsWith(KEYWORD)) {

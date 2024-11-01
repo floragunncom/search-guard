@@ -30,7 +30,7 @@ public class IndicesOptionsSupport {
                     .allowEmptyExpressions(false)
                     .matchOpen(false)
                     .build(),
-            IndicesOptions.GatekeeperOptions.builder()
+            IndicesOptions.GeneralOptions.builder()
                     .allowClosedIndices(true)
                     .allowAliasToMultipleIndices(true)
                     .ignoreThrottled(false)
