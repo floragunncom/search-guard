@@ -25,7 +25,6 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
-import com.floragunn.searchsupport.action.StandardRequests;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
@@ -34,6 +33,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.Settings.Builder;
 import org.elasticsearch.tasks.Task;
+import org.elasticsearch.transport.TransportRequest;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -233,7 +233,7 @@ public class DisabledCategoriesTest {
 	 }
 
 	 protected void logTransportSucceededLogin(AuditLog auditLog) {
-	     auditLog.logSucceededLogin(UserInformation.forName("testuser.transport.succeededlogin"), false, UserInformation.forName("testuser.transport.succeededlogin"), new StandardRequests.EmptyRequest(), "test/action", new Task(0, "x", "ac", "", null, null));
+	     auditLog.logSucceededLogin(UserInformation.forName("testuser.transport.succeededlogin"), false, UserInformation.forName("testuser.transport.succeededlogin"), new TransportRequest.Empty(), "test/action", new Task(0, "x", "ac", "", null, null));
 	 }
 
 
@@ -242,15 +242,15 @@ public class DisabledCategoriesTest {
     }
 
     protected void logTransportFailedLogin(AuditLog auditLog) {
-    	auditLog.logFailedLogin(UserInformation.forName("testuser.transport.failedlogin"), false, UserInformation.forName("testuser.transport.failedlogin"), new StandardRequests.EmptyRequest(), null);
+    	auditLog.logFailedLogin(UserInformation.forName("testuser.transport.failedlogin"), false, UserInformation.forName("testuser.transport.failedlogin"), new TransportRequest.Empty(), null);
     }
 
     protected void logMissingPrivileges(AuditLog auditLog) {
-    	auditLog.logMissingPrivileges("privilege.missing", new StandardRequests.EmptyRequest(), null);
+    	auditLog.logMissingPrivileges("privilege.missing", new TransportRequest.Empty(), null);
     }
 
     protected void logTransportBadHeaders(AuditLog auditLog) {
-    	auditLog.logBadHeaders(new StandardRequests.EmptyRequest(),"action", null);
+    	auditLog.logBadHeaders(new TransportRequest.Empty(),"action", null);
     }
 
     protected void logRestBadHeaders(AuditLog auditLog) {
@@ -258,7 +258,7 @@ public class DisabledCategoriesTest {
     }
 
     protected void logSgIndexAttempt(AuditLog auditLog) {
-    	auditLog.logSgIndexAttempt(new StandardRequests.EmptyRequest(), "action.indexattempt", null);
+    	auditLog.logSgIndexAttempt(new TransportRequest.Empty(), "action.indexattempt", null);
     }
 
     protected void logRestSSLException(AuditLog auditLog) {
@@ -266,11 +266,11 @@ public class DisabledCategoriesTest {
     }
 
     protected void logTransportSSLException(AuditLog auditLog) {
-    	auditLog.logSSLException(new StandardRequests.EmptyRequest(), new Exception(), "action.transport.ssl", null);
+    	auditLog.logSSLException(new TransportRequest.Empty(), new Exception(), "action.transport.ssl", null);
     }
 
     protected void logAuthenticatedRequest(AuditLog auditLog) {
-    	auditLog.logGrantedPrivileges("action.success", new StandardRequests.EmptyRequest(), null);
+    	auditLog.logGrantedPrivileges("action.success", new TransportRequest.Empty(), null);
     }
     
     
@@ -286,7 +286,7 @@ public class DisabledCategoriesTest {
 	protected void logComposableIndexTemplatePutted(AuditLog auditLog) {
 		ComposableIndexTemplate indexTemplate = new ComposableIndexTemplate.Builder().build();
 		auditLog.logIndexTemplatePutted("putted-composable-template-name", null,
-				indexTemplate, "action.index-template-putted", new StandardRequests.EmptyRequest()
+				indexTemplate, "action.index-template-putted", new TransportRequest.Empty()
 		);
 	}
 
@@ -294,37 +294,37 @@ public class DisabledCategoriesTest {
 		IndexTemplateMetadata indexTemplate = IndexTemplateMetadata.builder("putted-legacy-template-name")
 				.patterns(Collections.singletonList("index-pattern")).build();
 		auditLog.logIndexTemplatePutted("putted-composable-template-name", null,
-				indexTemplate, "action.index-template-putted", new StandardRequests.EmptyRequest()
+				indexTemplate, "action.index-template-putted", new TransportRequest.Empty()
 		);
 	}
 
 	protected void logIndexTemplateDeleted(AuditLog auditLog) {
 		auditLog.logIndexTemplateDeleted(Collections.singletonList("deleted-template-name"),
-				"action.index-template-deleted", new StandardRequests.EmptyRequest()
+				"action.index-template-deleted", new TransportRequest.Empty()
 		);
 	}
 
 	protected void logIndexCreated(AuditLog auditLog) {
-		auditLog.logIndexCreated("created-index-name", "action.index-created", new StandardRequests.EmptyRequest());
+		auditLog.logIndexCreated("created-index-name", "action.index-created", new TransportRequest.Empty());
 	}
 
 	protected void logIndicesDeleted(AuditLog auditLog) {
 		auditLog.logIndicesDeleted(Collections.singletonList("deleted-index-name"),
-				"action.index-deleted", new StandardRequests.EmptyRequest()
+				"action.index-deleted", new TransportRequest.Empty()
 		);
 	}
 
 	protected void logIndexSettingsUpdated(AuditLog auditLog) {
 		Settings settings = Settings.EMPTY;
 		auditLog.logIndexSettingsUpdated(Collections.singletonList("index-with-updated-settings"),
-				"index-with-updated-settings", new StandardRequests.EmptyRequest()
+				"index-with-updated-settings", new TransportRequest.Empty()
 		);
 	}
 
 	protected void logIndexMappingsUpdated(AuditLog auditLog) {
 		try {
 			auditLog.logIndexMappingsUpdated(Collections.singletonList("index-with-updated-mappings"),
-					"index-with-updated-mappings", new StandardRequests.EmptyRequest()
+					"index-with-updated-mappings", new TransportRequest.Empty()
 			);
 		} catch (Exception e) {
 			throw new RuntimeException(e);

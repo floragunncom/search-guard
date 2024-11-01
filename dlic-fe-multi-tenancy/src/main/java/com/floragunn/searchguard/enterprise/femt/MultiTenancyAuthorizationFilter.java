@@ -48,7 +48,6 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -351,7 +350,7 @@ public class MultiTenancyAuthorizationFilter implements SyncAuthorizationFilter 
             return ImmutableSet.of(putMappingRequest.getConcreteIndex() != null ? putMappingRequest.getConcreteIndex().getName() : null,
                     putMappingRequest.indices());
         } else if ((request instanceof SearchRequest searchRequest) && (Objects.nonNull(searchRequest.pointInTimeBuilder()))) {
-            BytesReference pointInTimeId = searchRequest.pointInTimeBuilder().getEncodedId();
+            String pointInTimeId = searchRequest.pointInTimeBuilder().getEncodedId();
             return ImmutableSet.ofArray(SearchContextId.decodeIndices(pointInTimeId));
         } else if (request instanceof IndicesRequest) {
             if (((IndicesRequest) request).indices() != null) {

@@ -19,11 +19,11 @@ import static com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsTermsLookupA
 import static com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsTermsLookupAsserts.assertAllHitsComeFromLocalCluster;
 import static com.floragunn.searchguard.enterprise.dlsfls.legacy.DlsTermsLookupAsserts.assertBuMatches;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import co.elastic.clients.elasticsearch._types.ClusterSearchStatus;
 import co.elastic.clients.elasticsearch._types.Time;
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate;
 import co.elastic.clients.elasticsearch._types.aggregations.StringTermsAggregate;
@@ -52,8 +52,11 @@ import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Tests TLQ DLS with CCS
@@ -468,15 +471,8 @@ public class DlsTermsLookupCrossClusterTest {
             assertAllHitsComeFromCluster(tlqdocumentHits, CLUSTER_ALIAS);
 
             // check no access to user_access_codes index, just two indices in the response
-            Assert.assertTrue(responseItems.get(2).isResult());
-            Assert.assertTrue(searchResponse.toString(), responseItems.get(2).result().hits().hits().isEmpty());
-            Assert.assertEquals(searchResponse.toString(), ClusterSearchStatus.Skipped, responseItems.get(2).result().clusters().details().get("my_remote").status());
-            Assert.assertEquals(searchResponse.toString(), 1, responseItems.get(2).result().clusters().details().get("my_remote").failures().size());
-            Assert.assertEquals(
-                    searchResponse.toString(),
-                    "Insufficient permissions",
-                    responseItems.get(2).result().clusters().details().get("my_remote").failures().get(0).reason().reason()
-            );
+            Assert.assertTrue(responseItems.get(2).failure() != null);
+            Assert.assertTrue(responseItems.get(2).isFailure());
 
         }
     }
@@ -558,21 +554,14 @@ public class DlsTermsLookupCrossClusterTest {
             // Right now we don't support filter level DLS with CCS and scrolling. We need to ensure that this fails to avoid data leakage.
 
             try {
-                SearchResponse<?> searchResponse = client.getJavaClient().search(s->s
+                client.getJavaClient().search(s->s
                         .index("my_remote:tlqdocuments")
                         .size(1).ccsMinimizeRoundtrips(false)
                         .scroll(new Time.Builder().time("1m").build()), Map.class);
-
-                Assert.assertTrue(searchResponse.toString(), searchResponse.hits().hits().isEmpty());
-                Assert.assertEquals(searchResponse.toString(), ClusterSearchStatus.Skipped, searchResponse.clusters().details().get("my_remote").status());
-                Assert.assertEquals(searchResponse.toString(), 1, searchResponse.clusters().details().get("my_remote").failures().size());
-                Assert.assertEquals(
-                        searchResponse.toString(),
-                        "Filter-level DLS via cross cluster search is not available for scrolling and minimize_roundtrips=true",
-                        searchResponse.clusters().details().get("my_remote").failures().get(0).reason().reason()
-                );
+                Assert.fail();
             } catch (Exception e) {
-                Assert.fail("Exception is not expected");
+                Assert.assertTrue(e.getMessage(),
+                        e.getMessage().contains("Filter-level DLS via cross cluster search is not available for scrolling"));
             }
         }
     }
