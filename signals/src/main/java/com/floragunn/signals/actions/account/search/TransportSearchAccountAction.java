@@ -100,7 +100,7 @@ public class TransportSearchAccountAction extends HandledTransportAction<SearchA
                     @Override
                     public void onResponse(SearchResponse response) {
 
-                        ActionListener.respondAndRelease(listener, new SearchAccountResponse(response));
+                        listener.onResponse(new SearchAccountResponse(response));
                     }
 
                     @Override

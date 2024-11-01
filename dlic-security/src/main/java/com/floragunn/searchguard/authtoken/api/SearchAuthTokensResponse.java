@@ -34,7 +34,6 @@ public class SearchAuthTokensResponse extends ActionResponse implements ToXConte
 
     public SearchAuthTokensResponse(SearchResponse searchResponse) {
         this.searchResponse = searchResponse;
-        this.searchResponse.incRef();
     }
 
     public SearchAuthTokensResponse(StreamInput in) throws IOException {
@@ -61,8 +60,4 @@ public class SearchAuthTokensResponse extends ActionResponse implements ToXConte
         return searchResponse.status();
     }
 
-    @Override
-    public boolean decRef() {
-        return this.searchResponse.decRef();
-    }
 }

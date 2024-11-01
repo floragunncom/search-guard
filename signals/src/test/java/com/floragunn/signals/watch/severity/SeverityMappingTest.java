@@ -6,8 +6,6 @@ import java.util.Map;
 
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
-import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.junit.Assert;
@@ -35,8 +33,6 @@ import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
 public class SeverityMappingTest {
     private static NamedXContentRegistry xContentRegistry;
     private static ScriptService scriptService;
-    private final WatchInitializationService watchInitService = new WatchInitializationService(null, scriptService,
-            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, STRICT);
 
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
@@ -54,7 +50,10 @@ public class SeverityMappingTest {
 
     @Test
     public void basicTest() throws Exception {
-        DocNode config = DocNode.of("value", "1", "mapping",
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, STRICT);
+
+        DocNode config = DocNode.of("value", "x", "mapping",
                 Arrays.asList(DocNode.of("threshold", 1, "level", "info"), DocNode.of("threshold", 2, "level", "error")));
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
@@ -67,8 +66,10 @@ public class SeverityMappingTest {
 
     @Test
     public void reorderTest() throws Exception {
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, STRICT);
 
-        DocNode config = DocNode.of("value", "1", "mapping",
+        DocNode config = DocNode.of("value", "x", "mapping",
                 Arrays.asList(DocNode.of("threshold", 2, "level", "error"), DocNode.of("threshold", 1, "level", "info")));
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
@@ -81,8 +82,10 @@ public class SeverityMappingTest {
 
     @Test
     public void descendingOrderTest() throws Exception {
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, STRICT);
 
-        DocNode config = DocNode.of("value", "1", "order", "descending", "mapping",
+        DocNode config = DocNode.of("value", "x", "order", "descending", "mapping",
                 Arrays.asList(DocNode.of("threshold", 2, "level", "info"), DocNode.of("threshold", 1, "level", "error")));
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
@@ -95,8 +98,10 @@ public class SeverityMappingTest {
 
     @Test
     public void descendingReOrderTest() throws Exception {
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, STRICT);
 
-        DocNode config = DocNode.of("value", "1", "order", "descending", "mapping",
+        DocNode config = DocNode.of("value", "x", "order", "descending", "mapping",
                 Arrays.asList(DocNode.of("threshold", 1, "level", "error"), DocNode.of("threshold", 2, "level", "info")));
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
@@ -109,8 +114,10 @@ public class SeverityMappingTest {
 
     @Test
     public void duplicateTest() throws Exception {
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, STRICT);
 
-        DocNode config = DocNode.of("value", "1", "mapping",
+        DocNode config = DocNode.of("value", "x", "mapping",
                 Arrays.asList(DocNode.of("threshold", 1, "level", "info"), DocNode.of("threshold", 1, "level", "error")));
 
         try {
@@ -122,9 +129,11 @@ public class SeverityMappingTest {
     }
 
     @Test
-    public void findValueTest() throws Exception {;
+    public void findValueTest() throws Exception {
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, STRICT);
 
-        DocNode config = DocNode.of("value", "1", "mapping",
+        DocNode config = DocNode.of("value", "x", "mapping",
                 Arrays.asList(DocNode.of("threshold", 1, "level", "info"), DocNode.of("threshold", 2, "level", "error")));
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
@@ -141,6 +150,8 @@ public class SeverityMappingTest {
 
     @Test
     public void findValueWithBigNumbersTest() throws Exception {
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, STRICT);
 
         String configJson = "{\"value\": \"data.x\", \"mapping\": [{\"threshold\": 123456789999, \"level\": \"info\"}, {\"threshold\": 223456789999, \"level\": \"error\"}]}";
 
@@ -160,8 +171,10 @@ public class SeverityMappingTest {
 
     @Test
     public void descendingFindValueTest() throws Exception {
+        WatchInitializationService watchInitService = new WatchInitializationService(null, null,
+            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, STRICT);
 
-        DocNode config = DocNode.of("value", "1", "order", "descending", "mapping",
+        DocNode config = DocNode.of("value", "x", "order", "descending", "mapping",
                 Arrays.asList(DocNode.of("threshold", 1, "level", "error"), DocNode.of("threshold", 2, "level", "info")));
 
         SeverityMapping severityMapping = SeverityMapping.create(watchInitService, config);
@@ -178,6 +191,8 @@ public class SeverityMappingTest {
 
     @Test
     public void evaluationResultTest() throws Exception {
+        WatchInitializationService watchInitService = new WatchInitializationService(null, scriptService,
+            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, STRICT);
 
         String configJson = "{\n" + "    \"mapping\": [\n" + "      {\n" + "        \"level\": \"info\",\n" + "        \"threshold\": 100\n"
                 + "      },\n" + "      {\n" + "        \"level\": \"warning\",\n" + "        \"threshold\": 200\n" + "      },\n" + "      {\n"
@@ -192,7 +207,8 @@ public class SeverityMappingTest {
         NestedValueMap runtimeData = new NestedValueMap();
         runtimeData.put("a", 10);
 
-        WatchExecutionContext ctx = buildWatchExecutionContext(runtimeData);
+        WatchExecutionContext ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED,
+                ActionInvocationType.ALERT, new WatchExecutionContextData(runtimeData), Mockito.mock(TrustManagerRegistry.class));
 
         EvaluationResult evaluationResult = severityMapping.execute(ctx);
         Map<String, Object> evaluationResultMap = evaluationResult.toMap();
@@ -203,7 +219,8 @@ public class SeverityMappingTest {
 
         runtimeData.put("a", 150);
 
-        ctx = buildWatchExecutionContext(runtimeData);
+        ctx = new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT,
+                new WatchExecutionContextData(runtimeData), Mockito.mock(TrustManagerRegistry.class));
 
         evaluationResult = severityMapping.execute(ctx);
         evaluationResultMap = evaluationResult.toMap();
@@ -212,12 +229,6 @@ public class SeverityMappingTest {
         Assert.assertEquals(SeverityLevel.INFO, evaluationResult.getLevel());
         Assert.assertEquals(evaluationResult.getLevel().toMap(), evaluationResultMap.get("level"));
 
-    }
-
-    private WatchExecutionContext buildWatchExecutionContext(NestedValueMap runtimeData) {
-        return new WatchExecutionContext(null, scriptService, xContentRegistry, null, ExecutionEnvironment.SCHEDULED, ActionInvocationType.ALERT,
-                new WatchExecutionContextData(runtimeData), Mockito.mock(TrustManagerRegistry.class),
-                Mockito.mock(ClusterService.class), Mockito.mock(FeatureService.class));
     }
 
 }

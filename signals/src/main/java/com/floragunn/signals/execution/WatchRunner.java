@@ -29,9 +29,7 @@ import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.quartz.DisallowConcurrentExecution;
@@ -75,8 +73,6 @@ public class WatchRunner implements Job {
     private final Client client;
 
     private final ScriptService scriptService;
-    private final ClusterService clusterService;
-    private final FeatureService featureService;
     private final WatchLogWriter watchLogWriter;
     private final WatchStateWriter<?> watchStateWriter;
     private final WatchState watchState;
@@ -101,14 +97,12 @@ public class WatchRunner implements Job {
     private int failedResolveActions = 0;
 
     public WatchRunner(Watch watch, Client client, AccountRegistry accountRegistry, ScriptService scriptService, WatchLogWriter watchLogWriter,
-                       WatchStateWriter<?> watchStateWriter, DiagnosticContext diagnosticContext, WatchState watchState,
-                       ExecutionEnvironment executionEnvironment, SimulationMode simulationMode, NamedXContentRegistry xContentRegistry,
-                       SignalsSettings signalsSettings, String nodeName, GotoCheckSelector checkSelector, NestedValueMap input,
-                       TrustManagerRegistry trustManagerRegistry, ClusterService clusterService, FeatureService featureService) {
+            WatchStateWriter<?> watchStateWriter, DiagnosticContext diagnosticContext, WatchState watchState,
+            ExecutionEnvironment executionEnvironment, SimulationMode simulationMode, NamedXContentRegistry xContentRegistry,
+            SignalsSettings signalsSettings, String nodeName, GotoCheckSelector checkSelector, NestedValueMap input,
+            TrustManagerRegistry trustManagerRegistry) {
         this.watch = watch;
         this.client = client;
-        this.clusterService = clusterService;
-        this.featureService = featureService;
         this.scriptService = scriptService;
         this.watchLogWriter = watchLogWriter;
         this.watchStateWriter = watchStateWriter;
@@ -120,7 +114,7 @@ public class WatchRunner implements Job {
                 ActionInvocationType.ALERT, this.contextData, watchState != null ? watchState.getLastExecutionContextData() : null, simulationMode,
                 new HttpEndpointWhitelist(signalsSettings.getDynamicSettings().getAllowedHttpEndpoints()),
                 signalsSettings.getDynamicSettings().getHttpProxyConfig(), signalsSettings.getDynamicSettings().getFrontendBaseUrl(), null,
-                trustManagerRegistry, clusterService, featureService);
+                trustManagerRegistry);
         this.watchLog.setWatchId(watch.getId());
         this.watchLog.setWatchVersion(watch.getVersion());
         this.signalsSettings = signalsSettings;
@@ -147,14 +141,6 @@ public class WatchRunner implements Job {
 
     public ScriptService getScriptService() {
         return scriptService;
-    }
-
-    public ClusterService getClusterService() {
-        return clusterService;
-    }
-
-    public FeatureService getFeatureService() {
-        return featureService;
     }
 
     @Override

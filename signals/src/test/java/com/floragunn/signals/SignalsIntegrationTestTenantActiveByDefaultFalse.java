@@ -141,11 +141,7 @@ public class SignalsIntegrationTestTenantActiveByDefaultFalse {
 
         SearchResponse response = client.search(request).get();
 
-        try {
-            return response.getHits().getTotalHits().value;
-        } finally {
-            response.decRef();
-        }
+        return response.getHits().getTotalHits().value;
     }
 
     private long awaitMinCountOfDocuments(Client client, String index, long minCount) throws Exception {

@@ -8,7 +8,10 @@ public class StartStopAction extends ActionType<StartStopResponse> {
     public static final String NAME = "cluster:admin:searchguard:signals:admin/start_stop";
 
     protected StartStopAction() {
-        super(NAME);
+        super(NAME, in -> {
+            StartStopResponse response = new StartStopResponse(in);
+            return response;
+        });
     }
 
 }

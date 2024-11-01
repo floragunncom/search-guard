@@ -32,7 +32,8 @@ public class SearchInput extends AbstractSearchInput {
     }
 
     public SearchInput(String name, String target, List<String> indices, String body) {
-        this(name, target, indices, body, null, null);;
+        this(name, target, indices, body, null, null);
+        ;
     }
 
     public SearchInput(String name, String target, List<String> indices, String body, SearchType searchType, IndicesOptions indicesOptions) {

@@ -23,12 +23,12 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.env.NodeEnvironment;
-import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.watcher.ResourceWatcherService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
+import com.floragunn.codova.validation.VariableResolvers;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.AuthInfoService;
 import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
@@ -80,18 +80,17 @@ public class BaseDependencies {
     private final GuiceDependencies guiceDependencies;
     private final AuthInfoService authInfoService;
     private final ActionRequestIntrospector actionRequestIntrospector;
-    private final FeatureService featureService;
 
     public BaseDependencies(Settings settings, StaticSettings staticSettings, Client localClient, ClusterService clusterService,
-                            ThreadPool threadPool, ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
-                            Environment environment, NodeEnvironment nodeEnvironment, IndexNameExpressionResolver indexNameExpressionResolver,
-                            StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository, LicenseRepository licenseRepository,
-                            ProtectedConfigIndexService protectedConfigIndexService, InternalAuthTokenProvider internalAuthTokenProvider,
-                            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ConfigVarService configVarService, DiagnosticContext diagnosticContext, AuditLog auditLog,
-                            PrivilegesEvaluator privilegesEvaluator, BlockedIpRegistry blockedIpRegistry, BlockedUserRegistry blockedUserRegistry,
-                            SearchGuardModulesRegistry modulesRegistry, InternalUsersDatabase internalUsersDatabase, Actions actions,
-                            AuthorizationService authorizationService, GuiceDependencies guiceDependencies, AuthInfoService authInfoService,
-                            ActionRequestIntrospector actionRequestIntrospector, FeatureService featureService) {
+            ThreadPool threadPool, ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
+            Environment environment, NodeEnvironment nodeEnvironment, IndexNameExpressionResolver indexNameExpressionResolver,
+            StaticSgConfig staticSgConfig, ConfigurationRepository configurationRepository, LicenseRepository licenseRepository,
+            ProtectedConfigIndexService protectedConfigIndexService, InternalAuthTokenProvider internalAuthTokenProvider,
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ConfigVarService configVarService, DiagnosticContext diagnosticContext, AuditLog auditLog,
+            PrivilegesEvaluator privilegesEvaluator, BlockedIpRegistry blockedIpRegistry, BlockedUserRegistry blockedUserRegistry,
+            SearchGuardModulesRegistry modulesRegistry, InternalUsersDatabase internalUsersDatabase, Actions actions,
+            AuthorizationService authorizationService, GuiceDependencies guiceDependencies, AuthInfoService authInfoService,
+            ActionRequestIntrospector actionRequestIntrospector) {
         super();
         this.settings = settings;
         this.staticSettings = staticSettings;
@@ -123,7 +122,6 @@ public class BaseDependencies {
         this.guiceDependencies = guiceDependencies;
         this.authInfoService = authInfoService;
         this.actionRequestIntrospector = actionRequestIntrospector;
-        this.featureService = featureService;
     }
 
     public Settings getSettings() {
@@ -246,7 +244,4 @@ public class BaseDependencies {
         return actionRequestIntrospector;
     }
 
-    public FeatureService getFeatureService() {
-        return featureService;
-    }
 }

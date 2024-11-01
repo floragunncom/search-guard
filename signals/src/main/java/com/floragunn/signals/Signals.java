@@ -22,7 +22,7 @@ import com.floragunn.signals.truststore.service.persistence.TruststoreRepository
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.admin.indices.template.put.TransportPutComposableIndexTemplateAction;
+import org.elasticsearch.action.admin.indices.template.put.PutComposableIndexTemplateAction;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
@@ -33,7 +33,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.env.NodeEnvironment;
-import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.watcher.ResourceWatcherService;
@@ -82,7 +81,6 @@ public class Signals extends AbstractLifecycleComponent {
 
     private TrustManagerRegistry trustManagerRegistry;
     private HttpProxyHostRegistry httpProxyHostRegistry;
-    private FeatureService featureService;
 
     public Signals(Settings settings, ComponentState componentState) {
         this.componentState = componentState;
@@ -92,9 +90,9 @@ public class Signals extends AbstractLifecycleComponent {
     }
 
     public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool,
-           ScriptService scriptService, NamedXContentRegistry xContentRegistry, NodeEnvironment nodeEnvironment,
-           InternalAuthTokenProvider internalAuthTokenProvider, ProtectedConfigIndexService protectedConfigIndexService,
-           DiagnosticContext diagnosticContext, FeatureService featureService) {
+            ResourceWatcherService resourceWatcherService, ScriptService scriptService, NamedXContentRegistry xContentRegistry,
+            Environment environment, NodeEnvironment nodeEnvironment, InternalAuthTokenProvider internalAuthTokenProvider,
+            ProtectedConfigIndexService protectedConfigIndexService, DiagnosticContext diagnosticContext) {
 
         try {
             nodeId = nodeEnvironment.nodeId();
@@ -129,7 +127,6 @@ public class Signals extends AbstractLifecycleComponent {
             ProxyRepository proxyRepository = new ProxyRepository(signalsSettings, privilegedConfigClient);
             ProxyCrudService proxyCrudService = new ProxyCrudService(proxyRepository);
             this.httpProxyHostRegistry = new HttpProxyHostRegistry(proxyCrudService);
-            this.featureService = featureService;
             return Collections.singletonList(this);
 
         } catch (Exception e) {
@@ -222,7 +219,7 @@ public class Signals extends AbstractLifecycleComponent {
 
             SignalsTenant signalsTenant = SignalsTenant.create(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
                     internalAuthTokenProvider, signalsSettings, accountRegistry, tenantState, diagnosticContext, threadPool,
-                    trustManagerRegistry, httpProxyHostRegistry, featureService);
+                    trustManagerRegistry, httpProxyHostRegistry);
 
             tenants.put(name, signalsTenant);
 
@@ -346,14 +343,14 @@ public class Signals extends AbstractLifecycleComponent {
 
         log.debug("Creating signals_log_template for {}", signalsLogIndex);
 
-        TransportPutComposableIndexTemplateAction.Request putRequest = new TransportPutComposableIndexTemplateAction.Request("signals_log_template");
+        PutComposableIndexTemplateAction.Request putRequest = new PutComposableIndexTemplateAction.Request("signals_log_template");
         ComposableIndexTemplate composableIndexTemplate = ComposableIndexTemplate.builder() //
             .indexPatterns(ImmutableList.of(signalsLogIndex)) //
             .template(new Template(Settings.builder().put("index.hidden", true).build(), null, null)) //
             .build();
         putRequest.indexTemplate(composableIndexTemplate);
 
-        client.execute(TransportPutComposableIndexTemplateAction.TYPE, putRequest, new ActionListener<AcknowledgedResponse>() {
+        client.execute(PutComposableIndexTemplateAction.INSTANCE, putRequest, new ActionListener<AcknowledgedResponse>() {
 
             @Override public void onResponse(AcknowledgedResponse response) {
                 log.debug("Created signals_log_template");
@@ -461,15 +458,6 @@ public class Signals extends AbstractLifecycleComponent {
     }
     public HttpProxyHostRegistry getHttpProxyHostRegistry() {
         return httpProxyHostRegistry;
-    }
-
-    public ClusterService getClusterService() {
-        return clusterService;
-    }
-
-    public FeatureService getFeatureService() {
-
-        return featureService;
     }
 
     public SignalsSettings getSignalsSettings() {

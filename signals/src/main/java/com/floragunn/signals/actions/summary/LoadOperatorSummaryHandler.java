@@ -57,12 +57,8 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
             try {
                 List<SortByField> sorting = SortParser.parseSortingExpression(request.getSorting());
                 SearchResponse search = watchStateRepository.search(request.getWatchFilter(), sorting);
-                try {
-                    LoadOperatorSummaryData loadOperatorSummaryData = convertSearchResultToResponse(search);
-                    return new StandardResponse(200).data(loadOperatorSummaryData);
-                } finally {
-                    search.decRef();
-                }
+                LoadOperatorSummaryData loadOperatorSummaryData = convertSearchResultToResponse(search);
+                return new StandardResponse(200).data(loadOperatorSummaryData);
             } catch (Exception ex) {
                 log.error("Cannot load signal watch state summary", ex);
                 return new StandardResponse(400).error(ex.getMessage());
