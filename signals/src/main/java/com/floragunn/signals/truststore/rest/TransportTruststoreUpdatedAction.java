@@ -41,7 +41,6 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.signals.Signals;
@@ -94,41 +93,37 @@ public class TransportTruststoreUpdatedAction extends
         }
     }
 
-    public static class NodeRequest extends TransportRequest {
+    public static class NodeRequest extends BaseNodesRequest<NodeRequest> {
 
-        private final String truststoreId;
-        private final String operationType;
+        private final TruststoreUpdatedRequest request;
 
         public NodeRequest(StreamInput streamInput) throws IOException {
             super(streamInput);
-            this.truststoreId = streamInput.readString();
-            this.operationType = streamInput.readString();
+            this.request = new TruststoreUpdatedRequest(streamInput);
         }
 
         public NodeRequest(TruststoreUpdatedRequest request) {
-            super();
-            this.truststoreId = request.getTruststoreId();
-            this.operationType = request.getOperationType();
+            super((String[]) null);
+            this.request = request;
         }
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {
             super.writeTo(out);
-            out.writeString(truststoreId);
-            out.writeString(operationType);
+            request.writeTo(out);
         }
 
         public String getTruststoreId() {
-            return truststoreId;
+            return request.getTruststoreId();
         }
 
         public String getOperationType() {
-            return operationType;
+            return request.getOperationType();
         }
 
         @Override
         public String toString() {
-            return "NodeRequest{" + "truststoreId=" + truststoreId + ", operationType=" + operationType + '}';
+            return "NodeRequest{" + "request=" + request + '}';
         }
     }
 
@@ -182,10 +177,23 @@ public class TransportTruststoreUpdatedAction extends
         private final String truststoreId;
         private final String operationType;
 
+        protected TruststoreUpdatedRequest(StreamInput in) throws IOException {
+            super(in);
+            this.truststoreId = in.readString();
+            this.operationType = in.readString();
+        }
+
         public TruststoreUpdatedRequest(String truststoreId, String operationType) {
             super(new String[0]);
             this.truststoreId = Objects.requireNonNull(truststoreId, "Truststore id is required");
             this.operationType = Objects.requireNonNull(operationType, "Operation type is required");
+        }
+
+        @Override
+        public void writeTo(StreamOutput out) throws IOException {
+            super.writeTo(out);
+            out.writeString(truststoreId);
+            out.writeString(operationType);
         }
 
         public String getTruststoreId() {

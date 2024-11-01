@@ -35,7 +35,6 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchsupport.jobs.core.IndexJobStateStore;
@@ -65,23 +64,23 @@ public class TransportSchedulerConfigUpdateAction extends
         DiscoveryNode localNode = clusterService.localNode();
 
         try {
-            IndexJobStateStore<?> jobStore = IndexJobStateStore.getInstanceBySchedulerName(localNode.getId(), request.schedulerName);
+            IndexJobStateStore<?> jobStore = IndexJobStateStore.getInstanceBySchedulerName(localNode.getId(), request.request.getSchedulerName());
 
             if (jobStore == null) {
-                log.warn("A job store for scheduler name " + request.schedulerName + " does not exist (" + localNode.getId() + ")");
+                log.warn("A job store for scheduler name " + request.request.getSchedulerName() + " does not exist (" + localNode.getId() + ")");
                 return new NodeResponse(localNode, NodeResponse.Status.NO_SUCH_JOB_STORE,
-                        "A job store for scheduler name " + request.schedulerName + " does not exist");
+                        "A job store for scheduler name " + request.request.getSchedulerName() + " does not exist");
             }
 
             String nodeId = jobStore.getNodeId();
 
             if (nodeId != null && !localNode.getId().equals(nodeId)) {
                 // This may happen if there are several nodes per JVM (e.g., unit tests)
-                log.error("The scheduler with the name " + request.schedulerName + " is not configured for this node: "
+                log.error("The scheduler with the name " + request.request.getSchedulerName() + " is not configured for this node: "
                         + localNode.getId() + " vs " + jobStore.getNodeId());
 
                 return new NodeResponse(localNode, NodeResponse.Status.NO_SUCH_JOB_STORE,
-                        "The scheduler with the name " + request.schedulerName + " is not configured for this node: " + localNode.getId()
+                        "The scheduler with the name " + request.request.getSchedulerName() + " is not configured for this node: " + localNode.getId()
                                 + " vs " + jobStore.getNodeId());
             }
 
@@ -94,24 +93,24 @@ public class TransportSchedulerConfigUpdateAction extends
         }
     }
 
-    public static class NodeRequest extends TransportRequest {
+    public static class NodeRequest extends BaseNodesRequest {
 
-        private String schedulerName;
+        SchedulerConfigUpdateRequest request;
 
         public NodeRequest(StreamInput in) throws IOException {
             super(in);
-            this.schedulerName = in.readString();
+            request = new SchedulerConfigUpdateRequest(in);
         }
 
         public NodeRequest(final SchedulerConfigUpdateRequest request) {
-            super();
-            this.schedulerName = request.getSchedulerName();
+            super((String[]) null);
+            this.request = request;
         }
 
         @Override
         public void writeTo(final StreamOutput out) throws IOException {
             super.writeTo(out);
-            out.writeString(this.schedulerName);
+            request.writeTo(out);
         }
     }
 

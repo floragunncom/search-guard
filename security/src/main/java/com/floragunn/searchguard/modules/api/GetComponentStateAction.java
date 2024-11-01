@@ -54,7 +54,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -87,6 +86,12 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         private String moduleId;
         private boolean verbose;
 
+        public Request(StreamInput in) throws IOException {
+            super(in);
+            this.moduleId = in.readOptionalString();
+            this.verbose = in.readBoolean();
+        }
+
         public Request(String moduleId) {
             super(new String[0]);
             this.moduleId = moduleId;
@@ -98,6 +103,13 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
             this.verbose = verbose;
         }
 
+        @Override
+        public void writeTo(StreamOutput out) throws IOException {
+            super.writeTo(out);
+            out.writeOptionalString(moduleId);
+            out.writeBoolean(verbose);
+        }
+
         public boolean isVerbose() {
             return verbose;
         }
@@ -105,34 +117,26 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         public void setVerbose(boolean verbose) {
             this.verbose = verbose;
         }
-
-        public String getModuleId() {
-            return moduleId;
-        }
     }
 
-    public static class NodeRequest extends TransportRequest {
+    public static class NodeRequest extends BaseNodesRequest {
 
-        private String moduleId;
-        private boolean verbose;
+        Request request;
 
         public NodeRequest(StreamInput in) throws IOException {
             super(in);
-            this.moduleId = in.readOptionalString();
-            this.verbose = in.readBoolean();
+            request = new Request(in);
         }
 
         public NodeRequest(Request request) {
-            super();
-            this.moduleId = request.getModuleId();
-            this.verbose = request.isVerbose();
+            super((String[]) null);
+            this.request = request;
         }
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {
             super.writeTo(out);
-            out.writeOptionalString(this.moduleId);
-            out.writeBoolean(this.verbose);
+            request.writeTo(out);
         }
     }
 
@@ -481,8 +485,8 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
 
         @Override
         protected NodeResponse nodeOperation(NodeRequest request, Task task) {
-            if (request.moduleId != null && !request.moduleId.equals("_all")) {
-                ComponentState componentState = modulesRegistry.getComponentState(request.moduleId);
+            if (request.request.moduleId != null && !request.request.moduleId.equals("_all")) {
+                ComponentState componentState = modulesRegistry.getComponentState(request.request.moduleId);
 
                 if (componentState != null) {
                     return new NodeResponse(clusterService.localNode(), Collections.singletonList(componentState));

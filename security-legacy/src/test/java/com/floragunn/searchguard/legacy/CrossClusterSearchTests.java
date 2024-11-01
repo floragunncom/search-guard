@@ -133,11 +133,9 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         //System.out.println("###################### query 5");
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:abcnonext/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("nagilum","nagilum"));
         //System.out.println(ccs.getBody());
-        Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
-        Assert.assertTrue(ccs.getBody().contains("cross_cluster_two"));
-        Assert.assertTrue(ccs.getBody().contains("\"status\" : \"skipped\""));
-        Assert.assertTrue(ccs.getBody().contains("\"reason\" : \"no such index"));
-
+        Assert.assertEquals(HttpStatus.SC_NOT_FOUND, ccs.getStatusCode());
+        Assert.assertTrue(ccs.getBody().contains("index_not_found_exception"));
+        
         //System.out.println("###################### query 6");
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:twitter,twutter/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("nagilum","nagilum"));
         //System.out.println(ccs.getBody());
@@ -205,11 +203,8 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         //System.out.println("###################### query 5");
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:twutter,twitter/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("twitter","nagilum"));
         //System.out.println(ccs.getBody());
-        Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
-        Assert.assertTrue(ccs.getBody().contains("cross_cluster_two"));
-        Assert.assertTrue(ccs.getBody().contains("\"status\" : \"skipped\""));
-        Assert.assertTrue(ccs.getBody().contains("\"reason\" : \"Insufficient permissions\""));
-
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, ccs.getStatusCode());
+        
         //System.out.println("###################### query 6");
         String msearchBody = 
                 "{}"+System.lineSeparator()+
@@ -264,10 +259,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("*:/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("worf","worf"));
         //System.out.println(ccs.getBody());
-        Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
-        Assert.assertTrue(ccs.getBody().contains("cross_cluster_two"));
-        Assert.assertTrue(ccs.getBody().contains("\"status\" : \"skipped\""));
-        Assert.assertTrue(ccs.getBody().contains("\"reason\" : \"Insufficient permissions\""));
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, ccs.getStatusCode());
         
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("%3Clogstash-%7Bnow%2Fd%7D%3E/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("worf","worf"));
         //System.out.println(ccs.getBody());
@@ -275,10 +267,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:%3Clogstash-%7Bnow%2Fd%7D%3E/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("worf","worf"));
         //System.out.println(ccs.getBody());
-        Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
-        Assert.assertTrue(ccs.getBody().contains("cross_cluster_two"));
-        Assert.assertTrue(ccs.getBody().contains("\"status\" : \"skipped\""));
-        Assert.assertTrue(ccs.getBody().contains("\"reason\" : \"Insufficient permissions\""));
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, ccs.getStatusCode());
         
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:%3Clogstash-%7Bnow%2Fd%7D%3E,%3Clogstash-%7Bnow%2Fd%7D%3E/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("worf","worf"));
         //System.out.println(ccs.getBody());
@@ -287,10 +276,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:remotealias/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("worf","worf"));
         //System.out.println(ccs.getBody());
-        Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
-        Assert.assertTrue(ccs.getBody().contains("cross_cluster_two"));
-        Assert.assertTrue(ccs.getBody().contains("\"status\" : \"skipped\""));
-        Assert.assertTrue(ccs.getBody().contains("\"reason\" : \"Insufficient permissions\""));
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, ccs.getStatusCode());
         
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("coordalias/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("worf","worf"));
         //System.out.println(ccs.getBody());
@@ -319,10 +305,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:twitter/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("crusherw","crusherw"));
         //System.out.println(ccs.getBody());
-        Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
-        Assert.assertTrue(ccs.getBody().contains("cross_cluster_two"));
-        Assert.assertTrue(ccs.getBody().contains("\"status\" : \"skipped\""));
-        Assert.assertTrue(ccs.getBody().contains("\"reason\" : \"Insufficient permissions\""));
+        Assert.assertEquals(HttpStatus.SC_FORBIDDEN, ccs.getStatusCode());
         
     }
     
@@ -393,10 +376,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         Assert.assertFalse(ccs.getBody().contains("abc"));
         Assert.assertTrue(ccs.getBody().contains("remote"));
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executePostRequest("cross_cluster_two:/_search?pretty", kibanaIndicesAgg, encodeBasicHeader("nagilum","nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
-        Assert.assertTrue(ccs.getBody().contains("cross_cluster_two"));
-        Assert.assertTrue(ccs.getBody().contains("\"status\" : \"skipped\""));
-        Assert.assertTrue(ccs.getBody().contains("\"reason\" : \"no such index"));
+        Assert.assertEquals(HttpStatus.SC_NOT_FOUND, ccs.getStatusCode());
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executePostRequest("cross_cluster_two:remo*,coo*/_search?pretty", kibanaIndicesAgg, encodeBasicHeader("nagilum","nagilum"));
         Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
         Assert.assertFalse(ccs.getBody().contains("security_exception"));
@@ -484,12 +464,7 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         Assert.assertFalse(ccs.getBody().contains("\"doc_count\" : 2"));
         Assert.assertTrue(ccs.getBody().contains("\"doc_count\" : 1"));
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executePostRequest("cross_cluster_two:notfound,*/_search?pretty", agg, encodeBasicHeader("nagilum","nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
-        Assert.assertTrue(ccs.getBody().contains("cross_cluster_two"));
-        Assert.assertTrue(ccs.getBody().contains("\"status\" : \"skipped\""));
-        Assert.assertTrue(ccs.getBody().contains("\"reason\" : \"no such index"));
-        Assert.assertTrue(ccs.getBody().contains("crl1"));
-        Assert.assertFalse(ccs.getBody().contains("crl2"));
+        Assert.assertEquals(HttpStatus.SC_NOT_FOUND, ccs.getStatusCode());
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executePostRequest("cross_cluster_two:*,notfound/_search?pretty", agg, encodeBasicHeader("nagilum","nagilum"));
         Assert.assertEquals(HttpStatus.SC_NOT_FOUND, ccs.getStatusCode());
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executePostRequest("cross_cluster_two:notfound,notfound/_search?pretty", agg, encodeBasicHeader("nagilum","nagilum"));
@@ -507,9 +482,6 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         setupCcs();
 
         HttpResponse response = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("/*:.monitoring-es/_search", encodeBasicHeader("nagilum","nagilum"));
-        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-        Assert.assertTrue(response.getBody().contains("cross_cluster_two"));
-        Assert.assertTrue(response.getBody().contains("\"status\":\"skipped\""));
-        Assert.assertTrue(response.getBody().contains("\"reason\":\"no such index"));
+        Assert.assertEquals(404, response.getStatusCode());
     }
 }

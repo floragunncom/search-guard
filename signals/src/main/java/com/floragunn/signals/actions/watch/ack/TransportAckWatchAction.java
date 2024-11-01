@@ -37,7 +37,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -91,29 +90,29 @@ public class TransportAckWatchAction
                 return new NodeResponse(localNode, AckWatchResponse.Status.NO_SUCH_TENANT, "No such tenant: " + user.getRequestedTenant());
             }
 
-            if (request.watchId == null) {
+            if (request.request.getWatchId() == null) {
                 throw new IllegalArgumentException("request.watchId is null");
             }
 
-            if (!signalsTenant.runsWatchLocally(request.watchId)) {
-                return new NodeResponse(localNode, AckWatchResponse.Status.NO_SUCH_WATCH, "This node does not run " + request.watchId);
+            if (!signalsTenant.runsWatchLocally(request.request.getWatchId())) {
+                return new NodeResponse(localNode, AckWatchResponse.Status.NO_SUCH_WATCH, "This node does not run " + request.request.getWatchId());
             }
 
-            if (request.actionId != null) {
+            if (request.request.getActionId() != null) {
                 try {
-                    if (request.ack) {
-                        signalsTenant.ack(request.watchId, request.actionId, user);
+                    if (request.request.isAck()) {
+                        signalsTenant.ack(request.request.getWatchId(), request.request.getActionId(), user);
                         return new NodeResponse(localNode, AckWatchResponse.Status.SUCCESS, "Acknowledged");
                     } else {
-                        signalsTenant.unack(request.watchId, request.actionId, user);
+                        signalsTenant.unack(request.request.getWatchId(), request.request.getActionId(), user);
                         return new NodeResponse(localNode, AckWatchResponse.Status.SUCCESS, "Un-acknowledged");
                     }
                 } catch (IllegalStateException e) {
                     return new NodeResponse(localNode, AckWatchResponse.Status.ILLEGAL_STATE, e.getMessage());
                 }
             } else {
-                if (request.ack) {
-                    List<String> ackedActions = new ArrayList<>(signalsTenant.ack(request.watchId, user).keySet());
+                if (request.request.isAck()) {
+                    List<String> ackedActions = new ArrayList<>(signalsTenant.ack(request.request.getWatchId(), user).keySet());
 
                     if (ackedActions.size() == 0) {
                         return new NodeResponse(localNode, AckWatchResponse.Status.ILLEGAL_STATE, "No actions are in an acknowlegable state");
@@ -121,7 +120,7 @@ public class TransportAckWatchAction
                         return new NodeResponse(localNode, AckWatchResponse.Status.SUCCESS, "Acknowledged: " + ackedActions);
                     }
                 } else {
-                    List<String> unackedActions = signalsTenant.unack(request.watchId, user);
+                    List<String> unackedActions = signalsTenant.unack(request.request.getWatchId(), user);
 
                     if (unackedActions.size() == 0) {
                         return new NodeResponse(localNode, AckWatchResponse.Status.ILLEGAL_STATE, "No actions are in an un-acknowlegable state");
@@ -138,37 +137,29 @@ public class TransportAckWatchAction
         } catch (NotAcknowledgeableException e) {
             return new NodeResponse(clusterService.localNode(), AckWatchResponse.Status.NOT_ACKNOWLEDGEABLE, e.getMessage());            
         } catch (Exception e) {
-            log.error("Error while acknowledging " + request, e);
+            log.error("Error while acknowledging " + request.request, e);
             return new NodeResponse(clusterService.localNode(), AckWatchResponse.Status.EXCEPTION, e.toString());
         }
     }
 
-    public static class NodeRequest extends TransportRequest {
+    public static class NodeRequest extends BaseNodesRequest {
 
-        private String watchId;
-        private String actionId;
-        private boolean ack;
+        AckWatchRequest request;
 
         public NodeRequest(final AckWatchRequest request) {
-            super();
-            this.watchId = request.getWatchId();
-            this.actionId = request.getActionId();
-            this.ack = request.isAck();
+            super((String[]) null);
+            this.request = request;
         }
 
         public NodeRequest(final StreamInput in) throws IOException {
             super(in);
-            this.watchId = in.readString();
-            this.ack = in.readBoolean();
-            this.actionId = in.readOptionalString();
+            request = new AckWatchRequest(in);
         }
 
         @Override
         public void writeTo(final StreamOutput out) throws IOException {
             super.writeTo(out);
-            out.writeString(watchId);
-            out.writeBoolean(ack);
-            out.writeOptionalString(actionId);
+            request.writeTo(out);
         }
     }
 

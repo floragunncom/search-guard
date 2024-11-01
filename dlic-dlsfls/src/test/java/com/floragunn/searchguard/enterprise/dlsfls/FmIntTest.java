@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.BeforeClass;

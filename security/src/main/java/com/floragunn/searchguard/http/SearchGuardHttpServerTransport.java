@@ -36,7 +36,7 @@ import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
 import org.elasticsearch.http.netty4.Netty4HttpChannel;
-import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
+import org.elasticsearch.rest.ChunkedRestResponseBody;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
@@ -153,7 +153,7 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
                 }
 
                 @Override
-                public HttpResponse createResponse(RestStatus status, ChunkedRestResponseBodyPart content) {
+                public HttpResponse createResponse(RestStatus status, ChunkedRestResponseBody content) {
                     return httpRequest.createResponse(status, content);
                 }
 
