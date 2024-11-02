@@ -891,7 +891,7 @@ public abstract class MetaImpl implements Meta {
             DefaultMetaImpl currentInstance = DefaultMetaImpl.currentInstance.get();
             org.elasticsearch.cluster.metadata.Metadata esMetadata = clusterService.state().metadata();
 
-            if (currentInstance == null || currentInstance.esMetadata.version() != esMetadata.version()) {
+            if (currentInstance == null || currentInstance.esMetadata.version() != esMetadata.version() || !currentInstance.esMetadata.clusterUUID().equals(esMetadata.clusterUUID())) {
                 currentInstance = new DefaultMetaImpl(esMetadata);
                 DefaultMetaImpl.currentInstance.set(currentInstance);
 
