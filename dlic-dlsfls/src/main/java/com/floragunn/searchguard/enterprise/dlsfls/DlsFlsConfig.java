@@ -36,25 +36,23 @@ public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
     public static CType<DlsFlsConfig> TYPE = new CType<DlsFlsConfig>("authz_dlsfls", "Document Level Security and Field Level Security", 10011,
             DlsFlsConfig.class, DlsFlsConfig::parse, CType.Storage.OPTIONAL, CType.Arity.SINGLE);
 
-    public static final DlsFlsConfig DEFAULT = new DlsFlsConfig(null, null, false, MetricsLevel.BASIC, Impl.LEGACY, false, Mode.ADAPTIVE, false);
+    public static final DlsFlsConfig DEFAULT = new DlsFlsConfig(null, FieldMasking.DEFAULT, false, MetricsLevel.BASIC, false, Mode.ADAPTIVE, false);
 
     private final DocNode source;
     private final FieldMasking fieldMasking;
     private final boolean debugEnabled;
     private final MetricsLevel metricsLevel;
-    private final Impl enabledImpl;
     private final boolean nowAllowedInQueries;
     private final Mode dlsMode;
     private final boolean forceMinDocCountToOne;
 
-    DlsFlsConfig(DocNode source, FieldMasking fieldMasking, boolean debugEnabled, MetricsLevel metricsLevel, Impl enabledImpl,
+    DlsFlsConfig(DocNode source, FieldMasking fieldMasking, boolean debugEnabled, MetricsLevel metricsLevel,
             boolean nowAllowedInQueries, Mode dlsMode, boolean forceMinDocCountToOne) {
         this.source = source;
 
         this.fieldMasking = fieldMasking;
         this.debugEnabled = debugEnabled;
         this.metricsLevel = metricsLevel;
-        this.enabledImpl = enabledImpl;
         this.nowAllowedInQueries = nowAllowedInQueries;
         this.dlsMode = dlsMode;
         this.forceMinDocCountToOne = forceMinDocCountToOne;
@@ -72,7 +70,9 @@ public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
         FieldMasking fieldMasking = vNode.get("field_anonymization").withDefault(FieldMasking.DEFAULT).by(FieldMasking::parse);
         boolean debugEnabled = vNode.get("debug").withDefault(false).asBoolean();
         MetricsLevel metricsLevel = vNode.get("metrics").withDefault(MetricsLevel.BASIC).asEnum(MetricsLevel.class);
-        Impl enabledImpl = vNode.get("use_impl").withDefault(Impl.LEGACY).asEnum(Impl.class);
+        // use_impl is not used after legacy DLSFLS implementation removal. The value is just consumed to avoid validation errors if
+        // the value is present in the users' configuration.
+        vNode.get("use_impl").withDefault("flx").asString();
         boolean nowAllowedInQueries = vNode.get("dls.allow_now").withDefault(false).asBoolean();
         Mode dlsMode = vNode.get("dls.mode").withDefault(Mode.ADAPTIVE).asEnum(Mode.class);
         boolean forceMinDocCountToOne = vNode.get("dls.force_min_doc_count_to_1").withDefault(false).asBoolean();
@@ -81,7 +81,7 @@ public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
 
         if (!validationErrors.hasErrors()) {
             return new ValidationResult<DlsFlsConfig>(
-                    new DlsFlsConfig(docNode, fieldMasking, debugEnabled, metricsLevel, enabledImpl, nowAllowedInQueries, dlsMode, forceMinDocCountToOne));
+                    new DlsFlsConfig(docNode, fieldMasking, debugEnabled, metricsLevel, nowAllowedInQueries, dlsMode, forceMinDocCountToOne));
         } else {
             return new ValidationResult<DlsFlsConfig>(validationErrors);
         }
@@ -103,14 +103,6 @@ public class DlsFlsConfig implements PatchableDocument<DlsFlsConfig> {
 
     public MetricsLevel getMetricsLevel() {
         return metricsLevel;
-    }
-
-    public static enum Impl {
-        LEGACY, FLX
-    }
-
-    public Impl getEnabledImpl() {
-        return enabledImpl;
     }
 
     public boolean isNowAllowedInQueries() {

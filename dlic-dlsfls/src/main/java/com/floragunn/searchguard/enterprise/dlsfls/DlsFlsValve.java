@@ -112,10 +112,6 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
             RoleBasedFieldMasking fieldMasking = config.getFieldMasking();
             DlsFlsConfig.Mode mode = config.getDlsFlsConfig().getDlsMode();
 
-            if (!config.isEnabled()) {
-                return SyncAuthorizationFilter.Result.OK;
-            }
-
             blockAccessInCaseOfRoleOrMappingsConfigurationErrors();
 
             if (log.isDebugEnabled()) {

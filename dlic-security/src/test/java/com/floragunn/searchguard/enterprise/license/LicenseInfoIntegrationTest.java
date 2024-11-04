@@ -44,7 +44,7 @@ public class LicenseInfoIntegrationTest {
     public void basicTest() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
             HttpResponse response = client.get("/_searchguard/license/info");
-            Assert.assertEquals(response.getBody(), ImmutableSet.of("authentication_backend/ldap", "dlsfls", "dlsfls_legacy"), ImmutableSet.of(response.getBodyAsDocNode().getAsNode("licenses_required").getAsNode("enterprise").toListOfStrings()));
+            Assert.assertEquals(response.getBody(), ImmutableSet.of("authentication_backend/ldap", "dlsfls"), ImmutableSet.of(response.getBodyAsDocNode().getAsNode("licenses_required").getAsNode("enterprise").toListOfStrings()));
         }
     }
 }

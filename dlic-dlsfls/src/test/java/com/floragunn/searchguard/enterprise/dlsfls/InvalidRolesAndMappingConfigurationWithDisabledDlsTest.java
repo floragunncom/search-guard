@@ -25,14 +25,11 @@ public class InvalidRolesAndMappingConfigurationWithDisabledDlsTest {
 
     private static final Authc AUTHC = new Authc(new Domain("basic/internal_users_db"));
 
-    //modern implementation is disabled by using .useImpl("legacy") so no DLS impl is available
-    private static final DlsFls DLSFLS = new DlsFls().useImpl("legacy").metrics("detailed");
+    private static final DlsFls DLSFLS = new DlsFls().metrics("detailed");
 
     private static final User USER_ADMIN = new User("admin").roles(ALL_ACCESS.getName());
     public static final String LIMITED_ROLE_NAME = "limited-role";
     private static final User USER_LIMITED = new User("limited-user").roles(LIMITED_ROLE_NAME);
-
-    private static final String ERROR_TYPE = "dls_fls_configuration_exception";
 
     @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
@@ -41,7 +38,8 @@ public class InvalidRolesAndMappingConfigurationWithDisabledDlsTest {
     public static LocalCluster.Embedded CLUSTER = new LocalCluster.Builder().singleNode().authc(AUTHC).dlsFls(DLSFLS)//
         .roles(ALL_ACCESS)//
         .user(USER_ADMIN).user(USER_LIMITED)//
-        .sslEnabled().enterpriseModulesEnabled().embedded().build();
+            // enterprise module is not enabled so that DLSFLS implementation is not present
+        .sslEnabled().embedded().build();
 
     private ConfigurationUpdater configurationUpdater;
 

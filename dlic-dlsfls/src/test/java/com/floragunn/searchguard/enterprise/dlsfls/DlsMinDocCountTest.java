@@ -36,7 +36,7 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 public class DlsMinDocCountTest {
 
     static final TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db"));
-    static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().useImpl("flx");
+    static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls();
     
     static final TestSgConfig.User ADMIN = new TestSgConfig.User("admin")
             .roles(new Role("all_access").indexPermissions("*").on("*").clusterPermissions("*"));

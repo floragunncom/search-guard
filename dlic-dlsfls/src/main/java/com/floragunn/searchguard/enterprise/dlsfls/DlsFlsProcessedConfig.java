@@ -45,7 +45,6 @@ public class DlsFlsProcessedConfig {
     private final RoleBasedDocumentAuthorization documentAuthorization;
     private final RoleBasedFieldAuthorization fieldAuthorization;
     private final RoleBasedFieldMasking fieldMasking;
-    private final boolean enabled;
     private final boolean validationErrorsPresent;
     private final String validationErrorDescription;
     private final String uniqueValidationErrorToken;
@@ -57,7 +56,6 @@ public class DlsFlsProcessedConfig {
         this.documentAuthorization = documentAuthorization;
         this.fieldAuthorization = fieldAuthorization;
         this.fieldMasking = fieldMasking;
-        this.enabled = dlsFlsConfig.getEnabledImpl() == DlsFlsConfig.Impl.FLX;
         this.validationErrorsPresent = ((rolesValidationErrors != null) && (rolesValidationErrors.hasErrors()))//
             || ((rolesMappingValidationErrors != null) && (rolesMappingValidationErrors.hasErrors()));
         this.uniqueValidationErrorToken = UUID.randomUUID().toString();
@@ -80,29 +78,21 @@ public class DlsFlsProcessedConfig {
             }
 
             SgDynamicConfiguration<Role> roleConfig = configMap.get(CType.ROLES);
-            if (dlsFlsConfig.getEnabledImpl() == DlsFlsConfig.Impl.FLX) {
 
-                documentAuthorization = new RoleBasedDocumentAuthorization(roleConfig, indices, dlsFlsConfig.getMetricsLevel());
-                fieldAuthorization = new RoleBasedFieldAuthorization(roleConfig, indices, dlsFlsConfig.getMetricsLevel());
-                fieldMasking = new RoleBasedFieldMasking(roleConfig, dlsFlsConfig.getFieldMasking(), indices, dlsFlsConfig.getMetricsLevel());
+            documentAuthorization = new RoleBasedDocumentAuthorization(roleConfig, indices, dlsFlsConfig.getMetricsLevel());
+            fieldAuthorization = new RoleBasedFieldAuthorization(roleConfig, indices, dlsFlsConfig.getMetricsLevel());
+            fieldMasking = new RoleBasedFieldMasking(roleConfig, dlsFlsConfig.getFieldMasking(), indices, dlsFlsConfig.getMetricsLevel());
 
-                if (log.isDebugEnabled()) {
-                    log.debug("Using FLX DLS/FLS implementation\ndocumentAuthorization: " + documentAuthorization + "\nfieldAuthorization: "
-                            + fieldAuthorization + "\nfieldMasking: " + fieldMasking);
-                }
-
-                componentState.replacePart(documentAuthorization.getComponentState());
-                componentState.replacePart(fieldAuthorization.getComponentState());
-                componentState.replacePart(fieldMasking.getComponentState());
-
-                componentState.setState(State.INITIALIZED);
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("FLX DLS/FLS implementation is disabled");
-                }
-                
-                componentState.setState(State.DISABLED);
+            if (log.isDebugEnabled()) {
+                log.debug("Using FLX DLS/FLS implementation\ndocumentAuthorization: " + documentAuthorization + "\nfieldAuthorization: "
+                        + fieldAuthorization + "\nfieldMasking: " + fieldMasking);
             }
+
+            componentState.replacePart(documentAuthorization.getComponentState());
+            componentState.replacePart(fieldAuthorization.getComponentState());
+            componentState.replacePart(fieldMasking.getComponentState());
+
+            componentState.setState(State.INITIALIZED);
             ValidationErrors rolesValidationErrors = roleConfig.getValidationErrors();
             ValidationErrors rolesMappingsValidationErrors = Optional.ofNullable(configMap.get(CType.ROLESMAPPING))
                 .map(SgDynamicConfiguration::getValidationErrors)
@@ -130,10 +120,6 @@ public class DlsFlsProcessedConfig {
 
     public RoleBasedFieldMasking getFieldMasking() {
         return fieldMasking;
-    }
-
-    public boolean isEnabled() {
-        return enabled;
     }
     
     public MetricsLevel getMetricsLevel() {

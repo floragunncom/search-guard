@@ -31,7 +31,8 @@ public class DlsWriteIntTest {
             .roles(new Role("role").indexPermissions("SGS_MANAGE", "SGS_CRUD").dls(DocNode.of("term.dept.value", "dept_d")).on("dls_*").clusterPermissions("*"));
 
     static final TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db"));
-    static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().useImpl("flx").metrics("detailed");
+    static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().metrics("detailed");
+    public static final String LOGSDB_INDEX_POSTFIX = "logsdb";
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)

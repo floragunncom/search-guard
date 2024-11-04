@@ -46,7 +46,7 @@ public class FlsKeywordTest {
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     static final Authc AUTHC = new Authc(new Authc.Domain("basic/internal_users_db"));
-    static final DlsFls DLSFLS = new DlsFls().useImpl("flx").metrics("detailed");
+    static final DlsFls DLSFLS = new DlsFls().metrics("detailed");
 
     private static Role DOCUMENT_READER_ROLE = new Role("document_reader_role").clusterPermissions("*")
             .indexPermissions("indices:data/read/search").on(DOCUMENTS_INDEX_NAME);

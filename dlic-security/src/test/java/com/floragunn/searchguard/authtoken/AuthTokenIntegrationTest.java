@@ -912,10 +912,10 @@ public class AuthTokenIntegrationTest {
         
         DocNode config = DocNode.of("jwt_signing_key_hs512", TestJwk.OCT_1_K, "max_tokens_per_user", 100, "enabled", true);
         
-        try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {                        
-            HttpResponse response = restClient.putJson("/_searchguard/config", DocNode.of("auth_token_service.content", config));                        
+        try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {
+            HttpResponse response = restClient.putJson("/_searchguard/config", DocNode.of("auth_token_service.content", config));
             assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
-            
+
             response = restClient.get("/_searchguard/config");
             assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
             assertThat(response.getBodyAsDocNode().get("auth_token_service", "content"), equalTo(config.toMap()));

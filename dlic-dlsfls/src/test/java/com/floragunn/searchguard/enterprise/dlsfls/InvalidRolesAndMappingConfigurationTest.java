@@ -30,7 +30,7 @@ public class InvalidRolesAndMappingConfigurationTest {
 
     private static final Authc AUTHC = new Authc(new Domain("basic/internal_users_db"));
 
-    private static final DlsFls DLSFLS = new DlsFls().useImpl("flx").metrics("detailed");
+    private static final DlsFls DLSFLS = new DlsFls().metrics("detailed");
 
     private static final User USER_ADMIN = new User("admin").roles(ALL_ACCESS.getName());
     public static final String LIMITED_ROLE_NAME = "limited-role";
