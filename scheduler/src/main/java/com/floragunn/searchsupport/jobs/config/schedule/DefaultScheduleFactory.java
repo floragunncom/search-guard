@@ -21,15 +21,12 @@ import java.text.ParseException;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
 
 import org.apache.commons.codec.digest.DigestUtils;
-import org.quartz.CronScheduleBuilder;
-import org.quartz.JobKey;
-import org.quartz.SimpleScheduleBuilder;
-import org.quartz.Trigger;
-import org.quartz.TriggerKey;
+import org.quartz.*;
 
 import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.documents.DocNode;
@@ -38,6 +35,7 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.TriggerFactory;
+import org.quartz.impl.triggers.CronTriggerImpl;
 import org.quartz.spi.MutableTrigger;
 
 public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
@@ -108,6 +106,7 @@ public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
             MutableTrigger trigger = CronScheduleBuilder.cronScheduleNonvalidatedExpression(cronExpression).inTimeZone(timeZone).build();
             trigger.setKey(new TriggerKey(jobKey.getName() + "___" + triggerKey, group));
             trigger.setJobKey(jobKey);
+            trigger.setStartTime(new Date());
             triggerPostProcessor.processTrigger(trigger);
 
             return trigger;
@@ -125,6 +124,7 @@ public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
         MutableTrigger trigger = SimpleScheduleBuilder.simpleSchedule().repeatForever().withIntervalInMilliseconds(duration.toMillis()).build();
         trigger.setKey(new TriggerKey(jobKey.getName() + "___" + triggerKey, group));
         trigger.setJobKey(jobKey);
+        trigger.setStartTime(new Date());
         triggerPostProcessor.processTrigger(trigger);
 
         return trigger;
