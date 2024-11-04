@@ -538,9 +538,15 @@ public abstract class MetaImpl implements Meta {
             }
 
             for (DataStream dataStream : datastreams) {
+                // Pre ES 8.14 version:
+                // esMetadataBuilder.put(new org.elasticsearch.cluster.metadata.DataStream(dataStream.name(),
+                //         ImmutableList.of(dataStream.members()).map(i -> new org.elasticsearch.index.Index(i.name(), i.name())), 1L,
+                //              ImmutableMap.empty(), false, false, false, false, IndexMode.STANDARD));
+
                 esMetadataBuilder.put(new org.elasticsearch.cluster.metadata.DataStream(dataStream.name(),
-                    ImmutableList.of(dataStream.members()).map(i -> new org.elasticsearch.index.Index(i.name(), i.name())), 1L,
-                        ImmutableMap.empty(), false, false, false, false, IndexMode.STANDARD, new DataStreamLifecycle(), false, ImmutableList.empty(), false, null));
+                        ImmutableList.of(dataStream.members()).map(i -> new org.elasticsearch.index.Index(i.name(), i.name())), 1L,
+                        ImmutableMap.empty(), false, false, false, false, IndexMode.STANDARD, new DataStreamLifecycle(), false, ImmutableList.empty(),
+                        false, null));
             }
 
             this.esMetadata = esMetadataBuilder.build();
@@ -722,8 +728,7 @@ public abstract class MetaImpl implements Meta {
         public ImmutableSet<Index> nonSystemIndicesWithoutParents() {
             return this.nonSystemIndicesWithoutParents;
         }
-        
-        
+
         @Override
         public ImmutableSet<Alias> nonHiddenAliases() {
             return nonHiddenAliases;
@@ -734,7 +739,6 @@ public abstract class MetaImpl implements Meta {
             return nonHiddenDataStreams;
         }
 
-        
         @Override
         public Iterable<String> namesOfIndices() {
             // TODO optimize or remove
@@ -891,7 +895,8 @@ public abstract class MetaImpl implements Meta {
             DefaultMetaImpl currentInstance = DefaultMetaImpl.currentInstance.get();
             org.elasticsearch.cluster.metadata.Metadata esMetadata = clusterService.state().metadata();
 
-            if (currentInstance == null || currentInstance.esMetadata.version() != esMetadata.version() || !currentInstance.esMetadata.clusterUUID().equals(esMetadata.clusterUUID())) {
+            if (currentInstance == null || currentInstance.esMetadata.version() != esMetadata.version()
+                    || !currentInstance.esMetadata.clusterUUID().equals(esMetadata.clusterUUID())) {
                 currentInstance = new DefaultMetaImpl(esMetadata);
                 DefaultMetaImpl.currentInstance.set(currentInstance);
 
@@ -1055,7 +1060,7 @@ public abstract class MetaImpl implements Meta {
             return false;
         }
     }
-    
+
     public static class NonExistentAliasImpl extends AbstractNonExistentImpl implements Meta.Alias {
         public NonExistentAliasImpl(String name) {
             super(name);
