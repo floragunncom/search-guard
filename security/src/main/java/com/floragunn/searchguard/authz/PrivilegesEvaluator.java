@@ -25,13 +25,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchguard.authz.config.ActionGroup;
-import com.floragunn.searchguard.authz.config.AuthorizationConfig;
-import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
-import com.floragunn.searchguard.authz.config.Role;
-import com.floragunn.searchguard.authz.config.RoleMapping;
-import com.floragunn.searchguard.authz.config.Tenant;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -56,6 +49,7 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -67,7 +61,12 @@ import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.authz.actions.ResolvedIndices;
-
+import com.floragunn.searchguard.authz.config.ActionGroup;
+import com.floragunn.searchguard.authz.config.AuthorizationConfig;
+import com.floragunn.searchguard.authz.config.MultiTenancyConfigurationProvider;
+import com.floragunn.searchguard.authz.config.Role;
+import com.floragunn.searchguard.authz.config.RoleMapping;
+import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.configuration.ConfigMap;
@@ -436,7 +435,27 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             log.trace("Result from privileges evaluation: " + privilegesEvaluationResult.getStatus() + "\n" + privilegesEvaluationResult);
         }
 
-        if (privilegesEvaluationResult.getStatus() == Status.PARTIALLY_OK || privilegesEvaluationResult.getStatus() == Status.OK_WHEN_RESOLVED) {
+        if (privilegesEvaluationResult.getStatus() == Status.OK_WHEN_RESOLVED) {
+            if (authzConfig.isIgnoreUnauthorizedIndices() && authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action.name())) {
+                privilegesEvaluationResult = PrivilegesEvaluationResult.OK;
+            } else if (actionRequestInfo.getResolvedIndices().getLocal().getAliases().size() == 1
+                    && actionRequestInfo.getResolvedIndices().getLocal().getAliases().only().resolve(action.aliasResolutionMode()).size() == 1
+                    && privilegesEvaluationResult.getAvailableIndices().size() == 1
+                    && (request instanceof GetRequest || request instanceof IndexRequest || request instanceof BulkShardRequest)) {
+                // Special case for actions which can only operate on aliases which contain a single index. 
+                // Such actions are:
+                // - GetRequest (GET document by ID)
+                // - IndexRequest (PUT document; resolves to the write index of the alias)
+                // - BulkShardRequest (backs IndexRequest and bulk document API)
+                // In case we have an OK_WHEN_RESOLVED state for that single index, we let that pass
+
+                privilegesEvaluationResult = PrivilegesEvaluationResult.OK;
+            } else {
+                String reasonForNoIndexReduction = "You have privileges for all members of an alias, but not for the whole alias. Access to the alias is denied, because ignore_unauthorized_indices is globally disabled in sg_authz.";
+
+                privilegesEvaluationResult = privilegesEvaluationResult.status(Status.INSUFFICIENT).reason(reasonForNoIndexReduction);
+            }
+        } else if (privilegesEvaluationResult.getStatus() == Status.PARTIALLY_OK) {
             if (dnfofPossible) {
                 if (log.isDebugEnabled()) {
                     log.debug("Reducing indices to {}; {}\n{}", privilegesEvaluationResult.getAvailableIndices(),
@@ -446,43 +465,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                 privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request,
                         privilegesEvaluationResult.getAvailableIndices(), privilegesEvaluationResult.getAdditionalAvailableIndices(),
                         actionRequestInfo);
-            } else if (actionRequestInfo.getResolvedIndices().getLocal().hasAliasesOnly()
-                    && privilegesEvaluationResult.getStatus() == Status.OK_WHEN_RESOLVED) {
-
-                if (authzConfig.isAllowAliasesIfAllIndicesAllowed() && authzConfig.isIgnoreUnauthorizedIndices()
-                        && authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action.name())
-                        && actionRequestIntrospector.isReduceIndicesAvailable(action, request)) {
-                    // We only come here if no wildcard was requested and ignore_unavailable=false. Thus, normally we won't apply dnfof logic. However, we make
-                    // an exception if enabled in the config: aliases.allow_if_all_indices_are_allowed
-
-                    privilegesEvaluationResult = actionRequestIntrospector.reduceIndices(action, request,
-                            privilegesEvaluationResult.getAvailableIndices(), privilegesEvaluationResult.getAdditionalAvailableIndices(),
-                            actionRequestInfo);
-                } else if (actionRequestInfo.getResolvedIndices().getLocal().getAliases().size() == 1
-                        && actionRequestInfo.getResolvedIndices().getLocal().getAliases().only().resolve(action.aliasResolutionMode()).size() == 1
-                        && privilegesEvaluationResult.getAvailableIndices().size() == 1
-                        && (request instanceof GetRequest || request instanceof IndexRequest || request instanceof BulkShardRequest)) {
-                    // Special case for actions which can only operate on aliases which contain a single index. 
-                    // Such actions are:
-                    // - GetRequest (GET document by ID)
-                    // - IndexRequest (PUT document; resolves to the write index of the alias)
-                    // - BulkShardRequest (backs IndexRequest and bulk document API)
-                    // In case we have an OK_WHEN_RESOLVED state for that single index, we let that pass
-
-                    privilegesEvaluationResult = PrivilegesEvaluationResult.OK;
-                } else {
-                    String reasonForNoIndexReduction = "You have privileges for all members of an alias, but not for the whole alias. Access to the alias is denied, because ";
-
-                    if (!authzConfig.isIgnoreUnauthorizedIndices()) {
-                        reasonForNoIndexReduction += "ignore_unauthorized_indices is globally disabled in sg_authz.";
-                    } else if (!authzConfig.getIgnoreUnauthorizedIndicesActions().matches(action.name())) {
-                        reasonForNoIndexReduction += "the action " + action + " is not available for ignore_unauthorized_indices.";
-                    } else {
-                        reasonForNoIndexReduction += "ignore_unavailable is set to false. Use ignore_unavailable=true to get access to the indices you have privileges for. Alternatively, set aliases.allow_if_all_indices_are_allowed: true in sg_authz.yml";
-                    }
-
-                    privilegesEvaluationResult = privilegesEvaluationResult.status(Status.INSUFFICIENT).reason(reasonForNoIndexReduction);
-                }
             } else {
                 String reasonForNoIndexReduction = "You have privileges for some, but not all requested indices. However, access to the whole operation is denied, because ";
 
