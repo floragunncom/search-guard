@@ -538,8 +538,8 @@ public class SignalsSettings {
         public static StaticSettings.Attribute<String> WATCH_LOG_REFRESH_POLICY =  StaticSettings.Attribute.define("signals.watch_log.refresh_policy").withDefault((String) null).asString();
         public static StaticSettings.Attribute<Boolean> WATCH_LOG_SYNC_INDEXING =  StaticSettings.Attribute.define("signals.watch_log.sync_indexing").withDefault(false).asBoolean();
 
-        public static StaticSettings.Attribute<Integer> CRON_MISFIRE_STRATEGY =  StaticSettings.Attribute.define("signals.cron_misfire_strategy").asInteger();
-        public static StaticSettings.Attribute<Integer> SIMPLE_MISFIRE_STRATEGY =  StaticSettings.Attribute.define("signals.simple_misfire_strategy").asInteger();
+        public static StaticSettings.Attribute<Integer> CRON_MISFIRE_STRATEGY =  StaticSettings.Attribute.define("signals.cron_misfire_strategy").withDefault(0).asInteger();
+        public static StaticSettings.Attribute<Integer> SIMPLE_MISFIRE_STRATEGY =  StaticSettings.Attribute.define("signals.simple_misfire_strategy").withDefault(0).asInteger();
 
         public static class IndexNames {
 

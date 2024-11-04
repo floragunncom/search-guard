@@ -15,13 +15,11 @@ import org.quartz.impl.triggers.CronTriggerImpl;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
 import org.quartz.spi.MutableTrigger;
 
-import java.util.Objects;
-
 public class SignalsJobTriggerPostProcessor implements TriggerPostProcessor {
 
     private static final Logger LOG = LogManager.getLogger(SignalsJobTriggerPostProcessor.class);
-    private final Integer cronMisfireStrategy;
-    private final Integer simpleMisfireStrategy;
+    private final int cronMisfireStrategy;
+    private final int simpleMisfireStrategy;
 
     public SignalsJobTriggerPostProcessor(SignalsSettings signalsSettings) {
         this.cronMisfireStrategy = signalsSettings.getStaticSettings().getCronMisfireStrategy();
@@ -48,7 +46,7 @@ public class SignalsJobTriggerPostProcessor implements TriggerPostProcessor {
     }
 
     private void processCronTrigger(MutableTrigger cronTrigger) {
-        if(Objects.nonNull(cronMisfireStrategy)) {
+        if(0 != cronMisfireStrategy) {
 
             switch (cronMisfireStrategy) {
                 case 1: cronTrigger.setMisfireInstruction(CronTrigger.MISFIRE_INSTRUCTION_FIRE_ONCE_NOW); break;
@@ -64,7 +62,7 @@ public class SignalsJobTriggerPostProcessor implements TriggerPostProcessor {
     }
 
     private void processSimpleTrigger(MutableTrigger trigger) {
-        if(Objects.nonNull(simpleMisfireStrategy)) {
+        if(0 != simpleMisfireStrategy) {
 
             switch (simpleMisfireStrategy) {
                 case 1: trigger.setMisfireInstruction(SimpleTrigger.MISFIRE_INSTRUCTION_FIRE_NOW); break;

@@ -163,10 +163,6 @@ public class StaticSettings {
                 return new StringListAttribute(name, ImmutableList.empty(), filtered);
             }
 
-            public IntegerAttribute asInteger() {
-                return new IntegerAttribute(name, null, filtered);
-            }
-
         }
 
         public static class StringBuilder {
