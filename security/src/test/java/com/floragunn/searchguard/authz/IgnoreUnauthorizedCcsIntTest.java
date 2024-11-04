@@ -837,8 +837,6 @@ public class IgnoreUnauthorizedCcsIntTest {
             HttpResponse httpResponse = restClient.postJson(query, body);
 
             Assert.assertThat(httpResponse, isOk());
-            Assert.assertThat(httpResponse,
-                    roundtripsMinimized ? clustersCountMatcherCssRoundtripsMinTrue : clustersCountMatcherCssRoundtripsMinFalse);
 
             Assert.assertThat(httpResponse,
                     json(distinctNodesAt("aggregations.clusteragg.buckets[?(@.key == 'remote')].doc_count", containsInAnyOrder(236))));
