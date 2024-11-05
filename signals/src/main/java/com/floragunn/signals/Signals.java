@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.proxy.service.ProxyCrudService;
@@ -29,6 +30,7 @@ import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
 import org.elasticsearch.cluster.metadata.Template;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
+import org.elasticsearch.common.compress.CompressedXContent;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.env.NodeEnvironment;
@@ -57,6 +59,7 @@ import com.google.common.io.BaseEncoding;
 
 public class Signals extends AbstractLifecycleComponent {
     private static final Logger log = LogManager.getLogger(Signals.class);
+    public static final int RUNTIME_DATA_NOT_SEARCHABLE = -1;
 
     private final ComponentState componentState;
     private final SignalsSettings signalsSettings;
@@ -341,13 +344,25 @@ public class Signals extends AbstractLifecycleComponent {
         log.debug("Creating signals_log_template for {}", signalsLogIndex);
 
         TransportPutComposableIndexTemplateAction.Request putRequest = new TransportPutComposableIndexTemplateAction.Request("signals_log_template");
-        Settings logsIndexSettings = Settings.builder() //
-                .put("index.hidden", true) //
-                .put("mapping.total_fields.limit", signalsSettings.getStaticSettings().getWatchLogMappingTotalFieldsLimit()) //
-                .build();
+        int watchLogMappingTotalFieldsLimit = signalsSettings.getStaticSettings().getWatchLogMappingTotalFieldsLimit();
+        Settings.Builder builder = Settings.builder() //
+                .put("index.hidden", true); //
+        CompressedXContent mappings = null;
+        if(watchLogMappingTotalFieldsLimit > 0) {
+            log.debug("Mapping total field limit for log watch index set to '{}'", watchLogMappingTotalFieldsLimit);
+            builder = builder.put("mapping.total_fields.limit", watchLogMappingTotalFieldsLimit);
+        } else if(watchLogMappingTotalFieldsLimit == RUNTIME_DATA_NOT_SEARCHABLE) {
+            try {
+                log.debug("Runtime data in the watch log index will be stored in non-searchable form.");
+                mappings = new CompressedXContent(DocNode.of("properties.data.type", "object", "properties.data.dynamic", false));
+            } catch (IOException e) {
+                throw new RuntimeException("Cannot disable dynamic mapping for data field in watch log index", e);
+            }
+        }
+        Settings logsIndexSettings = builder.build();
         ComposableIndexTemplate composableIndexTemplate = ComposableIndexTemplate.builder() //
             .indexPatterns(ImmutableList.of(signalsLogIndex)) //
-            .template(new Template(logsIndexSettings, null, null)) //
+            .template(new Template(logsIndexSettings, mappings, null)) //
             .build();
         putRequest.indexTemplate(composableIndexTemplate);
 

@@ -21,6 +21,7 @@ import static com.floragunn.searchguard.test.TestSgConfig.Role.ALL_ACCESS;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.not;
@@ -60,6 +61,7 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.query.MatchAllQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -144,7 +146,8 @@ public class RestApiTest {
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")
             .nodeSettings("signals.enabled", true, "signals.index_names.log", SIGNALS_LOGS_INDEX_NAME, "signals.enterprise.enabled", false,
                     "searchguard.diagnosis.action_stack.enabled", true, "signals.watch_log.refresh_policy", "immediate",
-                    "signals.watch_log.sync_indexing", true, "searchguard.unsupported.single_index_mt_enabled", true)
+                    "signals.watch_log.sync_indexing", true, "searchguard.unsupported.single_index_mt_enabled", true,
+                    "signals.watch_log.mapping_total_fields_limit", 3000)
             .user(USER_CERTIFICATE)
             .enableModule(SignalsModule.class).waitForComponents("signals").enterpriseModulesEnabled().embedded().build();
 
@@ -2873,8 +2876,12 @@ public class RestApiTest {
         try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             Client client = cluster.getInternalNodeClient();
 
-            // The log index is deleted to create an index with fresh (empty) mapping. This way, other tests do not affect this test.
-            client.admin().indices().delete(new DeleteIndexRequest(SIGNALS_LOGS_INDEX_NAME));
+            try {
+                // The log index is deleted to create an index with fresh (empty) mapping. This way, other tests do not affect this test.
+                client.admin().indices().delete(new DeleteIndexRequest(SIGNALS_LOGS_INDEX_NAME)).actionGet();
+            } catch (IndexNotFoundException e) {
+                // we need to delete the index, if the index does not exist then everything is fine
+            }
 
             client.admin().indices().create(new CreateIndexRequest(testSink).settings(Settings.builder().put("mapping.total_fields.limit", 3000).build())).actionGet();
 
@@ -2898,6 +2905,11 @@ public class RestApiTest {
                     .getAsNode("_source") //
                     .size();
             assertThat(watchSearchResultsCount, equalTo(HUGE_DOCUMENT_FIELD_COUNT));
+            // ensure that runtime data in watch log index are searchable
+            TermQueryBuilder queryBuilder = QueryBuilders.termQuery("data.testsearch.hits.hits._source.key_418.keyword", "value_418");
+            SearchResponse searchResponse = client.search(
+                    new SearchRequest(SIGNALS_LOGS_INDEX_NAME).source(new SearchSourceBuilder().query(queryBuilder).size(1))).actionGet();
+            assertThat(searchResponse.getHits().getHits(), arrayWithSize(1));
         }
     }
 
