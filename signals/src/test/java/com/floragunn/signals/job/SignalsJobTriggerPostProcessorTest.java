@@ -26,8 +26,11 @@ import com.floragunn.searchsupport.jobs.config.schedule.elements.WeeklyTrigger;
 import com.floragunn.signals.settings.SignalsSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.SimpleScheduleBuilder;
+import org.quartz.impl.triggers.CronTriggerImpl;
+import org.quartz.impl.triggers.SimpleTriggerImpl;
 import org.quartz.spi.MutableTrigger;
 
 import java.util.TimeZone;
@@ -433,6 +436,27 @@ public class SignalsJobTriggerPostProcessorTest {
         triggerPostProcessor.processTrigger(trigger);
 
         assertThat(trigger.getMisfireInstruction(), equalTo(expectedInstruction));
+    }
+
+    @Test
+    public void testCronTriggerMisfireStrategy_shouldNotModifyTriggerWhenMisfireStrategyIsNotConfigured() {
+        SignalsJobTriggerPostProcessor triggerPostProcessor = new SignalsJobTriggerPostProcessor(cronMisfireSettings(0));
+        CronTriggerImpl cronTrigger = Mockito.mock(CronTriggerImpl.class);
+
+        triggerPostProcessor.processTrigger(cronTrigger);
+
+        Mockito.verifyNoInteractions(cronTrigger);
+    }
+
+    @Test
+    public void testIntervalTriggerMisfireStrategy_shouldNotModifyTriggerWhenMisfireStrategyIsNotConfigured() {
+        SignalsJobTriggerPostProcessor triggerPostProcessor = new SignalsJobTriggerPostProcessor(intervalMisfireSettings(0));
+        SimpleTriggerImpl simpleTrigger = Mockito.mock(SimpleTriggerImpl.class);
+
+        triggerPostProcessor.processTrigger(simpleTrigger);
+
+        Mockito.verifyNoInteractions(simpleTrigger);
+
     }
 
     private SignalsSettings emptySettings() {
