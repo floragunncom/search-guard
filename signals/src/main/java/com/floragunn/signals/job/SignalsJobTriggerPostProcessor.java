@@ -32,6 +32,8 @@ import org.quartz.impl.triggers.CronTriggerImpl;
 import org.quartz.impl.triggers.SimpleTriggerImpl;
 import org.quartz.spi.MutableTrigger;
 
+import static com.floragunn.signals.settings.SignalsSettings.SignalsStaticSettings.SCHEDULER_DEFAULT_MISFIRE_STRATEGY_VALUE;
+
 public class SignalsJobTriggerPostProcessor implements TriggerPostProcessor {
 
     private static final Logger LOG = LogManager.getLogger(SignalsJobTriggerPostProcessor.class);
@@ -63,7 +65,7 @@ public class SignalsJobTriggerPostProcessor implements TriggerPostProcessor {
     }
 
     private void processCronTrigger(MutableTrigger cronTrigger) {
-        if(0 != cronMisfireStrategy) {
+        if(SCHEDULER_DEFAULT_MISFIRE_STRATEGY_VALUE != cronMisfireStrategy) {
 
             switch (cronMisfireStrategy) {
                 case 1: cronTrigger.setMisfireInstruction(CronTrigger.MISFIRE_INSTRUCTION_FIRE_ONCE_NOW); break;
@@ -79,7 +81,7 @@ public class SignalsJobTriggerPostProcessor implements TriggerPostProcessor {
     }
 
     private void processSimpleTrigger(MutableTrigger trigger) {
-        if(0 != simpleMisfireStrategy) {
+        if(SCHEDULER_DEFAULT_MISFIRE_STRATEGY_VALUE != simpleMisfireStrategy) {
 
             switch (simpleMisfireStrategy) {
                 case 1: trigger.setMisfireInstruction(SimpleTrigger.MISFIRE_INSTRUCTION_FIRE_NOW); break;
