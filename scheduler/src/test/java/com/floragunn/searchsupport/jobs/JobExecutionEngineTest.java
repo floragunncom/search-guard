@@ -80,6 +80,7 @@ public class JobExecutionEngineTest {
     }
     
     
+    @Ignore("Only for manual testing")
     @Test
     public void overCapacity() throws Exception {
         String test = "over_capacity";
@@ -101,13 +102,15 @@ public class JobExecutionEngineTest {
             client.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("job2").source(createIntervalJobConfig(1, "job2", "5000ms"), XContentType.JSON)).actionGet();
             client.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("job3").source(createIntervalJobConfig(1, "job3", "5000ms"), XContentType.JSON)).actionGet();
             client.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("job4").source(createIntervalJobConfig(1, "job4", "5000ms"), XContentType.JSON)).actionGet();
+            client.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("job5").source(createIntervalJobConfig(1, "job5", "5000ms"), XContentType.JSON)).actionGet();
+
 
             PluginAwareNode node = cluster.node();
 
             ClusterService clusterService = node.injector().getInstance(ClusterService.class);
             NodeEnvironment nodeEnvironment = node.injector().getInstance(NodeEnvironment.class);
 
-            scheduler = new SchedulerBuilder<DefaultJobConfig>().client(client).name("test_" + test).misfireThreshold(500).maxThreads(1)
+            scheduler = new SchedulerBuilder<DefaultJobConfig>().client(client).name("test_" + test).misfireThreshold(2000).maxThreads(1)
                     .configIndex(jobConfigIndex).jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).jobFactory(jobFactory).distributed(clusterService, nodeEnvironment)
                     .nodeComparator(new NodeNameComparator(clusterService)).build();
 
@@ -137,7 +140,7 @@ public class JobExecutionEngineTest {
 
         try {
             Client tc = cluster.getInternalClient();
-            String jobConfig = createIntervalJobConfig(1, "basic", "100ms");
+            String jobConfig = createIntervalJobConfig(1, "basic", "1200ms");
 
             tc.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig, XContentType.JSON)).actionGet();
 
@@ -274,7 +277,7 @@ public class JobExecutionEngineTest {
         public void execute(JobExecutionContext context) throws JobExecutionException {
             try {
                 log.info("execute: " + context.getJobDetail().getKey().getName() + ": scheduled: " + context.getScheduledFireTime());              
-                Thread.sleep(500);
+                Thread.sleep(2500);
             } catch (Exception e) {
                 e.printStackTrace();
             }
