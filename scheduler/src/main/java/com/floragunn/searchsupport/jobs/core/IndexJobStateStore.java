@@ -127,7 +127,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
     private final JobConfigFactory<JobType> jobFactory;
     private volatile boolean shutdown = false;
     private volatile boolean initialized;
-    private long misfireThreshold = 5000l;
+    private long misfireThreshold;
     private ThreadLocal<Set<InternalOperableTrigger>> dirtyTriggers = ThreadLocal.withInitial(() -> new HashSet<>());
     private final ExecutorService configChangeExecutor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
             new SingleElementBlockingQueue<Runnable>());
@@ -137,7 +137,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
 
     public IndexJobStateStore(String schedulerName, String statusIndexName, String statusIndexIdPrefix, String nodeId, Client client,
             Iterable<JobType> jobConfigSource, JobConfigFactory<JobType> jobFactory, ClusterService clusterService,
-            Collection<JobConfigListener<JobType>> jobConfigListeners) {
+            Collection<JobConfigListener<JobType>> jobConfigListeners, long misfireThreshold) {
         this.schedulerName = schedulerName;
         this.statusIndexName = statusIndexName;
         this.statusIndexIdPrefix = statusIndexIdPrefix;
@@ -147,6 +147,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         this.jobFactory = jobFactory;
         this.clusterService = clusterService;
         this.jobConfigListeners = new ArrayList<>(jobConfigListeners);
+        this.misfireThreshold = misfireThreshold;
     }
 
     @Override
@@ -1889,7 +1890,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
                 || internalOperableTrigger.getMisfireInstruction() == Trigger.MISFIRE_INSTRUCTION_IGNORE_MISFIRE_POLICY) {
             return false;
         }
-
+        
         Calendar calendar = null;
         if (internalOperableTrigger.getCalendarName() != null) {
             calendar = retrieveCalendar(internalOperableTrigger.getCalendarName());
@@ -1898,6 +1899,8 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         signaler.notifyTriggerListenersMisfired((OperableTrigger) internalOperableTrigger.getDelegate().clone());
 
         internalOperableTrigger.updateAfterMisfire(calendar);
+
+        log.debug("misfire detected for {}; originally scheduled at {}; now scheduled at {}; instruction: {}", internalOperableTrigger.getJobDetail().getKey(),  nextFireTime, internalOperableTrigger.getNextFireTime(), internalOperableTrigger.getMisfireInstruction());
 
         this.markDirty(internalOperableTrigger);
 
@@ -1910,7 +1913,11 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             return true;
 
         } else if (nextFireTime.equals(internalOperableTrigger.getNextFireTime())) {
+            log.debug("nextFireTime did not change => no rescheduling necessary");
             return false;
+        } else if (internalOperableTrigger.getNextFireTime().getTime() <= System.currentTimeMillis()) {
+            log.debug("nextFireTime is not in the future => no rescheduling necessary");
+            return false;           
         } else {
             return true;
         }

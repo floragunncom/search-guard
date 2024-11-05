@@ -17,15 +17,17 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory.MisfireStrategy;
 
 public class HourlyTrigger extends HumanReadableCronTrigger<HourlyTrigger> {
 
     private static final long serialVersionUID = 8269041855326041719L;
     private List<Integer> minute;
 
-    public HourlyTrigger(List<Integer> minute, TimeZone timeZone) {
+    public HourlyTrigger(List<Integer> minute, TimeZone timeZone, MisfireStrategy misfireStrategy) {
         this.minute = Collections.unmodifiableList(minute);
         this.timeZone = timeZone;
+        this.misfireStrategy = misfireStrategy;
 
         init();
     }
@@ -62,7 +64,7 @@ public class HourlyTrigger extends HumanReadableCronTrigger<HourlyTrigger> {
         return builder;
     }
 
-    public static HourlyTrigger create(DocNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
+    public static HourlyTrigger create(DocNode jsonNode, TimeZone timeZone, MisfireStrategy misfireStrategy) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vJsonNode = new ValidatingDocNode(jsonNode, validationErrors);
 
@@ -71,7 +73,7 @@ public class HourlyTrigger extends HumanReadableCronTrigger<HourlyTrigger> {
         vJsonNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
-        return new HourlyTrigger(minute, timeZone);
+        return new HourlyTrigger(minute, timeZone, misfireStrategy);
     }
 
     private static CronExpression createCronExpression(List<Integer> minutes) {
@@ -104,8 +106,8 @@ public class HourlyTrigger extends HumanReadableCronTrigger<HourlyTrigger> {
         }
 
         @Override
-        public HourlyTrigger create(DocNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
-            return HourlyTrigger.create(jsonNode, timeZone);
+        public HourlyTrigger create(DocNode jsonNode, TimeZone timeZone, MisfireStrategy misfireStrategy) throws ConfigValidationException {
+            return HourlyTrigger.create(jsonNode, timeZone, misfireStrategy);
         }
     };
 

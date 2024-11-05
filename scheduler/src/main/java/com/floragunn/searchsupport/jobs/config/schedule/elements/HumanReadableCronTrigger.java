@@ -15,6 +15,7 @@ import org.quartz.impl.triggers.CronTriggerImpl;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory.MisfireStrategy;
 
 public abstract class HumanReadableCronTrigger<T extends Trigger> extends AbstractTrigger<T> implements Trigger, ToXContentObject {
 
@@ -25,6 +26,7 @@ public abstract class HumanReadableCronTrigger<T extends Trigger> extends Abstra
     private Date endTime = null;
     private Date previousFireTime = null;
     protected TimeZone timeZone;
+    protected MisfireStrategy misfireStrategy;
 
     protected abstract List<CronTriggerImpl> buildCronTriggers();
 
@@ -36,8 +38,14 @@ public abstract class HumanReadableCronTrigger<T extends Trigger> extends Abstra
                 trigger.setTimeZone(timeZone);
             }
         }
-    }
+        
+        setMisfireInstruction(misfireStrategy == MisfireStrategy.SKIP ? CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING : CronTrigger.MISFIRE_INSTRUCTION_FIRE_ONCE_NOW);
 
+        for (CronTriggerImpl trigger : this.generatedCronTriggers) {
+            trigger.setMisfireInstruction(getMisfireInstruction());
+        }
+    }
+    
     @Override
     public void setNextFireTime(Date nextFireTime) {
         CronTriggerImpl trigger = getNextFireTimeCronTrigger();

@@ -18,6 +18,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.MissingAttribute;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory.MisfireStrategy;
 
 public class DailyTrigger extends HumanReadableCronTrigger<DailyTrigger> {
 
@@ -25,9 +26,10 @@ public class DailyTrigger extends HumanReadableCronTrigger<DailyTrigger> {
 
     private List<TimeOfDay> at;
 
-    public DailyTrigger(List<TimeOfDay> at, TimeZone timeZone) {
+    public DailyTrigger(List<TimeOfDay> at, TimeZone timeZone, MisfireStrategy misfireStrategy) {
         this.at = Collections.unmodifiableList(at);
         this.timeZone = timeZone;
+        this.misfireStrategy = misfireStrategy;
 
         init();
     }
@@ -80,7 +82,7 @@ public class DailyTrigger extends HumanReadableCronTrigger<DailyTrigger> {
         return builder;
     }
 
-    public static DailyTrigger create(DocNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
+    public static DailyTrigger create(DocNode jsonNode, TimeZone timeZone, MisfireStrategy misfireStrategy) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
 
         List<TimeOfDay> at = null;
@@ -105,7 +107,7 @@ public class DailyTrigger extends HumanReadableCronTrigger<DailyTrigger> {
 
         validationErrors.throwExceptionForPresentErrors();
 
-        return new DailyTrigger(at, timeZone);
+        return new DailyTrigger(at, timeZone, misfireStrategy);
     }
 
     public static final TriggerFactory<DailyTrigger> FACTORY = new TriggerFactory<DailyTrigger>() {
@@ -116,8 +118,8 @@ public class DailyTrigger extends HumanReadableCronTrigger<DailyTrigger> {
         }
 
         @Override
-        public DailyTrigger create(DocNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
-            return DailyTrigger.create(jsonNode, timeZone);
+        public DailyTrigger create(DocNode jsonNode, TimeZone timeZone, MisfireStrategy misfireStrategy) throws ConfigValidationException {
+            return DailyTrigger.create(jsonNode, timeZone, misfireStrategy);
         }
     };
 

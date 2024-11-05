@@ -20,6 +20,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory.MisfireStrategy;
 
 public class WeeklyTrigger extends HumanReadableCronTrigger<WeeklyTrigger> {
 
@@ -28,10 +29,11 @@ public class WeeklyTrigger extends HumanReadableCronTrigger<WeeklyTrigger> {
     private List<DayOfWeek> on;
     private List<TimeOfDay> at;
 
-    public WeeklyTrigger(List<DayOfWeek> on, List<TimeOfDay> at, TimeZone timeZone) {
+    public WeeklyTrigger(List<DayOfWeek> on, List<TimeOfDay> at, TimeZone timeZone, MisfireStrategy misfireStrategy) {
         this.on = Collections.unmodifiableList(on);
         this.at = Collections.unmodifiableList(at);
         this.timeZone = timeZone;
+        this.misfireStrategy = misfireStrategy;
 
         init();
     }
@@ -104,7 +106,7 @@ public class WeeklyTrigger extends HumanReadableCronTrigger<WeeklyTrigger> {
         return builder;
     }
 
-    public static WeeklyTrigger create(DocNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
+    public static WeeklyTrigger create(DocNode jsonNode, TimeZone timeZone, MisfireStrategy misfireStrategy) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vDocNode = new ValidatingDocNode(jsonNode, validationErrors);
 
@@ -113,7 +115,7 @@ public class WeeklyTrigger extends HumanReadableCronTrigger<WeeklyTrigger> {
 
         validationErrors.throwExceptionForPresentErrors();
 
-        return new WeeklyTrigger(on, at, timeZone);
+        return new WeeklyTrigger(on, at, timeZone, misfireStrategy);
     }
 
     private static int toQuartz(DayOfWeek dayOfWeek) {
@@ -163,8 +165,8 @@ public class WeeklyTrigger extends HumanReadableCronTrigger<WeeklyTrigger> {
         }
 
         @Override
-        public WeeklyTrigger create(DocNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
-            return WeeklyTrigger.create(jsonNode, timeZone);
+        public WeeklyTrigger create(DocNode jsonNode, TimeZone timeZone, MisfireStrategy misfireStrategy) throws ConfigValidationException {
+            return WeeklyTrigger.create(jsonNode, timeZone, misfireStrategy);
         }
     };
 }

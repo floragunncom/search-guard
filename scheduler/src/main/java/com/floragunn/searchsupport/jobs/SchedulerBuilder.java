@@ -95,6 +95,7 @@ public class SchedulerBuilder<JobType extends JobConfig> {
     private NodeEnvironment nodeEnvironment;
     private List<JobConfigListener<JobType>> jobConfigListeners = new ArrayList<>();
     private Duration threadKeepAlive = Duration.ofHours(1);
+    private long misfireThreshold = 10000l;
 
     public SchedulerBuilder<JobType> name(String name) {
         this.name = name;
@@ -187,6 +188,16 @@ public class SchedulerBuilder<JobType extends JobConfig> {
         this.jobConfigListeners.add(jobConfigListener);
         return this;
     }
+    
+    /**
+     * The time in ms after which a trigger is considered to be "late" (aka a "misfire").
+     * 
+     * Caution: This is an advanced option. Be careful especially with low values.
+     */
+    public SchedulerBuilder<JobType> misfireThreshold(long misfireThreshold) {
+        this.misfireThreshold = misfireThreshold;
+        return this;
+    }
 
     public Scheduler build() throws SchedulerException {
         if (isSchedulerPermanentlyDisabledForLocalNode()) {
@@ -220,7 +231,7 @@ public class SchedulerBuilder<JobType extends JobConfig> {
 
         if (this.jobStore == null) {
             this.jobStore = new IndexJobStateStore<>(name, stateIndex, stateIndexIdPrefix, nodeId, client, jobConfigSource, jobConfigFactory,
-                    clusterService, jobConfigListeners);
+                    clusterService, jobConfigListeners, misfireThreshold);
         }
 
         if (this.jobStore instanceof DistributedJobStore && this.jobDistributor != null) {

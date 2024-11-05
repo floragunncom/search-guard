@@ -20,6 +20,7 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.MissingAttribute;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory.MisfireStrategy;
 import com.floragunn.searchsupport.jobs.config.schedule.Schedule;
 import com.floragunn.searchsupport.jobs.config.schedule.ScheduleImpl;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.DailyTrigger;
@@ -45,12 +46,12 @@ public class ScheduleConverter {
         if (scheduleJsonNode.hasNonNull("hourly")) {
             if (scheduleJsonNode.getAsNode("hourly").hasNonNull("minute")) {
                 try {
-                    triggers.add(HourlyTrigger.create(scheduleJsonNode.getAsNode("hourly"), null));
+                    triggers.add(HourlyTrigger.create(scheduleJsonNode.getAsNode("hourly"), null, MisfireStrategy.EXECUTE_NOW));
                 } catch (ConfigValidationException e) {
                     validationErrors.add("hourly", e);
                 }
             } else {
-                triggers.add(new HourlyTrigger(Collections.singletonList(0), null));
+                triggers.add(new HourlyTrigger(Collections.singletonList(0), null, MisfireStrategy.EXECUTE_NOW));
             }
         }
 
@@ -58,7 +59,7 @@ public class ScheduleConverter {
             ConversionResult<List<TimeOfDay>> at = parseAt(scheduleJsonNode.getAsNode("daily").getAsNode("at"));
             validationErrors.add("daily.at", at.sourceValidationErrors);
 
-            triggers.add(new DailyTrigger(at.element, null));
+            triggers.add(new DailyTrigger(at.element, null, MisfireStrategy.EXECUTE_NOW));
         }
 
         if (scheduleJsonNode.hasNonNull("weekly")) {
@@ -135,7 +136,7 @@ public class ScheduleConverter {
                 validationErrors.add("day", at.sourceValidationErrors);
             }
 
-            return new ConversionResult<List<WeeklyTrigger>>(Collections.singletonList(new WeeklyTrigger(on.element, at.element, null)),
+            return new ConversionResult<List<WeeklyTrigger>>(Collections.singletonList(new WeeklyTrigger(on.element, at.element, null, MisfireStrategy.EXECUTE_NOW)),
                     validationErrors);
         } else {
             return new ConversionResult<>(Collections.emptyList(),
@@ -179,7 +180,7 @@ public class ScheduleConverter {
                 validationErrors.add("day", at.sourceValidationErrors);
             }
 
-            return new ConversionResult<List<MonthlyTrigger>>(Collections.singletonList(new MonthlyTrigger(on.element, at.element, null)),
+            return new ConversionResult<List<MonthlyTrigger>>(Collections.singletonList(new MonthlyTrigger(on.element, at.element, null, MisfireStrategy.EXECUTE_NOW)),
                     validationErrors);
         } else {
             return new ConversionResult<>(Collections.emptyList(),

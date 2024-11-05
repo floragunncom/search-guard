@@ -30,6 +30,7 @@ import org.quartz.SimpleTrigger;
 import org.quartz.Trigger;
 
 import com.floragunn.codova.config.temporal.DurationFormat;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory.MisfireStrategy;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.DailyTrigger;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.HumanReadableCronTrigger;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.MonthlyTrigger;
@@ -59,6 +60,11 @@ public class ScheduleImpl implements Schedule {
             builder.field("timezone", timeZone.getID());
         }
 
+        MisfireStrategy misfireStrategy = this.getMisfireStrategy();
+        if (misfireStrategy != null && misfireStrategy != MisfireStrategy.EXECUTE_NOW) {
+            builder.field("when_late", misfireStrategy.name().toLowerCase());
+        }
+                
         List<CronTrigger> cronTriggers = getCronTriggers();
 
         if (cronTriggers.size() > 0) {
@@ -135,6 +141,28 @@ public class ScheduleImpl implements Schedule {
                 return ((CronTrigger) trigger).getTimeZone();
             } else if (trigger instanceof HumanReadableCronTrigger) {
                 return ((HumanReadableCronTrigger<?>) trigger).getTimeZone();
+            }
+        }
+
+        return null;
+    }
+
+    private MisfireStrategy getMisfireStrategy() {
+        if (this.triggers == null) {
+            return null;
+        }
+
+        for (Trigger trigger : this.triggers) {
+            if (trigger instanceof CronTrigger) {
+                return ((CronTrigger) trigger).getMisfireInstruction() == CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING ? MisfireStrategy.SKIP
+                        : MisfireStrategy.EXECUTE_NOW;
+            } else if (trigger instanceof HumanReadableCronTrigger) {
+                return ((HumanReadableCronTrigger<?>) trigger).getMisfireInstruction() == CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING
+                        ? MisfireStrategy.SKIP
+                        : MisfireStrategy.EXECUTE_NOW;
+            } else if (trigger instanceof SimpleTrigger) {
+                return ((SimpleTrigger) trigger).getMisfireInstruction() == SimpleTrigger.MISFIRE_INSTRUCTION_FIRE_NOW ? MisfireStrategy.EXECUTE_NOW
+                        : MisfireStrategy.SKIP;
             }
         }
 

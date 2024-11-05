@@ -6,9 +6,10 @@ import java.util.TimeZone;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory.MisfireStrategy;
 
 public abstract class TriggerFactory<T extends HumanReadableCronTrigger<T>> {
-    public abstract T create(DocNode jsonNode, TimeZone timeZone) throws ConfigValidationException;
+    public abstract T create(DocNode jsonNode, TimeZone timeZone, MisfireStrategy misfireStrategy) throws ConfigValidationException;
 
     public abstract String getType();
 
