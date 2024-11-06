@@ -48,6 +48,7 @@ import com.floragunn.codova.validation.errors.ValidationError;
 public final class SearchGuardLicense implements Writeable, Document<SearchGuardLicense> {
 
     private static final DateTimeFormatter DEFAULT_FOMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd").withLocale(Locale.ENGLISH);
+    private static final int MAX_ALLOWED_DAYS_BEFORE_START_DAY = 30;
 
     private String uid;
     private Type type;
@@ -172,6 +173,7 @@ public final class SearchGuardLicense implements Writeable, Document<SearchGuard
         ValidationErrors validationErrors = new ValidationErrors();
 
         final LocalDate today = LocalDate.now();
+        final LocalDate earliestAllowedStartDate = today.minusDays(MAX_ALLOWED_DAYS_BEFORE_START_DAY);
 
         if (uid == null || uid.isEmpty()) {
             validationErrors.add(new MissingAttribute("uid"));
@@ -223,7 +225,10 @@ public final class SearchGuardLicense implements Writeable, Document<SearchGuard
         }
 
         try {
-            parseDate(startDate);
+            LocalDate parsedStartDate = parseDate(startDate);
+            if (parsedStartDate.isBefore(earliestAllowedStartDate)) {
+                validationErrors.add(new InvalidAttributeValue("start_date", startDate, "Date no earlier than 30 days before today"));
+            }
         } catch (Exception e) {
             e.printStackTrace();
             validationErrors.add(new InvalidAttributeValue("start_date", startDate, null).cause(e));
