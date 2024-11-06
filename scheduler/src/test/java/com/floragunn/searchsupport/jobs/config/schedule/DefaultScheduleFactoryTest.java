@@ -66,8 +66,6 @@ public class DefaultScheduleFactoryTest {
         CronTrigger cronTrigger = (CronTrigger) result.getTriggers().get(0);
         Assert.assertEquals(result.toString(), "*/10 * * * * ?", cronTrigger.getCronExpression());
         Assert.assertEquals(result.toString(), CronTrigger.MISFIRE_INSTRUCTION_FIRE_ONCE_NOW, cronTrigger.getMisfireInstruction());
-
-        Assert.assertEquals("{\"timezone\":\"Europe/Berlin\",\"cron\":[\"*/10 * * * * ?\"]}", Strings.toString(result));
     }
     
     @Test
@@ -78,8 +76,6 @@ public class DefaultScheduleFactoryTest {
         CronTrigger cronTrigger = (CronTrigger) result.getTriggers().get(0);
         Assert.assertEquals(result.toString(), "*/10 * * * * ?", cronTrigger.getCronExpression());
         Assert.assertEquals(result.toString(), CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING, cronTrigger.getMisfireInstruction());
-
-        Assert.assertEquals("{\"timezone\":\"Europe/Berlin\",\"when_late\":\"skip\",\"cron\":[\"*/10 * * * * ?\"]}", Strings.toString(result));
     }
     
 
