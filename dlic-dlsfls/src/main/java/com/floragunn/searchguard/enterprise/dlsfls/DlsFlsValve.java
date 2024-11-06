@@ -32,9 +32,7 @@ package com.floragunn.searchguard.enterprise.dlsfls;
 
 import static org.elasticsearch.rest.RestStatus.INTERNAL_SERVER_ERROR;
 
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import org.apache.logging.log4j.LogManager;

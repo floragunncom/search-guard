@@ -41,7 +41,6 @@ import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.google.common.io.BaseEncoding;
 import com.jayway.jsonpath.Configuration;
@@ -87,9 +86,6 @@ public class AuthTokenIntegrationTest {
 
     static TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").sgConfigSettings("", TestSgConfig.fromYaml(SGCONFIG));
     private static Configuration JSON_PATH_CONFIG = BasicJsonPathDefaultConfiguration.defaultConfiguration().setOptions(Option.SUPPRESS_EXCEPTIONS);
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     static TestSgConfig.User USER_ALIAS_PUB_ACCESS = new TestSgConfig.User("user_alias_pub_access")
             .roles(new TestSgConfig.Role("alias_pub_access")
