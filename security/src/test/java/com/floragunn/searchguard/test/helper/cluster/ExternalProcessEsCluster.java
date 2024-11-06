@@ -98,6 +98,8 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
 
         this.esInstallation.appendConfig("jvm.options", "-Xms1g");
         this.esInstallation.appendConfig("jvm.options", "-Xmx1g");
+        this.esInstallation.appendConfig("jvm.options", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"); //todo remove
+//        this.esInstallation.appendConfig("jvm.options", "--add-opens=org.elasticsearch.server/org.elasticsearch.action.search=ALL-UNNAMED"); //todo do we need this walkaround?
 
         this.esInstallation.appendConfig("elasticsearch.yml", "" //
                 + "cluster.routing.allocation.disk.threshold_enabled: false\n" //
