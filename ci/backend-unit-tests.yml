@@ -1,26 +1,26 @@
-test_security:
-  stage: test
-  interruptible: true
-  tags:
-    - test
-  rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never    
-    - when: always
-  script:
-    - ci/run_tests.sh security
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo-main-es8
-    paths:
-      - .m2/repository
-    policy: pull
+#test_security:
+#  stage: test
+#  interruptible: true
+#  tags:
+#    - test
+#  rules:
+#    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+#      when: never
+#    - when: always
+#  script:
+#    - ci/run_tests.sh security
+#  artifacts:
+#    when: always
+#    reports:
+#      junit:
+#        - "*/target/surefire-reports/TEST-*.xml"
+#        - "*/target/failsafe-reports/TEST-*.xml"
+#    expire_in: 1 week
+#  cache:
+#    key: mavenrepo-main-es8
+#    paths:
+#      - .m2/repository
+#    policy: pull
 
 #test_security_legacy:
 #  stage: test
@@ -190,30 +190,30 @@ test_security:
 #      - .m2/repository
 #    policy: pull
 #
-#test_dlic_dlsfls:
-#  stage: test
-#  interruptible: true
-#  tags:
-#    - test
-#  rules:
-#    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-#      when: never
-#    - when: always
-#  script:
-#    - ci/run_tests.sh dlic-dlsfls
-#  artifacts:
-#    when: always
-#    reports:
-#      junit:
-#        - "*/target/surefire-reports/TEST-*.xml"
-#        - "*/target/failsafe-reports/TEST-*.xml"
-#    expire_in: 1 week
-#  cache:
-#    key: mavenrepo-main-es8
-#    paths:
-#      - .m2/repository
-#    policy: pull
-#
+test_dlic_dlsfls:
+  stage: test
+  interruptible: true
+  tags:
+    - test
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
+  script:
+    - ci/run_tests.sh dlic-dlsfls
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-main-es8
+    paths:
+      - .m2/repository
+    policy: pull
+
 #test_dlic_femt:
 #  stage: test
 #  interruptible: true
