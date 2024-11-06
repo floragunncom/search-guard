@@ -54,6 +54,10 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
     public void onPreQueryPhase(SearchContext searchContext) {
         DlsFlsProcessedConfig config = this.config.get();
 
+        if (dlsFlsBaseContext.isInteralRequest()) {
+            return;
+        }
+        
         if (config.getDlsFlsConfig().getDlsMode() == DlsFlsConfig.Mode.FILTER_LEVEL) {
             log.trace("DlsFlsSearchOperationListener.onPreQueryPhase()\nFilter Level mode active");
             return;

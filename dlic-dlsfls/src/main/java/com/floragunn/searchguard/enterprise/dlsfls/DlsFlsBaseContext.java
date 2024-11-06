@@ -24,6 +24,7 @@ import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.meta.Meta;
 
@@ -70,4 +71,10 @@ public class DlsFlsBaseContext {
     public Meta getIndexMetaData() {
         return this.indexMetaDataSupplier.get();
     }
+    
+
+    public boolean isInteralRequest() {
+        return "true".equals(HeaderHelper.getSafeFromHeader(threadContext, ConfigConstants.SG_CONF_REQUEST_HEADER));
+    }
+
 }
