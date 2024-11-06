@@ -37,13 +37,13 @@ import static org.hamcrest.Matchers.hasSize;
 public class SearchGuardLicenseTest {
 
     @Test
-    public void validate_shouldReturnErrorWhenStartDateIsEarlierThanThirtyDaysBeforeToday() {
-        LocalDate now = LocalDate.now();
-        String issueDate = dateToString(now.minusDays(45));
-        String expiryDate = dateToString(now.plusDays(30));
-        String startDay = dateToString(now.minusDays(40));
+    public void validate_shouldReturnErrorWhenCurrentDateDoesNotFallsWithinThirtyDaysBeforeStartDate() {
+        LocalDate startDate = LocalDate.now().plusDays(40);
+        String issueDate = dateToString(startDate.minusDays(50));
+        String expiryDate = dateToString(startDate.plusDays(30));
+        String startDateStr = dateToString(startDate);
         SearchGuardLicense searchGuardLicense = new SearchGuardLicense(UUID.randomUUID().toString(), SearchGuardLicense.Type.FULL,
-                SearchGuardLicense.Feature.values(), issueDate, expiryDate, "abc", "SG", startDay,
+                SearchGuardLicense.Feature.values(), issueDate, expiryDate, "abc", "SG", startDateStr,
                 7, "abc", 1
         );
 
@@ -54,17 +54,17 @@ public class SearchGuardLicenseTest {
         assertThat(errors, hasEntry(equalTo("start_date"), anything()));
         assertThat(errors, hasKey(equalTo("start_date")));
         assertThat(errors.get("start_date"), hasSize(1));
-        assertThat(errors.get("start_date").iterator().next().getMessage(), equalTo("License cannot be applied earlier than " + DateTimeFormatter.ISO_DATE.format(now.minusDays(30))));
+        assertThat(errors.get("start_date").iterator().next().getMessage(), equalTo("License cannot be applied earlier than " + DateTimeFormatter.ISO_DATE.format(startDate.minusDays(30))));
     }
 
     @Test
-    public void validate_shouldNotReturnAnyErrorForCorrectLicense() {
-        LocalDate now = LocalDate.now();
-        String issueDate = dateToString(now.minusDays(45));
-        String expiryDate = dateToString(now.plusDays(30));
-        String startDay = dateToString(now.minusDays(30));
+    public void validate_shouldNotReturnErrorWhenCurrentDateFallsWithinThirtyDaysBeforeStartDate() {
+        LocalDate startDate = LocalDate.now().plusDays(25);
+        String issueDate = dateToString(startDate.minusDays(50));
+        String expiryDate = dateToString(startDate.plusDays(30));
+        String startDateStr = dateToString(startDate);
         SearchGuardLicense searchGuardLicense = new SearchGuardLicense(UUID.randomUUID().toString(), SearchGuardLicense.Type.FULL,
-                SearchGuardLicense.Feature.values(), issueDate, expiryDate, "abc", "SG", startDay,
+                SearchGuardLicense.Feature.values(), issueDate, expiryDate, "abc", "SG", startDateStr,
                 7, "abc", 1
         );
 

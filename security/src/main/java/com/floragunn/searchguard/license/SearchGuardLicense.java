@@ -173,7 +173,6 @@ public final class SearchGuardLicense implements Writeable, Document<SearchGuard
         ValidationErrors validationErrors = new ValidationErrors();
 
         final LocalDate today = LocalDate.now();
-        final LocalDate earliestAllowedStartDate = today.minusDays(MAX_ALLOWED_DAYS_BEFORE_START_DAY);
 
         if (uid == null || uid.isEmpty()) {
             validationErrors.add(new MissingAttribute("uid"));
@@ -226,7 +225,8 @@ public final class SearchGuardLicense implements Writeable, Document<SearchGuard
 
         try {
             LocalDate parsedStartDate = parseDate(startDate);
-            if (parsedStartDate.isBefore(earliestAllowedStartDate)) {
+            final LocalDate earliestAllowedStartDate = parsedStartDate.minusDays(MAX_ALLOWED_DAYS_BEFORE_START_DAY);
+            if (today.isBefore(earliestAllowedStartDate)) {
                 validationErrors.add(new ValidationError("start_date", "License cannot be applied earlier than " + DEFAULT_FOMATTER.format(earliestAllowedStartDate), startDate));
             }
         } catch (Exception e) {
