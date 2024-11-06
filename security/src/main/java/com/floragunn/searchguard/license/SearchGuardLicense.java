@@ -227,7 +227,7 @@ public final class SearchGuardLicense implements Writeable, Document<SearchGuard
         try {
             LocalDate parsedStartDate = parseDate(startDate);
             if (parsedStartDate.isBefore(earliestAllowedStartDate)) {
-                validationErrors.add(new InvalidAttributeValue("start_date", startDate, "Date no earlier than 30 days before today"));
+                validationErrors.add(new ValidationError("start_date", "License cannot be applied earlier than " + DEFAULT_FOMATTER.format(earliestAllowedStartDate), startDate));
             }
         } catch (Exception e) {
             e.printStackTrace();

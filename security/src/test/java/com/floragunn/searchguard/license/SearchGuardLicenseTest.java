@@ -54,7 +54,7 @@ public class SearchGuardLicenseTest {
         assertThat(errors, hasEntry(equalTo("start_date"), anything()));
         assertThat(errors, hasKey(equalTo("start_date")));
         assertThat(errors.get("start_date"), hasSize(1));
-        assertThat(errors.get("start_date").iterator().next().getExpected(), equalTo("Date no earlier than 30 days before today"));
+        assertThat(errors.get("start_date").iterator().next().getMessage(), equalTo("License cannot be applied earlier than " + DateTimeFormatter.ISO_DATE.format(now.minusDays(30))));
     }
 
     @Test
