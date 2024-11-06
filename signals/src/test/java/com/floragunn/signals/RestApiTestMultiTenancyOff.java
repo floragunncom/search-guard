@@ -53,7 +53,7 @@ import static org.hamcrest.Matchers.not;
 
 @NotThreadSafe
 public class RestApiTestMultiTenancyOff {
-    public static final String SIGNALS_LOGS_INDEX_NAME = ".signals__main_log";
+    public static final String SIGNALS_LOGS_INDEX_NAME = "signals__main_log";
     public static final String HUGE_DOCUMENT_INDEX = "huge_document_index";
     public static final int HUGE_DOCUMENT_FIELD_COUNT = 970;
 

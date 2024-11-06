@@ -336,11 +336,6 @@ public class Signals extends AbstractLifecycleComponent {
             signalsLogIndex = signalsLogIndex.substring(1, signalsLogIndex.length() - 1).replaceAll("\\{.*\\}", "*");
         }
 
-        if (!signalsLogIndex.startsWith(".")) {
-            log.debug("signals log index does not start with ., so we do not need to create a template");
-            return;
-        }
-
         log.debug("Creating signals_log_template for {}", signalsLogIndex);
 
         TransportPutComposableIndexTemplateAction.Request putRequest = new TransportPutComposableIndexTemplateAction.Request("signals_log_template");
