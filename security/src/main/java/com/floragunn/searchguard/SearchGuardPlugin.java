@@ -401,7 +401,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             ImmutableSet<String> enterpriseModules = ImmutableSet.of("com.floragunn.searchguard.enterprise.auth.EnterpriseAuthFeaturesModule",
                     "com.floragunn.searchguard.authtoken.AuthTokenModule", "com.floragunn.dlic.auth.LegacyEnterpriseSecurityModule",
                     "com.floragunn.searchguard.enterprise.femt.FeMultiTenancyModule", "com.floragunn.searchguard.enterprise.dlsfls.DlsFlsModule",
-                    "com.floragunn.searchguard.enterprise.dlsfls.legacy.LegacyDlsFlsModule",
                     "com.floragunn.searchguard.enterprise.auditlog.AuditLogModule");
             if (! settings.getAsBoolean("searchguard.unsupported.single_index_mt_enabled", true)) {
                 enterpriseModules = enterpriseModules.without("com.floragunn.searchguard.enterprise.femt.FeMultiTenancyModule");
