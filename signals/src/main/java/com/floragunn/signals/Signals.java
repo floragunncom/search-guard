@@ -337,27 +337,12 @@ public class Signals extends AbstractLifecycleComponent {
         }
 
         log.debug("Creating signals_log_template for {}", signalsLogIndex);
-
         TransportPutComposableIndexTemplateAction.Request putRequest = new TransportPutComposableIndexTemplateAction.Request("signals_log_template");
         int watchLogMappingTotalFieldsLimit = signalsSettings.getStaticSettings().getWatchLogMappingTotalFieldsLimit();
-        Settings.Builder builder = Settings.builder() //
-                .put("index.hidden", true); //
-        CompressedXContent mappings = null;
-        if(watchLogMappingTotalFieldsLimit > 0) {
-            log.debug("Mapping total field limit for log watch index set to '{}'", watchLogMappingTotalFieldsLimit);
-            builder = builder.put("mapping.total_fields.limit", watchLogMappingTotalFieldsLimit);
-        } else if(watchLogMappingTotalFieldsLimit == RUNTIME_DATA_NOT_SEARCHABLE) {
-            try {
-                log.debug("Runtime data in the watch log index will be stored in non-searchable form.");
-                mappings = new CompressedXContent(DocNode.of("properties.data.type", "object", "properties.data.dynamic", false));
-            } catch (IOException e) {
-                throw new RuntimeException("Cannot disable dynamic mapping for data field in watch log index", e);
-            }
-        }
-        Settings logsIndexSettings = builder.build();
+        Template template = createWathLogTemplate(signalsLogIndex, watchLogMappingTotalFieldsLimit);
         ComposableIndexTemplate composableIndexTemplate = ComposableIndexTemplate.builder() //
             .indexPatterns(ImmutableList.of(signalsLogIndex)) //
-            .template(new Template(logsIndexSettings, mappings, null)) //
+            .template(template) //
             .build();
         putRequest.indexTemplate(composableIndexTemplate);
 
@@ -373,6 +358,23 @@ public class Signals extends AbstractLifecycleComponent {
             }
 
         });
+    }
+
+    static Template createWathLogTemplate(String signalsLogIndex, int watchLogMappingTotalFieldsLimit) {
+        Settings.Builder settingsBuilder = Settings.builder().put("index.hidden", signalsLogIndex.startsWith("."));
+        CompressedXContent mappings = null;
+        if(watchLogMappingTotalFieldsLimit > 0) {
+            log.debug("Mapping total field limit for log watch index set to '{}'", watchLogMappingTotalFieldsLimit);
+            settingsBuilder = settingsBuilder.put("mapping.total_fields.limit", watchLogMappingTotalFieldsLimit);
+        } else if(watchLogMappingTotalFieldsLimit == RUNTIME_DATA_NOT_SEARCHABLE) {
+            try {
+                log.debug("Runtime data in the watch log index will be stored in non-searchable form.");
+                mappings = new CompressedXContent(DocNode.of("properties.data.type", "object", "properties.data.dynamic", false));
+            } catch (IOException e) {
+                throw new RuntimeException("Cannot disable dynamic mapping for data field in watch log index", e);
+            }
+        }
+        return new Template(settingsBuilder.build(), mappings, null);
     }
 
     private void loadAllTruststores() throws SignalsInitializationException {
