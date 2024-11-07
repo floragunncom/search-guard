@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
 import com.floragunn.signals.proxy.service.ProxyCrudService;
@@ -29,14 +30,13 @@ import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
 import org.elasticsearch.cluster.metadata.Template;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
+import org.elasticsearch.common.compress.CompressedXContent;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.set.Sets;
-import org.elasticsearch.env.Environment;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.watcher.ResourceWatcherService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -59,6 +59,7 @@ import com.google.common.io.BaseEncoding;
 
 public class Signals extends AbstractLifecycleComponent {
     private static final Logger log = LogManager.getLogger(Signals.class);
+    public static final int RUNTIME_DATA_NOT_SEARCHABLE = -1;
 
     private final ComponentState componentState;
     private final SignalsSettings signalsSettings;
@@ -324,14 +325,10 @@ public class Signals extends AbstractLifecycleComponent {
 
     private void createSignalsLogIndex() {
         String signalsLogIndex = signalsSettings.getDynamicSettings().getWatchLogIndex();
+        log.debug("Request to create signals_log_template for {}", signalsLogIndex);
 
         if (!clusterService.state().nodes().isLocalNodeElectedMaster()) {
             log.debug("Not checking signals_log index because local node is not master");
-            return;
-        }
-
-        if (clusterService.state().getMetadata().componentTemplates().containsKey("signals_log_template")) {
-            log.debug("Template signals_log_template does already exist.");
             return;
         }
 
@@ -339,24 +336,20 @@ public class Signals extends AbstractLifecycleComponent {
             signalsLogIndex = signalsLogIndex.substring(1, signalsLogIndex.length() - 1).replaceAll("\\{.*\\}", "*");
         }
 
-        if (!signalsLogIndex.startsWith(".")) {
-            log.debug("signals log index does not start with ., so we do not need to create a template");
-            return;
-        }
-
         log.debug("Creating signals_log_template for {}", signalsLogIndex);
-
         TransportPutComposableIndexTemplateAction.Request putRequest = new TransportPutComposableIndexTemplateAction.Request("signals_log_template");
+        int watchLogMappingTotalFieldsLimit = signalsSettings.getStaticSettings().getWatchLogMappingTotalFieldsLimit();
+        Template template = createWathLogTemplate(signalsLogIndex, watchLogMappingTotalFieldsLimit);
         ComposableIndexTemplate composableIndexTemplate = ComposableIndexTemplate.builder() //
             .indexPatterns(ImmutableList.of(signalsLogIndex)) //
-            .template(new Template(Settings.builder().put("index.hidden", true).build(), null, null)) //
+            .template(template) //
             .build();
         putRequest.indexTemplate(composableIndexTemplate);
 
         client.execute(TransportPutComposableIndexTemplateAction.TYPE, putRequest, new ActionListener<AcknowledgedResponse>() {
 
             @Override public void onResponse(AcknowledgedResponse response) {
-                log.debug("Created signals_log_template");
+                log.info("Created signals_log_template");
             }
 
             @Override public void onFailure(Exception e) {
@@ -365,6 +358,23 @@ public class Signals extends AbstractLifecycleComponent {
             }
 
         });
+    }
+
+    static Template createWathLogTemplate(String signalsLogIndex, int watchLogMappingTotalFieldsLimit) {
+        Settings.Builder settingsBuilder = Settings.builder().put("index.hidden", signalsLogIndex.startsWith("."));
+        CompressedXContent mappings = null;
+        if(watchLogMappingTotalFieldsLimit > 0) {
+            log.debug("Mapping total field limit for log watch index set to '{}'", watchLogMappingTotalFieldsLimit);
+            settingsBuilder = settingsBuilder.put("mapping.total_fields.limit", watchLogMappingTotalFieldsLimit);
+        } else if(watchLogMappingTotalFieldsLimit == RUNTIME_DATA_NOT_SEARCHABLE) {
+            try {
+                log.debug("Runtime data in the watch log index will be stored in non-searchable form.");
+                mappings = new CompressedXContent(DocNode.of("properties.data.type", "object", "properties.data.dynamic", false));
+            } catch (IOException e) {
+                throw new RuntimeException("Cannot disable dynamic mapping for data field in watch log index", e);
+            }
+        }
+        return new Template(settingsBuilder.build(), mappings, null);
     }
 
     private void loadAllTruststores() throws SignalsInitializationException {
