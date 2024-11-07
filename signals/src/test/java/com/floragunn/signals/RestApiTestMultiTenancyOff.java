@@ -224,6 +224,13 @@ public class RestApiTestMultiTenancyOff {
         }
     }
 
+    /*
+    Test checks if the index template for the watch log index is created. In the test static configuration parameter `signals.watch_log.mapping_total_fields_limit`
+    is equal to -1. Therefore, the log watch index can accommodate massive runtime data. Furthermore, the dynamic mappings are disabled
+    for the property that stores runtime data; therefore, the runtime data are not searchable. A similar test case is placed in the method.
+    The other test com.floragunn.signals.RestApiTest.testWatchLogContainsDocumentWithHugeFieldCountWithCustomMappingsTotalFieldLimit
+    is placed in another test class because to run the test modification in the static configuration is needed.
+     */
     @Test
     public void testWatchLogContainsDocumentWithHugeFieldCountAndFieldsAreNotSearchable() throws Exception {
         String tenant = "_main";

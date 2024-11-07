@@ -2866,8 +2866,15 @@ public class RestApiTest {
         }
     }
 
+    /*
+    Test checks if the index template for the watch log index is created. In the test static configuration parameter `signals.watch_log.mapping_total_fields_limit`
+    is equal to 3000. Therefore, the log watch index can accommodate massive runtime data. Furthermore, the dynamic mappings are created
+    for the log watch index; therefore, the runtime data are searchable. A similar test case is placed in method
+    com.floragunn.signals.RestApiTestMultiTenancyOff.testWatchLogContainsDocumentWithHugeFieldCountAndFieldsAreNotSearchable. The other test
+    is placed in another test class because to run the test modification in the static configuration is needed.
+     */
     @Test
-    public void testWatchLogContainsDocumentWithHugeFieldCount() throws Exception {
+    public void testWatchLogContainsDocumentWithHugeFieldCountWithCustomMappingsTotalFieldLimit() throws Exception {
         String tenant = "_main";
         String watchId = "watch_which_creates_huge_logs";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
