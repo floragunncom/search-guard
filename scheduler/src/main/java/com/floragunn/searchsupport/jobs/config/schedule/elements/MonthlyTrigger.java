@@ -18,6 +18,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory.MisfireStrategy;
 
 public class MonthlyTrigger extends HumanReadableCronTrigger<MonthlyTrigger> {
 
@@ -25,10 +26,11 @@ public class MonthlyTrigger extends HumanReadableCronTrigger<MonthlyTrigger> {
     private List<Integer> on;
     private List<TimeOfDay> at;
 
-    public MonthlyTrigger(List<Integer> on, List<TimeOfDay> at, TimeZone timeZone) {
+    public MonthlyTrigger(List<Integer> on, List<TimeOfDay> at, TimeZone timeZone, MisfireStrategy misfireStrategy) {
         this.on = Collections.unmodifiableList(on);
         this.at = Collections.unmodifiableList(at);
         this.timeZone = timeZone;
+        this.misfireStrategy = misfireStrategy;
 
         init();
     }
@@ -95,7 +97,7 @@ public class MonthlyTrigger extends HumanReadableCronTrigger<MonthlyTrigger> {
         return builder;
     }
 
-    public static MonthlyTrigger create(DocNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
+    public static MonthlyTrigger create(DocNode jsonNode, TimeZone timeZone, MisfireStrategy misfireStrategy) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vDocNode = new ValidatingDocNode(jsonNode, validationErrors);
 
@@ -106,7 +108,7 @@ public class MonthlyTrigger extends HumanReadableCronTrigger<MonthlyTrigger> {
             on = Collections.emptyList();
         }
 
-        return new MonthlyTrigger(on, at, timeZone);
+        return new MonthlyTrigger(on, at, timeZone, misfireStrategy);
     }
 
     private static CronExpression createCronExpression(TimeOfDay timeOfDay, List<Integer> on) {
@@ -149,8 +151,8 @@ public class MonthlyTrigger extends HumanReadableCronTrigger<MonthlyTrigger> {
         }
 
         @Override
-        public MonthlyTrigger create(DocNode jsonNode, TimeZone timeZone) throws ConfigValidationException {
-            return MonthlyTrigger.create(jsonNode, timeZone);
+        public MonthlyTrigger create(DocNode jsonNode, TimeZone timeZone, MisfireStrategy misfireStrategy) throws ConfigValidationException {
+            return MonthlyTrigger.create(jsonNode, timeZone, misfireStrategy);
         }
     };
 

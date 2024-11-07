@@ -44,6 +44,7 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.config.schedule.ScheduleImpl;
+import com.floragunn.searchsupport.jobs.config.schedule.DefaultScheduleFactory.MisfireStrategy;
 import com.floragunn.searchsupport.jobs.config.schedule.elements.WeeklyTrigger;
 import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.support.NestedValueMap.Path;
@@ -130,7 +131,7 @@ public class WatchBuilder {
             }
         }
 
-        this.triggers.add(new WeeklyTrigger(on, at, timeZone));
+        this.triggers.add(new WeeklyTrigger(on, at, timeZone, MisfireStrategy.EXECUTE_NOW));
 
         return this;
     }

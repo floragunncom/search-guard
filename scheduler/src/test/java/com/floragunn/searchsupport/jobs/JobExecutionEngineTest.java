@@ -25,6 +25,8 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
+import org.quartz.spi.JobFactory;
+import org.quartz.spi.TriggerFiredBundle;
 
 import com.floragunn.searchsupport.jobs.actions.SchedulerConfigUpdateAction;
 import com.floragunn.searchsupport.jobs.cluster.NodeNameComparator;
@@ -75,7 +77,56 @@ public class JobExecutionEngineTest {
                 scheduler.shutdown();
             }
         }
+    }
+    
+    
+    @Ignore("Only for manual testing")
+    @Test
+    public void overCapacity() throws Exception {
+        String test = "over_capacity";
+        String jobConfigIndex = "test_job_config_" + test;
 
+        Scheduler scheduler = null;
+        
+        JobFactory jobFactory = new JobFactory() {
+            
+            @Override
+            public Job newJob(TriggerFiredBundle bundle, Scheduler scheduler) throws SchedulerException {
+                return new LoggingTestJob();
+            }
+        };
+
+        try {
+            Client client = cluster.getInternalClient();
+            client.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("job1").source(createIntervalJobConfig(1, "job1", "5000ms"), XContentType.JSON)).actionGet();
+            client.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("job2").source(createIntervalJobConfig(1, "job2", "5000ms"), XContentType.JSON)).actionGet();
+            client.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("job3").source(createIntervalJobConfig(1, "job3", "5000ms"), XContentType.JSON)).actionGet();
+            client.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("job4").source(createIntervalJobConfig(1, "job4", "5000ms"), XContentType.JSON)).actionGet();
+            client.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("job5").source(createIntervalJobConfig(1, "job5", "5000ms"), XContentType.JSON)).actionGet();
+
+
+            PluginAwareNode node = cluster.node();
+
+            ClusterService clusterService = node.injector().getInstance(ClusterService.class);
+            NodeEnvironment nodeEnvironment = node.injector().getInstance(NodeEnvironment.class);
+
+            scheduler = new SchedulerBuilder<DefaultJobConfig>().client(client).name("test_" + test).misfireThreshold(2000).maxThreads(1)
+                    .configIndex(jobConfigIndex).jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).jobFactory(jobFactory).distributed(clusterService, nodeEnvironment)
+                    .nodeComparator(new NodeNameComparator(clusterService)).build();
+
+            scheduler.start();
+
+            Thread.sleep(30 * 1000);
+
+            int count = TestJob.getCounter("emptyNodeFilterTest");
+
+            assertEquals(0, count);
+
+        } finally {
+            if (scheduler != null) {
+                scheduler.shutdown();
+            }
+        }
     }
 
     @Ignore("TODO why is this ignored?")
@@ -89,7 +140,7 @@ public class JobExecutionEngineTest {
 
         try {
             Client tc = cluster.getInternalClient();
-            String jobConfig = createIntervalJobConfig(1, "basic", "100ms");
+            String jobConfig = createIntervalJobConfig(1, "basic", "1200ms");
 
             tc.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig, XContentType.JSON)).actionGet();
 
@@ -221,20 +272,20 @@ public class JobExecutionEngineTest {
 
     public static class LoggingTestJob implements Job {
 
+        
         @Override
         public void execute(JobExecutionContext context) throws JobExecutionException {
             try {
-                System.out.println(
-                        "job: " + context + " " + new HashMap<>(context.getMergedJobDataMap()) + " on " + context.getScheduler().getSchedulerName());
-                System.out.println(context.getJobDetail());
-            } catch (SchedulerException e) {
-                // TODO Auto-generated catch block
+                log.info("execute: " + context.getJobDetail().getKey().getName() + ": scheduled: " + context.getScheduledFireTime());              
+                Thread.sleep(2500);
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
 
     }
 
+    
     public static class TestJob implements Job {
 
         static Map<String, Integer> counters = new ConcurrentHashMap<>();

@@ -74,16 +74,17 @@ public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
 
         ZoneId timeZoneId = vJsonNode.get("timezone").asTimeZoneId();
         TimeZone timeZone = timeZoneId != null ? TimeZone.getTimeZone(timeZoneId) : null;
+        MisfireStrategy misfireStrategy = vJsonNode.get("when_late").withDefault(MisfireStrategy.EXECUTE_NOW).asEnum(MisfireStrategy.class);
 
         triggers.addAll(
-                vJsonNode.get("cron").asList().withEmptyListAsDefault().ofObjectsParsedByString((s) -> createCronTrigger(jobKey, s, timeZone)));
+                vJsonNode.get("cron").asList().withEmptyListAsDefault().ofObjectsParsedByString((s) -> createCronTrigger(jobKey, s, timeZone, misfireStrategy)));
 
         triggers.addAll(
-                vJsonNode.get("interval").asList().withEmptyListAsDefault().ofObjectsParsedByString((s) -> createIntervalScheduleTrigger(jobKey, s)));
+                vJsonNode.get("interval").asList().withEmptyListAsDefault().ofObjectsParsedByString((s) -> createIntervalScheduleTrigger(jobKey, s, misfireStrategy)));
 
         for (TriggerFactory<?> scheduleFactory : TriggerFactory.FACTORIES) {
             triggers.addAll(vJsonNode.get(scheduleFactory.getType()).asList().withEmptyListAsDefault()
-                    .ofObjectsParsedBy((n) -> createTrigger(jobKey, n, timeZone, scheduleFactory)));
+                    .ofObjectsParsedBy((n) -> createTrigger(jobKey, n, timeZone, scheduleFactory, misfireStrategy)));
         }
 
         vJsonNode.checkForUnusedAttributes();
@@ -97,12 +98,20 @@ public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
         return DigestUtils.md5Hex(trigger);
     }
 
-    protected Trigger createCronTrigger(JobKey jobKey, String cronExpression, TimeZone timeZone) throws ConfigValidationException {
+    protected Trigger createCronTrigger(JobKey jobKey, String cronExpression, TimeZone timeZone, MisfireStrategy misfireStrategy) throws ConfigValidationException {
         String triggerKey = getTriggerKey(cronExpression);
 
         try {
+            CronScheduleBuilder scheduleBuilder = CronScheduleBuilder.cronScheduleNonvalidatedExpression(cronExpression).inTimeZone(timeZone);
+            
+            if (misfireStrategy == MisfireStrategy.EXECUTE_NOW) {
+                scheduleBuilder = scheduleBuilder.withMisfireHandlingInstructionFireAndProceed();
+            } else {
+                scheduleBuilder = scheduleBuilder.withMisfireHandlingInstructionDoNothing();                
+            }
+            
             return TriggerBuilder.newTrigger().withIdentity(jobKey.getName() + "___" + triggerKey, group).forJob(jobKey)
-                    .withSchedule(CronScheduleBuilder.cronScheduleNonvalidatedExpression(cronExpression).inTimeZone(timeZone)).build();
+                    .withSchedule(scheduleBuilder).build();
         } catch (ParseException e) {
             throw new ConfigValidationException(new InvalidAttributeValue(null, cronExpression,
                     "Quartz Cron Expression: <Seconds: 0-59|*> <Minutes: 0-59|*> <Hours: 0-23|*> <Day-of-Month: 1-31|?|*> <Month: JAN-DEC|*> <Day-of-Week: SUN-SAT|?|*> <Year: 1970-2199|*>?. Numeric ranges: 1-2; Several distinct values: 1,2; Increments: 0/15")
@@ -110,23 +119,37 @@ public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
         }
     }
 
-    protected Trigger createIntervalScheduleTrigger(JobKey jobKey, String interval) throws ConfigValidationException {
+    protected Trigger createIntervalScheduleTrigger(JobKey jobKey, String interval, MisfireStrategy misfireStrategy) throws ConfigValidationException {
         String triggerKey = getTriggerKey(interval);
         Duration duration = DurationFormat.INSTANCE.parse(interval);
 
-        return TriggerBuilder.newTrigger().withIdentity(jobKey.getName() + "___" + triggerKey, group).forJob(jobKey)
-                .withSchedule(SimpleScheduleBuilder.simpleSchedule().repeatForever().withIntervalInMilliseconds(duration.toMillis())).build();
+        SimpleScheduleBuilder scheduleBuilder = SimpleScheduleBuilder.simpleSchedule().repeatForever().withMisfireHandlingInstructionFireNow()
+                .withIntervalInMilliseconds(duration.toMillis());
+        
+        if (misfireStrategy == MisfireStrategy.EXECUTE_NOW) {
+            scheduleBuilder = scheduleBuilder.withMisfireHandlingInstructionFireNow();
+        } else {
+            scheduleBuilder = scheduleBuilder.withMisfireHandlingInstructionNextWithExistingCount();                
+        }
+
+        return TriggerBuilder.newTrigger().withIdentity(jobKey.getName() + "___" + triggerKey, group).forJob(jobKey).withSchedule(scheduleBuilder)
+                .build();
     }
 
-    protected Trigger createTrigger(JobKey jobKey, DocNode jsonNode, TimeZone timeZone, TriggerFactory<?> scheduleFactory)
+    protected Trigger createTrigger(JobKey jobKey, DocNode jsonNode, TimeZone timeZone, TriggerFactory<?> scheduleFactory, MisfireStrategy misfireStrategy)
             throws ConfigValidationException {
         String triggerKey = getTriggerKey(jsonNode.toString());
 
-        AbstractTrigger<?> trigger = (AbstractTrigger<?>) scheduleFactory.create(jsonNode, timeZone);
+        AbstractTrigger<?> trigger = (AbstractTrigger<?>) scheduleFactory.create(jsonNode, timeZone, misfireStrategy);
         trigger.setJobKey(jobKey);
         trigger.setKey(new TriggerKey(jobKey.getName() + "___" + triggerKey, group));
 
         return trigger;
+    }
+    
+    public static enum MisfireStrategy {
+        EXECUTE_NOW,
+        SKIP
     }
 
 }
