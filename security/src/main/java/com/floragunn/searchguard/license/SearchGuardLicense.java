@@ -183,12 +183,7 @@ public final class SearchGuardLicense implements Writeable, Document<SearchGuard
         }
 
         try {
-            final LocalDate isd = parseDate(issueDate);
-
-            if (isd.isAfter(today)) {
-                validationErrors.add(new ValidationError(null, "License not valid yet."));
-            }
-
+            parseDate(issueDate);
         } catch (Exception e) {
             e.printStackTrace();
             validationErrors.add(new InvalidAttributeValue("issued_date", issueDate, null).cause(e));
