@@ -96,7 +96,6 @@ public class Actions {
         indexLike("indices:data/write/delete").performanceCritical();
         indexLike("indices:data/write/update").performanceCritical();
         indexLike("indices:data/read/search").performanceCritical();
-        indexLike("indices:data/read/open_point_in_time").performanceCritical();
         indexLike("indices:data/read/explain").performanceCritical();
         indexLike("indices:admin/resolve/index").performanceCritical();
         indexLike("indices:admin/resolve/cluster").performanceCritical();
@@ -120,6 +119,9 @@ public class Actions {
 
         indexLike("indices:data/read/mget[shard]").performanceCritical();
 
+        indexLike("indices:data/read/open_point_in_time").performanceCritical();
+        cluster("indices:data/read/close_point_in_time");
+        
         cluster("indices:data/read/mget");
         cluster("indices:data/write/bulk");
         cluster("indices:data/read/scroll");

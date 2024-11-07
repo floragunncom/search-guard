@@ -86,7 +86,8 @@ public class ActionRequestIntrospector {
 
     private static final Set<String> NAME_BASED_SHORTCUTS_FOR_CLUSTER_ACTIONS = ImmutableSet.of("indices:data/read/msearch/template",
             "indices:data/read/search/template", "indices:data/read/sql/translate", "indices:data/read/sql", "indices:data/read/sql/close_cursor",
-            "cluster:admin/scripts/painless/execute");
+            "cluster:admin/scripts/painless/execute", "indices:admin/template/get", "cluster:admin/component_template/get",
+            "indices:admin/index_template/get", "indices:admin/index_template/simulate_index", "indices:admin/index_template/simulate", "indices:data/read/close_point_in_time");
 
     private final static Logger log = LogManager.getLogger(ActionRequestIntrospector.class);
     private final Supplier<Meta> metaDataSupplier;
