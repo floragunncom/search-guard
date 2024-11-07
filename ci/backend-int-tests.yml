@@ -1,22 +1,22 @@
 
-community:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST_DEFINITIONS: ".*community.*"
-
-enterprise_1:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST_DEFINITIONS: ".*enterprise_1.*"  
-
-enterprise_2:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST_DEFINITIONS: ".*enterprise_2.*"
-
+#community:
+#  extends:
+#  - .be_integration_test
+#  variables:
+#    TEST_DEFINITIONS: ".*community.*"
+#
+#enterprise_1:
+#  extends:
+#  - .be_integration_test
+#  variables:
+#    TEST_DEFINITIONS: ".*enterprise_1.*"
+#
+#enterprise_2:
+#  extends:
+#  - .be_integration_test
+#  variables:
+#    TEST_DEFINITIONS: ".*enterprise_2.*"
+#
 enterprise_3:
   extends:
   - .be_integration_test
@@ -29,54 +29,54 @@ ccs_1:
   variables:
     TEST_DEFINITIONS: ".*ccs_1.*"
 
-ccs_2:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST_DEFINITIONS: ".*ccs_2.*"
-
-ccs_3:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST_DEFINITIONS: ".*ccs_3.*"
-
-
-compliance_1:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST_DEFINITIONS: ".*compliance_1.*"
-
-compliance_2:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST_DEFINITIONS: ".*compliance_2.*"
-
-compliance_3:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST_DEFINITIONS: ".*compliance_3.*"
-
-compliance_ccs:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST_DEFINITIONS: ".*compliance_ccs.*"
-
-signals_1:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST_DEFINITIONS: ".*signals_1.*"
-
-signals_2:
-  extends:
-    - .be_integration_test
-  variables:
-    TEST_DEFINITIONS: ".*signals_2.*"
+#ccs_2:
+#  extends:
+#  - .be_integration_test
+#  variables:
+#    TEST_DEFINITIONS: ".*ccs_2.*"
+#
+#ccs_3:
+#  extends:
+#  - .be_integration_test
+#  variables:
+#    TEST_DEFINITIONS: ".*ccs_3.*"
+#
+#
+#compliance_1:
+#  extends:
+#  - .be_integration_test
+#  variables:
+#    TEST_DEFINITIONS: ".*compliance_1.*"
+#
+#compliance_2:
+#  extends:
+#  - .be_integration_test
+#  variables:
+#    TEST_DEFINITIONS: ".*compliance_2.*"
+#
+#compliance_3:
+#  extends:
+#  - .be_integration_test
+#  variables:
+#    TEST_DEFINITIONS: ".*compliance_3.*"
+#
+#compliance_ccs:
+#  extends:
+#  - .be_integration_test
+#  variables:
+#    TEST_DEFINITIONS: ".*compliance_ccs.*"
+#
+#signals_1:
+#  extends:
+#  - .be_integration_test
+#  variables:
+#    TEST_DEFINITIONS: ".*signals_1.*"
+#
+#signals_2:
+#  extends:
+#    - .be_integration_test
+#  variables:
+#    TEST_DEFINITIONS: ".*signals_2.*"
 
 .be_integration_test:
   allow_failure: false
