@@ -51,7 +51,7 @@ public class SignalsJobTriggerPostProcessor implements TriggerPostProcessor {
             processCronTrigger(cronTrigger);
         } else if (trigger instanceof SimpleTriggerImpl simpleTrigger) {
             processSimpleTrigger(simpleTrigger);
-        } else if (trigger instanceof DailyTrigger dailyTrigger) { //todo is another config variable needed for hourly, daily, monthly and weekly triggers?
+        } else if (trigger instanceof DailyTrigger dailyTrigger) {
             processCronTrigger(dailyTrigger);
         } else if (trigger instanceof HourlyTrigger hourlyTrigger) {
             processCronTrigger(hourlyTrigger);
