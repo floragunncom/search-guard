@@ -208,7 +208,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         }
 
         // We assume that we have a restriction unless there are roles without restriction. This, we only have to check the roles without restriction.
-        if (this.staticIndexRules.hasUnrestrictedPatternTemplates(context, index)) {
+        if (this.staticIndexRules.hasUnrestrictedDynamicPatterns(context, index)) {
             return false;
         }
 
@@ -245,7 +245,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         }
 
         // We assume that we have a restriction unless there are roles without restriction. This, we only have to check the roles without restriction.
-        if (this.staticAliasRules.hasUnrestrictedPatternTemplates(context, alias)) {
+        if (this.staticAliasRules.hasUnrestrictedDynamicPatterns(context, alias)) {
             return false;
         }
         // If we found no roles without restriction, we assume a restriction
@@ -275,7 +275,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 }
             }
 
-            if (this.staticAliasRules.hasUnrestrictedPatternTemplates(context, alias)) {
+            if (this.staticAliasRules.hasUnrestrictedDynamicPatterns(context, alias)) {
                 return false;
             }
         }
@@ -298,7 +298,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
             }
         }
         // We assume that we have a restriction unless there are roles without restriction. This, we only have to check the roles without restriction.
-        if (this.staticDataStreamRules.hasUnrestrictedPatternTemplates(context, dataStream)) {
+        if (this.staticDataStreamRules.hasUnrestrictedDynamicPatterns(context, dataStream)) {
             return false;
         }
 
@@ -466,6 +466,23 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 }
             }
 
+            ImmutableSet<Role.IndexPatterns.DateMathExpression> dateMathExpressionsWithoutRule = this.staticIndexRules.rolesToIndexDateMathExpressionWithoutRule
+                    .get(role);
+
+            if (dateMathExpressionsWithoutRule != null) {
+                for (Role.IndexPatterns.DateMathExpression dateMathExpression : dateMathExpressionsWithoutRule) {
+                    try {
+                        Pattern pattern = context.getRenderedDateMathExpression(dateMathExpression.getDateMathExpression());
+
+                        if (pattern.matches(index.name()) && !dateMathExpression.getExclusions().matches(index.name())) {
+                            return unrestricted();
+                        }
+                    } catch (ExpressionEvaluationException e) {
+                        throw new PrivilegesEvaluationException("Error while rendering index pattern of role " + role, e);
+                    }
+                }
+            }
+            
             if (!index.parentAliases().isEmpty()) {
                 if (statefulRules == null && this.staticAliasRules.isUnrestrictedViaParentAlias(context, index, role)) {
                     return unrestricted();
@@ -700,6 +717,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         protected final ImmutableMap<String, SingleRule> roleWithIndexWildcardToRule;
         protected final ImmutableMap<String, ImmutableMap<Role.IndexPatterns.IndexPatternTemplate, SingleRule>> rolesToIndexPatternTemplateToRule;
         protected final ImmutableMap<String, ImmutableSet<Role.IndexPatterns.IndexPatternTemplate>> rolesToIndexPatternTemplateWithoutRule;
+        
+        protected final ImmutableMap<String, ImmutableSet<Role.IndexPatterns.DateMathExpression>> rolesToIndexDateMathExpressionWithoutRule;
 
         /**
          * Only used when no index metadata is available upon construction
@@ -727,6 +746,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                     .defaultValue((k) -> new ImmutableSet.Builder<>());
             ImmutableMap.Builder<String, ImmutableMap.Builder<Pattern, SingleRule>> rolesToIndexPatternToRule = new ImmutableMap.Builder<String, ImmutableMap.Builder<Pattern, SingleRule>>()
                     .defaultValue((k) -> new ImmutableMap.Builder<>());
+            ImmutableMap.Builder<String, ImmutableSet.Builder<Role.IndexPatterns.DateMathExpression>> rolesToIndexDateMathExpressionWithoutRule = new ImmutableMap.Builder<String, ImmutableSet.Builder<Role.IndexPatterns.DateMathExpression>>()
+                    .defaultValue((k) -> new ImmutableSet.Builder<>());             
             ImmutableMap.Builder<String, List<Pattern>> rolesToIndexPatternWithoutRule = new ImmutableMap.Builder<String, List<Pattern>>()
                     .defaultValue((k) -> new ArrayList<>());
 
@@ -758,6 +779,14 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                                     rolesToIndexPatternTemplateToRule.get(roleName).put(indexPatternTemplate, singleRule);
                                 }
                             }
+                            
+                            for (Role.IndexPatterns.DateMathExpression dateMathExpression : rolePermissions.getIndexPatterns().getDateMathExpressions()) {
+                                if (singleRule == null) {
+                                    rolesToIndexDateMathExpressionWithoutRule.get(roleName).add(dateMathExpression);
+                                } else {
+                                    // Date math for rules is not supported in the FLX DLS/FLS implementation
+                                }                                
+                            }
 
                             if (!rolePermissions.getIndexPatterns().getPattern().isBlank()) {
                                 if (singleRule == null) {
@@ -776,8 +805,12 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
 
             this.rolesWithIndexWildcardWithoutRule = rolesWithIndexWildcardWithoutRule.build();
             this.roleWithIndexWildcardToRule = roleWithIndexWildcardToRule.build();
+            
             this.rolesToIndexPatternTemplateToRule = rolesToIndexPatternTemplateToRule.build((b) -> b.build());
             this.rolesToIndexPatternTemplateWithoutRule = rolesToIndexPatternTemplateWithoutRule.build((b) -> b.build());
+            
+            this.rolesToIndexDateMathExpressionWithoutRule = rolesToIndexDateMathExpressionWithoutRule.build((b) -> b.build());
+
             this.rolesToInitializationErrors = rolesToInitializationErrors.build((b) -> b.build());
 
             this.rolesToIndexPatternToRule = rolesToIndexPatternToRule.build((b) -> b.build());
@@ -817,7 +850,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
             return false;
         }
 
-        boolean hasUnrestrictedPatternTemplates(PrivilegesEvaluationContext context, MetaDataObject indexLike) throws PrivilegesEvaluationException {
+        boolean hasUnrestrictedDynamicPatterns(PrivilegesEvaluationContext context, MetaDataObject indexLike) throws PrivilegesEvaluationException {
             // We assume that we have a restriction unless there are roles without restriction. This, we only have to check the roles without restriction.
             for (String role : context.getMappedRoles()) {
                 ImmutableSet<Role.IndexPatterns.IndexPatternTemplate> indexPatternTemplatesWithoutRole = this.rolesToIndexPatternTemplateWithoutRule
@@ -836,11 +869,30 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                         }
                     }
                 }
+                
+                ImmutableSet<Role.IndexPatterns.DateMathExpression> indexDateMathExpressionWithoutRule = this.rolesToIndexDateMathExpressionWithoutRule
+                        .get(role);
+                
+                if (indexDateMathExpressionWithoutRule != null) {
+                    for (Role.IndexPatterns.DateMathExpression dateMathExpression : indexDateMathExpressionWithoutRule) {
+                        try {
+                            Pattern pattern = context.getRenderedDateMathExpression(dateMathExpression.getDateMathExpression());
+                            
+                            if (pattern.matches(indexLike.name()) && !dateMathExpression.getExclusions().matches(indexLike.name())) {
+                                return true;
+                            }
+                        } catch (ExpressionEvaluationException e) {
+                            throw new PrivilegesEvaluationException("Error while evaluating date math expression: " + dateMathExpression, e);
+                        }
+                    }
+                }
             }
 
             // If we found no roles without restriction, we assume a restriction
             return false;
         }
+        
+        
     }
 
     static class StatefulRules<SingleRule> implements ComponentStateProvider {

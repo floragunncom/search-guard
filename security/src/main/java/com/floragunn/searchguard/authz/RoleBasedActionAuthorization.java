@@ -2147,23 +2147,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 try (Meter subMeter = meter.basic("render_date_math_expression")) {
                     for (Role.IndexPatterns.DateMathExpression dateMathExpression : this.dateMathExpressions) {
                         try {
-                            String resolvedExpression = com.floragunn.searchsupport.queries.DateMathExpressionResolver
-                                    .resolveExpression(dateMathExpression.getDateMathExpression());
-
-                            if (!Template.containsPlaceholders(resolvedExpression)) {
-                                Pattern pattern = Pattern.create(resolvedExpression);
-
-                                if (pattern.matches(index) && !dateMathExpression.getExclusions().matches(index)) {
-                                    return true;
-                                }
-                            } else {
-                                Template<Pattern> patternTemplate = new Template<>(resolvedExpression, Pattern::create);
-                                Pattern pattern = patternTemplate.render(user);
-
-                                if (pattern.matches(index) && !dateMathExpression.getExclusions().matches(index)) {
-                                    return true;
-                                }
-                            }
+                            Pattern pattern = context.getRenderedDateMathExpression(dateMathExpression.getDateMathExpression());
+                            
+                            if (pattern.matches(index) && !dateMathExpression.getExclusions().matches(index)) {
+                                return true;
+                            }                            
                         } catch (Exception e) {
                             throw new PrivilegesEvaluationException("Error while evaluating date math expression: " + dateMathExpression, e);
                         }

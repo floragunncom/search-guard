@@ -42,6 +42,7 @@ public class PrivilegesEvaluationContext {
     private final Action action;
     private final Object request;
     private final Map<Template<Pattern>, Pattern> renderedPatternTemplateCache = new HashMap<>();
+    private final Map<String, Pattern> renderedDateMathExpressionCache = new HashMap<>();
     private final ImmutableSet<String> mappedRoles;
     private final ActionRequestIntrospector actionRequestIntrospector;
     private final SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext;
@@ -82,6 +83,28 @@ public class PrivilegesEvaluationContext {
         if (pattern == null) {
             pattern = template.render(user);
             this.renderedPatternTemplateCache.put(template, pattern);
+        }
+
+        return pattern;
+    }
+    
+    public Pattern getRenderedDateMathExpression(String dateMathExpression) throws ExpressionEvaluationException {
+        Pattern pattern = this.renderedDateMathExpressionCache.get(dateMathExpression);
+
+        if (pattern == null) {
+            try {
+                String resolvedExpression = com.floragunn.searchsupport.queries.DateMathExpressionResolver.resolveExpression(dateMathExpression);
+
+                if (!Template.containsPlaceholders(resolvedExpression)) {
+                    pattern = Pattern.create(resolvedExpression);
+                } else {
+                    Template<Pattern> patternTemplate = new Template<>(resolvedExpression, Pattern::create);
+                    pattern = patternTemplate.render(user);
+                }
+                this.renderedDateMathExpressionCache.put(dateMathExpression, pattern);
+            } catch (Exception e) {
+                throw new ExpressionEvaluationException("Error while evaluating date math expression: " + dateMathExpression, e);               
+            }
         }
 
         return pattern;
