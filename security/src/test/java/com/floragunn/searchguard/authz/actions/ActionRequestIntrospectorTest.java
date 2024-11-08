@@ -19,7 +19,11 @@ package com.floragunn.searchguard.authz.actions;
 
 import static com.floragunn.searchsupport.meta.Meta.Mock.indices;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesAction;
@@ -131,6 +135,22 @@ public class ActionRequestIntrospectorTest {
         assertThat(requestInfo, main().hasNoIndices().hasNoAliases().hasDataStreams("ds_d11"));
     }
 
+    @Test
+    public void unknownIndexRequest_noIndexInformation() {
+        ActionRequest request = new ActionRequest() {
+            
+            @Override
+            public ActionRequestValidationException validate() {
+                return null;
+            }
+        };
+        
+        ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get("indices:unknown"), request);
+        assertTrue(requestInfo.toString(), requestInfo.isUnknown());
+        assertTrue(requestInfo.toString(), requestInfo.getMainResolvedIndices().isLocalAll());
+        assertEquals(META.indexLikeObjects().keySet(), requestInfo.getMainResolvedIndices().getLocal().getDeepUnion());
+    }
+    
     static ActionRequestIntrospector simple() {
         return new ActionRequestIntrospector(() -> META, () -> SystemIndexAccess.DISALLOWED, () -> false, null);
     }

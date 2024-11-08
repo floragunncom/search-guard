@@ -285,7 +285,7 @@ public class ResolvedIndices {
 
             if (result == null) {
                 result = Meta.IndexLikeObject.resolveDeepToNames(aliases, Meta.Alias.ResolutionMode.NORMAL)
-                        .with(Meta.IndexLikeObject.resolveDeepToNames(aliases, Meta.Alias.ResolutionMode.NORMAL))
+                        .with(Meta.IndexLikeObject.resolveDeepToNames(dataStreams, Meta.Alias.ResolutionMode.NORMAL))
                         .with(this.union.map(Meta.IndexLikeObject::name));
                 this.deepUnion = result;
             }

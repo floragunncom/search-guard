@@ -177,7 +177,7 @@ public class SnapshotRestoreTests extends SingleClusterTest {
         
         //System.out.println("---------------------------------------------------------------");
         
-        Assert.assertEquals(500, rh.executePostRequest("_snapshot/all/unknown-snapshot/_restore?wait_for_completion=true", "", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
+        Assert.assertEquals(403, rh.executePostRequest("_snapshot/all/unknown-snapshot/_restore?wait_for_completion=true", "", encodeBasicHeader("nagilum", "nagilum")).getStatusCode());
         // Assert.assertEquals(HttpStatus.SC_FORBIDDEN, executePostRequest("_snapshot/all/unknown-snapshot/_restore?wait_for_completion=true","{ \"indices\": \"the-unknown-index\" }", encodeBasicHeader("nagilum", "nagilum"))).getStatusCode());
     }
 
@@ -234,7 +234,7 @@ public class SnapshotRestoreTests extends SingleClusterTest {
     
         // Try to restore a unknown snapshot
         HttpResponse response = rh.executePostRequest("_snapshot/all/unknown-snapshot/_restore?wait_for_completion=true", "", encodeBasicHeader("nagilum", "nagilum"));
-        Assert.assertEquals(response.getBody(), 500, response.getStatusCode());
+        Assert.assertEquals(response.getBody(), 403, response.getStatusCode());
     
         // Tests snapshot with write permissions (OK)
         Assert.assertEquals(HttpStatus.SC_OK, rh.executePostRequest("_snapshot/vulcangov/vulcangov_1/_restore?wait_for_completion=true","{ \"rename_pattern\": \"(.+)\", \"rename_replacement\": \"$1_restore_1\" }", encodeBasicHeader("restoreuser", "restoreuser")).getStatusCode());
