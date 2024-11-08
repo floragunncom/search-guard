@@ -12,6 +12,7 @@ import org.hamcrest.Description;
 import org.hamcrest.DiagnosingMatcher;
 import org.hamcrest.Matcher;
 
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocumentParseException;
@@ -46,6 +47,35 @@ public class RestMatchers {
                     return true;
                 } else {
                     mismatchDescription.appendText("Status is not 200 OK: ").appendValue(item);
+                    return false;
+                }
+
+            }
+
+        };
+    }
+
+    public static DiagnosingMatcher<HttpResponse> isCreated() {
+        return new DiagnosingMatcher<HttpResponse>() {
+
+            @Override
+            public void describeTo(Description description) {
+                description.appendText("Response has status 201 Created");
+            }
+
+            @Override
+            protected boolean matches(Object item, Description mismatchDescription) {
+                if (!(item instanceof HttpResponse)) {
+                    mismatchDescription.appendValue(item).appendText(" is not a HttpResponse");
+                    return false;
+                }
+
+                HttpResponse response = (HttpResponse) item;
+
+                if (response.getStatusCode() == 201) {
+                    return true;
+                } else {
+                    mismatchDescription.appendText("Status is not 201 Created: ").appendValue(item);
                     return false;
                 }
 
@@ -112,6 +142,35 @@ public class RestMatchers {
         };
     }
 
+    public static DiagnosingMatcher<HttpResponse> isUnauthorized() {
+        return new DiagnosingMatcher<HttpResponse>() {
+
+            @Override
+            public void describeTo(Description description) {
+                description.appendText("Response has status 401 Unauthorized");
+            }
+
+            @Override
+            protected boolean matches(Object item, Description mismatchDescription) {
+                if (!(item instanceof HttpResponse)) {
+                    mismatchDescription.appendValue(item).appendText(" is not a HttpResponse");
+                    return false;
+                }
+
+                HttpResponse response = (HttpResponse) item;
+
+                if (response.getStatusCode() == 401) {
+                    return true;
+                } else {
+                    mismatchDescription.appendText("Status is not 401 Unauthorized: ").appendValue(item);
+                    return false;
+                }
+
+            }
+
+        };
+    }
+
     public static DiagnosingMatcher<HttpResponse> isBadRequest() {
         return new DiagnosingMatcher<HttpResponse>() {
 
@@ -133,6 +192,82 @@ public class RestMatchers {
                     return true;
                 } else {
                     mismatchDescription.appendText("Status is not 400 Bad Request: ").appendValue(item);
+                    return false;
+                }
+
+            }
+
+        };
+    }
+
+    public static DiagnosingMatcher<HttpResponse> isBadRequest(String jsonPath, String patternString) {
+        return new DiagnosingMatcher<HttpResponse>() {
+
+            @Override
+            public void describeTo(Description description) {
+                description.appendText("Response has status 400 Bad Request with the value ").appendValue(patternString).appendText(" at ")
+                        .appendValue(jsonPath);
+            }
+
+            @Override
+            protected boolean matches(Object item, Description mismatchDescription) {
+                if (!(item instanceof HttpResponse)) {
+                    mismatchDescription.appendValue(item).appendText(" is not a HttpResponse");
+                    return false;
+                }
+
+                HttpResponse response = (HttpResponse) item;
+
+                if (response.getStatusCode() != 400) {
+                    mismatchDescription.appendText("Status is not 400 Bad Request: ").appendText("\n").appendValue(item);
+                    return false;
+                }
+
+                try {
+                    String value = response.getBodyAsDocNode().findSingleValueByJsonPath(jsonPath, String.class);
+
+                    if (value == null) {
+                        mismatchDescription.appendText("Could not find value at " + jsonPath).appendText("\n").appendValue(item);
+                        return false;
+                    }
+
+                    Pattern pattern = Pattern.create(patternString);
+                    if (pattern.test(value)) {
+                        return true;
+                    } else {
+                        mismatchDescription.appendText("Value at " + jsonPath + " does not match ").appendValue(patternString).appendText("\n")
+                                .appendValue(item);
+                        return false;
+                    }
+                } catch (Exception e) {
+                    mismatchDescription.appendText("Parsing request body failed with " + e).appendText("\n").appendValue(item);
+                    return false;
+                }
+            }
+        };
+    }
+
+    public static DiagnosingMatcher<HttpResponse> isInternalServerError() {
+        return new DiagnosingMatcher<HttpResponse>() {
+
+            @Override
+            public void describeTo(Description description) {
+                description.appendText("Response has status 500 Internal Server Error");
+            }
+
+            @Override
+            protected boolean matches(Object item, Description mismatchDescription) {
+                if (!(item instanceof HttpResponse)) {
+                    mismatchDescription.appendValue(item).appendText(" is not a HttpResponse");
+                    return false;
+                }
+
+                HttpResponse response = (HttpResponse) item;
+
+                if (response.getStatusCode() == 500) {
+                    return true;
+                } else {
+                    mismatchDescription.appendText("Status is not 500 Internal Server Error: ").appendValue(item);
                     return false;
                 }
 
@@ -278,7 +413,7 @@ public class RestMatchers {
                 } else {
                     String valueString = value.toString();
 
-                    if (valueString.length() < 20) {
+                    if (valueString.length() < 80) {
                         mismatchDescription.appendText("at " + jsonPath + ": ").appendValue(valueString).appendText("\n");
                     } else {
                         mismatchDescription.appendText("at " + jsonPath + ": ").appendText("\n");
@@ -393,7 +528,7 @@ public class RestMatchers {
 
         return matchesDocCount(indexNameMap);
     }
-    
+
     public static DiagnosingMatcher<Object> matchesDocCount(Map<String, TestIndex> indexNameMap) {
 
         Set<String> pendingIndices = new HashSet<>(indexNameMap.keySet());

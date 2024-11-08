@@ -49,7 +49,7 @@ public class AuditlogIntegrationTest {
     static final TestSgConfig.User AUDIT_IGNORED_USER = new TestSgConfig.User("audit_ignored_user")
             .roles(new TestSgConfig.Role("all_access").indexPermissions("*").on("*").clusterPermissions("*"));
     static final TestSgConfig.User USER = new TestSgConfig.User("user")
-            .roles(new TestSgConfig.Role("all_access").indexPermissions("*").on("*").clusterPermissions("*"));
+            .roles(new TestSgConfig.Role("all_access").indexPermissions("*").on("*").aliasPermissions("*").on("*").clusterPermissions("*"));
 
     static TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(
             new TestSgConfig.Authc.Domain("basic/internal_users_db")

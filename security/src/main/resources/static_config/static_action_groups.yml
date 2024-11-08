@@ -65,6 +65,14 @@ SGS_CREATE_INDEX:
   - "indices:admin/auto_create"
   type: "index"
   description: "Allow creating new indices"
+SGS_CREATE_DATA_STREAM:
+  reserved: true
+  hidden: false
+  allowed_actions:
+  - SGS_CREATE_INDEX
+  - "indices:admin/data_stream/create"
+  type: "index"
+  description: "Allow creating new data streams"  
 SGS_WRITE:
   reserved: true
   hidden: false
@@ -199,6 +207,7 @@ SGS_INDICES_MONITOR:
   static: true
   allowed_actions:
   - "indices:monitor/*"
+  - "indices:admin/data_stream/get"
   type: "index"
   description: "Allow monitoring indices"
 SGS_SUGGEST:
@@ -272,6 +281,28 @@ SGS_PERSONAL_SESSIONS:
     - "cluster:admin:searchguard:session/create"
   type: "cluster"
   description: "Actions necessary for logging in and out of sessions for Kibana"
+  
+  
+### Data streams
+
+SGS_MANAGE_DATA_STREAMS:
+  reserved: true
+  hidden: false
+  allowed_actions:
+    - "indices:admin/data_stream/*"
+    - "indices:monitor/data_stream/*"
+  type: "index"
+  description: "Permissions for creating and maintaining data streams"
+  
+SGS_MONITOR_DATA_STREAMS:
+  reserved: true
+  hidden: false
+  allowed_actions:
+    - "indices:admin/data_stream/get"
+    - "indices:monitor/data_stream/*"
+  type: "index"
+  description: "Permissions for monitoring data streams"
+  
   
 ### Auth Tokens
 

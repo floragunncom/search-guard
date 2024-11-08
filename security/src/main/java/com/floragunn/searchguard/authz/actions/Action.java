@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 floragunn GmbH
+ * Copyright 2022-2024 floragunn GmbH
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,18 +34,22 @@ import org.elasticsearch.action.ActionResponse;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authz.ActionAuthorization.AliasDataStreamHandling;
+import com.floragunn.searchsupport.meta.Meta;
 
 public interface Action {
 
     String name();
 
-    boolean isIndexPrivilege();
+    boolean isIndexLikePrivilege();
 
     boolean isClusterPrivilege();
 
     boolean isTenantPrivilege();
 
     boolean isOpen();
+
+    Scope scope();
 
     ImmutableSet<Action> getAdditionalPrivileges(ActionRequest request);
 
@@ -56,20 +60,43 @@ public interface Action {
 
     boolean requiresSpecialProcessing();
 
-    default <RequestType extends ActionRequest> WellKnownAction<RequestType, ?, ?> wellKnown(RequestType request) {
-        if (this instanceof WellKnownAction) {
-            @SuppressWarnings("unchecked")
-            WellKnownAction<RequestType, ?, ?> result = (WellKnownAction<RequestType, ?, ?>) this;
-            result.cast(request);
-            return result;
-        } else {
-            return null;
+    Meta.Alias.ResolutionMode aliasResolutionMode();
+
+    AliasDataStreamHandling aliasDataStreamHandling();
+
+    ImmutableSet<AdditionalDimension> additionalDimensions();
+
+    /**
+     * If this action is well known, this method casts this object to WellKnownAction<RequestType, ?, ?>, matching the given request object. 
+     * If this action is not well known, this method returns null.
+     */
+    <RequestType extends ActionRequest> WellKnownAction<RequestType, ?, ?> wellKnown(RequestType request);
+
+    enum Scope {
+        INDEX_LIKE(true, true, true, false), INDEX(true, false, false, false), ALIAS(false, true, false, false),
+        DATA_STREAM(false, false, true, false), CLUSTER(false, false, false, false), TENANT(false, false, false, true),
+        OPEN(false, false, false, false);
+
+        public final boolean canReferToIndices;
+        public final boolean canReferToAliases;
+        public final boolean canReferToDataStreams;
+        public final boolean canReferToTenants;
+        public final boolean canReferToIndexLikeObjects;
+        public final boolean canOnlyReferToAliases;
+
+        private Scope(boolean canReferToIndices, boolean canReferToAliases, boolean canReferToDataStreams, boolean canReferToTenants) {
+            this.canReferToIndices = canReferToIndices;
+            this.canReferToAliases = canReferToAliases;
+            this.canReferToDataStreams = canReferToDataStreams;
+            this.canReferToTenants = canReferToTenants;
+            this.canReferToIndexLikeObjects = canReferToIndices || canReferToAliases || canReferToDataStreams;
+            this.canOnlyReferToAliases = canReferToAliases && !canReferToDataStreams && !canReferToIndices;
         }
     }
 
     public static class WellKnownAction<RequestType extends ActionRequest, RequestItem, RequestItemType> implements Action {
         private final String actionName;
-        private final Actions.Scope scope;
+        private final Scope scope;
         private final Class<RequestType> requestType;
         private final String requestTypeName;
         private final ImmutableList<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges;
@@ -78,11 +105,17 @@ public interface Action {
         private final ImmutableSet<Action> asImmutableSet;
         private final Actions actions;
         private final int hashCode;
+        private final AliasDataStreamHandling aliasDataStreamHandling;
+        private final Meta.Alias.ResolutionMode aliasResolutionMode;
+        private final ImmutableSet<AdditionalDimension> additionalDimensions;
+        private final boolean performanceCritical;
 
-        public WellKnownAction(String actionName, Actions.Scope scope, Class<RequestType> requestType, String requestTypeName,
-                               ImmutableList<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges,
-                               ImmutableMap<RequestItemType, ImmutableSet<String>> additionalPrivilegesByItemType,
-                               RequestItems<RequestType, RequestItem, RequestItemType> requestItems, Resources resources, Actions actions) {
+        public WellKnownAction(String actionName, Scope scope, Class<RequestType> requestType, String requestTypeName,
+                ImmutableList<AdditionalPrivileges<RequestType, RequestItem>> additionalPrivileges,
+                ImmutableMap<RequestItemType, ImmutableSet<String>> additionalPrivilegesByItemType,
+                RequestItems<RequestType, RequestItem, RequestItemType> requestItems, Resources resources,
+                AliasDataStreamHandling aliasDataStreamHandling, Meta.Alias.ResolutionMode aliasResolutionMode,
+                ImmutableSet<AdditionalDimension> additionalDimensions, boolean performanceCritical, Actions actions) {
             this.actionName = actionName;
             this.scope = scope;
             this.requestType = requestType;
@@ -93,6 +126,10 @@ public interface Action {
             this.actions = actions;
             this.asImmutableSet = ImmutableSet.of(this);
             this.hashCode = actionName.hashCode();
+            this.aliasDataStreamHandling = aliasDataStreamHandling;
+            this.aliasResolutionMode = aliasResolutionMode;
+            this.additionalDimensions = additionalDimensions;
+            this.performanceCritical = performanceCritical;
         }
 
         @Override
@@ -124,23 +161,23 @@ public interface Action {
         }
 
         @Override
-        public boolean isIndexPrivilege() {
-            return scope == Actions.Scope.INDEX;
+        public boolean isIndexLikePrivilege() {
+            return scope.canReferToIndexLikeObjects;
         }
 
         @Override
         public boolean isClusterPrivilege() {
-            return scope == Actions.Scope.CLUSTER;
+            return scope == Scope.CLUSTER;
         }
 
         @Override
         public boolean isTenantPrivilege() {
-            return scope == Actions.Scope.TENANT;
+            return scope == Scope.TENANT;
         }
 
         @Override
         public boolean isOpen() {
-            return scope == Actions.Scope.OPEN;
+            return scope == Scope.OPEN;
         }
 
         @Override
@@ -319,7 +356,7 @@ public interface Action {
             public Resource(String type, Function<ActionRequest, Object> id) {
                 this(type, id, false, null);
             }
-            
+
             public Resource(String type, Function<ActionRequest, Object> id, boolean deleteAction, String ownerCheckBypassPermission) {
                 this.type = type;
                 this.id = id;
@@ -338,11 +375,11 @@ public interface Action {
             public boolean isDeleteAction() {
                 return deleteAction;
             }
-            
+
             public Resource deleteAction(boolean deleteAction) {
                 return new Resource(this.type, this.id, deleteAction, this.ownerCheckBypassPermission);
             }
-            
+
             public Resource ownerCheckBypassPermission(String permission) {
                 return new Resource(this.type, this.id, this.deleteAction, permission);
             }
@@ -422,13 +459,44 @@ public interface Action {
             return requestTypeName;
         }
 
+        @Override
+        public AliasDataStreamHandling aliasDataStreamHandling() {
+            return aliasDataStreamHandling;
+        }
+
+        @Override
+        public Meta.Alias.ResolutionMode aliasResolutionMode() {
+            return this.aliasResolutionMode;
+        }
+
+        @Override
+        public Scope scope() {
+            return this.scope;
+        }
+
+        @Override
+        public <R extends ActionRequest> WellKnownAction<R, ?, ?> wellKnown(R request) {
+            @SuppressWarnings("unchecked")
+            WellKnownAction<R, ?, ?> result = (WellKnownAction<R, ?, ?>) this;
+            result.cast(request);
+            return result;
+        }
+
+        @Override
+        public ImmutableSet<AdditionalDimension> additionalDimensions() {
+            return additionalDimensions;
+        }
+
+        public boolean isPerformanceCritical() {
+            return performanceCritical;
+        }
     }
 
     public static class OtherAction implements Action {
         private final String actionName;
-        private final Actions.Scope scope;
+        private final Scope scope;
 
-        public OtherAction(String actionName, Actions.Scope scope) {
+        public OtherAction(String actionName, Scope scope) {
             this.actionName = actionName;
             this.scope = scope;
         }
@@ -438,28 +506,29 @@ public interface Action {
             return actionName;
         }
 
-        public Actions.Scope getScope() {
+        public Scope getScope() {
             return scope;
         }
 
         @Override
-        public boolean isIndexPrivilege() {
-            return scope == Actions.Scope.INDEX;
+
+        public boolean isIndexLikePrivilege() {
+            return scope.canReferToIndexLikeObjects;
         }
 
         @Override
         public boolean isClusterPrivilege() {
-            return scope == Actions.Scope.CLUSTER;
+            return scope == Scope.CLUSTER;
         }
 
         @Override
         public boolean isTenantPrivilege() {
-            return scope == Actions.Scope.TENANT;
+            return scope == Scope.TENANT;
         }
 
         @Override
         public boolean isOpen() {
-            return scope == Actions.Scope.OPEN;
+            return scope == Scope.OPEN;
         }
 
         @Override
@@ -500,5 +569,93 @@ public interface Action {
 
             return actionName.equals(otherAction.actionName);
         }
+
+        @Override
+        public AliasDataStreamHandling aliasDataStreamHandling() {
+            return AliasDataStreamHandling.RESOLVE_IF_NECESSARY;
+        }
+
+        @Override
+        public Meta.Alias.ResolutionMode aliasResolutionMode() {
+            return Meta.Alias.ResolutionMode.NORMAL;
+        }
+
+        @Override
+        public Scope scope() {
+            return this.scope;
+        }
+
+        @Override
+        public <RequestType extends ActionRequest> WellKnownAction<RequestType, ?, ?> wellKnown(RequestType request) {
+            return null;
+        }
+
+        @Override
+        public ImmutableSet<AdditionalDimension> additionalDimensions() {
+            return ImmutableSet.empty();
+        }
     }
+
+    public static class AdditionalDimension {
+        public static final AdditionalDimension ALIASES = new AdditionalDimension("aliases", Scope.ALIAS);
+        public static final AdditionalDimension RESIZE_TARGET = new AdditionalDimension("resize_target", Scope.INDEX,
+                ImmutableSet.ofArray("indices:admin/create"));
+        public static final AdditionalDimension DOWNSAMPLE_TARGET = new AdditionalDimension("downsample_target", Scope.INDEX,
+                ImmutableSet.ofArray("indices:admin/create"));
+        public static final AdditionalDimension MANAGE_ALIASES = new AdditionalDimension("manage_aliases", Scope.ALIAS,
+                ImmutableSet.ofArray("indices:admin/aliases"));
+        public static final AdditionalDimension DELETE_INDEX = new AdditionalDimension("delete_index", Scope.INDEX_LIKE,
+                ImmutableSet.ofArray("indices:admin/delete"));
+
+        private final String id;
+        private final ImmutableSet<String> requiredPrivileges;
+        private final Scope scope;
+
+        public AdditionalDimension(String id, Scope scope) {
+            this.id = id;
+            this.scope = scope;
+            this.requiredPrivileges = null;
+        }
+
+        public AdditionalDimension(String id, Scope scope, ImmutableSet<String> requiredPrivileges) {
+            this.id = id;
+            this.scope = scope;
+            this.requiredPrivileges = requiredPrivileges;
+        }
+
+        public ImmutableSet<Action> getRequiredPrivileges(ImmutableSet<Action> original, Actions actions) {
+            if (this.requiredPrivileges == null) {
+                return original;
+            } else {
+                return this.requiredPrivileges.map(a -> actions.get(a));
+            }
+        }
+
+        @Override
+        public int hashCode() {
+            return id.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof AdditionalDimension)) {
+                return false;
+            }
+            return (((AdditionalDimension) other).id.equals(this.id));
+        }
+
+        @Override
+        public String toString() {
+            return id;
+        }
+
+        public Scope scope() {
+            return scope;
+        }
+
+    }
+
 }

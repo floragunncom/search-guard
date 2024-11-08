@@ -117,14 +117,17 @@ public interface EsClientProvider {
                 getRequestInfoConsumer());
     }
 
+    @Deprecated
     default RestHighLevelClient getRestHighLevelClient(UserCredentialsHolder user) {
         return getRestHighLevelClient(user.getName(), user.getPassword());
     }
 
+    @Deprecated
     default RestHighLevelClient getRestHighLevelClient(String user, String password) {
         return getRestHighLevelClient(user, password, null);
     }
 
+    @Deprecated
     default RestHighLevelClient getRestHighLevelClient(String user, String password, String tenant) {
         InetSocketAddress httpAddress = getHttpAddress();
         CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
@@ -147,6 +150,7 @@ public interface EsClientProvider {
         return new RestHighLevelClient(builder);
     }
 
+    @Deprecated
     default RestHighLevelClient getRestHighLevelClient(Header... headers) {
         InetSocketAddress httpAddress = getHttpAddress();
         RestClientBuilder builder = RestClient.builder(new HttpHost(httpAddress.getHostString(), httpAddress.getPort(), "https"))

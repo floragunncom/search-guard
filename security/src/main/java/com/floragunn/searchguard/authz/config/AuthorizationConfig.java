@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 floragunn GmbH
+ * Copyright 2022-2024 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@
 package com.floragunn.searchguard.authz.config;
 
 import org.elasticsearch.action.admin.indices.analyze.AnalyzeAction;
+import org.elasticsearch.action.admin.indices.open.OpenIndexAction;
+import org.elasticsearch.index.reindex.DeleteByQueryAction;
 
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.DocNode;
@@ -40,12 +42,13 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
             "indices:admin/mappings/fields/get", "indices:admin/shards/search_shards", "indices:admin/search/search_shards", "indices:admin/resolve/index", "indices:admin/delete",
             "indices:admin/mapping/put", "indices:admin/settings/update", "indices:monitor/settings/get", "indices:monitor/stats",
             "indices:admin/upgrade", "indices:admin/refresh", "indices:admin/synced_flush", "indices:admin/aliases/get",
-            "indices:admin/data_stream/get", "indices:admin/get", AnalyzeAction.NAME, "indices:admin/resolve/cluster");
+            "indices:admin/data_stream/get", "indices:admin/data_stream/delete", "indices:monitor/data_stream/stats", "indices:admin/get",
+            AnalyzeAction.NAME, "indices:admin/close", OpenIndexAction.NAME, DeleteByQueryAction.NAME, "indices:admin/data_stream/get", "indices:admin/resolve/cluster");
 
     static final Pattern DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT = Pattern.createUnchecked("indices:data/read/*",
             "indices:admin/mappings/fields/get", "indices:admin/shards/search_shards", "indices:admin/search/search_shards", "indices:admin/resolve/index", "indices:monitor/settings/get",
             "indices:monitor/stats", "indices:admin/refresh", "indices:admin/synced_flush", "indices:admin/aliases/get",
-            "indices:admin/data_stream/get", "indices:admin/get", "indices:admin/resolve/cluster");
+            "indices:admin/data_stream/get", "indices:monitor/data_stream/stats", "indices:admin/get", "indices:admin/data_stream/get", "indices:admin/resolve/cluster");
 
     public static final AuthorizationConfig DEFAULT = new AuthorizationConfig(DocNode.EMPTY, true, DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS,
             DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT, null, RoleMapping.ResolutionMode.MAPPING_ONLY, false,
@@ -94,6 +97,8 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
                 .withDefault(RoleMapping.ResolutionMode.MAPPING_ONLY).asEnum(RoleMapping.ResolutionMode.class);
         boolean debugEnabled = vNode.get("debug").withDefault(false).asBoolean();
         MetricsLevel metricsLevel = vNode.get("metrics").withDefault(MetricsLevel.BASIC).asEnum(MetricsLevel.class);
+
+        vNode.checkForUnusedAttributes();
 
         if (!validationErrors.hasErrors()) {
             return new ValidationResult<AuthorizationConfig>(new AuthorizationConfig(docNode, ignoreUnauthorizedIndices,

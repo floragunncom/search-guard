@@ -299,17 +299,17 @@ public class CrossClusterSearchTests extends AbstractSGUnitTest{
         ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:remotealias,coordalias/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("worf","worf"));
         //System.out.println(ccs.getBody());
         Assert.assertEquals(HttpStatus.SC_FORBIDDEN, ccs.getStatusCode());
-        
-        ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:remotealias/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("twitter","nagilum"));
+
+        ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:remotealias/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips + "&ignore_unavailable=true", encodeBasicHeader("twitter","nagilum"));
         //System.out.println(ccs.getBody());
         Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
-        
-        ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("coordalias/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("twitter","nagilum"));
+
+        ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("coordalias/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips + "&ignore_unavailable=true", encodeBasicHeader("twitter","nagilum"));
         //System.out.println(ccs.getBody());
         Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
         
         //System.out.println("#### Alias both");
-        ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:remotealias,coordalias/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips, encodeBasicHeader("twitter","nagilum"));
+        ccs = new RestHelper(cl1Info, false, false, getResourceFolder()).executeGetRequest("cross_cluster_two:remotealias,coordalias/_search?pretty&ccs_minimize_roundtrips="+ccsMinimizeRoundtrips + "&ignore_unavailable=true", encodeBasicHeader("twitter","nagilum"));
         //System.out.println(ccs.getBody());
         Assert.assertEquals(HttpStatus.SC_OK, ccs.getStatusCode());
         

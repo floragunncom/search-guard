@@ -48,7 +48,6 @@ import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.AuthorizationService;
-import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
@@ -98,11 +97,15 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     
                     Set<String> sgRoles = ImmutableSet.empty();
 
-                    if(user != null && !adminDNs.isAdmin(user)) {
-                        try {
-                            sgRoles = authorizationService.getMappedRoles(user, remoteAddress);
-                        } catch (Exception e) {
-                            log.warn("Error while evaluating roles for user " + user, e);
+                    boolean adminUser = false;
+                    if(user != null) {
+                         adminUser = adminDNs.isAdmin(user);
+                        if (!adminUser) {
+                            try {
+                                sgRoles = authorizationService.getMappedRoles(user, remoteAddress);
+                            } catch (Exception e) {
+                                log.warn("Error while evaluating roles for user " + user, e);
+                            }
                         }
                     }
                     
@@ -115,7 +118,7 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     builder.field("custom_attribute_names", user==null?null:user.getCustomAttributesMap().keySet());
                     builder.field("attribute_names", user==null?null:user.getStructuredAttributes().keySet());
                     builder.field("sg_roles", sgRoles);
-                    builder.field("sg_tenants", user==null?null:tenantAccessMapper.mapTenantsAccess(user, sgRoles));
+                    builder.field("sg_tenants", user==null?null:tenantAccessMapper.mapTenantsAccess(user, adminUser, sgRoles));
                     builder.field("principal", (String)threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL));
                     builder.field("peer_certificates", certs != null && certs.length > 0 ? certs.length + "" : "0");
                     
