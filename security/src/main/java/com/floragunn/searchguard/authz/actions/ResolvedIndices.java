@@ -42,7 +42,6 @@ import com.floragunn.searchsupport.queries.WildcardExpressionResolver;
 
 public class ResolvedIndices {
 
-    final static ResolvedIndices LOCAL_ALL = new ResolvedIndices(true, ResolvedIndices.Local.EMPTY, ImmutableSet.empty(), ImmutableSet.empty());
     final static ResolvedIndices EMPTY = new ResolvedIndices(false, ResolvedIndices.Local.EMPTY, ImmutableSet.empty(), ImmutableSet.empty());
 
     private final static Logger log = LogManager.getLogger(ResolvedIndices.class);
@@ -286,7 +285,7 @@ public class ResolvedIndices {
 
             if (result == null) {
                 result = Meta.IndexLikeObject.resolveDeepToNames(aliases, Meta.Alias.ResolutionMode.NORMAL)
-                        .with(Meta.IndexLikeObject.resolveDeepToNames(aliases, Meta.Alias.ResolutionMode.NORMAL))
+                        .with(Meta.IndexLikeObject.resolveDeepToNames(dataStreams, Meta.Alias.ResolutionMode.NORMAL))
                         .with(this.union.map(Meta.IndexLikeObject::name));
                 this.deepUnion = result;
             }

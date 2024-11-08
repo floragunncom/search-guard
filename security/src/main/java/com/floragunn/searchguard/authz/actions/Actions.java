@@ -120,7 +120,8 @@ public class Actions {
         indexLike("indices:data/read/mget[shard]").performanceCritical();
 
         indexLike("indices:data/read/open_point_in_time").performanceCritical();
-        
+        cluster("indices:data/read/close_point_in_time");
+
         cluster("indices:data/read/mget");
         cluster("indices:data/write/bulk");
         cluster("indices:data/read/scroll");
