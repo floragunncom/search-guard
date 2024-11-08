@@ -48,6 +48,7 @@ import com.floragunn.codova.validation.errors.ValidationError;
 public final class SearchGuardLicense implements Writeable, Document<SearchGuardLicense> {
 
     private static final DateTimeFormatter DEFAULT_FOMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd").withLocale(Locale.ENGLISH);
+    private static final int MAX_ALLOWED_DAYS_BEFORE_START_DAY = 30;
 
     private String uid;
     private Type type;
@@ -182,12 +183,7 @@ public final class SearchGuardLicense implements Writeable, Document<SearchGuard
         }
 
         try {
-            final LocalDate isd = parseDate(issueDate);
-
-            if (isd.isAfter(today)) {
-                validationErrors.add(new ValidationError(null, "License not valid yet."));
-            }
-
+            parseDate(issueDate);
         } catch (Exception e) {
             e.printStackTrace();
             validationErrors.add(new InvalidAttributeValue("issued_date", issueDate, null).cause(e));
@@ -223,7 +219,11 @@ public final class SearchGuardLicense implements Writeable, Document<SearchGuard
         }
 
         try {
-            parseDate(startDate);
+            LocalDate parsedStartDate = parseDate(startDate);
+            final LocalDate earliestAllowedStartDate = parsedStartDate.minusDays(MAX_ALLOWED_DAYS_BEFORE_START_DAY);
+            if (today.isBefore(earliestAllowedStartDate)) {
+                validationErrors.add(new ValidationError("start_date", "License cannot be applied earlier than " + DEFAULT_FOMATTER.format(earliestAllowedStartDate), startDate));
+            }
         } catch (Exception e) {
             e.printStackTrace();
             validationErrors.add(new InvalidAttributeValue("start_date", startDate, null).cause(e));
