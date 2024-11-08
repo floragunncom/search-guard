@@ -38,12 +38,12 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 	// start dates
 	protected LocalDate expiredStartDate = LocalDate.of(2016, Month.JANUARY, 31);
 	protected LocalDate validStartDate = LocalDate.of(2017, Month.JANUARY, 31);
-	protected LocalDate notStartedStartDate = LocalDate.of(2116, Month.JANUARY, 31);
+	protected LocalDate notStartedStartDate = LocalDate.of(2024, Month.NOVEMBER, 8);
 
 	// expiry dates
 	protected LocalDate expiredExpiryDate = LocalDate.of(2017, Month.JANUARY, 31);
 	protected LocalDate validExpiryDate = validStartDate.plusYears(100);
-	protected LocalDate notStartedExpiryDate = notStartedStartDate.plusYears(1);
+	protected LocalDate notStartedExpiryDate = notStartedStartDate.plusYears(10);
 	protected LocalDate trialExpiryDate = LocalDate.now().plusDays(91);
 
 	@Test
@@ -81,13 +81,13 @@ public class LicenseTest extends AbstractRestApiUnitTest {
 		Assert.assertEquals("License invalid due to: Only 1 node(s) allowed but you run 3 node(s)", result.get("message"));
 		
 		// license not started - deemed valid, we don't issue licenses in advance
-		uploadAndCheckValidLicense("full_not_started.txt");
-		checkCurrentLicenseProperties(SearchGuardLicense.Type.FULL, Boolean.TRUE, "unlimited", notStartedStartDate, notStartedExpiryDate);
+		uploadAndCheckValidLicense("academic_not_started_search_guard_CI_CD_be_used_ONLY_for_internal_automated_tests_82B4F83A-486B-4D4C-A0DA-B2B7BD356B53.txt");
+		checkCurrentLicenseProperties(SearchGuardLicense.Type.ACADEMIC, Boolean.TRUE, "unlimited", notStartedStartDate, notStartedExpiryDate);
 
 		// license expired
 		result = uploadAndCheckInvalidLicense("sme_expired.txt", HttpStatus.SC_BAD_REQUEST);
 		// Make sure license was rejected and old values are still in place
-		checkCurrentLicenseProperties(SearchGuardLicense.Type.FULL, Boolean.TRUE, "unlimited", notStartedStartDate, notStartedExpiryDate);
+		checkCurrentLicenseProperties(SearchGuardLicense.Type.ACADEMIC, Boolean.TRUE, "unlimited", notStartedStartDate, notStartedExpiryDate);
 		Assert.assertTrue(result.get("message").contains("License is expired"));
 		Assert.assertTrue(result.get("message").contains("Only 1 node(s) allowed"));
 		
