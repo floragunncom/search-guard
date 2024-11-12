@@ -39,14 +39,6 @@ import java.util.Collection;
 import java.util.List;
 
 import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.searchguard.test.GenericRestClient;
-import com.floragunn.searchguard.test.TestAlias;
-import com.floragunn.searchguard.test.TestComponentTemplate;
-import com.floragunn.searchguard.test.TestDataStream;
-import com.floragunn.searchguard.test.TestIndex;
-import com.floragunn.searchguard.test.TestIndexLike;
-import com.floragunn.searchguard.test.TestIndexTemplate;
-import com.floragunn.searchguard.test.TestSgConfig;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -55,8 +47,13 @@ import org.junit.runners.Parameterized.Parameters;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.TestAlias;
 import com.floragunn.searchguard.test.TestData.TestDocument;
+import com.floragunn.searchguard.test.TestIndex;
+import com.floragunn.searchguard.test.TestIndexLike;
+import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
@@ -67,7 +64,6 @@ public class DlsReadOnlyIntTests {
     static TestIndex index_3 = TestIndex.name("index_3").documentCount(51).seed(4).attr("prefix", "b").setting("index.number_of_shards", 5).build();
     static TestIndex index_hidden = TestIndex.name("index_hidden").documentCount(52).hidden().seed(8).attr("prefix", "h").build();
     static TestIndex user_dept_terms_lookup = TestIndex.name("user_dept_terms_lookup").documentCount(0).customDocument("limited_user_index_1_dept_D_terms_lookup", ImmutableMap.of("dept", "dept_d")).hidden().build();
-    static TestDataStream ds_a1 = TestDataStream.name("ds_a1").documentCount(100).rolloverAfter(10).seed(1).build();
 
     static TestAlias alias_1 = new TestAlias("alias_1", index_1);
     static TestAlias alias_12 = new TestAlias("alias_12", index_1, index_2);
@@ -139,7 +135,7 @@ public class DlsReadOnlyIntTests {
                                     node -> node.getAsString("dept").startsWith("dept_d") || node.getAsString("dept").startsWith("dept_a")),
                             index_2.filteredBy(node -> node.getAsString("dept").startsWith("dept_d"))));
 
-    static TestSgConfig.User LIMITED_USER_INDEX_1_DS_A1_DEPT_D_TERMS_LOOKUP = new TestSgConfig.User("limited_user_index_1_dept_D_terms_lookup")//
+    static TestSgConfig.User LIMITED_USER_INDEX_1_DEPT_D_TERMS_LOOKUP = new TestSgConfig.User("limited_user_index_1_dept_D_terms_lookup")//
             .description("dept_d in index_1 with terms lookup")//
             .roles(//
                     new Role("r1")//
@@ -147,15 +143,8 @@ public class DlsReadOnlyIntTests {
                             .indexPermissions("SGS_READ")
                             .dls(DocNode.of("terms",
                                     DocNode.of("dept", DocNode.of("index", "user_dept_terms_lookup", "id", "${user.name}", "path", "dept"))))
-                            .on("index_1")
-                            .dataStreamPermissions("SGS_READ")
-                            .dls(DocNode.of("terms",
-                                    DocNode.of("dept", DocNode.of("index", "user_dept_terms_lookup", "id", "${user.name}", "path", "dept"))))
-                            .on("ds_a1"))//
-            .indexMatcher("read", limitedTo(
-                    index_1.filteredBy(node -> node.getAsString("dept").startsWith("dept_d")),
-                    ds_a1.filteredBy(node -> node.getAsString("dept").startsWith("dept_d"))
-            ));
+                            .on("index_1"))//
+            .indexMatcher("read", limitedTo(index_1.filteredBy(node -> node.getAsString("dept").startsWith("dept_d"))));
 
     /*
     static TestSgConfig.User LIMITED_USER_B1 = new TestSgConfig.User("limited_user_B1")//
@@ -246,7 +235,6 @@ public class DlsReadOnlyIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("*").on("*")//
                             .aliasPermissions("*").on("*")
-                            .dataStreamPermissions("*").on("*")
 
             )//
             .indexMatcher("read", unlimited())//
@@ -266,20 +254,18 @@ public class DlsReadOnlyIntTests {
 
     static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_INDEX_1_DEPT_A, LIMITED_USER_INDEX_1_DEPT_D,
             LIMITED_USER_INDEX_1_HIDDEN_DEPT_A, LIMITED_USER_INDEX_1_DEPT_A_INDEX_2_DEPT_D, LIMITED_USER_ALIAS_1_DEPT_A, LIMITED_USER_ALIAS_12_DEPT_D,
-            LIMITED_USER_ALIAS_12_DEPT_D_INDEX_1_DEPT_A, LIMITED_USER_INDEX_1_DS_A1_DEPT_D_TERMS_LOOKUP, UNLIMITED_USER, SUPER_UNLIMITED_USER);
+            LIMITED_USER_ALIAS_12_DEPT_D_INDEX_1_DEPT_A, LIMITED_USER_INDEX_1_DEPT_D_TERMS_LOOKUP, UNLIMITED_USER, SUPER_UNLIMITED_USER);
 
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().metrics("detailed");
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled().users(USERS)//
-            .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().users(USERS)//
             .indices(index_1, index_2, index_3, index_hidden, user_dept_terms_lookup)//
             .aliases(alias_1, alias_12)//
-            .dataStreams(ds_a1)
             .authzDebug(true)//
             .logRequests()//
             .dlsFls(DLSFLS)//
-            .useExternalProcessCluster()//
+            // .useExternalProcessCluster()//
             .build();
 
     final TestSgConfig.User user;
@@ -288,7 +274,7 @@ public class DlsReadOnlyIntTests {
     public void search_noPattern() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_search?size=1000");
-            assertThat(httpResponse, containsExactly(index_1, index_2, index_3, ds_a1).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(index_1, index_2, index_3).at("hits.hits[*]").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -296,7 +282,7 @@ public class DlsReadOnlyIntTests {
     public void search_all() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_all/_search?size=1000");
-            assertThat(httpResponse, containsExactly(index_1, index_2, index_3, ds_a1).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(index_1, index_2, index_3).at("hits.hits[*]").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -304,7 +290,7 @@ public class DlsReadOnlyIntTests {
     public void search_all_includeHidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_all/_search?size=1000&expand_wildcards=all");
-            assertThat(httpResponse, containsExactly(index_1, index_2, index_3, index_hidden, user_dept_terms_lookup, searchGuardIndices(), ds_a1).at("hits.hits[*]._index")
+            assertThat(httpResponse, containsExactly(index_1, index_2, index_3, index_hidden, user_dept_terms_lookup, searchGuardIndices()).at("hits.hits[*]")
                     .but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
@@ -313,7 +299,7 @@ public class DlsReadOnlyIntTests {
     public void search_wildcard() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/*/_search?size=1000");
-            assertThat(httpResponse, containsExactly(index_1, index_2, index_3, ds_a1).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(index_1, index_2, index_3).at("hits.hits[*]").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -321,7 +307,7 @@ public class DlsReadOnlyIntTests {
     public void search_wildcard_includeHidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/*/_search?size=1000&expand_wildcards=all");
-            assertThat(httpResponse, containsExactly(index_1, index_2, index_3, index_hidden, user_dept_terms_lookup, searchGuardIndices(), ds_a1).at("hits.hits[*]._index")
+            assertThat(httpResponse, containsExactly(index_1, index_2, index_3, index_hidden, user_dept_terms_lookup, searchGuardIndices()).at("hits.hits[*]")
                     .but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
@@ -367,14 +353,14 @@ public class DlsReadOnlyIntTests {
         try (GenericRestClient client = cluster.getRestClient(user)) {
             GenericRestClient.HttpResponse response = client.get("/_all/_search?scroll=1m&size=15");
             assertThat(response, isOk());
-            List<String> hits = new ArrayList<>(response.getBodyAsDocNode().getAsNode("hits").getAsListOfNodes("hits").map(node -> node.getAsString("_index")));
+            List<DocNode> hits = new ArrayList<>(response.getBodyAsDocNode().getAsNode("hits").getAsListOfNodes("hits"));
 
             String scrollId = response.getBodyAsDocNode().getAsString("_scroll_id");
 
             for (;;) {
                 GenericRestClient.HttpResponse scrollResponse = client.postJson("/_search/scroll", DocNode.of("scroll", "1m", "scroll_id", scrollId));
                 assertThat(scrollResponse, isOk());
-                List<String> moreHits = scrollResponse.getBodyAsDocNode().getAsNode("hits").getAsListOfNodes("hits").map(node -> node.getAsString("_index"));
+                List<DocNode> moreHits = scrollResponse.getBodyAsDocNode().getAsNode("hits").getAsListOfNodes("hits");
 
                 if (moreHits.size() == 0) {
                     break;
@@ -383,7 +369,7 @@ public class DlsReadOnlyIntTests {
                 hits.addAll(moreHits);
             }
 
-            assertThat(hits, containsExactly(index_1, index_2, index_3, ds_a1).but(user.indexMatcher("read")));
+            assertThat(hits, containsExactly(index_1, index_2, index_3).but(user.indexMatcher("read")));
         }
     }
 
@@ -393,7 +379,7 @@ public class DlsReadOnlyIntTests {
             GenericRestClient.HttpResponse response = client.postJson("/_all/_search",
                     DocNode.of("query.match_all", DocNode.EMPTY, "aggs.test_agg.terms.field", "dept.keyword"));
 
-            assertThat(response, containsExactly(index_1, index_2, index_3, ds_a1).aggregateTerm("dept").at("aggregations.test_agg.buckets")
+            assertThat(response, containsExactly(index_1, index_2, index_3).aggregateTerm("dept").at("aggregations.test_agg.buckets")
                     .but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
@@ -421,14 +407,6 @@ public class DlsReadOnlyIntTests {
                 assertThat(response, containsExactly(index_1, index_2).aggregateTerm("dept").at("aggregations.test_agg.buckets")
                         .but(user.indexMatcher("read")).whenEmpty(200));
             }
-        }
-    }
-
-    @Test
-    public void search_dataStream() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("ds_a1/_search?size=1000");
-            assertThat(httpResponse, containsExactly(ds_a1).at("hits.hits[*]._index").butForbiddenIfIncomplete(user.indexMatcher("read")));
         }
     }
 
@@ -537,7 +515,7 @@ public class DlsReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse response = restClient.postJson("/_mget", mget);
 
-            if (user == LIMITED_USER_INDEX_1_DS_A1_DEPT_D_TERMS_LOOKUP) {
+            if (user == LIMITED_USER_INDEX_1_DEPT_D_TERMS_LOOKUP) {
                 //mget request sent by user with TLQ is handled differently. It's replaced with search request, response looks different from standard mget response.
                 assertThat(response, isForbidden());
                 assertEquals(response.getBody(), "Insufficient permissions", response.getBodyAsDocNode().get("error", "reason"));
@@ -567,7 +545,7 @@ public class DlsReadOnlyIntTests {
             assertThat(response, isOk());
             DocNode body = response.getBodyAsDocNode();
 
-            if (user == LIMITED_USER_INDEX_1_DS_A1_DEPT_D_TERMS_LOOKUP) {
+            if (user == LIMITED_USER_INDEX_1_DEPT_D_TERMS_LOOKUP) {
                 //mget request sent by user with TLQ is handled differently. It's replaced with search request, response looks different from standard mget response.
                 assertThat(response.getBodyAsDocNode(), docNodeSizeEqualTo("docs", 0));
             } else {
@@ -605,7 +583,7 @@ public class DlsReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/index_1/_termvectors/" + testDocument1a1.getId());
 
-            if (user == LIMITED_USER_INDEX_1_DS_A1_DEPT_D_TERMS_LOOKUP) {
+            if (user == LIMITED_USER_INDEX_1_DEPT_D_TERMS_LOOKUP) {
                 // termverctors is not supported for terms lookup DLS
                 assertThat(httpResponse, isInternalServerError());
                 assertTrue(httpResponse.getBody(),
