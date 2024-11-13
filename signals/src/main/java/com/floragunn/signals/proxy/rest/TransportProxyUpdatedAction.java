@@ -37,7 +37,6 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
@@ -91,41 +90,37 @@ public class TransportProxyUpdatedAction extends
         }
     }
 
-    public static class NodeRequest extends TransportRequest {
+    public static class NodeRequest extends BaseNodesRequest<NodeRequest> {
 
-        private final String proxyId;
-        private final String operationType;
+        private final ProxyUpdatedRequest request;
 
         public NodeRequest(StreamInput streamInput) throws IOException {
             super(streamInput);
-            this.proxyId = streamInput.readString();
-            this.operationType = streamInput.readString();
+            this.request = new ProxyUpdatedRequest(streamInput);
         }
 
         public NodeRequest(ProxyUpdatedRequest request) {
-            super();
-            this.proxyId = request.getProxyId();
-            this.operationType = request.getOperationType();
+            super((String[]) null);
+            this.request = request;
         }
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {
             super.writeTo(out);
-            out.writeString(proxyId);
-            out.writeString(operationType);
+            request.writeTo(out);
         }
 
         public String getProxyId() {
-            return proxyId;
+            return request.getProxyId();
         }
 
         public String getOperationType() {
-            return operationType;
+            return request.getOperationType();
         }
 
         @Override
         public String toString() {
-            return "NodeRequest{" + "proxyId=" + proxyId + ", operationType=" + operationType + '}';
+            return "NodeRequest{" + "request=" + request + '}';
         }
     }
 
@@ -179,10 +174,23 @@ public class TransportProxyUpdatedAction extends
         private final String proxyId;
         private final String operationType;
 
+        protected ProxyUpdatedRequest(StreamInput in) throws IOException {
+            super(in);
+            this.proxyId = in.readString();
+            this.operationType = in.readString();
+        }
+
         public ProxyUpdatedRequest(String proxyId, String operationType) {
             super(new String[0]);
             this.proxyId = Objects.requireNonNull(proxyId, "Proxy id is required");
             this.operationType = Objects.requireNonNull(operationType, "Operation type is required");
+        }
+
+        @Override
+        public void writeTo(StreamOutput out) throws IOException {
+            super.writeTo(out);
+            out.writeString(proxyId);
+            out.writeString(operationType);
         }
 
         public String getProxyId() {

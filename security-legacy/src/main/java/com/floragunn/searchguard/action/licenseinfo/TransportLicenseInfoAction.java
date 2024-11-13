@@ -34,7 +34,6 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.license.LicenseRepository;
@@ -61,19 +60,24 @@ public class TransportLicenseInfoAction extends
         this.settings = settings;
     }
 
-    public static class NodeLicenseRequest extends TransportRequest {
+    public static class NodeLicenseRequest extends BaseNodesRequest {
+
+        LicenseInfoRequest request;
 
         public NodeLicenseRequest(final LicenseInfoRequest request) {
-            super();
+            super((String[]) null);
+            this.request = request;
         }
 
         public NodeLicenseRequest(StreamInput in) throws IOException {
             super(in);
+            this.request = new LicenseInfoRequest(in);
         }
 
         @Override
         public void writeTo(final StreamOutput out) throws IOException {
             super.writeTo(out);
+            this.request.writeTo(out);
         }
     }
 

@@ -22,9 +22,10 @@ import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
-import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
+import org.elasticsearch.rest.ChunkedRestResponseBody;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentParserConfiguration;
 
 public class MockRestRequest extends RestRequest {
@@ -74,7 +75,7 @@ public class MockRestRequest extends RestRequest {
             }
 
             @Override
-            public HttpResponse createResponse(RestStatus status, ChunkedRestResponseBodyPart content) {
+            public HttpResponse createResponse(RestStatus status, ChunkedRestResponseBody content) {
                 return null;
             }
 
