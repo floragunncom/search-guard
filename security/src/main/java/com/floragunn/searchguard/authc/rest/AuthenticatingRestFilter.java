@@ -188,10 +188,9 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                     return;
                 }
 
-                RestChannel channelWrapper = new SendOnceRestChannelWrapper(channel);
-                authenticationProcessor.authenticate(request, channelWrapper, (result) -> {
+                authenticationProcessor.authenticate(request, channel, (result) -> {
                     if (authenticationProcessor.isDebugEnabled() && DebugApi.PATH.equals(request.path())) {
-                        sendDebugInfo(channelWrapper, result);
+                        sendDebugInfo(channel, result);
                         return;
                     }
 
@@ -206,7 +205,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                         } catch (Exception e) {
                             log.error("Error in " + original, e);
                             try {
-                                channelWrapper.sendResponse(new RestResponse(channel, e));
+                                channel.sendResponse(new RestResponse(channel, e));
                             } catch (IOException e1) {
                                 log.error(e1);
                             }
@@ -222,12 +221,12 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                                 result.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
                             }
 
-                            channelWrapper.sendResponse(response);
+                            channel.sendResponse(response);
                         }
                     }
                 }, (e) -> {
                     try {
-                        channelWrapper.sendResponse(new RestResponse(channelWrapper, e));
+                        channel.sendResponse(new RestResponse(channel, e));
                     } catch (IOException e1) {
                         log.error(e1);
                     }
