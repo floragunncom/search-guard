@@ -12,6 +12,8 @@ import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParse
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import com.floragunn.signals.watch.result.WatchLog;
 import org.apache.http.HttpStatus;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.awaitility.Awaitility;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
@@ -59,8 +61,6 @@ public class RestApiTestMultiTenancyOff {
 
     private static ScriptService scriptService;
     private static ThrottlePeriodParser throttlePeriodParser;
-    private final WatchInitializationService watchInitializationService = new WatchInitializationService(null, scriptService,
-            Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
 
     @ClassRule 
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
@@ -140,7 +140,9 @@ public class RestApiTestMultiTenancyOff {
             System.out.print(response.getBody());
             assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
 
-            watch = Watch.parseFromElasticDocument(watchInitializationService, "test", "put_test", response.getBody(), -1);
+            WatchInitializationService initService = new WatchInitializationService(null, scriptService,
+                Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
+            watch = Watch.parseFromElasticDocument(initService, "test", "put_test", response.getBody(), -1);
 
             awaitMinCountOfDocuments(client, "testsink_put_watch", 1);
 
@@ -296,11 +298,7 @@ public class RestApiTestMultiTenancyOff {
 
         SearchResponse response = client.search(request).get();
 
-        try {
-            return response.getHits().getTotalHits().value;
-        } finally {
-            response.decRef();
-        }
+        return response.getHits().getTotalHits().value;
     }
 
     private long awaitMinCountOfDocuments(Client client, String index, long minCount) throws Exception {

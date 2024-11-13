@@ -21,10 +21,10 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
+import org.elasticsearch.action.admin.indices.template.delete.DeleteComposableIndexTemplateAction;
 import org.elasticsearch.action.admin.indices.template.delete.DeleteIndexTemplateRequest;
-import org.elasticsearch.action.admin.indices.template.delete.TransportDeleteComposableIndexTemplateAction;
+import org.elasticsearch.action.admin.indices.template.put.PutComposableIndexTemplateAction;
 import org.elasticsearch.action.admin.indices.template.put.PutIndexTemplateRequest;
-import org.elasticsearch.action.admin.indices.template.put.TransportPutComposableIndexTemplateAction;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
@@ -60,14 +60,14 @@ public class ComplianceIndexTemplateActionFilter implements ActionFilter {
     public <Request extends ActionRequest, Response extends ActionResponse> void apply(Task task, String action, Request request, ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
         ActionListener<Response> actualListener = listener;
         if (shouldProceed(task)) {
-            if (request instanceof TransportPutComposableIndexTemplateAction.Request) {
-                TransportPutComposableIndexTemplateAction.Request putIndexTemplateRequest = (TransportPutComposableIndexTemplateAction.Request) request;
+            if (request instanceof PutComposableIndexTemplateAction.Request) {
+                PutComposableIndexTemplateAction.Request putIndexTemplateRequest = (PutComposableIndexTemplateAction.Request) request;
                 actualListener = new PutIndexTemplateListenerWrapper<>(action, putIndexTemplateRequest, listener);
             } else if (request instanceof PutIndexTemplateRequest) {
                 PutIndexTemplateRequest putIndexTemplateRequest = (PutIndexTemplateRequest) request;
                 actualListener = new PutIndexTemplateListenerWrapper<>(action, putIndexTemplateRequest, listener);
-            } else if (request instanceof TransportDeleteComposableIndexTemplateAction.Request) {
-                TransportDeleteComposableIndexTemplateAction.Request deleteIndexTemplateRequest = (TransportDeleteComposableIndexTemplateAction.Request) request;
+            } else if (request instanceof DeleteComposableIndexTemplateAction.Request) {
+                DeleteComposableIndexTemplateAction.Request deleteIndexTemplateRequest = (DeleteComposableIndexTemplateAction.Request) request;
                 actualListener = new DeleteIndexTemplateListenerWrapper<>(action, deleteIndexTemplateRequest, listener);
             } else if (request instanceof DeleteIndexTemplateRequest) {
                 DeleteIndexTemplateRequest deleteIndexTemplateRequest = (DeleteIndexTemplateRequest) request;
@@ -100,7 +100,7 @@ public class ComplianceIndexTemplateActionFilter implements ActionFilter {
         private final IndexTemplateMetadata originalLegacyIndexTemplate;
         private final boolean legacyTemplate;
 
-        private PutIndexTemplateListenerWrapper(String action, TransportPutComposableIndexTemplateAction.Request request,
+        private PutIndexTemplateListenerWrapper(String action, PutComposableIndexTemplateAction.Request request,
                                                 ActionListener<Response> originalListener) {
             this.action = action;
             this.templateName = request.name();
@@ -152,7 +152,7 @@ public class ComplianceIndexTemplateActionFilter implements ActionFilter {
         private final TransportRequest request;
         private final ActionListener<Response> originalListener;
 
-        private DeleteIndexTemplateListenerWrapper(String action, TransportDeleteComposableIndexTemplateAction.Request request,
+        private DeleteIndexTemplateListenerWrapper(String action, DeleteComposableIndexTemplateAction.Request request,
                                                    ActionListener<Response> originalListener) {
             this.action = action;
             this.templateNames = Arrays.asList(request.names());

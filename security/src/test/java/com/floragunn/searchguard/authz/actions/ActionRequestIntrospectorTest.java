@@ -152,7 +152,7 @@ public class ActionRequestIntrospectorTest {
     }
     
     static ActionRequestIntrospector simple() {
-        return new ActionRequestIntrospector(() -> META, () -> SystemIndexAccess.DISALLOWED, () -> false, null);
+        return new ActionRequestIntrospector(() -> META, () -> SystemIndexAccess.DISALLOWED, () -> false, null, null);
     }
 
     static DiagnosingMatcher<ActionRequestInfo> resolved(ActionRequestInfoResolvedIndicesMatcher... matchers) {

@@ -8,6 +8,9 @@ public class DeleteWatchAction extends ActionType<DeleteWatchResponse> {
     public static final String NAME = "cluster:admin:searchguard:tenant:signals:watch/delete";
 
     protected DeleteWatchAction() {
-        super(NAME);
+        super(NAME, in -> {
+            DeleteWatchResponse response = new DeleteWatchResponse(in);
+            return response;
+        });
     }
 }

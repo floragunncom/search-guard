@@ -8,6 +8,9 @@ public class PutAccountAction extends ActionType<PutAccountResponse> {
     public static final String NAME = "cluster:admin:searchguard:signals:account/put";
 
     protected PutAccountAction() {
-        super(NAME);
+        super(NAME, in -> {
+            PutAccountResponse response = new PutAccountResponse(in);
+            return response;
+        });
     }
 }

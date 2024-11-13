@@ -25,6 +25,6 @@ public class ConfigUpdateAction extends ActionType<ConfigUpdateResponse> {
     public static final String NAME = "cluster:admin/searchguard/config/update";
 
     protected ConfigUpdateAction() {
-        super(NAME);
+        super(NAME, ConfigUpdateResponse::new);
     }
 }

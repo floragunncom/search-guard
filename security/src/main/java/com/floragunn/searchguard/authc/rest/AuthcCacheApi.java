@@ -78,7 +78,7 @@ public class AuthcCacheApi {
         public static final String NAME = "cluster:admin:searchguard:cache/delete";
 
         public DeleteAction() {
-            super(NAME);
+            super(NAME, Response::new);
         }
 
         public static class Request extends BaseNodesRequest<Request> {
@@ -162,7 +162,7 @@ public class AuthcCacheApi {
 
             @Inject
             public TransportAction(ThreadPool threadPool, ClusterService clusterService, TransportService transportService, ActionFilters actionFilters, AuthenticatingRestFilter authenticatingRestFilter) {
-                super(NAME, clusterService, transportService, actionFilters, NodeRequest::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
+                super(NAME, threadPool, clusterService, transportService, actionFilters, Request::new, NodeRequest::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
                 this.authenticatingRestFilter = authenticatingRestFilter;
             }
 

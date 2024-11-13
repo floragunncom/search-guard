@@ -119,23 +119,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Optional;
 import java.util.Set;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.MultiTenancyChecker.IndexRepository;
-import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.configuration.ClusterInfoHolder;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
-import com.floragunn.searchguard.configuration.StaticSgConfig;
-import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
 import com.floragunn.searchguard.configuration.validation.RoleRelationsValidator;
 import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.lucene.index.DirectoryReader;
@@ -171,8 +161,6 @@ import org.elasticsearch.common.util.PageCacheRecycler;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.CheckedFunction;
 import org.elasticsearch.env.Environment;
-import org.elasticsearch.features.NodeFeature;
-import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.http.HttpServerTransport.Dispatcher;
@@ -186,7 +174,6 @@ import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.plugins.ClusterPlugin;
 import org.elasticsearch.plugins.MapperPlugin;
 import org.elasticsearch.plugins.ScriptPlugin;
-import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestStatus;
@@ -204,7 +191,6 @@ import org.elasticsearch.transport.TransportRequestHandler;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportResponseHandler;
-import org.elasticsearch.watcher.ResourceWatcherService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements ClusterPlugin, MapperPlugin, ScriptPlugin {
@@ -491,16 +477,16 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     }
 
     @Override
-    public List<RestHandler> getRestHandlers(Settings settings, NamedWriteableRegistry namedWriteableRegistry, RestController restController, ClusterSettings clusterSettings,
-                                             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-                                             Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
+    public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
+            IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
+            Supplier<DiscoveryNodes> nodesInCluster) {
 
         final List<RestHandler> handlers = new ArrayList<RestHandler>();
 
         if (!disabled) {
 
-            handlers.addAll(super.getRestHandlers(settings, namedWriteableRegistry, restController, clusterSettings, indexScopedSettings, settingsFilter,
-                    indexNameExpressionResolver, nodesInCluster, clusterSupportsFeature));
+            handlers.addAll(super.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
+                    indexNameExpressionResolver, nodesInCluster));
 
             if (!sslOnly) {
                 handlers.add(
@@ -540,7 +526,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             }
 
             handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
-                    indexNameExpressionResolver, scriptService, nodesInCluster, clusterSupportsFeature));
+                    indexNameExpressionResolver, scriptService, nodesInCluster));
         }
 
         return handlers;
@@ -833,7 +819,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 () -> Meta.from(clusterService), //
                 () -> SystemIndexAccess.get(services.indexNameExpressionResolver()), //
                 () -> cih.isLocalNodeElectedMaster() != Boolean.FALSE,
-                (restoreRequest) -> SnapshotRestoreHelper.getSnapshotInfo(restoreRequest, guiceDependencies.getRepositoriesService()));
+                (restoreRequest) -> SnapshotRestoreHelper.getSnapshotInfo(restoreRequest, guiceDependencies.getRepositoriesService()), services.namedWriteableRegistry());
 
         final String DEFAULT_INTERCLUSTER_REQUEST_EVALUATOR_CLASS = DefaultInterClusterRequestEvaluator.class.getName();
         InterClusterRequestEvaluator interClusterRequestEvaluator = new DefaultInterClusterRequestEvaluator(settings);
@@ -916,7 +902,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 licenseRepository, protectedConfigIndexService, internalAuthTokenProvider, specialPrivilegesEvaluationContextProviderRegistry, configVarService,
                 diagnosticContext, auditLog, evaluator, blockedIpRegistry, blockedUserRegistry, moduleRegistry,
                 internalUsersDatabase,
-            actions, authorizationService, guiceDependencies, authInfoService, actionRequestIntrospector, services.featureService());
+            actions, authorizationService, guiceDependencies, authInfoService, actionRequestIntrospector);
 
         sgi = new SearchGuardInterceptor(settings, services.threadPool(), auditLog, principalExtractor, interClusterRequestEvaluator,
             services.clusterService(),

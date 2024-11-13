@@ -36,7 +36,6 @@ import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.core.CheckedFunction;
-import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.shard.SearchOperationListener;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
@@ -181,7 +180,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     @Override
     public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
+            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster) {
         return ImmutableList.of(DlsFlsConfigApi.REST_API);
     }
 

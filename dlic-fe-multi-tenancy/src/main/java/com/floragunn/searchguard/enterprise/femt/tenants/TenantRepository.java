@@ -89,33 +89,29 @@ public class TenantRepository {
         }
         SearchRequest searchRequest = buildTenantsExistQuery(internalNameToNameMap);
         SearchResponse response = client.search(searchRequest).actionGet();
-        try {
-            if (!RestStatus.OK.equals(response.status())) {
-                log.error("Unexpected error occurred during loading information of available tenant, search response '{}'", response);
-                throw new RuntimeException("Cannot retrieve information about existing frontend tenants");
-            }
-            StringTerms aggregation = Optional.ofNullable(response.getAggregations()) //
-                .map(aggregations -> aggregations.get(AGGREGATION_NAME)) //
-                .filter(StringTerms.class::isInstance) //
-                .map(StringTerms.class::cast) //
-                .orElse(null);
-            Set<String> existingTenants = new HashSet<>();
-            if (Objects.nonNull(aggregation)) {
-                for (Bucket bucket : aggregation.getBuckets()) {
-                    String internalTenantName = bucket.getKeyAsString();
-                    long docCount = bucket.getDocCount();
-                    if (!internalNameToNameMap.containsKey(internalTenantName)) {
-                        throw new RuntimeException("Unexpected internal tenant name '" + internalTenantName + "'");
-                    }
-                    if (docCount > 0) {
-                        existingTenants.add(internalNameToNameMap.get(internalTenantName));
-                    }
+        if (!RestStatus.OK.equals(response.status())) {
+            log.error("Unexpected error occurred during loading information of available tenant, search response '{}'", response);
+            throw new RuntimeException("Cannot retrieve information about existing frontend tenants");
+        }
+        StringTerms aggregation = Optional.ofNullable(response.getAggregations()) //
+            .map(aggregations -> aggregations.get(AGGREGATION_NAME)) //
+            .filter(StringTerms.class::isInstance) //
+            .map(StringTerms.class::cast) //
+            .orElse(null);
+        Set<String> existingTenants = new HashSet<>();
+        if (Objects.nonNull(aggregation)) {
+            for (Bucket bucket : aggregation.getBuckets()) {
+                String internalTenantName = bucket.getKeyAsString();
+                long docCount = bucket.getDocCount();
+                if (!internalNameToNameMap.containsKey(internalTenantName)) {
+                    throw new RuntimeException("Unexpected internal tenant name '" + internalTenantName + "'");
+                }
+                if (docCount > 0) {
+                    existingTenants.add(internalNameToNameMap.get(internalTenantName));
                 }
             }
-            return existingTenants;
-        } finally {
-            response.decRef();
         }
+        return existingTenants;
     }
 
     void extendTenantsIndexMappings(DocNode mappings) {

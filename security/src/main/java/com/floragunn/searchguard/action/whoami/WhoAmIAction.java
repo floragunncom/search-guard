@@ -25,6 +25,6 @@ public class WhoAmIAction extends ActionType<WhoAmIResponse> {
     public static final String NAME = "cluster:admin/searchguard/whoami";
 
     protected WhoAmIAction() {
-        super(NAME);
+        super(NAME, WhoAmIResponse::new);
     }
 }

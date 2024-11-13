@@ -45,16 +45,10 @@ public abstract class Account implements ToXContentObject {
     private String id;
 
     public boolean isInUse(Client client, SignalsSettings settings) {
-        String indexName = settings.getStaticSettings().getIndexNames().getWatches();
-        SearchRequest request = new SearchRequest(indexName).source(getReferencingWatchesQuery());
-        SearchResponse searchResponse = client.search(request).actionGet();
-        try {
-            long hits = searchResponse.getHits().getTotalHits().value;
+        long hits = client.search(new SearchRequest(settings.getStaticSettings().getIndexNames().getWatches()).source(getReferencingWatchesQuery()))
+                .actionGet().getHits().getTotalHits().value;
 
-            return hits > 0;
-        } finally {
-            searchResponse.decRef();
-        }
+        return hits > 0;
     }
 
     public void isInUse(Client client, SignalsSettings settings, ActionListener<Boolean> actionListener) {

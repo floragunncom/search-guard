@@ -26,6 +26,6 @@ public class LicenseInfoAction extends ActionType<LicenseInfoResponse> {
     public static final String NAME = "cluster:admin/searchguard/license/info";
 
     protected LicenseInfoAction() {
-        super(NAME);
+        super(NAME, LicenseInfoResponse::new);
     }
 }

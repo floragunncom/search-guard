@@ -22,7 +22,6 @@ public class SearchWatchResponse extends ActionResponse implements ToXContentObj
 
     public SearchWatchResponse(SearchResponse searchResponse) {
         this.searchResponse = searchResponse;
-        this.searchResponse.incRef();
     }
 
     public SearchWatchResponse(StreamInput in) throws IOException {
@@ -48,11 +47,6 @@ public class SearchWatchResponse extends ActionResponse implements ToXContentObj
 
     public RestStatus status() {
         return searchResponse.status();
-    }
-
-    @Override
-    public boolean decRef() {
-        return this.searchResponse.decRef();
     }
 
 }

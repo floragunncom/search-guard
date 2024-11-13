@@ -54,8 +54,8 @@ TransportNodesAction<ConfigUpdateRequest, ConfigUpdateResponse, TransportConfigU
                                        final ThreadPool threadPool, final ClusterService clusterService, final TransportService transportService,
                                        final ConfigurationRepository configurationRepository, final ActionFilters actionFilters, GuiceDependencies guiceDependencies,
                                        final IndicesService indicesService, final RepositoriesService repositoriesService) {
-        super(ConfigUpdateAction.NAME, clusterService, transportService, actionFilters,
-                TransportConfigUpdateAction.NodeConfigUpdateRequest::new,
+        super(ConfigUpdateAction.NAME, threadPool, clusterService, transportService, actionFilters,
+                ConfigUpdateRequest::new, TransportConfigUpdateAction.NodeConfigUpdateRequest::new,
                 threadPool.executor(ThreadPool.Names.MANAGEMENT));
 
         guiceDependencies.setTransportService(transportService);

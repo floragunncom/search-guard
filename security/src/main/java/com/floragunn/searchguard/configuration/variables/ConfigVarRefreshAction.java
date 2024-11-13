@@ -48,7 +48,10 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
     public static final String NAME = "cluster:admin:searchguard:config_vars/refresh";
 
     protected ConfigVarRefreshAction() {
-        super(NAME);
+        super(NAME, in -> {
+            Response response = new Response(in);
+            return response;
+        });
     }
 
     public static void send(Client client) {
@@ -118,7 +121,7 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
         @Inject
         public TransportAction(ConfigVarService configVarService, ThreadPool threadPool, ClusterService clusterService,
                 TransportService transportService, ActionFilters actionFilters) {
-            super(ConfigVarRefreshAction.NAME, clusterService, transportService, actionFilters,
+            super(ConfigVarRefreshAction.NAME, threadPool, clusterService, transportService, actionFilters, Request::new,
                     TransportAction.NodeRequest::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
             this.configVarService = configVarService;
         }

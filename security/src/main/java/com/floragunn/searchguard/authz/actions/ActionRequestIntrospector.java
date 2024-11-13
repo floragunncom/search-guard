@@ -51,6 +51,7 @@ import org.elasticsearch.action.downsample.DownsampleAction;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchContextId;
+import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.rest.root.MainRequest;
 import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
@@ -91,13 +92,16 @@ public class ActionRequestIntrospector {
     private final Supplier<SystemIndexAccess> systemIndexAccessSupplier;
     private final BooleanSupplier isLocalNodeElectedMaster;
     private final Function<RestoreSnapshotRequest, SnapshotInfo> getSnapshotInfoFunction;
+    private final NamedWriteableRegistry namedWriteableRegistry;
 
     public ActionRequestIntrospector(Supplier<Meta> metaDataSupplier, Supplier<SystemIndexAccess> systemIndexAccessSupplier,
-            BooleanSupplier isLocalNodeElectedMaster, Function<RestoreSnapshotRequest, SnapshotInfo> getSnapshotInfoFunction) {
+            BooleanSupplier isLocalNodeElectedMaster, Function<RestoreSnapshotRequest, SnapshotInfo> getSnapshotInfoFunction,
+            NamedWriteableRegistry namedWriteableRegistry) {
         this.metaDataSupplier = metaDataSupplier;
         this.isLocalNodeElectedMaster = isLocalNodeElectedMaster;
         this.getSnapshotInfoFunction = getSnapshotInfoFunction;
         this.systemIndexAccessSupplier = systemIndexAccessSupplier;
+        this.namedWriteableRegistry = namedWriteableRegistry;
     }
 
     public ActionRequestInfo getActionRequestInfo(Action action, Object request) {
@@ -108,8 +112,8 @@ public class ActionRequestIntrospector {
         if (request instanceof SearchRequest searchRequest && (searchRequest.pointInTimeBuilder() != null)) {
             // In point-in-time queries, wildcards in index names are expanded when the open point-in-time request
             // is sent. Therefore, a list of indices in search requests with PIT can be treated literally.
-            String pointInTimeId = searchRequest.pointInTimeBuilder().getEncodedId();
-            String[] indices = SearchContextId.decodeIndices(pointInTimeId);
+            SearchContextId searchContextId = searchRequest.pointInTimeBuilder().getSearchContextId(namedWriteableRegistry);
+            String[] indices = searchContextId.getActualIndices();
             return new ActionRequestInfo(indices == null ? ImmutableList.empty() : ImmutableList.ofArray(indices), EXACT,
                     IndicesRequestInfo.Scope.ANY);
         } else if (request instanceof SingleShardRequest) {
