@@ -21,21 +21,22 @@ import org.elasticsearch.action.support.IndicesOptions;
 
 public class IndicesOptionsSupport {
 
-    public static final IndicesOptions EXACT = new IndicesOptions(
-            new IndicesOptions.ConcreteTargetOptions(false),
+    public static final IndicesOptions EXACT = IndicesOptions.builder()
+                    .concreteTargetOptions(IndicesOptions.ConcreteTargetOptions.ERROR_WHEN_UNAVAILABLE_TARGETS)
+                    .wildcardOptions(
             IndicesOptions.WildcardOptions.builder()
                     .resolveAliases(true)
                     .matchClosed(false)
                     .includeHidden(false)
                     .allowEmptyExpressions(false)
                     .matchOpen(false)
-                    .build(),
+                    .build()).gatekeeperOptions(
             IndicesOptions.GatekeeperOptions.builder()
                     .allowClosedIndices(true)
                     .allowAliasToMultipleIndices(true)
                     .ignoreThrottled(false)
-                    .build()
-    );
+                    .build())
+                .build();
 
     public static IndicesOptions allowNoIndices(IndicesOptions indicesOptions) {
         if (indicesOptions.allowNoIndices()) {

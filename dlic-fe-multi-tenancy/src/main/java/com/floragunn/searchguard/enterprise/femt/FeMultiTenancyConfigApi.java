@@ -21,7 +21,7 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.enterprise.femt.tenants.GetAvailableTenantsAction;
 import com.floragunn.searchguard.enterprise.femt.tenants.MultitenancyActivationAction;
 import com.floragunn.searchsupport.action.StandardRequests;
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
 import com.floragunn.codova.documents.patch.DocPatch;

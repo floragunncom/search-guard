@@ -36,6 +36,7 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.fluent.collections.UnmodifiableCollection;
 
 import org.elasticsearch.cluster.metadata.DataStreamLifecycle;
+import org.elasticsearch.cluster.metadata.DataStreamOptions;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.index.Index;
@@ -545,7 +546,7 @@ public abstract class MetaImpl implements Meta {
 
                 esMetadataBuilder.put(new org.elasticsearch.cluster.metadata.DataStream(dataStream.name(),
                         ImmutableList.of(dataStream.members()).map(i -> new org.elasticsearch.index.Index(i.name(), i.name())), 1L,
-                        ImmutableMap.empty(), false, false, false, false, IndexMode.STANDARD, new DataStreamLifecycle(), false, ImmutableList.empty(),
+                        ImmutableMap.empty(), false, false, false, false, IndexMode.STANDARD, new DataStreamLifecycle(), DataStreamOptions.FAILURE_STORE_DISABLED, ImmutableList.empty(),
                         false, null));
             }
 

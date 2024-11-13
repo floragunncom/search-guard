@@ -31,6 +31,7 @@ import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.http.HttpBody;
 import org.elasticsearch.http.HttpChannel;
 import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.HttpRequest;
@@ -78,8 +79,8 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
     private HttpRequest fixNonStandardContentType(HttpRequest httpRequest) {
         try {
 
-            BytesReference content = httpRequest.content();
-
+            BytesReference content = httpRequest.body().asFull().bytes(); // TODO very inefficient implementation, streams should be supported as well
+            // TODO or maybe replace this condition
             if (content == null || content.length() == 0) {
                 return httpRequest;
             }
@@ -105,6 +106,11 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
                 @Override
                 public String uri() {
                     return httpRequest.uri();
+                }
+
+                @Override
+                public HttpBody body() {
+                    return httpRequest.body();
                 }
 
                 @Override
@@ -155,11 +161,6 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
                 @Override
                 public HttpResponse createResponse(RestStatus status, ChunkedRestResponseBodyPart content) {
                     return httpRequest.createResponse(status, content);
-                }
-
-                @Override
-                public BytesReference content() {
-                    return httpRequest.content();
                 }
             };
 

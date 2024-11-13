@@ -19,7 +19,7 @@ package com.floragunn.searchguard.configuration.api;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.injection.guice.Inject;
 
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardVersion;

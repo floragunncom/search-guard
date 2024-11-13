@@ -79,11 +79,12 @@ public class JavaSecurityTestSetup extends ExternalResource {
         } catch (AccessControlException e) {
             // If we get this, we are already properly initialized
         }
-        try {
-            BootstrapInfo.isNativesAvailable();
-        } catch (AccessControlException e) {
-            // If we get this, we are already properly initialized
-        }
+        // TODO not sure if this is still needed
+//        try {
+//            BootstrapInfo.isNativesAvailable();
+//        } catch (AccessControlException e) {
+//            // If we get this, we are already properly initialized
+//        }
     }
 
     public JavaSecurityTestSetup() {

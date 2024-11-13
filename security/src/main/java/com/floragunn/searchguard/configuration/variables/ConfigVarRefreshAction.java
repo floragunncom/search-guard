@@ -34,7 +34,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.tasks.Task;
@@ -108,7 +108,7 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
 
     }
 
-    public static class TransportAction extends TransportNodesAction<Request, Response, TransportAction.NodeRequest, TransportAction.NodeResponse> {
+    public static class TransportAction extends TransportNodesAction<Request, Response, TransportAction.NodeRequest, TransportAction.NodeResponse, Void> {
 
         private final ConfigVarService configVarService;
 

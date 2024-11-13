@@ -16,7 +16,7 @@ package com.floragunn.searchguard.enterprise.femt.tenants;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.searchsupport.action.StandardRequests.EmptyRequest;
 import com.floragunn.searchsupport.action.StandardResponse;
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.injection.guice.Inject;
 
 import java.util.concurrent.CompletableFuture;
 
