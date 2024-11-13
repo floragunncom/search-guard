@@ -29,8 +29,10 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
+import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.core.TimeValue;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -154,8 +156,9 @@ public class InitializationIntegrationTests extends SingleClusterTest {
     @Test
     public void testDiscoveryWithoutInitialization() throws Exception {  
         setup(Settings.EMPTY, null, Settings.EMPTY, false);
-        Assert.assertEquals(clusterInfo.numNodes, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getNumberOfNodes());
-        Assert.assertEquals(ClusterHealthStatus.GREEN, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getStatus());
+        TimeValue masterNodeTimeout = TimeValue.timeValueSeconds(40);
+        Assert.assertEquals(clusterInfo.numNodes, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest(masterNodeTimeout).waitForGreenStatus()).actionGet().getNumberOfNodes());
+        Assert.assertEquals(ClusterHealthStatus.GREEN, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest(masterNodeTimeout).waitForGreenStatus()).actionGet().getStatus());
     }
 
     @Test

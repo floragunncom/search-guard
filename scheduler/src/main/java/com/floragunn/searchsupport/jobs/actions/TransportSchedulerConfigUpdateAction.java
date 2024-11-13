@@ -29,7 +29,7 @@ import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
@@ -41,7 +41,7 @@ import org.elasticsearch.transport.TransportService;
 import com.floragunn.searchsupport.jobs.core.IndexJobStateStore;
 
 public class TransportSchedulerConfigUpdateAction extends
-        TransportNodesAction<SchedulerConfigUpdateRequest, SchedulerConfigUpdateResponse, TransportSchedulerConfigUpdateAction.NodeRequest, TransportSchedulerConfigUpdateAction.NodeResponse> {
+        TransportNodesAction<SchedulerConfigUpdateRequest, SchedulerConfigUpdateResponse, TransportSchedulerConfigUpdateAction.NodeRequest, TransportSchedulerConfigUpdateAction.NodeResponse, Void> {
 
     private final static Logger log = LogManager.getLogger(TransportSchedulerConfigUpdateAction.class);
 

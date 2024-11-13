@@ -32,7 +32,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.tasks.Task;
@@ -46,7 +46,7 @@ import java.util.Objects;
 
 public class TransportProxyUpdatedAction extends
     TransportNodesAction<TransportProxyUpdatedAction.ProxyUpdatedRequest, TransportProxyUpdatedAction.ProxyUpdatedResponse, TransportProxyUpdatedAction.NodeRequest,
-        TransportProxyUpdatedAction.NodeResponse> {
+        TransportProxyUpdatedAction.NodeResponse, Void> {
 
     private static final Logger log = LogManager.getLogger(TransportProxyUpdatedAction.class);
 

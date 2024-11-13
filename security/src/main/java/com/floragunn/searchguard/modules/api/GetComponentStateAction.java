@@ -47,7 +47,7 @@ import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
@@ -456,7 +456,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         GREEN, YELLOW, RED;
     }
 
-    public static class TransportAction extends TransportNodesAction<Request, Response, NodeRequest, NodeResponse> {
+    public static class TransportAction extends TransportNodesAction<Request, Response, NodeRequest, NodeResponse, GetComponentStateAction> {
 
         private SearchGuardModulesRegistry modulesRegistry;
 

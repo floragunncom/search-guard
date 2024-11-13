@@ -298,13 +298,14 @@ public final class ClusterHelper {
         Client client = node.client();
         try {
             log.debug("waiting for cluster state {} and {} nodes", status.name(), expectedNodeCount);
-            final ClusterHealthResponse healthResponse = client.admin().cluster().prepareHealth().setWaitForStatus(status).setTimeout(timeout)
+            TimeValue masterNodeTimeout = new TimeValue(40, TimeUnit.SECONDS);
+            final ClusterHealthResponse healthResponse = client.admin().cluster().prepareHealth(masterNodeTimeout).setWaitForStatus(status).setTimeout(timeout)
                     .setMasterNodeTimeout(timeout).setWaitForNodes("" + expectedNodeCount).execute().actionGet();
             if (healthResponse.isTimedOut()) {
 
                 //System.out.println("-- Time out while waiting for test cluster --");
                 log.error(Strings.toString(healthResponse));
-                log.error(Strings.toString(client.execute(TransportPendingClusterTasksAction.TYPE, new PendingClusterTasksRequest()).actionGet()));
+                log.error(Strings.toString(client.execute(TransportPendingClusterTasksAction.TYPE, new PendingClusterTasksRequest(masterNodeTimeout)).actionGet()));
                 log.error(Strings.toString(client.admin().indices().getIndex(new GetIndexRequest().includeDefaults(true).features(GetIndexRequest.Feature.MAPPINGS)).actionGet()));
                 log.error(Strings.toString(client.admin().indices().stats(new IndicesStatsRequest().all()).actionGet()));
                 log.error(Strings.toString(client.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet()));

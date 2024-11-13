@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.http.HttpBody;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
 import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
@@ -60,13 +61,13 @@ public class FakeRestRequest extends RestRequest {
             }
 
             @Override
-            public BytesReference content() {
-                return content;
+            public Map<String, List<String>> getHeaders() {
+                return convert(headers);
             }
 
             @Override
-            public Map<String, List<String>> getHeaders() {
-                return convert(headers);
+            public HttpBody body() {
+                return HttpBody.fromBytesReference(content);
             }
 
             @Override

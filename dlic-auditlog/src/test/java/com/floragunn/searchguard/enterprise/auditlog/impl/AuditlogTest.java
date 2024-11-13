@@ -50,6 +50,7 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.TimeValue;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -57,6 +58,7 @@ import org.junit.Test;
 public class AuditlogTest {
 
     private static final List<String> DISABLED_FIELDS = Arrays.asList(FORMAT_VERSION, REQUEST_EFFECTIVE_USER, CATEGORY);
+    public static final TimeValue MASTER_NODE_TIMEOUT = TimeValue.timeValueSeconds(40);
     ClusterService cs = mock(ClusterService.class);
     DiscoveryNode dn = mock(DiscoveryNode.class);
     ConfigurationRepository configurationRepository = mock(ConfigurationRepository.class);
@@ -79,7 +81,7 @@ public class AuditlogTest {
                 .build();
         try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
-            al.logGrantedPrivileges("indices:data/read/search", new ClusterHealthRequest(), null);
+            al.logGrantedPrivileges("indices:data/read/search", new ClusterHealthRequest(MASTER_NODE_TIMEOUT), null);
             Assert.assertEquals(1, TestAuditlogImpl.messages.size());
         }
     }
@@ -172,7 +174,7 @@ public class AuditlogTest {
             .build();
         try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
-            al.logGrantedPrivileges("indices:data/read/search", new ClusterHealthRequest(), null);
+            al.logGrantedPrivileges("indices:data/read/search", new ClusterHealthRequest(MASTER_NODE_TIMEOUT), null);
             assertAuditLogDoesNotContainDisabledFields();
         }
     }
@@ -280,7 +282,7 @@ public class AuditlogTest {
             .build();
         try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
-            al.logMissingPrivileges("indices:data/read/search", new ClusterHealthRequest(), null);
+            al.logMissingPrivileges("indices:data/read/search", new ClusterHealthRequest(MASTER_NODE_TIMEOUT), null);
             assertAuditLogDoesNotContainDisabledFields();
         }
     }
