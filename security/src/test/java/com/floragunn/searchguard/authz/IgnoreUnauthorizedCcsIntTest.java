@@ -14,11 +14,8 @@ import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.emptyArray;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.test.helper.PitHolder;
@@ -42,7 +39,6 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 
@@ -68,7 +64,7 @@ public class IgnoreUnauthorizedCcsIntTest {
 
     static TestSgConfig.User LIMITED_USER_REMOTE_A = new TestSgConfig.User("limited_user_A").roles(//
             new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD",
-                    "indices:admin/search/search_shards", "indices:admin/shards/search_shards", "indices:admin/resolve/cluster").on("a*"));
+                    "indices:admin/search/search_shards", "indices:admin/shards/search_shards").on("a*"));
 
     static TestSgConfig.User LIMITED_USER_COORD_B = new TestSgConfig.User("limited_user_B").roles(//
             new Role("limited_user_b_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("b*"));
@@ -79,7 +75,7 @@ public class IgnoreUnauthorizedCcsIntTest {
 
     static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user").roles(//
             new Role("unlimited_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD",
-                    "indices:admin/search/search_shards", "indices:admin/shards/search_shards", "indices:admin/resolve/cluster").on("*"));
+                    "indices:admin/search/search_shards", "indices:admin/shards/search_shards").on("*"));
 
     static TestIndex index_coord_a1 = TestIndex.name("a1").documentCount(100).seed(1).attr("prefix", "a").attr("cluster", "local").build();
     static TestIndex index_coord_a2 = TestIndex.name("a2").documentCount(110).seed(2).attr("prefix", "a").attr("cluster", "local").build();
@@ -136,7 +132,7 @@ public class IgnoreUnauthorizedCcsIntTest {
             Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]", matches(index_coord_a1, index_coord_a2))));
         }
     }
-    
+
     @Test
     public void search_localWildcard() throws Exception {
         String query = "*/_search?size=1000&" + ccsMinimizeRoundtrips;
@@ -815,211 +811,6 @@ public class IgnoreUnauthorizedCcsIntTest {
                     json(distinctNodesAt("aggregations.clusteragg.buckets[?(@.key == 'remote')].doc_count", containsInAnyOrder(236))));
         }
 
-    }
-
-    @Test
-    public void resolve_cluster_local_static_match_ignore_unavailable_true_limited_user() throws Exception {
-        String query = "/_resolve/cluster/b1?ignore_unavailable=true"; // DNFOF enabled
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("$['(local)'].matching_indices", equalTo(false))));
-        }
-    }
-
-    @Test
-    public void resolve_cluster_local_static_match_ignore_unavailable_false_limited_user() throws Exception {
-        String query = "/_resolve/cluster/b1?ignore_unavailable=false"; //DNFOF disabled
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isForbidden());
-            assertThat(httpResponse, json(distinctNodesAt("$.error.root_cause[0].type", equalTo("security_exception"))));
-        }
-    }
-
-    @Test
-    public void resolve_cluster_local_pattern_not_match_limited_user_limited_user() throws Exception {
-
-        String query = "/_resolve/cluster/no_such_local_index*"; // DNFOF enabled
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("$['(local)'].matching_indices", equalTo(false))));
-        }
-    }
-
-    @Test
-    public void resolve_cluster_local_pattern_not_match() throws Exception {
-
-        String query = "/_resolve/cluster/no_such_local_index*"; // DNFOF enabled
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("$['(local)'].matching_indices", equalTo(false))));
-        }
-    }
-
-    @Test
-    public void resolve_cluster_local_pattern_star_match() throws Exception {
-
-        String query = "/_resolve/cluster/*"; // DNFOF enabled
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("$['(local)'].matching_indices", equalTo(true))));
-        }
-    }
-
-    @Test
-    public void resolve_cluster_remote_static_match() throws Exception {
-
-        String query = "/_resolve/cluster/my_remote:b1"; //DNFOF disabled
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("$.my_remote.matching_indices", equalTo(true))));
-        }
-    }
-
-    @Test
-    public void resolve_cluster_remote_static_match_ignore_unavailable_true_limited_user() throws Exception {
-
-        String query = "/_resolve/cluster/my_remote:b1?ignore_unavailable=true"; // DNFOF enabled
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("$.my_remote.matching_indices", equalTo(false))));
-        }
-    }
-
-    @Test
-    public void resolve_cluster_remote_static_match_ignore_unavailable_false_limited_user() throws Exception {
-
-        String query = "/_resolve/cluster/my_remote:b1"; //DNFOF disabled
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("$.my_remote.error", equalTo("Insufficient permissions"))));
-        }
-    }
-
-    @Test
-    public void resolve_cluster_remote_pattern_not_match() throws Exception {
-
-        String query = "/_resolve/cluster/my_remote:no_such_remote_index*"; // DNFOF enabled
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("$.my_remote.matching_indices", equalTo(false))));
-        }
-    }
-
-    @Test
-    public void resolve_cluster_remote_all_static_match() throws Exception {
-
-        String query = "/_resolve/cluster/*:b1"; // DNFOF disabled
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("$.my_remote.matching_indices", equalTo(true))));
-        }
-    }
-
-    @Test
-    public void resolve_cluster_remote_all_static_match_limited_user() throws Exception {
-
-        String query = "/_resolve/cluster/*:b1";// DNFOF disabled?
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("$.my_remote.error", equalTo("Insufficient permissions"))));
-        }
-    }
-
-    @Test
-    public void resolve_cluster_remote_and_local_static_match() throws Exception {
-        String query = "/_resolve/cluster/my_remote:b1,b1"; //DNFOF disabled
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("$['(local)'].matching_indices", equalTo(true))));
-            assertThat(httpResponse, json(distinctNodesAt("$.my_remote.matching_indices", equalTo(true))));
-        }
-    }
-
-    @Test
-    public void resolve_cluster_remote_and_local_static_match_limited_user() throws Exception {
-        String query = "/_resolve/cluster/my_remote:b1,b1"; // DNFOF enabled
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isForbidden());
-            assertThat(httpResponse, json(distinctNodesAt("$.error.root_cause[0].type", equalTo("security_exception"))));
-        }
-    }
-
-    @Test
-    public void resolve_cluster_remote_and_local_pattern_match() throws Exception {
-        String query = "/_resolve/cluster/*:*,*"; // DNFOF enabled
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("$['(local)'].matching_indices", equalTo(true))));
-            assertThat(httpResponse, json(distinctNodesAt("$.my_remote.matching_indices", equalTo(true))));
-        }
-    }
-
-    @Test
-    public void resolve_cluster_remote_and_local_pattern_match_user_not_allowed_to_access_endpoint() throws Exception {
-        String query = "/_resolve/cluster/*:*,*"; // DNFOF enabled
-
-        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_B)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("$['(local)'].matching_indices", equalTo(false))));
-            assertThat(httpResponse, json(distinctNodesAt("$.my_remote.matching_indices", equalTo(false))));
-        }
-    }
-
-    @Test
-    public void resolve_cluster_remote_and_local_pattern_match_and_not_match() throws Exception {
-        String query = "/_resolve/cluster/*:no_such_remote_index*,*"; // DNFOF enabled
-
-        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
-            HttpResponse httpResponse = restClient.get(query);
-
-            assertThat(httpResponse, isOk());
-            assertThat(httpResponse, json(distinctNodesAt("$['(local)'].matching_indices", equalTo(true))));
-            assertThat(httpResponse, json(distinctNodesAt("$.my_remote.matching_indices", equalTo(false))));
-        }
     }
 
 }
