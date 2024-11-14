@@ -36,7 +36,7 @@ import org.elasticsearch.transport.TransportService;
 import com.floragunn.searchguard.authtoken.AuthTokenService;
 
 public class TransportPushAuthTokenUpdateAction extends
-        TransportNodesAction<PushAuthTokenUpdateRequest, PushAuthTokenUpdateResponse, TransportPushAuthTokenUpdateAction.NodeRequest, PushAuthTokenUpdateNodeResponse> {
+        TransportNodesAction<PushAuthTokenUpdateRequest, PushAuthTokenUpdateResponse, TransportPushAuthTokenUpdateAction.NodeRequest, PushAuthTokenUpdateNodeResponse, TransportPushAuthTokenUpdateAction> {
 
     private final AuthTokenService authTokenService;
 

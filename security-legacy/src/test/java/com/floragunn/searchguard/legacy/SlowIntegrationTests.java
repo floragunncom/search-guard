@@ -25,6 +25,7 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.PluginAwareNode;
 import org.junit.Assert;
@@ -42,7 +43,8 @@ import com.floragunn.searchsupport.junit.AsyncAssert;
 
 public class SlowIntegrationTests extends SingleClusterTest {
 
-    @ClassRule 
+    public static final TimeValue MASTER_NODE_TIMEOUT = TimeValue.timeValueSeconds(40);
+    @ClassRule
     public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @Ignore("TODO why is this ignored?")
@@ -54,16 +56,16 @@ public class SlowIntegrationTests extends SingleClusterTest {
                 .put("discovery.initial_state_timeout","8s")
                 .build();
         setup(Settings.EMPTY, null, settings, false,ClusterConfiguration.DEFAULT ,5,1);
-        Assert.assertEquals(1, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getNumberOfNodes());
-        Assert.assertEquals(ClusterHealthStatus.GREEN, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getStatus());
+        Assert.assertEquals(1, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest(MASTER_NODE_TIMEOUT).waitForGreenStatus()).actionGet().getNumberOfNodes());
+        Assert.assertEquals(ClusterHealthStatus.GREEN, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest(MASTER_NODE_TIMEOUT).waitForGreenStatus()).actionGet().getStatus());
     }
 
     @SuppressWarnings("resource")
     @Test
     public void testNodeClientAllowedWithServerCertificate() throws Exception {
         setup();
-        Assert.assertEquals(clusterInfo.numNodes, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getNumberOfNodes());
-        Assert.assertEquals(ClusterHealthStatus.GREEN, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getStatus());
+        Assert.assertEquals(clusterInfo.numNodes, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest(MASTER_NODE_TIMEOUT).waitForGreenStatus()).actionGet().getNumberOfNodes());
+        Assert.assertEquals(ClusterHealthStatus.GREEN, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest(MASTER_NODE_TIMEOUT).waitForGreenStatus()).actionGet().getStatus());
 
         Path tmp = Files.createTempDirectory("sgunit");
         tmp.toFile().deleteOnExit();
@@ -82,7 +84,7 @@ public class SlowIntegrationTests extends SingleClusterTest {
         log.debug("Start node client");
         
         try (Node node = new PluginAwareNode(false, tcSettings).start()) {
-            Assert.assertFalse(node.client().admin().cluster().health(new ClusterHealthRequest().waitForNodes(String.valueOf(clusterInfo.numNodes+1))).actionGet().isTimedOut());
+            Assert.assertFalse(node.client().admin().cluster().health(new ClusterHealthRequest(MASTER_NODE_TIMEOUT).waitForNodes(String.valueOf(clusterInfo.numNodes+1))).actionGet().isTimedOut());
             Assert.assertEquals(clusterInfo.numNodes+1, node.client().admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());    
         }
     }
@@ -91,8 +93,8 @@ public class SlowIntegrationTests extends SingleClusterTest {
     @Test
     public void testNodeClientDisallowedWithNonServerCertificate() throws Exception {
         setup();
-        Assert.assertEquals(clusterInfo.numNodes, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getNumberOfNodes());
-        Assert.assertEquals(ClusterHealthStatus.GREEN, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getStatus());
+        Assert.assertEquals(clusterInfo.numNodes, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest(MASTER_NODE_TIMEOUT).waitForGreenStatus()).actionGet().getNumberOfNodes());
+        Assert.assertEquals(ClusterHealthStatus.GREEN, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest(MASTER_NODE_TIMEOUT).waitForGreenStatus()).actionGet().getStatus());
 
         Path tmp = Files.createTempDirectory("sgunit");
         tmp.toFile().deleteOnExit();
@@ -123,8 +125,8 @@ public class SlowIntegrationTests extends SingleClusterTest {
     @Test
     public void testNodeClientDisallowedWithNonServerCertificate2() throws Exception {
         setup();
-        Assert.assertEquals(clusterInfo.numNodes, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getNumberOfNodes());
-        Assert.assertEquals(ClusterHealthStatus.GREEN, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest().waitForGreenStatus()).actionGet().getStatus());
+        Assert.assertEquals(clusterInfo.numNodes, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest(MASTER_NODE_TIMEOUT).waitForGreenStatus()).actionGet().getNumberOfNodes());
+        Assert.assertEquals(ClusterHealthStatus.GREEN, clusterHelper.nodeClient().admin().cluster().health(new ClusterHealthRequest(MASTER_NODE_TIMEOUT).waitForGreenStatus()).actionGet().getStatus());
 
         Path tmp = Files.createTempDirectory("sgunit");
         tmp.toFile().deleteOnExit();

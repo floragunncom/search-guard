@@ -61,7 +61,7 @@ import com.floragunn.signals.watch.state.ActionState;
 import com.floragunn.signals.watch.state.WatchState;
 
 public class TransportAckAndGetWatchAction
-        extends TransportNodesAction<AckAndGetWatchRequest, AckAndGetWatchResponse, TransportAckAndGetWatchAction.NodeRequest, TransportAckAndGetWatchAction.NodeResponse> {
+        extends TransportNodesAction<AckAndGetWatchRequest, AckAndGetWatchResponse, TransportAckAndGetWatchAction.NodeRequest, TransportAckAndGetWatchAction.NodeResponse, Void> {
 
     private final static Logger log = LogManager.getLogger(TransportAckAndGetWatchAction.class);
 

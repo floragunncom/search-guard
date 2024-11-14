@@ -313,7 +313,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
                     LOCK.unlock();
                 }
             } else {
-
                 throw new ConfigUpdateAlreadyInProgressException("A config update is already in progress");
             }
         } catch (InterruptedException e) {

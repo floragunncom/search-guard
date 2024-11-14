@@ -49,7 +49,7 @@ import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 
 public class TransportTruststoreUpdatedAction extends
     TransportNodesAction<TransportTruststoreUpdatedAction.TruststoreUpdatedRequest, TransportTruststoreUpdatedAction.TruststoreUpdatedResponse, TransportTruststoreUpdatedAction.NodeRequest,
-        TransportTruststoreUpdatedAction.NodeResponse> {
+        TransportTruststoreUpdatedAction.NodeResponse, Void> {
 
     private static final Logger log = LogManager.getLogger(TransportTruststoreUpdatedAction.class);
 

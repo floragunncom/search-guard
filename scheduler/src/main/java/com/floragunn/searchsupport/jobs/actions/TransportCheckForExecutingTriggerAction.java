@@ -27,7 +27,7 @@ import org.quartz.Scheduler;
 import org.quartz.impl.DirectSchedulerFactory;
 
 public class TransportCheckForExecutingTriggerAction extends
-        TransportNodesAction<CheckForExecutingTriggerRequest, CheckForExecutingTriggerResponse, TransportCheckForExecutingTriggerAction.NodeRequest, TransportCheckForExecutingTriggerAction.NodeResponse> {
+        TransportNodesAction<CheckForExecutingTriggerRequest, CheckForExecutingTriggerResponse, TransportCheckForExecutingTriggerAction.NodeRequest, TransportCheckForExecutingTriggerAction.NodeResponse, Void> {
 
     private final static Logger log = LogManager.getLogger(TransportCheckForExecutingTriggerAction.class);
 

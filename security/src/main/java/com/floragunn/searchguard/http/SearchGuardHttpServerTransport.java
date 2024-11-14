@@ -80,7 +80,7 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
         try {
 
             BytesReference content = httpRequest.body().asFull().bytes(); // TODO very inefficient implementation, streams should be supported as well
-            // TODO or maybe replace this condition
+            // TODO or maybe replace this condition or even remove ???
             if (content == null || content.length() == 0) {
                 return httpRequest;
             }

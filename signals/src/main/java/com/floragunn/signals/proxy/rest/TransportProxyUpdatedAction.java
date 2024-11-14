@@ -46,7 +46,7 @@ import java.util.Objects;
 
 public class TransportProxyUpdatedAction extends
     TransportNodesAction<TransportProxyUpdatedAction.ProxyUpdatedRequest, TransportProxyUpdatedAction.ProxyUpdatedResponse, TransportProxyUpdatedAction.NodeRequest,
-        TransportProxyUpdatedAction.NodeResponse> {
+        TransportProxyUpdatedAction.NodeResponse, Void> {
 
     private static final Logger log = LogManager.getLogger(TransportProxyUpdatedAction.class);
 

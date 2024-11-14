@@ -49,7 +49,7 @@ import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
 
 public class TransportAckWatchAction
-        extends TransportNodesAction<AckWatchRequest, AckWatchResponse, TransportAckWatchAction.NodeRequest, TransportAckWatchAction.NodeResponse> {
+        extends TransportNodesAction<AckWatchRequest, AckWatchResponse, TransportAckWatchAction.NodeRequest, TransportAckWatchAction.NodeResponse, Void> {
 
     private final static Logger log = LogManager.getLogger(TransportAckWatchAction.class);
 

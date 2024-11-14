@@ -24,7 +24,7 @@ import org.elasticsearch.transport.TransportService;
 import com.floragunn.signals.Signals;
 
 public class TransportSettingsUpdateAction extends
-        TransportNodesAction<SettingsUpdateRequest, SettingsUpdateResponse, TransportSettingsUpdateAction.NodeRequest, TransportSettingsUpdateAction.NodeResponse> {
+        TransportNodesAction<SettingsUpdateRequest, SettingsUpdateResponse, TransportSettingsUpdateAction.NodeRequest, TransportSettingsUpdateAction.NodeResponse, Void> {
 
     private final static Logger log = LogManager.getLogger(TransportSettingsUpdateAction.class);
 

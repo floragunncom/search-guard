@@ -41,7 +41,7 @@ import org.elasticsearch.transport.TransportService;
 import com.floragunn.searchsupport.jobs.core.IndexJobStateStore;
 
 public class TransportSchedulerConfigUpdateAction extends
-        TransportNodesAction<SchedulerConfigUpdateRequest, SchedulerConfigUpdateResponse, TransportSchedulerConfigUpdateAction.NodeRequest, TransportSchedulerConfigUpdateAction.NodeResponse> {
+        TransportNodesAction<SchedulerConfigUpdateRequest, SchedulerConfigUpdateResponse, TransportSchedulerConfigUpdateAction.NodeRequest, TransportSchedulerConfigUpdateAction.NodeResponse, Void> {
 
     private final static Logger log = LogManager.getLogger(TransportSchedulerConfigUpdateAction.class);
 
