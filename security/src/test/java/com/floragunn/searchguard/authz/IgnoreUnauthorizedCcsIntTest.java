@@ -816,6 +816,9 @@ public class IgnoreUnauthorizedCcsIntTest {
 
         Matcher<HttpResponse> clustersCountMatcherCssRoundtripsMinTrue = allOf(json(nodeAt("_clusters.successful", is(2))),
                 json(nodeAt("_clusters.running", is(0))));
+
+        // TODO after upgrade to ES 8.16 the tests behave in the same way for minimize round trips true and false
+//        Matcher<HttpResponse> clustersCountMatcherCssRoundtripsMinFalse = clustersCountMatcherCssRoundtripsMinTrue;
         Matcher<HttpResponse> clustersCountMatcherCssRoundtripsMinFalse = allOf(json(nodeAt("_clusters.successful", is(1))),
                 json(nodeAt("_clusters.running", is(1))));
 
