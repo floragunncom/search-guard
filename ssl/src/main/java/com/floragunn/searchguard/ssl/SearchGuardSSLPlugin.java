@@ -72,6 +72,7 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
 import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
+import com.floragunn.searchguard.ssl.rest.ExtendedSSLInfoAction;
 import com.floragunn.searchguard.ssl.rest.SearchGuardSSLInfoAction;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.ssl.transport.SearchGuardSSLNettyTransport;
@@ -242,6 +243,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         final List<RestHandler> handlers = new ArrayList<RestHandler>(1);
 
         handlers.add(new SearchGuardSSLInfoAction(settings, configPath, restController, sgks, Objects.requireNonNull(principalExtractor)));
+        handlers.add(new ExtendedSSLInfoAction());
 
         return handlers;
     }
