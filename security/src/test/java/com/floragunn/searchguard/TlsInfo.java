@@ -41,15 +41,19 @@ public class TlsInfo {
         SSLSocketFactory factory = sslContext.getSocketFactory();
 
         try (SSLSocket socket = (SSLSocket) factory.createSocket(cluster.getHttpAddress().getHostName(), cluster.getHttpAddress().getPort())) {
+            log.info("Cipher suites " + Arrays.asList(socket.getSupportedCipherSuites()));
+            
             socket.setEnabledProtocols(socket.getSupportedProtocols());
+            socket.setEnabledCipherSuites(socket.getSupportedCipherSuites());
 
             socket.addHandshakeCompletedListener(event -> {
-                System.out.println("Cipher Suite: " + event.getCipherSuite());
 
                 try {
                     SSLSession session = socket.getSession();
                     if (session instanceof ExtendedSSLSession) {
                         ExtendedSSLSession extendedSession = (ExtendedSSLSession) session;
+                        
+                        log.info("Signature algorithms " + Arrays.asList(extendedSession.getPeerSupportedSignatureAlgorithms()));
 
                     } 
                 } catch (Exception e) {
@@ -61,7 +65,6 @@ public class TlsInfo {
 
         }
         
-        Thread.sleep(1000 * 60 * 10l);
 
     }
 }
