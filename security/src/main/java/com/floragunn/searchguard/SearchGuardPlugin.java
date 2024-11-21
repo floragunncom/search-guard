@@ -1210,6 +1210,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     @Override
     public List<BootstrapCheck> getBootstrapChecks() {
         List<BootstrapCheck> bootstrapChecks = new ArrayList<>(super.getBootstrapChecks());
+        if(disabled) {
+            // SG is disabled, therefore no bootstrap checks are needed
+            return bootstrapChecks;
+        }
         bootstrapChecks.add(new BootstrapCheck() {
             @Override
             public BootstrapCheckResult check(BootstrapContext context) {
