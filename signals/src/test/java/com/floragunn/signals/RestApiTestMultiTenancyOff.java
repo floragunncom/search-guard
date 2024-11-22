@@ -35,7 +35,6 @@ import org.junit.Test;
 
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
@@ -62,9 +61,6 @@ public class RestApiTestMultiTenancyOff {
     private final WatchInitializationService watchInitializationService = new WatchInitializationService(null, scriptService,
             Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), throttlePeriodParser, STRICT);
 
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals-no-mt")
             .nodeSettings("signals.enabled", true, "searchguard.enterprise_modules_enabled", false, "signals.index_names.log", SIGNALS_LOGS_INDEX_NAME,

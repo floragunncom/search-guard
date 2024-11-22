@@ -38,12 +38,9 @@ import com.floragunn.searchguard.test.TestData.TestDocument;
 import com.floragunn.searchguard.test.TestIndex;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 public class IgnoreUnauthorizedDisabledIntTest {
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     static TestSgConfig.User LIMITED_USER_A = new TestSgConfig.User("limited_user_A").roles(//
             new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("a*"));

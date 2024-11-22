@@ -20,7 +20,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.signals.execution.ExecutionEnvironment;
 import com.floragunn.signals.execution.SimulationMode;
@@ -46,9 +45,6 @@ public class ScriptingTest {
     private static ScriptService scriptService;
     private static WatchInitializationService watchInitService;
     private static SignalsModule signalsModule;
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("sg_config/signals")

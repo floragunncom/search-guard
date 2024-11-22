@@ -59,7 +59,6 @@ import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
@@ -67,14 +66,10 @@ import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.SimpleRestHandler;
 
 public class SearchGuardInterceptorIntegrationTests {
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @Test
     public void testAllowCustomHeaders() throws Exception {

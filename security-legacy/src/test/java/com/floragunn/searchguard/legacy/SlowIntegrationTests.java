@@ -29,7 +29,6 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.PluginAwareNode;
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -38,14 +37,11 @@ import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchsupport.junit.AsyncAssert;
 
 public class SlowIntegrationTests extends SingleClusterTest {
 
     public static final TimeValue MASTER_NODE_TIMEOUT = TimeValue.timeValueSeconds(40);
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @Ignore("TODO why is this ignored?")
     @Test

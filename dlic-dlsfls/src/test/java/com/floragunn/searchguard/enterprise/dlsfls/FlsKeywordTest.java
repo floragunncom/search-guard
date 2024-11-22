@@ -7,7 +7,6 @@ import com.floragunn.searchguard.test.TestSgConfig.Authc;
 import com.floragunn.searchguard.test.TestSgConfig.DlsFls;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestSgConfig.User;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
@@ -41,9 +40,6 @@ public class FlsKeywordTest {
     public static final String MATCH_ALL_QUERY_WITH_FIELDS = DocNode.of("query", DocNode.of("match_all", DocNode.EMPTY), "fields", asList(FIELD_TITLE, FIELD_TITLE_KEYWORD, FIELD_CONTENT, FIELD_CONTENT_KEYWORD, FIELD_AUTHOR, FIELD_AUTHOR_KEYWORD), "_source", false).toJsonString();
     public static final String AGGREGATION_BY_AUTHOR_QUERY = DocNode.of("size", 0, "aggs", DocNode.of(AUTHOR_AGGREGATION_NAME, DocNode.of("terms", DocNode.of("field", FIELD_AUTHOR_KEYWORD)))).toJsonString();
     public static final String AUTHOR_GOETHE = "Goethe";
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     static final Authc AUTHC = new Authc(new Authc.Domain("basic/internal_users_db"));
     static final DlsFls DLSFLS = new DlsFls().metrics("detailed");

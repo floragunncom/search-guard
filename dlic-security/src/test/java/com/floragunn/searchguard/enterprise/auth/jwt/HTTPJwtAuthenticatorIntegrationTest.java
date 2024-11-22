@@ -24,7 +24,6 @@ import com.floragunn.searchguard.test.TestSgConfig.JsonWebKey;
 import com.floragunn.searchguard.test.TestSgConfig.Jwks;
 import com.floragunn.searchguard.test.TestSgConfig.JwtDomain;
 import com.floragunn.searchguard.test.TestSgConfig.Signing;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 /**
@@ -33,9 +32,6 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 public class HTTPJwtAuthenticatorIntegrationTest {
 
     private final static Logger log = LogManager.getLogger(HTTPJwtAuthenticatorIntegrationTest.class);
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     public static final JwtDomain JWK_DOMAIN = new JwtDomain()
         .signing(new Signing().jwks(new Jwks().addKey(new JsonWebKey().kty("oct").kid("kid/a").use("sig").alg("HS256").k(TestJwk.OCT_1_K))));

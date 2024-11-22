@@ -51,13 +51,11 @@ import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.signals.CertificatesParser;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsModule;
 import com.floragunn.signals.settings.SignalsSettings;
-import com.floragunn.signals.truststore.rest.TruststoreLoader;
 import com.floragunn.signals.truststore.service.persistence.TruststoreRepository;
 
 public class TrustManagerRegistryTest {
@@ -67,9 +65,6 @@ public class TrustManagerRegistryTest {
     public static final String TRUSTSTORE_ID_2 = "truststore-id-two";
     public static final String TRUSTSTORE_ID_3 = "truststore-id-three";
     public static final String TEST_CERTIFICATE_ALGORITHM = "SHA256withRSA";
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().clusterConfiguration(ClusterConfiguration.DEFAULT).sslEnabled()//
