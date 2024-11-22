@@ -19,7 +19,6 @@ import org.apache.http.message.BasicHeader;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.dlic.auth.ldap.srv.LdapServer;
@@ -29,13 +28,9 @@ import com.floragunn.searchguard.legacy.test.SingleClusterTest;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
 public class LdapBackendIntegTest2 extends SingleClusterTest {
-    
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
+
     private static LdapServer tlsLdapServer = LdapServer.createTls("base.ldif"); 
 
 

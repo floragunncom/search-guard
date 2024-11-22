@@ -33,15 +33,12 @@ import com.floragunn.searchguard.test.TestAlias;
 import com.floragunn.searchguard.test.TestIndex;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 /**
  * This class tests ignore_unauthorized_index: false together with the legacy non-hidden searchguard index. This will make more queries fail with 403, because they match on the searchguard  index.
  */
 public class IgnoreUnauthorizedDisabledWithLegacyIndexIntTest {
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     static TestSgConfig.User LIMITED_USER_A = new TestSgConfig.User("limited_user_A").roles(//
             new Role("limited_user_a_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO").indexPermissions("SGS_CRUD").on("a*"));

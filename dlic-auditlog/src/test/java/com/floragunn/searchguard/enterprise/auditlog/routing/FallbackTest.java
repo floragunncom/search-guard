@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.enterprise.auditlog.AbstractAuditlogiUnitTest;
@@ -29,17 +28,11 @@ import com.floragunn.searchguard.enterprise.auditlog.helper.LoggingSink;
 import com.floragunn.searchguard.enterprise.auditlog.helper.MockAuditMessageFactory;
 import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
-import com.floragunn.searchguard.enterprise.auditlog.routing.AuditMessageRouter;
 import com.floragunn.searchguard.enterprise.auditlog.sink.AuditLogSink;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
 public class FallbackTest extends AbstractAuditlogiUnitTest {
-
-
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
 	@Test
 	public void testFallback() throws Exception {

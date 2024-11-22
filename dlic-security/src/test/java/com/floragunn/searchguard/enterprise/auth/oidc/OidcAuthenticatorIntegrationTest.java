@@ -30,7 +30,6 @@ import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -72,9 +71,6 @@ public class OidcAuthenticatorIntegrationTest {
             throw new RuntimeException(e);
         }
     }
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @BeforeClass
     public static void setUp() throws Exception {

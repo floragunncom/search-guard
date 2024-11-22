@@ -5,7 +5,6 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Authc;
 import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain;
 import com.floragunn.searchguard.test.TestSgConfig.User;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -15,9 +14,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
 public class CrossClusterSearchWithoutRemoteClusterSetupTest {
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     public static final User USER_ADMIN = new User("admin").roles(ALL_ACCESS);
     public static final User USER_LIMITED = new User("limited")

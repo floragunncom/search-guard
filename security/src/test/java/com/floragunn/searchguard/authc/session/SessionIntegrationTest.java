@@ -30,7 +30,6 @@ import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.BearerAuthorization;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 public class SessionIntegrationTest {
@@ -48,9 +47,6 @@ public class SessionIntegrationTest {
             .frontendAuthc("test_fe", new TestSgConfig.FrontendAuthc()
                     .authDomain(new TestSgConfig.FrontendAuthDomain(TestApiAuthenticationFrontend.class.getName()).label("Test Login")))
             .user(NO_ROLES_USER).user(BASIC_USER);
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin")

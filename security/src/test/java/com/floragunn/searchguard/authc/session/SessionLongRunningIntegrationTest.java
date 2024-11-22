@@ -19,7 +19,6 @@ package com.floragunn.searchguard.authc.session;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedMap;
@@ -39,7 +38,6 @@ import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.BearerAuthorization;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.google.common.io.BaseEncoding;
 
@@ -63,9 +61,6 @@ public class SessionLongRunningIntegrationTest {
             .frontendAuthc("test_fe", new TestSgConfig.FrontendAuthc()
                     .authDomain(new TestSgConfig.FrontendAuthDomain(TestApiAuthenticationFrontend.class.getName()).label("Test Login")))
             .user(NO_ROLES_USER).user(BASIC_USER).sessions(SESSIONS);
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().resources("session").sgConfig(TEST_SG_CONFIG).sslEnabled().build();

@@ -7,7 +7,6 @@ import com.floragunn.searchguard.test.TestSgConfig.DlsFls;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.helper.cluster.ConfigurationUpdater;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,9 +29,6 @@ public class InvalidRolesAndMappingConfigurationWithDisabledDlsTest {
     private static final User USER_ADMIN = new User("admin").roles(ALL_ACCESS.getName());
     public static final String LIMITED_ROLE_NAME = "limited-role";
     private static final User USER_LIMITED = new User("limited-user").roles(LIMITED_ROLE_NAME);
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
     public static LocalCluster.Embedded CLUSTER = new LocalCluster.Builder().singleNode().authc(AUTHC).dlsFls(DLSFLS)//

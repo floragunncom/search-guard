@@ -21,7 +21,6 @@ import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
@@ -29,13 +28,9 @@ import com.floragunn.searchguard.legacy.test.RestHelper;
 import com.floragunn.searchguard.legacy.test.SingleClusterTest;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
 public class SearchGuardRolesTests extends SingleClusterTest {
 
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
     @Test
     public void testSGRAnon() throws Exception {
 
