@@ -120,22 +120,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
             return;
         }
-
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
-
-        AccessController.doPrivileged(new PrivilegedAction<Object>() {
-            @Override
-            public Object run() {
-                if (Security.getProvider("BC") == null) {
-                    Security.addProvider(new BouncyCastleProvider());
-                }
-                return null;
-            }
-        });
         
         this.configPath = configPath;
 
