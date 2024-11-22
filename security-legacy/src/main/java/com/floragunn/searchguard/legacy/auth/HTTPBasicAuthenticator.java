@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -54,7 +55,15 @@ public class HTTPBasicAuthenticator implements LegacyHTTPAuthenticator, ApiAuthe
     @Override
     public AuthCredentials extractCredentials(final RestRequest request, ThreadContext threadContext) {
 
-        final boolean forceLogin = request.paramAsBoolean("force_login", false);
+        // replaced by below code. Usage of code request.paramAsBoolean("force_login", false); consumes parameter and this
+        // leads to an assertion error:
+        // https://github.com/elastic/elasticsearch/commit/5a5b14dde62b1c23bb0ce121584162485ba1989b
+        //        final boolean forceLogin = request.paramAsBoolean("force_login", false);
+        final boolean forceLogin = Optional.ofNullable(request.params())
+                .map(params -> params.get("force_login"))
+                .map(Boolean::parseBoolean)
+                .orElse(false);
+
 
         if (forceLogin) {
             return null;
