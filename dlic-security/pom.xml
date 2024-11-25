@@ -143,12 +143,12 @@
     <dependency>
       <!-- Replacement for bcprov-jdk18on (see above)  -->
       <groupId>org.bouncycastle</groupId>
-      <artifactId>bcpkix-jdk15on</artifactId>
+      <artifactId>bcpkix-jdk18on</artifactId>
     </dependency>
     <dependency>
       <!-- Replacement for bcprov-jdk18on (see above)  -->
       <groupId>org.bouncycastle</groupId>
-      <artifactId>bcprov-jdk15on</artifactId>
+      <artifactId>bcprov-jdk18on</artifactId>
     </dependency>
 
     <dependency>
