@@ -46,7 +46,7 @@
   </distributionManagement>
 
   <properties>
-    <elasticsearch.version>8.17.2</elasticsearch.version>
+    <elasticsearch.version>9.0.0-SNAPSHOT</elasticsearch.version>
     <sg-suite.version>master-SNAPSHOT</sg-suite.version>
     <revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
 
@@ -159,7 +159,7 @@
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>33.3.1-jre</version>
+        <version>33.2.1-jre</version>
       </dependency>
 
       <dependency>

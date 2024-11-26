@@ -16,8 +16,10 @@ package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
 import java.util.HashMap;
 
+import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.floragunn.searchguard.user.AuthCredentials;
@@ -26,6 +28,11 @@ import com.google.common.collect.ImmutableMap;
 
 @Deprecated
 public class SingleKeyHTTPJwtKeyByOpenIdConnectAuthenticatorTest {
+
+	@BeforeClass
+	public static void setUp() {
+		LogConfigurator.configureESLogging();
+	}
 
 	@Test
 	public void basicTest() throws Exception {

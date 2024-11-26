@@ -20,7 +20,7 @@ package com.floragunn.searchsupport.jobs.actions;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 
-public class SchedulerConfigUpdateRequest extends BaseNodesRequest<SchedulerConfigUpdateRequest> {
+public class SchedulerConfigUpdateRequest extends BaseNodesRequest {
 
     private String schedulerName;
 

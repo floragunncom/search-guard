@@ -27,6 +27,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.settings.Settings;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.core.Is;
@@ -53,6 +54,7 @@ public class HTTPJwtAuthenticatorTest {
     
     static {
         new SecureRandom().nextBytes(secretKey);
+        LogConfigurator.configureESLogging();
     }
 
     @Rule

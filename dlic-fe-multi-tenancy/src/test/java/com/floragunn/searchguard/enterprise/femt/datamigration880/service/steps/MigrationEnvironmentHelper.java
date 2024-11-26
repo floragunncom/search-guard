@@ -203,7 +203,7 @@ public class MigrationEnvironmentHelper extends ExternalResource {
         SearchResponse response = client.search(request).actionGet();
         try {
             assertThat(response.getFailedShards(), equalTo(0));
-            return response.getHits().getTotalHits().value;
+            return response.getHits().getTotalHits().value();
         } finally {
             response.decRef();
         }

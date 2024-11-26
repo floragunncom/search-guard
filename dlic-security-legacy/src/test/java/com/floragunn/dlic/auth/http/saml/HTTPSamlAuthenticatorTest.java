@@ -40,6 +40,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
@@ -70,6 +71,8 @@ public class HTTPSamlAuthenticatorTest {
         if (Security.getProvider("BC") == null) {
             Security.addProvider(new BouncyCastleProvider());
         }
+
+        LogConfigurator.configureESLogging();
         
     }
     

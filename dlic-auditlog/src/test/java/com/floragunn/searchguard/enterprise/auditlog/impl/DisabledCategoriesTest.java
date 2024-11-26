@@ -31,11 +31,13 @@ import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.Settings.Builder;
 import org.elasticsearch.tasks.Task;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -54,7 +56,12 @@ public class DisabledCategoriesTest {
     DiscoveryNode dn = mock(DiscoveryNode.class);
     ConfigurationRepository configurationRepository = mock(ConfigurationRepository.class);
 
-    @Before
+	@BeforeClass
+	public static void beforeClass() throws Exception {
+		LogConfigurator.configureESLogging();
+	}
+
+	@Before
     public void setup() {
         when(dn.getHostAddress()).thenReturn("hostaddress");
         when(dn.getId()).thenReturn("hostaddress");

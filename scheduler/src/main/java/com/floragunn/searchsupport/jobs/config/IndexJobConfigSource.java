@@ -98,7 +98,7 @@ public class IndexJobConfigSource<JobType extends JobConfig> implements Iterable
             }
 
             while (this.current == null) {
-                if (this.searchHits.getTotalHits().value == 0) {
+                if (this.searchHits.getTotalHits().value() == 0) {
                     break;
                 }
 

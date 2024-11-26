@@ -243,7 +243,7 @@ public class DlsFilterLevelActionHandler {
 
                     ctx.restore();
 
-                    long hits = response.getHits().getTotalHits().value;
+                    long hits = response.getHits().getTotalHits().value();
 
                     @SuppressWarnings("unchecked")
                     ActionListener<GetResponse> getListener = (ActionListener<GetResponse>) listener;

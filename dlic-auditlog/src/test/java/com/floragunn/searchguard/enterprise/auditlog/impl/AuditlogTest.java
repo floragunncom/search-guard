@@ -49,10 +49,12 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class AuditlogTest {
@@ -62,6 +64,11 @@ public class AuditlogTest {
     ClusterService cs = mock(ClusterService.class);
     DiscoveryNode dn = mock(DiscoveryNode.class);
     ConfigurationRepository configurationRepository = mock(ConfigurationRepository.class);
+
+    @BeforeClass
+    public static void beforeClass() throws Exception {
+        LogConfigurator.configureESLogging();
+    }
 
     @Before
     public void setup() {
