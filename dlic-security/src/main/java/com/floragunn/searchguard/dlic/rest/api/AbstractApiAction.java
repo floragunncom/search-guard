@@ -412,15 +412,33 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	    
 	}
 
+	//todo temporary walkaround to fix issue with reference counting  and request body which gets released before we start reading it
+	public static class RestRequestWrapper extends RestRequest {
+
+		private final BytesReference content;
+
+		protected RestRequestWrapper(RestRequest other) {
+			super(other);
+			content = other.content();
+		}
+
+		@Override
+		public BytesReference content() {
+			return content;
+		}
+	}
+
     @Override
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 
         // consume all parameters first so we can return a correct HTTP status,
         // not 400
         consumeParameters(request);
-        
+
         // dirty hack to avoid "request does not support having a body" error
         request.content();
+
+		RestRequestWrapper wrappedRestRequest = new RestRequestWrapper(request);
 
 		final ThreadContext threadContext = threadPool.getThreadContext();
 
@@ -464,7 +482,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 					);
 
 
-                    handleApiRequest(channel, request, client);
+                    handleApiRequest(channel, wrappedRestRequest, client);
 
                 } catch (Exception e) {
                     log.error("Error while processing request " + request, e);

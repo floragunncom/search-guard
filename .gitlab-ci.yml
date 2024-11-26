@@ -63,7 +63,7 @@ stages:
   #- "Frontend Int Tests External Features"
   #- "Frontend Compat Int Tests 1"
   #- "Frontend Compat Int Tests 2"
-  - "Aikido Scan"  
+  - "Aikido Scan"
   - release
   - "Deploy Docker Image"
 
@@ -81,6 +81,7 @@ include:
 
 
 build:
+  image: maven:3.9.9-eclipse-temurin-23-alpine
   allow_failure: false
   stage: build
   rules:
@@ -91,6 +92,7 @@ build:
     - | 
        SNAPSHOT_REVISION="$CI_COMMIT_REF_SLUG-SNAPSHOT"
        mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
+       mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS --batch-mode -s settings.xml -U -e -X -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
        echo "ES_VERSION=$ES_VERSION" >> snapshot.env
        cat snapshot.env

@@ -82,7 +82,7 @@ public class AuthcCacheApi {
             super(NAME);
         }
 
-        public static class Request extends BaseNodesRequest<Request> {
+        public static class Request extends BaseNodesRequest {
             protected Request() {
                 super(new String[0]);
             }

@@ -282,7 +282,7 @@ class StepRepository {
                 throw new StepException("Cannot count documents in index '" + indexName + "'", CANNOT_COUNT_DOCUMENTS, null);
             }
 
-            return response.getHits().getTotalHits().value;
+            return response.getHits().getTotalHits().value();
         } finally {
             response.decRef();
         }
