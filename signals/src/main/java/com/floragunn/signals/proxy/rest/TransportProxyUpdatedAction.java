@@ -174,7 +174,7 @@ public class TransportProxyUpdatedAction extends
         }
     }
 
-    public static class ProxyUpdatedRequest extends BaseNodesRequest<ProxyUpdatedRequest> {
+    public static class ProxyUpdatedRequest extends BaseNodesRequest {
 
         private final String proxyId;
         private final String operationType;

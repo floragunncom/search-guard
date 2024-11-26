@@ -49,7 +49,7 @@ public class PushSessionTokenUpdateAction extends ActionType<PushSessionTokenUpd
         super(NAME);
     }
 
-    public static class Request extends BaseNodesRequest<Request> {
+    public static class Request extends BaseNodesRequest {
 
         private SessionToken updatedToken;
         private UpdateType updateType;

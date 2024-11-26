@@ -177,7 +177,7 @@ public class TransportTruststoreUpdatedAction extends
         }
     }
 
-    public static class TruststoreUpdatedRequest extends BaseNodesRequest<TruststoreUpdatedRequest> {
+    public static class TruststoreUpdatedRequest extends BaseNodesRequest {
 
         private final String truststoreId;
         private final String operationType;

@@ -328,7 +328,7 @@ public class SearchGuardCapabilities {
             super(NAME);
         }
 
-        public static class Request extends BaseNodesRequest<Request> {
+        public static class Request extends BaseNodesRequest {
 
             Request() {
                 super(new String[0]);

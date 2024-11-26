@@ -5,7 +5,7 @@ package com.floragunn.signals.actions.watch.ackandget;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 
-public class AckAndGetWatchRequest extends BaseNodesRequest<AckAndGetWatchRequest> {
+public class AckAndGetWatchRequest extends BaseNodesRequest {
 
     private String watchId;
     private String actionId;
