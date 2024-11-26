@@ -23,6 +23,7 @@ import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginsLoader;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -43,6 +44,7 @@ public class PluginAwareNode extends Node {
     public PluginAwareNode(boolean masterEligible, final Settings preparedSettings, List<Class<? extends Plugin>> additionalPlugins) {
         super(NodeConstruction.prepareConstruction(
             createEnvironment(preparedSettings),
+            new PluginsLoader(null, null),
             new SgNodeServiceProvider(additionalPlugins),
             true));
         this.masterEligible = masterEligible;

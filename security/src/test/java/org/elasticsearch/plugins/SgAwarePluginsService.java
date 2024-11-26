@@ -31,8 +31,8 @@ public class SgAwarePluginsService extends PluginsService {
             ReindexPlugin.class);
 
 
-    public SgAwarePluginsService(Settings settings, List<Class<? extends Plugin>> additionalPlugins) {
-        super(settings, null, null, null);
+    public SgAwarePluginsService(Settings settings, List<Class<? extends Plugin>> additionalPlugins, PluginsLoader pluginsLoader) {
+        super(settings, null, pluginsLoader);
 
         loadSearchGuardPlugin(settings);
         loadMainRestPlugin();
@@ -80,10 +80,10 @@ public class SgAwarePluginsService extends PluginsService {
     }
 
     private static LoadedPlugin createLoadedPlugin(Plugin plugin) {
-        return new LoadedPlugin(createPluginDescriptor(plugin.getClass()),plugin);
+        return new LoadedPlugin(createPluginDescriptor(plugin.getClass()), plugin, SgAwarePluginsService.class.getClassLoader());
     }
     private static LoadedPlugin createLoadedPlugin(Class<? extends Plugin> pluginClass) throws Exception {
-        return new LoadedPlugin(createPluginDescriptor(pluginClass),pluginClass.getDeclaredConstructor().newInstance());
+        return new LoadedPlugin(createPluginDescriptor(pluginClass), pluginClass.getDeclaredConstructor().newInstance(), SgAwarePluginsService.class.getClassLoader());
     }
 
     private static PluginDescriptor createPluginDescriptor(Class<? extends Plugin> pluginClass)  {
@@ -122,10 +122,5 @@ public class SgAwarePluginsService extends PluginsService {
                 }
             }
         });
-    }
-
-    @Override
-    protected void addServerExportsService(Map<String, List<ModuleQualifiedExportsService>> qualifiedExports) {
-        // empty for tests
     }
 }
