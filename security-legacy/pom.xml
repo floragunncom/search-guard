@@ -47,8 +47,8 @@
       <artifactId>bcpkix-lts8on</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcprov-lts8on</artifactId>
+      <groupId>com.floragunn.dependencies</groupId>
+      <artifactId>sgbcprov-lts8on-patched</artifactId>
     </dependency>
 
     <dependency>

@@ -254,18 +254,30 @@
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpg-lts8on</artifactId>
         <version>${bc.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-lts8on</artifactId>
+          </exclusion>
+        </exclusions>        
       </dependency>
 
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpkix-lts8on</artifactId>
         <version>${bc.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-lts8on</artifactId>
+          </exclusion>
+        </exclusions>           
       </dependency>
 
       <dependency>
-        <groupId>org.bouncycastle</groupId>
-        <artifactId>bcprov-lts8on</artifactId>
-        <version>${bc.version}</version>
+        <groupId>com.floragunn.dependencies</groupId>
+        <artifactId>sgbcprov-lts8on-patched</artifactId>
+        <version>2.73.7-bc-SNAPSHOT</version>        
       </dependency>
 
       <dependency>
