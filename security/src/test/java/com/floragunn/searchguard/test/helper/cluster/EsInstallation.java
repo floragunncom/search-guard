@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Format;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.KeyStoreWrapper;
@@ -157,8 +159,10 @@ class EsInstallation {
             command.add("-Ehttp.port=" + httpPort);
             command.add("-Etransport.port=" + transportPort);
 
+            DocNode wrappedSettings = DocNode.parse(Format.JSON).from(settings.toString());
+
             for (String key : settings.keySet()) {
-                command.add("-E" + key + "=" + String.join(",", settings.getAsList(key)));
+                command.add("-E" + key + "=" + wrappedSettings.getAsNode(key).toYamlString().replace("---", ""));
             }
 
             if (nodeSettings.masterNode && nodeSettings.dataNode) {
