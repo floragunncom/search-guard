@@ -91,7 +91,7 @@ public class MiscAuthorizationIntTests {
 
     private static TestCertificates certificatesContext = TestCertificates.builder().ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
             .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard").addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard")
-            .addAdminClients("CN=admin-0.example.com;OU=SearchGuard;O=SearchGuard").build();
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard").build();
 
     @ClassRule
     public static LocalCluster.Embedded anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
