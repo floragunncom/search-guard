@@ -10,7 +10,6 @@ import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestSgConfig.RoleMapping;
 import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.helper.cluster.ConfigurationUpdater;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -40,9 +39,6 @@ public class InvalidRolesAndMappingConfigurationTest {
 
     private static final Role ROLE_USED_WITH_INCORRECT_MAPPING = new Role("invalid-mapping-role").clusterPermissions("*");
     private static final String ERROR_TYPE = "status_exception";
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
     public static LocalCluster.Embedded CLUSTER = new LocalCluster.Builder().singleNode().authc(AUTHC).dlsFls(DLSFLS)//

@@ -41,9 +41,6 @@ public class LocalClusterTest {
         .user(USER_ADMIN).users(USER_LIMITED).user(USER_WITHOUT_ROLE)//
         .sslEnabled().enterpriseModulesEnabled().embedded().build();
 
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-
     @BeforeClass
     public static void setupData() {
         Client client = CLUSTER.getPrivilegedInternalNodeClient();

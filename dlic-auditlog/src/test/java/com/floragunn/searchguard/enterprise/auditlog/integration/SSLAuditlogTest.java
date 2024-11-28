@@ -18,7 +18,6 @@ import org.apache.http.HttpStatus;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.After;
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.enterprise.auditlog.AbstractAuditlogiUnitTest;
@@ -31,16 +30,12 @@ import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.ClusterHelper;
 import com.floragunn.searchguard.test.helper.cluster.ClusterInfo;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
 public class SSLAuditlogTest extends AbstractAuditlogiUnitTest {
     
     private ClusterInfo monitoringClusterInfo;
     private RestHelper rhMon;
     private final ClusterHelper monitoringCluster = new ClusterHelper("mon_n", 0);
-
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @After
     public void tearDown() throws Exception {

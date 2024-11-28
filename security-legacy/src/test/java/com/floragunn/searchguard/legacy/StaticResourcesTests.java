@@ -19,17 +19,12 @@ package com.floragunn.searchguard.legacy;
 
 import org.apache.http.HttpStatus;
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.legacy.test.RestHelper;
 import com.floragunn.searchguard.legacy.test.SingleClusterTest;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
 public class StaticResourcesTests extends SingleClusterTest {
-  
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @Test
     public void testStaticResources() throws Exception {

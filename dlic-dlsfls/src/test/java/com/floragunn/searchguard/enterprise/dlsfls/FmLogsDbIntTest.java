@@ -30,7 +30,6 @@ import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestData;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.jayway.jsonpath.Configuration.Defaults;
 import com.jayway.jsonpath.Option;
@@ -38,7 +37,6 @@ import com.jayway.jsonpath.spi.json.JsonProvider;
 import com.jayway.jsonpath.spi.mapper.MappingProvider;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
 import static org.hamcrest.Matchers.equalTo;
 
 public class FmLogsDbIntTest {
@@ -63,9 +61,6 @@ public class FmLogsDbIntTest {
 
         });
     }
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     /**
      * Increase DOC_COUNT for manual test runs with bigger test data sets

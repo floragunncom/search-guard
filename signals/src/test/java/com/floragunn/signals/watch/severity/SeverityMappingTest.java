@@ -18,7 +18,6 @@ import org.junit.Test;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.signals.SignalsModule;
 import com.floragunn.signals.execution.ExecutionEnvironment;
@@ -37,9 +36,6 @@ public class SeverityMappingTest {
     private static ScriptService scriptService;
     private final WatchInitializationService watchInitService = new WatchInitializationService(null, scriptService,
             Mockito.mock(TrustManagerRegistry.class), Mockito.mock(HttpProxyHostRegistry.class), null, STRICT);
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled()

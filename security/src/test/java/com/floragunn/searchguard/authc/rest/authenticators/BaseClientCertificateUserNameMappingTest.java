@@ -5,10 +5,8 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig.Authc;
 import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.UserMapping;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.http.HttpHeaders;
-import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -23,9 +21,6 @@ import static org.hamcrest.Matchers.equalTo;
 public abstract class BaseClientCertificateUserNameMappingTest {
     private final String subjectDistinguishedName;
     private final String expectedUserName;
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     protected BaseClientCertificateUserNameMappingTest(String subjectDistinguishedName, String expectedUserName) {
         this.subjectDistinguishedName = subjectDistinguishedName;

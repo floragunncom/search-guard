@@ -31,7 +31,6 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenRequest;
 import com.floragunn.searchguard.test.TestData.TestDocument;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 import java.util.Collections;
@@ -50,9 +49,6 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 
 public class AuthTokenDlsIntTest {
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     static final String INDEX = "logs";
     static final String INDEX_ALIAS = "logs_alias";

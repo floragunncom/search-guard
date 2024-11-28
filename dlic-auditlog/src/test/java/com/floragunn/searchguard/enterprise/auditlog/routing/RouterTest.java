@@ -26,20 +26,14 @@ import com.floragunn.searchguard.enterprise.auditlog.helper.LoggingSink;
 import com.floragunn.searchguard.enterprise.auditlog.helper.MockAuditMessageFactory;
 import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
-import com.floragunn.searchguard.enterprise.auditlog.routing.AuditMessageRouter;
 import com.floragunn.searchguard.enterprise.auditlog.sink.AuditLogSink;
 import com.floragunn.searchguard.enterprise.auditlog.sink.DebugSink;
 import com.floragunn.searchguard.enterprise.auditlog.sink.ExternalESSink;
 import com.floragunn.searchguard.enterprise.auditlog.sink.InternalESSink;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
 public class RouterTest extends AbstractAuditlogiUnitTest{
-
-
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
 	@Test
 	public void testValidConfiguration() throws Exception {

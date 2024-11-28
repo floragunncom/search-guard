@@ -27,7 +27,6 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.enterprise.auditlog.AbstractAuditlogiUnitTest;
@@ -35,12 +34,8 @@ import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
 public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
-
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @Test
     public void testSimpleAuthenticated() throws Exception {
