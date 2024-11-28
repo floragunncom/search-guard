@@ -17,7 +17,6 @@ package com.floragunn.searchguard.enterprise.auditlog.compliance;
 import org.apache.http.HttpStatus;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -25,12 +24,8 @@ import com.floragunn.searchguard.enterprise.auditlog.AbstractAuditlogiUnitTest;
 import com.floragunn.searchguard.enterprise.auditlog.integration.TestAuditlogImpl;
 import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
 public class RestApiComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
-
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @Test
     public void testRestApiRolesEnabled() throws Exception {

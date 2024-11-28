@@ -58,7 +58,6 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.network.SocketUtils;
 import com.floragunn.signals.accounts.AccountRegistry;
@@ -223,9 +222,6 @@ public class ActionTest {
             .dynamicPort()
             .extensions(REQUEST_HEADER_ADDING_FILTER));
 
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .nodeSettings("signals.enabled", true, "signals.enterprise.enabled", false).resources("sg_config/signals")

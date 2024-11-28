@@ -31,7 +31,6 @@ import org.junit.Test;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.google.common.collect.ImmutableMap;
 
@@ -49,9 +48,6 @@ public class BackendRegistryTests {
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled().authc(AUTHC)
             .users(TEST_USER, BLOCK_TEST_USER, BLOCK_WILDCARD_TEST_USER).embedded().build();
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @Test
     public void when_user_is_blocked_then_authentication_should_fail() throws Exception {

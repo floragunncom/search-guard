@@ -25,7 +25,6 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
@@ -36,13 +35,9 @@ import com.floragunn.searchguard.legacy.test.RestHelper;
 import com.floragunn.searchguard.legacy.test.SingleClusterTest;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 
 public class HTTPProxyAuthenticator2Tests extends SingleClusterTest {
 
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
     public void testAdditionalAttributes(RestHelper restHelper, BasicHeader basicHeader) throws Exception {
         RestHelper.HttpResponse httpResponse = restHelper.executeGetRequest("_searchguard/authinfo", new BasicHeader("x-proxy-user", "scotty"),
                 new BasicHeader("x-proxy-roles", "starfleet,engineer"), basicHeader);

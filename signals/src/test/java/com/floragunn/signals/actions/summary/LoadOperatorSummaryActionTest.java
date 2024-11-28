@@ -25,7 +25,6 @@ import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestSgConfig.User;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.signals.SignalsModule;
 import java.time.Instant;
@@ -69,14 +68,10 @@ public class LoadOperatorSummaryActionTest {
     public static final String EMPTY_JSON_BODY = DocNode.EMPTY.toString();
 
     @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-
-    @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode()
         .sslEnabled()
         .enableModule(SignalsModule.class)
         .user(USER_ADMIN)
-        .dependsOn(javaSecurity)
         .embedded().build();
 
     @BeforeClass

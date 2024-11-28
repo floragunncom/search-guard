@@ -47,7 +47,6 @@ import org.elasticsearch.xcontent.XContentType;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.signals.execution.CheckExecutionException;
 import com.floragunn.signals.execution.ExecutionEnvironment;
@@ -113,9 +112,6 @@ public class CheckTest {
             .proxyPassThrough(true)
             .dynamicPort()
             .extensions(REQUEST_HEADER_ADDING_FILTER));
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
     public static LocalCluster.Embedded anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(testCertificates).resources("sg_config/signals")

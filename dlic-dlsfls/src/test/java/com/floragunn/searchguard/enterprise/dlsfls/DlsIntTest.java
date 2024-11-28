@@ -31,7 +31,6 @@ import com.floragunn.searchguard.test.TestData;
 import com.floragunn.searchguard.test.TestData.TestDocument;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -47,9 +46,6 @@ import static org.hamcrest.Matchers.equalTo;
 
 @RunWith(Parameterized.class)
 public class DlsIntTest {
-
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     /**
      * Increase DOC_COUNT for manual test runs with bigger test data sets

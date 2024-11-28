@@ -27,12 +27,9 @@ import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.BearerAuthorization;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 public class ExternalSearchGuardSessionAuthenticationBackendTest {
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     final static TestSgConfig.User SESSION_TEST_USER = new TestSgConfig.User("session_test_user").roles("sg_all_access", "SGS_KIBANA_USER");
     final static String HS512_KEY = "rJr-CU8cedCQxHetNz5jgNWVPrfDmgUMjiNcXmvxODZozLkNCbgDQRneS6kNXlnOLFC8IKx5mACOmcd4bsDD2w";

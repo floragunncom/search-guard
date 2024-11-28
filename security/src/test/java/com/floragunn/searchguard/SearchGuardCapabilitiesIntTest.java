@@ -23,12 +23,9 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 public class SearchGuardCapabilitiesIntTest {
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().embedded().build();

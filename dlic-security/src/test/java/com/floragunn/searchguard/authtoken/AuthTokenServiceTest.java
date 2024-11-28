@@ -48,7 +48,6 @@ import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.StaticSettings;
@@ -90,9 +89,6 @@ public class AuthTokenServiceTest {
             }
         }
     };
-    
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().resources("authtoken").singleNode().enterpriseModulesEnabled().sslEnabled()

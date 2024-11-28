@@ -29,15 +29,11 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.TestSgConfig.Role;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 import java.util.Map;
 
 public class BulkTests {
-
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
     
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()

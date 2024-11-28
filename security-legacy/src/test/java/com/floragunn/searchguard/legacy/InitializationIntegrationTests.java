@@ -32,7 +32,6 @@ import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
@@ -44,13 +43,10 @@ import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.legacy.test.SingleClusterTest;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchsupport.junit.AsyncAssert;
 
 public class InitializationIntegrationTests extends SingleClusterTest {
-    @ClassRule 
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
-    
+
     @Test
     public void testEnsureInitViaRestDoesWork() throws Exception {
         

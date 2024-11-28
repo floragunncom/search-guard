@@ -38,7 +38,6 @@ import com.floragunn.searchguard.test.TestSgConfig.Authc;
 import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.UserMapping;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
-import com.floragunn.searchguard.test.helper.cluster.JavaSecurityTestSetup;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 /**
@@ -46,8 +45,6 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
  */
 @Ignore
 public class LdapStressTest {
-    @ClassRule
-    public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     static TestCertificates certificatesContext = TestCertificates.builder().build();
 
