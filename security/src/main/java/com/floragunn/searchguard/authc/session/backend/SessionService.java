@@ -685,7 +685,7 @@ public class SessionService {
 
         SearchResponse searchResponse = privilegedConfigClient.search(searchRequest).actionGet();
         try {
-            return searchResponse.getHits().getTotalHits().value;
+            return searchResponse.getHits().getTotalHits().value();
         } finally {
             searchResponse.decRef();
         }

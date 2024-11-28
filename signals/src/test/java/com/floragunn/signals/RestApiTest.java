@@ -3253,7 +3253,7 @@ public class RestApiTest {
         SearchResponse response = client.search(request).get();
 
         try {
-            return response.getHits().getTotalHits().value;
+            return response.getHits().getTotalHits().value();
         } finally {
             response.decRef();
         }
