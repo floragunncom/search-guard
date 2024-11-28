@@ -17,11 +17,11 @@
 
 package org.elasticsearch.node;
 
-import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
+import org.elasticsearch.jdk.ModuleQualifiedExportsService;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.PluginsLoader;
 
@@ -29,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PluginAwareNode extends Node {
@@ -44,7 +45,12 @@ public class PluginAwareNode extends Node {
     public PluginAwareNode(boolean masterEligible, final Settings preparedSettings, List<Class<? extends Plugin>> additionalPlugins) {
         super(NodeConstruction.prepareConstruction(
             createEnvironment(preparedSettings),
-            new PluginsLoader(null, null),
+            new PluginsLoader(null, null) {
+                @Override
+                protected void addServerExportsService(Map<String, List<ModuleQualifiedExportsService>> qualifiedExports) {
+                    // empty for tests
+                }
+            },
             new SgNodeServiceProvider(additionalPlugins),
             true));
         this.masterEligible = masterEligible;

@@ -1,6 +1,5 @@
 package org.elasticsearch.node;
 
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.PluginsLoader;
@@ -19,6 +18,6 @@ class SgNodeServiceProvider extends NodeServiceProvider {
 
     @Override
     PluginsService newPluginService(Environment initialEnvironment, PluginsLoader pluginsLoader) {
-        return new SgAwarePluginsService(initialEnvironment.settings(), additionalPlugins, pluginsLoader); //todo bump: do not pass plugins loader and user new PluginsLoader(null, null) in SgAwarePluginsService?
+        return new SgAwarePluginsService(initialEnvironment.settings(), additionalPlugins, pluginsLoader);
     }
 }

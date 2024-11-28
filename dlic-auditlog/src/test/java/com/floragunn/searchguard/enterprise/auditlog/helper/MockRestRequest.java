@@ -88,11 +88,6 @@ public class MockRestRequest extends RestRequest {
             public void release() {
 
             }
-
-            @Override
-            public HttpRequest releaseAndCopy() {
-                return null;
-            }
         }, null);
     }
 

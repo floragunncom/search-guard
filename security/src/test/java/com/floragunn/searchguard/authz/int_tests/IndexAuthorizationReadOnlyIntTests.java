@@ -992,10 +992,8 @@ public class IndexAuthorizationReadOnlyIntTests {
                              */
                             .setType(SystemIndexDescriptor.Type.EXTERNAL_MANAGED)
                             .setSettings(Settings.builder().build())
-                            .setVersionMetaKey("my_test_version")
                             .setMappings("{\"_doc\":{\"_meta\":{\"my_test_version\":\"8.0.0\",\"managed_index_mappings_version\":0},\"properties\":{\"dept\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"dest_ip\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"dest_loc\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"prefix\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"source_ip\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"source_loc\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"timestamp\":{\"type\":\"date\"}}}}")//
                             .setPrimaryIndex(index_system.getName())
-                            .setMinimumNodeVersion(Version.V_8_0_0)
                             .setOrigin("origin-with-allowed-system-indices")
                             .setAllowedElasticProductOrigins(ImmutableList.of("origin-with-allowed-system-indices")).setNetNew().build());
         }

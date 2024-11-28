@@ -19,6 +19,6 @@ class SgNodeServiceProvider extends NodeServiceProvider {
 
     @Override
     PluginsService newPluginService(Environment initialEnvironment, PluginsLoader pluginsLoader) {
-        return new SgAwarePluginsService(initialEnvironment.settings(), additionalPlugins, pluginsLoader); //todo bump: do not pass plugins loader and user new PluginsLoader(null, null) in SgAwarePluginsService?
+        return new SgAwarePluginsService(initialEnvironment.settings(), additionalPlugins, pluginsLoader);
     }
 }

@@ -104,11 +104,6 @@ public class FakeRestRequest extends RestRequest {
             public void release() {
 
             }
-
-            @Override
-            public HttpRequest releaseAndCopy() {
-                return null;
-            }
         }, null);
         //this.headers = headers;
         this.content = content;
