@@ -292,13 +292,10 @@ public class Signals extends AbstractLifecycleComponent {
 
                 if (signingKey == null) {
                     signingKey = generateKey(512);
-                    log.info("SIGNING: " + signingKey);
                 }
 
                 if (encryptionKey == null) {
                     encryptionKey = generateKey(256);
-                    log.info("ENC: " + encryptionKey);
-
                 }
 
                 try {

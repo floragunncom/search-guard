@@ -32,6 +32,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.PrivilegedCode;
 import com.nimbusds.jose.EncryptionMethod;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWEAlgorithm;
@@ -111,7 +112,7 @@ public class InternalAuthTokenProvider {
         jwtClaims.audience(aud);
         jwtClaims.claim("sg_roles", getSgRolesForUser(user));
 
-        SignedJWT signedJWT = new SignedJWT(new JWSHeader(SIGNING_ALGORITHM), jwtClaims.build());
+        SignedJWT signedJWT = PrivilegedCode.execute(() -> new SignedJWT(new JWSHeader(SIGNING_ALGORITHM), jwtClaims.build()));
         signedJWT.sign(jwsSigner);
 
         if (jweEncrypter != null) {
