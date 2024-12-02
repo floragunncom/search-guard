@@ -392,7 +392,18 @@
             <groupId>org.elasticsearch</groupId>
             <artifactId>elasticsearch-preallocate</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.elasticsearch</groupId>
+            <artifactId>elasticsearch-core</artifactId>
+          </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.elasticsearch</groupId>
+        <artifactId>elasticsearch-core</artifactId>
+        <version>${elasticsearch.version}</version>
+        <scope>provided</scope>
       </dependency>
 
       <dependency>
