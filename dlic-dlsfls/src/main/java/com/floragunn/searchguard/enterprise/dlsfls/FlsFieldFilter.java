@@ -59,7 +59,7 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
 
         PrivilegesEvaluationContext privilegesEvaluationContext = this.baseContext.getPrivilegesEvaluationContext();
 
-        if (privilegesEvaluationContext == null) {
+        if (privilegesEvaluationContext == null || privilegesEvaluationContext.isUserAdmin()) {
             return FieldPredicate.ACCEPT_ALL;
         }
 
