@@ -354,6 +354,7 @@ SGS_KIBANA_SERVER:
   data_stream_permissions:
     - data_stream_patterns:
         - ".kibana-event-log-ds*"
+        - ".kibana-reporting*"
       allowed_actions:
         - "*"
 
