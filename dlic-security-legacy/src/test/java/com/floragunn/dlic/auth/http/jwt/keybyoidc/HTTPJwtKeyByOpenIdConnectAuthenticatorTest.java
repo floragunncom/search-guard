@@ -32,6 +32,7 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
@@ -69,6 +70,7 @@ public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
     @BeforeClass
     public static void setUp() throws Exception {
         mockIdpServer = MockIpdServer.start(TestJwk.Jwks.ALL);
+        LogConfigurator.configureESLogging();
     }
 
     @AfterClass
