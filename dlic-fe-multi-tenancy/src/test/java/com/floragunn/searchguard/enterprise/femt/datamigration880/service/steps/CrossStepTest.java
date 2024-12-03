@@ -13,6 +13,7 @@
  */
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.enterprise.femt.FeMultiTenancyConfigurationProvider;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.FrontendObjectCatalog;
@@ -20,6 +21,7 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.Migrat
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.MigrationEnvironmentHelper.BackupIndex;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -36,11 +38,15 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.MigrationEnvironmentHelper.PRIVATE_USER_KIRK_INDEX;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.MigrationEnvironmentHelper.TENANT_MANAGEMENT;
 import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static java.time.ZoneOffset.UTC;
+import static org.apache.http.HttpStatus.SC_OK;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class CrossStepTest {
     private static final ZonedDateTime NOW = ZonedDateTime.of(LocalDateTime.of(2020, 1, 1, 1, 1), UTC);
@@ -407,6 +413,47 @@ public class CrossStepTest {
         environmentHelper.assertThatDocumentExists(tempIndex, "space:should-be-moved-to-backup-space");
         environmentHelper.assertThatDocumentExists(tempIndex, "space:management-tenant-space__sg_ten__-1799980989_management");
         environmentHelper.assertThatDocumentDoesNotExist(tempIndex, "space:kirk-tenant-space__sg_ten__3292183_kirk");
+    }
+
+    /*
+    The test was meant to reproduce problems related to
+    the breaking process of MT data migration by the DLS/FLS module. The module prevents reading mapping from the source index,
+    but the test cannot reproduce these circumstances.
+     */
+    @Test
+    public void shouldCloneIndexMappings() throws Exception {
+        StepRepository stepRepository = new StepRepository(environmentHelper.getPrivilegedClient());
+        IndexSettingsManager indexSettingsManager = new IndexSettingsManager(stepRepository);
+        CreateTempIndexStep step = new CreateTempIndexStep(indexSettingsManager);
+        GenericRestClient client = cluster.getAdminCertRestClient();
+        String sourceIndexName = "source_index_with_mappings";
+        String destinationIndexName = "destination_index";
+        this.context = mock(DataMigrationContext.class);
+        when(context.getGlobalTenantIndexName()).thenReturn(sourceIndexName);
+        when(context.getTempIndexName()).thenReturn(destinationIndexName);
+        String path = "/" + sourceIndexName + "?timeout=60s";
+        String createIndexBody = """
+            {
+            	"mappings": {
+            		"dynamic": "strict",
+            		"properties": {
+            			"my_test_property": {
+            				"type": "keyword"
+            			}
+            		}
+            	}
+            } 
+            """;
+        GenericRestClient.HttpResponse response = client.putJson(path, createIndexBody);
+        assertThat(response.getStatusCode(), equalTo(SC_OK));
+
+        StepResult result = step.execute(context);
+
+        assertThat(result.isSuccess(), equalTo(true));
+        DocNode clonedMappings = environmentHelper.getIndexMappingsAsDocNode(destinationIndexName);
+        assertThat(clonedMappings, containsValue("$.dynamic", "strict"));
+        assertThat(clonedMappings, containsValue("$.properties.my_test_property.type", "keyword"));
+        assertThat(clonedMappings, containsValue("$.properties.sg_data_migrated_to_8_8_0.type", "boolean"));
     }
 
     private void createBackupByStep(StepRepository stepRepository) {

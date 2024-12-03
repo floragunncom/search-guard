@@ -1191,9 +1191,6 @@ public class MultiTenancyMigrationTest {
         }
     }
 
-
-    // TODO add index related to multi-index search
-
     private static void createIndexWithInitialMappings(GenericRestClient client, String indexName) throws Exception {
         String path = "/" + indexName + "?wait_for_active_shards=all&timeout=60s";
         String createIndexBody = """
