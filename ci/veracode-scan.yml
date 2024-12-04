@@ -58,7 +58,8 @@ veracode_sandbox_scan:
     - if: '$VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "schedule"'
   script:
     - |
-      wget -o search-guard.jar $SG_SNAPSHOT
+      echo SG_SNAPSHOT="$SG_SNAPSHOT"
+      wget -o search-guard.zip $SG_SNAPSHOT
       APP_VERSION_SUFFIX="$(date "+%Y-%m-%d_%H:%M:%S")"
       case "$CI_PIPELINE_SOURCE" in
           "schedule")
