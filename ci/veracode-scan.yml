@@ -1,22 +1,23 @@
 .veracode_scan_common:
   stage: Veracode Scan
   interruptible: false
-  needs: ["veracode_build"]
+  needs: ["build"]
   tags:
     - veracode-scan
   dependencies:
-    - veracode_build
+    - build
   variables:
     APP_NAME: "Search Guard"   
     DOCKER_VERACODE: "veracode/api-wrapper-java:23.8.12.0.1" 
   image: ${DOCKER_VERACODE}
   before_script:
+    - wget -o search-guard.jar $SG_SNAPSHOT
     - export JAVA_CMD="java -jar /opt/veracode/api-wrapper.jar
       -vid ${VERACODE_API_KEY_ID}
       -vkey ${VERACODE_API_KEY_SECRET}
       -action UploadAndScan
       -appname \"${APP_NAME}\"
-      -filepath plugin/target/releases/search-guard-veracode.jar
+      -filepath search-guard.jar 
       -maxretrycount 3
       -scantimeout 60
       -scanpollinginterval 60
@@ -26,29 +27,29 @@
       -deleteincompletescan 1
       -createprofile \"false\""
       
-veracode_build:
-  stage: Veracode Scan
-  rules:
-    - if: '$VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_TAG =~ /^sg-flx-.*/'
-      when: always
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: manual
-      allow_failure: true #Prevents the pipeline from ending in a "Blocked" status.
-  needs: []
-  interruptible: true
-  tags:
-    - veracode-scan
-  script:
-    - mvn clean package -Pveracode-one-jar,dlic,enterprise -DskipTests
-  artifacts:
-    when: on_success
-    paths:
-      - "plugin/target/releases/search-guard-veracode.jar"
-    expire_in: 12h
-  cache:
-    key: mavenrepo-master
-    paths:
-      - .m2/repository   
+# veracode_build:
+#   stage: Veracode Scan
+#   rules:
+#     - if: '$VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_TAG =~ /^sg-flx-.*/'
+#       when: always
+#     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+#       when: manual
+#       allow_failure: true #Prevents the pipeline from ending in a "Blocked" status.
+#   needs: []
+#   interruptible: true
+#   tags:
+#     - veracode-scan
+#   script:
+#     - mvn clean package -Pveracode-one-jar,dlic,enterprise -DskipTests
+#   artifacts:
+#     when: on_success
+#     paths:
+#       - "plugin/target/releases/search-guard-veracode.jar"
+#     expire_in: 12h
+#   cache:
+#     key: mavenrepo-master
+#     paths:
+#       - .m2/repository   
 
 veracode_sandbox_scan:
   extends: ['.veracode_scan_common']
