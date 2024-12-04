@@ -1,24 +1,23 @@
 .veracode_scan_common:
   stage: Veracode Scan
   interruptible: false
-  needs: ["build"]
+  needs: ["deploy_snapshot"]
   tags:
     - veracode-scan
   dependencies:
-    - build
+    - deploy_snapshot
   variables:
     APP_NAME: "Search Guard"   
     DOCKER_VERACODE: "veracode/api-wrapper-java:23.8.12.0.1" 
   image: ${DOCKER_VERACODE}
   before_script:
-    # - echo $SG_SNAPSHOT
-    # - wget -o search-guard.jar $SG_SNAPSHOT
+    - wget -o search-guard.jar $SG_SNAPSHOT
     - export JAVA_CMD="java -jar /opt/veracode/api-wrapper.jar
       -vid ${VERACODE_API_KEY_ID}
       -vkey ${VERACODE_API_KEY_SECRET}
       -action UploadAndScan
       -appname \"${APP_NAME}\"
-      -filepath search-guard.jar 
+      -filepath search-guard.zip 
       -maxretrycount 3
       -scantimeout 60
       -scanpollinginterval 60
@@ -58,8 +57,6 @@ veracode_sandbox_scan:
     - if: '$VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "schedule"'
   script:
     - |
-      echo SG_SNAPSHOT="$SG_SNAPSHOT"
-      wget -o search-guard.zip $SG_SNAPSHOT
       APP_VERSION_SUFFIX="$(date "+%Y-%m-%d_%H:%M:%S")"
       case "$CI_PIPELINE_SOURCE" in
           "schedule")
