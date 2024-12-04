@@ -1,11 +1,11 @@
 .veracode_scan_common:
   stage: Veracode Scan
   interruptible: false
-  needs: ["veracode_build"]
+  needs: ["deploy_snapshot"]
   tags:
     - veracode-scan
   dependencies:
-    - veracode_build
+    - deploy_snapshot
   variables:
     APP_NAME: "Search Guard"   
     DOCKER_VERACODE: "veracode/api-wrapper-java:23.8.12.0.1" 
@@ -56,6 +56,10 @@ veracode_sandbox_scan:
     - if: '$VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "schedule"'
   script:
     - |
+      echo "SG_ES_PLUGIN=$SG_ES_PLUGIN"
+      echo "pwd = $(pwd)"
+      wget -O search-guard.zip $SG_ES_PLUGIN
+      ls -lan search-guard.zip    
       APP_VERSION_SUFFIX="$(date "+%Y-%m-%d_%H:%M:%S")"
       case "$CI_PIPELINE_SOURCE" in
           "schedule")
