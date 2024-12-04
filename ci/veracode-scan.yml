@@ -11,7 +11,7 @@
     DOCKER_VERACODE: "veracode/api-wrapper-java:23.8.12.0.1" 
   image: ${DOCKER_VERACODE}
   before_script:
-    - wget -o search-guard.jar $SG_ES_PLUGIN
+    # - wget -o search-guard.jar $SG_ES_PLUGIN
     - export JAVA_CMD="java -jar /opt/veracode/api-wrapper.jar
       -vid ${VERACODE_API_KEY_ID}
       -vkey ${VERACODE_API_KEY_SECRET}
@@ -57,6 +57,8 @@ veracode_sandbox_scan:
     - if: '$VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "schedule"'
   script:
     - |
+      echo "SG_ES_PLUGIN=$SG_ES_PLUGIN"
+      wget -o search-guard.jar $SG_ES_PLUGIN
       APP_VERSION_SUFFIX="$(date "+%Y-%m-%d_%H:%M:%S")"
       case "$CI_PIPELINE_SOURCE" in
           "schedule")
