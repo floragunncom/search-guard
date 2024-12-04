@@ -11,6 +11,7 @@
     DOCKER_VERACODE: "veracode/api-wrapper-java:23.8.12.0.1" 
   image: ${DOCKER_VERACODE}
   before_script:
+    - echo $SG_SNAPSHOT
     - wget -o search-guard.jar $SG_SNAPSHOT
     - export JAVA_CMD="java -jar /opt/veracode/api-wrapper.jar
       -vid ${VERACODE_API_KEY_ID}
