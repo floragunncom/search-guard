@@ -16,7 +16,7 @@
       -vkey ${VERACODE_API_KEY_SECRET}
       -action UploadAndScan
       -appname \"${APP_NAME}\"
-      -filepath plugin/target/releases/search-guard-veracode.jar
+      -filepath search-guard.zip
       -maxretrycount 3
       -scantimeout 60
       -scanpollinginterval 60
