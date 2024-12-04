@@ -60,6 +60,7 @@ veracode_sandbox_scan:
       echo "SG_ES_PLUGIN=$SG_ES_PLUGIN"
       echo "pwd = $(pwd)"
       wget -o search-guard.zip $SG_ES_PLUGIN
+      ls -lan search-guard.zip
       APP_VERSION_SUFFIX="$(date "+%Y-%m-%d_%H:%M:%S")"
       case "$CI_PIPELINE_SOURCE" in
           "schedule")
