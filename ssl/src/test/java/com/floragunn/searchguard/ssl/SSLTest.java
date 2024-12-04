@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
@@ -60,7 +61,8 @@ import io.netty.util.internal.PlatformDependent;
 
 @SuppressWarnings({"resource"})
 public class SSLTest extends SingleClusterTest {
-    
+
+    public static final TimeValue MASTER_NODE_TIMEOUT = new TimeValue(40, TimeUnit.SECONDS);
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
     
@@ -449,7 +451,7 @@ public class SSLTest extends SingleClusterTest {
                 .build();
         
         try (Node node = new PluginAwareNode(false, tcSettings).start()) {
-            ClusterHealthResponse res = node.client().admin().cluster().health(new ClusterHealthRequest().waitForNodes("4").timeout(TimeValue.timeValueSeconds(15))).actionGet();
+            ClusterHealthResponse res = node.client().admin().cluster().health(new ClusterHealthRequest(MASTER_NODE_TIMEOUT).waitForNodes("4").timeout(TimeValue.timeValueSeconds(15))).actionGet();
             Assert.assertFalse(res.isTimedOut());
             Assert.assertEquals(4, res.getNumberOfNodes());
             Assert.assertEquals(4, node.client().admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());
@@ -590,7 +592,7 @@ public class SSLTest extends SingleClusterTest {
                 .build();
 
         try (Node node = new PluginAwareNode(false, tcSettings).start()) {
-            ClusterHealthResponse res = node.client().admin().cluster().health(new ClusterHealthRequest().waitForNodes("4").timeout(TimeValue.timeValueSeconds(25))).actionGet();
+            ClusterHealthResponse res = node.client().admin().cluster().health(new ClusterHealthRequest(MASTER_NODE_TIMEOUT).waitForNodes("4").timeout(TimeValue.timeValueSeconds(25))).actionGet();
             Assert.assertFalse(res.isTimedOut());
             Assert.assertEquals(4, res.getNumberOfNodes());
             Assert.assertEquals(4, node.client().admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet().getNodes().size());

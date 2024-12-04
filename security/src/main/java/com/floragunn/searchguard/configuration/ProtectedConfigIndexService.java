@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.logging.log4j.LogManager;
@@ -60,7 +61,7 @@ import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
@@ -468,7 +469,8 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
             this.moduleState.setState(ComponentState.State.INITIALIZING, "waiting_for_yellow_status");
             this.moduleState.startNextTry();
 
-            client.admin().cluster().health(new ClusterHealthRequest(allIndices).waitForYellowStatus().timeout(TimeValue.timeValueMinutes(5)),
+            TimeValue masterNodeTimeout = new TimeValue(30, TimeUnit.SECONDS);
+            client.admin().cluster().health(new ClusterHealthRequest(masterNodeTimeout, allIndices).waitForYellowStatus().timeout(TimeValue.timeValueMinutes(5)),
                     new ActionListener<ClusterHealthResponse>() {
 
                         @Override
@@ -774,7 +776,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
 
         }
 
-        public static class TransportAction extends TransportNodesAction<Request, Response, NodeRequest, NodeResponse> {
+        public static class TransportAction extends TransportNodesAction<Request, Response, NodeRequest, NodeResponse, Void> {
 
             private final ProtectedConfigIndexService protectedConfigIndexService;
 

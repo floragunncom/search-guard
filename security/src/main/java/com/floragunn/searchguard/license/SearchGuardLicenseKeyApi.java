@@ -19,7 +19,7 @@ package com.floragunn.searchguard.license;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
 import com.floragunn.codova.documents.patch.DocPatch;

@@ -21,7 +21,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.injection.guice.Inject;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;

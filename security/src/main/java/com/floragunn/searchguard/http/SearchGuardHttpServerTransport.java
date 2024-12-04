@@ -31,6 +31,7 @@ import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.http.HttpBody;
 import org.elasticsearch.http.HttpChannel;
 import org.elasticsearch.http.HttpPreRequest;
 import org.elasticsearch.http.HttpRequest;
@@ -77,13 +78,9 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
      */
     private HttpRequest fixNonStandardContentType(HttpRequest httpRequest) {
         try {
-
-            BytesReference content = httpRequest.content();
-
-            if (content == null || content.length() == 0) {
+            if (hasEmptyBody(httpRequest)) {
                 return httpRequest;
             }
-
             Map<String, List<String>> headers = httpRequest.getHeaders();
 
             List<String> contentTypeHeader = headers.get("Content-Type");
@@ -105,6 +102,11 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
                 @Override
                 public String uri() {
                     return httpRequest.uri();
+                }
+
+                @Override
+                public HttpBody body() {
+                    return httpRequest.body();
                 }
 
                 @Override
@@ -156,11 +158,6 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
                 public HttpResponse createResponse(RestStatus status, ChunkedRestResponseBodyPart content) {
                     return httpRequest.createResponse(status, content);
                 }
-
-                @Override
-                public BytesReference content() {
-                    return httpRequest.content();
-                }
             };
 
         } catch (UnknownDocTypeException e) {
@@ -169,6 +166,21 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
         } catch (Exception e) {
             log.error("Error in fixNonStandardContentType(" + httpRequest + ")", e);
             return httpRequest;
+        }
+    }
+
+    static boolean hasEmptyBody(HttpRequest httpRequest) {
+        if(httpRequest.body() == null) {
+            return true;
+        } else if(httpRequest.body().isFull()) {
+            HttpBody.Full full = httpRequest.body().asFull();
+            return (full.bytes() == null) || (full.bytes().length() == 0);
+        } else {
+            // in case of stream, body is always present
+
+            // in case of unknown body type, we assume it is not empty.
+            // this will cause additional processing of content type header
+            return false;
         }
     }
 }

@@ -120,7 +120,8 @@ public class JvmEmbeddedEsCluster extends LocalEsCluster {
         try {
             AdminClient adminClient = client.admin();
 
-            final ClusterHealthResponse healthResponse = adminClient.cluster().prepareHealth().setWaitForStatus(status).setTimeout(timeout)
+            TimeValue masterNoeTimeout = TimeValue.timeValueSeconds(40);
+            final ClusterHealthResponse healthResponse = adminClient.cluster().prepareHealth(masterNoeTimeout).setWaitForStatus(status).setTimeout(timeout)
                     .setMasterNodeTimeout(timeout).setWaitForNodes("" + expectedNodeCount).execute().actionGet();
 
             if (log.isDebugEnabled()) {

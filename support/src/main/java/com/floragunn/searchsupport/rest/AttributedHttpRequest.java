@@ -2,6 +2,7 @@ package com.floragunn.searchsupport.rest;
 
 import com.floragunn.fluent.collections.ImmutableMap;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.http.HttpBody;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
 import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
@@ -48,6 +49,11 @@ public class AttributedHttpRequest implements HttpRequest {
     @Override
     public String uri() {
         return httpRequest.uri();
+    }
+
+    @Override
+    public HttpBody body() {
+        return httpRequest.body();
     }
 
     @Override
@@ -101,8 +107,4 @@ public class AttributedHttpRequest implements HttpRequest {
         return httpRequest.createResponse(status, content);
     }
 
-    @Override
-    public BytesReference content() {
-        return httpRequest.content();
-    }
 }

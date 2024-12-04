@@ -22,7 +22,7 @@ import com.floragunn.searchguard.configuration.ConfigUpdateException;
 import com.floragunn.searchsupport.action.Action;
 import com.floragunn.searchsupport.action.StandardRequests;
 import com.floragunn.searchsupport.action.StandardResponse;
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.injection.guice.Inject;
 
 import com.floragunn.codova.documents.patch.DocPatch;
 import com.floragunn.searchguard.BaseDependencies;

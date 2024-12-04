@@ -1804,7 +1804,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
     private Set<JobType> loadJobConfigAfterReachingYellowStatus() {
         try {
             // TODO XXX
-            ClusterHealthResponse clusterHealthResponse = client.admin().cluster().prepareHealth().setWaitForYellowStatus()
+            ClusterHealthResponse clusterHealthResponse = client.admin().cluster().prepareHealth(TimeValue.timeValueSeconds(35)).setWaitForYellowStatus()
                     .setWaitForNoInitializingShards(true).setTimeout(TimeValue.timeValueSeconds(1)).execute().actionGet();
 
             if (log.isDebugEnabled()) {
