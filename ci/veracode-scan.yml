@@ -1,7 +1,7 @@
 .veracode_scan_common:
   stage: Veracode Scan
   interruptible: false
-  needs: ["veracode_build"]
+  needs: ["build"]
   tags:
     - veracode-scan
   dependencies:
