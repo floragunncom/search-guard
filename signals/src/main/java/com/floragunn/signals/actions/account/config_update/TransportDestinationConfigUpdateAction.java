@@ -12,7 +12,7 @@ import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
@@ -24,7 +24,7 @@ import org.elasticsearch.transport.TransportService;
 import com.floragunn.signals.Signals;
 
 public class TransportDestinationConfigUpdateAction extends
-        TransportNodesAction<DestinationConfigUpdateRequest, DestinationConfigUpdateResponse, TransportDestinationConfigUpdateAction.NodeRequest, TransportDestinationConfigUpdateAction.NodeResponse> {
+        TransportNodesAction<DestinationConfigUpdateRequest, DestinationConfigUpdateResponse, TransportDestinationConfigUpdateAction.NodeRequest, TransportDestinationConfigUpdateAction.NodeResponse, Void> {
 
     private final static Logger log = LogManager.getLogger(TransportDestinationConfigUpdateAction.class);
     final Client client;

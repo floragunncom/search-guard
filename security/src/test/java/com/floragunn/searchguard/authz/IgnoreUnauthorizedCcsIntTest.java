@@ -22,6 +22,9 @@ import static org.junit.Assert.assertThat;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.test.helper.PitHolder;
+import com.floragunn.searchguard.test.helper.cluster.EsClientProvider;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.hamcrest.Matcher;
 import org.junit.Assert;
@@ -815,8 +818,12 @@ public class IgnoreUnauthorizedCcsIntTest {
 
         Matcher<HttpResponse> clustersCountMatcherCssRoundtripsMinTrue = allOf(json(nodeAt("_clusters.successful", is(2))),
                 json(nodeAt("_clusters.running", is(0))));
-        Matcher<HttpResponse> clustersCountMatcherCssRoundtripsMinFalse = allOf(json(nodeAt("_clusters.successful", is(1))),
-                json(nodeAt("_clusters.running", is(1))));
+
+        // ES 8.16 introduce correction related to the way in which number or _clusters.running and _clusters.running is computed for local indices
+        // For local indices state _clusters.running is not used, instead _clusters.successful is incremented,
+        // please see: https://github.com/elastic/elasticsearch/commit/dec43e3f941d367733a0e9e0ec9cb8abf4b2931b
+        Matcher<HttpResponse> clustersCountMatcherCssRoundtripsMinFalse = allOf(json(nodeAt("_clusters.successful", is(2))),
+                json(nodeAt("_clusters.running", is(0))));
 
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.postJson(query, body);

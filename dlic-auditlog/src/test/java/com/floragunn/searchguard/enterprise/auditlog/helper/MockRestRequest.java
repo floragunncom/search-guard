@@ -20,6 +20,7 @@ import java.util.Map;
 
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.http.HttpBody;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
 import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
@@ -44,13 +45,13 @@ public class MockRestRequest extends RestRequest {
             }
 
             @Override
-            public BytesReference content() {
-                return new BytesArray("");
+            public Map<String, List<String>> getHeaders() {
+                return Collections.emptyMap();
             }
 
             @Override
-            public Map<String, List<String>> getHeaders() {
-                return Collections.emptyMap();
+            public HttpBody body() {
+                return HttpBody.empty();
             }
 
             @Override

@@ -43,7 +43,7 @@ import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
@@ -432,7 +432,7 @@ public class SearchGuardCapabilities {
 
         }
 
-        public static class TransportAction extends TransportNodesAction<Request, Response, NodeRequest, NodeResponse> {
+        public static class TransportAction extends TransportNodesAction<Request, Response, NodeRequest, NodeResponse, Void> {
 
             private final SearchGuardCapabilities capabilities;
 
