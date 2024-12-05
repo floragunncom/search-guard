@@ -56,7 +56,7 @@
     <maven.compiler.release>17</maven.compiler.release>
 
     <netty.version>4.1.86.Final</netty.version>
-    <bc.version>1.70</bc.version>
+    <bc.version>2.73.7</bc.version>
     <log4j.version>2.23.1</log4j.version>
     <jackson.version>2.17.1</jackson.version>
     <cxf.version>4.0.5</cxf.version>
@@ -252,19 +252,19 @@
 
       <dependency>
         <groupId>org.bouncycastle</groupId>
-        <artifactId>bcpg-jdk15on</artifactId>
+        <artifactId>bcpg-lts8on</artifactId>
         <version>${bc.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.bouncycastle</groupId>
-        <artifactId>bcpkix-jdk15on</artifactId>
+        <artifactId>bcpkix-lts8on</artifactId>
         <version>${bc.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.bouncycastle</groupId>
-        <artifactId>bcprov-jdk15on</artifactId>
+        <artifactId>bcprov-lts8on</artifactId>
         <version>${bc.version}</version>
       </dependency>
 
