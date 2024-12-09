@@ -52,7 +52,7 @@ import com.floragunn.searchguard.lpg.open.PGPPublicKey;
 import com.floragunn.searchguard.lpg.open.PGPPublicKeyRingCollection;
 import com.floragunn.searchguard.lpg.open.PGPSignature;
 import com.floragunn.searchguard.lpg.open.PGPSignatureList;
-import com.floragunn.searchguard.lpg.open.operator.KeyFingerPrintCalculator;
+import com.floragunn.searchguard.lpg.open.operator.KeyFingerPrintCalculator; 
 import com.floragunn.searchguard.lpg.open.operator.bc.BcKeyFingerprintCalculator;
 import com.floragunn.searchguard.lpg.open.operator.bc.BcPGPContentVerifierBuilderProvider;
 import com.google.common.io.BaseEncoding;
