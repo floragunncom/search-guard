@@ -27,7 +27,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
-import com.floragunn.searchguard.lpg.Blake2bDigest;
 import com.google.common.base.Splitter;
 import com.google.common.primitives.Bytes;
 import com.jayway.jsonpath.JsonPath;
@@ -92,13 +91,9 @@ public class RolesValidator extends AbstractConfigurationValidator {
 
         private String algo = null;
         private List<RegexReplacement> regexReplacements;
-        private final byte[] defaultSalt;
-        private final byte[] salt2;
         private final byte[] prefix;
 
         public MaskedField(final String value, final byte[] salt, final byte[] salt2, final byte[] prefix) {
-            this.defaultSalt = salt;
-            this.salt2 = salt2;
             this.prefix = prefix;
             final List<String> tokens = Splitter.on("::").splitToList(Objects.requireNonNull(value));
             final int tokenCount = tokens.size();
@@ -119,10 +114,10 @@ public class RolesValidator extends AbstractConfigurationValidator {
         }
 
         public byte[] mask(byte[] value) {
-            if (isDefault()) {
-                return blake2bHash(value);
-            } else {
+            if (!isDefault()) {
                 return customHash(value);
+            } else {
+                return null;
             }
         }
 
@@ -158,19 +153,6 @@ public class RolesValidator extends AbstractConfigurationValidator {
             } else {
                 throw new IllegalArgumentException();
             }
-        }
-
-        private byte[] blake2bHash(byte[] in) {
-            final Blake2bDigest hash = new Blake2bDigest(null, 32, salt2, defaultSalt);
-            hash.update(in, 0, in.length);
-            final byte[] out = new byte[hash.getDigestSize()];
-            hash.doFinal(out, 0);
-
-            if (prefix != null) {
-                return Bytes.concat(prefix, Hex.encodeHexString(out).getBytes());
-            }
-
-            return Hex.encodeHexString(out).getBytes();
         }
 
         private static class RegexReplacement {
