@@ -43,19 +43,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.SignatureException;
 
-import org.bouncycastle.bcpg.ArmoredInputStream;
-import org.bouncycastle.openpgp.PGPException;
-import org.bouncycastle.openpgp.PGPObjectFactory;
-import org.bouncycastle.openpgp.PGPPublicKey;
-import org.bouncycastle.openpgp.PGPPublicKeyRingCollection;
-import org.bouncycastle.openpgp.PGPSignature;
-import org.bouncycastle.openpgp.PGPSignatureList;
-import org.bouncycastle.openpgp.operator.KeyFingerPrintCalculator;
-import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator;
-import org.bouncycastle.openpgp.operator.bc.BcPGPContentVerifierBuilderProvider;
-
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.searchguard.lpg.ArmoredInputStream;
+import com.floragunn.searchguard.lpg.open.PGPException;
+import com.floragunn.searchguard.lpg.open.PGPObjectFactory;
+import com.floragunn.searchguard.lpg.open.PGPPublicKey;
+import com.floragunn.searchguard.lpg.open.PGPPublicKeyRingCollection;
+import com.floragunn.searchguard.lpg.open.PGPSignature;
+import com.floragunn.searchguard.lpg.open.PGPSignatureList;
+import com.floragunn.searchguard.lpg.open.operator.KeyFingerPrintCalculator;
+import com.floragunn.searchguard.lpg.open.operator.bc.BcKeyFingerprintCalculator;
+import com.floragunn.searchguard.lpg.open.operator.bc.BcPGPContentVerifierBuilderProvider;
 import com.google.common.io.BaseEncoding;
 
 public class LicenseHelper {

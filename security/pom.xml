@@ -75,8 +75,8 @@
 	</dependency>
     
     <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcpg-lts8on</artifactId>
+      <groupId>com.floragunn</groupId>
+      <artifactId>search-guard-lpg</artifactId>
     </dependency>
 
     <dependency>

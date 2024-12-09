@@ -251,9 +251,9 @@
       </dependency>
 
       <dependency>
-        <groupId>org.bouncycastle</groupId>
-        <artifactId>bcpg-lts8on</artifactId>
-        <version>${bc.version}</version>
+        <groupId>com.floragunn</groupId>
+        <artifactId>search-guard-lpg</artifactId>
+        <version>import-code-SNAPSHOT</version>
       </dependency>
 
       <dependency>
