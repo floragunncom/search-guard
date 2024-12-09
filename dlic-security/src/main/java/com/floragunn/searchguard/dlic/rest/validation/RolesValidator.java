@@ -21,13 +21,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import org.bouncycastle.crypto.digests.Blake2bDigest;
-import org.bouncycastle.util.encoders.Hex;
+import org.apache.commons.codec.binary.Hex;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
+import com.floragunn.searchguard.lpg.Blake2bDigest;
 import com.google.common.base.Splitter;
 import com.google.common.primitives.Bytes;
 import com.jayway.jsonpath.JsonPath;
@@ -136,10 +136,10 @@ public class RolesValidator extends AbstractConfigurationValidator {
                     MessageDigest digest = MessageDigest.getInstance(algo);
 
                     if (prefix != null) {
-                        return Bytes.concat(prefix, Hex.encode(digest.digest(in)));
+                        return Bytes.concat(prefix, Hex.encodeHexString(digest.digest(in)).getBytes());
                     }
 
-                    return Hex.encode(digest.digest(in));
+                    return Hex.encodeHexString(digest.digest(in)).getBytes();
                 } catch (NoSuchAlgorithmException e) {
                     throw new IllegalArgumentException(e);
                 }
@@ -167,10 +167,10 @@ public class RolesValidator extends AbstractConfigurationValidator {
             hash.doFinal(out, 0);
 
             if (prefix != null) {
-                return Bytes.concat(prefix, Hex.encode(out));
+                return Bytes.concat(prefix, Hex.encodeHexString(out).getBytes());
             }
 
-            return Hex.encode(out);
+            return Hex.encodeHexString(out).getBytes();
         }
 
         private static class RegexReplacement {
