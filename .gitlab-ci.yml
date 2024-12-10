@@ -95,6 +95,7 @@ build_es_snapshot:
        ls
        pwd
        ./gradlew publishToMavenLocal -x branchConsistency -x bwcTest -x check -x checkRestCompat -x internalClusterTest -x javaRestTest -x precommit  -x spotlessApply -x spotlessCheck -x spotlessDiagnose -x spotlessJava -x spotlessJavaApply -x spotlessJavaCheck -x spotlessJavaDiagnose -x test -x yamlRestCompatTest -x yamlRestTest
+       find / -type d -name ".m2" -print 2>/dev/null
        ./gradlew :distribution:archives:linux-tar:assemble
        cp ./distribution/archives/linux-tar/build/distributions/elasticsearch-9.0.0-SNAPSHOT-linux-x86_64.tar.gz ../elasticsearch-9.0.0-SNAPSHOT.tar.gz
        cd ..
