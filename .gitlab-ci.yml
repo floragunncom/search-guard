@@ -79,6 +79,28 @@ include:
   #- local: 'ci/frontend-int-tests-compat2.yml'
 
 
+build_es_snapshot:
+  image: gradle:8.11.1-jdk23-jammy
+  allow_failure: false
+  stage: prepare
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^bump-es-9$/'
+      when: always
+    - when: never
+  script:
+    - |
+       git clone https://github.com/elastic/elasticsearch.git --branch main --single-branch
+       cd elasticsearch
+       git checkout 97296598c3e8df2af53c2d49d8de97d16ef1dc56
+       ./gradlew :distribution:archives:linux-tar:assemble publishToMavenLocal -x branchConsistency -x bwcTest -x check -x checkRestCompat -x internalClusterTest -x javaRestTest -x precommit  -x spotlessApply -x spotlessCheck -x spotlessDiagnose -x spotlessJava -x spotlessJavaApply -x spotlessJavaCheck -x spotlessJavaDiagnose -x test -x yamlRestCompatTest -x yamlRestTest
+       cp -r /root/.m2 ../
+       cp ./distribution/archives/linux-tar/build/distributions/elasticsearch-9.0.0-SNAPSHOT-linux-x86_64.tar.gz ../elasticsearch-9.0.0-SNAPSHOT.tar.gz
+  cache:
+    key: mavenrepo-main-es8
+    paths:
+      - .m2/repository
+    policy: push
+
 build:
   allow_failure: false
   stage: build
@@ -106,7 +128,7 @@ build:
     key: mavenrepo-main-es8
     paths:
       - .m2/repository
-    policy: push
+    policy: pull-push
 
 
 deploy_release:
