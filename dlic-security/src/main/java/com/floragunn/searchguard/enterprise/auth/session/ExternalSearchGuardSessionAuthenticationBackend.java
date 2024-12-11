@@ -237,7 +237,7 @@ public class ExternalSearchGuardSessionAuthenticationBackend implements Authenti
                         return response;
                     } else {
                         if (log.isDebugEnabled()) {
-                            log.debug("Got status " + response.getStatusLine() + " while executing " + httpGet + ". Retrying with next host");
+                            log.debug("Got status {} while executing {}. Retrying with next host", response.getStatusLine().getStatusCode(), httpGet);
                         }
 
                         response.close();
