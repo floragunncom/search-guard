@@ -99,9 +99,11 @@ build_es_snapshot:
     key: mavenrepo-main-es8
     paths:
       - .m2/repository
+      - elasticsearch-9.0.0-SNAPSHOT.tar.gz
     policy: push
 
 build:
+  image: maven:3.9.9-eclipse-temurin-23-alpine
   allow_failure: false
   stage: build
   rules:
