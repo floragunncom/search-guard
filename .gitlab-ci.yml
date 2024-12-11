@@ -92,14 +92,18 @@ build_es_snapshot:
        git clone https://github.com/elastic/elasticsearch.git --branch main --single-branch
        cd elasticsearch
        git checkout 97296598c3e8df2af53c2d49d8de97d16ef1dc56
-       ./gradlew :distribution:archives:linux-tar:assemble publishToMavenLocal -x branchConsistency -x bwcTest -x check -x checkRestCompat -x internalClusterTest -x javaRestTest -x precommit  -x spotlessApply -x spotlessCheck -x spotlessDiagnose -x spotlessJava -x spotlessJavaApply -x spotlessJavaCheck -x spotlessJavaDiagnose -x test -x yamlRestCompatTest -x yamlRestTest
+       ./gradlew localDistro publishToMavenLocal -x branchConsistency -x bwcTest -x check -x checkRestCompat -x internalClusterTest -x javaRestTest -x precommit  -x spotlessApply -x spotlessCheck -x spotlessDiagnose -x spotlessJava -x spotlessJavaApply -x spotlessJavaCheck -x spotlessJavaDiagnose -x test -x yamlRestCompatTest -x yamlRestTest
        cp -r /root/.m2 ../
-       cp ./distribution/archives/linux-tar/build/distributions/elasticsearch-9.0.0-SNAPSHOT-linux-x86_64.tar.gz ../elasticsearch-9.0.0-SNAPSHOT.tar.gz
+       tar -czf elasticsearch-9.0.0-SNAPSHOT.tar.gz -C ./build/distribution/local elasticsearch-9.0.0-SNAPSHOT
+       cp elasticsearch-9.0.0-SNAPSHOT.tar.gz ../elasticsearch-9.0.0-SNAPSHOT.tar.gz
+       cp build/distribution/local/elasticsearch-9.0.0-SNAPSHOT/lib/platform/linux-x64/libvec.so build/distribution/local/elasticsearch-9.0.0-SNAPSHOT/lib/platform/linux-x64/libzstd.so ../
   cache:
     key: mavenrepo-main-es8
     paths:
       - .m2/repository
       - elasticsearch-9.0.0-SNAPSHOT.tar.gz
+      - libvec.so
+      - libzstd.so
     policy: push
 
 build:
