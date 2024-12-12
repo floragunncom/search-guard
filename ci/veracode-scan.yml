@@ -21,7 +21,7 @@
       -scantimeout 60
       -scanpollinginterval 60
       -toplevel true
-      -include \"search-guard-flx-*-SNAPSHOT.jar\"
+      -include \"search-guard-flx-*.jar,dlic-search-guard-flx-*.jar\"
       -deleteincompletescan 1
       -createprofile \"false\""
       
