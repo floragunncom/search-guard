@@ -21,7 +21,7 @@
       -scantimeout 60
       -scanpollinginterval 60
       -toplevel true
-      -include \"dlic-search-guard-flx-auditlog-veracode-flx8-sca-test-for-veracode-SNAPSHOT.jar,dlic-search-guard-flx-dlsfls-veracode-flx8-sca-test-for-veracode-SNAPSHOT.jar, dlic-search-guard-flx-fe-multi-tenancy-veracode-flx8-sca-test-for-veracode-SNAPSHOT.jar,dlic-search-guard-flx-security-legacy-veracode-flx8-sca-test-for-veracode-SNAPSHOT.jar,dlic-search-guard-flx-security-veracode-flx8-sca-test-for-veracode-SNAPSHOT.jar,dlic-search-guard-flx-signals-veracode-flx8-sca-test-for-veracode-SNAPSHOT.jar,search-guard-flx-scheduler-veracode-flx8-sca-test-for-veracode-SNAPSHOT.jar,search-guard-flx-security-legacy-veracode-flx8-sca-test-for-veracode-SNAPSHOT.jar,search-guard-flx-security-veracode-flx8-sca-test-for-veracode-SNAPSHOT.jar,search-guard-flx-signals-veracode-flx8-sca-test-for-veracode-SNAPSHOT.jar,search-guard-flx-ssl-veracode-flx8-sca-test-for-veracode-SNAPSHOT.jar,search-guard-flx-support-veracode-flx8-sca-test-for-veracode-SNAPSHOT.jar\"
+      -include \"search-guard-flx-security-legacy-master-*.jar, dlic-search-guard-*.jar\"
       -deleteincompletescan 1
       -createprofile \"false\""
       
