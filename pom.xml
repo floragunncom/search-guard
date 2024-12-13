@@ -20,7 +20,7 @@
 	<name>Search Guard Suite - Parent</name>
 
 	<properties>
-		<elasticsearch.version>7.17.24</elasticsearch.version>
+		<elasticsearch.version>7.17.25</elasticsearch.version>
 		<sg-suite.version>master-SNAPSHOT</sg-suite.version>
 		<revision>${elasticsearch.version}-${sg-suite.version}</revision>
 
