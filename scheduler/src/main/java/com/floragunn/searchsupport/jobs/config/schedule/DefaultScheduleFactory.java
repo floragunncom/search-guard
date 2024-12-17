@@ -177,7 +177,7 @@ public class DefaultScheduleFactory implements ScheduleFactory<ScheduleImpl> {
 
 
 
-        
+        // some additional changes....
         return DigestUtils.md5Hex(trigger);
     }
 
