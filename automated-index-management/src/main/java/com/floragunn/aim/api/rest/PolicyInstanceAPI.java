@@ -10,7 +10,7 @@ import com.floragunn.searchsupport.action.StandardRequests;
 import com.floragunn.searchsupport.action.StandardResponse;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.plugins.ActionPlugin;
 
 import java.util.List;

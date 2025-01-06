@@ -71,7 +71,8 @@ public final class AutomatedIndexManagementSettings {
 
         public void init(PrivilegedConfigClient client) {
             try {
-                ClusterHealthResponse clusterHealthResponse = client.admin().cluster().prepareHealth().setWaitForYellowStatus()
+                ClusterHealthResponse clusterHealthResponse = client.admin().cluster()
+                        .prepareHealth(TimeValue.timeValueSeconds(30), ConfigIndices.SETTINGS_NAME).setWaitForYellowStatus()
                         .setWaitForNoInitializingShards(true).get(TimeValue.timeValueMinutes(5));
                 LOG.debug("Cluster health before loading dynamic settings: {}", clusterHealthResponse);
                 if (clusterHealthResponse.isTimedOut()) {

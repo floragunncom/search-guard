@@ -76,9 +76,8 @@ public class AutomatedIndexManagementModule implements SearchGuardModule, Compon
     @Override
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
         if (enabled) {
-            return new AutomatedIndexManagement(baseDependencies.getSettings(), componentState, baseDependencies.getNodeEnvironment())
-                    .createComponents(baseDependencies.getLocalClient(), baseDependencies.getClusterService(),
-                            baseDependencies.getProtectedConfigIndexService());
+            return new AutomatedIndexManagement(baseDependencies.getSettings(), componentState).createComponents(baseDependencies.getLocalClient(),
+                    baseDependencies.getClusterService(), baseDependencies.getProtectedConfigIndexService());
         }
         return Collections.emptyList();
     }

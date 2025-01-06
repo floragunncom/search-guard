@@ -30,8 +30,6 @@ import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
@@ -39,6 +37,8 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.transport.TransportRequest;
+import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
@@ -88,24 +88,24 @@ public class ParsingTest {
                 .stream();
     }
 
-    private static Stream<? extends ActionRequest> internalRequestStream() {
-        ImmutableList<ActionRequest> settings = ImmutableList
+    private static Stream<? extends TransportRequest> internalRequestStream() {
+        ImmutableList<TransportRequest> settings = ImmutableList
                 .of(AutomatedIndexManagementSettings.Dynamic.getAvailableSettings().stream().filter(attribute -> attribute.getDefaultValue() != null)
                         .map(attribute -> new InternalSettingsAPI.Update.Request(ImmutableMap.of(attribute, attribute.getDefaultValue()),
                                 ImmutableList.of(attribute)))
                         .collect(Collectors.toList()));
-        return settings
-                .with(ImmutableList.of(
-                        new InternalPolicyAPI.Refresh.Request(
-                                ImmutableList.of("index_1", "index_2"), ImmutableList.of("index_3"), ImmutableList.of("index_4")),
-                        new InternalPolicyAPI.Delete.Request("policy_1", true),
-                        new InternalPolicyAPI.Put.Request("policy_2",
-                                new Policy(new Policy.Step("step_1", ImmutableList.empty(), ImmutableList.empty())), false),
-                        new InternalPolicyInstanceAPI.PostExecuteRetry.Request("index_1", true, true)))
+        return settings.with(ImmutableList.of(
+                new InternalPolicyAPI.Refresh.Request.Node(new InternalPolicyAPI.Refresh.Request(
+                        ImmutableList.of("index_1", "index_2"), ImmutableList.of("index_3"), ImmutableList.of("index_4"))),
+                new InternalPolicyAPI.Delete.Request("policy_1", true),
+                new InternalPolicyAPI.Put.Request("policy_2", new Policy(new Policy.Step("step_1", ImmutableList.empty(), ImmutableList.empty())),
+                        false),
+                new InternalPolicyInstanceAPI.PostExecuteRetry.Request.Node(
+                        new InternalPolicyInstanceAPI.PostExecuteRetry.Request("index_1", true, true))))
                 .stream();
     }
 
-    private static Stream<? extends ActionResponse> internalResponseStream() {
+    private static Stream<? extends TransportResponse> internalResponseStream() {
         return ImmutableList.of(new InternalSettingsAPI.Refresh.Response(ClusterName.DEFAULT, new ArrayList<>(), new ArrayList<>()),
                 new InternalSettingsAPI.Update.Response(ImmutableList.of(AutomatedIndexManagementSettings.Dynamic.getAvailableSettings()), false))
                 .stream();
@@ -184,13 +184,13 @@ public class ParsingTest {
 
     @ParameterizedTest
     @MethodSource("internalRequestStream")
-    public <T extends ActionRequest> void testInternalRequestParsing(T request) throws Exception {
+    public <T extends TransportRequest> void testInternalRequestParsing(T request) throws Exception {
         testWriteableParsing(request);
     }
 
     @ParameterizedTest
     @MethodSource("internalResponseStream")
-    public <T extends ActionResponse> void testInternalResponseParsing(T response) throws Exception {
+    public <T extends TransportResponse> void testInternalResponseParsing(T response) throws Exception {
         testWriteableParsing(response);
     }
 

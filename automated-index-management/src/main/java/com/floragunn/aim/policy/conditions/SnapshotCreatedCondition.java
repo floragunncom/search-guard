@@ -10,6 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotStatus;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusResponse;
+import org.elasticsearch.core.TimeValue;
 
 import java.util.Objects;
 
@@ -52,8 +53,8 @@ public final class SnapshotCreatedCondition extends Condition.Async {
         if (snapshotName == null || snapshotName.isEmpty()) {
             throw new IllegalStateException("Snapshot name not found");
         }
-        SnapshotsStatusResponse snapshotsStatusResponse = executionContext.getClient().admin().cluster().prepareSnapshotStatus(repositoryName)
-                .setSnapshots(snapshotName).get();
+        SnapshotsStatusResponse snapshotsStatusResponse = executionContext.getClient().admin().cluster()
+                .prepareSnapshotStatus(TimeValue.timeValueSeconds(30)).setRepository(repositoryName).setSnapshots(snapshotName).get();
         if (snapshotsStatusResponse.getSnapshots().isEmpty()) {
             throw new IllegalStateException("Could not retrieve snapshot status");
         }

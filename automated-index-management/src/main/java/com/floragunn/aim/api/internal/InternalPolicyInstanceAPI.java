@@ -14,9 +14,9 @@ import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -51,21 +51,6 @@ public class InternalPolicyInstanceAPI {
                 this.retry = retry;
             }
 
-            public Request(StreamInput input) throws IOException {
-                super(input);
-                index = input.readString();
-                execute = input.readBoolean();
-                retry = input.readBoolean();
-            }
-
-            @Override
-            public void writeTo(StreamOutput out) throws IOException {
-                super.writeTo(out);
-                out.writeString(index);
-                out.writeBoolean(execute);
-                out.writeBoolean(retry);
-            }
-
             @Override
             public boolean equals(Object o) {
                 if (this == o) {
@@ -91,21 +76,30 @@ public class InternalPolicyInstanceAPI {
             }
 
             public static class Node extends TransportRequest {
-                private final Request request;
+                private final String index;
+                private final boolean execute;
+                private final boolean retry;
 
                 public Node(Request request) {
-                    this.request = request;
+                    super();
+                    index = request.getIndex();
+                    execute = request.isExecute();
+                    retry = request.isRetry();
                 }
 
-                protected Node(StreamInput input) throws IOException {
+                public Node(StreamInput input) throws IOException {
                     super(input);
-                    request = new Request(input);
+                    index = input.readString();
+                    execute = input.readBoolean();
+                    retry = input.readBoolean();
                 }
 
                 @Override
                 public void writeTo(StreamOutput out) throws IOException {
                     super.writeTo(out);
-                    request.writeTo(out);
+                    out.writeString(index);
+                    out.writeBoolean(execute);
+                    out.writeBoolean(retry);
                 }
 
                 @Override
@@ -117,11 +111,19 @@ public class InternalPolicyInstanceAPI {
                         return false;
                     }
                     Node node = (Node) o;
-                    return Objects.equals(request, node.request);
+                    return Objects.equals(index, node.index) && execute == node.execute && retry == node.retry;
                 }
 
-                public Request getRequest() {
-                    return request;
+                public String getIndex() {
+                    return index;
+                }
+
+                public boolean isExecute() {
+                    return execute;
+                }
+
+                public boolean isRetry() {
+                    return retry;
                 }
             }
         }
@@ -183,7 +185,7 @@ public class InternalPolicyInstanceAPI {
             }
         }
 
-        public static class Handler extends TransportNodesAction<Request, Response, Request.Node, Response.Node> {
+        public static class Handler extends TransportNodesAction<Request, Response, Request.Node, Response.Node, Void> {
             private final AutomatedIndexManagement aim;
 
             @Inject
@@ -210,8 +212,8 @@ public class InternalPolicyInstanceAPI {
 
             @Override
             protected Response.Node nodeOperation(Request.Node request, Task task) {
-                boolean successful = aim.getPolicyInstanceManager().executeRetryPolicyInstance(request.getRequest().getIndex(),
-                        request.getRequest().isExecute(), request.getRequest().isRetry());
+                boolean successful = aim.getPolicyInstanceManager().executeRetryPolicyInstance(request.getIndex(), request.isExecute(),
+                        request.isRetry());
                 return new Response.Node(clusterService.localNode(), successful);
             }
         }

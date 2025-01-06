@@ -274,7 +274,7 @@ public class StaticSettings {
             }
 
             public Attribute<ByteSizeValue> asByteSizeValue() {
-                return new ByteSizeValueAttribute(parent.name, parent.defaultValue, parent.filtered);
+                return new ByteSizeValueAttribute(parent.name, parent.defaultValue, parent.filtered, parent.indexScope, parent.dynamic);
             }
         }
     }
@@ -369,8 +369,8 @@ public class StaticSettings {
 
 
     static class ByteSizeValueAttribute extends Attribute<ByteSizeValue> {
-        ByteSizeValueAttribute(String name, ByteSizeValue defaultValue, boolean filtered) {
-            super(name, defaultValue, filtered);
+        ByteSizeValueAttribute(String name, ByteSizeValue defaultValue, boolean filtered, boolean indexScope, boolean dynamic) {
+            super(name, defaultValue, filtered, indexScope, dynamic);
         }
 
         @Override

@@ -17,7 +17,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.plugins.ActionPlugin;
 
 import java.util.Arrays;
