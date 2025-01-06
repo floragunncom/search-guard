@@ -1,5 +1,6 @@
 package com.floragunn.aim.policy.instance;
 
+import com.floragunn.aim.support.ParsingSupport;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Parser;
@@ -7,30 +8,59 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchsupport.indices.IndexMapping;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 public final class PolicyInstanceState implements Document<Object> {
-
     public static final String POLICY_NAME_FIELD = "policy_name";
     public static final String STATUS_FIELD = "status";
     public static final String CURRENT_STEP_FIELD = "current_step";
+    public static final String RETRY_ON_NEXT_EXECUTION_FIELD = "retry_on_next_execution";
     public static final String LAST_EXECUTED_STEP_FIELD = "last_executed_step";
     public static final String LAST_EXECUTED_CONDITION_FIELD = "last_executed_condition";
     public static final String LAST_EXECUTED_ACTION_FIELD = "last_executed_action";
-    public static final String SNAPSHOT_NAME = "snapshot_name";
+    public static final String LAST_CREATED_SNAPSHOT_NAME = "last_created_snapshot_name";
+    public static final String CREATED_SNAPSHOT_NAME_MAPPING = "created_snapshot_name_mapping";
+    public static final String LAST_RESPONSIBLE_NODE = "last_responsible_node";
+
+    public static final IndexMapping.Property[] INDEX_MAPPING_PROPERTIES = new IndexMapping.Property[] {
+            new IndexMapping.KeywordProperty(POLICY_NAME_FIELD), //
+            new IndexMapping.KeywordProperty(STATUS_FIELD), //
+            new IndexMapping.KeywordProperty(CURRENT_STEP_FIELD), //
+            new IndexMapping.BooleanProperty(RETRY_ON_NEXT_EXECUTION_FIELD), //
+            new IndexMapping.ObjectProperty(LAST_EXECUTED_STEP_FIELD, StepState.INDEX_MAPPING_PROPERTIES), //
+            new IndexMapping.ObjectProperty(LAST_EXECUTED_CONDITION_FIELD, ConditionState.INDEX_MAPPING_PROPERTIES), //
+            new IndexMapping.ObjectProperty(LAST_EXECUTED_ACTION_FIELD, ActionState.INDEX_MAPPING_PROPERTIES), //
+            new IndexMapping.KeywordProperty(LAST_CREATED_SNAPSHOT_NAME), //
+            new IndexMapping.ObjectProperty(CREATED_SNAPSHOT_NAME_MAPPING), //
+            new IndexMapping.KeywordProperty(LAST_RESPONSIBLE_NODE) };
+    public static final IndexMapping INDEX_MAPPING = new IndexMapping.DynamicIndexMapping(INDEX_MAPPING_PROPERTIES);
 
     private final String policyName;
-    private Status status = Status.NOT_STARTED;
-    private String currentStepName = "none";
-    private StepState lastExecutedStepState = null;
-    private ConditionState lastExecutedConditionState = null;
-    private ActionState lastExecutedActionState = null;
-    private String snapshotName = null;
+    private final Map<String, String> createdSnapshotNameMapping;
+
+    private Status status;
+    private String currentStepName;
+    private boolean isRetryOnNextExecution;
+    private StepState lastExecutedStepState;
+    private ConditionState lastExecutedConditionState;
+    private ActionState lastExecutedActionState;
+    private String lastResponsibleNode;
 
     public PolicyInstanceState(String policyName) {
         this.policyName = policyName;
+        status = Status.NOT_STARTED;
+        currentStepName = "none";
+        isRetryOnNextExecution = false;
+        lastExecutedStepState = null;
+        lastExecutedConditionState = null;
+        lastExecutedActionState = null;
+        createdSnapshotNameMapping = new HashMap<>();
+        lastResponsibleNode = null;
     }
 
     public PolicyInstanceState(DocNode docNode) throws ConfigValidationException {
@@ -39,23 +69,22 @@ public final class PolicyInstanceState implements Document<Object> {
         policyName = node.get(POLICY_NAME_FIELD).required().asString();
         status = node.get(STATUS_FIELD).required().asEnum(Status.class);
         currentStepName = node.get(CURRENT_STEP_FIELD).required().asString();
+        isRetryOnNextExecution = node.get(RETRY_ON_NEXT_EXECUTION_FIELD).required().asBoolean();
         lastExecutedStepState = node.get(LAST_EXECUTED_STEP_FIELD)
                 .by((Parser<StepState, Parser.Context>) (docNode1, context) -> new StepState(docNode1));
         lastExecutedConditionState = node.get(LAST_EXECUTED_CONDITION_FIELD)
                 .by((Parser<ConditionState, Parser.Context>) (docNode1, context) -> new ConditionState(docNode1));
         lastExecutedActionState = node.get(LAST_EXECUTED_ACTION_FIELD)
                 .by((Parser<ActionState, Parser.Context>) (docNode1, context) -> new ActionState(docNode1));
-        snapshotName = node.get(SNAPSHOT_NAME).asString();
+        createdSnapshotNameMapping = node.get(CREATED_SNAPSHOT_NAME_MAPPING).required().by(ParsingSupport::stringMapParser);
         errors.throwExceptionForPresentErrors();
+        lastResponsibleNode = node.get(LAST_RESPONSIBLE_NODE).asString();
     }
 
     @Override
     public Object toBasicObject() {
         ImmutableMap<String, Object> res = ImmutableMap.of(POLICY_NAME_FIELD, policyName, STATUS_FIELD, status.name(), CURRENT_STEP_FIELD,
-                currentStepName);
-        if (snapshotName != null) {
-            res = res.with(SNAPSHOT_NAME, snapshotName);
-        }
+                currentStepName, RETRY_ON_NEXT_EXECUTION_FIELD, isRetryOnNextExecution, CREATED_SNAPSHOT_NAME_MAPPING, createdSnapshotNameMapping);
         if (lastExecutedStepState != null) {
             res = res.with(LAST_EXECUTED_STEP_FIELD, lastExecutedStepState.toBasicObject());
         }
@@ -64,6 +93,9 @@ public final class PolicyInstanceState implements Document<Object> {
         }
         if (lastExecutedActionState != null) {
             res = res.with(LAST_EXECUTED_ACTION_FIELD, lastExecutedActionState.toBasicObject());
+        }
+        if (lastResponsibleNode != null) {
+            res = res.with(LAST_RESPONSIBLE_NODE, lastResponsibleNode);
         }
         return res;
     }
@@ -76,16 +108,19 @@ public final class PolicyInstanceState implements Document<Object> {
             return false;
         PolicyInstanceState state = (PolicyInstanceState) o;
         return Objects.equals(policyName, state.policyName) && status == state.status && Objects.equals(currentStepName, state.currentStepName)
-                && Objects.equals(lastExecutedStepState, state.lastExecutedStepState)
+                && isRetryOnNextExecution == state.isRetryOnNextExecution && Objects.equals(lastExecutedStepState, state.lastExecutedStepState)
                 && Objects.equals(lastExecutedConditionState, state.lastExecutedConditionState)
-                && Objects.equals(lastExecutedActionState, state.lastExecutedActionState) && Objects.equals(snapshotName, state.snapshotName);
+                && Objects.equals(lastExecutedActionState, state.lastExecutedActionState)
+                && Objects.equals(createdSnapshotNameMapping, state.createdSnapshotNameMapping)
+                && Objects.equals(lastResponsibleNode, state.lastResponsibleNode);
     }
 
     @Override
     public String toString() {
         return "PolicyInstanceState{" + "policyName='" + policyName + '\'' + ", status=" + status + ", currentStepName='" + currentStepName + '\''
-                + ", lastExecutedStepState=" + lastExecutedStepState + ", lastExecutedConditionState=" + lastExecutedConditionState
-                + ", lastExecutedActionState=" + lastExecutedActionState + ", snapshotName='" + snapshotName + '\'' + '}';
+                + ", retryOnNextExecution=" + isRetryOnNextExecution + ", lastExecutedStepState=" + lastExecutedStepState
+                + ", lastExecutedConditionState=" + lastExecutedConditionState + ", lastExecutedActionState=" + lastExecutedActionState
+                + ", createdSnapshotNameMapping='" + createdSnapshotNameMapping + '\'' + ", lastResponsibleNode='" + lastResponsibleNode + '\'' + '}';
     }
 
     public String getPolicyName() {
@@ -100,6 +135,10 @@ public final class PolicyInstanceState implements Document<Object> {
         return currentStepName;
     }
 
+    public boolean isRetryOnNextExecution() {
+        return isRetryOnNextExecution;
+    }
+
     public StepState getLastExecutedStepState() {
         return lastExecutedStepState;
     }
@@ -108,8 +147,8 @@ public final class PolicyInstanceState implements Document<Object> {
         return lastExecutedActionState;
     }
 
-    public String getSnapshotName() {
-        return snapshotName;
+    public Map<String, String> getCreatedSnapshotNameMapping() {
+        return createdSnapshotNameMapping;
     }
 
     public PolicyInstanceState setStatus(Status status) {
@@ -119,6 +158,11 @@ public final class PolicyInstanceState implements Document<Object> {
 
     public PolicyInstanceState setCurrentStepName(String currentStepName) {
         this.currentStepName = currentStepName;
+        return this;
+    }
+
+    public PolicyInstanceState setRetryOnNextExecution(boolean retryOnNextExecution) {
+        this.isRetryOnNextExecution = retryOnNextExecution;
         return this;
     }
 
@@ -137,8 +181,13 @@ public final class PolicyInstanceState implements Document<Object> {
         return this;
     }
 
-    public PolicyInstanceState setSnapshotName(String snapshotName) {
-        this.snapshotName = snapshotName;
+    public PolicyInstanceState addCreatedSnapshotName(String snapshotNameKey, String snapshotName) {
+        createdSnapshotNameMapping.put(snapshotNameKey, snapshotName);
+        return this;
+    }
+
+    public PolicyInstanceState setLastResponsibleNode(String lastResponsibleNode) {
+        this.lastResponsibleNode = lastResponsibleNode;
         return this;
     }
 
@@ -151,6 +200,12 @@ public final class PolicyInstanceState implements Document<Object> {
         public static final String START_TIME_FIELD = "start_time";
         public static final String RETRY_COUNT_FIELD = "retry_count";
         public static final String ERROR_FIELD = "error";
+
+        public static final IndexMapping.Property[] INDEX_MAPPING_PROPERTIES = new IndexMapping.Property[] {
+                new IndexMapping.KeywordProperty(NAME_FIELD), //
+                new IndexMapping.DateProperty(START_TIME_FIELD), //
+                new IndexMapping.IntegerProperty(RETRY_COUNT_FIELD), //
+                new IndexMapping.ObjectProperty(ERROR_FIELD, Error.INDEX_MAPPING_PROPERTIES) };
 
         private final String name;
         private final Instant startTime;
@@ -216,6 +271,12 @@ public final class PolicyInstanceState implements Document<Object> {
         public static final String RESULT_FIELD = "result";
         public static final String ERROR_FIELD = "error";
 
+        public static final IndexMapping.Property[] INDEX_MAPPING_PROPERTIES = new IndexMapping.Property[] {
+                new IndexMapping.KeywordProperty(TYPE_FIELD), //
+                new IndexMapping.DateProperty(START_TIME_FIELD), //
+                new IndexMapping.BooleanProperty(RESULT_FIELD), //
+                new IndexMapping.ObjectProperty(ERROR_FIELD, Error.INDEX_MAPPING_PROPERTIES) };
+
         private final String type;
         private final Instant startTime;
         private final Boolean result;
@@ -242,7 +303,10 @@ public final class PolicyInstanceState implements Document<Object> {
 
         @Override
         public Object toBasicObject() {
-            ImmutableMap<String, Object> res = ImmutableMap.of(TYPE_FIELD, type, START_TIME_FIELD, startTime.toString(), RESULT_FIELD, result);
+            ImmutableMap<String, Object> res = ImmutableMap.of(TYPE_FIELD, type, START_TIME_FIELD, startTime.toString());
+            if (result != null) {
+                res = res.with(RESULT_FIELD, result);
+            }
             if (error != null) {
                 res = res.with(ERROR_FIELD, error.toBasicObject());
             }
@@ -275,6 +339,12 @@ public final class PolicyInstanceState implements Document<Object> {
         public static final String START_TIME_FIELD = "start_time";
         public static final String RETRIES_FIELD = "retries";
         public static final String ERROR_FIELD = "error";
+
+        public static final IndexMapping.Property[] INDEX_MAPPING_PROPERTIES = new IndexMapping.Property[] {
+                new IndexMapping.KeywordProperty(TYPE_FIELD), //
+                new IndexMapping.DateProperty(START_TIME_FIELD), //
+                new IndexMapping.LongProperty(RETRIES_FIELD), //
+                new IndexMapping.ObjectProperty(ERROR_FIELD, Error.INDEX_MAPPING_PROPERTIES) };
 
         private final String type;
         private final Instant startTime;
@@ -344,6 +414,10 @@ public final class PolicyInstanceState implements Document<Object> {
 
         public static final String TYPE_FIELD = "type";
         public static final String MESSAGE_FIELD = "message";
+
+        public static final IndexMapping.Property[] INDEX_MAPPING_PROPERTIES = new IndexMapping.Property[] {
+                new IndexMapping.TextWithKeywordProperty(TYPE_FIELD), //
+                new IndexMapping.TextProperty(MESSAGE_FIELD) };
 
         private final String type;
         private final String message;

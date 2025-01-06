@@ -4,6 +4,7 @@ import com.floragunn.aim.policy.actions.Action;
 import com.floragunn.aim.policy.conditions.Condition;
 import com.floragunn.aim.policy.conditions.ForceMergeDoneCondition;
 import com.floragunn.aim.policy.conditions.SnapshotCreatedCondition;
+import com.floragunn.aim.policy.schedule.Schedule;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -12,17 +13,22 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchsupport.indices.IndexMapping;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class Policy implements Document<Object> {
     public static final String STEPS_FIELD = "steps";
+    public static final String SCHEDULE_FIELD = "schedule";
+    public static final IndexMapping INDEX_MAPPING = new IndexMapping.DynamicIndexMapping(Step.INDEX_MAPPING_PROPERTIES);
 
     public static Policy parse(DocNode docNode, ParsingContext parsingContext) throws ConfigValidationException {
         ValidationErrors errors = new ValidationErrors();
         ValidatingDocNode node = new ValidatingDocNode(docNode, errors);
+        Schedule schedule = node.get(SCHEDULE_FIELD).by(docNode1 -> parsingContext.parseSchedule(docNode1, Schedule.Scope.POLICY));
         List<Step> steps = node.get(STEPS_FIELD).required().asList(stepNode -> Step.parse(stepNode, parsingContext));
         if (parsingContext.validationContext() != null) {
             if (steps.isEmpty()) {
@@ -41,17 +47,27 @@ public class Policy implements Document<Object> {
         }
         node.checkForUnusedAttributes();
         errors.throwExceptionForPresentErrors();
-        return new Policy(steps);
+        return new Policy(schedule, steps);
     }
 
+    private final Schedule schedule;
     private final ImmutableList<Step> steps;
 
+    public Policy(Schedule schedule, List<Step> steps) {
+        this.schedule = schedule;
+        this.steps = ImmutableList.of(steps);
+    }
+
     public Policy(Step... steps) {
-        this.steps = ImmutableList.ofArray(steps);
+        this(null, ImmutableList.ofArray(steps));
     }
 
     public Policy(List<Step> steps) {
-        this.steps = ImmutableList.of(steps);
+        this(null, ImmutableList.of(steps));
+    }
+
+    public Schedule getSchedule() {
+        return schedule;
     }
 
     public Step getNextStep(String name) {
@@ -77,12 +93,16 @@ public class Policy implements Document<Object> {
             return false;
         }
         Policy otherPolicy = (Policy) other;
-        return steps.equals(otherPolicy.steps);
+        return Objects.equals(schedule, otherPolicy.schedule) && steps.equals(otherPolicy.steps);
     }
 
     @Override
     public Object toBasicObject() {
-        return ImmutableMap.of(STEPS_FIELD, steps.stream().map(Step::toBasicObject).collect(Collectors.toList()));
+        ImmutableMap<String, Object> res = ImmutableMap.of(STEPS_FIELD, steps.stream().map(Step::toBasicObject).collect(Collectors.toList()));
+        if (schedule != null) {
+            res = res.with(SCHEDULE_FIELD, schedule.toBasicObject());
+        }
+        return res;
     }
 
     public Object toBasicObjectExcludeInternal() {
@@ -92,9 +112,14 @@ public class Policy implements Document<Object> {
     }
 
     public static class Step implements Document<Object> {
-        public final static String NAME_FIELD = "name";
+        public static final String NAME_FIELD = "name";
+        public static final String SCHEDULE_FIELD = "schedule";
         public static final String CONDITIONS_FIELD = "conditions";
         public static final String ACTIONS_FIELD = "actions";
+
+        public static final IndexMapping.Property[] INDEX_MAPPING_PROPERTIES = new IndexMapping.Property[] {
+                new IndexMapping.KeywordProperty(NAME_FIELD), new IndexMapping.ObjectProperty(CONDITIONS_FIELD, Condition.INDEX_MAPPING_PROPERTIES),
+                new IndexMapping.ObjectProperty(ACTIONS_FIELD, Action.INDEX_MAPPING_PROPERTIES) };
 
         public static Step parse(DocNode docNode, ParsingContext parsingContext) throws ConfigValidationException {
             ValidationErrors errors = new ValidationErrors();
@@ -102,26 +127,37 @@ public class Policy implements Document<Object> {
             ValidatingDocNode node = new ValidatingDocNode(docNode, errors);
             String name = node.get(NAME_FIELD).required().asString();
             validator.validateName(name);
+            Schedule schedule = node.get(SCHEDULE_FIELD).by(docNode1 -> parsingContext.parseSchedule(docNode1, Schedule.Scope.STEP));
             List<Condition> conditions = node.get(CONDITIONS_FIELD).asList(parsingContext::parseCondition);
             List<Action> actions = node.get(ACTIONS_FIELD).asList(parsingContext::parseAction);
             validator.validateNotEmpty(conditions, actions);
             node.checkForUnusedAttributes();
             errors.throwExceptionForPresentErrors();
-            return new Step(name, conditions, actions);
+            return new Step(name, schedule, conditions, actions);
         }
 
         private final String name;
+        private final Schedule schedule;
         private final List<Condition> conditions;
         private final List<Action> actions;
 
-        public Step(String name, List<Condition> conditions, List<Action> actions) {
+        public Step(String name, Schedule schedule, List<Condition> conditions, List<Action> actions) {
             this.name = name;
+            this.schedule = schedule;
             this.conditions = conditions;
             this.actions = actions;
         }
 
+        public Step(String name, List<Condition> conditions, List<Action> actions) {
+            this(name, null, conditions, actions);
+        }
+
         public String getName() {
             return name;
+        }
+
+        public Schedule getSchedule() {
+            return schedule;
         }
 
         public List<Condition> getConditions() {
@@ -143,8 +179,13 @@ public class Policy implements Document<Object> {
 
         @Override
         public Object toBasicObject() {
-            return ImmutableMap.of(NAME_FIELD, name, CONDITIONS_FIELD, conditions.stream().map(Condition::toBasicObject).collect(Collectors.toList()),
-                    ACTIONS_FIELD, actions.stream().map(Action::toBasicObject).collect(Collectors.toList()));
+            ImmutableMap<String, Object> res = ImmutableMap.of(NAME_FIELD, name, CONDITIONS_FIELD,
+                    conditions.stream().map(Condition::toBasicObject).collect(Collectors.toList()), ACTIONS_FIELD,
+                    actions.stream().map(Action::toBasicObject).collect(Collectors.toList()));
+            if (schedule != null) {
+                res = res.with(SCHEDULE_FIELD, schedule.toBasicObject());
+            }
+            return res;
         }
 
         public boolean equals(Object other) {
@@ -153,6 +194,9 @@ public class Policy implements Document<Object> {
             }
             Step otherStep = (Step) other;
             if (!name.equals(otherStep.name)) {
+                return false;
+            }
+            if (!Objects.equals(schedule, otherStep.schedule)) {
                 return false;
             }
             if (!conditions.equals(otherStep.conditions)) {
@@ -201,26 +245,33 @@ public class Policy implements Document<Object> {
     }
 
     public static class ParsingContext {
-        public static ParsingContext lenient(Condition.Factory conditionFactory, Action.Factory actionFactory) {
-            return new ParsingContext(null, conditionFactory, actionFactory);
+        public static ParsingContext lenient(Schedule.Factory scheduleFactory, Condition.Factory conditionFactory, Action.Factory actionFactory) {
+            return new ParsingContext(null, scheduleFactory, conditionFactory, actionFactory);
         }
 
-        public static ParsingContext strict(Condition.Factory conditionFactory, Action.Factory actionFactory) {
-            return new ParsingContext(new ValidationContext(), conditionFactory, actionFactory);
+        public static ParsingContext strict(Schedule.Factory scheduleFactory, Condition.Factory conditionFactory, Action.Factory actionFactory) {
+            return new ParsingContext(new ValidationContext(), scheduleFactory, conditionFactory, actionFactory);
         }
 
         private final ValidationContext validationContext;
+        private final Schedule.Factory scheduleFactory;
         private final Condition.Factory conditionFactory;
         private final Action.Factory actionFactory;
 
-        private ParsingContext(ValidationContext validationContext, Condition.Factory conditionFactory, Action.Factory actionFactory) {
+        private ParsingContext(ValidationContext validationContext, Schedule.Factory scheduleFactory, Condition.Factory conditionFactory,
+                Action.Factory actionFactory) {
             this.validationContext = validationContext;
+            this.scheduleFactory = scheduleFactory;
             this.conditionFactory = conditionFactory;
             this.actionFactory = actionFactory;
         }
 
         public ValidationContext validationContext() {
             return validationContext;
+        }
+
+        public Schedule parseSchedule(DocNode docNode, Schedule.Scope scope) throws ConfigValidationException {
+            return scheduleFactory.parse(docNode, scope);
         }
 
         public Condition parseCondition(DocNode docNode) throws ConfigValidationException {

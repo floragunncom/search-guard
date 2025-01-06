@@ -39,8 +39,8 @@ public class PolicyAPI {
             new ActionPlugin.ActionHandler<>(Get.INSTANCE, Get.Handler.class), new ActionPlugin.ActionHandler<>(Put.INSTANCE, Put.Handler.class));
 
     public static class Delete extends Action<StandardRequests.IdRequest, StandardResponse> {
-        public final static Delete INSTANCE = new Delete();
-        public final static String NAME = "cluster:admin:searchguard:aim:policy/delete";
+        public static final Delete INSTANCE = new Delete();
+        public static final String NAME = "cluster:admin:searchguard:aim:policy/delete";
 
         private Delete() {
             super(NAME, StandardRequests.IdRequest::new, StandardResponse::new);
@@ -128,7 +128,7 @@ public class PolicyAPI {
                     if (response.isExists()) {
                         try {
                             Policy policy = Policy.parse(DocNode.parse(Format.JSON).from(response.getSourceAsBytesRef().utf8ToString()),
-                                    Policy.ParsingContext.lenient(aim.getConditionFactory(), aim.getActionFactory()));
+                                    Policy.ParsingContext.lenient(aim.getScheduleFactory(), aim.getConditionFactory(), aim.getActionFactory()));
                             return new StandardResponse(200)
                                     .data(request.isShowInternalSteps() ? policy.toBasicObject() : policy.toBasicObjectExcludeInternal());
                         } catch (ConfigValidationException e) {
@@ -143,8 +143,8 @@ public class PolicyAPI {
     }
 
     public static class Put extends Action<Put.Request, StandardResponse> {
-        public final static Put INSTANCE = new Put();
-        public final static String NAME = "cluster:admin:searchguard:aim:policy/put";
+        public static final Put INSTANCE = new Put();
+        public static final String NAME = "cluster:admin:searchguard:aim:policy/put";
 
         private Put() {
             super(NAME, Request::new, StandardResponse::new);
@@ -195,7 +195,7 @@ public class PolicyAPI {
                 }
                 try {
                     Policy policy = Policy.parse(request.getPolicy().parseAsDocNode(),
-                            Policy.ParsingContext.strict(aim.getConditionFactory(), aim.getActionFactory()));
+                            Policy.ParsingContext.strict(aim.getScheduleFactory(), aim.getConditionFactory(), aim.getActionFactory()));
                     result = aim.getPolicyService().putPolicyAsync(request.getPolicyName(), policy).thenApply(statusResponse -> {
                         if (statusResponse.status() == RestStatus.PRECONDITION_FAILED) {
                             return new StandardResponse(412).message("Could not override existing policy because it is still in use");

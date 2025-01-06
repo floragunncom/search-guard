@@ -1,5 +1,6 @@
 package com.floragunn.aim.policy.conditions;
 
+import com.floragunn.aim.AutomatedIndexManagementSettings;
 import com.floragunn.aim.policy.Policy;
 import com.floragunn.aim.policy.instance.PolicyInstance;
 import com.floragunn.aim.policy.instance.PolicyInstanceState;
@@ -11,7 +12,6 @@ import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.index.Index;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Comparator;
@@ -30,8 +30,8 @@ public class IndexCountCondition extends Condition {
         }
 
         @Override
-        public void validateType(Validator.TypeValidator typeValidator) {
-            typeValidator.validateIndexNotDeleted();
+        public void validateType(Validator.TypedValidator typedValidator) {
+            typedValidator.validateIndexNotDeleted();
         }
     };
 
@@ -49,8 +49,8 @@ public class IndexCountCondition extends Condition {
     @Override
     public boolean execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
         Metadata metadata = executionContext.getClusterService().state().metadata();
-        Map<String, String> aliases = executionContext.getAimSettings().getStatic().getAliases(metadata.index(index).getSettings());
-        String alias = aliases.get(aliasKey);
+        AutomatedIndexManagementSettings.Index indexSettings = new AutomatedIndexManagementSettings.Index(metadata.index(index).getSettings());
+        String alias = indexSettings.getAlias(aliasKey);
         if (alias == null || alias.isEmpty()) {
             throw new IllegalStateException("No alias found for key '" + aliasKey + "'");
         }

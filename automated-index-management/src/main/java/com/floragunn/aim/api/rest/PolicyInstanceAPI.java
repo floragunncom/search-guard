@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class PolicyInstanceAPI {
-    public final static RestApi REST = new RestApi().name("/_aim/state").handlesGet("/_aim/state/{index}")
+    public static final RestApi REST = new RestApi().name("/_aim/state").handlesGet("/_aim/state/{index}")
             .with(GetState.INSTANCE, (requestUrlParams, requestBody) -> new StandardRequests.IdRequest(requestUrlParams.get("index")))
             .handlesPost("/_aim/execute/{index}")
             .with(PostExecute.INSTANCE, (requestUrlParams, requestBody) -> new PostExecute.Request(requestUrlParams.get("index"), false))
@@ -27,7 +27,7 @@ public class PolicyInstanceAPI {
                             Boolean.getBoolean(requestUrlParams.get("retry"))))
             .handlesPost("/_aim/retry/{index}")
             .with(PostRetry.INSTANCE, (requestUrlParams, requestBody) -> new StandardRequests.IdRequest(requestUrlParams.get("index")));
-    public final static List<ActionPlugin.ActionHandler<? extends ActionRequest, ? extends ActionResponse>> HANDLERS = ImmutableList.of(
+    public static final List<ActionPlugin.ActionHandler<? extends ActionRequest, ? extends ActionResponse>> HANDLERS = ImmutableList.of(
             new ActionPlugin.ActionHandler<>(GetState.INSTANCE, GetState.Handler.class),
             new ActionPlugin.ActionHandler<>(PostExecute.INSTANCE, PostExecute.Handler.class),
             new ActionPlugin.ActionHandler<>(PostRetry.INSTANCE, PostRetry.Handler.class));
@@ -109,7 +109,7 @@ public class PolicyInstanceAPI {
                     return result;
                 }
                 return aim.getPolicyInstanceService().postExecuteRetryAsync(request.getId(), true, request.isRetry()).thenApply(response -> {
-                    if (response.isExists()) {
+                    if (response.isSuccessful()) {
                         return new StandardResponse(200);
                     }
                     return new StandardResponse(404).message("Not found");
@@ -143,7 +143,7 @@ public class PolicyInstanceAPI {
                     return result;
                 }
                 return aim.getPolicyInstanceService().postExecuteRetryAsync(request.getId(), false, true).thenApply(response -> {
-                    if (response.isExists()) {
+                    if (response.isSuccessful()) {
                         return new StandardResponse(200);
                     }
                     return new StandardResponse(404).message("Not found");

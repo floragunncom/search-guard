@@ -44,7 +44,7 @@ public class RestIntegrationTest {
     private static LocalCluster.Embedded CLUSTER;
 
     @BeforeAll
-    public static void setup() {
+    public static void setup() throws Exception {
         MockSupport.init();
         CLUSTER = new LocalCluster.Builder().sslEnabled().resources("sg_config").enableModule(AutomatedIndexManagementModule.class)
                 .waitForComponents("aim").embedded().start();
@@ -183,35 +183,36 @@ public class RestIntegrationTest {
 
         @Test
         public void testDeleteSetting() throws Exception {
-            ClusterHelper.Internal.postSettingsUpdate(CLUSTER, AutomatedIndexManagementSettings.Dynamic.EXECUTION_DELAY,
-                    TimeValue.timeValueSeconds(1));
+            ClusterHelper.Internal.postSettingsUpdate(CLUSTER, AutomatedIndexManagementSettings.Dynamic.STATE_LOG_ACTIVE, false);
 
-            GenericRestClient.HttpResponse response = ClusterHelper.Rest.deleteSetting(CLUSTER, "execution.delay");
+            GenericRestClient.HttpResponse response = ClusterHelper.Rest.deleteSetting(CLUSTER,
+                    AutomatedIndexManagementSettings.Dynamic.STATE_LOG_ACTIVE.getName());
             assertEquals(SC_OK, response.getStatusCode(), response.getBody());
         }
 
         @Test
         public void testGetSetting() throws Exception {
-            ClusterHelper.Internal.postSettingsUpdate(CLUSTER, AutomatedIndexManagementSettings.Dynamic.EXECUTION_DELAY,
-                    TimeValue.timeValueSeconds(1));
+            ClusterHelper.Internal.postSettingsUpdate(CLUSTER, AutomatedIndexManagementSettings.Dynamic.STATE_LOG_ACTIVE, true);
 
-            GenericRestClient.HttpResponse response = ClusterHelper.Rest.getSetting(CLUSTER, "execution.delay");
+            GenericRestClient.HttpResponse response = ClusterHelper.Rest.getSetting(CLUSTER,
+                    AutomatedIndexManagementSettings.Dynamic.STATE_LOG_ACTIVE.getName());
             assertEquals(SC_OK, response.getStatusCode(), response.getBody());
-            assertEquals("1s", response.getBodyAsDocNode().get("data"));
+            assertEquals(true, response.getBodyAsDocNode().get("data"));
 
             InternalSettingsAPI.Update.Response deleteResponse = ClusterHelper.Internal.postSettingsDelete(CLUSTER,
-                    AutomatedIndexManagementSettings.Dynamic.EXECUTION_DELAY);
+                    AutomatedIndexManagementSettings.Dynamic.STATE_LOG_ACTIVE);
             assertFalse(deleteResponse.hasFailedAttributes(), "Attribute delete failed");
             assertFalse(deleteResponse.hasRefreshFailures(), "Refresh failed");
         }
 
         @Test
         public void testPutSetting() throws Exception {
-            GenericRestClient.HttpResponse response = ClusterHelper.Rest.putSetting(CLUSTER, "execution.delay", "\"1s\"");
+            GenericRestClient.HttpResponse response = ClusterHelper.Rest.putSetting(CLUSTER,
+                    AutomatedIndexManagementSettings.Dynamic.STATE_LOG_ACTIVE.getName(), "true");
             assertEquals(SC_OK, response.getStatusCode(), response.getBody());
 
             InternalSettingsAPI.Update.Response deleteResponse = ClusterHelper.Internal.postSettingsDelete(CLUSTER,
-                    AutomatedIndexManagementSettings.Dynamic.EXECUTION_DELAY);
+                    AutomatedIndexManagementSettings.Dynamic.STATE_LOG_ACTIVE);
             assertFalse(deleteResponse.hasFailedAttributes(), "Attribute delete failed");
             assertFalse(deleteResponse.hasRefreshFailures(), "Refresh failed");
         }
@@ -224,7 +225,7 @@ public class RestIntegrationTest {
         public void testSGS_AIM_ALL() throws Exception {
             String policyName = "aim-all";
             String policyPath = "/_aim/policy/" + policyName;
-            String settingPath = "/_aim/settings/execution.delay";
+            String settingPath = "/_aim/settings/state_log.active";
 
             GenericRestClient.HttpResponse response = CLUSTER.getRestClient(AIM_ALL_AUTH).putJson(policyPath, VALID_POLICY);
             assertEquals(SC_CREATED, response.getStatusCode(), response.getBody());
@@ -249,7 +250,7 @@ public class RestIntegrationTest {
         public void testSGS_AIM_POLICY_READ() throws Exception {
             String policyName = "aim-policy-read";
             String policyPath = "/_aim/policy/" + policyName;
-            String settingPath = "/_aim/settings/execution.delay";
+            String settingPath = "/_aim/settings/state_log.active";
 
             GenericRestClient.HttpResponse response = CLUSTER.getRestClient(AIM_POLICY_READ_AUTH).putJson(policyPath, VALID_POLICY);
             assertEquals(SC_FORBIDDEN, response.getStatusCode(), response.getBody());
@@ -275,7 +276,7 @@ public class RestIntegrationTest {
         public void testSGS_AIM_POLICY_MANAGE() throws Exception {
             String policyName = "aim-policy-manage";
             String policyPath = "/_aim/policy/" + policyName;
-            String settingPath = "/_aim/settings/execution.delay";
+            String settingPath = "/_aim/settings/state_log.active";
 
             GenericRestClient.HttpResponse response = CLUSTER.getRestClient(AIM_POLICY_MANAGE_AUTH).putJson(policyPath, VALID_POLICY);
             assertEquals(SC_CREATED, response.getStatusCode(), response.getBody());
@@ -302,7 +303,7 @@ public class RestIntegrationTest {
             String policyPath = "/_aim/policy/" + policyName;
             String indexName = "aim-policy-instance-read";
             String statusPath = "/_aim/state/" + indexName;
-            String settingPath = "/_aim/settings/execution.delay";
+            String settingPath = "/_aim/settings/state_log.active";
 
             GenericRestClient.HttpResponse response = CLUSTER.getRestClient(AIM_POLICY_INSTANCE_READ_AUTH).putJson(policyPath, VALID_POLICY);
             assertEquals(SC_FORBIDDEN, response.getStatusCode());
@@ -336,7 +337,7 @@ public class RestIntegrationTest {
             String statusPath = "/_aim/state/" + indexName;
             String executePath = "/_aim/execute/" + indexName;
             String retryPath = "/_aim/retry/" + indexName;
-            String settingPath = "/_aim/settings/execution.delay";
+            String settingPath = "/_aim/settings/state_log.active";
 
             GenericRestClient.HttpResponse response = CLUSTER.getRestClient(AIM_POLICY_INSTANCE_MANAGE_AUTH).putJson(policyPath, VALID_POLICY);
             assertEquals(SC_FORBIDDEN, response.getStatusCode(), response.getBody());
