@@ -41,9 +41,11 @@ public final class RolloverAction extends Action {
 
     @Override
     public void execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-        String aliasKey = this.aliasKey != null ? this.aliasKey : AutomatedIndexManagementSettings.Static.DEFAULT_ROLLOVER_ALIAS_KEY;
-        String alias = executionContext.getAimSettings().getStatic().getAlias(aliasKey,
+        String aliasKey = this.aliasKey != null && !this.aliasKey.isEmpty() ? this.aliasKey
+                : AutomatedIndexManagementSettings.Index.DEFAULT_ROLLOVER_ALIAS_KEY;
+        AutomatedIndexManagementSettings.Index indexSettings = new AutomatedIndexManagementSettings.Index(
                 executionContext.getClusterService().state().metadata().index(index).getSettings());
+        String alias = indexSettings.getAlias(aliasKey);
         if (alias == null || alias.isEmpty()) {
             throw new IllegalStateException("No rollover alias configured in index settings");
         }

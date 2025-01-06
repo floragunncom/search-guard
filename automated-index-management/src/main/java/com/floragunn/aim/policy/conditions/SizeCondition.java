@@ -7,6 +7,7 @@ import com.floragunn.aim.support.ParsingSupport;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.fluent.collections.ImmutableMap;
+import org.elasticsearch.action.admin.indices.stats.IndexStats;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.index.shard.DocsStats;
 
@@ -20,9 +21,9 @@ public final class SizeCondition extends Condition {
         }
 
         @Override
-        public void validateType(Validator.TypeValidator typeValidator) {
-            typeValidator.validateIndexNotDeleted();
-            typeValidator.validateIndexWritable();
+        public void validateType(Validator.TypedValidator typedValidator) {
+            typedValidator.validateIndexNotDeleted();
+            typedValidator.validateIndexWritable();
         }
     };
     public static final String MAX_SIZE_FIELD = "max_size";
@@ -35,7 +36,11 @@ public final class SizeCondition extends Condition {
 
     @Override
     public boolean execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-        DocsStats docsStats = getIndexStats(index, executionContext).getPrimaries().getDocs();
+        IndexStats indexStats = executionContext.getIndexStats(index);
+        if (indexStats == null || indexStats.getPrimaries() == null) {
+            return false;
+        }
+        DocsStats docsStats = indexStats.getPrimaries().getDocs();
         return docsStats != null && docsStats.getTotalSizeInBytes() > maxSize.getBytes();
     }
 

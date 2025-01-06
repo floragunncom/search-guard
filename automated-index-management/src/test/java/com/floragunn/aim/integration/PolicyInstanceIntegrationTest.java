@@ -3,13 +3,30 @@ package com.floragunn.aim.integration;
 import com.floragunn.aim.AutomatedIndexManagementModule;
 import com.floragunn.aim.AutomatedIndexManagementSettings;
 import com.floragunn.aim.MockSupport;
+import com.floragunn.aim.api.internal.InternalPolicyAPI;
 import com.floragunn.aim.api.internal.InternalPolicyInstanceAPI;
 import com.floragunn.aim.integration.support.ClusterHelper;
 import com.floragunn.aim.policy.Policy;
-import com.floragunn.aim.policy.actions.*;
-import com.floragunn.aim.policy.conditions.*;
+import com.floragunn.aim.policy.actions.AllocationAction;
+import com.floragunn.aim.policy.actions.CloseAction;
+import com.floragunn.aim.policy.actions.DeleteAction;
+import com.floragunn.aim.policy.actions.ForceMergeAsyncAction;
+import com.floragunn.aim.policy.actions.RolloverAction;
+import com.floragunn.aim.policy.actions.SetPriorityAction;
+import com.floragunn.aim.policy.actions.SetReadOnlyAction;
+import com.floragunn.aim.policy.actions.SetReplicaCountAction;
+import com.floragunn.aim.policy.actions.SnapshotAsyncAction;
+import com.floragunn.aim.policy.conditions.AgeCondition;
+import com.floragunn.aim.policy.conditions.Condition;
+import com.floragunn.aim.policy.conditions.DocCountCondition;
+import com.floragunn.aim.policy.conditions.ForceMergeDoneCondition;
+import com.floragunn.aim.policy.conditions.IndexCountCondition;
+import com.floragunn.aim.policy.conditions.SizeCondition;
+import com.floragunn.aim.policy.conditions.SnapshotCreatedCondition;
 import com.floragunn.aim.policy.instance.PolicyInstanceState;
-import com.floragunn.aim.policy.instance.PolicyInstanceStateLogHandler;
+import com.floragunn.aim.policy.instance.PolicyInstanceStateLogManager;
+import com.floragunn.aim.policy.schedule.Schedule;
+import com.floragunn.aim.scheduler.store.Store;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.Format;
@@ -45,13 +62,18 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -66,6 +88,9 @@ public class PolicyInstanceIntegrationTest {
     @TempDir
     protected static Path SNAPSHOT_REPO_PATH;
     private static LocalCluster.Embedded CLUSTER;
+    static {
+        Store.INCLUDE_NODE_ID_IN_SCHEDULER_STORE = true;
+    }
 
     @BeforeAll
     public static void setup() {
@@ -73,7 +98,8 @@ public class PolicyInstanceIntegrationTest {
         CLUSTER = new LocalCluster.Builder().sslEnabled().resources("sg_config").enableModule(AutomatedIndexManagementModule.class)
                 .nodeSettings("path.repo", SNAPSHOT_REPO_PATH.toAbsolutePath()).waitForComponents("aim").embedded().start();
         Awaitility.setDefaultTimeout(30, TimeUnit.SECONDS);
-        ClusterHelper.Internal.postSettingsUpdate(CLUSTER, AutomatedIndexManagementSettings.Dynamic.EXECUTION_DELAY, TimeValue.timeValueHours(1));
+        ClusterHelper.Internal.postSettingsUpdate(CLUSTER, AutomatedIndexManagementSettings.Dynamic.DEFAULT_SCHEDULE,
+                new MockSupport.MockSchedule(Schedule.Scope.DEFAULT, Duration.ofHours(1), Duration.ofMinutes(5)));
         Settings.Builder builder = Settings.builder().put("location", SNAPSHOT_REPO_PATH.toAbsolutePath());
         AcknowledgedResponse response = CLUSTER.getInternalNodeClient().admin().cluster().preparePutRepository(SNAPSHOT_REPO_NAME).setType("fs")
                 .setSettings(builder).get();
@@ -81,7 +107,7 @@ public class PolicyInstanceIntegrationTest {
     }
 
     @Test
-    public void testInstanceCreation() {
+    public void testInstanceCreation() throws Exception {
         String policyName = "instance_creation_test_policy";
         String indexName = "instance_creation_test_index";
         Policy policy = new Policy(
@@ -97,7 +123,7 @@ public class PolicyInstanceIntegrationTest {
     }
 
     @Test
-    public void testInstanceCreationNoPolicy() {
+    public void testInstanceCreationNoPolicy() throws Exception {
         String policyName = "instance_creation_no_policy_test_policy";
         String indexName = "instance_creation_no_policy_test_index";
         Policy policy = new Policy(
@@ -110,12 +136,13 @@ public class PolicyInstanceIntegrationTest {
                 getIndexResponse -> Arrays.asList(getIndexResponse.indices()).contains(indexName));
         assertFalse(ClusterHelper.Index.isPolicyInstanceStatusExists(CLUSTER, indexName));
 
-        ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
+        InternalPolicyAPI.StatusResponse putResponse = ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
+        assertEquals(RestStatus.CREATED, putResponse.status(), putResponse.toString());
         ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);
     }
 
     @Test
-    public void testExecuteRetry() {
+    public void testExecuteRetry() throws Exception {
         String policyName = "execute_retry_test_policy";
         String indexName = "execute_retry_test_index";
 
@@ -137,7 +164,7 @@ public class PolicyInstanceIntegrationTest {
 
         InternalPolicyInstanceAPI.PostExecuteRetry.Response response = ClusterHelper.Internal.postPolicyInstanceExecuteRetry(CLUSTER, indexName, true,
                 true);
-        assertTrue(response.isExists());
+        assertTrue(response.isSuccessful());
 
         ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
         assertEquals(2, mockAction.getExecutionCount());
@@ -164,9 +191,8 @@ public class PolicyInstanceIntegrationTest {
 
         ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FAILED);
         GetResponse statusResponse = ClusterHelper.Index.getPolicyInstanceStatus(CLUSTER, indexName);
-        DocNode statusNode = DocNode.wrap(DocReader.json().readObject(statusResponse.getSourceAsString()));
-        assertEquals(1, statusNode.get(PolicyInstanceState.LAST_EXECUTED_ACTION_FIELD, PolicyInstanceState.ActionState.RETRIES_FIELD),
-                "Expected one retry: " + statusNode.toPrettyJsonString());
+        PolicyInstanceState state = new PolicyInstanceState(DocNode.parse(Format.JSON).from(statusResponse.getSourceAsBytesRef().utf8ToString()));
+        assertEquals(1, state.getLastExecutedStepState().getRetries(), "Expected one retry: " + state.toPrettyJsonString());
 
         ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
         assertEquals(2, mockAction.getExecutionCount());
@@ -175,15 +201,14 @@ public class PolicyInstanceIntegrationTest {
 
         InternalPolicyInstanceAPI.PostExecuteRetry.Response response = ClusterHelper.Internal.postPolicyInstanceExecuteRetry(CLUSTER, indexName,
                 false, true);
-        assertTrue(response.isExists());
+        assertTrue(response.isSuccessful());
 
         ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
-
         ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
+
         statusResponse = ClusterHelper.Index.getPolicyInstanceStatus(CLUSTER, indexName);
-        statusNode = DocNode.wrap(DocReader.json().readObject(statusResponse.getSourceAsString()));
-        assertEquals(2, statusNode.get(PolicyInstanceState.LAST_EXECUTED_STEP_FIELD, PolicyInstanceState.StepState.RETRY_COUNT_FIELD),
-                "Expected two retries");
+        state = new PolicyInstanceState(DocNode.parse(Format.JSON).from(statusResponse.getSourceAsBytesRef().utf8ToString()));
+        assertEquals(2, state.getLastExecutedStepState().getRetries(), "Expected two retries: " + state.toPrettyJsonString());
         assertEquals(3, mockAction.getExecutionCount());
     }
 
@@ -204,7 +229,7 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);
 
             SearchRequest statesLogSearchRequest = new SearchRequest(AutomatedIndexManagementSettings.Static.StateLog.DEFAULT_ALIAS_NAME).source(
-                    new SearchSourceBuilder().query(QueryBuilders.termQuery(PolicyInstanceStateLogHandler.StateLogEntry.INDEX_FIELD, indexName)));
+                    new SearchSourceBuilder().query(QueryBuilders.termQuery(PolicyInstanceStateLogManager.StateLogEntry.INDEX_FIELD, indexName)));
             SearchResponse searchResponse = CLUSTER.getInternalNodeClient().search(statesLogSearchRequest).actionGet();
             assertEquals(0, Objects.requireNonNull(searchResponse.getHits().getTotalHits()).value, searchResponse.toString());
             searchResponse.decRef();
@@ -219,19 +244,19 @@ public class PolicyInstanceIntegrationTest {
 
             Thread.sleep(1000);
             SearchResponse searchResponse1 = CLUSTER.getInternalNodeClient().search(statesLogSearchRequest).actionGet();
-            assertEquals(1, Objects.requireNonNull(searchResponse1.getHits().getTotalHits()).value, searchResponse1.toString());
+            assertEquals(2, Objects.requireNonNull(searchResponse1.getHits().getTotalHits()).value, searchResponse1.toString());
             searchResponse1.decRef();
 
             mockCondition.setResult(true);
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
-            ClusterHelper.Index.awaitSearchHitCount(CLUSTER, statesLogSearchRequest, 1);
+            ClusterHelper.Index.awaitSearchHitCount(CLUSTER, statesLogSearchRequest, 2);
         }
 
         @Test
-        public void testStateLogPolicy() {
+        public void testStateLogPolicy() throws Exception {
             String indexPrefix = AutomatedIndexManagementSettings.Static.StateLog.DEFAULT_INDEX_NAME_PREFIX;
             String alias = AutomatedIndexManagementSettings.Static.StateLog.DEFAULT_ALIAS_NAME;
-            String writeAlias = PolicyInstanceStateLogHandler.getWriteAliasName(alias);
+            String writeAlias = PolicyInstanceStateLogManager.getWriteAliasName(alias);
 
             String indexName = indexPrefix + "-000001";
             ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);
@@ -245,7 +270,7 @@ public class PolicyInstanceIntegrationTest {
             MockSupport.STATE_LOG_ROLLOVER_DOC_COUNT.setResult(indexName, true);
             InternalPolicyInstanceAPI.PostExecuteRetry.Response executeResponse = ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER,
                     indexName);
-            assertTrue(executeResponse.isExists());
+            assertTrue(executeResponse.isSuccessful());
 
             Awaitility.await().until(() -> ClusterHelper.Index.getPolicyInstanceStatus(CLUSTER, indexName),
                     statusResponse -> "delete".equals(statusResponse.getSource().get(PolicyInstanceState.CURRENT_STEP_FIELD)));
@@ -258,6 +283,63 @@ public class PolicyInstanceIntegrationTest {
 
             ClusterHelper.Index.awaitSearchHitCount(CLUSTER,
                     new SearchRequest(alias).source(new SearchSourceBuilder().query(QueryBuilders.termQuery("first", "entry"))), 1);
+        }
+    }
+
+    @Execution(ExecutionMode.CONCURRENT)
+    @Nested
+    public class ScheduleTest {
+        @Test
+        public void testPolicySchedule() throws Exception {
+            Schedule schedule = new MockSupport.MockSchedule(Schedule.Scope.POLICY, Duration.ofMinutes(0), Duration.ofMinutes(1));
+            Condition condition = new MockSupport.MockCondition().setResult(true);
+            Policy policy = new Policy(schedule, ImmutableList.of(new Policy.Step("first", ImmutableList.of(condition), ImmutableList.empty())));
+            String policyName = "policy_schedule_test_policy";
+            String indexName = "policy_schedule_test_index";
+
+            ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
+            ClusterHelper.Index.createManagedIndex(CLUSTER, indexName, policyName);
+            ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
+        }
+
+        @Test
+        public void testPolicyToStepSchedule() throws Exception {
+            Schedule policySchedule = new MockSupport.MockSchedule(Schedule.Scope.POLICY, Duration.ofMinutes(0), Duration.ofMinutes(10));
+            Schedule stepSchedule = new MockSupport.MockSchedule(Schedule.Scope.STEP, Duration.ofMinutes(0), Duration.ofSeconds(5));
+            Condition firstCondition = new MockSupport.MockCondition().setResult(true);
+            MockSupport.MockCondition secondCondition = new MockSupport.MockCondition().setResult(false);
+            Policy policy = new Policy(policySchedule,
+                    ImmutableList.of(new Policy.Step("first", ImmutableList.of(firstCondition), ImmutableList.empty()),
+                            new Policy.Step("second", stepSchedule, ImmutableList.of(secondCondition), ImmutableList.empty())));
+            String policyName = "policy_to_step_schedule_test_policy";
+            String indexName = "policy_to_step_schedule_test_index";
+
+            ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
+            ClusterHelper.Index.createManagedIndex(CLUSTER, indexName, policyName);
+            ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.WAITING);
+
+            secondCondition.setResult(true);
+            ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
+        }
+
+        @Test
+        public void testStepToPolicySchedule() throws Exception {
+            Schedule policySchedule = new MockSupport.MockSchedule(Schedule.Scope.POLICY, Duration.ofMinutes(0), Duration.ofSeconds(5));
+            Schedule stepSchedule = new MockSupport.MockSchedule(Schedule.Scope.STEP, Duration.ofMinutes(0), Duration.ofMinutes(10));
+            Condition firstCondition = new MockSupport.MockCondition().setResult(true);
+            MockSupport.MockCondition secondCondition = new MockSupport.MockCondition().setResult(false);
+            Policy policy = new Policy(policySchedule,
+                    ImmutableList.of(new Policy.Step("first", stepSchedule, ImmutableList.of(firstCondition), ImmutableList.empty()),
+                            new Policy.Step("second", ImmutableList.of(secondCondition), ImmutableList.empty())));
+            String policyName = "step_to_policy_schedule_test_policy";
+            String indexName = "step_to_policy_schedule_test_index";
+
+            ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
+            ClusterHelper.Index.createManagedIndex(CLUSTER, indexName, policyName);
+            ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.WAITING);
+
+            secondCondition.setResult(true);
+            ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
         }
     }
 
@@ -365,7 +447,7 @@ public class PolicyInstanceIntegrationTest {
         }
 
         @Test
-        public void testSnapshotCreatedConditionExecution() {
+        public void testSnapshotCreatedConditionExecution() throws Exception {
             String snapshotName = "snapshot_condition_test_snap";
             SnapshotCreatedCondition condition = new SnapshotCreatedCondition(SNAPSHOT_REPO_NAME);
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.of(condition), ImmutableList.empty()));
@@ -383,16 +465,14 @@ public class PolicyInstanceIntegrationTest {
                             .setSnapshots(snapshotName).execute().actionGet(),
                     snapshotsStatusResponse -> SnapshotsInProgress.State.SUCCESS.equals(snapshotsStatusResponse.getSnapshots().get(0).getState()));
 
-            PolicyInstanceState mockState = new PolicyInstanceState(policyName);
-            mockState.setSnapshotName(snapshotName);
-            DocWriteResponse indexResponse = CLUSTER.getPrivilegedInternalNodeClient()
-                    .index(new IndexRequest(AutomatedIndexManagementSettings.ConfigIndices.POLICY_INSTANCE_STATES_NAME).id(indexName)
-                            .source(mockState.toDocNode()))
-                    .actionGet();
+            PolicyInstanceState mockState = new PolicyInstanceState(policyName).setStatus(PolicyInstanceState.Status.NOT_STARTED)
+                    .addCreatedSnapshotName(SnapshotAsyncAction.DEFAULT_SNAPSHOT_NAME_KEY, snapshotName);
+            DocWriteResponse indexResponse = ClusterHelper.Index.createMockState(CLUSTER, indexName, mockState);
             assertEquals(RestStatus.CREATED, indexResponse.status(), Strings.toString(indexResponse, true, true));
             ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);
 
-            ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
+            InternalPolicyAPI.StatusResponse response = ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
+            assertEquals(RestStatus.CREATED, response.status(), "Failed to create policy");
             ClusterHelper.Index.awaitPolicyExists(CLUSTER, policyName);
 
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
@@ -411,14 +491,14 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
 
             ClusterHelper.Index.createManagedIndex(CLUSTER, index1Name, policyName, aliasName,
-                    Settings.builder().put(AutomatedIndexManagementSettings.Static.ALIASES_FIELD.name() + ".all_alias", aliasName).build());
+                    Settings.builder().put(AutomatedIndexManagementSettings.Index.ALIAS_MAPPING.name() + ".all_alias", aliasName).build());
             ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, index1Name);
 
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, index1Name);
             ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, index1Name, PolicyInstanceState.Status.WAITING);
 
             ClusterHelper.Index.createManagedIndex(CLUSTER, index2Name, policyName, aliasName,
-                    Settings.builder().put(AutomatedIndexManagementSettings.Static.ALIASES_FIELD.name() + ".all_alias", aliasName).build());
+                    Settings.builder().put(AutomatedIndexManagementSettings.Index.ALIAS_MAPPING.name() + ".all_alias", aliasName).build());
             ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, index2Name);
 
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, index1Name);
@@ -432,7 +512,7 @@ public class PolicyInstanceIntegrationTest {
     @Nested
     public class ActionTest {
         @Test
-        public void testAllocationActionExecution() {
+        public void testAllocationActionExecution() throws Exception {
             AllocationAction action = new AllocationAction(ImmutableMap.of("_name", "some_node_name"), ImmutableMap.empty(), ImmutableMap.empty());
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_test_policy";
@@ -451,7 +531,7 @@ public class PolicyInstanceIntegrationTest {
         }
 
         @Test
-        public void testCloseActionExecution() {
+        public void testCloseActionExecution() throws Exception {
             CloseAction action = new CloseAction();
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_test_policy";
@@ -469,7 +549,7 @@ public class PolicyInstanceIntegrationTest {
         }
 
         @Test
-        public void testDeleteActionExecution() {
+        public void testDeleteActionExecution() throws Exception {
             DeleteAction action = new DeleteAction();
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_test_policy";
@@ -514,7 +594,7 @@ public class PolicyInstanceIntegrationTest {
         }
 
         @Test
-        public void testRolloverActionExecution() {
+        public void testRolloverActionExecution() throws Exception {
             RolloverAction action = new RolloverAction();
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_test_policy";
@@ -522,8 +602,8 @@ public class PolicyInstanceIntegrationTest {
             String aliasName = action.getType() + "_action_test_alias";
 
             ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
-            Settings settings = Settings.builder().put(AutomatedIndexManagementSettings.Static.ALIASES_FIELD.name() + "."
-                    + AutomatedIndexManagementSettings.Static.DEFAULT_ROLLOVER_ALIAS_KEY, aliasName).build();
+            Settings settings = Settings.builder().put(AutomatedIndexManagementSettings.Index.ALIAS_MAPPING.name() + "."
+                    + AutomatedIndexManagementSettings.Index.DEFAULT_ROLLOVER_ALIAS_KEY, aliasName).build();
             ClusterHelper.Index.createManagedIndex(CLUSTER, indexName, policyName, aliasName, settings);
             ClusterHelper.Index.awaitPolicyInstanceStatusExists(CLUSTER, indexName);
 
@@ -566,7 +646,7 @@ public class PolicyInstanceIntegrationTest {
             String indexName = action.getType() + "_action_rolled_test_index-1";
             String aliasName = action.getType() + "_action_rolled_test_alias";
 
-            Settings settings = Settings.builder().put(AutomatedIndexManagementSettings.Static.ALIASES_FIELD.name() + "." + customAliasKey, aliasName)
+            Settings settings = Settings.builder().put(AutomatedIndexManagementSettings.Index.ALIAS_MAPPING.name() + "." + customAliasKey, aliasName)
                     .build();
             ClusterHelper.Internal.putPolicy(CLUSTER, policyName, policy);
             ClusterHelper.Index.createManagedIndex(CLUSTER, indexName, policyName, aliasName, settings);
@@ -586,7 +666,7 @@ public class PolicyInstanceIntegrationTest {
         }
 
         @Test
-        public void testSetPriorityActionExecution() {
+        public void testSetPriorityActionExecution() throws Exception {
             SetPriorityAction action = new SetPriorityAction(50);
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_test_policy";
@@ -604,7 +684,7 @@ public class PolicyInstanceIntegrationTest {
         }
 
         @Test
-        public void testSetReadOnlyActionExecution() {
+        public void testSetReadOnlyActionExecution() throws Exception {
             SetReadOnlyAction action = new SetReadOnlyAction();
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_test_policy";
@@ -623,7 +703,7 @@ public class PolicyInstanceIntegrationTest {
         }
 
         @Test
-        public void testSetReplicaCountActionExecution() {
+        public void testSetReplicaCountActionExecution() throws Exception {
             SetReplicaCountAction action = new SetReplicaCountAction(2);
             Policy policy = new Policy(new Policy.Step("first", ImmutableList.empty(), ImmutableList.of(action)));
             String policyName = action.getType() + "_action_test_policy";
@@ -662,7 +742,9 @@ public class PolicyInstanceIntegrationTest {
 
             GetResponse statusResponse = ClusterHelper.Index.getPolicyInstanceStatus(CLUSTER, indexName);
             DocNode statusNode = DocNode.wrap(DocReader.json().read(statusResponse.getSourceAsString()));
-            String concreteSnapshotName = (String) statusNode.get(PolicyInstanceState.SNAPSHOT_NAME);
+            @SuppressWarnings("unchecked")
+            String concreteSnapshotName = ((Map<String, String>) statusNode.get(PolicyInstanceState.CREATED_SNAPSHOT_NAME_MAPPING))
+                    .get(SnapshotAsyncAction.DEFAULT_SNAPSHOT_NAME_KEY);
             Awaitility.await().until(
                     () -> CLUSTER.getInternalNodeClient().admin().cluster().prepareSnapshotStatus().setRepository(SNAPSHOT_REPO_NAME)
                             .setSnapshots(concreteSnapshotName).execute().actionGet(),

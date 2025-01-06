@@ -8,7 +8,6 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableMap;
-import org.elasticsearch.common.settings.Settings;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -53,11 +52,13 @@ public final class AllocationAction extends Action {
 
     @Override
     public void execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-        Settings.Builder builder = Settings.builder();
-        require.forEach((key, value) -> builder.put(SETTING_PREFIX + REQUIRE_FIELD + "." + key, value));
-        include.forEach((key, value) -> builder.put(SETTING_PREFIX + INCLUDE_FIELD + "." + key, value));
-        exclude.forEach((key, value) -> builder.put(SETTING_PREFIX + EXCLUDE_FIELD + "." + key, value));
-        setIndexSetting(index, executionContext, builder);
+        Map<String, Object> settings = new HashMap<>(require.size() + include.size() + exclude.size());
+        require.forEach((key, value) -> settings.put(SETTING_PREFIX + REQUIRE_FIELD + "." + key, value));
+        include.forEach((key, value) -> settings.put(SETTING_PREFIX + INCLUDE_FIELD + "." + key, value));
+        exclude.forEach((key, value) -> settings.put(SETTING_PREFIX + EXCLUDE_FIELD + "." + key, value));
+        if (!executionContext.updateIndexSettings(index, settings)) {
+            throw new IllegalStateException("Failed to update allocation settings. Response was not acknowledged.");
+        }
     }
 
     @Override

@@ -13,8 +13,7 @@ import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
-import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.common.settings.Settings;
+import com.floragunn.searchsupport.indices.IndexMapping;
 
 import java.util.List;
 import java.util.Map;
@@ -22,14 +21,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class Action implements Document<Object> {
     public static final String TYPE_FIELD = "type";
-
-    protected static void setIndexSetting(String index, PolicyInstance.ExecutionContext executionContext, Settings.Builder settingsBuilder) {
-        AcknowledgedResponse acknowledgedResponse = executionContext.getClient().admin().indices().prepareUpdateSettings(index)
-                .setSettings(settingsBuilder).get();
-        if (!acknowledgedResponse.isAcknowledged()) {
-            throw new IllegalStateException("Failed to execute index settings update. Response was not acknowledged");
-        }
-    }
+    public static final IndexMapping.Property[] INDEX_MAPPING_PROPERTIES = new IndexMapping.Property[] {
+            new IndexMapping.KeywordProperty(TYPE_FIELD) };
 
     public abstract void execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception;
 

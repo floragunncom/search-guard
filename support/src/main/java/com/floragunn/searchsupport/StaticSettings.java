@@ -111,6 +111,9 @@ public class StaticSettings {
 
             if (indexScope) {
                 result.add(Property.IndexScope);
+                if (dynamic) {
+                    result.add(Property.Dynamic);
+                }
             } else {
                 result.add(Property.NodeScope);
             }
@@ -389,7 +392,7 @@ public class StaticSettings {
         @Override
         public Map<String, String> getFrom(Settings settings) {
             @SuppressWarnings("unchecked")
-            Setting. AffixSetting<String> value = (Setting.AffixSetting<String>) platformInstance;
+            Setting.AffixSetting<String> value = (Setting.AffixSetting<String>) platformInstance;
             return value.getAsMap(settings);
         }
     }
@@ -409,6 +412,14 @@ public class StaticSettings {
 
         AttributeSet(ImmutableList<Attribute<?>> options) {
             this.options = options;
+        }
+
+        public AttributeSet with(Attribute<?>... options) {
+            return new AttributeSet(this.options.with(options));
+        }
+
+        public AttributeSet with(AttributeSet attributeSet) {
+            return new AttributeSet(options.with(attributeSet.options));
         }
 
         public ImmutableList<org.elasticsearch.common.settings.Setting<?>> toPlatform() {

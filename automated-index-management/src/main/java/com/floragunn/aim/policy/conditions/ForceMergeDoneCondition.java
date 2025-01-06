@@ -8,7 +8,7 @@ import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.fluent.collections.ImmutableMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
+import org.elasticsearch.action.admin.indices.stats.IndexStats;
 import org.elasticsearch.action.admin.indices.stats.ShardStats;
 import org.elasticsearch.index.engine.SegmentsStats;
 
@@ -24,8 +24,8 @@ public final class ForceMergeDoneCondition extends Condition.Async {
         }
 
         @Override
-        public void validateType(Validator.TypeValidator typeValidator) {
-            typeValidator.validateNotConfigurable();
+        public void validateType(Validator.TypedValidator typedValidator) {
+            typedValidator.validateNotConfigurable();
         }
     };
     public static final String SEGMENTS_FIELD = "segments";
@@ -38,9 +38,12 @@ public final class ForceMergeDoneCondition extends Condition.Async {
 
     @Override
     public boolean execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-        IndicesStatsResponse response = getIndexStats(index, executionContext);
         int mergingShards = 0;
-        for (ShardStats shard : response.getShards()) {
+        IndexStats indexStats = executionContext.getIndexStats(index);
+        if (indexStats == null) {
+            return false;
+        }
+        for (ShardStats shard : indexStats.getShards()) {
             SegmentsStats segmentsStats = shard.getStats().getSegments();
             if (segmentsStats == null) {
                 LOG.warn("Index '{}' had null segments waiting for force merge.", index);
@@ -48,12 +51,8 @@ public final class ForceMergeDoneCondition extends Condition.Async {
                 mergingShards++;
             }
         }
-        if (mergingShards == 0) {
-            return true;
-        } else {
-            //TODO: Implement timeout?
-            return false;
-        }
+        //TODO: Implement timeout?
+        return mergingShards == 0;
     }
 
     @Override

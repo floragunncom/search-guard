@@ -7,6 +7,7 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.fluent.collections.ImmutableMap;
+import org.elasticsearch.action.admin.indices.stats.IndexStats;
 import org.elasticsearch.index.shard.DocsStats;
 
 public final class DocCountCondition extends Condition {
@@ -22,8 +23,8 @@ public final class DocCountCondition extends Condition {
         }
 
         @Override
-        public void validateType(Validator.TypeValidator typeValidator) {
-            typeValidator.validateIndexNotDeleted();
+        public void validateType(Validator.TypedValidator typedValidator) {
+            typedValidator.validateIndexNotDeleted();
         }
     };
     public static final String MAX_DOC_COUNT_FIELD = "max_doc_count";
@@ -36,7 +37,11 @@ public final class DocCountCondition extends Condition {
 
     @Override
     public boolean execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-        DocsStats docsStats = getIndexStats(index, executionContext).getPrimaries().getDocs();
+        IndexStats indexStats = executionContext.getIndexStats(index);
+        if (indexStats == null || indexStats.getPrimaries() == null) {
+            return false;
+        }
+        DocsStats docsStats = indexStats.getPrimaries().getDocs();
         return docsStats != null && docsStats.getCount() > maxCount;
     }
 

@@ -11,7 +11,9 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotStatus;
 import org.elasticsearch.action.admin.cluster.snapshots.status.SnapshotsStatusResponse;
 
-import static com.floragunn.aim.policy.actions.SnapshotAsyncAction.REPOSITORY_NAME_FIELD;
+import java.util.Objects;
+
+import static com.floragunn.aim.policy.actions.SnapshotAsyncAction.*;
 
 public final class SnapshotCreatedCondition extends Condition.Async {
     private static final Logger LOG = LogManager.getLogger(SnapshotCreatedCondition.class);
@@ -21,24 +23,32 @@ public final class SnapshotCreatedCondition extends Condition.Async {
         @Override
         public Condition parse(ValidatingDocNode node, ValidationErrors errors, Policy.ValidationContext validationContext) {
             String repositoryName = node.get(REPOSITORY_NAME_FIELD).required().asString();
-            return new SnapshotCreatedCondition(repositoryName);
+            String snapshotNameKey = node.get(SNAPSHOT_NAME_KEY_FIELD).asString();
+            return new SnapshotCreatedCondition(repositoryName, snapshotNameKey);
         }
 
         @Override
-        public void validateType(Validator.TypeValidator typeValidator) {
-            typeValidator.validateNotConfigurable();
+        public void validateType(Validator.TypedValidator typedValidator) {
+            typedValidator.validateNotConfigurable();
         }
     };
 
     private final String repositoryName;
+    private final String snapshotNameKey;
 
     public SnapshotCreatedCondition(String repositoryName) {
+        this(repositoryName, null);
+    }
+
+    public SnapshotCreatedCondition(String repositoryName, String snapshotNameKey) {
         this.repositoryName = repositoryName;
+        this.snapshotNameKey = snapshotNameKey;
     }
 
     @Override
     public boolean execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-        String snapshotName = state.getSnapshotName();
+        String snapshotNameKey = this.snapshotNameKey != null && !this.snapshotNameKey.isEmpty() ? this.snapshotNameKey : DEFAULT_SNAPSHOT_NAME_KEY;
+        String snapshotName = state.getCreatedSnapshotNameMapping().get(snapshotNameKey);
         if (snapshotName == null || snapshotName.isEmpty()) {
             throw new IllegalStateException("Snapshot name not found");
         }
@@ -71,7 +81,7 @@ public final class SnapshotCreatedCondition extends Condition.Async {
             return false;
         }
         SnapshotCreatedCondition condition = (SnapshotCreatedCondition) other;
-        return condition.repositoryName.equals(repositoryName);
+        return Objects.equals(repositoryName, condition.repositoryName) && Objects.equals(snapshotNameKey, condition.snapshotNameKey);
     }
 
     @Override

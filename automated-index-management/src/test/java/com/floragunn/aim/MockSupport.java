@@ -5,11 +5,19 @@ import com.floragunn.aim.policy.actions.Action;
 import com.floragunn.aim.policy.conditions.Condition;
 import com.floragunn.aim.policy.instance.PolicyInstance;
 import com.floragunn.aim.policy.instance.PolicyInstanceState;
+import com.floragunn.aim.policy.schedule.Schedule;
+import com.floragunn.codova.config.temporal.DurationFormat;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.fluent.collections.ImmutableMap;
+import org.quartz.JobKey;
+import org.quartz.SimpleScheduleBuilder;
+import org.quartz.Trigger;
+import org.quartz.TriggerBuilder;
 
+import java.time.Duration;
 import java.util.AbstractMap;
+import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,11 +28,65 @@ public class MockSupport {
     public static final MockCondition STATE_LOG_DELETE_MAX_AGE = new MockCondition("95d1addf-bb29-4c94-80e3-5c8dbf056a18");
 
     public static void init() {
+        if (!AutomatedIndexManagement.SCHEDULE_FACTORY.containsType(MockSchedule.TYPE)) {
+            AutomatedIndexManagement.SCHEDULE_FACTORY.register(MockSchedule.TYPE, MockSchedule.PARSER);
+        }
         if (!AutomatedIndexManagement.CONDITION_FACTORY.containsType(MockCondition.TYPE)) {
             AutomatedIndexManagement.CONDITION_FACTORY.register(MockCondition.TYPE, MockCondition.VALIDATING_PARSER);
         }
         if (!AutomatedIndexManagement.ACTION_FACTORY.containsType(MockAction.TYPE)) {
             AutomatedIndexManagement.ACTION_FACTORY.register(MockAction.TYPE, MockAction.VALIDATING_PARSER);
+        }
+    }
+
+    public static class MockSchedule extends Schedule {
+        public static final String TYPE = "mock_schedule";
+        public static final Schedule.Parser PARSER = (docNode, scope) -> {
+            ValidationErrors errors = new ValidationErrors();
+            ValidatingDocNode node = new ValidatingDocNode(docNode, errors);
+            Duration delay = node.get("delay").required().byString(DurationFormat.INSTANCE::parse);
+            Duration period = node.get("period").required().byString(DurationFormat.INSTANCE::parse);
+            node.checkForUnusedAttributes();
+            errors.throwExceptionForPresentErrors();
+            return new MockSchedule(scope, delay, period);
+        };
+
+        private final Duration delay;
+        private final Duration period;
+
+        public MockSchedule(Scope scope, Duration delay, Duration period) {
+            super(scope);
+            this.delay = delay;
+            this.period = period;
+        }
+
+        @Override
+        public Trigger buildTrigger(JobKey jobKey) {
+            return TriggerBuilder
+                    .newTrigger().forJob(jobKey).withIdentity(getTriggerKey(jobKey)).withSchedule(SimpleScheduleBuilder.simpleSchedule()
+                            .withIntervalInMilliseconds(period.toMillis()).repeatForever().withMisfireHandlingInstructionFireNow())
+                    .startAt(new Date(System.currentTimeMillis() + delay.toMillis())).build();
+        }
+
+        @Override
+        public Map<String, Object> toBasicMap() {
+            return ImmutableMap.of("delay", DurationFormat.INSTANCE.format(delay), "period", DurationFormat.INSTANCE.format(period));
+        }
+
+        @Override
+        protected String getType() {
+            return TYPE;
+        }
+
+        @Override
+        protected String getStringRepresentation() {
+            return toString();
+        }
+
+        @Override
+        public String toString() {
+            return "MockSchedule{" + "delay='" + DurationFormat.INSTANCE.format(delay) + '\'' + ", period='" + DurationFormat.INSTANCE.format(period)
+                    + '\'' + '}';
         }
     }
 
@@ -37,7 +99,7 @@ public class MockSupport {
             }
 
             @Override
-            public void validateType(Validator.TypeValidator typeValidator) {
+            public void validateType(Validator.TypedValidator typedValidator) {
 
             }
         };
@@ -59,16 +121,27 @@ public class MockSupport {
 
         @Override
         public boolean execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-            Configuration mockConfiguration = CONFIGURATION.get(uuid).getKey();
-            mockConfiguration.executionCount++;
-            if (CONFIGURATION.get(uuid).getValue().get(index) != null) {
-                mockConfiguration = getConfiguration(index);
-                mockConfiguration.executionCount++;
+            Configuration configuration = CONFIGURATION.get(uuid).getKey();
+            configuration.executionCount++;
+            Boolean fail = configuration.fail;
+            Boolean result = configuration.result;
+
+            Configuration indexConfiguration = getConfiguration(index);
+            indexConfiguration.executionCount++;
+
+            if (indexConfiguration.fail != null) {
+                fail = indexConfiguration.fail;
             }
-            if (mockConfiguration.fail) {
+            if (indexConfiguration.result != null) {
+                result = indexConfiguration.result;
+            }
+            if (fail != null && fail) {
                 throw new IllegalStateException("error");
             }
-            return mockConfiguration.result;
+            if (result != null) {
+                return result;
+            }
+            return false;
         }
 
         public int getExecutionCount() {
@@ -100,11 +173,7 @@ public class MockSupport {
         }
 
         private Configuration getConfiguration(String index) {
-            if (CONFIGURATION.get(uuid).getValue().get(index) == null) {
-                Configuration general = CONFIGURATION.get(uuid).getKey();
-                CONFIGURATION.get(uuid).getValue().put(index, new Configuration(general));
-            }
-            return CONFIGURATION.get(uuid).getValue().get(index);
+            return CONFIGURATION.get(uuid).getValue().computeIfAbsent(index, k -> new Configuration());
         }
 
         @Override
@@ -129,19 +198,9 @@ public class MockSupport {
         }
 
         private static class Configuration {
-            private boolean result = false;
-            private boolean fail = false;
+            private Boolean result = null;
+            private Boolean fail = null;
             private int executionCount = 0;
-
-            public Configuration() {
-
-            }
-
-            public Configuration(Configuration other) {
-                result = other.result;
-                fail = other.fail;
-                executionCount = 0;
-            }
         }
     }
 
@@ -191,23 +250,41 @@ public class MockSupport {
             return getConfiguration(index).executionCount;
         }
 
+        public MockAction setRunnable(Runnable runnable) {
+            CONFIGURATION.get(uuid).getKey().runnable = runnable;
+            return this;
+        }
+
+        public MockAction setRunnable(String index, Runnable runnable) {
+            getConfiguration(index).runnable = runnable;
+            return this;
+        }
+
         private Configuration getConfiguration(String index) {
-            if (CONFIGURATION.get(uuid).getValue().get(index) == null) {
-                Configuration general = CONFIGURATION.get(uuid).getKey();
-                CONFIGURATION.get(uuid).getValue().put(index, new Configuration(general));
-            }
-            return CONFIGURATION.get(uuid).getValue().get(index);
+            return CONFIGURATION.get(uuid).getValue().computeIfAbsent(index, k -> new Configuration());
         }
 
         @Override
         public void execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
             Configuration configuration = CONFIGURATION.get(uuid).getKey();
             configuration.executionCount++;
-            if (CONFIGURATION.get(uuid).getValue().get(index) != null) {
-                configuration = getConfiguration(index);
-                configuration.executionCount++;
+            Runnable runnable = configuration.runnable;
+            Boolean fail = configuration.fail;
+
+            Configuration indexConfiguration = getConfiguration(index);
+
+            indexConfiguration.executionCount++;
+            if (indexConfiguration.runnable != null) {
+                runnable = indexConfiguration.runnable;
             }
-            if (configuration.fail) {
+            if (indexConfiguration.fail != null) {
+                fail = indexConfiguration.fail;
+            }
+
+            if (runnable != null) {
+                runnable.run();
+            }
+            if (fail != null && fail) {
                 throw new IllegalStateException("error");
             }
         }
@@ -234,18 +311,9 @@ public class MockSupport {
         }
 
         private static class Configuration {
-
             int executionCount = 0;
-            boolean fail = false;
-
-            public Configuration() {
-
-            }
-
-            public Configuration(Configuration other) {
-                fail = other.fail;
-                executionCount = 0;
-            }
+            Boolean fail = null;
+            Runnable runnable = null;
         }
     }
 }

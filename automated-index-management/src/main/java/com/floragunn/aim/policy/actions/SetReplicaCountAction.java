@@ -6,7 +6,6 @@ import com.floragunn.aim.policy.instance.PolicyInstanceState;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.fluent.collections.ImmutableMap;
-import org.elasticsearch.common.settings.Settings;
 
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_NUMBER_OF_REPLICAS;
 
@@ -38,8 +37,9 @@ public final class SetReplicaCountAction extends Action {
 
     @Override
     public void execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-        Settings.Builder builder = Settings.builder().put(SETTING_NUMBER_OF_REPLICAS, replicaCount);
-        setIndexSetting(index, executionContext, builder);
+        if (!executionContext.updateIndexSetting(index, SETTING_NUMBER_OF_REPLICAS, replicaCount)) {
+            throw new IllegalStateException("Failed to set replica count setting. Response was not acknowledged");
+        }
     }
 
     @Override

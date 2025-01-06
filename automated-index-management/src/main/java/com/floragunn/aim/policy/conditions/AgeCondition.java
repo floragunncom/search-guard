@@ -21,8 +21,8 @@ public final class AgeCondition extends Condition {
         }
 
         @Override
-        public void validateType(Validator.TypeValidator typeValidator) {
-            typeValidator.validateIndexNotDeleted();
+        public void validateType(Validator.TypedValidator typedValidator) {
+            typedValidator.validateIndexNotDeleted();
         }
     };
     public static final String MAX_AGE_FIELD = "max_age";

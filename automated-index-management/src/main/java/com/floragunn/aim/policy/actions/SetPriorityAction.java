@@ -6,7 +6,6 @@ import com.floragunn.aim.policy.instance.PolicyInstanceState;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.fluent.collections.ImmutableMap;
-import org.elasticsearch.common.settings.Settings;
 
 import static org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_PRIORITY;
 
@@ -35,8 +34,9 @@ public final class SetPriorityAction extends Action {
 
     @Override
     public void execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
-        Settings.Builder builder = Settings.builder().put(SETTING_PRIORITY, priority);
-        setIndexSetting(index, executionContext, builder);
+        if (!executionContext.updateIndexSetting(index, SETTING_PRIORITY, priority)) {
+            throw new IllegalStateException("Failed to update priority setting. Response was not acknowledged");
+        }
     }
 
     @Override
