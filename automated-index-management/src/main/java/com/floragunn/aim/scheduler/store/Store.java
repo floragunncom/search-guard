@@ -84,8 +84,8 @@ public class Store<JobConfigType extends JobConfig> implements org.quartz.spi.Jo
         this.signaler = signaler;
         SCHEDULER_STORE.put(getInstanceName(node, schedulerName), this);
         try {
-            ClusterHealthResponse clusterHealthResponse = client.admin().cluster().prepareHealth().setWaitForYellowStatus()
-                    .setWaitForNoInitializingShards(true).get(TimeValue.timeValueSeconds(1));
+            ClusterHealthResponse clusterHealthResponse = client.admin().cluster().prepareHealth(TimeValue.timeValueSeconds(30))
+                    .setWaitForYellowStatus().setWaitForNoInitializingShards(true).get(TimeValue.timeValueSeconds(1));
             LOG.debug("Cluster health before loading store: {}", clusterHealthResponse);
             if (clusterHealthResponse.isTimedOut()) {
                 LOG.warn("Timeout while waiting for initialized cluster status. Will continue anyway: {}", clusterHealthResponse);

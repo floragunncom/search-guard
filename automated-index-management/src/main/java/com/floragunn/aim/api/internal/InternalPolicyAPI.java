@@ -28,10 +28,10 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
@@ -110,8 +110,7 @@ public class InternalPolicyAPI {
             private final Client client;
 
             @Inject
-            public Handler(AutomatedIndexManagement aim, Client client, ThreadPool threadPool, TransportService transportService,
-                    ActionFilters actionFilters) {
+            public Handler(Client client, ThreadPool threadPool, TransportService transportService, ActionFilters actionFilters) {
                 super(NAME, transportService, actionFilters, Request::new, threadPool.executor(ThreadPool.Names.MANAGEMENT));
                 this.client = PrivilegedConfigClient.adapt(client);
             }
@@ -318,21 +317,6 @@ public class InternalPolicyAPI {
                 this.updatedPolicies = updatedPolicies;
             }
 
-            public Request(StreamInput in) throws IOException {
-                super(in);
-                deletedPolicies = in.readStringCollectionAsImmutableList();
-                createdPolicies = in.readStringCollectionAsImmutableList();
-                updatedPolicies = in.readStringCollectionAsImmutableList();
-            }
-
-            @Override
-            public void writeTo(StreamOutput out) throws IOException {
-                super.writeTo(out);
-                out.writeStringCollection(deletedPolicies);
-                out.writeStringCollection(createdPolicies);
-                out.writeStringCollection(updatedPolicies);
-            }
-
             @Override
             public boolean equals(Object o) {
                 if (this == o) {
@@ -359,21 +343,29 @@ public class InternalPolicyAPI {
             }
 
             public static class Node extends TransportRequest {
-                private final Request request;
+                private final List<String> deletedPolicies;
+                private final List<String> createdPolicies;
+                private final List<String> updatedPolicies;
 
                 public Node(Request request) {
-                    this.request = request;
+                    deletedPolicies = request.getDeletedPolicies();
+                    createdPolicies = request.getCreatedPolicies();
+                    updatedPolicies = request.getUpdatedPolicies();
                 }
 
                 public Node(StreamInput in) throws IOException {
                     super(in);
-                    request = new Request(in);
+                    deletedPolicies = in.readStringCollectionAsImmutableList();
+                    createdPolicies = in.readStringCollectionAsImmutableList();
+                    updatedPolicies = in.readStringCollectionAsImmutableList();
                 }
 
                 @Override
                 public void writeTo(StreamOutput out) throws IOException {
                     super.writeTo(out);
-                    request.writeTo(out);
+                    out.writeStringCollection(deletedPolicies);
+                    out.writeStringCollection(createdPolicies);
+                    out.writeStringCollection(updatedPolicies);
                 }
 
                 @Override
@@ -385,11 +377,20 @@ public class InternalPolicyAPI {
                         return false;
                     }
                     Node node = (Node) o;
-                    return Objects.equals(request, node.request);
+                    return Objects.equals(deletedPolicies, node.deletedPolicies) && Objects.equals(createdPolicies, node.createdPolicies)
+                            && Objects.equals(updatedPolicies, node.updatedPolicies);
                 }
 
-                public Request getRequest() {
-                    return request;
+                public List<String> getDeletedPolicies() {
+                    return deletedPolicies;
+                }
+
+                public List<String> getCreatedPolicies() {
+                    return createdPolicies;
+                }
+
+                public List<String> getUpdatedPolicies() {
+                    return updatedPolicies;
                 }
             }
         }
@@ -432,7 +433,7 @@ public class InternalPolicyAPI {
             }
         }
 
-        public static class Handler extends TransportNodesAction<Request, Response, Request.Node, Response.Node> {
+        public static class Handler extends TransportNodesAction<Request, Response, Request.Node, Response.Node, Void> {
             private final AutomatedIndexManagement aim;
 
             @Inject
@@ -458,8 +459,7 @@ public class InternalPolicyAPI {
             }
 
             @Override
-            protected Response.Node nodeOperation(Request.Node nodeRequest, Task task) {
-                Request request = nodeRequest.getRequest();
+            protected Response.Node nodeOperation(Request.Node request, Task task) {
                 aim.getPolicyInstanceManager().handlePolicyUpdates(request.getDeletedPolicies(), request.getCreatedPolicies(),
                         request.getUpdatedPolicies());
                 return new Response.Node(clusterService.localNode());

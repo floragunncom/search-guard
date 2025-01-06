@@ -16,12 +16,13 @@ import org.elasticsearch.action.support.nodes.TransportNodesAction;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 import org.quartz.JobExecutionContext;
 import org.quartz.Scheduler;
@@ -31,6 +32,7 @@ import org.quartz.impl.DirectSchedulerFactory;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -72,25 +74,19 @@ public class InternalSchedulerAPI {
                 this.triggerKeys = triggerKeys;
             }
 
-            public Request(StreamInput in) throws IOException {
-                super(in);
-                schedulerName = in.readString();
-                triggerKeys = in.readCollectionAsSet(InternalSchedulerAPI::readTriggerKey);
-            }
-
-            @Override
-            public void writeTo(StreamOutput output) throws IOException {
-                super.writeTo(output);
-                output.writeString(schedulerName);
-                output.writeCollection(triggerKeys, InternalSchedulerAPI::writeTriggerKey);
-            }
-
             @Override
             public ActionRequestValidationException validate() {
                 if (schedulerName == null || schedulerName.isEmpty()) {
                     return new ActionRequestValidationException();
                 }
                 return null;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (!(o instanceof Request request))
+                    return false;
+                return Objects.equals(schedulerName, request.schedulerName) && Objects.equals(triggerKeys, request.triggerKeys);
             }
 
             public String getSchedulerName() {
@@ -101,27 +97,34 @@ public class InternalSchedulerAPI {
                 return triggerKeys;
             }
 
-            public static class Node extends BaseNodesRequest<Node> {
-                private final Request request;
+            public static class Node extends TransportRequest {
+                private final String schedulerName;
+                private final Set<TriggerKey> triggerKeys;
 
                 public Node(Request request) {
-                    super(new String[] {});
-                    this.request = request;
+                    schedulerName = request.getSchedulerName();
+                    triggerKeys = request.getTriggerKeys();
                 }
 
                 public Node(StreamInput in) throws IOException {
                     super(in);
-                    request = new Request(in);
+                    schedulerName = in.readString();
+                    triggerKeys = in.readCollectionAsSet(InternalSchedulerAPI::readTriggerKey);
                 }
 
                 @Override
                 public void writeTo(StreamOutput out) throws IOException {
                     super.writeTo(out);
-                    request.writeTo(out);
+                    out.writeString(schedulerName);
+                    out.writeCollection(triggerKeys, InternalSchedulerAPI::writeTriggerKey);
                 }
 
-                public Request getRequest() {
-                    return request;
+                public String getSchedulerName() {
+                    return schedulerName;
+                }
+
+                public Set<TriggerKey> getTriggerKeys() {
+                    return triggerKeys;
                 }
             }
         }
@@ -168,13 +171,20 @@ public class InternalSchedulerAPI {
                     output.writeCollection(triggerKeys, InternalSchedulerAPI::writeTriggerKey);
                 }
 
+                @Override
+                public boolean equals(Object o) {
+                    if (!(o instanceof Node node))
+                        return false;
+                    return Objects.equals(triggerKeys, node.triggerKeys);
+                }
+
                 public Set<TriggerKey> getTriggerKeys() {
                     return triggerKeys;
                 }
             }
         }
 
-        public static class Handler extends TransportNodesAction<Request, Response, Request.Node, Response.Node> {
+        public static class Handler extends TransportNodesAction<Request, Response, Request.Node, Response.Node, Void> {
             private static final Logger LOG = LogManager.getLogger(CheckExecutingTriggers.Handler.class);
 
             @Inject
@@ -201,14 +211,14 @@ public class InternalSchedulerAPI {
             protected Response.Node nodeOperation(Request.Node request, Task task) {
                 DiscoveryNode node = clusterService.localNode();
                 try {
-                    Scheduler scheduler = DirectSchedulerFactory.getInstance().getScheduler(request.getRequest().getSchedulerName());
+                    Scheduler scheduler = DirectSchedulerFactory.getInstance().getScheduler(request.getSchedulerName());
                     if (scheduler == null) {
                         return new Response.Node(node, new HashSet<>());
                     }
                     Set<TriggerKey> result = new HashSet<>();
                     for (JobExecutionContext jobExecutionContext : scheduler.getCurrentlyExecutingJobs()) {
                         if (jobExecutionContext.getTrigger() != null
-                                && request.getRequest().getTriggerKeys().contains(jobExecutionContext.getTrigger().getKey())) {
+                                && request.getTriggerKeys().contains(jobExecutionContext.getTrigger().getKey())) {
                             result.add(jobExecutionContext.getTrigger().getKey());
                         }
                     }

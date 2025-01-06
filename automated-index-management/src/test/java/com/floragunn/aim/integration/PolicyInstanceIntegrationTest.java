@@ -101,7 +101,8 @@ public class PolicyInstanceIntegrationTest {
         ClusterHelper.Internal.postSettingsUpdate(CLUSTER, AutomatedIndexManagementSettings.Dynamic.DEFAULT_SCHEDULE,
                 new MockSupport.MockSchedule(Schedule.Scope.DEFAULT, Duration.ofHours(1), Duration.ofMinutes(5)));
         Settings.Builder builder = Settings.builder().put("location", SNAPSHOT_REPO_PATH.toAbsolutePath());
-        AcknowledgedResponse response = CLUSTER.getInternalNodeClient().admin().cluster().preparePutRepository(SNAPSHOT_REPO_NAME).setType("fs")
+        AcknowledgedResponse response = CLUSTER.getInternalNodeClient().admin().cluster()
+                .preparePutRepository(TimeValue.timeValueSeconds(30), TimeValue.timeValueSeconds(30), SNAPSHOT_REPO_NAME).setType("fs")
                 .setSettings(builder).get();
         assertTrue(response.isAcknowledged(), Strings.toString(response, true, true));
     }
@@ -457,12 +458,13 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Index.createManagedIndex(CLUSTER, indexName, policyName);
 
             CreateSnapshotResponse createSnapshotResponse = CLUSTER.getInternalNodeClient().admin().cluster()
-                    .prepareCreateSnapshot(SNAPSHOT_REPO_NAME, snapshotName).setIndices(indexName).setWaitForCompletion(true).get();
+                    .prepareCreateSnapshot(TimeValue.timeValueSeconds(30), SNAPSHOT_REPO_NAME, snapshotName).setIndices(indexName)
+                    .setWaitForCompletion(true).get();
             assertSame(RestStatus.OK, createSnapshotResponse.status(), Strings.toString(createSnapshotResponse, true, true));
 
             Awaitility.await().until(
-                    () -> CLUSTER.getInternalNodeClient().admin().cluster().prepareSnapshotStatus().setRepository(SNAPSHOT_REPO_NAME)
-                            .setSnapshots(snapshotName).execute().actionGet(),
+                    () -> CLUSTER.getInternalNodeClient().admin().cluster().prepareSnapshotStatus(TimeValue.timeValueSeconds(30))
+                            .setRepository(SNAPSHOT_REPO_NAME).setSnapshots(snapshotName).execute().actionGet(),
                     snapshotsStatusResponse -> SnapshotsInProgress.State.SUCCESS.equals(snapshotsStatusResponse.getSnapshots().get(0).getState()));
 
             PolicyInstanceState mockState = new PolicyInstanceState(policyName).setStatus(PolicyInstanceState.Status.NOT_STARTED)
@@ -544,7 +546,8 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
             ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
 
-            ClusterStateResponse clusterStateResponse = CLUSTER.getInternalNodeClient().admin().cluster().prepareState().get();
+            ClusterStateResponse clusterStateResponse = CLUSTER.getInternalNodeClient().admin().cluster().prepareState(TimeValue.timeValueSeconds(30))
+                    .get();
             assertEquals(IndexMetadata.State.CLOSE, clusterStateResponse.getState().metadata().index(indexName).getState());
         }
 
@@ -735,8 +738,8 @@ public class PolicyInstanceIntegrationTest {
             ClusterHelper.Internal.postPolicyInstanceExecute(CLUSTER, indexName);
             ClusterHelper.Index.awaitPolicyInstanceStatusEqual(CLUSTER, indexName, PolicyInstanceState.Status.FINISHED);
 
-            GetSnapshotsResponse getSnapshotsResponse = CLUSTER.getInternalNodeClient().admin().cluster().prepareGetSnapshots(SNAPSHOT_REPO_NAME)
-                    .get();
+            GetSnapshotsResponse getSnapshotsResponse = CLUSTER.getInternalNodeClient().admin().cluster()
+                    .prepareGetSnapshots(TimeValue.timeValueSeconds(30), SNAPSHOT_REPO_NAME).get();
             assertTrue(getSnapshotsResponse.getSnapshots().stream()
                     .anyMatch(snapshotInfo -> snapshotInfo.snapshotId().getName().startsWith(snapshotNamePrefix)), getSnapshotsResponse.toString());
 
@@ -746,8 +749,8 @@ public class PolicyInstanceIntegrationTest {
             String concreteSnapshotName = ((Map<String, String>) statusNode.get(PolicyInstanceState.CREATED_SNAPSHOT_NAME_MAPPING))
                     .get(SnapshotAsyncAction.DEFAULT_SNAPSHOT_NAME_KEY);
             Awaitility.await().until(
-                    () -> CLUSTER.getInternalNodeClient().admin().cluster().prepareSnapshotStatus().setRepository(SNAPSHOT_REPO_NAME)
-                            .setSnapshots(concreteSnapshotName).execute().actionGet(),
+                    () -> CLUSTER.getInternalNodeClient().admin().cluster().prepareSnapshotStatus(TimeValue.timeValueSeconds(30))
+                            .setRepository(SNAPSHOT_REPO_NAME).setSnapshots(concreteSnapshotName).execute().actionGet(),
                     snapshotsStatusResponse -> SnapshotsInProgress.State.SUCCESS.equals(snapshotsStatusResponse.getSnapshots().get(0).getState()));
         }
 

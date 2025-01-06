@@ -11,6 +11,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.core.TimeValue;
 
 import java.util.Objects;
 
@@ -62,7 +63,8 @@ public final class SnapshotAsyncAction extends Action.Async<SnapshotCreatedCondi
         String snapshotName = IndexNameExpressionResolver.resolveDateMathExpression(snapshotNameExpression);
         String snapshotNameKey = this.snapshotNameKey != null && !this.snapshotNameKey.isEmpty() ? this.snapshotNameKey : DEFAULT_SNAPSHOT_NAME_KEY;
         CreateSnapshotResponse createSnapshotResponse = executionContext.getClient().admin().cluster()
-                .prepareCreateSnapshot(repositoryName, snapshotName).setIndices(index).setWaitForCompletion(false).get();
+                .prepareCreateSnapshot(TimeValue.timeValueSeconds(30), repositoryName, snapshotName).setIndices(index).setWaitForCompletion(false)
+                .get();
         if (createSnapshotResponse.status() == OK || createSnapshotResponse.status() == ACCEPTED) {
             LOG.debug("Starting snapshot creation for index '{}' successful", index);
         } else {

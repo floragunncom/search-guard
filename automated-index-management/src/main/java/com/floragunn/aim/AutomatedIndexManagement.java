@@ -19,9 +19,8 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
-import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.env.NodeEnvironment;
+import org.elasticsearch.injection.guice.Inject;
 import org.quartz.SchedulerException;
 
 import java.util.Collection;
@@ -47,7 +46,7 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
     private PolicyInstanceStateLogManager policyInstanceStateLogManager;
 
     @Inject
-    public AutomatedIndexManagement(Settings settings, ComponentState componentState, NodeEnvironment nodeEnvironment) {
+    public AutomatedIndexManagement(Settings settings, ComponentState componentState) {
         aimSettings = new AutomatedIndexManagementSettings(settings);
         this.componentState = componentState;
         this.componentState.setState(ComponentState.State.INITIALIZING);

@@ -27,9 +27,9 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -264,19 +264,6 @@ public class InternalSettingsAPI {
                 this.deleted = deleted;
             }
 
-            protected Request(StreamInput input) throws IOException {
-                super(input);
-                changed = readDynamicSettingsMap(input);
-                deleted = input.readCollectionAsList(InternalSettingsAPI::readDynamicAttribute);
-            }
-
-            @Override
-            public void writeTo(StreamOutput out) throws IOException {
-                super.writeTo(out);
-                writeDynamicSettingsMap(out, changed);
-                out.writeCollection(deleted, InternalSettingsAPI::writeDynamicAttribute);
-            }
-
             @Override
             public boolean equals(Object o) {
                 if (this == o) {
@@ -298,21 +285,25 @@ public class InternalSettingsAPI {
             }
 
             public static class Node extends TransportRequest {
-                private final Request request;
-
-                public Node(Request request) {
-                    this.request = request;
-                }
+                private final Map<AutomatedIndexManagementSettings.Dynamic.DynamicAttribute<?>, Object> changed;
+                private final List<AutomatedIndexManagementSettings.Dynamic.DynamicAttribute<?>> deleted;
 
                 protected Node(StreamInput input) throws IOException {
                     super(input);
-                    request = new Request(input);
+                    changed = readDynamicSettingsMap(input);
+                    deleted = input.readCollectionAsList(InternalSettingsAPI::readDynamicAttribute);
+                }
+
+                public Node(Request request) {
+                    changed = request.getChanged();
+                    deleted = request.getDeleted();
                 }
 
                 @Override
                 public void writeTo(StreamOutput out) throws IOException {
                     super.writeTo(out);
-                    request.writeTo(out);
+                    writeDynamicSettingsMap(out, changed);
+                    out.writeCollection(deleted, InternalSettingsAPI::writeDynamicAttribute);
                 }
 
                 @Override
@@ -324,11 +315,15 @@ public class InternalSettingsAPI {
                         return false;
                     }
                     Node node = (Node) o;
-                    return Objects.equals(request, node.request);
+                    return Objects.equals(changed, node.changed) && Objects.equals(deleted, node.deleted);
                 }
 
-                public Request getRequest() {
-                    return request;
+                public Map<AutomatedIndexManagementSettings.Dynamic.DynamicAttribute<?>, Object> getChanged() {
+                    return changed;
+                }
+
+                public List<AutomatedIndexManagementSettings.Dynamic.DynamicAttribute<?>> getDeleted() {
+                    return deleted;
                 }
             }
         }
@@ -368,7 +363,7 @@ public class InternalSettingsAPI {
             }
         }
 
-        public static class Handler extends TransportNodesAction<Request, Response, Request.Node, Response.Node> {
+        public static class Handler extends TransportNodesAction<Request, Response, Request.Node, Response.Node, Void> {
             private final AutomatedIndexManagement aim;
 
             @Inject
@@ -395,7 +390,7 @@ public class InternalSettingsAPI {
 
             @Override
             protected Response.Node nodeOperation(Request.Node request, Task task) {
-                aim.getAimSettings().getDynamic().refresh(request.getRequest().getChanged(), request.getRequest().getDeleted());
+                aim.getAimSettings().getDynamic().refresh(request.getChanged(), request.getDeleted());
                 return new Response.Node(clusterService.localNode());
             }
         }
