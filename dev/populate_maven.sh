@@ -1,4 +1,9 @@
 #!/bin/bash
+
+echo "Populate maven script"
+echo "Value of MAVEN_OPTS = $MAVEN_OPTS"
+echo "Value of MAVEN_CLI_OPTS = $MAVEN_CLI_OPTS"
+
 set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 GROUP_ID="org.elasticsearch.plugin"
@@ -20,6 +25,7 @@ fi
 tar -xzf "$DIR/elasticsearch-${VERSION}-${ARCH}.tar.gz" --directory "$DIR/"
 
 PATH_PREFIX="$DIR/elasticsearch-${VERSION}/modules"
+echo "Value of variable PATH_PREFIX = $PATH_PREFIX"
 
 modules=(rank-eval lang-mustache lang-painless reindex parent-join percolator rest-root)
 
