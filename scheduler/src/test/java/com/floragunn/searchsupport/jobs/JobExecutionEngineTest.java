@@ -16,7 +16,6 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.search.SearchHit;
@@ -119,7 +118,6 @@ public class JobExecutionEngineTest {
 
            SearchResponse searchResponse = client.search(new SearchRequest("test_job_config_interval_trigger_start_time_trigger_state")).actionGet();
 
-           System.out.println(Strings.toString(searchResponse));
            SearchHit hit = searchResponse.getHits().getAt(0);
            DocNode hitSource = DocNode.wrap(hit.getSourceAsMap());
            
@@ -142,8 +140,6 @@ public class JobExecutionEngineTest {
            Thread.sleep(2 * 1000);
 
            searchResponse = client.search(new SearchRequest("test_job_config_interval_trigger_start_time_trigger_state")).actionGet();
-
-           System.out.println(Strings.toString(searchResponse));
             
            hit = searchResponse.getHits().getAt(0);
            hitSource = DocNode.wrap(hit.getSourceAsMap());           
