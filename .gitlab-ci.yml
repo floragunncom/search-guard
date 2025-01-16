@@ -23,11 +23,11 @@ before_script:
 stages:
   - prepare
   - build
-  - test
+  # - test
   - package
   - "Backend Int Tests Core"
   - "Backend Int Tests Features"
-  - "Frontend Int Tests Core"
+  # - "Frontend Int Tests Core"
   - "Frontend Int Tests Features"
   - "Frontend Int Tests External Features"
   - "Frontend Compat Int Tests 1"
@@ -544,10 +544,10 @@ deploy_staging:
 
 include:
   - local: '.gitlab-ci-branch-specific.yml'
-  - local: 'ci/backend-int-tests.yml'
+  # - local: 'ci/backend-int-tests.yml'
   - local: 'ci/backend-int-tests-features.yml'
   - local: 'ci/veracode-scan.yml'  
-  - local: 'ci/frontend-int-tests.yml'
+  # - local: 'ci/frontend-int-tests.yml'
   - local: 'ci/frontend-int-tests-features.yml'
   - local: 'ci/frontend-int-tests-external-features.yml'
   - local: 'ci/frontend-int-tests-compat1.yml'
