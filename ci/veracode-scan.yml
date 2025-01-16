@@ -21,7 +21,7 @@
       -scantimeout 60
       -scanpollinginterval 60
       -toplevel true
-      -include \"*search-guard*"
+      -include \"*search-guard*\"
       -deleteincompletescan 1
       -createprofile \"false\""
       
