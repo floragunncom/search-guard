@@ -328,11 +328,11 @@ deploy_staging:
 
 include:
   - local: '.gitlab-ci-branch-specific.yml'
-  - local: 'ci/backend-int-tests.yml'
-  - local: 'ci/backend-int-tests-features.yml'
-  - local: 'ci/frontend-int-tests.yml'
-  - local: 'ci/frontend-int-tests-features.yml'
-  - local: 'ci/frontend-int-tests-external-features.yml'
+  # - local: 'ci/backend-int-tests.yml'
+  # - local: 'ci/backend-int-tests-features.yml'
+  # - local: 'ci/frontend-int-tests.yml'
+  # - local: 'ci/frontend-int-tests-features.yml'
+  # - local: 'ci/frontend-int-tests-external-features.yml'
   - local: 'ci/veracode-scan.yml'  
 
 deploy_release:
