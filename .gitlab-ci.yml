@@ -335,34 +335,34 @@ include:
   # - local: 'ci/frontend-int-tests-external-features.yml'
   - local: 'ci/veracode-scan.yml'  
 
-deploy_release:
-  stage: release
-  rules:
-    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
-      when: never
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
-  before_script:
-    - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
-  tags:
-    - release
-  script:
-    - ./dev/setup_gpg.sh
-    - |
-      export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
-      export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
-      export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
+# deploy_release:
+#   stage: release
+#   rules:
+#     - if: '$VERACODE_SANDBOX_SCAN_ONLY'
+#       when: never
+#     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+#   before_script:
+#     - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
+#   tags:
+#     - release
+#   script:
+#     - ./dev/setup_gpg.sh
+#     - |
+#       export SG_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f2|cut -d. -f2-)'.0'
+#       export ES_VERSION=$(echo $CI_COMMIT_TAG | cut -d- -f4)
+#       export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
 
-      echo "Removing current release from Staging"
-      curl -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X DELETE "https://maven.search-guard.com/artifactory/search-guard-suite-staging/com/floragunn/search-guard-suite-signals/$ES_VERSION-$SG_VERSION" || true
+#       echo "Removing current release from Staging"
+#       curl -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X DELETE "https://maven.search-guard.com/artifactory/search-guard-suite-staging/com/floragunn/search-guard-suite-signals/$ES_VERSION-$SG_VERSION" || true
 
-      cd search-guard-integration-tests
-      git tag $CI_COMMIT_TAG || true
-      echo "Tag created in int repo"
-      git show-ref $CI_COMMIT_TAG
-      git push --tags || true
-      cd ..
-      echo "Deploying Release to Production repo."
-      mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
-  allow_failure: false
+#       cd search-guard-integration-tests
+#       git tag $CI_COMMIT_TAG || true
+#       echo "Tag created in int repo"
+#       git show-ref $CI_COMMIT_TAG
+#       git push --tags || true
+#       cd ..
+#       echo "Deploying Release to Production repo."
+#       mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
+#   allow_failure: false
 
 
