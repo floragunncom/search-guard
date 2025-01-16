@@ -553,70 +553,70 @@ include:
   # - local: 'ci/frontend-int-tests-compat1.yml'
   # - local: 'ci/frontend-int-tests-compat2.yml'
 
-deploy_release:
-  stage: release
-  rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-      when: never
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
-      when: on_success
-  tags:
-    - build
-  script:
-    - ./dev/setup_gpg.sh
-    - |
-      # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3      
-      SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
-      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
-      DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
-      export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
+# deploy_release:
+#   stage: release
+#   rules:
+#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+#       when: never
+#     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+#       when: on_success
+#   tags:
+#     - build
+#   script:
+#     - ./dev/setup_gpg.sh
+#     - |
+#       # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3      
+#       SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
+#       ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
+#       DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
+#       export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
 
-      # TODO echo "Removing current release from Staging"
-      #curl -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X DELETE "https://maven.search-guard.com/artifactory/search-guard-flx-staging/com/floragunn/search-guard-suite-signals/$ES_VERSION-$SG_VERSION" || true
+#       # TODO echo "Removing current release from Staging"
+#       #curl -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X DELETE "https://maven.search-guard.com/artifactory/search-guard-flx-staging/com/floragunn/search-guard-suite-signals/$ES_VERSION-$SG_VERSION" || true
 
-      cd search-guard-integration-tests
-      git tag $CI_COMMIT_TAG || true
-      echo "Tag created in int repo"
-      git show-ref $CI_COMMIT_TAG
-      git push --tags || true
-      cd ..
-      echo "Deploying Release to Production repo."
-      mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
-  allow_failure: false
+#       cd search-guard-integration-tests
+#       git tag $CI_COMMIT_TAG || true
+#       echo "Tag created in int repo"
+#       git show-ref $CI_COMMIT_TAG
+#       git push --tags || true
+#       cd ..
+#       echo "Deploying Release to Production repo."
+#       mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
+#   allow_failure: false
 
-deploy_docker_image:
-  stage: "Deploy Docker Image"
-  image: docker:20.10.17
-  services:
-    - docker:20.10.17-dind
-  rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
-      when: on_success
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-      when: never
-  tags:
-    - build
-  script:
-    - |
-      apk update && apk add bash
+# deploy_docker_image:
+#   stage: "Deploy Docker Image"
+#   image: docker:20.10.17
+#   services:
+#     - docker:20.10.17-dind
+#   rules:
+#     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+#       when: on_success
+#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+#       when: never
+#   tags:
+#     - build
+#   script:
+#     - |
+#       apk update && apk add bash
 
-      SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-\(.*\)-es-.*$/\1/p')
-      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-.*-es-\(.*\)$/\1/p')
+#       SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-\(.*\)-es-.*$/\1/p')
+#       ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-.*-es-\(.*\)$/\1/p')
 
-      echo "Login in into Docker Hub"
-      echo ""
-      echo "$DOCKER_PASSWORD" | docker login --username floragunncom --password-stdin docker.io > /dev/null
+#       echo "Login in into Docker Hub"
+#       echo ""
+#       echo "$DOCKER_PASSWORD" | docker login --username floragunncom --password-stdin docker.io > /dev/null
 
-      echo ""
-      echo "Enable qemu-user-static to support docker multiarch builds with buildx"
-      docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
+#       echo ""
+#       echo "Enable qemu-user-static to support docker multiarch builds with buildx"
+#       docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
 
-      SG_FLAVOUR="non-flx"
+#       SG_FLAVOUR="non-flx"
 
-      if [[ $CI_COMMIT_TAG == "sg-flx-"* ]]; then
-          SG_FLAVOUR="flx"
-          SG_VERSION="$(echo $SG_VERSION | tr -d 'flx-')"
-      fi
+#       if [[ $CI_COMMIT_TAG == "sg-flx-"* ]]; then
+#           SG_FLAVOUR="flx"
+#           SG_VERSION="$(echo $SG_VERSION | tr -d 'flx-')"
+#       fi
 
-      ./docker/build_and_push.sh "docker.io" "floragunncom" "$SG_FLAVOUR" "$ES_VERSION" "$SG_VERSION"
-  allow_failure: false
+#       ./docker/build_and_push.sh "docker.io" "floragunncom" "$SG_FLAVOUR" "$ES_VERSION" "$SG_VERSION"
+#   allow_failure: false
