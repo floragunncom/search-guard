@@ -23,18 +23,18 @@ before_script:
 stages:
   - prepare
   - build
-  # - test
+  - test
   - package
-  # - "Backend Int Tests Core"
-  # - "Backend Int Tests Features"
-  # - "Frontend Int Tests Core"
-  # - "Frontend Int Tests Features"
-  # - "Frontend Int Tests External Features"
-  # - "Frontend Compat Int Tests 1"
-  # - "Frontend Compat Int Tests 2"
+  - "Backend Int Tests Core"
+  - "Backend Int Tests Features"
+  - "Frontend Int Tests Core"
+  - "Frontend Int Tests Features"
+  - "Frontend Int Tests External Features"
+  - "Frontend Compat Int Tests 1"
+  - "Frontend Compat Int Tests 2"
   - Veracode Scan
-  # - release
-  # - "Deploy Docker Image"
+  - release
+  - "Deploy Docker Image"
 
 workflow:
   rules:
@@ -119,377 +119,377 @@ build_for_tag_version:
 
 
 
-# test_security:
-#   stage: test
-#   interruptible: true
-#   rules:
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-#       when: never
-#     - when: always
-#   tags:
-#     - test-large
-#   script:
-#     - ci/run_tests.sh security
-#   artifacts:
-#     when: always
-#     reports:
-#       junit:
-#         - "*/target/surefire-reports/TEST-*.xml"
-#         - "*/target/failsafe-reports/TEST-*.xml"
-#     expire_in: 1 week
-#   cache:
-#     key: mavenrepo-master
-#     paths:
-#       - .m2/repository
-#     policy: pull
+test_security:
+  stage: test
+  interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+      when: never
+    - when: always
+  tags:
+    - test-large
+  script:
+    - ci/run_tests.sh security
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-master
+    paths:
+      - .m2/repository
+    policy: pull
 
-# test_security_legacy:
-#   stage: test
-#   interruptible: true
-#   rules:
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-#       when: never
-#     - when: always
-#   tags:
-#     - test-large
-#   script:
-#     - ci/run_tests.sh security-legacy
-#   artifacts:
-#     when: always
-#     reports:
-#       junit:
-#         - "*/target/surefire-reports/TEST-*.xml"
-#         - "*/target/failsafe-reports/TEST-*.xml"
-#     expire_in: 1 week
-#   cache:
-#     key: mavenrepo-master
-#     paths:
-#       - .m2/repository
-#     policy: pull
+test_security_legacy:
+  stage: test
+  interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+      when: never
+    - when: always
+  tags:
+    - test-large
+  script:
+    - ci/run_tests.sh security-legacy
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-master
+    paths:
+      - .m2/repository
+    policy: pull
 
-# test_ssl:
-#   stage: test
-#   interruptible: true
-#   rules:
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-#       when: never
-#     - when: always
-#   tags:
-#     - test
-#   script:
-#     - ci/run_tests.sh ssl
-#   artifacts:
-#     when: always
-#     reports:
-#       junit:
-#         - "*/target/surefire-reports/TEST-*.xml"
-#         - "*/target/failsafe-reports/TEST-*.xml"
-#     expire_in: 1 week
-#   cache:
-#     key: mavenrepo-master
-#     paths:
-#       - .m2/repository
-#     policy: pull
+test_ssl:
+  stage: test
+  interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+      when: never
+    - when: always
+  tags:
+    - test
+  script:
+    - ci/run_tests.sh ssl
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-master
+    paths:
+      - .m2/repository
+    policy: pull
 
-# test_signals:
-#   stage: test
-#   interruptible: true
-#   rules:
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-#       when: never
-#     - when: always
-#   tags:
-#     - test-large
-#   script:
-#     - ci/run_tests.sh signals
-#   artifacts:
-#     when: always
-#     reports:
-#       junit:
-#         - "*/target/surefire-reports/TEST-*.xml"
-#         - "*/target/failsafe-reports/TEST-*.xml"
-#     expire_in: 1 week
-#   cache:
-#     key: mavenrepo-master
-#     paths:
-#       - .m2/repository
-#     policy: pull
+test_signals:
+  stage: test
+  interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+      when: never
+    - when: always
+  tags:
+    - test-large
+  script:
+    - ci/run_tests.sh signals
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-master
+    paths:
+      - .m2/repository
+    policy: pull
 
-# test_scheduler:
-#   stage: test
-#   interruptible: true
-#   rules:
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-#       when: never
-#     - when: always
-#   tags:
-#     - test
-#   script:
-#     - ci/run_tests.sh scheduler
-#   artifacts:
-#     when: always
-#     reports:
-#       junit:
-#         - "*/target/surefire-reports/TEST-*.xml"
-#         - "*/target/failsafe-reports/TEST-*.xml"
-#     expire_in: 1 week
-#   cache:
-#     key: mavenrepo-master
-#     paths:
-#       - .m2/repository
-#     policy: pull
+test_scheduler:
+  stage: test
+  interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+      when: never
+    - when: always
+  tags:
+    - test
+  script:
+    - ci/run_tests.sh scheduler
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-master
+    paths:
+      - .m2/repository
+    policy: pull
 
-# test_support:
-#   stage: test
-#   interruptible: true
-#   rules:
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-#       when: never
-#     - when: always
-#   tags:
-#     - test
-#   script:
-#     - ci/run_tests.sh support
-#   artifacts:
-#     when: always
-#     reports:
-#       junit:
-#         - "*/target/surefire-reports/TEST-*.xml"
-#         - "*/target/failsafe-reports/TEST-*.xml"
-#     expire_in: 1 week
-#   cache:
-#     key: mavenrepo-master
-#     paths:
-#       - .m2/repository
-#     policy: pull
+test_support:
+  stage: test
+  interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+      when: never
+    - when: always
+  tags:
+    - test
+  script:
+    - ci/run_tests.sh support
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-master
+    paths:
+      - .m2/repository
+    policy: pull
 
-# test_dlic_security:
-#   stage: test
-#   interruptible: true
-#   rules:
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-#       when: never
-#     - when: always
-#   tags:
-#     - test-large
-#   script:
-#     - ci/run_tests.sh dlic-security
-#   artifacts:
-#     when: always
-#     reports:
-#       junit:
-#         - "*/target/surefire-reports/TEST-*.xml"
-#         - "*/target/failsafe-reports/TEST-*.xml"
-#     expire_in: 1 week
-#   cache:
-#     key: mavenrepo-master
-#     paths:
-#       - .m2/repository
-#     policy: pull
+test_dlic_security:
+  stage: test
+  interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+      when: never
+    - when: always
+  tags:
+    - test-large
+  script:
+    - ci/run_tests.sh dlic-security
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-master
+    paths:
+      - .m2/repository
+    policy: pull
 
-# test_dlic_security_legacy:
-#   stage: test
-#   interruptible: true
-#   rules:
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-#       when: never
-#     - when: always
-#   tags:
-#     - test-large
-#   script:
-#     - ci/run_tests.sh dlic-security-legacy
-#   artifacts:
-#     when: always
-#     reports:
-#       junit:
-#         - "*/target/surefire-reports/TEST-*.xml"
-#         - "*/target/failsafe-reports/TEST-*.xml"
-#     expire_in: 1 week
-#   cache:
-#     key: mavenrepo-master
-#     paths:
-#       - .m2/repository
-#     policy: pull    
+test_dlic_security_legacy:
+  stage: test
+  interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+      when: never
+    - when: always
+  tags:
+    - test-large
+  script:
+    - ci/run_tests.sh dlic-security-legacy
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-master
+    paths:
+      - .m2/repository
+    policy: pull    
 
-# test_dlic_dlsfls:
-#   stage: test
-#   interruptible: true
-#   rules:
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-#       when: never
-#     - when: always
-#   tags:
-#     - test
-#   script:
-#     - ci/run_tests.sh dlic-dlsfls
-#   artifacts:
-#     when: always
-#     reports:
-#       junit:
-#         - "*/target/surefire-reports/TEST-*.xml"
-#         - "*/target/failsafe-reports/TEST-*.xml"
-#     expire_in: 1 week
-#   cache:
-#     key: mavenrepo-master
-#     paths:
-#       - .m2/repository
-#     policy: pull
+test_dlic_dlsfls:
+  stage: test
+  interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+      when: never
+    - when: always
+  tags:
+    - test
+  script:
+    - ci/run_tests.sh dlic-dlsfls
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-master
+    paths:
+      - .m2/repository
+    policy: pull
 
-# test_dlic_dlsfls_legacy:
-#   stage: test
-#   interruptible: true
-#   rules:
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-#       when: never
-#     - when: always
-#   tags:
-#     - test
-#   script:
-#     - ci/run_tests.sh dlic-dlsfls-legacy
-#   artifacts:
-#     when: always
-#     reports:
-#       junit:
-#         - "*/target/surefire-reports/TEST-*.xml"
-#         - "*/target/failsafe-reports/TEST-*.xml"
-#     expire_in: 1 week
-#   cache:
-#     key: mavenrepo-master
-#     paths:
-#       - .m2/repository
-#     policy: pull    
+test_dlic_dlsfls_legacy:
+  stage: test
+  interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+      when: never
+    - when: always
+  tags:
+    - test
+  script:
+    - ci/run_tests.sh dlic-dlsfls-legacy
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-master
+    paths:
+      - .m2/repository
+    policy: pull    
 
-# test_dlic_femt:
-#   stage: test
-#   interruptible: true
-#   rules:
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-#       when: never
-#     - when: always
-#   tags:
-#     - test
-#   script:
-#     - ci/run_tests.sh dlic-fe-multi-tenancy
-#   artifacts:
-#     when: always
-#     reports:
-#       junit:
-#         - "*/target/surefire-reports/TEST-*.xml"
-#         - "*/target/failsafe-reports/TEST-*.xml"
-#     expire_in: 1 week
-#   cache:
-#     key: mavenrepo-master
-#     paths:
-#       - .m2/repository
-#     policy: pull
+test_dlic_femt:
+  stage: test
+  interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+      when: never
+    - when: always
+  tags:
+    - test
+  script:
+    - ci/run_tests.sh dlic-fe-multi-tenancy
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-master
+    paths:
+      - .m2/repository
+    policy: pull
 
-# test_dlic_auditlog:
-#   stage: test
-#   interruptible: true
-#   rules:
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-#       when: never
-#     - when: always
-#   tags:
-#     - test-large
-#   script:
-#     - ci/run_tests.sh dlic-auditlog 
-#   artifacts:
-#     when: always
-#     reports:
-#       junit:
-#         - "*/target/surefire-reports/TEST-*.xml"
-#         - "*/target/failsafe-reports/TEST-*.xml"
-#     expire_in: 1 week
-#   cache:
-#     key: mavenrepo-master
-#     paths:
-#       - .m2/repository
-#     policy: pull
+test_dlic_auditlog:
+  stage: test
+  interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+      when: never
+    - when: always
+  tags:
+    - test-large
+  script:
+    - ci/run_tests.sh dlic-auditlog 
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-master
+    paths:
+      - .m2/repository
+    policy: pull
 
-# test_dlic_signals:
-#   stage: test
-#   interruptible: true
-#   rules:
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-#       when: never
-#     - when: always
-#   tags:
-#     - test-large
-#   script:
-#     - ci/run_tests.sh dlic-signals
-#   artifacts:
-#     when: always
-#     reports:
-#       junit:
-#         - "*/target/surefire-reports/TEST-*.xml"
-#         - "*/target/failsafe-reports/TEST-*.xml"
-#     expire_in: 1 week
-#   cache:
-#     key: mavenrepo-master
-#     paths:
-#       - .m2/repository
-#     policy: pull
+test_dlic_signals:
+  stage: test
+  interruptible: true
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+      when: never
+    - when: always
+  tags:
+    - test-large
+  script:
+    - ci/run_tests.sh dlic-signals
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-master
+    paths:
+      - .m2/repository
+    policy: pull
 
 
-# deploy_snapshot:
-#   stage: package
-#   interruptible: true
-#   tags:
-#     - build
-#   needs:
-#     - job: build
-#       artifacts: true
-#   rules:
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_TAG =~ /^sg-.*/'
-#       when: never
-#     - when: always
-#   script:
-#     - |
-#       set -x
-#       mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests deploy | tee deploy.out
-#       SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
-#       SG_ADMIN="https://maven.search-guard.com//search-guard-suite-release/com/floragunn/search-guard-suite-plugin/7.17.0-53.4.0/search-guard-suite-plugin-7.17.0-53.4.0-sgadmin-standalone.zip"
-#       ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
-#       MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
-#       if [ -z "$IT_BRANCH" ]; then
-#         if [[ "$CI_COMMIT_REF_NAME" != "master" ]] && [[ -n $(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME) ]]; then
-#           IT_BRANCH="$CI_COMMIT_REF_NAME"
-#         else
-#           IT_BRANCH="$MAJOR.x"
-#         fi
-#       fi
-#       if [ -z "$KI_VERSION" ]; then
-#         KI_VERSION=$ES_VERSION
-#       fi
-#       if [[ ! "$SG_KI_PLUGIN" =~ ^https?:.*$ ]]; then
-#         if [[ "$SG_KI_PLUGIN" =~ .*SNAPSHOT.* ]]; then
-#           SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin $SG_KI_PLUGIN .zip)
-#           echo "Found: $SG_KI_PLUGIN"
-#         else
-#           SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-flx-release search-guard-flx-kibana-plugin $SG_KI_PLUGIN .zip)
-#           echo "Found: $SG_KI_PLUGIN"
-#         fi
-#       fi
-#       echo "SG_ES_PLUGIN=$SG_ES_PLUGIN" >> build.env
-#       echo "SG_ADMIN=$SG_ADMIN" >> build.env
-#       echo "ES_VERSION=$ES_VERSION" >>build.env
-#       echo "SG_KI_PLUGIN=$SG_KI_PLUGIN" >>build.env
-#       echo "KI_VERSION=$KI_VERSION" >>build.env
-#       echo "IT_BRANCH=$IT_BRANCH" >>build.env
-#       cat build.env
-#   artifacts:
-#     when: on_success
-# #    paths:
-# #      - "plugin/target"
-# #      - "environment.env"
-#     expire_in: 10d
-#     reports:
-#       dotenv: build.env
-#   cache:
-#     key: mavenrepo-master
-#     paths:
-#       - .m2/repository
+deploy_snapshot:
+  stage: package
+  interruptible: true
+  tags:
+    - build
+  needs:
+    - job: build
+      artifacts: true
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_TAG =~ /^sg-.*/'
+      when: never
+    - when: always
+  script:
+    - |
+      set -x
+      mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests deploy | tee deploy.out
+      SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-flx-elasticsearch-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
+      SG_ADMIN="https://maven.search-guard.com//search-guard-suite-release/com/floragunn/search-guard-suite-plugin/7.17.0-53.4.0/search-guard-suite-plugin-7.17.0-53.4.0-sgadmin-standalone.zip"
+      ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
+      MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
+      if [ -z "$IT_BRANCH" ]; then
+        if [[ "$CI_COMMIT_REF_NAME" != "master" ]] && [[ -n $(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME) ]]; then
+          IT_BRANCH="$CI_COMMIT_REF_NAME"
+        else
+          IT_BRANCH="$MAJOR.x"
+        fi
+      fi
+      if [ -z "$KI_VERSION" ]; then
+        KI_VERSION=$ES_VERSION
+      fi
+      if [[ ! "$SG_KI_PLUGIN" =~ ^https?:.*$ ]]; then
+        if [[ "$SG_KI_PLUGIN" =~ .*SNAPSHOT.* ]]; then
+          SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin $SG_KI_PLUGIN .zip)
+          echo "Found: $SG_KI_PLUGIN"
+        else
+          SG_KI_PLUGIN=$(ci/artifact_uri.sh search-guard-flx-release search-guard-flx-kibana-plugin $SG_KI_PLUGIN .zip)
+          echo "Found: $SG_KI_PLUGIN"
+        fi
+      fi
+      echo "SG_ES_PLUGIN=$SG_ES_PLUGIN" >> build.env
+      echo "SG_ADMIN=$SG_ADMIN" >> build.env
+      echo "ES_VERSION=$ES_VERSION" >>build.env
+      echo "SG_KI_PLUGIN=$SG_KI_PLUGIN" >>build.env
+      echo "KI_VERSION=$KI_VERSION" >>build.env
+      echo "IT_BRANCH=$IT_BRANCH" >>build.env
+      cat build.env
+  artifacts:
+    when: on_success
+#    paths:
+#      - "plugin/target"
+#      - "environment.env"
+    expire_in: 10d
+    reports:
+      dotenv: build.env
+  cache:
+    key: mavenrepo-master
+    paths:
+      - .m2/repository
 
 deploy_staging:
   stage: package
@@ -544,79 +544,79 @@ deploy_staging:
 
 include:
   - local: '.gitlab-ci-branch-specific.yml'
-  # - local: 'ci/backend-int-tests.yml'
-  # - local: 'ci/backend-int-tests-features.yml'
+  - local: 'ci/backend-int-tests.yml'
+  - local: 'ci/backend-int-tests-features.yml'
   - local: 'ci/veracode-scan.yml'  
-  # - local: 'ci/frontend-int-tests.yml'
-  # - local: 'ci/frontend-int-tests-features.yml'
-  # - local: 'ci/frontend-int-tests-external-features.yml'
-  # - local: 'ci/frontend-int-tests-compat1.yml'
-  # - local: 'ci/frontend-int-tests-compat2.yml'
+  - local: 'ci/frontend-int-tests.yml'
+  - local: 'ci/frontend-int-tests-features.yml'
+  - local: 'ci/frontend-int-tests-external-features.yml'
+  - local: 'ci/frontend-int-tests-compat1.yml'
+  - local: 'ci/frontend-int-tests-compat2.yml'
 
-# deploy_release:
-#   stage: release
-#   rules:
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-#       when: never
-#     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
-#       when: on_success
-#   tags:
-#     - build
-#   script:
-#     - ./dev/setup_gpg.sh
-#     - |
-#       # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3      
-#       SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
-#       ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
-#       DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
-#       export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
+deploy_release:
+  stage: release
+  rules:
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+      when: on_success
+  tags:
+    - build
+  script:
+    - ./dev/setup_gpg.sh
+    - |
+      # $CI_COMMIT_TAG: sg-flx-1.0.0-es-7.17.3      
+      SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
+      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
+      DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
+      export MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
 
-#       # TODO echo "Removing current release from Staging"
-#       #curl -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X DELETE "https://maven.search-guard.com/artifactory/search-guard-flx-staging/com/floragunn/search-guard-suite-signals/$ES_VERSION-$SG_VERSION" || true
+      # TODO echo "Removing current release from Staging"
+      #curl -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -X DELETE "https://maven.search-guard.com/artifactory/search-guard-flx-staging/com/floragunn/search-guard-suite-signals/$ES_VERSION-$SG_VERSION" || true
 
-#       cd search-guard-integration-tests
-#       git tag $CI_COMMIT_TAG || true
-#       echo "Tag created in int repo"
-#       git show-ref $CI_COMMIT_TAG
-#       git push --tags || true
-#       cd ..
-#       echo "Deploying Release to Production repo."
-#       mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
-#   allow_failure: false
+      cd search-guard-integration-tests
+      git tag $CI_COMMIT_TAG || true
+      echo "Tag created in int repo"
+      git show-ref $CI_COMMIT_TAG
+      git push --tags || true
+      cd ..
+      echo "Deploying Release to Production repo."
+      mvn deploy -s settings.xml -DskipTests -B -Penterprise -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION || exit 1
+  allow_failure: false
 
-# deploy_docker_image:
-#   stage: "Deploy Docker Image"
-#   image: docker:20.10.17
-#   services:
-#     - docker:20.10.17-dind
-#   rules:
-#     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
-#       when: on_success
-#     - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
-#       when: never
-#   tags:
-#     - build
-#   script:
-#     - |
-#       apk update && apk add bash
+deploy_docker_image:
+  stage: "Deploy Docker Image"
+  image: docker:20.10.17
+  services:
+    - docker:20.10.17-dind
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+      when: on_success
+    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+      when: never
+  tags:
+    - build
+  script:
+    - |
+      apk update && apk add bash
 
-#       SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-\(.*\)-es-.*$/\1/p')
-#       ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-.*-es-\(.*\)$/\1/p')
+      SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-\(.*\)-es-.*$/\1/p')
+      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-.*-es-\(.*\)$/\1/p')
 
-#       echo "Login in into Docker Hub"
-#       echo ""
-#       echo "$DOCKER_PASSWORD" | docker login --username floragunncom --password-stdin docker.io > /dev/null
+      echo "Login in into Docker Hub"
+      echo ""
+      echo "$DOCKER_PASSWORD" | docker login --username floragunncom --password-stdin docker.io > /dev/null
 
-#       echo ""
-#       echo "Enable qemu-user-static to support docker multiarch builds with buildx"
-#       docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
+      echo ""
+      echo "Enable qemu-user-static to support docker multiarch builds with buildx"
+      docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
 
-#       SG_FLAVOUR="non-flx"
+      SG_FLAVOUR="non-flx"
 
-#       if [[ $CI_COMMIT_TAG == "sg-flx-"* ]]; then
-#           SG_FLAVOUR="flx"
-#           SG_VERSION="$(echo $SG_VERSION | tr -d 'flx-')"
-#       fi
+      if [[ $CI_COMMIT_TAG == "sg-flx-"* ]]; then
+          SG_FLAVOUR="flx"
+          SG_VERSION="$(echo $SG_VERSION | tr -d 'flx-')"
+      fi
 
-#       ./docker/build_and_push.sh "docker.io" "floragunncom" "$SG_FLAVOUR" "$ES_VERSION" "$SG_VERSION"
-#   allow_failure: false
+      ./docker/build_and_push.sh "docker.io" "floragunncom" "$SG_FLAVOUR" "$ES_VERSION" "$SG_VERSION"
+  allow_failure: false
