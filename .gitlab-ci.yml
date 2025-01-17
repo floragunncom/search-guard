@@ -55,8 +55,8 @@ stages:
   - prepare
   - build
 
-  # - test
-  # - "Backend Int Tests Core"
+  - test
+  - "Backend Int Tests Core"
   #- "Frontend Int Tests Core"
   #- "Frontend Int Tests Features"
   #- "Frontend Int Tests External Features"
@@ -69,8 +69,8 @@ stages:
 
 include:
   - local: '.gitlab-ci-branch-specific.yml'
-  # - local: 'ci/backend-int-tests.yml'
-  # - local: 'ci/backend-unit-tests.yml'
+  - local: 'ci/backend-int-tests.yml'
+  - local: 'ci/backend-unit-tests.yml'
   - local: 'ci/veracode-scan.yml'  
   #- local: 'ci/frontend-int-tests.yml'
   #- local: 'ci/frontend-int-tests-features.yml'
