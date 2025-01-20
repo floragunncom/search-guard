@@ -89,13 +89,10 @@ veracode_sandbox_scan_auto_packager:
     - veracode_auto_packager_build  
   needs: ["veracode_auto_packager_build"]
   rules:
-    - if: '($VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "schedule") && $VERACODE_ARTIFACT == "auto-packager"'
-      when: always
-    - if: '($CI_PIPELINE_SOURCE == "merge_request_event") && $VERACODE_ARTIFACT == "auto-packager"'
-      when: manual
+    - if: '$VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "schedule"'
   script:
     - | 
-      VERACODE_SCAN_ARTIFACT=veracode
+      VERACODE_SCAN_ARTIFACT=veracode/
       APP_VERSION_SUFFIX="$(date "+%Y-%m-%d_%H:%M:%S")"
       case "$CI_PIPELINE_SOURCE" in
           "schedule")
