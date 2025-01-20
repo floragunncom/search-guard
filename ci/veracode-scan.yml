@@ -22,15 +22,14 @@
       -include \"*search-guard*\"
       -deleteincompletescan 1
       -createprofile \"false\""
-        
-
+      
 veracode_auto_packager_build:
   stage: Veracode Scan
   image: floragunncom/veracode-cli:2.37.0
   rules:
-    - if: '($VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_TAG =~ /^sg-flx-.*/) && $VERACODE_ARTIFACT == "plugin"'
+    - if: '($VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_TAG =~ /^sg-flx-.*/) && $VERACODE_ARTIFACT == "auto-packager"'
       when: always
-    - if: '($CI_PIPELINE_SOURCE == "merge_request_event") && $VERACODE_ARTIFACT != "plugin"'
+    - if: '($CI_PIPELINE_SOURCE == "merge_request_event") && $VERACODE_ARTIFACT == "auto-packager"'
       when: manual
       allow_failure: true #Prevents the pipeline from ending in a "Blocked" status.
   needs: []
@@ -38,7 +37,7 @@ veracode_auto_packager_build:
   tags:
     - veracode-scan
   script:
-    - package -s .
+    - package -t directory -s . --debug -a
   artifacts:
     when: on_success
     expire_in: 12h
