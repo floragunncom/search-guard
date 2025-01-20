@@ -49,7 +49,7 @@ veracode_auto_packager_build:
     paths:
       - .m2/repository   
       
-veracode_sandbox_scan_sg:    
+veracode_sandbox_scan_plugin:    
   extends: ['.veracode_scan_common']
   dependencies:
     - build  
@@ -92,7 +92,7 @@ veracode_sandbox_scan_auto_packager:
     - if: '$VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "schedule"'
   script:
     - | 
-      VERACODE_SCAN_ARTIFACT=veracode/*.jar
+      VERACODE_SCAN_ARTIFACT=veracode/
       APP_VERSION_SUFFIX="$(date "+%Y-%m-%d_%H:%M:%S")"
       case "$CI_PIPELINE_SOURCE" in
           "schedule")
@@ -113,7 +113,7 @@ veracode_sandbox_scan_auto_packager:
       export JAVA_CMD="$JAVA_CMD -version \"${APP_VERSION}\" -sandboxname \"${SANDBOX_NAME}\" -filepath \"${VERACODE_SCAN_ARTIFACT}\""
       eval $JAVA_CMD   
 
-veracode_release_scan_sg:
+veracode_release_scan_plugin:
   dependencies:
     - build  
   needs: ["build"]
@@ -136,7 +136,7 @@ veracode_release_scan_auto_packager:
     - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
   script:
     - | 
-      export VERACODE_SCAN_ARTIFACT=veracode/*.jar
+      export VERACODE_SCAN_ARTIFACT=veracode/
       echo "Executing release scan for $APP_NAME with version $CI_COMMIT_TAG"
       export JAVA_CMD="$JAVA_CMD -version \"${CI_COMMIT_TAG}\" -filepath \"${VERACODE_SCAN_ARTIFACT}\""
       eval $JAVA_CMD 
