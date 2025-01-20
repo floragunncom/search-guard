@@ -37,8 +37,7 @@ veracode_auto_packager_build:
   tags:
     - veracode-scan
   script:
-    - ls -lan
-    - veracode package -t directory -s . --debug -a
+    - veracode package -t directory -s .  -a -o veracode
   artifacts:
     when: on_success
     expire_in: 12h
