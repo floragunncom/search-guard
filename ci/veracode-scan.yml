@@ -95,7 +95,7 @@ veracode_sandbox_scan_auto_packager:
       when: manual
   script:
     - | 
-      VERACODE_SCAN_ARTIFACT=TBA
+      VERACODE_SCAN_ARTIFACT=veracode
       APP_VERSION_SUFFIX="$(date "+%Y-%m-%d_%H:%M:%S")"
       case "$CI_PIPELINE_SOURCE" in
           "schedule")
