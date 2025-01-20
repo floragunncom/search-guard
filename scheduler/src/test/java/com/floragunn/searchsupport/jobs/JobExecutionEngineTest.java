@@ -1,20 +1,24 @@
 package com.floragunn.searchsupport.jobs;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.node.PluginAwareNode;
+import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -28,6 +32,7 @@ import org.quartz.SchedulerException;
 import org.quartz.spi.JobFactory;
 import org.quartz.spi.TriggerFiredBundle;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchsupport.jobs.actions.SchedulerConfigUpdateAction;
 import com.floragunn.searchsupport.jobs.cluster.NodeNameComparator;
 import com.floragunn.searchsupport.jobs.config.DefaultJobConfig;
@@ -39,7 +44,7 @@ public class JobExecutionEngineTest {
     private static final Logger log = LogManager.getLogger(JobExecutionEngineTest.class);
 
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().build();
+    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().nodeSettings("searchguard.unsupported.load_static_resources", false).build();
 
     @Test
     public void emptyNodeFilterTest() throws Exception {
@@ -78,6 +83,85 @@ public class JobExecutionEngineTest {
             }
         }
     }
+    
+
+    /**
+     * This test will create a trigger in a scheduler instance and verify that the execution of the trigger causes the startTime attribute to be properly written.
+     * Afterwards, it will simulate a fail-over by stopping the scheduler and starting a new scheduler instance. Then, the new scheduler instance needs to properly
+     * pick up the old startTime and follow the same rhythm.
+     */
+    @Test
+    public void intervalTriggerStartTime() throws Exception {
+        String test = "interval_trigger_start_time";
+        String jobConfigIndex = "test_job_config_" + test;
+
+        Scheduler scheduler = null;
+        Client client = cluster.getInternalClient();
+        
+        try {
+            String jobConfig = createIntervalJobConfig(1, "intervalTriggerStartTime", "100ms");
+
+            client.index(new IndexRequest(jobConfigIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(jobConfig, XContentType.JSON)).actionGet();
+
+            PluginAwareNode node = cluster.node();
+
+            ClusterService clusterService = node.injector().getInstance(ClusterService.class);
+            NodeEnvironment nodeEnvironment = node.injector().getInstance(NodeEnvironment.class);
+
+            scheduler = new SchedulerBuilder<DefaultJobConfig>().client(client).name("test_" + test)
+                    .configIndex(jobConfigIndex).jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService, nodeEnvironment)
+                    .nodeComparator(new NodeNameComparator(clusterService)).build();
+
+            scheduler.start();
+
+            Thread.sleep(2 * 1000);
+
+           SearchResponse searchResponse = client.search(new SearchRequest("test_job_config_interval_trigger_start_time_trigger_state")).actionGet();
+
+           SearchHit hit = searchResponse.getHits().getAt(0);
+           DocNode hitSource = DocNode.wrap(hit.getSourceAsMap());
+           
+           assertNotNull(hitSource + " must contain startTime attr", hitSource.get("startTime"));
+               
+           long startTime = hitSource.getNumber("startTime").longValue();
+           long nextFireTime = hitSource.getNumber("nextFireTime").longValue();
+           long timesTriggered =  hitSource.getNumber("timesTriggered").longValue();
+           
+           assertEquals("relationship between startTime " + startTime + ", nextFireTime" + nextFireTime + ", and timesTriggered " + timesTriggered, nextFireTime, startTime + 100 * timesTriggered);
+           
+           scheduler.shutdown();
+           
+           scheduler = new SchedulerBuilder<DefaultJobConfig>().client(client).name("test_" + test)
+                   .configIndex(jobConfigIndex).jobConfigFactory(new ConstantHashJobConfig.Factory(TestJob.class)).distributed(clusterService, nodeEnvironment)
+                   .nodeComparator(new NodeNameComparator(clusterService)).build();
+
+           scheduler.start();
+           
+           Thread.sleep(2 * 1000);
+
+           searchResponse = client.search(new SearchRequest("test_job_config_interval_trigger_start_time_trigger_state")).actionGet();
+            
+           hit = searchResponse.getHits().getAt(0);
+           hitSource = DocNode.wrap(hit.getSourceAsMap());           
+                          
+           long startTime2 = hitSource.getNumber("startTime").longValue();
+           long nextFireTime2 = hitSource.getNumber("nextFireTime").longValue();
+           long timesTriggered2 =  hitSource.getNumber("timesTriggered").longValue();
+           
+           assertNotEquals("Job was triggered", timesTriggered, timesTriggered2);
+
+           assertEquals("startTime must have been preserved over scheduler restart", startTime, startTime2);
+           
+           assertEquals("relationship between startTime " + startTime2 + ", nextFireTime" + nextFireTime2 + ", and timesTriggered " + timesTriggered2, nextFireTime2, startTime2 + 100 * timesTriggered2);
+           
+            
+        } finally {
+            if (scheduler != null) {
+                scheduler.shutdown();
+            }
+        }
+    }
+    
     
     
     @Ignore("Only for manual testing")

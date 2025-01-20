@@ -2099,6 +2099,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         private State state = State.WAITING;
         private String stateInfo = null;
         private String node;
+        private Date startTime;
         private Date previousFireTime;
         private Date nextFireTime;
         private Integer timesTriggered;
@@ -2152,7 +2153,11 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         }
 
         public void setStartTime(Date startTime) {
-            delegate.setStartTime(startTime);
+            this.startTime = startTime;
+            
+            if (delegate != null) {
+                delegate.setStartTime(startTime);                
+            }
         }
 
         public void updateAfterMisfire(Calendar cal) {
@@ -2235,7 +2240,11 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         }
 
         public Date getStartTime() {
-            return delegate.getStartTime();
+            if (delegate != null) {
+                return delegate.getStartTime();                
+            } else {
+                return startTime;
+            }
         }
 
         public Date getEndTime() {
@@ -2300,6 +2309,10 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             if (delegate != null) {
                 delegate.setPreviousFireTime(this.previousFireTime);
                 delegate.setNextFireTime(this.nextFireTime);
+                
+                if (this.startTime != null) {
+                    delegate.setStartTime(this.startTime);
+                }
 
                 this.setTimesTriggeredInDelegate(this.delegate, this.timesTriggered);
             }
@@ -2367,6 +2380,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
             builder.startObject();
             builder.field("state", this.state.toString());
+            builder.field("startTime", getStartTime() != null ? getStartTime().getTime() : null);            
             builder.field("nextFireTime", getNextFireTime() != null ? getNextFireTime().getTime() : null);
             builder.field("prevFireTime", getPreviousFireTime() != null ? getPreviousFireTime().getTime() : null);
             builder.field("info", this.stateInfo);
@@ -2388,6 +2402,10 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
                 result.stateInfo = (String) attributeMap.get("info");
                 result.setTimesTriggered(
                         attributeMap.get("timesTriggered") instanceof Number ? ((Number) attributeMap.get("timesTriggered")).intValue() : null);
+                
+                if (attributeMap.get("startTime") != null) {
+                    result.setStartTime(toDate(attributeMap.get("startTime")));
+                }
 
             } catch (Exception e) {
                 log.error("Error while parsing trigger " + triggerKey, e);
