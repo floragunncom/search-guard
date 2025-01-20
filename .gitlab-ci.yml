@@ -12,7 +12,7 @@ variables:
   MAVEN_CLI_OPTS: "--batch-mode -s settings.xml -q -U"
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
-  VERACODE_ARTIFACT: "plugin"
+  VERACODE_ARTIFACT: "auto-packager"
 
   GIT_DEPTH: 10
   
