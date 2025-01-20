@@ -49,11 +49,21 @@ veracode_auto_packager_build:
       - .m2/repository   
 
 
-
-.veracode_sandbox_scan:
+      
+veracode_sandbox_scan_sg:    
   extends: ['.veracode_scan_common']
+  dependencies:
+    - build  
+  needs: ["build"]
+  rules:
+    - if: '($VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "schedule") && $VERACODE_ARTIFACT == "sg"'
+      when: always
+    - if: '($CI_PIPELINE_SOURCE == "merge_request_event") && $VERACODE_ARTIFACT == "sg"'
+      when: manual
+      allow_failure: true #Prevents the pipeline from ending in a "Blocked" status.  
   script:
-    - |
+    - | 
+      VERACODE_SCAN_ARTIFACT=plugin/target/releases/search-guard-flx-elasticsearch-plugin-${SNAPSHOT_REVISION}.zip
       APP_VERSION_SUFFIX="$(date "+%Y-%m-%d_%H:%M:%S")"
       case "$CI_PIPELINE_SOURCE" in
           "schedule")
@@ -72,26 +82,11 @@ veracode_auto_packager_build:
       APP_VERSION="$APP_VERSION_PREFIX-$APP_VERSION_SUFFIX"    
       echo "Executing sandbox scan for $APP_NAME in sandbox $SANDBOX_NAME with version $APP_VERSION for CI event $CI_PIPELINE_SOURCE"
       export JAVA_CMD="$JAVA_CMD -version \"${APP_VERSION}\" -sandboxname \"${SANDBOX_NAME}\""
-      eval $JAVA_CMD
-      
-veracode_sandbox_scan_sg:    
-  extends: ['.veracode_sandbox_scan']
-  dependencies:
-    - build  
-  needs: ["build"]
-  rules:
-    - if: '($VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "schedule") && $VERACODE_ARTIFACT == "sg"'
-      when: always
-    - if: '($CI_PIPELINE_SOURCE == "merge_request_event") && $VERACODE_ARTIFACT == "sg"'
-      when: manual
-      allow_failure: true #Prevents the pipeline from ending in a "Blocked" status.  
-  script:
-    - | 
-       export VERACODE_SCAN_ARTIFACT=plugin/target/releases/search-guard-flx-elasticsearch-plugin-${SNAPSHOT_REVISION}.zip
+      eval $JAVA_CMD   
 
 
 veracode_sandbox_scan_auto_packager:    
-  extends: ['.veracode_sandbox_scan']
+  extends: ['.veracode_scan_common']
   dependencies:
     - veracode_auto_packager_build  
   needs: ["veracode_auto_packager_build"]
@@ -103,17 +98,47 @@ veracode_sandbox_scan_auto_packager:
       allow_failure: true #Prevents the pipeline from ending in a "Blocked" status.  
   script:
     - | 
-       export VERACODE_SCAN_ARTIFACT=TBA
+      VERACODE_SCAN_ARTIFACT=TBA
+      APP_VERSION_SUFFIX="$(date "+%Y-%m-%d_%H:%M:%S")"
+      case "$CI_PIPELINE_SOURCE" in
+          "schedule")
+              SANDBOX_NAME="schedule-flx-8"
+              APP_VERSION_PREFIX="$SANDBOX_NAME-ci-build-$CI_PIPELINE_ID"
+              ;;
+          "merge_request_event")
+              SANDBOX_NAME="merge-request-flx-8"
+              APP_VERSION_PREFIX="ci-build-$CI_PIPELINE_ID-MR-$CI_MERGE_REQUEST_IID-$CI_MERGE_REQUEST_TITLE"
+              ;;
+          *)
+              SANDBOX_NAME="manual-flx-8"
+              APP_VERSION_PREFIX="ci-build-$CI_PIPELINE_ID"
+              ;;
+      esac
+      APP_VERSION="$APP_VERSION_PREFIX-$APP_VERSION_SUFFIX"    
+      echo "Executing sandbox scan for $APP_NAME in sandbox $SANDBOX_NAME with version $APP_VERSION for CI event $CI_PIPELINE_SOURCE"
+      export JAVA_CMD="$JAVA_CMD -version \"${APP_VERSION}\" -sandboxname \"${SANDBOX_NAME}\""
+      eval $JAVA_CMD   
 
 
 
-
-veracode_release_scan:
+veracode_release_scan_sg:
   extends: ['.veracode_scan_common']
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+    - if: '($CI_COMMIT_TAG =~ /^sg-flx-.*/) && $VERACODE_ARTIFACT == "sg"'
   script:
     - | 
+      export VERACODE_SCAN_ARTIFACT=plugin/target/releases/search-guard-flx-elasticsearch-plugin-${SNAPSHOT_REVISION}.zip
+      echo "Executing release scan for $APP_NAME with version $CI_COMMIT_TAG"
+      export JAVA_CMD="$JAVA_CMD -version \"${CI_COMMIT_TAG}\""
+      eval $JAVA_CMD 
+
+veracode_release_scan_auto_packager:
+  extends: ['.veracode_scan_common']
+  rules:
+    - if: '($CI_COMMIT_TAG =~ /^sg-flx-.*/) && $VERACODE_ARTIFACT == "auto-packager"'
+  script:
+    - | 
+      export TBA  
       echo "Executing release scan for $APP_NAME with version $CI_COMMIT_TAG"
       export JAVA_CMD="$JAVA_CMD -version \"${CI_COMMIT_TAG}\""
       eval $JAVA_CMD 
