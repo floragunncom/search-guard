@@ -81,7 +81,6 @@ veracode_sandbox_scan_sg:
       export JAVA_CMD="$JAVA_CMD -version \"${APP_VERSION}\" -sandboxname \"${SANDBOX_NAME}\" -filepath \"${VERACODE_SCAN_ARTIFACT}\""
       eval $JAVA_CMD   
 
-
 veracode_sandbox_scan_auto_packager:    
   extends: ['.veracode_scan_common']
   dependencies:
@@ -113,9 +112,8 @@ veracode_sandbox_scan_auto_packager:
       esac
       APP_VERSION="$APP_VERSION_PREFIX-$APP_VERSION_SUFFIX"    
       echo "Executing sandbox scan for $APP_NAME in sandbox $SANDBOX_NAME with version $APP_VERSION for CI event $CI_PIPELINE_SOURCE"
-      export JAVA_CMD="$JAVA_CMD -version \"${APP_VERSION}\" -sandboxname \"${SANDBOX_NAME}\""
+      export JAVA_CMD="$JAVA_CMD -version \"${APP_VERSION}\" -sandboxname \"${SANDBOX_NAME}\" -filepath \"${VERACODE_SCAN_ARTIFACT}\""
       eval $JAVA_CMD   
-
 
 veracode_release_scan_sg:
   dependencies:
@@ -128,7 +126,7 @@ veracode_release_scan_sg:
     - | 
       export VERACODE_SCAN_ARTIFACT=plugin/target/releases/search-guard-flx-elasticsearch-plugin-${SNAPSHOT_REVISION}.zip
       echo "Executing release scan for $APP_NAME with version $CI_COMMIT_TAG"
-      export JAVA_CMD="$JAVA_CMD -version \"${CI_COMMIT_TAG}\""
+      export JAVA_CMD="$JAVA_CMD -version \"${CI_COMMIT_TAG}\" -filepath \"${VERACODE_SCAN_ARTIFACT}\""
       eval $JAVA_CMD 
 
 veracode_release_scan_auto_packager:
@@ -140,7 +138,7 @@ veracode_release_scan_auto_packager:
     - if: '($CI_COMMIT_TAG =~ /^sg-flx-.*/) && $VERACODE_ARTIFACT == "auto-packager"'
   script:
     - | 
-      export TBA  
+      export VERACODE_SCAN_ARTIFACT=TBA 
       echo "Executing release scan for $APP_NAME with version $CI_COMMIT_TAG"
-      export JAVA_CMD="$JAVA_CMD -version \"${CI_COMMIT_TAG}\""
+      export JAVA_CMD="$JAVA_CMD -version \"${CI_COMMIT_TAG}\" -filepath \"${VERACODE_SCAN_ARTIFACT}\""
       eval $JAVA_CMD 
