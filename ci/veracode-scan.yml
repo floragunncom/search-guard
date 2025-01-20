@@ -41,6 +41,9 @@ veracode_auto_packager_build:
   artifacts:
     when: on_success
     expire_in: 12h
+    paths:
+      - "veracode"
+
   cache:
     key: mavenrepo-main-es8
     paths:
