@@ -80,9 +80,9 @@ veracode_sandbox_scan_sg:
     - build  
   needs: ["build"]
   rules:
-    - if: '($VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "schedule") && $VERACODE_ARTIFACT == "auto-packager"'
+    - if: '($VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "schedule") && $VERACODE_ARTIFACT == "sg"'
       when: always
-    - if: '($CI_PIPELINE_SOURCE == "merge_request_event") && $VERACODE_ARTIFACT == "auto-packager"'
+    - if: '($CI_PIPELINE_SOURCE == "merge_request_event") && $VERACODE_ARTIFACT == "sg"'
       when: manual
       allow_failure: true #Prevents the pipeline from ending in a "Blocked" status.  
   script:
