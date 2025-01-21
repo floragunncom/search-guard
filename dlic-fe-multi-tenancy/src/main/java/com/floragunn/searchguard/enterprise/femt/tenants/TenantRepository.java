@@ -20,6 +20,7 @@ import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.index.IndexOptions;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
@@ -121,7 +122,19 @@ public class TenantRepository {
     void extendTenantsIndexMappings(DocNode mappings) {
         mappings = mappings.hasNonNull("properties")? mappings : DocNode.of("properties", mappings);
         PutMappingRequest putMappingRequest = new PutMappingRequest(FRONTEND_MULTI_TENANCY_ALIASES)
-                .source(mappings);
+                .source(mappings)
+                // index options should ensure that put mapping is accomplished without any exceptions when
+                // - non indices from list FRONTEND_MULTI_TENANCY_ALIASES exists
+                // - some indices from list FRONTEND_MULTI_TENANCY_ALIASES exists
+                // - all indices from list FRONTEND_MULTI_TENANCY_ALIASES exists
+                .indicesOptions(IndicesOptions.builder()
+                .concreteTargetOptions(IndicesOptions.ConcreteTargetOptions.ALLOW_UNAVAILABLE_TARGETS)
+                        .wildcardOptions(IndicesOptions.WildcardOptions.builder()
+                                .includeHidden(true)
+                                .allowEmptyExpressions(true)
+                                .build())
+                .build());
+
 
         client.admin().indices().putMapping(putMappingRequest)
                 .actionGet();
