@@ -91,26 +91,5 @@
       <artifactId>wiremock</artifactId>
       <scope>test</scope>
     </dependency>
-
-    <dependency>
-      <groupId>com.floragunn</groupId>
-      <artifactId>search-guard-flx-security</artifactId>
-      <classifier>tests</classifier>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.floragunn</groupId>
-      <artifactId>search-guard-flx-signals</artifactId>
-      <version>${project.version}</version>
-      <classifier>tests</classifier>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.floragunn</groupId>
-      <artifactId>search-guard-flx-support</artifactId>
-      <classifier>tests</classifier>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 </project>

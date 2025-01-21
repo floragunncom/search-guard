@@ -355,34 +355,6 @@
       </dependency>
 
       <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>dlic-search-guard-flx-security</artifactId>
-        <version>${project.version}</version>
-        <classifier>tests</classifier>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>search-guard-flx-security</artifactId>
-        <version>${project.version}</version>
-        <classifier>tests</classifier>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>search-guard-flx-security-legacy</artifactId>
-        <version>${project.version}</version>
-        <classifier>tests</classifier>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>search-guard-flx-support</artifactId>
-        <version>${project.version}</version>
-        <classifier>tests</classifier>
-      </dependency>
-
-      <dependency>
         <groupId>org.elasticsearch</groupId>
         <artifactId>elasticsearch</artifactId>
         <version>${elasticsearch.version}</version>
@@ -955,6 +927,52 @@
   </build>
 
   <profiles>
+    <profile>
+      <id>include-test-deps-when-tests-are-not-skipped</id>
+      <activation>
+        <property>
+          <name>!maven.test.skip</name>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>com.floragunn</groupId>
+          <artifactId>search-guard-flx-security</artifactId>
+          <classifier>tests</classifier>
+          <scope>test</scope>
+        </dependency>
+
+
+        <dependency>
+          <groupId>com.floragunn</groupId>
+          <artifactId>search-guard-flx-support</artifactId>
+          <classifier>tests</classifier>
+          <scope>test</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>com.floragunn</groupId>
+          <artifactId>search-guard-flx-security-legacy</artifactId>
+          <classifier>tests</classifier>
+          <scope>test</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>com.floragunn</groupId>
+          <artifactId>search-guard-flx-signals</artifactId>
+          <version>${project.version}</version>
+          <classifier>tests</classifier>
+          <scope>test</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>com.floragunn</groupId>
+          <artifactId>dlic-search-guard-flx-security</artifactId>
+          <version>${project.version}</version>
+          <classifier>tests</classifier>
+        </dependency>
+      </dependencies>
+    </profile>
     <profile>
       <id>enterprise</id>
       <activation>
