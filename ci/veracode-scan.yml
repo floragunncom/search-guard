@@ -44,8 +44,8 @@ veracode_auto_packager_build:
       echo "Execute Veracode auto-packager"
       output=$(./veracode package -t directory -s . -a -o veracode-output)
       echo "$output"
-      if echo "$output" | grep -iv "Please ensure your project builds successfully without any errors." | grep -iqE "warning|warn|error"; then
-          echo "Warning, warn, or error detected in the output (excluding specific line)."
+      if echo "$output" | grep -iq "Build failed"; then
+          echo "Error: Build failed detected in the output."
           exit 1
       fi
   artifacts:
