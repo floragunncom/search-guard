@@ -40,6 +40,7 @@ veracode_auto_packager_build:
     - | 
       echo "Install Veracode CLI"
       curl -fsS https://tools.veracode.com/veracode-cli/install | VERACODE_CLI_VERSION=$VERACODE_CLI_VERSION  sh
+      ./veracode version
       echo "Execute Veracode auto-packager"
       output=$(./veracode package -t directory -s . -a -o veracode-output)
       echo "$output"
