@@ -20,6 +20,7 @@ import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.index.IndexOptions;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
@@ -121,7 +122,15 @@ public class TenantRepository {
     void extendTenantsIndexMappings(DocNode mappings) {
         mappings = mappings.hasNonNull("properties")? mappings : DocNode.of("properties", mappings);
         PutMappingRequest putMappingRequest = new PutMappingRequest(FRONTEND_MULTI_TENANCY_ALIASES)
-                .source(mappings);
+                .source(mappings)
+                .indicesOptions(IndicesOptions.builder()
+                .concreteTargetOptions(IndicesOptions.ConcreteTargetOptions.ALLOW_UNAVAILABLE_TARGETS)
+                        .wildcardOptions(IndicesOptions.WildcardOptions.builder()
+                                .includeHidden(true)
+                                .allowEmptyExpressions(true)
+                                .build())
+                .build());
+
 
         client.admin().indices().putMapping(putMappingRequest)
                 .actionGet();

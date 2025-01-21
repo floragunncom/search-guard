@@ -63,14 +63,8 @@ public class MultitenancyActivationService {
     }
 
     private void extendTenantsIndexMappings() {
-        try {
-            tenantRepository.extendTenantsIndexMappings(getSgTenantFieldMapping());
-            log.debug("Successfully extended tenants index field mappings");
-        } catch (IndexNotFoundException e) {
-            // This is expected behavior. If frontend indices does not exist then SG intercept request used for index
-            // creation and adds appropriate mappings.
-            log.info("Frontend indices does not exist while trying to extend tenants index field mappings", e);
-        }
+        tenantRepository.extendTenantsIndexMappings(getSgTenantFieldMapping());
+
     }
 
     public static DocNode getSgTenantFieldMapping() {
