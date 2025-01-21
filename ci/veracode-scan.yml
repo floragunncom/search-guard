@@ -44,7 +44,7 @@ veracode_auto_packager_build:
       echo "Execute Veracode auto-packager"
       output=$(./veracode package -t directory -s . -a -o veracode-output)
       echo "$output"
-      if echo "$output" | grep -iq "Build failed"; then
+      if echo "$output" | grep -iqE "Build failed|build/install failed"; then
           echo "Error: Build failed detected in the output."
           exit 1
       fi
