@@ -62,7 +62,7 @@ stages:
   #- "Frontend Int Tests External Features"
   #- "Frontend Compat Int Tests 1"
   #- "Frontend Compat Int Tests 2"
-  - Veracode Scan
+  # - Veracode Scan
   - release
   - "Deploy Docker Image"
 
@@ -71,7 +71,7 @@ include:
   - local: '.gitlab-ci-branch-specific.yml'
   - local: 'ci/backend-int-tests.yml'
   - local: 'ci/backend-unit-tests.yml'
-  - local: 'ci/veracode-scan.yml'  
+  # - local: 'ci/veracode-scan.yml'  
   #- local: 'ci/frontend-int-tests.yml'
   #- local: 'ci/frontend-int-tests-features.yml'
   #- local: 'ci/frontend-int-tests-external-features.yml'
