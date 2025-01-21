@@ -27,7 +27,6 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.
 import com.floragunn.searchsupport.action.StandardResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.index.IndexNotFoundException;
 
 import java.util.Objects;
 
@@ -53,23 +52,13 @@ public class MultitenancyActivationService {
     }
 
     public StandardResponse activate() throws StepException {
-        extendTenantsIndexMappings();
+        tenantRepository.extendTenantsIndexMappings(getSgTenantFieldMapping());
+
         FeMultiTenancyConfig configuration = configProvider.getConfig().orElse(FeMultiTenancyConfig.DEFAULT);
         if (configuration.isEnabled()) {
             return new StandardResponse(SC_OK, "Multitenancy is already enabled, nothing to be done");
         } else {
             return enableMultitenancy(configuration);
-        }
-    }
-
-    private void extendTenantsIndexMappings() {
-        try {
-            tenantRepository.extendTenantsIndexMappings(getSgTenantFieldMapping());
-            log.debug("Successfully extended tenants index field mappings");
-        } catch (IndexNotFoundException e) {
-            // This is expected behavior. If frontend indices does not exist then SG intercept request used for index
-            // creation and adds appropriate mappings.
-            log.info("Frontend indices does not exist while trying to extend tenants index field mappings", e);
         }
     }
 
