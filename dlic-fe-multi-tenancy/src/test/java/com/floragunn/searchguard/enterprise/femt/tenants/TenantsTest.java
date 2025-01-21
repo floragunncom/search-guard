@@ -55,6 +55,7 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.List;
 
+import static com.floragunn.searchguard.enterprise.femt.tenants.TenantRepository.MAIN_FRONTEND_INDEX_ALIAS;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
@@ -388,7 +389,7 @@ public class TenantsTest {
     }
 
     @Test
-    public void tenantIndexMappingsExtender_shouldAddSgTenantFieldToMappings() {
+    public void tenantIndexMappingsExtender_shouldAddSgTenantFieldToMappingsWhenAllKibanaIndicesExist() {
         //there are no kibana indices
         removeKibanaRelatedIndices();
 
@@ -433,6 +434,28 @@ public class TenantsTest {
         }
     }
 
+    @Test
+    public void tenantIndexMappingsExtender_shouldAddSgTenantFieldToMappingsWhenSomeKibaneRelatedIndicesDoesNotExist() {
+        //there are no kibana indices
+        removeKibanaRelatedIndices();
+
+        //there are kibana indices
+        createKibanaIndicesAndAliases(MAIN_FRONTEND_INDEX_ALIAS, ".kibana_analytics");
+
+        multitenancyActivationService.activate();
+        GetMappingsResponse getMappingsResponse = getKibanaIndicesMappings();
+        assertThat(
+                getMappingsResponse.getMappings().keySet(),
+                containsInAnyOrder(".kibana_1.2.3", ".kibana_analytics_1.2.3")
+        );
+        for (MappingMetadata indexMapping : getMappingsResponse.getMappings().values()) {
+            DocNode mappings = DocNode.wrap(indexMapping.sourceAsMap());
+            assertThat(mappings, hasKey("properties"));
+            assertThat(mappings.getAsNode("properties"), hasKey("sg_tenant"));
+            assertThat(mappings.getAsNode("properties").getAsNode("sg_tenant"), equalTo(DocNode.of("type", "keyword")));
+        }
+    }
+
     public void createTenants(String indexName, String...tenantNames) {
         Client client = cluster.getInternalNodeClient();
         for(String currentTenant : tenantNames) {
@@ -460,10 +483,10 @@ public class TenantsTest {
         return client.admin().indices().getMappings(new GetMappingsRequest().indices(".kibana*")).actionGet();
     }
 
-    private void createKibanaIndicesAndAliases() {
+    private void createKibanaIndicesAndAliases(String...indices_names) {
         Client client = cluster.getInternalNodeClient();
         IndicesAliasesRequest addAliasesRequest = new IndicesAliasesRequest();
-        for (String alias : TenantRepository.FRONTEND_MULTI_TENANCY_ALIASES) {
+        for (String alias : indices_names) {
             String indexName = alias + "_1.2.3";
             CreateIndexResponse createIndexResponse = client.admin().indices().create(new CreateIndexRequest(indexName)).actionGet();
             assertThat(createIndexResponse.isAcknowledged(), equalTo(true));
@@ -471,6 +494,10 @@ public class TenantsTest {
         }
         AcknowledgedResponse addAliasesResponse = client.admin().indices().aliases(addAliasesRequest).actionGet();
         assertThat(addAliasesResponse.isAcknowledged(), equalTo(true));
+    }
+
+    private void createKibanaIndicesAndAliases() {
+        createKibanaIndicesAndAliases(TenantRepository.FRONTEND_MULTI_TENANCY_ALIASES);
     }
 
 }

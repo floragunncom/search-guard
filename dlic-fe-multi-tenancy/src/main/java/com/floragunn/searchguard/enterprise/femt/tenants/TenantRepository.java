@@ -123,6 +123,10 @@ public class TenantRepository {
         mappings = mappings.hasNonNull("properties")? mappings : DocNode.of("properties", mappings);
         PutMappingRequest putMappingRequest = new PutMappingRequest(FRONTEND_MULTI_TENANCY_ALIASES)
                 .source(mappings)
+                // index options should ensure that put mapping is accomplished without any exceptions when
+                // - non indices from list FRONTEND_MULTI_TENANCY_ALIASES exists
+                // - some indices from list FRONTEND_MULTI_TENANCY_ALIASES exists
+                // - all indices from list FRONTEND_MULTI_TENANCY_ALIASES exists
                 .indicesOptions(IndicesOptions.builder()
                 .concreteTargetOptions(IndicesOptions.ConcreteTargetOptions.ALLOW_UNAVAILABLE_TARGETS)
                         .wildcardOptions(IndicesOptions.WildcardOptions.builder()

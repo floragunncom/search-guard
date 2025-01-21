@@ -27,7 +27,6 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.
 import com.floragunn.searchsupport.action.StandardResponse;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.index.IndexNotFoundException;
 
 import java.util.Objects;
 
@@ -53,18 +52,14 @@ public class MultitenancyActivationService {
     }
 
     public StandardResponse activate() throws StepException {
-        extendTenantsIndexMappings();
+        tenantRepository.extendTenantsIndexMappings(getSgTenantFieldMapping());
+
         FeMultiTenancyConfig configuration = configProvider.getConfig().orElse(FeMultiTenancyConfig.DEFAULT);
         if (configuration.isEnabled()) {
             return new StandardResponse(SC_OK, "Multitenancy is already enabled, nothing to be done");
         } else {
             return enableMultitenancy(configuration);
         }
-    }
-
-    private void extendTenantsIndexMappings() {
-        tenantRepository.extendTenantsIndexMappings(getSgTenantFieldMapping());
-
     }
 
     public static DocNode getSgTenantFieldMapping() {
