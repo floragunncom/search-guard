@@ -42,6 +42,7 @@ veracode_auto_packager_build:
       curl -fsS https://tools.veracode.com/veracode-cli/install | VERACODE_CLI_VERSION=$VERACODE_CLI_VERSION  sh
       echo "Execute Veracode auto-packager"
       ./veracode package -t directory -s .  -a -o veracode-output
+      exit 1
   artifacts:
     when: on_success
     expire_in: 12h
