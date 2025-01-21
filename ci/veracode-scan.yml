@@ -41,8 +41,12 @@ veracode_auto_packager_build:
       echo "Install Veracode CLI"
       curl -fsS https://tools.veracode.com/veracode-cli/install | VERACODE_CLI_VERSION=$VERACODE_CLI_VERSION  sh
       echo "Execute Veracode auto-packager"
-      ./veracode package -t directory -s .  -a -o veracode-output
-      exit 1
+      output=$(./veracode package -t directory -s . -a -o veracode-output)
+      echo "$output"
+      if echo "$output" | grep -iv "Please ensure your project builds successfully without any errors." | grep -iqE "warning|warn|error"; then
+          echo "Warning, warn, or error detected in the output (excluding specific line)."
+          exit 1
+      fi
   artifacts:
     when: on_success
     expire_in: 12h
