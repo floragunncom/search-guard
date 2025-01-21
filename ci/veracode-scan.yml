@@ -31,7 +31,7 @@ veracode_auto_packager_build:
       when: always
     - if: '($CI_PIPELINE_SOURCE == "merge_request_event") && $VERACODE_ARTIFACT == "auto-packager"'
       when: manual
-      # allow_failure: true #Prevents the pipeline from ending in a "Blocked" status.
+      allow_failure: true #Prevents the pipeline from ending in a "Blocked" status.
   needs: []
   interruptible: true
   tags:
