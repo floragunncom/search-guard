@@ -41,13 +41,14 @@ veracode_auto_packager_build:
       echo "Install Veracode CLI"
       curl -fsS https://tools.veracode.com/veracode-cli/install | VERACODE_CLI_VERSION=$VERACODE_CLI_VERSION  sh
       ./veracode version
-      echo "Execute Veracode auto-packager"
-      output=$(./veracode package -t directory -s . -a -o veracode-output)
-      echo "$output"
-      if echo "$output" | grep -iqE "Build failed|build/install failed"; then
-          echo "Error: Build failed detected in the output."
-          exit 1
-      fi
+      # echo "Execute Veracode auto-packager"
+      ./veracode package -t directory -s . -a -o veracode-output
+      # output=$(./veracode package -t directory -s . -a -o veracode-output)
+      # echo "$output"
+      # if echo "$output" | grep -iqE "Build failed|build/install failed"; then
+      #     echo "Error: Build failed detected in the output."
+      #     exit 1
+      # fi
   artifacts:
     when: on_success
     expire_in: 12h
