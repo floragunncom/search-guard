@@ -13,10 +13,12 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
 import com.floragunn.codova.documents.Document;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization;
 import com.floragunn.searchguard.authz.AuthorizationService;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.authz.RoleBasedActionAuthorization;
 import com.floragunn.searchguard.authz.actions.Actions;
@@ -119,7 +121,8 @@ public class InternalAuthTokenProvider {
         signedJWT.sign(jwsSigner);
 
         if (jweEncrypter != null) {
-            JWEObject jweObject = new JWEObject(new JWEHeader(JWEAlgorithm.A256KW, EncryptionMethod.A256CBC_HS512), new Payload(signedJWT));
+            JWEObject jweObject = new JWEObject(new JWEHeader.Builder(JWEAlgorithm.A256KW, EncryptionMethod.A256CBC_HS512)
+                    .customParam(JwtVerifier.PRODUCER_CLAIM, JwtVerifier.PRODUCER_CLAIM_NIMBUS).build(), new Payload(signedJWT));
             jweObject.encrypt(jweEncrypter);
             return jweObject.serialize();
         } else {
@@ -137,7 +140,7 @@ public class InternalAuthTokenProvider {
         }
     }
 
-    public AuthFromInternalAuthToken userAuthFromToken(User user, ThreadContext threadContext) {
+    public AuthFromInternalAuthToken userAuthFromToken(User user, ThreadContext threadContext) throws PrivilegesEvaluationException {
         final String authToken = threadContext.getHeader(TOKEN_HEADER);
         final String authTokenAudience = HeaderHelper.getSafeFromHeader(threadContext, AUDIENCE_HEADER);
 
@@ -148,7 +151,7 @@ public class InternalAuthTokenProvider {
         return userAuthFromToken(authToken, authTokenAudience);
     }
 
-    public AuthFromInternalAuthToken userAuthFromToken(String authToken, String authTokenAudience) {
+    public AuthFromInternalAuthToken userAuthFromToken(String authToken, String authTokenAudience) throws PrivilegesEvaluationException {
         try {
             JWTClaimsSet verifiedToken = getVerifiedJwtToken(authToken, authTokenAudience);
 
@@ -158,6 +161,10 @@ public class InternalAuthTokenProvider {
                 throw new JOSEException("JWT does not contain claim sg_roles");
             }
             
+            if (log.isTraceEnabled()) {
+                log.trace("userAuthFromToken({}, {}); verfiedToken: {} {}", authToken, authTokenAudience, verifiedToken, rolesMap);
+            }
+                       
             SgDynamicConfiguration<Role> rolesConfig = SgDynamicConfiguration.fromMap(rolesMap, CType.ROLES, null).get();
             ImmutableSet<String> roleNames = ImmutableSet.of(rolesConfig.getCEntries().keySet());
 
@@ -168,10 +175,9 @@ public class InternalAuthTokenProvider {
             AuthFromInternalAuthToken userAuth = new AuthFromInternalAuthToken(user, roleNames, actionAuthorization, rolesConfig);
 
             return userAuth;
-        } catch (Exception e) {
-            log.warn("Error while verifying internal auth token: " + authToken + "\n" + authTokenAudience, e);
-
-            return null;
+        } catch (JOSEException | ConfigValidationException | ParseException | BadJWTException e) {
+            log.debug("Error while verifying internal auth token: {}", authToken, e);
+            throw new PrivilegesEvaluationException("Error while verifying internal auth token", e);
         }
     }
 
@@ -244,7 +250,7 @@ public class InternalAuthTokenProvider {
 
     public void setSigningKey(String keyString) throws JOSEException {
         if (keyString != null && keyString.length() > 0) {
-            byte [] keyStringBytes = Base64.getDecoder().decode(keyString);
+            byte [] keyStringBytes = Base64.getDecoder().decode(keyString);        
             this.jwsSigner = new MACSigner(keyStringBytes);
             this.signingKey = new OctetSequenceKey.Builder(keyStringBytes)
                     .keyUse(KeyUse.SIGNATURE)  
@@ -259,12 +265,13 @@ public class InternalAuthTokenProvider {
 
     public void setEncryptionKey(String keyString) throws KeyLengthException {
         if (keyString != null && keyString.length() > 0) {
-            byte [] keyStringBytes = Base64.getDecoder().decode(keyString);
+            byte [] keyStringBytes = Base64.getDecoder().decode(keyString);                      
             this.jweEncrypter = new AESEncrypter(keyStringBytes);
-            this.encryptionKey = new OctetSequenceKey.Builder(keyString.getBytes())
+            this.encryptionKey = new OctetSequenceKey.Builder(keyStringBytes)
                     .keyUse(KeyUse.ENCRYPTION)    
                     .algorithm(JWEAlgorithm.A256KW)
                     .build();
+            this.updateJwtVerifier();            
         } else {
             this.jweEncrypter = null;
             this.jwtVerifier = null;
