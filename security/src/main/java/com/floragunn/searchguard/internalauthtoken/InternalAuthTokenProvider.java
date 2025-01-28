@@ -4,7 +4,6 @@ import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.TemporalAmount;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -27,6 +26,7 @@ import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import com.floragunn.searchguard.jwt.JwtVerifier;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
@@ -36,25 +36,23 @@ import com.floragunn.searchsupport.PrivilegedCode;
 import com.nimbusds.jose.EncryptionMethod;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWEAlgorithm;
-import com.nimbusds.jose.JWEDecrypter;
 import com.nimbusds.jose.JWEEncrypter;
 import com.nimbusds.jose.JWEHeader;
 import com.nimbusds.jose.JWEObject;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.JWSSigner;
-import com.nimbusds.jose.JWSVerifier;
 import com.nimbusds.jose.KeyLengthException;
 import com.nimbusds.jose.Payload;
-import com.nimbusds.jose.crypto.AESDecrypter;
 import com.nimbusds.jose.crypto.AESEncrypter;
 import com.nimbusds.jose.crypto.MACSigner;
-import com.nimbusds.jose.crypto.MACVerifier;
-import com.nimbusds.jose.proc.SimpleSecurityContext;
+import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jose.jwk.KeyUse;
+import com.nimbusds.jose.jwk.OctetSequenceKey;
+import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.jwt.proc.BadJWTException;
-import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier;
 
 public class InternalAuthTokenProvider {
 
@@ -69,10 +67,14 @@ public class InternalAuthTokenProvider {
     private final PrivilegesEvaluator privilegesEvaluator;
     private final Actions actions;
 
+
+    private JWK encryptionKey;
+    private JWK signingKey;
     private JWSSigner jwsSigner;
-    private JWSVerifier jwsVerifier;
-    private JWEDecrypter jweDecrypter;
     private JWEEncrypter jweEncrypter;
+
+    private JwtVerifier jwtVerifier;
+
     private volatile SgDynamicConfiguration<Role> roles;
 
     public InternalAuthTokenProvider(AuthorizationService authorizationService, PrivilegesEvaluator privilegesEvaluator, Actions actions, ConfigurationRepository configurationRepository) {
@@ -111,6 +113,7 @@ public class InternalAuthTokenProvider {
         jwtClaims.subject(user.getName());
         jwtClaims.audience(aud);
         jwtClaims.claim("sg_roles", getSgRolesForUser(user));
+        jwtClaims.claim("sg_i", "n");
 
         SignedJWT signedJWT = PrivilegedCode.execute(() -> new SignedJWT(new JWSHeader(SIGNING_ALGORITHM), jwtClaims.build()));
         signedJWT.sign(jwsSigner);
@@ -180,44 +183,13 @@ public class InternalAuthTokenProvider {
     }
 
     private JWTClaimsSet getVerifiedJwtToken(String encodedJwt, String authTokenAudience) throws JOSEException, ParseException, BadJWTException {
-        if (this.jweDecrypter != null) {
-            JWEObject jweObject = JWEObject.parse(encodedJwt);
-            jweObject.decrypt(jweDecrypter);
-            encodedJwt = jweObject.getPayload().toSignedJWT().serialize();
-        }
-
-        SignedJWT signedJwt = SignedJWT.parse(encodedJwt);
-
-        if (this.jwsVerifier != null) {
-            boolean signatureValid = signedJwt.verify(jwsVerifier);
-
-            if (!signatureValid) {
-                throw new JOSEException("Invalid JWT signature");
-            }
-        }
+        JWT jwt = this.jwtVerifier.getVerfiedJwt(encodedJwt, authTokenAudience);
         
-        validateClaims(signedJwt, authTokenAudience);
-
-        return signedJwt.getJWTClaimsSet();
-
-    }
-
-    private void validateClaims(SignedJWT jwt, String authTokenAudience) throws JOSEException, ParseException, BadJWTException {
-        JWTClaimsSet claims = jwt.getJWTClaimsSet();
-
-        if (claims == null) {
-            throw new JOSEException("The JWT does not have any claims");
+        if (jwt != null) {
+            return jwt.getJWTClaimsSet();
+        } else {
+            throw new JOSEException("Invalid JWT");
         }
-
-        DefaultJWTClaimsVerifier<SimpleSecurityContext> claimsVerifier = new DefaultJWTClaimsVerifier<>(
-                authTokenAudience != null ? Collections.singleton(authTokenAudience) : null,
-                null,
-                Collections.emptySet(),
-                null
-            );
-            claimsVerifier.verify(claims, null);
-        
-
     }
   
     public static class AuthFromInternalAuthToken implements SpecialPrivilegesEvaluationContext {
@@ -274,10 +246,14 @@ public class InternalAuthTokenProvider {
         if (keyString != null && keyString.length() > 0) {
             byte [] keyStringBytes = Base64.getDecoder().decode(keyString);
             this.jwsSigner = new MACSigner(keyStringBytes);
-            this.jwsVerifier = new MACVerifier(keyStringBytes);
+            this.signingKey = new OctetSequenceKey.Builder(keyStringBytes)
+                    .keyUse(KeyUse.SIGNATURE)  
+                    .algorithm(JWSAlgorithm.HS512)     
+                    .build();      
+            this.updateJwtVerifier();
         } else {
             this.jwsSigner = null;
-            this.jwsVerifier = null;
+            this.jwtVerifier = null;
         }
     }
 
@@ -285,10 +261,21 @@ public class InternalAuthTokenProvider {
         if (keyString != null && keyString.length() > 0) {
             byte [] keyStringBytes = Base64.getDecoder().decode(keyString);
             this.jweEncrypter = new AESEncrypter(keyStringBytes);
-            this.jweDecrypter = new AESDecrypter(keyStringBytes);
+            this.encryptionKey = new OctetSequenceKey.Builder(keyString.getBytes())
+                    .keyUse(KeyUse.ENCRYPTION)    
+                    .algorithm(JWEAlgorithm.A256KW)
+                    .build();
         } else {
             this.jweEncrypter = null;
-            this.jweDecrypter = null;
+            this.jwtVerifier = null;
+        }
+    }
+    
+    private void updateJwtVerifier() {
+        if (this.signingKey != null) {
+            this.jwtVerifier = new JwtVerifier(signingKey, encryptionKey, "");
+        } else {
+            this.jwtVerifier = null;
         }
     }
 }
