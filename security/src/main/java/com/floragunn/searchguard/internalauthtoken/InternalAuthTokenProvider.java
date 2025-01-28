@@ -258,8 +258,9 @@ public class InternalAuthTokenProvider {
                     .build();      
             this.updateJwtVerifier();
         } else {
+            this.signingKey = null;
             this.jwsSigner = null;
-            this.jwtVerifier = null;
+            this.updateJwtVerifier();
         }
     }
 
@@ -273,8 +274,9 @@ public class InternalAuthTokenProvider {
                     .build();
             this.updateJwtVerifier();            
         } else {
+            this.encryptionKey = null;
             this.jweEncrypter = null;
-            this.jwtVerifier = null;
+            this.updateJwtVerifier();
         }
     }
     
