@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.jwt;
 
+import static com.floragunn.searchguard.jwt.NimbusUtils.convertToCxf;
+
 import java.text.ParseException;
 import java.time.Instant;
 import java.util.Date;
@@ -27,7 +29,6 @@ import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
 import org.apache.cxf.rs.security.jose.jwe.JweDecryptionOutput;
 import org.apache.cxf.rs.security.jose.jwe.JweDecryptionProvider;
 import org.apache.cxf.rs.security.jose.jwe.JweUtils;
-import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
 import org.apache.cxf.rs.security.jose.jws.JwsHeaders;
 import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
 import org.apache.cxf.rs.security.jose.jws.JwsSignatureVerifier;
@@ -142,9 +143,9 @@ public class JwtVerifier {
 
         CxfBased(JWK signingKey, JWK encryptionKey, String requiredJwtAudience) {
             this.requiredJwtAudience = requiredJwtAudience;
-            this.jwsSignatureVerifier = JwsUtils.getSignatureVerifier(JwkUtils.readJwkKey(signingKey.toJSONString()));
+            this.jwsSignatureVerifier = JwsUtils.getSignatureVerifier(convertToCxf(signingKey));
             this.jweDecryptionProvider = encryptionKey != null
-                    ? JweUtils.createJweDecryptionProvider(JwkUtils.readJwkKey(encryptionKey.toJSONString()), ContentAlgorithm.A256CBC_HS512)
+                    ? JweUtils.createJweDecryptionProvider(convertToCxf(encryptionKey), ContentAlgorithm.A256CBC_HS512)
                     : null;
         }
 

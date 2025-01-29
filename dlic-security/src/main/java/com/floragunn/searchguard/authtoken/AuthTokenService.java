@@ -86,6 +86,7 @@ import com.floragunn.searchguard.sgconf.history.ConfigSnapshot;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.PrivilegedCode;
 import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.ExceptionRecord;
@@ -105,7 +106,7 @@ import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.JWSSigner;
 import com.nimbusds.jose.Payload;
-import com.nimbusds.jose.crypto.DirectEncrypter;
+import com.nimbusds.jose.crypto.AESEncrypter;
 import com.nimbusds.jose.crypto.ECDHEncrypter;
 import com.nimbusds.jose.crypto.RSAEncrypter;
 import com.nimbusds.jose.crypto.factories.DefaultJWSSignerFactory;
@@ -456,12 +457,14 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         String encodedJwt;
 
         try {
-            SignedJWT signedJwt = new SignedJWT(new JWSHeader(asJwsAlgorithm(signingKey.getAlgorithm())), jwtClaims.build());
+            SignedJWT signedJwt = PrivilegedCode
+                    .execute(() -> new SignedJWT(new JWSHeader(asJwsAlgorithm(signingKey.getAlgorithm())), jwtClaims.build()));
             signedJwt.sign(jwsSigner);
 
             if (jweEncrypter != null) {
-                JWEObject encryptedJwt = new JWEObject(new JWEHeader(asJweAlgorithm(encryptionKey.getAlgorithm()), CONTENT_ENCRYPTION_METHOD),
-                        new Payload(signedJwt));
+                JWEObject encryptedJwt = PrivilegedCode
+                        .execute(() -> new JWEObject(new JWEHeader(asJweAlgorithm(encryptionKey.getAlgorithm()), CONTENT_ENCRYPTION_METHOD),
+                                new Payload(signedJwt)));
                 encryptedJwt.encrypt(jweEncrypter);
                 encodedJwt = encryptedJwt.serialize();
             } else {
@@ -520,7 +523,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     }
 
     public JWT getVerifiedJwtToken(String encodedJwt) throws BadJWTException, ParseException, JOSEException {
-        return jwtVerifier.getVerfiedJwt(encodedJwt);     
+        return jwtVerifier.getVerfiedJwt(encodedJwt);
     }
 
     public String revoke(User user, String id) throws NoSuchAuthTokenException, TokenUpdateException {
@@ -563,7 +566,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         failureListener.onSuccess();
         this.componentState.updateStateFromParts();
     }
-    
+
     private synchronized void initComplete() {
         this.initialized = true;
         notifyAll();
@@ -886,19 +889,19 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         return new ConfigModel(privilegesEvaluator.getActionAuthorization(), authorizationService.getRoleMapping(),
                 privilegesEvaluator.getActionGroups());
     }
-    
+
     private static JWEEncrypter createJweEncrypter(JWK encryptionKey) throws JOSEException {
         if (encryptionKey instanceof RSAKey) {
             return new RSAEncrypter((RSAKey) encryptionKey);
         } else if (encryptionKey instanceof OctetSequenceKey) {
-            return new DirectEncrypter((OctetSequenceKey) encryptionKey);
+            return new AESEncrypter((OctetSequenceKey) encryptionKey);
         } else if (encryptionKey instanceof ECKey) {
             return new ECDHEncrypter((ECKey) encryptionKey);
         } else {
             throw new IllegalArgumentException("Unsupported key type for encryption: " + encryptionKey.getKeyType());
         }
     }
-    
+
     private static JWSAlgorithm asJwsAlgorithm(Algorithm alg) {
         if (alg instanceof JWSAlgorithm) {
             return (JWSAlgorithm) alg;

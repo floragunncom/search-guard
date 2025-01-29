@@ -121,8 +121,8 @@ public class InternalAuthTokenProvider {
         signedJWT.sign(jwsSigner);
 
         if (jweEncrypter != null) {
-            JWEObject jweObject = new JWEObject(new JWEHeader.Builder(JWEAlgorithm.A256KW, EncryptionMethod.A256CBC_HS512)
-                    .customParam(JwtVerifier.PRODUCER_CLAIM, JwtVerifier.PRODUCER_CLAIM_NIMBUS).build(), new Payload(signedJWT));
+            JWEObject jweObject = PrivilegedCode.execute(() -> new JWEObject(new JWEHeader.Builder(JWEAlgorithm.A256KW, EncryptionMethod.A256CBC_HS512)
+                    .customParam(JwtVerifier.PRODUCER_CLAIM, JwtVerifier.PRODUCER_CLAIM_NIMBUS).build(), new Payload(signedJWT)));
             jweObject.encrypt(jweEncrypter);
             return jweObject.serialize();
         } else {
@@ -190,8 +190,7 @@ public class InternalAuthTokenProvider {
 
     private JWTClaimsSet getVerifiedJwtToken(String encodedJwt, String authTokenAudience) throws JOSEException, ParseException, BadJWTException {
         if (this.jwtVerifier == null) {
-            throw new RuntimeException("Cannot verify token because signing key is not configured; singing key: " + this.signingKey
-                    + "; encryption key: " + this.encryptionKey);
+            throw new RuntimeException("Cannot verify token because signing key is not configured");
         }
         
         JWT jwt = this.jwtVerifier.getVerfiedJwt(encodedJwt, authTokenAudience);
