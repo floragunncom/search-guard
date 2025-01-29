@@ -189,6 +189,11 @@ public class InternalAuthTokenProvider {
     }
 
     private JWTClaimsSet getVerifiedJwtToken(String encodedJwt, String authTokenAudience) throws JOSEException, ParseException, BadJWTException {
+        if (this.jwtVerifier == null) {
+            throw new RuntimeException("Cannot verify token because signing key is not configured; singing key: " + this.signingKey
+                    + "; encryption key: " + this.encryptionKey);
+        }
+        
         JWT jwt = this.jwtVerifier.getVerfiedJwt(encodedJwt, authTokenAudience);
         
         if (jwt != null) {
@@ -248,7 +253,7 @@ public class InternalAuthTokenProvider {
 
     }
 
-    public void setSigningKey(String keyString) throws JOSEException {
+    public synchronized void setSigningKey(String keyString) throws JOSEException {
         if (keyString != null && keyString.length() > 0) {
             byte [] keyStringBytes = Base64.getDecoder().decode(keyString);        
             this.jwsSigner = new MACSigner(keyStringBytes);
@@ -264,7 +269,7 @@ public class InternalAuthTokenProvider {
         }
     }
 
-    public void setEncryptionKey(String keyString) throws KeyLengthException {
+    public synchronized void setEncryptionKey(String keyString) throws KeyLengthException {
         if (keyString != null && keyString.length() > 0) {
             byte [] keyStringBytes = Base64.getDecoder().decode(keyString);                      
             this.jweEncrypter = new AESEncrypter(keyStringBytes);
@@ -280,10 +285,11 @@ public class InternalAuthTokenProvider {
         }
     }
     
-    private void updateJwtVerifier() {
+    private synchronized void updateJwtVerifier() {
         if (this.signingKey != null) {
             this.jwtVerifier = new JwtVerifier(signingKey, encryptionKey, "");
-        } else {
+        } else if (this.jwtVerifier == null) {
+            log.warn("Disabling JWT verifier because no signing key is present");
             this.jwtVerifier = null;
         }
     }

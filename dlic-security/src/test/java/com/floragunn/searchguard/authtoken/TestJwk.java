@@ -77,7 +77,7 @@ class TestJwk {
 	
 		
 	private static JWK createOct(String keyId, Algorithm algorithm, String k) {
-	    return new OctetSequenceKey.Builder(k.getBytes())
+	    return new OctetSequenceKey.Builder(new Base64URL(k))
                 .keyID(keyId)
                 .keyUse(KeyUse.SIGNATURE)  
                 .algorithm(algorithm)     
