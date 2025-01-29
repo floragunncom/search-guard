@@ -463,8 +463,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
             if (jweEncrypter != null) {
                 JWEObject encryptedJwt = PrivilegedCode
-                        .execute(() -> new JWEObject(new JWEHeader(asJweAlgorithm(encryptionKey.getAlgorithm()), CONTENT_ENCRYPTION_METHOD),
-                                new Payload(signedJwt)));
+                        .execute(
+                                () -> new JWEObject(
+                                        new JWEHeader.Builder(asJweAlgorithm(encryptionKey.getAlgorithm()), CONTENT_ENCRYPTION_METHOD)
+                                                .customParam(JwtVerifier.PRODUCER_CLAIM, JwtVerifier.PRODUCER_CLAIM_NIMBUS).build(),
+                                        new Payload(signedJwt)));
                 encryptedJwt.encrypt(jweEncrypter);
                 encodedJwt = encryptedJwt.serialize();
             } else {
