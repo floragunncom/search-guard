@@ -94,6 +94,7 @@ import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import com.google.common.cache.Cache;
 import com.google.common.collect.Sets;
 import com.google.common.io.BaseEncoding;
+import com.nimbusds.jose.Algorithm;
 import com.nimbusds.jose.EncryptionMethod;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWEAlgorithm;
@@ -455,11 +456,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         String encodedJwt;
 
         try {
-            SignedJWT signedJwt = new SignedJWT(new JWSHeader((JWSAlgorithm) signingKey.getAlgorithm()), jwtClaims.build());
+            SignedJWT signedJwt = new SignedJWT(new JWSHeader(asJwsAlgorithm(signingKey.getAlgorithm())), jwtClaims.build());
             signedJwt.sign(jwsSigner);
 
             if (jweEncrypter != null) {
-                JWEObject encryptedJwt = new JWEObject(new JWEHeader((JWEAlgorithm) encryptionKey.getAlgorithm(), CONTENT_ENCRYPTION_METHOD),
+                JWEObject encryptedJwt = new JWEObject(new JWEHeader(asJweAlgorithm(encryptionKey.getAlgorithm()), CONTENT_ENCRYPTION_METHOD),
                         new Payload(signedJwt));
                 encryptedJwt.encrypt(jweEncrypter);
                 encodedJwt = encryptedJwt.serialize();
@@ -895,6 +896,22 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             return new ECDHEncrypter((ECKey) encryptionKey);
         } else {
             throw new IllegalArgumentException("Unsupported key type for encryption: " + encryptionKey.getKeyType());
+        }
+    }
+    
+    private static JWSAlgorithm asJwsAlgorithm(Algorithm alg) {
+        if (alg instanceof JWSAlgorithm) {
+            return (JWSAlgorithm) alg;
+        } else {
+            return JWSAlgorithm.parse(alg.getName());
+        }
+    }
+
+    private static JWEAlgorithm asJweAlgorithm(Algorithm alg) {
+        if (alg instanceof JWEAlgorithm) {
+            return (JWEAlgorithm) alg;
+        } else {
+            return JWEAlgorithm.parse(alg.getName());
         }
     }
 

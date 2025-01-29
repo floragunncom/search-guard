@@ -128,10 +128,10 @@ public class JwtVerifier {
     JWSVerifier verifier(SignedJWT signedJWT) throws JOSEException {
         if (signingKey instanceof AsymmetricJWK) {
             return JWS_VERIFIER_FACTORY.createJWSVerifier(signedJWT.getHeader(), ((AsymmetricJWK) signingKey).toPublicKey());
-        } else if (encryptionKey instanceof SecretJWK) {
+        } else if (signingKey instanceof SecretJWK) {
             return JWS_VERIFIER_FACTORY.createJWSVerifier(signedJWT.getHeader(), ((SecretJWK) signingKey).toSecretKey());
         } else {
-            throw new RuntimeException("Unknown key type: " + encryptionKey);
+            throw new RuntimeException("Unknown key type: " + signingKey);
         }
     }
 
