@@ -125,7 +125,7 @@ fe_kerberos:
 .fe_integration_test:
   stage: "Frontend Int Tests Core"
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$DOCKER_ONLY || $CI_PIPELINE_SOURCE == "schedule"'
       when: never
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: manual
