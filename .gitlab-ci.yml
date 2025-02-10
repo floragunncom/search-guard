@@ -30,7 +30,6 @@ stages:
   - "Frontend Int Tests External Features"
   - "Frontend Compat Int Tests 1"
   - "Frontend Compat Int Tests 2"
-  - Veracode Scan
   - release
 
 workflow:
@@ -43,7 +42,7 @@ build:
   stage: build
   interruptible: true
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/ || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$CI_COMMIT_TAG =~ /^sg-.*/ '
       when: never
     - when: always
   tags:
@@ -226,7 +225,7 @@ deploy_snapshot:
     - job: build
       artifacts: true
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/ || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: never
     - when: always
   before_script:
@@ -282,8 +281,6 @@ deploy_staging:
   stage: package
   interruptible: true
   rules:
-    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
-      when: never    
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
   before_script:
     - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null
@@ -332,14 +329,11 @@ include:
   - local: 'ci/backend-int-tests-features.yml'
   - local: 'ci/frontend-int-tests.yml'
   - local: 'ci/frontend-int-tests-features.yml'
-  - local: 'ci/frontend-int-tests-external-features.yml'
-  - local: 'ci/veracode-scan.yml'  
+  - local: 'ci/frontend-int-tests-external-features.yml' 
 
 deploy_release:
   stage: release
   rules:
-    - if: '$VERACODE_SANDBOX_SCAN_ONLY'
-      when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
   before_script:
     - rm -rf /var/lib/apt/lists/* && apt-get update -yqq && apt-get install -yqq openssh-client apt-utils jq perl libapr1 openssl libxml2-utils curl uuid-runtime ftp gnupg2 pinentry-tty expect psmisc xmlstarlet apt-transport-https zip netcat xmlstarlet sudo > /dev/null

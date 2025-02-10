@@ -26,7 +26,6 @@
 		<!-- assembly descriptors -->
 		<elasticsearch.assembly.descriptor>${basedir}/src/main/assemblies/plugin.xml</elasticsearch.assembly.descriptor>
 		<sgstandalone.descriptor>${basedir}/src/main/assemblies/sgadmin-standalone.xml</sgstandalone.descriptor>
-		<veracode.descriptor>${basedir}/src/main/assemblies/veracode.xml</veracode.descriptor>
 	</properties>
 
 	<build>
@@ -185,46 +184,6 @@
 					<version>${project.version}</version>
 				</dependency>
 			</dependencies>
-		</profile>
-		<profile>
-			<id>veracode-one-jar</id>
-			<dependencies>
-				<dependency>
-					<groupId>org.elasticsearch</groupId>
-					<artifactId>elasticsearch</artifactId>
-					<version>${elasticsearch.version}</version>
-				</dependency>
-				<dependency>
-					<groupId>org.elasticsearch.plugin</groupId>
-					<artifactId>elasticsearch-scripting-painless-spi</artifactId>
-				</dependency>
-			</dependencies>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-shade-plugin</artifactId>
-						<version>3.5.1</version>
-						<executions>
-							<execution>
-								<phase>package</phase>
-								<goals>
-									<goal>shade</goal>
-								</goals>
-								<configuration>
-									<outputFile>${project.build.directory}/releases/search-guard-veracode.jar</outputFile>
-									<artifactSet>
-										<includes>
-											<include>*:search-guard*</include>
-											<include>*:dlic-search-guard*</include>
-										</includes>
-									</artifactSet>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
 		</profile>
 	</profiles>
 </project>
