@@ -4,7 +4,7 @@ test_security:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never    
     - when: always
   script:
@@ -28,7 +28,7 @@ test_security_legacy:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never   
     - when: always
   script:
@@ -52,7 +52,7 @@ test_ssl:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never   
     - when: always
   script:
@@ -76,7 +76,7 @@ test_signals:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
     - when: always
   script:
@@ -100,7 +100,7 @@ test_scheduler:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never      
     - when: always
   script:
@@ -124,7 +124,7 @@ test_support:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never    
     - when: always
   script:
@@ -148,7 +148,7 @@ test_dlic_security:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never      
     - when: always
   script:
@@ -172,7 +172,7 @@ test_dlic_security_legacy:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
     - when: always
   script:
@@ -196,7 +196,7 @@ test_dlic_dlsfls:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
     - when: always
   script:
@@ -220,7 +220,7 @@ test_dlic_femt:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
     - when: always
   script:
@@ -244,7 +244,7 @@ test_dlic_auditlog:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
     - when: always
   script:
@@ -268,7 +268,7 @@ test_dlic_signals:
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
     - when: always
   script:

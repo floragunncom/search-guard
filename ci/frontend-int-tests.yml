@@ -127,7 +127,7 @@ fe_kerberos:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: manual
-    - if: $CI_PIPELINE_SOURCE == "schedule || $VERACODE_SANDBOX_SCAN_ONLY"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
       when: never
   variables:
     TEST: "«TBD»"
