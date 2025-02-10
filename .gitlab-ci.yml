@@ -32,7 +32,6 @@ stages:
   - "Frontend Int Tests External Features"
   - "Frontend Compat Int Tests 1"
   - "Frontend Compat Int Tests 2"
-  # - Veracode Scan
   - release
   - "Deploy Docker Image"
 
@@ -65,7 +64,7 @@ build:
   stage: build
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_TAG =~ /^sg-.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_TAG =~ /^sg-.*/'
       when: never
     - when: always
   tags:
@@ -89,7 +88,7 @@ build_for_tag_version:
   stage: build
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: always
@@ -123,7 +122,7 @@ test_security:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - when: always
   tags:
@@ -147,7 +146,7 @@ test_security_legacy:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - when: always
   tags:
@@ -171,7 +170,7 @@ test_ssl:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - when: always
   tags:
@@ -195,7 +194,7 @@ test_signals:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - when: always
   tags:
@@ -219,7 +218,7 @@ test_scheduler:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY '
       when: never
     - when: always
   tags:
@@ -243,7 +242,7 @@ test_support:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - when: always
   tags:
@@ -267,7 +266,7 @@ test_dlic_security:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - when: always
   tags:
@@ -291,7 +290,7 @@ test_dlic_security_legacy:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - when: always
   tags:
@@ -315,7 +314,7 @@ test_dlic_dlsfls:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - when: always
   tags:
@@ -339,7 +338,7 @@ test_dlic_dlsfls_legacy:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - when: always
   tags:
@@ -363,7 +362,7 @@ test_dlic_femt:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - when: always
   tags:
@@ -387,7 +386,7 @@ test_dlic_auditlog:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - when: always
   tags:
@@ -411,7 +410,7 @@ test_dlic_signals:
   stage: test
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - when: always
   tags:
@@ -441,7 +440,7 @@ deploy_snapshot:
     - job: build
       artifacts: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY || $CI_COMMIT_TAG =~ /^sg-.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_TAG =~ /^sg-.*/'
       when: never
     - when: always
   script:
@@ -495,7 +494,7 @@ deploy_staging:
   stage: package
   interruptible: true
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: always
@@ -546,7 +545,6 @@ include:
   - local: '.gitlab-ci-branch-specific.yml'
   - local: 'ci/backend-int-tests.yml'
   - local: 'ci/backend-int-tests-features.yml'
-  - local: 'ci/veracode-scan.yml'  
   - local: 'ci/frontend-int-tests.yml'
   - local: 'ci/frontend-int-tests-features.yml'
   - local: 'ci/frontend-int-tests-external-features.yml'
@@ -556,7 +554,7 @@ include:
 deploy_release:
   stage: release
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: on_success
@@ -592,7 +590,7 @@ deploy_docker_image:
   rules:
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: on_success
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
   tags:
     - build
