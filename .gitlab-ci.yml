@@ -62,7 +62,6 @@ stages:
   #- "Frontend Int Tests External Features"
   #- "Frontend Compat Int Tests 1"
   #- "Frontend Compat Int Tests 2"
-  - Veracode Scan
   - release
   - "Deploy Docker Image"
 
@@ -71,7 +70,6 @@ include:
   - local: '.gitlab-ci-branch-specific.yml'
   - local: 'ci/backend-int-tests.yml'
   - local: 'ci/backend-unit-tests.yml'
-  - local: 'ci/veracode-scan.yml'  
   #- local: 'ci/frontend-int-tests.yml'
   #- local: 'ci/frontend-int-tests-features.yml'
   #- local: 'ci/frontend-int-tests-external-features.yml'
@@ -83,7 +81,7 @@ build:
   allow_failure: false
   stage: build
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - when: always
   script:
@@ -114,7 +112,7 @@ deploy_release:
   interruptible: false
   stage: release
   rules:
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
     - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
       when: on_success
@@ -144,7 +142,7 @@ deploy_docker_image:
   rules:
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: on_success
-    - if: '$DOCKER_ONLY || $VERACODE_SANDBOX_SCAN_ONLY'
+    - if: '$DOCKER_ONLY'
       when: never
   tags:
     - build
