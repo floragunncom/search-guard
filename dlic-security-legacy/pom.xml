@@ -128,7 +128,7 @@
     <dependency>
       <!-- Replacement for bcprov-jdk18on (see above)  -->
       <groupId>org.bouncycastle</groupId>
-      <artifactId>bcpkix-lts8on</artifactId>
+      <artifactId>bcpkix-jdk18on</artifactId>
     </dependency>
 
     <dependency>
