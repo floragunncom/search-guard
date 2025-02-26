@@ -39,6 +39,7 @@ import com.floragunn.fluent.collections.ImmutableList;
  */
 public class StaticSettings {
     public static final StaticSettings EMPTY = new StaticSettings(Settings.EMPTY, null);
+    public static final TimeValue DEFAULT_MASTER_TIMEOUT = TimeValue.timeValueSeconds(30);
     private static final Logger log = LogManager.getLogger(StaticSettings.class);
 
     private final org.elasticsearch.common.settings.Settings settings;
@@ -52,11 +53,11 @@ public class StaticSettings {
     }
 
     public Path getPlatformPluginsDirectory() {
-        return this.environment.pluginsFile();
+        return this.environment.pluginsDir();
     }
     
     public Path getPatformConfigDirectory() {
-        return this.environment.configFile();
+        return this.environment.configDir();
     }
 
     public <V> V get(Attribute<V> option) {

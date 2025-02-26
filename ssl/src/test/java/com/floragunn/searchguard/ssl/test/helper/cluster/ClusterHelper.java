@@ -64,6 +64,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import static com.floragunn.searchsupport.StaticSettings.DEFAULT_MASTER_TIMEOUT;
+
 public final class ClusterHelper {
 
     static {
@@ -300,7 +302,7 @@ public final class ClusterHelper {
                 //System.out.println("-- Time out while waiting for test cluster --");
                 log.error(Strings.toString(healthResponse));
                 log.error(Strings.toString(client.execute(TransportPendingClusterTasksAction.TYPE, new PendingClusterTasksRequest(masterNodeTimeout)).actionGet()));
-                log.error(Strings.toString(client.admin().indices().getIndex(new GetIndexRequest().includeDefaults(true).features(GetIndexRequest.Feature.MAPPINGS)).actionGet()));
+                log.error(Strings.toString(client.admin().indices().getIndex(new GetIndexRequest(DEFAULT_MASTER_TIMEOUT).includeDefaults(true).features(GetIndexRequest.Feature.MAPPINGS)).actionGet()));
                 log.error(Strings.toString(client.admin().indices().stats(new IndicesStatsRequest().all()).actionGet()));
                 log.error(Strings.toString(client.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet()));
                 log.error(Strings.toString(client.admin().cluster().nodesStats(new NodesStatsRequest()).actionGet()));

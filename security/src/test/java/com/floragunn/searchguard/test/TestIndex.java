@@ -20,6 +20,7 @@ package com.floragunn.searchguard.test;
 import java.util.Map;
 import java.util.Set;
 
+import com.floragunn.searchsupport.StaticSettings;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
@@ -48,7 +49,7 @@ public class TestIndex implements TestIndexLike {
         try (StoredContext stored = threadContext.newStoredContext()) {
              threadContext.putHeader(SystemIndices.SYSTEM_INDEX_ACCESS_CONTROL_HEADER_KEY, "true");
             try {
-                client.admin().indices().getIndex(new GetIndexRequest().indices(name)).actionGet();
+                client.admin().indices().getIndex(new GetIndexRequest(StaticSettings.DEFAULT_MASTER_TIMEOUT).indices(name)).actionGet();
             } catch (IndexNotFoundException e) {
                 testData.createIndex(client, name, settings);
             }

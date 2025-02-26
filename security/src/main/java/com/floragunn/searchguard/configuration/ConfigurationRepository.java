@@ -190,9 +190,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.mainConfigLoader = new ConfigurationLoader(client, componentState, this, staticSgConfig);
         this.externalUseConfigLoader = new ConfigurationLoader(client, null, this, null);
         this.variableResolvers = new VariableResolvers()
-                .with("file", (file) -> VariableResolvers.FILE_PRIVILEGED.apply(environment.configFile().resolve(file).toAbsolutePath().toString()))
+                .with("file", (file) -> VariableResolvers.FILE_PRIVILEGED.apply(environment.configDir().resolve(file).toAbsolutePath().toString()))
                 .with("env", VariableResolvers.ENV).with("var", (key) -> configVarService.get(key))
-                .with("json_file", (file) -> VariableResolvers.JSON_FILE_PRIVILEGED.apply(environment.configFile().resolve(file).toAbsolutePath().toString()));
+                .with("json_file", (file) -> VariableResolvers.JSON_FILE_PRIVILEGED.apply(environment.configDir().resolve(file).toAbsolutePath().toString()));
         ImmutableMap<String, PipeExpression.PipeFunction> pipeFunctions = PipeExpression.PipeFunction.all() //
             .with(BcryptPipeFunction.NAME, new BcryptPipeFunction());
         this.parserContext = new Context(variableResolvers, modulesRegistry, settings, xContentRegistry, pipeFunctions);
@@ -398,7 +398,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 
                 try {
 
-                    final Map<String, List<AliasMetadata>> aliasMetadata = client.admin().indices().getAliases(new GetAliasesRequest(searchguardIndex)).actionGet().getAliases();
+                    final Map<String, List<AliasMetadata>> aliasMetadata = client.admin().indices().getAliases(new GetAliasesRequest(StaticSettings.DEFAULT_MASTER_TIMEOUT, searchguardIndex)).actionGet().getAliases();
 
                     if(aliasMetadata != null && aliasMetadata.size() == 1) {
 

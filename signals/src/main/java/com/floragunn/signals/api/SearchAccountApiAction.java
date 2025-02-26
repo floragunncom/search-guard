@@ -13,7 +13,6 @@ import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.action.RestToXContentListener;
-import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.signals.actions.account.search.SearchAccountAction;
@@ -36,15 +35,10 @@ public class SearchAccountApiAction extends BaseRestHandler {
 
     @Override
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        String scroll = request.param("scroll");
         int from = request.paramAsInt("from", -1);
         int size = request.paramAsInt("size", -1);
 
         SearchAccountRequest searchDestinationRequest = new SearchAccountRequest();
-
-        if (scroll != null) {
-            searchDestinationRequest.setScroll(new Scroll(parseTimeValue(scroll, null, "scroll")));
-        }
 
         searchDestinationRequest.setFrom(from);
         searchDestinationRequest.setSize(size);
