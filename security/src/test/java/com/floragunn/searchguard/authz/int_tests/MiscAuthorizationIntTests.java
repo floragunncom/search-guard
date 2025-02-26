@@ -32,6 +32,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 
+import com.floragunn.searchsupport.StaticSettings;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -298,7 +299,7 @@ public class MiscAuthorizationIntTests {
 
 
         clientFof = clusterFof.getInternalNodeClient();
-        boolean exists = clientFof.admin().indices().getIndex(new GetIndexRequest().indices(targetIndex)).actionGet().indices().length > 0;
+        boolean exists = clientFof.admin().indices().getIndex(new GetIndexRequest(StaticSettings.DEFAULT_MASTER_TIMEOUT).indices(targetIndex)).actionGet().indices().length > 0;
         assertThat(exists, is(true));
 
     }

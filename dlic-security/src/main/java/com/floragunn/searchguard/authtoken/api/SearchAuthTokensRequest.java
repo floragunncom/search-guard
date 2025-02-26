@@ -51,7 +51,7 @@ public class SearchAuthTokensRequest extends ActionRequest {
     @Override
     public void writeTo(final StreamOutput out) throws IOException {
         super.writeTo(out);
-        out.writeOptionalWriteable(scroll);
+        out.writeOptionalWriteable(null);
         out.writeInt(from);
         out.writeInt(size);
         out.writeOptionalWriteable(searchSourceBuilder);
@@ -66,16 +66,9 @@ public class SearchAuthTokensRequest extends ActionRequest {
         return searchSourceBuilder;
     }
 
-    public Scroll getScroll() {
-        return scroll;
-    }
 
     public void setSearchSourceBuilder(SearchSourceBuilder searchSourceBuilder) {
         this.searchSourceBuilder = searchSourceBuilder;
-    }
-
-    public void setScroll(Scroll scroll) {
-        this.scroll = scroll;
     }
 
     public int getFrom() {

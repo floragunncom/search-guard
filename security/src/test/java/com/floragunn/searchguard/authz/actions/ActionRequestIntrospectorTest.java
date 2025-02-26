@@ -22,6 +22,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.floragunn.searchsupport.StaticSettings;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -54,7 +55,7 @@ public class ActionRequestIntrospectorTest {
 
     @Test
     public void getAliasesRequest() {
-        GetAliasesRequest request = new GetAliasesRequest("alias_a1", "alias_a2").indices("index_a11", "index_a12", "index_a21", "index_a22");
+        GetAliasesRequest request = new GetAliasesRequest(StaticSettings.DEFAULT_MASTER_TIMEOUT, "alias_a1", "alias_a2").indices("index_a11", "index_a12", "index_a21", "index_a22");
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(GetAliasesAction.NAME), request);
         assertThat(requestInfo, resolved(//
                 main().hasIndices("index_a11", "index_a12", "index_a21", "index_a22").hasNoAliases().hasNoDataStreams(),
@@ -63,7 +64,7 @@ public class ActionRequestIntrospectorTest {
 
     @Test
     public void getAliasesRequest_aliasPattern_noWildcards() {
-        GetAliasesRequest request = new GetAliasesRequest("alias_a*").indices("index_a1*")
+        GetAliasesRequest request = new GetAliasesRequest(StaticSettings.DEFAULT_MASTER_TIMEOUT,"alias_a*").indices("index_a1*")
                 .indicesOptions(IndicesOptions.strictSingleIndexNoExpandForbidClosed());
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(GetAliasesAction.NAME), request);
         assertThat(requestInfo, resolved(//
