@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.http.HttpBody;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
@@ -126,8 +127,9 @@ public class FakeRestRequest extends RestRequest {
     }
 
     @Override
-    public BytesReference content() {
-        return content;
+    public ReleasableBytesReference content() {
+        // TODO ES9 - ref counted and memory leak possible here
+        return ReleasableBytesReference.wrap(content);
     }
 
     public static class Builder {

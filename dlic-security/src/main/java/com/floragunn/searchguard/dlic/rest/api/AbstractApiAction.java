@@ -43,6 +43,7 @@ import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -423,8 +424,8 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		}
 
 		@Override
-		public BytesReference content() {
-			return content;
+		public ReleasableBytesReference content() {
+			return ReleasableBytesReference.wrap(content); // TODO ES9 ReleasableBytesReference implements
 		}
 	}
 

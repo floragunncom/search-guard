@@ -16,6 +16,7 @@ package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.client.SearchScroller;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -113,7 +114,7 @@ class StepRepository {
     public Optional<GetIndexResponse> findIndexByNameOrAlias(String indexNameOrAlias) {
         Strings.requireNonEmpty(indexNameOrAlias, "Index or alias name is required");
         try {
-            GetIndexRequest request = new GetIndexRequest();
+            GetIndexRequest request = new GetIndexRequest(StaticSettings.DEFAULT_MASTER_TIMEOUT);
             request.indices(indexNameOrAlias);
             GetIndexResponse response = client.admin().indices().getIndex(request).actionGet();
             return Optional.ofNullable(response);
@@ -123,7 +124,7 @@ class StepRepository {
     }
 
     public GetIndexResponse findAllIndicesIncludingHidden() {
-        GetIndexRequest request = new GetIndexRequest().indices("*").indicesOptions(IndicesOptions.strictExpandHidden());
+        GetIndexRequest request = new GetIndexRequest(StaticSettings.DEFAULT_MASTER_TIMEOUT).indices("*").indicesOptions(IndicesOptions.strictExpandHidden());
         return client.admin().indices().getIndex(request).actionGet();
     }
 
@@ -162,7 +163,7 @@ class StepRepository {
 
     public GetMappingsResponse findIndexMappings(String indexName) {
         Strings.requireNonEmpty(indexName, "Index name is required");
-        return client.admin().indices().getMappings(new GetMappingsRequest().indices(indexName)).actionGet();
+        return client.admin().indices().getMappings(new GetMappingsRequest(StaticSettings.DEFAULT_MASTER_TIMEOUT).indices(indexName)).actionGet();
     }
 
     public void createIndex(String name, int numberOfShards, int numberOfReplicas, long mappingsTotalFieldsLimit,

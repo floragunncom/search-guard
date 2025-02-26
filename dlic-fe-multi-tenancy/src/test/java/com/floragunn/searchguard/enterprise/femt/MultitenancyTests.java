@@ -26,6 +26,7 @@ import co.elastic.clients.elasticsearch.core.mget.MultiGetResponseItem;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.client.RestHighLevelClient;
+import com.floragunn.searchsupport.StaticSettings;
 import com.google.common.collect.ImmutableList;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
@@ -622,7 +623,7 @@ public class MultitenancyTests {
                 response = adminCertClient.put("/_searchguard/config/fe_multi_tenancy/activation");
 
                 assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
-                GetMappingsRequest request = new GetMappingsRequest().indices(indices.toArray(String[]::new));
+                GetMappingsRequest request = new GetMappingsRequest(StaticSettings.DEFAULT_MASTER_TIMEOUT).indices(indices.toArray(String[]::new));
                 GetMappingsResponse mappingsResponse = client.admin().indices().getMappings(request).actionGet();
                 Map<String, MappingMetadata> mappings = mappingsResponse.getMappings();
                 long numberOfIndicesWithExtendedMappings = indices.stream() //

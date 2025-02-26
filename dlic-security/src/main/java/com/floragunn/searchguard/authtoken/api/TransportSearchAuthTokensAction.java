@@ -61,10 +61,6 @@ public class TransportSearchAuthTokensAction extends AbstractTransportAuthTokenA
 
         SearchRequest searchRequest = new SearchRequest(authTokenService.getIndexName());
 
-        if (request.getScroll() != null) {
-            searchRequest.scroll(request.getScroll());
-        }
-
         SearchSourceBuilder searchSourceBuilder = request.getSearchSourceBuilder();
 
         TransportAddress userRemoteAddress = (TransportAddress) this.threadPool.getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);

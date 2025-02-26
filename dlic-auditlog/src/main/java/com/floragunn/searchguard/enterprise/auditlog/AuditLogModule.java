@@ -54,7 +54,7 @@ public class AuditLogModule implements SearchGuardModule {
         //only when audit logging is enabled
         if (baseDependencies.getSettings().get(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT) != null) {
             this.auditLogConfig = new AuditLogConfig(baseDependencies.getEnvironment(), baseDependencies.getConfigurationRepository());
-            this.auditLog = new AuditLogImpl(baseDependencies.getSettings(), baseDependencies.getEnvironment().configFile(),
+            this.auditLog = new AuditLogImpl(baseDependencies.getSettings(), baseDependencies.getEnvironment().configDir(),
                     baseDependencies.getLocalClient(), baseDependencies.getThreadPool(), baseDependencies.getIndexNameExpressionResolver(),
                     baseDependencies.getClusterService(), baseDependencies.getConfigurationRepository());
             this.auditLog.setComplianceConfig(auditLogConfig);

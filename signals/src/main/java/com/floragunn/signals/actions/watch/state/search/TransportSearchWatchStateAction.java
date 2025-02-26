@@ -76,10 +76,6 @@ public class TransportSearchWatchStateAction extends HandledTransportAction<Sear
 
                 SearchRequest searchRequest = new SearchRequest(signals.getSignalsSettings().getStaticSettings().getIndexNames().getWatchesState());
 
-                if (request.getScroll() != null) {
-                    searchRequest.scroll(request.getScroll());
-                }
-
                 SearchSourceBuilder searchSourceBuilder = request.getSearchSourceBuilder();
 
                 if (searchSourceBuilder == null) {
