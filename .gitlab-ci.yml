@@ -90,9 +90,10 @@ build:
        SNAPSHOT_REVISION="$CI_COMMIT_REF_NAME-SNAPSHOT"
        echo "org.slf4j.simpleLogger.log.org.apache.maven.wagon.providers.http.httpclient=debug" >> $MAVEN_HOME\conf\logging\simplelogger.properties
        echo "org.slf4j.simpleLogger.log.org.apache.maven.wagon.providers.http.httpclient.wire=debug" >> $MAVEN_HOME\conf\logging\simplelogger.properties
-       echo "org.apache.http.level=DEBUG" >> $MAVEN_HOME\conf\logging\simplelogger.properties
-       echo "org.apache.http.wire.level=DEBUG" >> $MAVEN_HOME\conf\logging\simplelogger.properties
-       mvn -X -Djava.util.logging.config.file=$MAVEN_HOME\conf\logging\simplelogger.properties -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
+       echo "org.slf4j.simpleLogger.log.org.apache.http.level=DEBUG" >> $MAVEN_HOME\conf\logging\simplelogger.properties
+       echo "org.slf4j.simpleLogger.log.org.apache.http.wire.level=DEBUG" >> $MAVEN_HOME\conf\logging\simplelogger.properties
+       export MAVEN_OPTS="$MAVEN_OPTS -Djava.util.logging.config.file=$MAVEN_HOME\conf\logging\simplelogger.properties"
+       mvn -X -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
        echo "ES_VERSION=$ES_VERSION" >> snapshot.env
        cat snapshot.env
