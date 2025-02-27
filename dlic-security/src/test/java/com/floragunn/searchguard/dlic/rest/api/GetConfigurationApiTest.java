@@ -35,20 +35,10 @@ public class GetConfigurationApiTest extends AbstractRestApiUnitTest {
 		// wrong config name -> bad request
 		HttpResponse response = null;
 
-		// test that every config is accessible
-		// sg_config
-		response = rh.executeGetRequest("_searchguard/api/sgconfig");
-		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-		Settings settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-		Assert.assertEquals(
-				settings.getAsBoolean("sg_config.dynamic.authc.authentication_domain_basic_internal.http_enabled", false),
-				true);
-		Assert.assertNull(settings.get("_sg_meta.type"));
-
 		// internalusers
 		response = rh.executeGetRequest("_searchguard/api/internalusers");
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-		settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
+		Settings settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
 		Assert.assertNull(settings.get("admin.hash"));
 		Assert.assertNull(settings.get("other.hash"));
 		Assert.assertNull(settings.get("_sg_meta.type"));

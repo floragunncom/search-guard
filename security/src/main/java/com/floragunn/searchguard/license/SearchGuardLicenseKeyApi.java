@@ -30,8 +30,6 @@ import com.floragunn.searchguard.configuration.api.TypeLevelConfigApi;
 import com.floragunn.searchsupport.action.RestApi;
 import com.google.common.collect.ImmutableList;
 
-import java.util.List;
-
 public class SearchGuardLicenseKeyApi extends TypeLevelConfigApi {
 
     public static final RestApi REST_API = new RestApi()//

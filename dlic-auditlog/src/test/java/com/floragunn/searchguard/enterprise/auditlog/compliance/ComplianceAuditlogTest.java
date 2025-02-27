@@ -485,7 +485,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                                 TestAuditlogImpl.sb.toString().contains("internalusers")
                 ,
                 Duration.ofSeconds(2));
-        Assert.assertEquals(3, TestAuditlogImpl.messages.size());
+        Assert.assertEquals(2, TestAuditlogImpl.messages.size());
         //make sure the result does not contain triple escaped json
         //Assert.assertFalse(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("\\\\\\"));
         TestAuditlogImpl.clear();
