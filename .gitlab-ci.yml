@@ -27,7 +27,6 @@ default:
         echo "Executing default before_script for: $CI_JOB_NAME in stage: $CI_JOB_STAGE because of: $CI_PIPELINE_SOURCE with image $CI_JOB_IMAGE"
         echo "CI_COMMIT_BRANCH: $CI_COMMIT_BRANCH"
         echo "CI_COMMIT_REF_NAME: $CI_COMMIT_REF_NAME"
-        echo "CI_COMMIT_REF_SLUG: $CI_COMMIT_REF_SLUG"
         echo "CI_COMMIT_TAG: $CI_COMMIT_TAG"
         
         set +e
@@ -63,7 +62,6 @@ stages:
   #- "Frontend Int Tests External Features"
   #- "Frontend Compat Int Tests 1"
   #- "Frontend Compat Int Tests 2"
-  - "Aikido Scan"
   - release
   - "Deploy Docker Image"
 
@@ -77,7 +75,6 @@ include:
   #- local: 'ci/frontend-int-tests-external-features.yml'
   #- local: 'ci/frontend-int-tests-compat1.yml'
   #- local: 'ci/frontend-int-tests-compat2.yml'
-  - local: 'ci/aikido.yml'
 
 
 build:
