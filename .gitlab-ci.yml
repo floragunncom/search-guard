@@ -77,33 +77,6 @@ include:
   #- local: 'ci/frontend-int-tests-compat2.yml'
 
 
-build_es_snapshot:
-  image: gradle:8.11.1-jdk23-jammy
-  allow_failure: false
-  stage: prepare
-  rules:
-    - if: '$CI_COMMIT_BRANCH =~ /^bump-es-9$/'
-      when: always
-    - when: never
-  script:
-    - |
-       git clone https://github.com/elastic/elasticsearch.git --branch main --single-branch
-       cd elasticsearch
-       git checkout 97296598c3e8df2af53c2d49d8de97d16ef1dc56
-       ./gradlew localDistro publishToMavenLocal -x branchConsistency -x bwcTest -x check -x checkRestCompat -x internalClusterTest -x javaRestTest -x precommit  -x spotlessApply -x spotlessCheck -x spotlessDiagnose -x spotlessJava -x spotlessJavaApply -x spotlessJavaCheck -x spotlessJavaDiagnose -x test -x yamlRestCompatTest -x yamlRestTest
-       cp -r /root/.m2 ../
-       tar -czf elasticsearch-9.0.0-SNAPSHOT.tar.gz -C ./build/distribution/local elasticsearch-9.0.0-SNAPSHOT
-       cp elasticsearch-9.0.0-SNAPSHOT.tar.gz ../elasticsearch-9.0.0-SNAPSHOT.tar.gz
-       cp build/distribution/local/elasticsearch-9.0.0-SNAPSHOT/lib/platform/linux-x64/libvec.so build/distribution/local/elasticsearch-9.0.0-SNAPSHOT/lib/platform/linux-x64/libzstd.so ../
-  cache:
-    key: mavenrepo-main-es8
-    paths:
-      - .m2/repository
-      - elasticsearch-9.0.0-SNAPSHOT.tar.gz
-      - libvec.so
-      - libzstd.so
-    policy: push
-
 build:
   image: maven:3.9.9-eclipse-temurin-23-alpine
   allow_failure: false
@@ -115,7 +88,7 @@ build:
   script:
     - | 
        SNAPSHOT_REVISION="$CI_COMMIT_REF_NAME-SNAPSHOT"
-       mvn -Drevision=$SNAPSHOT_REVISION --batch-mode -s settings.xml -U -e -X -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
+       mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
        echo "ES_VERSION=$ES_VERSION" >> snapshot.env
        cat snapshot.env
@@ -132,7 +105,7 @@ build:
     key: mavenrepo-main-es8
     paths:
       - .m2/repository
-    policy: pull-push
+    policy: push
 
 
 deploy_release:
