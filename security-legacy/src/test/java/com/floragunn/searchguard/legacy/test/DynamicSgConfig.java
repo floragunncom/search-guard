@@ -36,6 +36,7 @@ public class DynamicSgConfig {
     private String sgInternalUsers = "sg_internal_users.yml";
     private String sgActionGroups = "sg_action_groups.yml";
     private String sgBlocks = "sg_blocks.yml";
+    private String sgAuthc = "sg_authc.yml";
     private String type = "_doc";
     private String legacyConfigFolder = "";
 
@@ -71,12 +72,6 @@ public class DynamicSgConfig {
         return this;
     }
     
-    public DynamicSgConfig setLegacy() {
-        this.type = "sg";
-        this.legacyConfigFolder = "legacy/sgconfig_v6/";
-        return this;
-    }
-
     public DynamicSgConfig setSgBlocks(String sgBlocks) {
         this.sgBlocks = sgBlocks;
         return this;
@@ -91,6 +86,11 @@ public class DynamicSgConfig {
         final String prefix = legacyConfigFolder+(folder == null?"":folder+"/");
         
         List<IndexRequest> ret = new ArrayList<>();
+        
+        ret.add(new IndexRequest(searchGuardIndexName)
+        .id(CType.AUTHC.toLCString())
+        .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
+        .source(CType.AUTHC.toLCString(), FileHelper.readYamlContent(prefix+sgAuthc)));
         
         ret.add(new IndexRequest(searchGuardIndexName)
         .id(CType.ACTIONGROUPS.toLCString())

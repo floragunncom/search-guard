@@ -183,14 +183,11 @@ public abstract class AbstractSGUnitTest {
             sr = tc.search(new SearchRequest("searchguard")).actionGet();
             sr.decRef();
 
-            Assert.assertTrue(tc.get(new GetRequest("searchguard", "config")).actionGet().isExists());
+            Assert.assertTrue(tc.get(new GetRequest("searchguard", "authc")).actionGet().isExists());
             Assert.assertTrue(tc.get(new GetRequest("searchguard", "internalusers")).actionGet().isExists());
             Assert.assertTrue(tc.get(new GetRequest("searchguard", "roles")).actionGet().isExists());
             Assert.assertTrue(tc.get(new GetRequest("searchguard", "rolesmapping")).actionGet().isExists());
             Assert.assertTrue(tc.get(new GetRequest("searchguard", "actiongroups")).actionGet().isExists());
-            Assert.assertFalse(tc.get(new GetRequest("searchguard", "rolesmapping_xcvdnghtu165759i99465")).actionGet().isExists());
-            Assert.assertTrue(tc.get(new GetRequest("searchguard", "config")).actionGet().isExists());
-
         }
     }
 
