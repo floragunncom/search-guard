@@ -32,9 +32,6 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
-import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
-import com.floragunn.searchguard.authc.rest.RestAuthcConfig;
-import com.floragunn.searchguard.authc.rest.authenticators.BasicAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig.AuthMethod;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
@@ -142,10 +139,6 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
 
             FrontendAuthcConfig frontendConfig = configRepository.getConfiguration(CType.FRONTEND_AUTHC).getCEntry(configId);
 
-            if (frontendConfig == null && configRepository.getConfiguration(CType.FRONTEND_AUTHC).getCEntries().isEmpty()) {
-                frontendConfig = getFallbackFrontendConfig();
-            }
-
             if (frontendConfig == null) {
                 throw notFound("No such frontend config: " + configId);
             }
@@ -207,27 +200,6 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
             return CompletableFuture.completedFuture(new Response(result, frontendConfig.getLoginPage()));
         }
 
-        private FrontendAuthcConfig getFallbackFrontendConfig() {
-            LegacySgConfig sgConfig = configRepository.getConfiguration(CType.CONFIG).getCEntry("sg_config");
-
-            if (sgConfig != null) {
-                if (sgConfig.getRestAuthcConfig().getAuthenticators().stream()
-                        .anyMatch((d) -> d.getFrontend() != null && "basic".equalsIgnoreCase(d.getFrontend().getType()))) {
-                    return FrontendAuthcConfig.BASIC;
-                }
-            }
-
-            RestAuthcConfig restAuthcConfig = configRepository.getConfiguration(CType.AUTHC).getCEntry("default");
-
-            if (restAuthcConfig != null) {
-                if (restAuthcConfig.getAuthenticators().stream().anyMatch((d) -> d.getFrontend() instanceof BasicAuthenticationFrontend)) {
-                    return FrontendAuthcConfig.BASIC;
-                }
-            }
-
-            return null;
-
-        }
     }
 
 }

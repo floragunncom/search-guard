@@ -21,10 +21,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.transport.TransportAddress;
 
-import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authc.AuthInfoService;
-import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authz.config.AuthorizationConfig;
 import com.floragunn.searchguard.authz.config.RoleMapping;
 import com.floragunn.searchguard.configuration.CType;
@@ -65,7 +63,6 @@ public class AuthorizationService implements ComponentStateProvider {
             @Override
             public void onChange(ConfigMap configMap) {
                 SgDynamicConfiguration<AuthorizationConfig> config = configMap.get(CType.AUTHZ);
-                SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
                 AuthorizationConfig authzConfig = AuthorizationConfig.DEFAULT;
 
                 if (config != null && config.getCEntry("default") != null) {
@@ -75,20 +72,7 @@ public class AuthorizationService implements ComponentStateProvider {
                     if (log.isDebugEnabled()) {
                         log.debug(authzConfig);
                     }
-                } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
-                    try {
-                        LegacySgConfig sgConfig = legacyConfig.getCEntry("sg_config");
-                        AuthorizationService.this.authzConfig = authzConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null,
-                                settings);
-
-                        log.info("Updated authz config (legacy):\n" + legacyConfig);
-                        if (log.isDebugEnabled()) {
-                            log.debug(authzConfig);
-                        }
-                    } catch (ConfigValidationException e) {
-                        log.error("Error while parsing sg_config:\n" + e);
-                    }
-                }
+                } 
 
                 roleMapping = new RoleMapping.InvertedIndex(configMap.get(CType.ROLESMAPPING), authzConfig.getMetricsLevel());
 

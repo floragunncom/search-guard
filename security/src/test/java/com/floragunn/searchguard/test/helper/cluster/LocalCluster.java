@@ -562,12 +562,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             this.testSgConfig.ignoreUnauthorizedIndices(ignoreUnauthorizedIndices);
             return this;
         }
-
-        public Builder sgConfigSettings(String keyPath, Object value, Object... more) {
-            this.testSgConfig.sgConfigSettings(keyPath, value, more);
-            return this;
-        }
-
+      
         public Builder authzDebug(boolean debug) {
             this.testSgConfig.authzDebug(debug);
             return this;

@@ -29,10 +29,10 @@ import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpServerTransport;
-import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
+import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -43,8 +43,6 @@ import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
-import com.floragunn.searchguard.authc.legacy.LegacyRestAuthenticationProcessor;
-import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.CType;
@@ -98,7 +96,6 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             @Override
             public void onChange(ConfigMap configMap) {
                 SgDynamicConfiguration<RestAuthcConfig> config = configMap.get(CType.AUTHC);
-                SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
 
                 if (config != null && config.getCEntry("default") != null) {
                     RestAuthenticationProcessor authenticationProcessor = new RestAuthenticationProcessor.Default(config.getCEntry("default"),
@@ -112,19 +109,6 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
                     if (log.isDebugEnabled()) {
                         log.debug("New configuration:\n" + config.getCEntry("default").toYamlString());
-                    }
-                } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
-                    RestAuthenticationProcessor authenticationProcessor = new LegacyRestAuthenticationProcessor(legacyConfig.getCEntry("sg_config"),
-                            modulesRegistry, adminDns, blockedIpRegistry, blockedUserRegistry, auditLog, threadPool, privilegesEvaluator);
-
-                    AuthenticatingRestFilter.this.authenticationProcessor = authenticationProcessor;
-
-                    componentState.replacePartsWithType("config", legacyConfig.getComponentState());
-                    componentState.replacePartsWithType("rest_authentication_processor", authenticationProcessor.getComponentState());
-                    componentState.updateStateFromParts();
-
-                    if (log.isDebugEnabled()) {
-                        log.debug("New legacy configuration:\n" + legacyConfig.getCEntry("sg_config").toYamlString());
                     }
                 } else {
                     componentState.setState(State.SUSPENDED, "no_configuration");

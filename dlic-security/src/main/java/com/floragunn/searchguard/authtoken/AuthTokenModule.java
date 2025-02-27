@@ -21,11 +21,6 @@ import java.util.List;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import com.floragunn.searchguard.configuration.CType;
-import com.floragunn.searchguard.configuration.ConfigMap;
-import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionRequest;
@@ -42,14 +37,11 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
 
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
-import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.authtoken.api.AuthTokenInfoAction;
 import com.floragunn.searchguard.authtoken.api.AuthTokenInfoRestAction;
@@ -66,6 +58,10 @@ import com.floragunn.searchguard.authtoken.api.TransportRevokeAuthTokenAction;
 import com.floragunn.searchguard.authtoken.api.TransportSearchAuthTokensAction;
 import com.floragunn.searchguard.authtoken.update.PushAuthTokenUpdateAction;
 import com.floragunn.searchguard.authtoken.update.TransportPushAuthTokenUpdateAction;
+import com.floragunn.searchguard.configuration.ConfigMap;
+import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.variables.ConfigVarService;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
@@ -133,27 +129,11 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
             @Override
             public void onChange(ConfigMap configMap) {
                 SgDynamicConfiguration<AuthTokenServiceConfig> config = configMap.get(AuthTokenServiceConfig.TYPE);
-                SgDynamicConfiguration<LegacySgConfig> sgConfig = configMap.get(CType.CONFIG);
 
                 if (config != null && config.getCEntry("default") != null) {
                     authTokenService.setConfig(config.getCEntry("default"));
                     componentState.setConfigVersion(config.getDocVersion());
                     componentState.setState(State.INITIALIZED, "using_config");
-                } else if (sgConfig != null && sgConfig.getCEntry("sg_config") != null) {
-                    DocNode docNode = sgConfig.getCEntry("sg_config").getSource().getAsNode("dynamic", "auth_token_provider");
-
-                    if (!docNode.isNull()) {
-                        try {
-                            AuthTokenServiceConfig authTokenServiceConfig = AuthTokenServiceConfig
-                                    .parse(docNode, configurationRepository.getParserContext()).get();
-
-                            authTokenService.setConfig(authTokenServiceConfig);
-                            componentState.setConfigVersion(sgConfig.getDocVersion());
-                            componentState.setState(State.INITIALIZED, "using_legacy_config");
-                        } catch (ConfigValidationException e) {
-                            log.error("Invalid config for AuthTokenService", e);
-                        }
-                    }
                 } else {
                     componentState.setState(State.SUSPENDED, "not_configured");
                 }

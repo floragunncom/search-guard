@@ -86,7 +86,6 @@ public class TestSgConfig {
     private static final Logger log = LogManager.getLogger(TestSgConfig.class);
 
     private String resourceFolder = null;
-    private NestedValueMap overrideSgConfigSettings;
     private NestedValueMap overrideUserSettings;
     private NestedValueMap overrideRoleSettings;
     private NestedValueMap overrideRoleMappingSettings;
@@ -117,31 +116,6 @@ public class TestSgConfig {
 
     public TestSgConfig var(String name, Supplier<Object> variableSupplier) {
         this.variableSuppliers.put(name, variableSupplier);
-        return this;
-    }
-
-    public TestSgConfig sgConfigSettings(String keyPath, Object value, Object... more) {
-        if (overrideSgConfigSettings == null) {
-            overrideSgConfigSettings = new NestedValueMap();
-        }
-
-        overrideSgConfigSettings.put(NestedValueMap.Path.parse(keyPath), value);
-
-        for (int i = 0; i < more.length - 1; i += 2) {
-            overrideSgConfigSettings.put(NestedValueMap.Path.parse(String.valueOf(more[i])), more[i + 1]);
-        }
-
-        return this;
-    }
-
-    public TestSgConfig xff(String proxies) {
-        if (overrideSgConfigSettings == null) {
-            overrideSgConfigSettings = new NestedValueMap();
-        }
-
-        overrideSgConfigSettings.put(new NestedValueMap.Path("sg_config", "dynamic", "http", "xff"),
-                NestedValueMap.of("enabled", true, "internalProxies", proxies));
-
         return this;
     }
 
@@ -302,16 +276,6 @@ public class TestSgConfig {
         return this.roleMapping(new RoleMapping(role.name).backendRoles(backendRoles));
     }
 
-    public TestSgConfig authFailureListener(AuthFailureListener authFailureListener) {
-        if (overrideSgConfigSettings == null) {
-            overrideSgConfigSettings = new NestedValueMap();
-        }
-
-        overrideSgConfigSettings.put(new NestedValueMap.Path("sg_config", "dynamic", "auth_failure_listeners"), authFailureListener.toMap());
-
-        return this;
-    }
-
     public TestSgConfig ignoreUnauthorizedIndices(boolean ignoreUnauthorizedIndices) {
         if (this.privileges == null) {
             this.privileges = new Authz();
@@ -346,11 +310,12 @@ public class TestSgConfig {
         result.resourceFolder = resourceFolder;
         result.indexName = indexName;
         result.overrideRoleSettings = overrideRoleSettings != null ? overrideRoleSettings.clone() : null;
-        result.overrideSgConfigSettings = overrideSgConfigSettings != null ? overrideSgConfigSettings.clone() : null;
         result.overrideUserSettings = overrideUserSettings != null ? overrideUserSettings.clone() : null;
         result.overrideRoleMappingSettings = overrideRoleMappingSettings != null ? overrideRoleMappingSettings.clone() : null;
         result.overrideFrontendConfigSettings = overrideFrontendConfigSettings != null ? overrideFrontendConfigSettings.clone() : null;
-        result.overrideFrontendMultiTenancyConfigSettings = overrideFrontendMultiTenancyConfigSettings != null ? overrideFrontendMultiTenancyConfigSettings.clone() : null;
+        result.overrideFrontendMultiTenancyConfigSettings = overrideFrontendMultiTenancyConfigSettings != null
+                ? overrideFrontendMultiTenancyConfigSettings.clone()
+                : null;
         result.overrideTenantSettings = overrideTenantSettings != null ? overrideTenantSettings.clone() : null;
 
         return result;
@@ -363,7 +328,6 @@ public class TestSgConfig {
         }
         client.admin().indices().create(new CreateIndexRequest(indexName).settings(settings)).actionGet();
 
-        writeOptionalConfigToIndex(client, CType.CONFIG, "sg_config.yml", overrideSgConfigSettings);
         writeOptionalConfigToIndex(client, CType.ROLES, "sg_roles.yml", overrideRoleSettings);
         writeOptionalConfigToIndex(client, CType.INTERNALUSERS, "sg_internal_users.yml", overrideUserSettings);
         writeOptionalConfigToIndex(client, CType.ROLESMAPPING, "sg_roles_mapping.yml", overrideRoleMappingSettings);
@@ -413,7 +377,6 @@ public class TestSgConfig {
 
         DocNode request = DocNode.EMPTY;
 
-        request = request.with(getConfigDocNode(CType.CONFIG, "sg_config.yml", overrideSgConfigSettings));
         request = request.with(getConfigDocNode(CType.ROLES, "sg_roles.yml", overrideRoleSettings));
         request = request.with(getConfigDocNode(CType.INTERNALUSERS, "sg_internal_users.yml", overrideUserSettings));
         request = request.with(getConfigDocNode(CType.ROLESMAPPING, "sg_roles_mapping.yml", overrideRoleMappingSettings));
@@ -762,18 +725,20 @@ public class TestSgConfig {
             return this;
         }
 
-        public User addFieldValueMatcher(String fieldJsonPath, boolean multipleDocuments, Matcher<?>...matchers) {
+        public User addFieldValueMatcher(String fieldJsonPath, boolean multipleDocuments, Matcher<?>... matchers) {
             Objects.requireNonNull(fieldJsonPath, "Document field JSON patch name must not be null");
-            if(documentFieldValueMatchers.containsKey(fieldJsonPath)) {
+            if (documentFieldValueMatchers.containsKey(fieldJsonPath)) {
                 throw new IllegalArgumentException("Field matcher for " + fieldJsonPath + " already exists");
             }
-            if(matchers == null || matchers.length == 0) {
+            if (matchers == null || matchers.length == 0) {
                 throw new IllegalArgumentException("At least one pattern must be provided");
             }
+            @SuppressWarnings("unchecked")
             Matcher<? super Iterable<? extends String>>[] everyFieldValueMatchers = Arrays.stream(matchers) //
-                .map(m -> multipleDocuments ? everyItem(m) : m) //
-                .toArray(Matcher[]::new);
-            Matcher<GenericRestClient.HttpResponse> fieldValueMatcher = json(distinctNodesAt(fieldJsonPath, allOf(not(emptyIterable()), allOf(everyFieldValueMatchers))));
+                    .map(m -> multipleDocuments ? everyItem(m) : m) //
+                    .toArray(Matcher[]::new);
+            Matcher<GenericRestClient.HttpResponse> fieldValueMatcher = json(
+                    distinctNodesAt(fieldJsonPath, allOf(not(emptyIterable()), allOf(everyFieldValueMatchers))));
             documentFieldValueMatchers.put(fieldJsonPath, fieldValueMatcher);
             return this;
         }
@@ -800,8 +765,6 @@ public class TestSgConfig {
             this.allowedActions = asList(allowedActions);
             this.role = role;
         }
-
-
 
         public TenantPermission(List<String> tenantPatterns, List<String> allowedActions) {
             this.tenantPatterns = Objects.requireNonNull(tenantPatterns, "Tenant patterns must not be null");
@@ -894,7 +857,7 @@ public class TestSgConfig {
 
             if (!this.indexPermissions.isEmpty()) {
                 map.put(new NestedValueMap.Path(name, "index_permissions"),
-                    this.indexPermissions.stream().map((p) -> p.toJsonMap()).collect(Collectors.toList()));
+                        this.indexPermissions.stream().map((p) -> p.toJsonMap()).collect(Collectors.toList()));
             }
 
             if (this.aliasPermissions.size() > 0) {
@@ -912,9 +875,8 @@ public class TestSgConfig {
             }
 
             if (this.tenantPermissions.size() > 0) {
-                map.put(new NestedValueMap.Path(name, "tenant_permissions"), this.tenantPermissions.stream()
-                    .map(TenantPermission::asNestedValueMap)
-                    .collect(Collectors.toList()));
+                map.put(new NestedValueMap.Path(name, "tenant_permissions"),
+                        this.tenantPermissions.stream().map(TenantPermission::asNestedValueMap).collect(Collectors.toList()));
             }
             return map;
         }
@@ -923,7 +885,8 @@ public class TestSgConfig {
             return toActualRole(new ConfigurationRepository.Context(null, null, null, null, null));
         }
 
-        public com.floragunn.searchguard.authz.config.Role toActualRole(ConfigurationRepository.Context parserContext) throws ConfigValidationException {
+        public com.floragunn.searchguard.authz.config.Role toActualRole(ConfigurationRepository.Context parserContext)
+                throws ConfigValidationException {
             return com.floragunn.searchguard.authz.config.Role.parse(DocNode.wrap(this.toDeepBasicObject()), parserContext).get();
         }
 
@@ -1099,7 +1062,6 @@ public class TestSgConfig {
             this.name = Objects.requireNonNull(name, "Name is required");
         }
 
-
         public Tenant reserved(boolean reserved) {
             this.reserved = reserved;
             return this;
@@ -1127,10 +1089,10 @@ public class TestSgConfig {
         public NestedValueMap toJsonMap() {
             NestedValueMap map = new NestedValueMap();
 
-            map.put(new NestedValueMap.Path( this.name, "reserved"), this.reserved);
-            map.put(new NestedValueMap.Path( this.name, "hidden"), this.hidden);
-            map.put(new NestedValueMap.Path( this.name, "static"), this.isStatic);
-            map.put(new NestedValueMap.Path( this.name, "description"), this.description);
+            map.put(new NestedValueMap.Path(this.name, "reserved"), this.reserved);
+            map.put(new NestedValueMap.Path(this.name, "hidden"), this.hidden);
+            map.put(new NestedValueMap.Path(this.name, "static"), this.isStatic);
+            map.put(new NestedValueMap.Path(this.name, "description"), this.description);
 
             return map;
         }
@@ -1520,10 +1482,8 @@ public class TestSgConfig {
 
         NestedValueMap toMap() {
             NestedValueMap result = new NestedValueMap();
-            result.put("auth_domains", authDomains.stream()
-                    .map(FrontendAuthDomain::toMap)
-                    .collect(Collectors.toList()));
-            if(loginPage != null) {
+            result.put("auth_domains", authDomains.stream().map(FrontendAuthDomain::toMap).collect(Collectors.toList()));
+            if (loginPage != null) {
                 result.put("login_page", loginPage.toMap());
             }
             return result;
@@ -1651,8 +1611,7 @@ public class TestSgConfig {
 
         @Override
         public Object toBasicObject() {
-            return ImmutableMap.ofNonNull("debug", debug, "metrics", metrics, "dls",
-                    ImmutableMap.ofNonNull("allow_now", dlsAllowNow, "mode", mode));
+            return ImmutableMap.ofNonNull("debug", debug, "metrics", metrics, "dls", ImmutableMap.ofNonNull("allow_now", dlsAllowNow, "mode", mode));
         }
 
         @Override
@@ -1772,8 +1731,8 @@ public class TestSgConfig {
 
         @Override
         public Object toBasicObject() {
-            return ImmutableMap.ofNonNull("kty", kty, "d", d, "use", use, "crv", crv, "x", x)
-                .with(ImmutableMap.ofNonNull("y", y, "alg", alg)).with(ImmutableMap.of("kid", kid, "k", k));
+            return ImmutableMap.ofNonNull("kty", kty, "d", d, "use", use, "crv", crv, "x", x).with(ImmutableMap.ofNonNull("y", y, "alg", alg))
+                    .with(ImmutableMap.of("kid", kid, "k", k));
         }
     }
 
@@ -1782,6 +1741,11 @@ public class TestSgConfig {
         private Boolean enabled;
         private String metrics;
         private String jwtSigningKeyHs512;
+        private String jwtEncryptionKeyA256kw;
+        private String jwtAudClaim;
+        private String maxValidity;
+        private Integer maxTokensPerUser;
+        private List<String> excludeClusterPermissions;
 
         public AuthTokenService() {
         }
@@ -1800,10 +1764,70 @@ public class TestSgConfig {
             this.jwtSigningKeyHs512 = jwtSigningKeyHs512;
             return this;
         }
+        
+        public AuthTokenService jwtEncryptionKeyA256kw(String jwtEncryptionKeyA256kw) {
+            this.jwtEncryptionKeyA256kw = jwtEncryptionKeyA256kw;
+            return this;
+        }
+
+        public AuthTokenService jwtAudClaim(String jwtAudClaim) {
+            this.jwtAudClaim = jwtAudClaim;
+            return this;
+        }
+
+        public AuthTokenService maxValidity(String maxValidity) {
+            this.maxValidity = maxValidity;
+            return this;
+        }
+
+        public AuthTokenService maxTokensPerUser(Integer maxTokensPerUser) {
+            this.maxTokensPerUser = maxTokensPerUser;
+            return this;
+        }
+        
+        public AuthTokenService excludeClusterPermissions(List<String> excludeClusterPermissions) {
+            this.excludeClusterPermissions = excludeClusterPermissions;
+            return this;
+        }
+
 
         @Override
         public Object toBasicObject() {
-            return ImmutableMap.ofNonNull("enabled", enabled, "metrics", metrics, "jwt_signing_key_hs512", jwtSigningKeyHs512);
+            Map<String, Object> result = new HashMap<>();
+
+            if (enabled != null) {
+                result.put("enabled", enabled);
+            }
+
+            if (metrics != null) {
+                result.put("metrics", metrics);
+            }
+
+            if (jwtSigningKeyHs512 != null) {
+                result.put("jwt_signing_key_hs512", jwtSigningKeyHs512);
+            }
+            
+            if (jwtEncryptionKeyA256kw != null) {
+                result.put("jwt_encryption_key_a256kw", jwtEncryptionKeyA256kw);
+            }
+
+            if (jwtAudClaim != null) {
+                result.put("jwt_aud_claim", jwtAudClaim);
+            }
+
+            if (maxValidity != null) {
+                result.put("max_validity", maxValidity);
+            }
+
+            if (maxTokensPerUser != null) {
+                result.put("max_tokens_per_user", maxTokensPerUser);
+            }
+            
+            if (excludeClusterPermissions != null) {
+                result.put("exclude_cluster_permissions", excludeClusterPermissions);
+            }
+
+            return result;
         }
 
         @Override
@@ -1919,7 +1943,7 @@ public class TestSgConfig {
     public static abstract class ConfigDocument<C> implements Document<C> {
         public abstract String configType();
 
-        public static DocNode bulkUpdateMap(ConfigDocument<?> ...configDocuments) {
+        public static DocNode bulkUpdateMap(ConfigDocument<?>... configDocuments) {
             DocNode result = DocNode.EMPTY;
 
             for (ConfigDocument<?> configDocument : configDocuments) {

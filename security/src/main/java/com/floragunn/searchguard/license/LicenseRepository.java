@@ -37,7 +37,6 @@ import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.validation.ValidationErrors;
-import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigUpdateException;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
@@ -69,12 +68,9 @@ public class LicenseRepository implements ComponentStateProvider {
         if (settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true)) {
             configurationRepository.subscribeOnChange((configMap) -> {
                 SgDynamicConfiguration<SearchGuardLicenseKey> config = configMap.get(CType.LICENSE_KEY);
-                SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
 
                 if (config != null && config.getCEntry("default") != null) {
                     useLicense(config.getCEntry("default"), config);
-                } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
-                    useLicense(legacyConfig.getCEntry("sg_config").getLicense(), legacyConfig);
                 } else {
                     useLicense(null, null);
                 }
