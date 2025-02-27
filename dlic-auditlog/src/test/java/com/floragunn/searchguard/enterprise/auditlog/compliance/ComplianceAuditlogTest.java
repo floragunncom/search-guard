@@ -457,8 +457,6 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         final Map<String, Map<String, ?>> configTypeToConfigMap = new LinkedHashMap<>();
 
         final Map<String, String> configsToUpdate = ImmutableMap.of(
-                "sg_config.yml",
-                "config",
                 "sg_internal_users.yml",
                 "internalusers",
                 "sg_roles.yml",
@@ -482,7 +480,7 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                                 TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_WRITE") &&
                                 !TestAuditlogImpl.sb.toString().contains("COMPLIANCE_INTERNAL_CONFIG_READ") &&
                                 TestAuditlogImpl.sb.toString().contains("sg_all_access") &&
-                                TestAuditlogImpl.sb.toString().contains("\"audit_trace_doc_id\" : \"config\"") &&
+                                TestAuditlogImpl.sb.toString().contains("\"audit_trace_doc_id\" : \"internalusers\"") &&
                                 TestAuditlogImpl.sb.toString().contains("UPDATE") &&
                                 TestAuditlogImpl.sb.toString().contains("internalusers")
                 ,

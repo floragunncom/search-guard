@@ -21,13 +21,14 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 public class FrontendConfigIntegrationTests {
 
     @Test
     public void testNonLegacy() throws Exception {
-        try (LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().resources("frontend_config").start()) {
+        try (LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().authc(TestSgConfig.Authc.DEFAULT).resources("frontend_config").start()) {
             try (GenericRestClient restClient = cluster.getRestClient("kibanaserver", "kibanaserver")) {
                 GenericRestClient.HttpResponse response = restClient.get("/_searchguard/auth/config");
 

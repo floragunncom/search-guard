@@ -146,6 +146,13 @@ public class AuthTokenIntegrationTest {
                 .authc(new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db")))
                 .users(USER_ALIAS_PUB_ACCESS, USER_DATA_STREAM_PUB_ACCESS).start()) {
 
+
+            try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+                HttpResponse response = client.postJson("/pub_test_allow_because_from_token/_doc?refresh=true", DocNode.of("this_is", "allowed"));
+                assertThat(response, isCreated());
+
+            }
+            
             String token;
 
             try (GenericRestClient restClient = cluster.getRestClient("spock", "spock")) {
@@ -554,7 +561,7 @@ public class AuthTokenIntegrationTest {
 
     @Test
     public void revocationWithoutSpecialPrivsTest() throws Exception {
-        TestSgConfig sgConfig = new TestSgConfig().resources("authtoken")//
+        TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").authc(TestSgConfig.Authc.DEFAULT)//
                 .authTokenService(
                         new TestSgConfig.AuthTokenService().enabled(true).jwtSigningKeyHs512(TestJwk.OCT_1_K).jwtAudClaim("searchguard_tokenauth")
                                 .maxValidity("1y").maxTokensPerUser(MAX_TOKEN_PER_USER).excludeClusterPermissions(Collections.emptyList()));
@@ -682,7 +689,7 @@ public class AuthTokenIntegrationTest {
 
     @Test
     public void encryptedAuthTokenTest() throws Exception {
-        TestSgConfig sgConfig = new TestSgConfig().resources("authtoken")//
+        TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").authc(TestSgConfig.Authc.DEFAULT)//
                 .authTokenService(new TestSgConfig.AuthTokenService().enabled(true).jwtSigningKeyHs512(TestJwk.OCT_1_K)
                         .jwtEncryptionKeyA256kw(TestJwk.OCT_256_1_K).jwtAudClaim("searchguard_tokenauth").maxValidity("1y")
                         .maxTokensPerUser(MAX_TOKEN_PER_USER));
