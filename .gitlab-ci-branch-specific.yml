@@ -1,4 +1,4 @@
 variables:
-  # IT_BRANCH: "8.15.x"
+  IT_BRANCH: "remove-legacy"
   SG_KI_PLUGIN: "b-master-SNAPSHOT"
   # KI_VERSION: "7.16.3" 
