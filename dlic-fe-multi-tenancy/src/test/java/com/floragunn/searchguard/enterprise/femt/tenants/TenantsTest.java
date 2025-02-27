@@ -30,6 +30,7 @@ import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestSgConfig.RoleMapping;
 import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchsupport.StaticSettings;
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
 import org.apache.logging.log4j.LogManager;
@@ -457,7 +458,7 @@ public class TenantsTest {
 
     private GetMappingsResponse getKibanaIndicesMappings() {
         Client client = cluster.getInternalNodeClient();
-        return client.admin().indices().getMappings(new GetMappingsRequest().indices(".kibana*")).actionGet();
+        return client.admin().indices().getMappings(new GetMappingsRequest(StaticSettings.DEFAULT_MASTER_TIMEOUT).indices(".kibana*")).actionGet();
     }
 
     private void createKibanaIndicesAndAliases() {

@@ -74,10 +74,6 @@ public class TransportSearchAccountAction extends HandledTransportAction<SearchA
 
                 SearchRequest searchRequest = new SearchRequest(this.signals.getSignalsSettings().getStaticSettings().getIndexNames().getAccounts());
 
-                if (request.getScroll() != null) {
-                    searchRequest.scroll(request.getScroll());
-                }
-
                 SearchSourceBuilder searchSourceBuilder = request.getSearchSourceBuilder();
 
                 if (searchSourceBuilder == null) {

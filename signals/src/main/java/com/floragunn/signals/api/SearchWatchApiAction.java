@@ -13,7 +13,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.action.RestToXContentListener;
-import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.signals.actions.watch.search.SearchWatchAction;
@@ -37,7 +36,6 @@ public class SearchWatchApiAction extends SignalsTenantAwareRestHandler {
 
     @Override
     protected final RestChannelConsumer getRestChannelConsumer(RestRequest request, NodeClient client) throws IOException {
-        String scroll = request.param("scroll");
         int from = request.paramAsInt("from", -1);
         int size = request.paramAsInt("size", -1);
 
@@ -46,10 +44,6 @@ public class SearchWatchApiAction extends SignalsTenantAwareRestHandler {
         request.param("tenant");
 
         SearchWatchRequest searchWatchRequest = new SearchWatchRequest();
-
-        if (scroll != null) {
-            searchWatchRequest.setScroll(new Scroll(parseTimeValue(scroll, null, "scroll")));
-        }
 
         searchWatchRequest.setFrom(from);
         searchWatchRequest.setSize(size);
