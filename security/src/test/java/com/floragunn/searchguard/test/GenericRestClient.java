@@ -104,6 +104,7 @@ public class GenericRestClient implements AutoCloseable {
         this.nodeHttpAddress = nodeHttpAddress;
         this.headers.addAll(headers);
         this.sslContext = sslContext;
+        this.enableHTTPClientSSL = sslContext != null;
         this.user = user;
         this.requestInfoConsumer = requestInfoConsumer;
     }

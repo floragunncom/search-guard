@@ -4,15 +4,12 @@ import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.PluginAwareNode;
 import org.junit.rules.ExternalResource;
 
-import com.floragunn.searchguard.legacy.test.DynamicSgConfig;
-import com.floragunn.searchguard.legacy.test.RestHelper;
-import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.NodeSettingsSupplier;
 import com.floragunn.searchguard.test.helper.cluster.ClusterConfiguration;
 import com.floragunn.searchguard.test.helper.cluster.ClusterHelper;
@@ -27,14 +24,11 @@ public class LocalCluster extends ExternalResource {
     protected ClusterInfo clusterInfo;
     protected final String resourceFolder;
 
-    public LocalCluster(String resourceFolder, ClusterConfiguration clusterConfiguration) throws Exception {
-        this(resourceFolder, new DynamicSgConfig(), Settings.EMPTY, clusterConfiguration);
-    }
 
-    public LocalCluster(String resourceFolder, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, ClusterConfiguration clusterConfiguration) {
+    public LocalCluster(String resourceFolder, Settings nodeOverride, ClusterConfiguration clusterConfiguration) {
         this.resourceFolder = resourceFolder;
 
-        setup(Settings.EMPTY, dynamicSgSettings, nodeOverride, true, clusterConfiguration);
+        setup(Settings.EMPTY,  nodeOverride, true, clusterConfiguration);
     }
 
     @Override
@@ -49,22 +43,6 @@ public class LocalCluster extends ExternalResource {
         }
     }
 
-    public RestHelper restHelper() {
-        return new RestHelper(clusterInfo, getResourceFolder());
-    }
-
-    public RestHelper restHelper(String keyStore) {
-        RestHelper result = restHelper();
-
-        result.keystore = keyStore;
-        result.sendHTTPClientCertificate = true;
-
-        return result;
-    }
-
-    public RestHelper nonSslRestHelper() {
-        return new RestHelper(clusterInfo, false, false, getResourceFolder());
-    }
 
     public <X> X getInjectable(Class<X> clazz) {
         return this.clusterHelper.node().injector().getInstance(clazz);
@@ -90,7 +68,7 @@ public class LocalCluster extends ExternalResource {
         return PrivilegedConfigClient.adapt(getNodeClient());
     }
 
-    private void setup(Settings initTransportClientSettings, DynamicSgConfig dynamicSgSettings, Settings nodeOverride, boolean initSearchGuardIndex,
+    private void setup(Settings initTransportClientSettings, Settings nodeOverride, boolean initSearchGuardIndex,
             ClusterConfiguration clusterConfiguration) {
 
         try {
@@ -206,7 +184,7 @@ public class LocalCluster extends ExternalResource {
                                     resourceFolder != null ? (resourceFolder + "/" + httpTruststoreFilepath) : httpTruststoreFilepath));
                 }
 
-                return new LocalCluster(resourceFolder, new DynamicSgConfig(), nodeOverrideSettingsBuilder.build(), clusterConfiguration);
+                return new LocalCluster(resourceFolder, nodeOverrideSettingsBuilder.build(), clusterConfiguration);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

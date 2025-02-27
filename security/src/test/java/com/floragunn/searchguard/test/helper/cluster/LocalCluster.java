@@ -548,6 +548,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return this;
         }
 
+        public Builder doNotInitializeSgConfig() {
+            this.testSgConfig = null;
+            return this;
+        }
+        
         public Builder sgConfig(TestSgConfig testSgConfig) {
             this.testSgConfig = testSgConfig;
             return this;

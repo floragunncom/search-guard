@@ -22,30 +22,6 @@ test_security:
       - .m2/repository
     policy: pull
 
-test_security_legacy:
-  stage: test
-  interruptible: true
-  tags:
-    - test
-  rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never   
-    - when: always
-  script:
-    - ci/run_tests.sh security-legacy
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo-main-es8
-    paths:
-      - .m2/repository
-    policy: pull
-
 test_ssl:
   stage: test
   interruptible: true
@@ -166,30 +142,6 @@ test_dlic_security:
       - .m2/repository
     policy: pull
     
-test_dlic_security_legacy:
-  stage: test
-  interruptible: true
-  tags:
-    - test
-  rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - when: always
-  script:
-    - ci/run_tests.sh dlic-security-legacy
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo-main-es8
-    paths:
-      - .m2/repository
-    policy: pull    
-
 test_dlic_dlsfls:
   stage: test
   interruptible: true

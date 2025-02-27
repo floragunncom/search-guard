@@ -57,11 +57,6 @@
     </dependency>
 
     <dependency>
-      <groupId>com.floragunn</groupId>
-      <artifactId>search-guard-flx-security-legacy</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>org.antlr</groupId>
       <artifactId>antlr4-runtime</artifactId>
       <version>4.11.1</version>
@@ -78,7 +73,6 @@
       <artifactId>elasticsearch-scripting-painless-spi</artifactId>
       <scope>test</scope>
     </dependency>
-    <!--    dependencies required to run painless scripts    -->
     <dependency>
       <groupId>org.elasticsearch.plugin</groupId>
       <artifactId>lang-painless</artifactId>
@@ -110,20 +104,20 @@
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
-
-    <dependency>
-      <groupId>com.floragunn</groupId>
-      <artifactId>search-guard-flx-security-legacy</artifactId>
-      <classifier>tests</classifier>
-      <scope>test</scope>
-    </dependency>
-
+    
     <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-support</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
-    <!--    end of dependencies required to run painless scripts    -->
+    
+    <dependency>
+      <groupId>com.floragunn</groupId>
+      <artifactId>search-guard-flx-legacy-test-framework</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 </project>

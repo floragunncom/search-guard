@@ -116,6 +116,16 @@ public interface EsClientProvider {
         return new GenericRestClient(getHttpAddress(), Arrays.asList(headers), sslContext, UserCredentialsHolder.basic(subject, null),
                 getRequestInfoConsumer());
     }
+    
+    default GenericRestClient getRestClientWithoutTls(Header... headers) {
+        return getRestClientWithoutTls(Arrays.asList(headers));
+    }
+
+    
+    default GenericRestClient getRestClientWithoutTls(List<Header> headers) {
+        return new GenericRestClient(getHttpAddress(), headers, null, null,
+                getRequestInfoConsumer());
+    }
 
     @Deprecated
     default RestHighLevelClient getRestHighLevelClient(UserCredentialsHolder user) {

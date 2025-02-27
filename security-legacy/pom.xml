@@ -16,9 +16,9 @@
     <version>${revision}</version>
   </parent>
 
-  <artifactId>search-guard-flx-security-legacy</artifactId>
+  <artifactId>search-guard-flx-legacy-test-framework</artifactId>
   <packaging>jar</packaging>
-  <name>Search Guard FLX: Legacy Security</name>
+  <name>Search Guard FLX: Legacy Test Framework</name>
 
   <dependencies>
 
@@ -35,20 +35,6 @@
           <artifactId>asm</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcpg-jdk15on</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcpkix-jdk15on</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcprov-jdk15on</artifactId>
     </dependency>
 
     <dependency>
