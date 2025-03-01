@@ -94,7 +94,7 @@ public class TestSgConfig {
     private NestedValueMap overrideTenantSettings;
     private Authc authc;
     private DlsFls dlsFls;
-    private Authz privileges;
+    private Authz authz;
     private Sessions sessions;
     private AuthTokenService authTokenService;
     private String indexName = ".searchguard";
@@ -276,21 +276,30 @@ public class TestSgConfig {
         return this.roleMapping(new RoleMapping(role.name).backendRoles(backendRoles));
     }
 
-    public TestSgConfig ignoreUnauthorizedIndices(boolean ignoreUnauthorizedIndices) {
-        if (this.privileges == null) {
-            this.privileges = new Authz();
+    public TestSgConfig roleMappingResolutionMode(String roleMappingResolutionMode) {
+        if (this.authz == null) {
+            this.authz = new Authz();
         }
 
-        this.privileges.ignoreUnauthorizedIndices(ignoreUnauthorizedIndices);
+        this.authz.roleMappingResolutionMode(roleMappingResolutionMode);
+        return this;
+    }
+    
+    public TestSgConfig ignoreUnauthorizedIndices(boolean ignoreUnauthorizedIndices) {
+        if (this.authz == null) {
+            this.authz = new Authz();
+        }
+
+        this.authz.ignoreUnauthorizedIndices(ignoreUnauthorizedIndices);
         return this;
     }
 
     public TestSgConfig authzDebug(boolean debug) {
-        if (this.privileges == null) {
-            this.privileges = new Authz();
+        if (this.authz == null) {
+            this.authz = new Authz();
         }
 
-        this.privileges.debug(debug);
+        this.authz.debug(debug);
         return this;
     }
 
@@ -343,8 +352,8 @@ public class TestSgConfig {
             writeOptionalConfigToIndex(client, CType.AUTHC, "sg_authc.yml", null);
         }
 
-        if (privileges != null) {
-            writeConfigToIndex(client, CType.AUTHZ, privileges);
+        if (authz != null) {
+            writeConfigToIndex(client, CType.AUTHZ, authz);
         } else {
             writeOptionalConfigToIndex(client, CType.AUTHZ, "sg_privileges.yml", null);
         }
@@ -385,7 +394,7 @@ public class TestSgConfig {
         request = request.with(getConfigDocNode(CType.BLOCKS, "sg_blocks.yml", null));
         request = request.with(getConfigDocNode(CType.FRONTEND_AUTHC, "sg_frontend_authc.yml", overrideFrontendConfigSettings));
 
-        request = request.with(ConfigDocument.bulkUpdateMap(authc != null ? authc : Authc.DEFAULT, privileges, sessions, dlsFls, authTokenService));
+        request = request.with(ConfigDocument.bulkUpdateMap(authc != null ? authc : Authc.DEFAULT, authz, sessions, dlsFls, authTokenService));
 
         if (variableSuppliers.size() != 0) {
             Map<String, Object> values = new HashMap<>();
@@ -1884,6 +1893,7 @@ public class TestSgConfig {
     public static class Authz extends ConfigDocument<Authz> {
         private boolean ignoreUnauthorizedIndices = true;
         private boolean debug = false;
+        private String roleMappingResolutionMode = null;
 
         public Authz() {
 
@@ -1903,9 +1913,15 @@ public class TestSgConfig {
             return this;
         }
 
+        public Authz roleMappingResolutionMode(String roleMappingResolutionMode) {
+            this.roleMappingResolutionMode = roleMappingResolutionMode;
+            return this;
+        }
+
         @Override
         public Object toBasicObject() {
-            return ImmutableMap.of("ignore_unauthorized_indices.enabled", ignoreUnauthorizedIndices, "debug", debug);
+            return ImmutableMap.ofNonNull("ignore_unauthorized_indices.enabled", ignoreUnauthorizedIndices, "debug", debug,
+                    "role_mapping.resolution_mode", roleMappingResolutionMode);
         }
 
         @Override

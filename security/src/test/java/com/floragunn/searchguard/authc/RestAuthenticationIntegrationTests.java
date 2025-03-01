@@ -170,7 +170,7 @@ public class RestAuthenticationIntegrationTests {
             GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
             assertThat(response, isOk());
             assertThat(response, json(nodeAt("user_name", is("user_with_attributes"))));
-            assertThat(response, json(nodeAt("backend_roles", containsInAnyOrder("sg_index_pattern_with_attr_role"))));
+            assertThat(response, json(nodeAt("sg_roles", containsInAnyOrder("sg_index_pattern_with_attr_role"))));
         }
     }
 
