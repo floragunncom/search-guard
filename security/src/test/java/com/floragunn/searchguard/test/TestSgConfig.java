@@ -186,18 +186,14 @@ public class TestSgConfig {
     }
 
     public TestSgConfig user(User user) {
-        if (user.roleNames != null) {
-            return this.user(user.name, user.password, user.attributes, user.roleNames);
+        if (user.roleNames != null || user.backendRoleNames != null) {
+            return this.user(user.name, user.password, user.attributes, user.roleNames, user.backendRoleNames);
         } else {
             return this.user(user.name, user.password, user.attributes, user.roles);
         }
     }
 
-    public TestSgConfig user(String name, UserPassword password, String... sgRoles) {
-        return user(name, password, null, sgRoles);
-    }
-
-    public TestSgConfig user(String name, UserPassword password, Map<String, Object> attributes, String... sgRoles) {
+    public TestSgConfig user(String name, UserPassword password, Map<String, Object> attributes, String [] sgRoles, String [] backendRoles) {
         if (overrideUserSettings == null) {
             overrideUserSettings = new NestedValueMap();
         }
@@ -206,6 +202,10 @@ public class TestSgConfig {
 
         if (sgRoles != null && sgRoles.length > 0) {
             overrideUserSettings.put(new NestedValueMap.Path(name, "search_guard_roles"), sgRoles);
+        }
+        
+        if (backendRoles != null && backendRoles.length > 0) {
+            overrideUserSettings.put(new NestedValueMap.Path(name, "backend_roles"), backendRoles);            
         }
 
         if (attributes != null && attributes.size() != 0) {
@@ -624,6 +624,7 @@ public class TestSgConfig {
         private UserPassword password;
         private Role[] roles;
         private String[] roleNames;
+        private String[] backendRoleNames;
         private String description;
         private Map<String, Object> attributes = new HashMap<>();
         private BiFunction<String, List<String>, Matcher<HttpResponse>> restMatcher;
@@ -661,6 +662,11 @@ public class TestSgConfig {
             return this;
         }
 
+        public User backendRoles(String... backendRoles) {
+            this.backendRoleNames = backendRoles;
+            return this;
+        }
+        
         public User attr(String key, Object value) {
             this.attributes.put(key, value);
             return this;
@@ -1622,9 +1628,15 @@ public class TestSgConfig {
 
     public static class JwtDomain implements Document<JsonWebKey> {
         private Signing signing;
-
+        private String urlParameter;
+        
         public JwtDomain signing(Signing signing) {
             this.signing = signing;
+            return this;
+        }
+        
+        public JwtDomain urlParameter(String urlParameter) {
+            this.urlParameter = urlParameter;
             return this;
         }
 
@@ -1633,6 +1645,9 @@ public class TestSgConfig {
             Map<String, Object> result = new LinkedHashMap<>();
             if (signing != null) {
                 result.put("signing", signing.toBasicObject());
+            }
+            if (urlParameter != null) {
+                result.put("url_parameter", urlParameter);
             }
             return result;
         }

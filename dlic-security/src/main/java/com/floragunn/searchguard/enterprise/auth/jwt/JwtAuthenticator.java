@@ -25,12 +25,7 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
-import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig;
-import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
-import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
-import com.floragunn.searchguard.user.User;
 import org.apache.cxf.rs.security.jose.jwa.AlgorithmUtils;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
 import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
@@ -61,6 +56,9 @@ import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
+import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig;
+import com.floragunn.searchguard.authc.session.ApiAuthenticationFrontend;
+import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.auth.oidc.BadCredentialsException;
 import com.floragunn.searchguard.enterprise.auth.oidc.JwksProviderClient;
@@ -70,10 +68,9 @@ import com.floragunn.searchguard.enterprise.auth.oidc.OpenIdProviderClient;
 import com.floragunn.searchguard.enterprise.auth.oidc.SelfRefreshingKeySet;
 import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
+import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.google.common.base.Strings;
-
-import static org.apache.commons.lang3.StringUtils.isNoneBlank;
 
 public class JwtAuthenticator implements HttpAuthenticationFrontend, ApiAuthenticationFrontend {
     private final static Logger log = LogManager.getLogger(JwtAuthenticator.class);
@@ -183,8 +180,12 @@ public class JwtAuthenticator implements HttpAuthenticationFrontend, ApiAuthenti
         String jwtString = request.getAuthorizationByScheme(jwtHeaderName, "bearer");
         String jwtTokenFromParam = jwtUrlParameter != null ? request.getParam(jwtUrlParameter) : null;
 
-        if (jwtString == null && jwtTokenFromParam != null && jwtTokenFromParam.toLowerCase().startsWith("bearer ")) {
-            jwtString = jwtTokenFromParam.substring("bearer ".length()).trim();
+        if (jwtString == null && jwtTokenFromParam != null) {
+            if (jwtTokenFromParam.toLowerCase().startsWith("bearer ")) {
+                jwtString = jwtTokenFromParam.substring("bearer ".length()).trim();                
+            } else {
+                jwtString = jwtTokenFromParam;
+            }
         }
 
         if (jwtString == null) {

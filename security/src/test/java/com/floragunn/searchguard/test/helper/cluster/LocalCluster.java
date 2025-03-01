@@ -658,11 +658,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return this;
         }
 
-        public Builder user(String name, String password, String... sgRoles) {
-            testSgConfig.user(name, UserPassword.of(password), sgRoles);
-            return this;
-        }
-
         public Builder user(String name, String password, Role... sgRoles) {
             testSgConfig.user(name, UserPassword.of(password), sgRoles);
             return this;
@@ -923,12 +918,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                 delegate.user(user);
                 return this;
             }
-
-            public Builder.Embedded user(String name, String password, String... sgRoles) {
-                delegate.user(name, password, sgRoles);
-                return this;
-            }
-
+          
             public Builder.Embedded user(String name, String password, Role... sgRoles) {
                 delegate.user(name, password, sgRoles);
                 return this;
