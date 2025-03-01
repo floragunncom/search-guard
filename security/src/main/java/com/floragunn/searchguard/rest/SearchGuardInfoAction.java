@@ -115,7 +115,6 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     builder.field("user_requested_tenant", user==null?null:user.getRequestedTenant());
                     builder.field("remote_address", remoteAddress);
                     builder.field("backend_roles", user==null?null:user.getRoles());
-                    builder.field("custom_attribute_names", user==null?null:user.getCustomAttributesMap().keySet());
                     builder.field("attribute_names", user==null?null:user.getStructuredAttributes().keySet());
                     builder.field("sg_roles", sgRoles);
                     builder.field("sg_tenants", user==null?null:tenantAccessMapper.mapTenantsAccess(user, adminUser, sgRoles));
@@ -134,7 +133,6 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     if(user != null && verbose) {
                         try {
                             builder.field("size_of_user", RamUsageEstimator.humanReadableUnits(Base64Helper.serializeObject(user).length()));
-                            builder.field("size_of_custom_attributes", RamUsageEstimator.humanReadableUnits(Base64Helper.serializeObject((Serializable) user.getCustomAttributesMap()).getBytes(StandardCharsets.UTF_8).length));
                             builder.field("size_of_attributes", RamUsageEstimator.humanReadableUnits(Base64Helper.serializeObject((Serializable) user.getStructuredAttributes()).getBytes(StandardCharsets.UTF_8).length));
                             builder.field("size_of_backendroles", RamUsageEstimator.humanReadableUnits(Base64Helper.serializeObject((Serializable)user.getRoles()).getBytes(StandardCharsets.UTF_8).length));
                         } catch (Throwable e) {
