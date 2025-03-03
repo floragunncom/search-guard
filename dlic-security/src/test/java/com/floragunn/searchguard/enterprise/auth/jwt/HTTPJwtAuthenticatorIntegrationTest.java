@@ -58,7 +58,7 @@ public class HTTPJwtAuthenticatorIntegrationTest {
             assertThat(response, isOk());
             assertThat(response, json(nodeAt("user_name", is("McList"))));
             assertThat(response, json(nodeAt("backend_roles", containsInAnyOrder("role1", "kibana_user"))));
-            assertThat(response, json(nodeAt("attribute_names", containsInAnyOrder("from_jwt_claim_n"))));
+            assertThat(response, json(nodeAt("attribute_names", containsInAnyOrder("from_jwt_claim_n", "__auth_type"))));
         }
     }
 
