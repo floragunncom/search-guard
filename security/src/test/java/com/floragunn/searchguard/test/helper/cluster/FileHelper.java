@@ -25,7 +25,6 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
@@ -35,22 +34,20 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.KeyStore;
+import java.util.UUID;
 
+import com.google.common.base.Strings;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.xcontent.DeprecationHandler;
-import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
 import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.XContentParserConfiguration;
 import org.elasticsearch.xcontent.XContentType;
-
-import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public class FileHelper {
 
@@ -58,6 +55,18 @@ public class FileHelper {
 
     public static File createTempDirectory(String directoryNamePrefix) {
         try {
+            String os = System.getProperty("os.name").toLowerCase();
+            String sgTempDir = System.getenv("SG_TEMP_DIR");
+
+            if(os.startsWith("mac") && !Strings.isNullOrEmpty(sgTempDir)) {
+                // The fix is related to tests which uses external process cluster. It is impossible to install
+                // SG plugin when ES is stored in default macos temp dir. Java security manager blocks access to
+                // the plugin files. To solve problem we need to use custom temp dir somewhere in user home dir.
+                File tmp = new File(sgTempDir, "sg_tests_tmp" + File.separatorChar + "sg-" + UUID.randomUUID());
+                tmp.mkdirs();
+                return tmp;
+            }
+
             return Files.createTempDirectory(directoryNamePrefix).toFile();
         } catch (IOException e) {
             log.error("Failed to create temp directory with prefix: {}", directoryNamePrefix, e);
