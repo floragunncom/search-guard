@@ -37,7 +37,7 @@ if [ ! -f "$DOWNLOAD_CACHE/$ES_ARCHIVE" ]; then
 fi
 
 if [ -d "$INSTALL_DIR" ]; then
-   rm -r "$INSTALL_DIR"
+   rm -rf "$INSTALL_DIR"
 fi
    
 mkdir -p "$INSTALL_DIR"
