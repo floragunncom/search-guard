@@ -302,7 +302,7 @@ public class RestIntegrationTest {
             String policyName = "aim-policy-instance-read";
             String policyPath = "/_aim/policy/" + policyName;
             String indexName = "aim-policy-instance-read";
-            String statusPath = "/_aim/state/" + indexName;
+            String statusPath = "/_aim/policyinstance/" + indexName + "/state";
             String settingPath = "/_aim/settings/state_log.active";
 
             GenericRestClient.HttpResponse response = CLUSTER.getRestClient(AIM_POLICY_INSTANCE_READ_AUTH).putJson(policyPath, VALID_POLICY);
@@ -316,13 +316,13 @@ public class RestIntegrationTest {
             response = CLUSTER.getRestClient(AIM_POLICY_INSTANCE_READ_AUTH).get(statusPath);
             assertEquals(SC_OK, response.getStatusCode());
 
-            response = CLUSTER.getRestClient(AIM_POLICY_INSTANCE_READ_AUTH).post("/_aim/execute/" + indexName);
+            response = CLUSTER.getRestClient(AIM_POLICY_INSTANCE_READ_AUTH).post("/_aim/policyinstance/" + indexName + "/execute");
             assertEquals(SC_FORBIDDEN, response.getStatusCode());
 
-            response = CLUSTER.getRestClient(AIM_POLICY_INSTANCE_READ_AUTH).post("/_aim/execute/" + indexName + "/true");
+            response = CLUSTER.getRestClient(AIM_POLICY_INSTANCE_READ_AUTH).post("/_aim/policyinstance/" + indexName + "/execute/true");
             assertEquals(SC_FORBIDDEN, response.getStatusCode());
 
-            response = CLUSTER.getRestClient(AIM_POLICY_INSTANCE_READ_AUTH).post("/_aim/retry/" + indexName);
+            response = CLUSTER.getRestClient(AIM_POLICY_INSTANCE_READ_AUTH).post("/_aim/policyinstance/" + indexName + "/retry");
             assertEquals(SC_FORBIDDEN, response.getStatusCode());
 
             response = CLUSTER.getRestClient(AIM_POLICY_INSTANCE_READ_AUTH).get(settingPath);
@@ -334,9 +334,9 @@ public class RestIntegrationTest {
             String policyName = "aim-policy-instance-manage";
             String policyPath = "/_aim/policy/" + policyName;
             String indexName = "aim-policy-instance-manage";
-            String statusPath = "/_aim/state/" + indexName;
-            String executePath = "/_aim/execute/" + indexName;
-            String retryPath = "/_aim/retry/" + indexName;
+            String statusPath = "/_aim/policyinstance/" + indexName + "/state";
+            String executePath = "/_aim/policyinstance/" + indexName + "/execute";
+            String retryPath = "/_aim/policyinstance/" + indexName + "/retry";
             String settingPath = "/_aim/settings/state_log.active";
 
             GenericRestClient.HttpResponse response = CLUSTER.getRestClient(AIM_POLICY_INSTANCE_MANAGE_AUTH).putJson(policyPath, VALID_POLICY);

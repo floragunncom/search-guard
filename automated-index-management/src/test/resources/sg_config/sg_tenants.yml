@@ -21,4 +21,4 @@ dash-tenant:
 unit_test_search_watch_without_body:
   reserved: false
   hidden: false
-  description: "For unit test RestApiTest.testSearchWatchWithoutBody"  
+  description: "For unit test RestApiTest.testSearchWatchWithoutBody"

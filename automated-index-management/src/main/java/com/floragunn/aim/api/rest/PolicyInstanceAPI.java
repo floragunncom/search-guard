@@ -17,15 +17,15 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class PolicyInstanceAPI {
-    public static final RestApi REST = new RestApi().name("/_aim/state").handlesGet("/_aim/state/{index}")
+    public static final RestApi REST = new RestApi().name("/_aim/policyinstance").handlesGet("/_aim/policyinstance/{index}/state")
             .with(GetState.INSTANCE, (requestUrlParams, requestBody) -> new StandardRequests.IdRequest(requestUrlParams.get("index")))
-            .handlesPost("/_aim/execute/{index}")
+            .handlesPost("/_aim/policyinstance/{index}/execute")
             .with(PostExecute.INSTANCE, (requestUrlParams, requestBody) -> new PostExecute.Request(requestUrlParams.get("index"), false))
-            .handlesPost("/_aim/execute/{index}/{retry}")
+            .handlesPost("/_aim/policyinstance/{index}/execute/{retry}")
             .with(PostExecute.INSTANCE,
                     (requestUrlParams, requestBody) -> new PostExecute.Request(requestUrlParams.get("index"),
                             Boolean.getBoolean(requestUrlParams.get("retry"))))
-            .handlesPost("/_aim/retry/{index}")
+            .handlesPost("/_aim/policyinstance/{index}/retry")
             .with(PostRetry.INSTANCE, (requestUrlParams, requestBody) -> new StandardRequests.IdRequest(requestUrlParams.get("index")));
     public static final List<ActionPlugin.ActionHandler<? extends ActionRequest, ? extends ActionResponse>> HANDLERS = ImmutableList.of(
             new ActionPlugin.ActionHandler<>(GetState.INSTANCE, GetState.Handler.class),

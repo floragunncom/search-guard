@@ -83,7 +83,7 @@ public class ClusterHelper {
         }
 
         public static GenericRestClient.HttpResponse getPolicyInstanceStatus(LocalCluster cluster, Header auth, String indexName) throws Exception {
-            return cluster.getRestClient(auth).get("/_aim/state/" + indexName);
+            return cluster.getRestClient(auth).get("/_aim/policyinstance/" + indexName + "/state");
         }
 
         public static GenericRestClient.HttpResponse getPolicyInstanceStatus(LocalCluster cluster, String indexName) throws Exception {
@@ -91,7 +91,7 @@ public class ClusterHelper {
         }
 
         public static GenericRestClient.HttpResponse postPolicyInstanceExecute(LocalCluster cluster, Header auth, String indexName) throws Exception {
-            return cluster.getRestClient(auth).post("/_aim/execute/" + indexName);
+            return cluster.getRestClient(auth).post("/_aim/policyinstance/" + indexName + "/execute");
         }
 
         public static GenericRestClient.HttpResponse postPolicyInstanceExecute(LocalCluster cluster, String indexName) throws Exception {
@@ -100,7 +100,7 @@ public class ClusterHelper {
 
         public static GenericRestClient.HttpResponse postPolicyInstanceExecuteRetry(LocalCluster cluster, Header auth, String indexName)
                 throws Exception {
-            return cluster.getRestClient(auth).post("/_aim/execute/" + indexName + "/true");
+            return cluster.getRestClient(auth).post("/_aim/policyinstance/" + indexName + "/execute/true");
         }
 
         public static GenericRestClient.HttpResponse postPolicyInstanceExecuteRetry(LocalCluster cluster, String indexName) throws Exception {
@@ -108,7 +108,7 @@ public class ClusterHelper {
         }
 
         public static GenericRestClient.HttpResponse postPolicyInstanceRetry(LocalCluster cluster, Header auth, String indexName) throws Exception {
-            return cluster.getRestClient(auth).post("/_aim/retry/" + indexName);
+            return cluster.getRestClient(auth).post("/_aim/policyinstance/" + indexName + "/retry");
         }
 
         public static GenericRestClient.HttpResponse postPolicyInstanceRetry(LocalCluster cluster, String indexName) throws Exception {
