@@ -78,7 +78,7 @@ include:
 
 
 build:
-  image: maven:3.9.9-eclipse-temurin-23-alpine
+  image: maven:3.8.8-eclipse-temurin-21-alpine
   allow_failure: false
   stage: build
   rules:
