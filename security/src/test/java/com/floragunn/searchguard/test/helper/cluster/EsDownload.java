@@ -82,7 +82,7 @@ class EsDownload {
             arch = "x86_64";
         }
 
-        String esArchive = "elasticsearch-9.0.0-SNAPSHOT.tar.gz";
+        String esArchive = "elasticsearch-" + esVersion + "-" + os + "-" + arch + ".tar.gz";
 
         File downloadFile = new File(downloadDirectory, esArchive);
 
