@@ -166,6 +166,7 @@ import com.floragunn.searchguard.http.SearchGuardNonSslHttpServerTransport;
 import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.floragunn.searchguard.license.LicenseRepository;
 import com.floragunn.searchguard.license.SearchGuardLicenseInfoAction;
+import com.floragunn.searchguard.license.SearchGuardLicenseInfoLegacyAction;
 import com.floragunn.searchguard.license.SearchGuardLicenseKeyApi;
 import com.floragunn.searchguard.modules.api.ComponentStateRestAction;
 import com.floragunn.searchguard.modules.api.GetComponentStateAction;
@@ -517,6 +518,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(FrontendAuthcConfigApi.DocumentLevel.REST_API);
                 handlers.add(SearchGuardLicenseKeyApi.REST_API);
                 handlers.add(SearchGuardLicenseInfoAction.REST_API);
+                handlers.add(SearchGuardLicenseInfoLegacyAction.REST_API);                
                 handlers.add(SearchGuardCapabilities.GetCapabilitiesAction.REST_API);       
                 handlers.add(ProtectedConfigIndexService.TriggerConfigIndexCreationAction.REST_API);
                 handlers.add(GetActivatedFrontendConfigAction.REST_API);
@@ -542,6 +544,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             actions.add(new ActionHandler<>(WhoAmIAction.INSTANCE, TransportWhoAmIAction.class));
             actions.add(new ActionHandler<>(GetComponentStateAction.INSTANCE, GetComponentStateAction.TransportAction.class));
             actions.add(new ActionHandler<>(SearchGuardLicenseInfoAction.INSTANCE, SearchGuardLicenseInfoAction.Handler.class));
+            actions.add(new ActionHandler<>(SearchGuardLicenseInfoLegacyAction.INSTANCE, SearchGuardLicenseInfoLegacyAction.Handler.class));
             actions.add(new ActionHandler<>(BulkConfigApi.GetAction.INSTANCE, BulkConfigApi.GetAction.Handler.class));
             actions.add(new ActionHandler<>(BulkConfigApi.UpdateAction.INSTANCE, BulkConfigApi.UpdateAction.Handler.class));
             actions.add(new ActionHandler<>(GenericTypeLevelConfigApi.DeleteAction.INSTANCE, GenericTypeLevelConfigApi.DeleteAction.Handler.class));
