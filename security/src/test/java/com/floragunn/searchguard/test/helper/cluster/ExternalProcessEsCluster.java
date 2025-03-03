@@ -39,6 +39,7 @@ import java.util.function.Consumer;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -174,7 +175,12 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
     }
 
     private String getEsVersion() {
-        return org.elasticsearch.Version.CURRENT.toString();
+        String version = Version.CURRENT.toString();
+        // TODO ES9 hack which allaws downloading of ES 9.0.0-beta1, the below code should be removed when ES 9.0.0 is released
+        if(version.equals("9.0.0")) {
+            return "9.0.0-beta1";
+        }
+        return version;
     }
 
     public static class Node implements LocalEsCluster.Node {

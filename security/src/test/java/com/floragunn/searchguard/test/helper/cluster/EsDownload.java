@@ -73,6 +73,9 @@ class EsDownload {
         }
 
         String os = System.getProperty("os.name").toLowerCase();
+        if(os.startsWith("mac")) {
+            os = "darwin";
+        }
         String arch = System.getProperty("os.arch").toLowerCase();
 
         if (arch.equals("amd64")) {
