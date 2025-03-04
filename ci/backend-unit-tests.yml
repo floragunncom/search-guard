@@ -50,7 +50,6 @@ test_ssl:
 
 test_signals:
   image: maven:3.8.8-eclipse-temurin-21-alpine
-  image: maven:3.8.8-eclipse-temurin-21-alpine
   stage: test
   interruptible: true
   tags:

@@ -68,7 +68,10 @@ class EsDownload {
             downloadDirectory = new File(FileUtils.getUserDirectory(), "searchguard-test/download-cache/");
         }
 
+        log.info("ES will be downloaded into directory '{}'", downloadDirectory);
+
         if (!downloadDirectory.exists()) {
+            log.info("Directory '{}' does not exist, creating it", downloadDirectory);
             downloadDirectory.mkdirs();
         }
 
@@ -87,6 +90,7 @@ class EsDownload {
         File downloadFile = new File(downloadDirectory, esArchive);
 
         if (!downloadFile.exists()) {
+            log.info("Expected ES version is not present in cache and will be downloaded to file '{}'", downloadFile);
             try {
                 URL url = new URL("https://artifacts.elastic.co/downloads/elasticsearch/" + esArchive);
 
