@@ -6,7 +6,7 @@ test_security:
     - test
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never    
+      when: never
     - when: always
   script:
     - ci/run_tests.sh security
@@ -31,7 +31,7 @@ test_ssl:
     - test
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never   
+      when: never
     - when: always
   script:
     - ci/run_tests.sh ssl
@@ -81,7 +81,7 @@ test_scheduler:
     - test
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never      
+      when: never
     - when: always
   script:
     - ci/run_tests.sh scheduler
@@ -106,7 +106,7 @@ test_support:
     - test
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never    
+      when: never
     - when: always
   script:
     - ci/run_tests.sh support
@@ -131,7 +131,7 @@ test_dlic_security:
     - test
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never      
+      when: never
     - when: always
   script:
     - ci/run_tests.sh dlic-security
