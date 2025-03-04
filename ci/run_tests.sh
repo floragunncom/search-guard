@@ -4,7 +4,7 @@ set -e
 
 MODULE=$1
 MAVEN_CLI_OPTS="--batch-mode -s settings.xml"
-RUN_TESTS_COMMAND="mvn $MAVEN_CLI_OPTS -pl $MODULE test -Dsg.tests.es_download_cache.dir=$(pwd) -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Drevision=$SNAPSHOT_REVISION -Delasticsearch.version=$ES_VERSION"
+RUN_TESTS_COMMAND="mvn -Des.nativelibs.path=/nativelibs $MAVEN_CLI_OPTS -pl $MODULE test -Dsg.tests.es_download_cache.dir=$(pwd) -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Drevision=$SNAPSHOT_REVISION -Delasticsearch.version=$ES_VERSION"
 
 useradd -m es_test
 
@@ -14,6 +14,13 @@ ES_HASH=$(sha512sum elasticsearch-9.0.0-beta1-linux-x86_64.tar.gz)
 ES_LOCATION=$(realpath elasticsearch-9.0.0-beta1-linux-x86_64.tar.gz)
 echo "Downloaded ES sha512sum is $ES_HASH, ES is stored in location $ES_LOCATION"
 
+mkdir /nativelibs
+pushd /nativelibs
+cp /usr/lib/libzstd.so.1 ./libzstd.so
+wget -q https://artifactory.elastic.dev/artifactory/elasticsearch-native/org/elasticsearch/vec/1.0.10/vec-1.0.10.zip
+unzip vec-1.0.10.zip
+cp linux-x64/libvec.so libvec.so
+popd
 
 chown -R es_test .
 

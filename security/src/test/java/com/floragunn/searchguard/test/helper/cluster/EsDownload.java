@@ -68,7 +68,7 @@ class EsDownload {
             downloadDirectory = new File(FileUtils.getUserDirectory(), "searchguard-test/download-cache/");
         }
 
-        log.info("ES will be downloaded into directory '{}'", downloadDirectory);
+        log.info("ES download is directory '{}'", downloadDirectory);
 
         if (!downloadDirectory.exists()) {
             log.info("Directory '{}' does not exist, creating it", downloadDirectory);
@@ -113,7 +113,7 @@ class EsDownload {
                 throw new EsInstallationUnavailableException(e);
             }
         } else {
-            log.info("Using {}", downloadFile);
+            log.info("Using already downloaded ES {}", downloadFile);
         }
 
         return downloadFile;
