@@ -23,180 +23,180 @@ test_security:
       - .m2/repository
     policy: pull
 
-#test_security_legacy:
-#  image: maven:3.8.8-eclipse-temurin-21-alpine
-#  stage: test
-#  interruptible: true
-#  tags:
-#    - test
-#  rules:
-#    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-#      when: never
-#    - when: always
-#  script:
-#    - ci/run_tests.sh security-legacy
-#  artifacts:
-#    when: always
-#    reports:
-#      junit:
-#        - "*/target/surefire-reports/TEST-*.xml"
-#        - "*/target/failsafe-reports/TEST-*.xml"
-#    expire_in: 1 week
-#  cache:
-#    key: mavenrepo-main-es8
-#    paths:
-#      - .m2/repository
-#    policy: pull
+test_security_legacy:
+  image: maven:3.8.8-eclipse-temurin-21-alpine
+  stage: test
+  interruptible: true
+  tags:
+    - test
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never   
+    - when: always
+  script:
+    - ci/run_tests.sh security-legacy
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-main-es8
+    paths:
+      - .m2/repository
+    policy: pull
 
-#test_ssl:
-#  image: maven:3.8.8-eclipse-temurin-21-alpine
-#  stage: test
-#  interruptible: true
-#  tags:
-#    - test
-#  rules:
-#    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-#      when: never
-#    - when: always
-#  script:
-#    - ci/run_tests.sh ssl
-#  artifacts:
-#    when: always
-#    reports:
-#      junit:
-#        - "*/target/surefire-reports/TEST-*.xml"
-#        - "*/target/failsafe-reports/TEST-*.xml"
-#    expire_in: 1 week
-#  cache:
-#    key: mavenrepo-main-es8
-#    paths:
-#      - .m2/repository
-#    policy: pull
+test_ssl:
+  image: maven:3.8.8-eclipse-temurin-21-alpine
+  stage: test
+  interruptible: true
+  tags:
+    - test
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never   
+    - when: always
+  script:
+    - ci/run_tests.sh ssl
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-main-es8
+    paths:
+      - .m2/repository
+    policy: pull
 
-#test_signals:
-#  image: maven:3.8.8-eclipse-temurin-21-alpine
-#  stage: test
-#  interruptible: true
-#  tags:
-#    - test
-#  rules:
-#    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-#      when: never
-#    - when: always
-#  script:
-#    - ci/run_tests.sh signals
-#  artifacts:
-#    when: always
-#    reports:
-#      junit:
-#        - "*/target/surefire-reports/TEST-*.xml"
-#        - "*/target/failsafe-reports/TEST-*.xml"
-#    expire_in: 1 week
-#  cache:
-#    key: mavenrepo-main-es8
-#    paths:
-#      - .m2/repository
-#    policy: pull
+test_signals:
+  image: maven:3.8.8-eclipse-temurin-21-alpine
+  stage: test
+  interruptible: true
+  tags:
+    - test
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
+  script:
+    - ci/run_tests.sh signals
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-main-es8
+    paths:
+      - .m2/repository
+    policy: pull
 
-#test_scheduler:
-#  image: maven:3.8.8-eclipse-temurin-21-alpine
-#  stage: test
-#  interruptible: true
-#  tags:
-#    - test
-#  rules:
-#    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-#      when: never
-#    - when: always
-#  script:
-#    - ci/run_tests.sh scheduler
-#  artifacts:
-#    when: always
-#    reports:
-#      junit:
-#        - "*/target/surefire-reports/TEST-*.xml"
-#        - "*/target/failsafe-reports/TEST-*.xml"
-#    expire_in: 1 week
-#  cache:
-#    key: mavenrepo-main-es8
-#    paths:
-#      - .m2/repository
-#    policy: pull
+test_scheduler:
+  image: maven:3.8.8-eclipse-temurin-21-alpine
+  stage: test
+  interruptible: true
+  tags:
+    - test
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never      
+    - when: always
+  script:
+    - ci/run_tests.sh scheduler
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-main-es8
+    paths:
+      - .m2/repository
+    policy: pull
 
-#test_support:
-#  image: maven:3.8.8-eclipse-temurin-21-alpine
-#  stage: test
-#  interruptible: true
-#  tags:
-#    - test
-#  rules:
-#    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-#      when: never
-#    - when: always
-#  script:
-#    - ci/run_tests.sh support
-#  artifacts:
-#    when: always
-#    reports:
-#      junit:
-#        - "*/target/surefire-reports/TEST-*.xml"
-#        - "*/target/failsafe-reports/TEST-*.xml"
-#    expire_in: 1 week
-#  cache:
-#    key: mavenrepo-main-es8
-#    paths:
-#      - .m2/repository
-#    policy: pull
+test_support:
+  image: maven:3.8.8-eclipse-temurin-21-alpine
+  stage: test
+  interruptible: true
+  tags:
+    - test
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never    
+    - when: always
+  script:
+    - ci/run_tests.sh support
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-main-es8
+    paths:
+      - .m2/repository
+    policy: pull
 
-#test_dlic_security:
-#  image: maven:3.8.8-eclipse-temurin-21-alpine
-#  stage: test
-#  interruptible: true
-#  tags:
-#    - test
-#  rules:
-#    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-#      when: never
-#    - when: always
-#  script:
-#    - ci/run_tests.sh dlic-security
-#  artifacts:
-#    when: always
-#    reports:
-#      junit:
-#        - "*/target/surefire-reports/TEST-*.xml"
-#        - "*/target/failsafe-reports/TEST-*.xml"
-#    expire_in: 1 week
-#  cache:
-#    key: mavenrepo-main-es8
-#    paths:
-#      - .m2/repository
-#    policy: pull
+test_dlic_security:
+  image: maven:3.8.8-eclipse-temurin-21-alpine
+  stage: test
+  interruptible: true
+  tags:
+    - test
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never      
+    - when: always
+  script:
+    - ci/run_tests.sh dlic-security
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-main-es8
+    paths:
+      - .m2/repository
+    policy: pull
     
-#test_dlic_security_legacy:
-#  image: maven:3.8.8-eclipse-temurin-21-alpine
-#  stage: test
-#  interruptible: true
-#  tags:
-#    - test
-#  rules:
-#    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-#      when: never
-#    - when: always
-#  script:
-#    - ci/run_tests.sh dlic-security-legacy
-#  artifacts:
-#    when: always
-#    reports:
-#      junit:
-#        - "*/target/surefire-reports/TEST-*.xml"
-#        - "*/target/failsafe-reports/TEST-*.xml"
-#    expire_in: 1 week
-#  cache:
-#    key: mavenrepo-main-es8
-#    paths:
-#      - .m2/repository
-#    policy: pull
+test_dlic_security_legacy:
+  image: maven:3.8.8-eclipse-temurin-21-alpine
+  stage: test
+  interruptible: true
+  tags:
+    - test
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
+  script:
+    - ci/run_tests.sh dlic-security-legacy
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-main-es8
+    paths:
+      - .m2/repository
+    policy: pull    
 
 test_dlic_dlsfls:
   image: maven:3.8.8-eclipse-temurin-21-alpine
@@ -222,78 +222,78 @@ test_dlic_dlsfls:
     paths:
       - .m2/repository
     policy: pull
-#
-#test_dlic_femt:
-#  image: maven:3.8.8-eclipse-temurin-21-alpine
-#  stage: test
-#  interruptible: true
-#  tags:
-#    - test
-#  rules:
-#    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-#      when: never
-#    - when: always
-#  script:
-#    - ci/run_tests.sh dlic-fe-multi-tenancy
-#  artifacts:
-#    when: always
-#    reports:
-#      junit:
-#        - "*/target/surefire-reports/TEST-*.xml"
-#        - "*/target/failsafe-reports/TEST-*.xml"
-#    expire_in: 1 week
-#  cache:
-#    key: mavenrepo-main-es8
-#    paths:
-#      - .m2/repository
-#    policy: pull
 
-#test_dlic_auditlog:
-#  image: maven:3.8.8-eclipse-temurin-21-alpine
-#  stage: test
-#  interruptible: true
-#  tags:
-#    - test
-#  rules:
-#    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-#      when: never
-#    - when: always
-#  script:
-#    - ci/run_tests.sh dlic-auditlog
-#  artifacts:
-#    when: always
-#    reports:
-#      junit:
-#        - "*/target/surefire-reports/TEST-*.xml"
-#        - "*/target/failsafe-reports/TEST-*.xml"
-#    expire_in: 1 week
-#  cache:
-#    key: mavenrepo-main-es8
-#    paths:
-#      - .m2/repository
-#    policy: pull
+test_dlic_femt:
+  image: maven:3.8.8-eclipse-temurin-21-alpine
+  stage: test
+  interruptible: true
+  tags:
+    - test
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
+  script:
+    - ci/run_tests.sh dlic-fe-multi-tenancy
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-main-es8
+    paths:
+      - .m2/repository
+    policy: pull
 
-#test_dlic_signals:
-#  image: maven:3.8.8-eclipse-temurin-21-alpine
-#  stage: test
-#  interruptible: true
-#  tags:
-#    - test
-#  rules:
-#    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-#      when: never
-#    - when: always
-#  script:
-#    - ci/run_tests.sh dlic-signals
-#  artifacts:
-#    when: always
-#    reports:
-#      junit:
-#        - "*/target/surefire-reports/TEST-*.xml"
-#        - "*/target/failsafe-reports/TEST-*.xml"
-#    expire_in: 1 week
-#  cache:
-#    key: mavenrepo-main-es8
-#    paths:
-#      - .m2/repository
-#    policy: pull
+test_dlic_auditlog:
+  image: maven:3.8.8-eclipse-temurin-21-alpine
+  stage: test
+  interruptible: true
+  tags:
+    - test
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
+  script:
+    - ci/run_tests.sh dlic-auditlog
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-main-es8
+    paths:
+      - .m2/repository
+    policy: pull
+
+test_dlic_signals:
+  image: maven:3.8.8-eclipse-temurin-21-alpine
+  stage: test
+  interruptible: true
+  tags:
+    - test
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: always
+  script:
+    - ci/run_tests.sh dlic-signals
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-main-es8
+    paths:
+      - .m2/repository
+    policy: pull

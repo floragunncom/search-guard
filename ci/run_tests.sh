@@ -8,12 +8,6 @@ RUN_TESTS_COMMAND="mvn -Des.nativelibs.path=/nativelibs $MAVEN_CLI_OPTS -pl $MOD
 
 useradd -m es_test
 
-# workaround related to downloading ES, download from java code results in incomplete file
-wget -q https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-9.0.0-beta1-linux-x86_64.tar.gz
-ES_HASH=$(sha512sum elasticsearch-9.0.0-beta1-linux-x86_64.tar.gz)
-ES_LOCATION=$(realpath elasticsearch-9.0.0-beta1-linux-x86_64.tar.gz)
-echo "Downloaded ES sha512sum is $ES_HASH, ES is stored in location $ES_LOCATION"
-
 mkdir /nativelibs
 pushd /nativelibs
 cp /usr/lib/libzstd.so.1 ./libzstd.so
