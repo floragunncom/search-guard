@@ -7,8 +7,6 @@ MAVEN_CLI_OPTS="--batch-mode -s settings.xml"
 RUN_TESTS_COMMAND="mvn $MAVEN_CLI_OPTS -pl $MODULE test -Dsg.tests.es_download_cache.dir=$(pwd) -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Drevision=$SNAPSHOT_REVISION -Delasticsearch.version=$ES_VERSION"
 
 useradd -m es_test
-export SG_TEMP_DIR="/home/es_test/tmp/sg"
-mkdir -p "$SG_TEMP_DIR"
 chown -R es_test .
 
 if [ "$TEST_CLUSTER_TYPE" == "full" ]; then
