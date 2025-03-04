@@ -58,9 +58,9 @@ public class FileHelper {
             String os = System.getProperty("os.name").toLowerCase();
             String sgTempDir = System.getenv("SG_TEMP_DIR");
 
-            if(!Strings.isNullOrEmpty(sgTempDir)) {
+            if(os.startsWith("mac") && !Strings.isNullOrEmpty(sgTempDir)) {
                 // The fix is related to tests which uses external process cluster. It is impossible to install
-                // SG plugin when ES is stored in default temp dir. Java security manager blocks access to
+                // SG plugin when ES is stored in default macos temp dir. Java security manager blocks access to
                 // the plugin files. To solve problem we need to use custom temp dir somewhere in user home dir.
                 File tmp = new File(sgTempDir, "sg_tests_tmp" + File.separatorChar + "sg-" + UUID.randomUUID());
                 tmp.mkdirs();
