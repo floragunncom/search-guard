@@ -10,7 +10,7 @@ useradd -m es_test
 
 mkdir /nativelibs
 pushd /nativelibs
-cp /usr/lib/libzstd.so.1 ./libzstd.so
+cp /usr/lib/x86_64-linux-gnu/libzstd.so.1.5.4 ./libzstd.so
 wget -q https://artifactory.elastic.dev/artifactory/elasticsearch-native/org/elasticsearch/vec/1.0.10/vec-1.0.10.zip
 unzip vec-1.0.10.zip
 cp linux-x64/libvec.so libvec.so
