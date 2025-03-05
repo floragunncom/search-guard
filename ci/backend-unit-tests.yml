@@ -1,5 +1,5 @@
 test_security:
-  image: maven:3.8.8-eclipse-temurin-21-alpine
+  image: maven:3.9.9-amazoncorretto-21-debian
   stage: test
   interruptible: true
   tags:
@@ -24,7 +24,7 @@ test_security:
     policy: pull
 
 test_ssl:
-  image: maven:3.8.8-eclipse-temurin-21-alpine
+  image: maven:3.9.9-amazoncorretto-21-debian
   stage: test
   interruptible: true
   tags:
@@ -49,7 +49,7 @@ test_ssl:
     policy: pull
 
 test_signals:
-  image: maven:3.8.8-eclipse-temurin-21-alpine
+  image: maven:3.9.9-amazoncorretto-21-debian
   stage: test
   interruptible: true
   tags:
@@ -74,7 +74,7 @@ test_signals:
     policy: pull
 
 test_scheduler:
-  image: maven:3.8.8-eclipse-temurin-21-alpine
+  image: maven:3.9.9-amazoncorretto-21-debian
   stage: test
   interruptible: true
   tags:
@@ -99,7 +99,7 @@ test_scheduler:
     policy: pull
 
 test_support:
-  image: maven:3.8.8-eclipse-temurin-21-alpine
+  image: maven:3.9.9-amazoncorretto-21-debian
   stage: test
   interruptible: true
   tags:
@@ -124,7 +124,7 @@ test_support:
     policy: pull
 
 test_dlic_security:
-  image: maven:3.8.8-eclipse-temurin-21-alpine
+  image: maven:3.9.9-amazoncorretto-21-debian
   stage: test
   interruptible: true
   tags:
@@ -149,7 +149,7 @@ test_dlic_security:
     policy: pull
 
 test_dlic_dlsfls:
-  image: maven:3.8.8-eclipse-temurin-21-alpine
+  image: maven:3.9.9-amazoncorretto-21-debian
   stage: test
   interruptible: true
   tags:
@@ -174,7 +174,7 @@ test_dlic_dlsfls:
     policy: pull
 
 test_dlic_femt:
-  image: maven:3.8.8-eclipse-temurin-21-alpine
+  image: maven:3.9.9-amazoncorretto-21-debian
   stage: test
   interruptible: true
   tags:
@@ -199,7 +199,7 @@ test_dlic_femt:
     policy: pull
 
 test_dlic_auditlog:
-  image: maven:3.8.8-eclipse-temurin-21-alpine
+  image: maven:3.9.9-amazoncorretto-21-debian
   stage: test
   interruptible: true
   tags:
@@ -224,7 +224,7 @@ test_dlic_auditlog:
     policy: pull
 
 test_dlic_signals:
-  image: maven:3.8.8-eclipse-temurin-21-alpine
+  image: maven:3.9.9-amazoncorretto-21-debian
   stage: test
   interruptible: true
   tags:

@@ -30,8 +30,8 @@ default:
         echo "CI_COMMIT_TAG: $CI_COMMIT_TAG"
         
         set +e
-        apk update > /dev/null 2>&1
-        apk add --no-cache gomplate jq curl zip xmlstarlet git wget bash sudo shadow zstd-libs zip > /dev/null 2>&1
+        apt-get update > /dev/null 2>&1
+        apt-get install jq curl zip xmlstarlet git wget bash sudo zstd zip -y > /dev/null 2>&1
         set -e
 
         if [ -z "$CI_COMMIT_TAG" ]; then 
@@ -78,7 +78,7 @@ include:
 
 
 build:
-  image: maven:3.8.8-eclipse-temurin-21-alpine
+  image: maven:3.9.9-amazoncorretto-21-debian
   allow_failure: false
   stage: build
   rules:
