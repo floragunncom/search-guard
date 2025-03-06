@@ -383,7 +383,13 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBodyReleasable(request.contentOrSourceParam());
+            if(request.isFullContent()) {
+                msg.addTupleToRequestBodyReleasable(request.contentOrSourceParam());
+            } else {
+                // TODO ES9 Audit logs does not support stream content
+                // this will fail on the exception below or on assertion when body content is retrieved
+                throw new IllegalArgumentException("Audit logging of stream content is not supported");
+            }
         }
 
         if (request != null) {
