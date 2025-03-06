@@ -11,7 +11,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.node.NodeClient;
-import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestRequest;
@@ -112,31 +112,34 @@ public class WatchApiAction extends SignalsTenantAwareRestHandler {
 
     protected RestChannelConsumer handlePut(String id, RestRequest request, Client client) throws IOException {
 
-        BytesReference content = request.content();
+        ReleasableBytesReference content = request.content();
 
         if (request.getXContentType() != XContentType.JSON && request.getXContentType() != XContentType.VND_JSON) {
             return channel -> errorResponse(channel, RestStatus.UNSUPPORTED_MEDIA_TYPE, "Watches must be of content type application/json");
         }
 
-        return channel -> client.execute(PutWatchAction.INSTANCE, new PutWatchRequest(id, content, XContentType.JSON),
-                new ActionListener<PutWatchResponse>() {
+        content.mustIncRef();
+        return channel -> {
+            ActionListener<PutWatchResponse> listener = new ActionListener<>() {
 
-                    @Override
-                    public void onResponse(PutWatchResponse response) {
-                        if (response.getResult() == Result.CREATED || response.getResult() == Result.UPDATED) {
+                @Override
+                public void onResponse(PutWatchResponse response) {
+                    if (response.getResult() == Result.CREATED || response.getResult() == Result.UPDATED) {
 
-                            channel.sendResponse(
-                                    new RestResponse(response.getRestStatus(), convertToJson(channel, response, Watch.WITHOUT_AUTH_TOKEN)));
-                        } else {
-                            errorResponse(channel, response.getRestStatus(), response.getMessage(), response.getDetailJsonDocument());
-                        }
+                        channel.sendResponse(
+                                new RestResponse(response.getRestStatus(), convertToJson(channel, response, Watch.WITHOUT_AUTH_TOKEN)));
+                    } else {
+                        errorResponse(channel, response.getRestStatus(), response.getMessage(), response.getDetailJsonDocument());
                     }
+                }
 
-                    @Override
-                    public void onFailure(Exception e) {
-                        errorResponse(channel, e);
-                    }
-                });
+                @Override
+                public void onFailure(Exception e) {
+                    errorResponse(channel, e);
+                }
+            };
+            client.execute(PutWatchAction.INSTANCE, new PutWatchRequest(id, content, XContentType.JSON), ActionListener.releaseAfter(listener, content));
+        };
 
     }
 
