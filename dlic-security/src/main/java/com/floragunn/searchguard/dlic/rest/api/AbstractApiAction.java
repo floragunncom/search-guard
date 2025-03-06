@@ -122,7 +122,8 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	protected void handleApiRequest(final RestChannel channel, final RestRequest request, final Client client) throws IOException {
 
             // validate additional settings, if any
-            AbstractConfigurationValidator validator = getValidator(request, request.content());
+		ReleasableBytesReference content = request.content();
+		AbstractConfigurationValidator validator = getValidator(request, content);
             if (!validator.validate()) {
             	request.params().clear();
             	badRequestResponse(channel, validator);
@@ -413,21 +414,25 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	    
 	}
 
-	//todo temporary walkaround to fix issue with reference counting  and request body which gets released before we start reading it
-	public static class RestRequestWrapper extends RestRequest {
-
-		private final BytesReference content;
-
-		protected RestRequestWrapper(RestRequest other) {
-			super(other);
-			content = other.content();
-		}
-
-		@Override
-		public ReleasableBytesReference content() {
-			return ReleasableBytesReference.wrap(content); // TODO ES9 ReleasableBytesReference implements
-		}
-	}
+//	//todo temporary walkaround to fix issue with reference counting  and request body which gets released before we start reading it
+//	public static class RestRequestWrapper extends RestRequest {
+//
+//		private final ReleasableBytesReference content;
+//
+//		protected RestRequestWrapper(RestRequest other) {
+//			super(other);
+//			content = other.content();
+//		}
+//
+//		@Override
+//		public ReleasableBytesReference content() {
+////			if(content instanceof ReleasableBytesReference releasableBytesReference) {
+////				return releasableBytesReference;
+////			}
+////			return ReleasableBytesReference.wrap(content); // TODO ES9 ReleasableBytesReference implements
+//			return content;
+//		}
+//	}
 
     @Override
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
@@ -439,7 +444,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         // dirty hack to avoid "request does not support having a body" error
         request.content();
 
-		RestRequestWrapper wrappedRestRequest = new RestRequestWrapper(request);
+//		RestRequestWrapper wrappedRestRequest = new RestRequestWrapper(request);
 
 		final ThreadContext threadContext = threadPool.getThreadContext();
 
@@ -483,7 +488,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 					);
 
 
-                    handleApiRequest(channel, wrappedRestRequest, client);
+                    handleApiRequest(channel, request, client);
 
                 } catch (Exception e) {
                     log.error("Error while processing request " + request, e);
