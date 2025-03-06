@@ -122,8 +122,9 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	protected void handleApiRequest(final RestChannel channel, final RestRequest request, final Client client) throws IOException {
 
             // validate additional settings, if any
-		ReleasableBytesReference content = request.content();
-		AbstractConfigurationValidator validator = getValidator(request, content);
+		log.debug("Handling API request for request {}", System.identityHashCode(request));
+
+		AbstractConfigurationValidator validator = getValidator(request, request.content());
             if (!validator.validate()) {
             	request.params().clear();
             	badRequestResponse(channel, validator);
@@ -414,26 +415,6 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	    
 	}
 
-//	//todo temporary walkaround to fix issue with reference counting  and request body which gets released before we start reading it
-//	public static class RestRequestWrapper extends RestRequest {
-//
-//		private final ReleasableBytesReference content;
-//
-//		protected RestRequestWrapper(RestRequest other) {
-//			super(other);
-//			content = other.content();
-//		}
-//
-//		@Override
-//		public ReleasableBytesReference content() {
-////			if(content instanceof ReleasableBytesReference releasableBytesReference) {
-////				return releasableBytesReference;
-////			}
-////			return ReleasableBytesReference.wrap(content); // TODO ES9 ReleasableBytesReference implements
-//			return content;
-//		}
-//	}
-
     @Override
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 
@@ -469,7 +450,12 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         final Object originalRemoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
         final Object originalOrigin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
 		final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
-
+		// ES 9.0.0-beta1 code https://github.com/elastic/elasticsearch/blob/97bc2919ffb5d9e90f809a18233c49a52cf58faa/server/src/main/java/org/elasticsearch/rest/BaseRestHandler.java#L144
+		// The above line of code always calls release method on http request object. Therefore, it is impossible to read
+		// the request body from the code used in the below thread pool. Therefore, we need a request wrappers which
+		// allows reading the request body
+		ProtectingContentRequestWrapper wrappedRestRequest = new ProtectingContentRequestWrapper(request);
+		log.debug("Genuine request hash code '{}', content protecting wrapper '{}'", request, wrappedRestRequest);
         return channel -> {
 
             threadPool.generic().submit(() -> {
@@ -488,12 +474,15 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 					);
 
 
-                    handleApiRequest(channel, request, client);
+                    handleApiRequest(channel, wrappedRestRequest, client);
 
                 } catch (Exception e) {
                     log.error("Error while processing request " + request, e);
                     internalErrorResponse(channel, "Error while processing request: " + e);
                 }
+				finally {
+					wrappedRestRequest.releaseContent();
+				}
             });
         };
     }
