@@ -7,11 +7,11 @@ import static org.elasticsearch.rest.RestRequest.Method.PUT;
 import java.io.IOException;
 import java.util.List;
 
+import com.floragunn.searchsupport.rest.ProtectingContentRequestWrapper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.node.NodeClient;
-import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestRequest;
@@ -112,13 +112,13 @@ public class WatchApiAction extends SignalsTenantAwareRestHandler {
 
     protected RestChannelConsumer handlePut(String id, RestRequest request, Client client) throws IOException {
 
-        ReleasableBytesReference content = request.content();
+
 
         if (request.getXContentType() != XContentType.JSON && request.getXContentType() != XContentType.VND_JSON) {
             return channel -> errorResponse(channel, RestStatus.UNSUPPORTED_MEDIA_TYPE, "Watches must be of content type application/json");
         }
 
-        content.mustIncRef();
+        ProtectingContentRequestWrapper protectedRequest = new ProtectingContentRequestWrapper(request);
         return channel -> {
             ActionListener<PutWatchResponse> listener = new ActionListener<>() {
 
@@ -138,7 +138,7 @@ public class WatchApiAction extends SignalsTenantAwareRestHandler {
                     errorResponse(channel, e);
                 }
             };
-            client.execute(PutWatchAction.INSTANCE, new PutWatchRequest(id, content, XContentType.JSON), ActionListener.releaseAfter(listener, content));
+            client.execute(PutWatchAction.INSTANCE, new PutWatchRequest(id, protectedRequest.content(), XContentType.JSON), protectedRequest.releaseAfter(listener));
         };
 
     }

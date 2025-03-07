@@ -31,6 +31,7 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.StaticDefinable;
 import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
+import com.floragunn.searchsupport.rest.ProtectingContentRequestWrapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -43,7 +44,6 @@ import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -458,7 +458,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		log.debug("Genuine request hash code '{}', content protecting wrapper '{}'", request, wrappedRestRequest);
         return channel -> {
 
-            threadPool.generic().submit(() -> {
+            threadPool.generic().submit(wrappedRestRequest.releaseAfter(() -> {
 
                 try (StoredContext ctx = threadContext.stashContext()) {
 
@@ -480,10 +480,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
                     log.error("Error while processing request " + request, e);
                     internalErrorResponse(channel, "Error while processing request: " + e);
                 }
-				finally {
-					wrappedRestRequest.releaseContent();
-				}
-            });
+            }));
         };
     }
 
