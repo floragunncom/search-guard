@@ -7,6 +7,7 @@ import org.elasticsearch.action.search.TransportSearchAction;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -75,7 +76,8 @@ public class TransportSearchWatchAction extends HandledTransportAction<SearchWat
                         h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
                 );
 
-                SearchRequest searchRequest = new SearchRequest(signalsTenant.getConfigIndexName());
+                //TODO ES 9 time value for scroll needs to be read from request
+                SearchRequest searchRequest = new SearchRequest(signalsTenant.getConfigIndexName()).scroll(TimeValue.timeValueMinutes(1));
 
                 SearchSourceBuilder searchSourceBuilder = request.getSearchSourceBuilder();
 
