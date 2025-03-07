@@ -93,8 +93,8 @@ signals_2:
     - docker:${DOCKER_VERSION}-dind
   script:
     - |
-       #apk update
-       #apk add --no-cache gomplate jq curl zip xmlstarlet git wget bash sudo
+       apk update
+       apk add --no-cache gomplate jq curl zip xmlstarlet git wget bash sudo
        
        sudo sysctl -w vm.max_map_count=262144
        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION"
