@@ -7,7 +7,6 @@ import org.elasticsearch.action.search.TransportSearchAction;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
 import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -73,8 +72,7 @@ public class TransportSearchAccountAction extends HandledTransportAction<SearchA
                         h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
                 );
 
-                SearchRequest searchRequest = new SearchRequest(this.signals.getSignalsSettings().getStaticSettings().getIndexNames().getAccounts()).scroll(TimeValue.timeValueMinutes(1));
-                // TODO ES9 check if we need to provide scroll value read from request SearchAccountRequest
+                SearchRequest searchRequest = new SearchRequest(this.signals.getSignalsSettings().getStaticSettings().getIndexNames().getAccounts());
 
                 SearchSourceBuilder searchSourceBuilder = request.getSearchSourceBuilder();
 
