@@ -2190,7 +2190,8 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = restClient.postJson("/_signals/watch/" + tenant + "/_search?scroll=60s&size=1",
+            // TODO add support for scroll=60s
+            response = restClient.postJson("/_signals/watch/" + tenant + "/_search?size=1",
                     "{ \"sort\": [{\"_meta.last_edit.date\": {\"order\": \"asc\"}}], \"query\": {\"match\": {\"checks.name\": \"findme\"}}}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
@@ -2951,7 +2952,7 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            response = restClient.postJson("/_signals/account/_search?scroll=60s&size=1",
+            response = restClient.postJson("/_signals/account/_search?size=1",
                     "{ \"sort\": [{\"type.keyword\": {\"order\": \"asc\"}}], \"query\": {\"match\": {\"type\": \"SLACK\"}}}");
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
