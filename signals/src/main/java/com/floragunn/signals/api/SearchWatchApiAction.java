@@ -36,6 +36,7 @@ public class SearchWatchApiAction extends SignalsTenantAwareRestHandler {
 
     @Override
     protected final RestChannelConsumer getRestChannelConsumer(RestRequest request, NodeClient client) throws IOException {
+        String scroll = request.param("scroll");
         int from = request.paramAsInt("from", -1);
         int size = request.paramAsInt("size", -1);
 
@@ -44,6 +45,10 @@ public class SearchWatchApiAction extends SignalsTenantAwareRestHandler {
         request.param("tenant");
 
         SearchWatchRequest searchWatchRequest = new SearchWatchRequest();
+
+        if (scroll != null) {
+            searchWatchRequest.setScroll(parseTimeValue(scroll, null, "scroll"));
+        }
 
         searchWatchRequest.setFrom(from);
         searchWatchRequest.setSize(size);

@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.authtoken.api;
 
+import static org.elasticsearch.core.TimeValue.parseTimeValue;
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
@@ -51,6 +52,10 @@ public class SearchAuthTokenRestAction extends BaseRestHandler {
         int size = request.paramAsInt("size", -1);
 
         SearchAuthTokensRequest searchWatchRequest = new SearchAuthTokensRequest();
+
+        if (scroll != null) {
+            searchWatchRequest.setScroll(parseTimeValue(scroll, null, "scroll"));
+        }
 
         searchWatchRequest.setFrom(from);
         searchWatchRequest.setSize(size);

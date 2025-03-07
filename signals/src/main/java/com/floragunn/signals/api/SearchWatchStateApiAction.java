@@ -1,5 +1,6 @@
 package com.floragunn.signals.api;
 
+import static org.elasticsearch.core.TimeValue.parseTimeValue;
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 import static org.elasticsearch.rest.RestRequest.Method.POST;
 
@@ -35,6 +36,7 @@ public class SearchWatchStateApiAction extends SignalsTenantAwareRestHandler {
 
     @Override
     protected final RestChannelConsumer getRestChannelConsumer(RestRequest request, NodeClient client) throws IOException {
+        String scroll = request.param("scroll");
         int from = request.paramAsInt("from", -1);
         int size = request.paramAsInt("size", -1);
 
@@ -43,6 +45,10 @@ public class SearchWatchStateApiAction extends SignalsTenantAwareRestHandler {
         request.param("tenant");
 
         SearchWatchStateRequest searchWatchRequest = new SearchWatchStateRequest();
+
+        if (scroll != null) {
+            searchWatchRequest.setScroll(parseTimeValue(scroll, null, "scroll"));
+        }
 
         searchWatchRequest.setFrom(from);
         searchWatchRequest.setSize(size);

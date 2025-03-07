@@ -35,10 +35,15 @@ public class SearchAccountApiAction extends BaseRestHandler {
 
     @Override
     protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+        String scroll = request.param("scroll");
         int from = request.paramAsInt("from", -1);
         int size = request.paramAsInt("size", -1);
 
         SearchAccountRequest searchDestinationRequest = new SearchAccountRequest();
+
+        if (scroll != null) {
+            searchDestinationRequest.setScroll(parseTimeValue(scroll, null, "scroll"));
+        }
 
         searchDestinationRequest.setFrom(from);
         searchDestinationRequest.setSize(size);

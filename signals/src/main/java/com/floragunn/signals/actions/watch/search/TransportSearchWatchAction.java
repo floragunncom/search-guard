@@ -77,6 +77,10 @@ public class TransportSearchWatchAction extends HandledTransportAction<SearchWat
 
                 SearchRequest searchRequest = new SearchRequest(signalsTenant.getConfigIndexName());
 
+                if (request.getScroll() != null) {
+                    searchRequest.scroll(request.getScroll());
+                }
+
                 SearchSourceBuilder searchSourceBuilder = request.getSearchSourceBuilder();
 
                 if (searchSourceBuilder == null) {
