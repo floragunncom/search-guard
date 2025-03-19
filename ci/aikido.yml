@@ -1,0 +1,31 @@
+.aikido_scan_common:
+  stage: Aikido Scan
+  tags:
+    - security-scan
+  needs: []  
+  image: 
+    name: node:23.10.0-slim
+  script:
+      - |
+        echo "Install Aikido ci-api-client"
+        npm install -g @aikidosec/ci-api-client
+        echo "Aikido ci-api-client version:"
+        aikido-api-client -V
+        echo "Start Aikido Scan for commit: ${CI_COMMIT_SHORT_SHA} and project id ${CI_PROJECT_ID}"
+        aikido-api-client \
+        --apikey ${AIKIDO_CI_INTEGRATION_TOKEN} \
+        scan-release \
+        ${CI_PROJECT_ID} \
+        ${CI_COMMIT_SHA} \
+        --minimum-severity-level LOW \
+        --fail-on-sast-scan \
+        --fail-on-iac-scan \
+        --fail-on-secrets-scan \
+        --plain-output
+ 
+aikido_schedule_scan:
+  extends: ['.aikido_scan_common']
+  # rules:
+  #   - if:  '$CI_PIPELINE_SOURCE == "schedule"'
+  #     when: always
+   

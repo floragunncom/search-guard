@@ -44,3 +44,8 @@ plugin/plugin-descriptor.properties
 dev/.downloads
 sgctl.sh
 THIRD-PARTY.txt
+
+
+
+#gitlab-ci-local
+.gitlab-ci-local/

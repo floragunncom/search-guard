@@ -62,6 +62,7 @@ stages:
   #- "Frontend Int Tests External Features"
   #- "Frontend Compat Int Tests 1"
   #- "Frontend Compat Int Tests 2"
+  - "Aikido Scan"
   - release
   - "Deploy Docker Image"
 
@@ -75,7 +76,7 @@ include:
   #- local: 'ci/frontend-int-tests-external-features.yml'
   #- local: 'ci/frontend-int-tests-compat1.yml'
   #- local: 'ci/frontend-int-tests-compat2.yml'
-
+  - local: 'ci/aikido.yml'  
 
 build:
   allow_failure: false
