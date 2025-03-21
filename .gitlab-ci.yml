@@ -136,6 +136,7 @@ deploy_release:
       mvn clean deploy $MAVEN_CLI_OPTS -DskipTests -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION
 
 deploy_docker_image:
+  allow_failure: false
   stage: "Deploy Docker Image"
   image: docker:${DOCKER_VERSION}
   services:
@@ -178,4 +179,4 @@ deploy_docker_image:
       
       
       
-  allow_failure: false
+
