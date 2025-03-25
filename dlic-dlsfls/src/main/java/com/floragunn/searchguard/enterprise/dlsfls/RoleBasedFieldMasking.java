@@ -23,8 +23,6 @@ import java.util.Collection;
 import java.util.stream.Collectors;
 
 import org.apache.lucene.util.BytesRef;
-import org.bouncycastle.crypto.digests.Blake2bDigest;
-import org.bouncycastle.util.encoders.Hex;
 
 import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -35,12 +33,14 @@ import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import com.floragunn.searchsupport.meta.Meta;
+import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Bytes;
 
 public class RoleBasedFieldMasking
         extends RoleBasedAuthorizationBase<RoleBasedFieldMasking.FieldMaskingRule.SingleRole, RoleBasedFieldMasking.FieldMaskingRule> {
 
     private final DlsFlsConfig.FieldMasking fieldMaskingConfig;
+    private final static BaseEncoding hex = BaseEncoding.base16().lowerCase();
 
     public RoleBasedFieldMasking(SgDynamicConfiguration<Role> roles, DlsFlsConfig.FieldMasking fieldMaskingConfig, Meta indexMetadata,
             MetricsLevel metricsLevel) {
@@ -255,10 +255,10 @@ public class RoleBasedFieldMasking
 
                 if (algo != null) {
                     if (prefix != null) {
-                        return Bytes.concat(prefix, Hex.encode(algo.digest(in)));
+                        return Bytes.concat(prefix, hex.encode(algo.digest(in)).getBytes());
                     }
 
-                    return Hex.encode(algo.digest(in));
+                    return hex.encode(algo.digest(in)).getBytes();
                 } else if (expression.getRegexReplacements() != null) {
                     String string = new String(in, StandardCharsets.UTF_8);
                     for (Role.Index.FieldMaskingExpression.RegexReplacement rr : expression.getRegexReplacements()) {
@@ -291,10 +291,10 @@ public class RoleBasedFieldMasking
                 hash.doFinal(out, 0);
 
                 if (prefix != null) {
-                    return Bytes.concat(prefix, Hex.encode(out));
+                    return Bytes.concat(prefix, hex.encode(out).getBytes());
                 }
 
-                return Hex.encode(out);
+                return hex.encode(out).getBytes();
             }
 
             private BytesRef blake2bHash(BytesRef in) {
