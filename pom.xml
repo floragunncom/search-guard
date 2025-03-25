@@ -401,6 +401,11 @@
     	<artifactId>special-collections-complete</artifactId>
     	<version>1.4.0</version>
 	  </dependency>
+      <dependency>
+        <groupId>org.apache.cxf</groupId>
+        <artifactId>cxf-core</artifactId>
+        <version>4.0.6</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
