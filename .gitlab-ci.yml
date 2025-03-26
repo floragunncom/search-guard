@@ -233,14 +233,14 @@ deploy_snapshot:
   script:
     - |
       set -x
-      mvn -Drevision=b-$CI_COMMIT_REF_NAME-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests -s settings.xml deploy | tee deploy.out
+      mvn -Drevision=b-$CI_COMMIT_REF_SLUG-SNAPSHOT $MAVEN_CLI_OPTS -DskipTests -s settings.xml deploy | tee deploy.out
       SG_ES_PLUGIN=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
       SG_ADMIN=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`
       ES_VERSION=$(xmlstarlet sel -N my=http://maven.apache.org/POM/4.0.0 -t -m my:project -m my:properties -v my:elasticsearch.version pom.xml)
       MAJOR=$(echo $ES_VERSION | cut -d. -f1-2)
       if [ -z "$IT_BRANCH" ]; then
-        if [[ "$CI_COMMIT_REF_NAME" != "master" ]] && [[ -n $(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME) ]]; then
-          IT_BRANCH="$CI_COMMIT_REF_NAME"
+        if [[ "$CI_COMMIT_REF_SLUG" != "master" ]] && [[ -n $(git ls-remote --heads https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/search-guard-integration-tests.git $CI_COMMIT_REF_SLUG) ]]; then
+          IT_BRANCH="$CI_COMMIT_REF_SLUG"
         else
           IT_BRANCH="$MAJOR.x"
         fi
@@ -297,8 +297,8 @@ deploy_staging:
       SG_ES_PLUGIN_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+.zip " deploy.out | grep -o "http.*zip"`
       SG_ADMIN_URI=`grep -E "Uploaded to .*: https://.*/search-guard-suite-plugin-.*[0-9]+-sgadmin-standalone.zip " deploy.out | grep -o http.*zip`      
       if [ -z "$IT_BRANCH" ]; then
-        if [ "$CI_COMMIT_REF_NAME" != "master" ] && [ -n $(git ls-remote --heads git@git.floragunn.com:private/search-guard-integration-tests.git $CI_COMMIT_REF_NAME) ]; then
-          IT_BRANCH="$CI_COMMIT_REF_NAME"
+        if [ "$CI_COMMIT_REF_SLUG" != "master" ] && [ -n $(git ls-remote --heads git@git.floragunn.com:private/search-guard-integration-tests.git $CI_COMMIT_REF_SLUG) ]; then
+          IT_BRANCH="$CI_COMMIT_REF_SLUG"
         else
           IT_BRANCH="$MAJOR.x"
         fi
