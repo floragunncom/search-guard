@@ -13,7 +13,8 @@
  */
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
+
 import java.util.Objects;
 
 public record StepResult(StepExecutionStatus status, String message, @Nullable String details) {

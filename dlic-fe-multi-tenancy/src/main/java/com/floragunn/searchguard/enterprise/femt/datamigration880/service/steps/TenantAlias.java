@@ -13,7 +13,8 @@
  */
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps;
 
-import javax.annotation.Nullable;
+
+import jakarta.annotation.Nullable;
 
 import static org.elasticsearch.common.Strings.requireNonEmpty;
 

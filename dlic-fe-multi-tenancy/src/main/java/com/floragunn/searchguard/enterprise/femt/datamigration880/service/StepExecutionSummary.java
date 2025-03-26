@@ -19,9 +19,9 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.google.common.base.Throwables;
+import jakarta.annotation.Nullable;
 import org.elasticsearch.common.time.DateFormatter;
 
-import javax.annotation.Nullable;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Objects;

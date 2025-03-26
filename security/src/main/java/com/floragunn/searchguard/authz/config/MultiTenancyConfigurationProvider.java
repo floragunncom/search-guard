@@ -1,8 +1,8 @@
 package com.floragunn.searchguard.authz.config;
 
 import com.floragunn.searchguard.authz.TenantAccessMapper;
+import jakarta.annotation.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 

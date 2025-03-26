@@ -14,9 +14,8 @@
 package com.floragunn.searchguard.enterprise.femt.datamigration880.service;
 
 import com.floragunn.searchguard.authz.config.Tenant;
+import jakarta.annotation.Nullable;
 import org.elasticsearch.common.Strings;
-
-import javax.annotation.Nullable;
 
 import static org.elasticsearch.common.Strings.requireNonEmpty;
 
