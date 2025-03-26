@@ -138,7 +138,7 @@
       <!-- Replacement dependency for com.onelogin:java-saml (see above) -->
       <groupId>org.apache.santuario</groupId>
       <artifactId>xmlsec</artifactId>
-      <version>4.0.2</version>
+      <version>2.3.4</version>
     </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
@@ -289,4 +289,28 @@
     </dependency>
 
   </dependencies>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.yaml</groupId>
+        <artifactId>snakeyaml</artifactId>
+        <version>2.0</version>
+      </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-jdk15on</artifactId>
+        <version>1.78</version>
+      </dependency>
+      <dependency>
+        <groupId>com.jayway.jsonpath</groupId>
+        <artifactId>json-path</artifactId>
+        <version>2.9.0</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.cxf</groupId>
+        <artifactId>cxf-core</artifactId>
+        <version>4.0.6</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 </project>
