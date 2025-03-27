@@ -770,7 +770,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
 
                 InternalJobDetail internalJobDetail = keyToJobMap.get(trigger.getJobKey());
 
-                if (internalJobDetail.isConcurrentExectionDisallowed()) {
+                if (internalJobDetail.isConcurrentExecutionDisallowed()) {
                     if (acquiredJobKeysForNoConcurrentExec.contains(internalJobDetail.getKey())) {
                         excludedTriggers.add(trigger);
                         continue;
@@ -876,7 +876,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
                 TriggerFiredBundle triggerFiredBundle = new TriggerFiredBundle(jobDetail, trigger, null, false, new Date(), scheduledFireTime,
                         previousFireTime, trigger.getNextFireTime());
 
-                if (jobDetail.isConcurrentExectionDisallowed()) {
+                if (jobDetail.isConcurrentExecutionDisallowed()) {
                     jobDetail.blockIdleTriggers();
                 } else if (internalOperableTrigger.getNextFireTime() != null) {
                     this.activeTriggers.add(internalOperableTrigger);
@@ -917,7 +917,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
                     internalJobDetail.delegate = internalJobDetail.getJobBuilder().setJobData(newData).build();
                 }
 
-                if (internalJobDetail.isConcurrentExectionDisallowed()) {
+                if (internalJobDetail.isConcurrentExecutionDisallowed()) {
                     internalJobDetail.deblockTriggers();
                     signaler.signalSchedulingChange(0L);
                 }
@@ -1664,7 +1664,7 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
                 }
 
                 if (actualTrigger.state == InternalOperableTrigger.State.WAITING) {
-                    if (internalJobDetail.isConcurrentExectionDisallowed()) {
+                    if (internalJobDetail.isConcurrentExecutionDisallowed()) {
                         internalJobDetail.deblockTriggers();
                         signaler.signalSchedulingChange(0L);
                     }
@@ -1986,8 +1986,8 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
             return delegate.isPersistJobDataAfterExecution();
         }
 
-        public boolean isConcurrentExectionDisallowed() {
-            return delegate.isConcurrentExectionDisallowed();
+        public boolean isConcurrentExecutionDisallowed() {
+            return delegate.isConcurrentExecutionDisallowed();
         }
 
         public boolean requestsRecovery() {
