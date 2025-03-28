@@ -386,9 +386,13 @@ public abstract class AbstractAuditLog implements AuditLog {
             if(request.isFullContent()) {
                 msg.addTupleToRequestBodyReleasable(request.contentOrSourceParam());
             } else {
-                // TODO ES9 Audit logs does not support stream content
-                // this will fail on the exception below or on assertion when body content is retrieved
-                throw new IllegalArgumentException("Audit logging of stream content is not supported");
+                if(request.path().endsWith("/_bulk")) {
+                    // the bulk request body contain streamed content
+                    log.debug("It is impossible to log bulk request body for request '{}'", request.path());
+                } else {
+                    // this will fail on the exception below or on assertion when body content is retrieved
+                    throw new IllegalArgumentException("Audit logging of stream content is not supported");
+                }
             }
         }
 
