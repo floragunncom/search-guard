@@ -16,14 +16,10 @@ package com.floragunn.searchguard.authtoken;
 
 import java.util.Arrays;
 
-import com.nimbusds.jose.Algorithm;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.KeyUse;
-import com.nimbusds.jose.jwk.OctetSequenceKey;
-import com.nimbusds.jose.jwk.RSAKey;
-import com.nimbusds.jose.util.Base64URL;
+import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
+import org.apache.cxf.rs.security.jose.jwk.JsonWebKeys;
+import org.apache.cxf.rs.security.jose.jwk.KeyType;
+import org.apache.cxf.rs.security.jose.jwk.PublicKeyUse;
 
 class TestJwk {
 
@@ -36,11 +32,11 @@ class TestJwk {
 	static final String OCT_256_1_K = "Z74PlpmePaZg2Ubm3ipD9QE4uX45GWAPwjMHCKpb6Xk=";
 	static final String OCT_512_1_K = "0c8YGg-YdAuOqIZFMoWm0INDnZhmZmTy3ovdZ3PDeJwAQ1qEYn_sivE0960sIKl8sRQnIti7-JEUeVfeJxgpBg==";
 	
-	static final JWK OCT_1 = createOct("kid/a", JWSAlgorithm.HS256, OCT_1_K);
-	static final JWK OCT_2 = createOct("kid/b", JWSAlgorithm.HS256, OCT_2_K);
-	static final JWK OCT_3 = createOct("kid/c", JWSAlgorithm.HS256, OCT_3_K);
+	static final JsonWebKey OCT_1 = createOct("kid/a", "HS256", OCT_1_K);
+	static final JsonWebKey OCT_2 = createOct("kid/b", "HS256", OCT_2_K);
+	static final JsonWebKey OCT_3 = createOct("kid/c", "HS256", OCT_3_K);
 
-	static final JWKSet OCT_1_2_3 = createJwks(OCT_1, OCT_2, OCT_3);
+	static final JsonWebKeys OCT_1_2_3 = createJwks(OCT_1, OCT_2, OCT_3);
 
 	static final String RSA_1_D = "On8XGMmdM5Fm5hvuhQk-qAkIP2CoK5QMx0OH5m_WDzKXZv8lZ2eg89I4ehBiOKGdw1h_mjmWwTah-evpXV-BF5QpejPQqxkXS-8s5r2AvietQq32jl-gwIwZWTvfzjpT9On0YJZ4q01tMDj3r-YOLUW2xrz3za9tl6pPU_5kP63C-hoj1ybTwcC7ujbCPwhY6yAopMA1v10uVmCxsjsNikEjB6YePgHixez51wO3Z8mXNwefWukFWYJ5T7t4kHMSf5P_8FJZ14u5yvYZnngE_tJCyHFdIDb6UWsrgxomtlQU-SdZYK_NY6gw6mCkjjlqOoYqlsrRJ16kJ81Ds269oQ";
 	static final String RSA_1_N = "hMSoV74FRtoaU7xpp0llsXbHE4oUseKoSNga-C_YIXuoGc3pajHh1WtJppZQNYM1Xy07nHchLJAdgqL2_q_Lk8cFHmmL1KTjwPflK9zZ9C0-8QTOrrqU9vkp3gT00jWWJ0HJbUvXIGxPGPnxoJoI--ToE0EWsYEWqWyx1TqYol--oUUPlY5r7vXRKIn5UZNz6VGkW8nI4fXaqDUpXH9uVM9A-nJX2B0Xjwu3VOn2zrgkCZeGTHjNgfLISOTFe9m8lHWLKcuxOWPuCZyCN0C6ZdWB1YP2NhxYFQwQfGV8yfnTImgL-DuV4WPSRVj7W_GJr213-oXBrBR0CnQEPbi_3w";
@@ -54,53 +50,68 @@ class TestJwk {
 	static final String RSA_X_N = "jDDVUMXOXDVcaRVAT5TtuiAsLxk7XAAwyyECfmySZul7D5XVLMtGe6rP2900q3nM4BaCEiuwXjmTCZDAGlFGs2a3eQ1vbBSv9_0KGHL-gZGFPNiv0v8aR7QzZ-abhGnRy5F52PlTWsypGgG_kQpF2t2TBotvYhvVPagAt4ljllDKvY1siOvS3nh4TqcUtWcbgQZEWPmaXuhx0eLmhQJca7UEw99YlGNew48AEzt7ZnfU0Qkz3JwSz7IcPx-NfIh6BN6LwAg_ASdoM3MR8rDOtLYavmJVhutrfOpE-4-fw1mf3eLYu7xrxIplSiOIsHunTUssnTiBkXAaGqGJs604Pw";
 	static final String RSA_X_E = "AQAB";
 
-	static final JWK RSA_1 = createRsa("kid/1", JWSAlgorithm.RS256, RSA_1_E, RSA_1_N, RSA_1_D);
-	static final JWK RSA_1_PUBLIC = createRsaPublic("kid/1", JWSAlgorithm.RS256, RSA_1_E, RSA_1_N);
-	static final JWK RSA_1_PUBLIC_NO_ALG = createRsaPublic("kid/1", null, RSA_1_E, RSA_1_N);
-    static final JWK RSA_1_PUBLIC_WRONG_ALG = createRsaPublic("kid/1", JWSAlgorithm.HS256, RSA_1_E, RSA_1_N);
+	static final JsonWebKey RSA_1 = createRsa("kid/1", "RS256", RSA_1_E, RSA_1_N, RSA_1_D);
+	static final JsonWebKey RSA_1_PUBLIC = createRsaPublic("kid/1", "RS256", RSA_1_E, RSA_1_N);
+	static final JsonWebKey RSA_1_PUBLIC_NO_ALG = createRsaPublic("kid/1", null, RSA_1_E, RSA_1_N);
+    static final JsonWebKey RSA_1_PUBLIC_WRONG_ALG = createRsaPublic("kid/1", "HS256", RSA_1_E, RSA_1_N);
 
-	static final JWK RSA_2 = createRsa("kid/2", JWSAlgorithm.RS256, RSA_2_E, RSA_2_N, RSA_2_D);
-	static final JWK RSA_2_PUBLIC = createRsaPublic("kid/2", JWSAlgorithm.RS256, RSA_2_E, RSA_2_N);
+	static final JsonWebKey RSA_2 = createRsa("kid/2", "RS256", RSA_2_E, RSA_2_N, RSA_2_D);
+	static final JsonWebKey RSA_2_PUBLIC = createRsaPublic("kid/2", "RS256", RSA_2_E, RSA_2_N);
 
-	static final JWK RSA_X = createRsa("kid/2", JWSAlgorithm.RS256, RSA_X_E, RSA_X_N, RSA_X_D);
-	static final JWK RSA_X_PUBLIC = createRsaPublic("kid/2", JWSAlgorithm.RS256, RSA_X_E, RSA_X_N);
+	static final JsonWebKey RSA_X = createRsa("kid/2", "RS256", RSA_X_E, RSA_X_N, RSA_X_D);
+	static final JsonWebKey RSA_X_PUBLIC = createRsaPublic("kid/2", "RS256", RSA_X_E, RSA_X_N);
 
-	static final JWKSet RSA_1_2_PUBLIC = createJwks(RSA_1_PUBLIC, RSA_2_PUBLIC);
+	static final JsonWebKeys RSA_1_2_PUBLIC = createJwks(RSA_1_PUBLIC, RSA_2_PUBLIC);
 
 	static class Jwks {
-		static final JWKSet ALL = createJwks(OCT_1, OCT_2, OCT_3, RSA_1_PUBLIC, RSA_2_PUBLIC);
-		static final JWKSet RSA_1 = createJwks(RSA_1_PUBLIC);
-		static final JWKSet RSA_2 = createJwks(RSA_2_PUBLIC);
-		static final JWKSet RSA_1_NO_ALG = createJwks(RSA_1_PUBLIC_NO_ALG);
-	    static final JWKSet RSA_1_WRONG_ALG = createJwks(RSA_1_PUBLIC_WRONG_ALG);
+		static final JsonWebKeys ALL = createJwks(OCT_1, OCT_2, OCT_3, RSA_1_PUBLIC, RSA_2_PUBLIC);
+		static final JsonWebKeys RSA_1 = createJwks(RSA_1_PUBLIC);
+		static final JsonWebKeys RSA_2 = createJwks(RSA_2_PUBLIC);
+		static final JsonWebKeys RSA_1_NO_ALG = createJwks(RSA_1_PUBLIC_NO_ALG);
+	    static final JsonWebKeys RSA_1_WRONG_ALG = createJwks(RSA_1_PUBLIC_WRONG_ALG);
 	}
 	
 		
-	private static JWK createOct(String keyId, Algorithm algorithm, String k) {
-	    return new OctetSequenceKey.Builder(new Base64URL(k))
-                .keyID(keyId)
-                .keyUse(KeyUse.SIGNATURE)  
-                .algorithm(algorithm)     
-                .build();	    
+	private static JsonWebKey createOct(String keyId, String algorithm, String k) {
+		JsonWebKey result = new JsonWebKey();
+
+		result.setKeyId(keyId);
+		result.setKeyType(KeyType.OCTET);
+		result.setAlgorithm(algorithm);
+		result.setPublicKeyUse(PublicKeyUse.SIGN);
+		result.setProperty("k", k);
+
+		return result;
 	}
 
-	private static JWK createRsa(String keyId, Algorithm algorithm, String e, String n, String d) {
-	    return new RSAKey.Builder(new Base64URL(n), new Base64URL(e))
-                .keyID(keyId)
-                .algorithm(algorithm)
-                .privateExponent(new Base64URL(d))
-                .keyUse(KeyUse.SIGNATURE).build();
+	private static JsonWebKey createRsa(String keyId, String algorithm, String e, String n, String d) {
+		JsonWebKey result = new JsonWebKey();
+
+		result.setKeyId(keyId);
+		result.setKeyType(KeyType.RSA);
+		result.setAlgorithm(algorithm);
+		result.setPublicKeyUse(PublicKeyUse.SIGN);
+
+		if (d != null) {
+			result.setProperty("d", d);
+		}
+
+		result.setProperty("e", e);
+		result.setProperty("n", n);
+
+		return result;
 	}
 
-	private static JWK createRsaPublic(String keyId, Algorithm algorithm, String e, String n) {
-        return new RSAKey.Builder(new Base64URL(n), new Base64URL(e))
-                .keyID(keyId)
-                .algorithm(algorithm)
-                .keyUse(KeyUse.SIGNATURE).build();	
-    }
+	private static JsonWebKey createRsaPublic(String keyId, String algorithm, String e, String n) {
+		return createRsa(keyId, algorithm, e, n, null);
+	}
 
-	private static JWKSet createJwks(JWK... array) {
-		return new JWKSet(Arrays.asList(array));
+	private static JsonWebKeys createJwks(JsonWebKey... array) {
+		JsonWebKeys result = new JsonWebKeys();
+
+		result.setKeys(Arrays.asList(array));
+
+		return result;
 	}
 
 }

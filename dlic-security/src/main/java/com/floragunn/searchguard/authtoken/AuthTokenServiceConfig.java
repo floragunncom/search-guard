@@ -14,36 +14,38 @@
 
 package com.floragunn.searchguard.authtoken;
 
-import java.text.ParseException;
 import java.time.Duration;
 import java.time.temporal.TemporalAmount;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.floragunn.codova.config.net.CacheConfig;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.Parser.Context;
-import com.floragunn.codova.documents.patch.PatchableDocument;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidatingFunction;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.codova.validation.VariableResolvers;
-import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.searchguard.support.JoseParsers;
+import org.apache.cxf.rs.security.jose.common.JoseUtils;
+import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
+import org.apache.cxf.rs.security.jose.jwk.JwkUtils;
+import org.apache.cxf.rs.security.jose.jwk.KeyType;
+import org.apache.cxf.rs.security.jose.jwk.PublicKeyUse;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.Parser;
+import com.floragunn.codova.documents.Parser.Context;
+import com.floragunn.codova.documents.patch.PatchableDocument;
+import com.floragunn.codova.validation.errors.InvalidAttributeValue;
+import com.floragunn.searchguard.authtoken.RequestedPrivileges.ExcludedIndexPermissions;
 import com.floragunn.searchguard.authtoken.api.CreateAuthTokenAction;
+import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.google.common.io.BaseEncoding;
-import com.nimbusds.jose.Algorithm;
-import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jose.jwk.KeyUse;
-import com.nimbusds.jose.jwk.OctetSequenceKey;
-import com.nimbusds.jose.util.Base64URL;
 
 public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServiceConfig> {
     private static final Logger log = LogManager.getLogger(AuthTokenServiceConfig.class);
@@ -57,8 +59,8 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
     static final String SIGNING_KEY_SECRET = "auth_tokens_signing_key_hs512";
 
     private boolean enabled;
-    private JWK jwtSigningKey;
-    private JWK jwtEncryptionKey;
+    private JsonWebKey jwtSigningKey;
+    private JsonWebKey jwtEncryptionKey;
     private String jwtAud;
     private TemporalAmount maxValidity;
     private List<String> excludeClusterPermissions = Arrays.asList(CreateAuthTokenAction.NAME);
@@ -71,11 +73,11 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
         return enabled;
     }
 
-    public JWK getJwtSigningKey() {
+    public JsonWebKey getJwtSigningKey() {
         return jwtSigningKey;
     }
 
-    public JWK getJwtEncryptionKey() {
+    public JsonWebKey getJwtEncryptionKey() {
         return jwtEncryptionKey;
     }
 
@@ -91,11 +93,11 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
         this.enabled = enabled;
     }
 
-    public void setJwtSigningKey(JWK jwtSigningKey) {
+    public void setJwtSigningKey(JsonWebKey jwtSigningKey) {
         this.jwtSigningKey = jwtSigningKey;
     }
 
-    public void setJwtEncryptionKey(JWK jwtEncryptionKey) {
+    public void setJwtEncryptionKey(JsonWebKey jwtEncryptionKey) {
         this.jwtEncryptionKey = jwtEncryptionKey;
     }
 
@@ -135,8 +137,7 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
                     Object key = variableResolvers.toMap().get("var").apply(SIGNING_KEY_SECRET);
 
                     if (key instanceof String) {
-                        result.jwtSigningKey = new OctetSequenceKey.Builder(new Base64URL((String) key)).algorithm(Algorithm.parse("HS512"))
-                                .keyUse(KeyUse.SIGNATURE).build();
+                        result.jwtSigningKey = JoseParsers.parseJwkHs512SigningKey((String) key);
                     } else {
                         throw new ConfigValidationException(
                                 new ValidationError("jwt_signing_key_hs512", "Unexpected variable value for " + SIGNING_KEY_SECRET));
@@ -154,14 +155,16 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
                 result.jwtEncryptionKey = vJsonNode.get("jwt_encryption_key_a256kw").by(JWK_A256KW_ENCRYPTION_KEY_PARSER_A256KW);
             }
 
-            result.cacheConfig = vJsonNode.get("token_cache").withDefault(DEFAULT_TOKEN_CACHE_CONFIG).by(CacheConfig::new);
+            result.cacheConfig = vJsonNode.get("token_cache")
+                    .withDefault(DEFAULT_TOKEN_CACHE_CONFIG)
+                    .by(CacheConfig::new);
 
             result.jwtAud = vJsonNode.get("jwt_aud_claim").withDefault(DEFAULT_AUDIENCE).asString();
             result.maxValidity = vJsonNode.get("max_validity").asTemporalAmount();
 
             result.excludeClusterPermissions = vJsonNode.get("exclude_cluster_permissions").asList().withDefault(CreateAuthTokenAction.NAME)
                     .ofStrings();
-
+            
             List<String> excludeIndexPermissions = vJsonNode.get("exclude_index_permissions").asListOfStrings();
             if (excludeIndexPermissions != null && !excludeIndexPermissions.isEmpty()) {
                 if (context.isLenientValidationRequested()) {
@@ -170,7 +173,7 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
                     validationErrors.add(new ValidationError("exclude_index_permissions", "This attribute is no longer supported"));
                 }
             }
-
+            
             result.maxTokensPerUser = vJsonNode.get("max_tokens_per_user").withDefault(100).asInt();
 
             result.freezePrivileges = vJsonNode.get("freeze_privileges").withDefault(FreezePrivileges.USER_CHOOSES).asEnum(FreezePrivileges.class);
@@ -185,37 +188,35 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
         }
     }
 
-    private static final ValidatingFunction<DocNode, JWK> JWK_SIGNING_KEY_PARSER = new ValidatingFunction<DocNode, JWK>() {
+    private static final ValidatingFunction<DocNode, JsonWebKey> JWK_SIGNING_KEY_PARSER = new ValidatingFunction<DocNode, JsonWebKey>() {
 
         @Override
-        public JWK apply(DocNode jsonNode) throws ConfigValidationException {
-            try {
-                String jwkJsonString = jsonNode.toJsonString();
+        public JsonWebKey apply(DocNode jsonNode) throws ConfigValidationException {
 
-                JWK result = JWK.parse(jwkJsonString);
+            String jwkJsonString = jsonNode.toJsonString();
 
-                KeyUse publicKeyUse = result.getKeyUse();
+            JsonWebKey result = JwkUtils.readJwkKey(jwkJsonString);
 
-                if (publicKeyUse != null && publicKeyUse != KeyUse.SIGNATURE) {
-                    throw new ConfigValidationException(
-                            new InvalidAttributeValue("use", publicKeyUse, "The use claim must designate the JWK for signing"));
-                }
+            PublicKeyUse publicKeyUse = result.getPublicKeyUse();
 
-                return result;
-            } catch (ParseException e) {
-                throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
+            if (publicKeyUse != null && publicKeyUse != PublicKeyUse.SIGN) {
+                throw new ConfigValidationException(
+                        new InvalidAttributeValue("use", publicKeyUse, "The use claim must designate the JWK for signing"));
             }
+
+            return result;
+
         }
     };
 
-    private static final ValidatingFunction<DocNode, JWK> JWK_HS512_SIGNING_KEY_PARSER = new ValidatingFunction<DocNode, JWK>() {
+    private static final ValidatingFunction<DocNode, JsonWebKey> JWK_HS512_SIGNING_KEY_PARSER = new ValidatingFunction<DocNode, JsonWebKey>() {
 
         @Override
-        public JWK apply(DocNode jsonNode) throws ConfigValidationException {
+        public JsonWebKey apply(DocNode jsonNode) throws ConfigValidationException {
             byte[] key;
 
             try {
-                key = BaseEncoding.base64Url().decode(jsonNode.toString());
+                key = JoseUtils.decode(jsonNode.toString());
             } catch (Exception e) {
                 throw new ConfigValidationException(new InvalidAttributeValue(null, e.getMessage(),
                         "A Base64URL encoded HMAC512 key with at least 512 bit (64 bytes, 86 Base64 encoded characters)").cause(e));
@@ -226,45 +227,49 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
                         "A Base64URL encoded HMAC512 key with at least 512 bit (64 bytes, 86 Base64 encoded characters)"));
             }
 
-            return new OctetSequenceKey.Builder(key).algorithm(Algorithm.parse("HS512")).keyUse(KeyUse.SIGNATURE).build();
+            JsonWebKey jwk = new JsonWebKey();
+
+            jwk.setKeyType(KeyType.OCTET);
+            jwk.setAlgorithm("HS512");
+            jwk.setPublicKeyUse(PublicKeyUse.SIGN);
+            jwk.setProperty("k", jsonNode.toString());
+
+            return jwk;
         }
 
     };
 
-    private static final ValidatingFunction<DocNode, JWK> JWK_ENCRYPTION_KEY_PARSER = new ValidatingFunction<DocNode, JWK>() {
+    private static final ValidatingFunction<DocNode, JsonWebKey> JWK_ENCRYPTION_KEY_PARSER = new ValidatingFunction<DocNode, JsonWebKey>() {
 
         @Override
-        public JWK apply(DocNode jsonNode) throws ConfigValidationException {
-            try {
-                String jwkJsonString = jsonNode.toJsonString();
+        public JsonWebKey apply(DocNode jsonNode) throws ConfigValidationException {
 
-                JWK result = JWK.parse(jwkJsonString);
+            String jwkJsonString = jsonNode.toJsonString();
 
-                KeyUse publicKeyUse = result.getKeyUse();
+            JsonWebKey result = JwkUtils.readJwkKey(jwkJsonString);
 
-                if (publicKeyUse != null && publicKeyUse != KeyUse.ENCRYPTION) {
-                    throw new ConfigValidationException(
-                            new InvalidAttributeValue("use", publicKeyUse, "The use claim must designate the JWK for encryption"));
-                }
+            PublicKeyUse publicKeyUse = result.getPublicKeyUse();
 
-                return result;
-            } catch (ParseException e) {
-                throw new ConfigValidationException(new ValidationError(null, e.getMessage()).cause(e));
+            if (publicKeyUse != null && publicKeyUse != PublicKeyUse.ENCRYPT) {
+                throw new ConfigValidationException(
+                        new InvalidAttributeValue("use", publicKeyUse, "The use claim must designate the JWK for encryption"));
             }
+
+            return result;
         }
 
     };
 
-    private static final ValidatingFunction<DocNode, JWK> JWK_A256KW_ENCRYPTION_KEY_PARSER_A256KW = new ValidatingFunction<DocNode, JWK>() {
+    private static final ValidatingFunction<DocNode, JsonWebKey> JWK_A256KW_ENCRYPTION_KEY_PARSER_A256KW = new ValidatingFunction<DocNode, JsonWebKey>() {
 
         @Override
-        public JWK apply(DocNode jsonNode) throws ConfigValidationException {
+        public JsonWebKey apply(DocNode jsonNode) throws ConfigValidationException {
             byte[] key;
 
             String value = jsonNode.toString();
 
             try {
-                key = BaseEncoding.base64Url().decode(value);
+                key = JoseUtils.decode(value);
             } catch (Exception e) {
                 throw new ConfigValidationException(new InvalidAttributeValue(null, e.getMessage(),
                         "A Base64URL encoded A256KW key with at least 256 bit (32 bytes, 43 Base64 encoded characters)").cause(e));
@@ -275,7 +280,14 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
                         "A Base64URL encoded A256KW key with at least 256 bit (32 bytes, 43 Base64 encoded characters)"));
             }
 
-            return new OctetSequenceKey.Builder(key).algorithm(Algorithm.parse("A256KW")).keyUse(KeyUse.ENCRYPTION).build();
+            JsonWebKey jwk = new JsonWebKey();
+
+            jwk.setKeyType(KeyType.OCTET);
+            jwk.setAlgorithm("A256KW");
+            jwk.setPublicKeyUse(PublicKeyUse.ENCRYPT);
+            jwk.setProperty("k", value);
+
+            return jwk;
         }
     };
 

@@ -14,8 +14,10 @@
 
 package com.floragunn.searchguard.authtoken;
 
-import java.text.ParseException;
-
+import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
+import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
+import org.apache.cxf.rs.security.jose.jwt.JwtException;
+import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -24,11 +26,6 @@ import com.floragunn.searchguard.authc.rest.HttpAuthenticationFrontend;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.google.common.base.Strings;
-import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jwt.JWT;
-import com.nimbusds.jwt.JWTClaimNames;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.proc.BadJWTException;
 
 public class AuthTokenHttpJwtAuthenticator implements HttpAuthenticationFrontend {
     private final static Logger log = LogManager.getLogger(AuthTokenHttpJwtAuthenticator.class);
@@ -42,7 +39,7 @@ public class AuthTokenHttpJwtAuthenticator implements HttpAuthenticationFrontend
     public AuthTokenHttpJwtAuthenticator(AuthTokenService authTokenService) {
         this.authTokenService = authTokenService;
         this.jwtHeaderName = "Authorization";
-        this.subjectKey = JWTClaimNames.SUBJECT;
+        this.subjectKey = JwtConstants.CLAIM_SUBJECT;
     }
 
     public String getType() {
@@ -58,12 +55,12 @@ public class AuthTokenHttpJwtAuthenticator implements HttpAuthenticationFrontend
         }
 
         try {
-            JWT jwt = authTokenService.getVerifiedJwtToken(encodedJwt);
+            JwtToken jwt = authTokenService.getVerifiedJwtToken(encodedJwt);
             if (jwt == null) {
                 return null;
             }
 
-            JWTClaimsSet claims = jwt.getJWTClaimsSet();
+            JwtClaims claims = jwt.getClaims();
             String subject = extractSubject(claims);
 
             if (subject == null) {
@@ -71,15 +68,15 @@ public class AuthTokenHttpJwtAuthenticator implements HttpAuthenticationFrontend
                 return null;
             }
 
-            return AuthCredentials.forUser(subject).claims(claims.toJSONObject(false)).complete().build();
+            return AuthCredentials.forUser(subject).claims(claims.asMap()).complete().build();
 
-        } catch (BadJWTException | ParseException | JOSEException e) {
+        } catch (JwtException e) {
             log.info("JWT is invalid (" + this.getType() + ")", e);
             return null;
         }
     }
 
-    protected String extractSubject(JWTClaimsSet claims) {
+    protected String extractSubject(JwtClaims claims) {
         String subject = claims.getSubject();
 
         if (subjectKey != null) {

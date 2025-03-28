@@ -20,6 +20,7 @@ package com.floragunn.searchguard.ssl;
 import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.security.Security;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -34,6 +35,7 @@ import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.TransportVersion;
@@ -118,6 +120,22 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
             return;
         }
+
+        SecurityManager sm = System.getSecurityManager();
+
+        if (sm != null) {
+            sm.checkPermission(new SpecialPermission());
+        }
+
+        AccessController.doPrivileged(new PrivilegedAction<Object>() {
+            @Override
+            public Object run() {
+                if (Security.getProvider("BC") == null) {
+                    Security.addProvider(new BouncyCastleProvider());
+                }
+                return null;
+            }
+        });
         
         this.configPath = configPath;
 
@@ -132,8 +150,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         final boolean rejectClientInitiatedRenegotiation = Boolean
                 .parseBoolean(System.getProperty(SSLConfigConstants.JDK_TLS_REJECT_CLIENT_INITIATED_RENEGOTIATION));
 
-        SecurityManager sm = System.getSecurityManager();
-        
         if (allowClientInitiatedRenegotiation && !rejectClientInitiatedRenegotiation) {
             final String renegoMsg = "Client side initiated TLS renegotiation enabled. This can open a vulnerablity for DoS attacks through client side initiated TLS renegotiation.";
             log.warn(renegoMsg);

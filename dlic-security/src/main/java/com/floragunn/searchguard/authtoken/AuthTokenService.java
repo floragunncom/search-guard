@@ -15,7 +15,6 @@
 package com.floragunn.searchguard.authtoken;
 
 import java.nio.ByteBuffer;
-import java.text.ParseException;
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.Collections;
@@ -31,7 +30,20 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
+import org.apache.cxf.rs.security.jose.jwe.JweDecryptionOutput;
+import org.apache.cxf.rs.security.jose.jwe.JweDecryptionProvider;
+import org.apache.cxf.rs.security.jose.jwe.JweUtils;
+import org.apache.cxf.rs.security.jose.jwk.JsonWebKey;
+import org.apache.cxf.rs.security.jose.jws.JwsJwtCompactConsumer;
+import org.apache.cxf.rs.security.jose.jws.JwsSignatureVerifier;
+import org.apache.cxf.rs.security.jose.jws.JwsUtils;
+import org.apache.cxf.rs.security.jose.jwt.JoseJwtProducer;
+import org.apache.cxf.rs.security.jose.jwt.JwtClaims;
 import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
+import org.apache.cxf.rs.security.jose.jwt.JwtException;
+import org.apache.cxf.rs.security.jose.jwt.JwtToken;
+import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -77,7 +89,6 @@ import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.jwt.JwtVerifier;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProvider;
 import com.floragunn.searchguard.sgconf.history.ConfigHistoryService;
@@ -86,7 +97,6 @@ import com.floragunn.searchguard.sgconf.history.ConfigSnapshot;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.PrivilegedCode;
 import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.ExceptionRecord;
@@ -95,29 +105,6 @@ import com.floragunn.searchsupport.xcontent.ObjectTreeXContent;
 import com.google.common.cache.Cache;
 import com.google.common.collect.Sets;
 import com.google.common.io.BaseEncoding;
-import com.nimbusds.jose.Algorithm;
-import com.nimbusds.jose.EncryptionMethod;
-import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.JWEAlgorithm;
-import com.nimbusds.jose.JWEEncrypter;
-import com.nimbusds.jose.JWEHeader;
-import com.nimbusds.jose.JWEObject;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.JWSSigner;
-import com.nimbusds.jose.Payload;
-import com.nimbusds.jose.crypto.AESEncrypter;
-import com.nimbusds.jose.crypto.ECDHEncrypter;
-import com.nimbusds.jose.crypto.RSAEncrypter;
-import com.nimbusds.jose.crypto.factories.DefaultJWSSignerFactory;
-import com.nimbusds.jose.jwk.ECKey;
-import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jose.jwk.OctetSequenceKey;
-import com.nimbusds.jose.jwk.RSAKey;
-import com.nimbusds.jwt.JWT;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
-import com.nimbusds.jwt.proc.BadJWTException;
 
 public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvider {
 
@@ -131,8 +118,6 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     public static final String USER_TYPE = "sg_auth_token";
     public static final String USER_TYPE_FULL_CURRENT_PERMISSIONS = "sg_auth_token_full_current_permissions";
 
-    private static final EncryptionMethod CONTENT_ENCRYPTION_METHOD = EncryptionMethod.A256CBC_HS512;
-
     private final String indexName;
     private final PrivilegedConfigClient privilegedConfigClient;
     private final ConfigHistoryService configHistoryService;
@@ -142,12 +127,12 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private final Actions actions;
 
     private Cache<String, AuthToken> idToAuthTokenMap;
-    private JWSSigner jwsSigner;
-    private JWEEncrypter jweEncrypter;
+    private JoseJwtProducer jwtProducer;
     private String jwtAudience;
-    private JWK encryptionKey;
-    private JWK signingKey;
-    private JwtVerifier jwtVerifier;
+    private JsonWebKey encryptionKey;
+    private JsonWebKey signingKey;
+    private JwsSignatureVerifier jwsSignatureVerifier;
+    private JweDecryptionProvider jweDecryptionProvider;
     private AuthTokenServiceConfig config;
     private boolean sendTokenUpdates = true;
     private boolean initialized = false;
@@ -434,45 +419,31 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     public CreateAuthTokenResponse createJwt(User user, CreateAuthTokenRequest request) throws TokenCreationException {
 
-        if (jwsSigner == null) {
+        if (jwtProducer == null) {
             throw new TokenCreationException("AuthTokenProvider is not configured", RestStatus.INTERNAL_SERVER_ERROR);
         }
 
         AuthToken authToken = create(user, request);
 
-        JWTClaimsSet.Builder jwtClaims = new JWTClaimsSet.Builder();
+        JwtClaims jwtClaims = new JwtClaims();
+        JwtToken jwt = new JwtToken(jwtClaims);
 
-        jwtClaims.notBeforeTime(java.util.Date.from(authToken.getCreationTime()));
+        jwtClaims.setNotBefore(authToken.getCreationTime().getEpochSecond());
 
         if (authToken.getExpiryTime() != null) {
-            jwtClaims.expirationTime(java.util.Date.from(authToken.getExpiryTime()));
+            jwtClaims.setExpiryTime(authToken.getExpiryTime().getEpochSecond());
         }
 
-        jwtClaims.subject(user.getName());
-        jwtClaims.jwtID(authToken.getId());
-        jwtClaims.audience(config.getJwtAud());
-        jwtClaims.claim("requested", ObjectTreeXContent.toObjectTree(authToken.getRequestedPrivileges()));
-        jwtClaims.claim("base", ObjectTreeXContent.toObjectTree(authToken.getBase(), AuthTokenPrivilegeBase.COMPACT));
+        jwtClaims.setSubject(user.getName());
+        jwtClaims.setTokenId(authToken.getId());
+        jwtClaims.setAudience(config.getJwtAud());
+        jwtClaims.setProperty("requested", ObjectTreeXContent.toObjectTree(authToken.getRequestedPrivileges()));
+        jwtClaims.setProperty("base", ObjectTreeXContent.toObjectTree(authToken.getBase(), AuthTokenPrivilegeBase.COMPACT));
 
         String encodedJwt;
 
         try {
-            SignedJWT signedJwt = PrivilegedCode
-                    .execute(() -> new SignedJWT(new JWSHeader(asJwsAlgorithm(signingKey.getAlgorithm())), jwtClaims.build()));
-            signedJwt.sign(jwsSigner);
-
-            if (jweEncrypter != null) {
-                JWEObject encryptedJwt = PrivilegedCode
-                        .execute(
-                                () -> new JWEObject(
-                                        new JWEHeader.Builder(asJweAlgorithm(encryptionKey.getAlgorithm()), CONTENT_ENCRYPTION_METHOD)
-                                                .customParam(JwtVerifier.PRODUCER_CLAIM, JwtVerifier.PRODUCER_CLAIM_NIMBUS).build(),
-                                        new Payload(signedJwt)));
-                encryptedJwt.encrypt(jweEncrypter);
-                encodedJwt = encryptedJwt.serialize();
-            } else {
-                encodedJwt = signedJwt.serialize();
-            }
+            encodedJwt = this.jwtProducer.processJwt(jwt);
         } catch (Exception e) {
             componentState.addLastException("createJwt",
                     new ExceptionRecord(e, "Error while creating JWT. Possibly the key configuration is not valid."));
@@ -485,38 +456,29 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     public CreateAuthTokenResponse createLightweightJwt(User user, CreateAuthTokenRequest request) throws TokenCreationException {
 
-        if (jwsSigner == null) {
+        if (jwtProducer == null) {
             throw new TokenCreationException("AuthTokenProvider is not configured", RestStatus.INTERNAL_SERVER_ERROR);
         }
 
         AuthToken authToken = create(user, request);
 
-        JWTClaimsSet.Builder jwtClaims = new JWTClaimsSet.Builder();
+        JwtClaims jwtClaims = new JwtClaims();
+        JwtToken jwt = new JwtToken(jwtClaims);
 
-        jwtClaims.notBeforeTime(java.util.Date.from(authToken.getCreationTime()));
+        jwtClaims.setNotBefore(authToken.getCreationTime().getEpochSecond());
 
         if (authToken.getExpiryTime() != null) {
-            jwtClaims.expirationTime(java.util.Date.from(authToken.getExpiryTime()));
+            jwtClaims.setExpiryTime(authToken.getExpiryTime().getEpochSecond());
         }
 
-        jwtClaims.subject(user.getName());
-        jwtClaims.jwtID(authToken.getId());
-        jwtClaims.audience(config.getJwtAud());
+        jwtClaims.setSubject(user.getName());
+        jwtClaims.setTokenId(authToken.getId());
+        jwtClaims.setAudience(config.getJwtAud());
 
         String encodedJwt;
 
         try {
-            SignedJWT signedJwt = new SignedJWT(new JWSHeader((JWSAlgorithm) signingKey.getAlgorithm()), jwtClaims.build());
-            signedJwt.sign(jwsSigner);
-
-            if (jweEncrypter != null) {
-                JWEObject encryptedJwt = new JWEObject(new JWEHeader((JWEAlgorithm) encryptionKey.getAlgorithm(), CONTENT_ENCRYPTION_METHOD),
-                        new Payload(signedJwt));
-                encryptedJwt.encrypt(jweEncrypter);
-                encodedJwt = encryptedJwt.serialize();
-            } else {
-                encodedJwt = signedJwt.serialize();
-            }
+            encodedJwt = this.jwtProducer.processJwt(jwt);
         } catch (Exception e) {
             log.error("Error while creating JWT. Possibly the key configuration is not valid.", e);
             throw new TokenCreationException("Error while creating JWT. Possibly the key configuration is not valid.",
@@ -525,8 +487,33 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         return new CreateAuthTokenResponse(authToken, encodedJwt);
     }
 
-    public JWT getVerifiedJwtToken(String encodedJwt) throws BadJWTException, ParseException, JOSEException {
-        return jwtVerifier.getVerfiedJwt(encodedJwt);
+    public JwtToken getVerifiedJwtToken(String encodedJwt) throws JwtException {
+        if (this.jweDecryptionProvider != null) {
+            JweDecryptionOutput decOutput = this.jweDecryptionProvider.decrypt(encodedJwt);
+            encodedJwt = decOutput.getContentText();
+        }
+
+        JwsJwtCompactConsumer jwtConsumer = new JwsJwtCompactConsumer(encodedJwt);
+        JwtToken jwt = jwtConsumer.getJwtToken();
+
+        if (!validateAudience(jwt.getClaims())) {
+            if (log.isTraceEnabled()) {
+                log.trace("Not checking this token because it has a different audience: " + jwt.getClaims().getAudience());
+            }
+            return null;
+        }
+
+        if (this.jwsSignatureVerifier != null) {
+            boolean signatureValid = jwtConsumer.verifySignatureWith(jwsSignatureVerifier);
+
+            if (!signatureValid) {
+                throw new JwtException("Invalid JWT signature for token " + jwt.getClaims().asMap());
+            }
+        }
+
+        validateClaims(jwt);
+
+        return jwt;
     }
 
     public String revoke(User user, String id) throws NoSuchAuthTokenException, TokenUpdateException {
@@ -556,7 +543,9 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
             return;
         }
 
-        this.idToAuthTokenMap = Optional.ofNullable(config.getCacheConfig()).orElse(AuthTokenServiceConfig.DEFAULT_TOKEN_CACHE_CONFIG).build();
+        this.idToAuthTokenMap = Optional.ofNullable(config.getCacheConfig())
+                .orElse(AuthTokenServiceConfig.DEFAULT_TOKEN_CACHE_CONFIG)
+                .build();
         this.config = config;
         this.jwtAudience = config.getJwtAud();
         this.maxTokensPerUser = config.getMaxTokensPerUser();
@@ -568,6 +557,30 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         initComplete();
         failureListener.onSuccess();
         this.componentState.updateStateFromParts();
+    }
+
+    private void validateClaims(JwtToken jwt) throws JwtException {
+        JwtClaims claims = jwt.getClaims();
+
+        if (claims == null) {
+            throw new JwtException("The JWT does not have any claims");
+        }
+
+        JwtUtils.validateJwtExpiry(claims, 0, false);
+        JwtUtils.validateJwtNotBefore(claims, 0, false);
+
+    }
+
+    private boolean validateAudience(JwtClaims claims) throws JwtException {
+
+        if (jwtAudience != null) {
+            for (String audience : claims.getAudiences()) {
+                if (jwtAudience.equals(audience)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private synchronized void initComplete() {
@@ -598,7 +611,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         AuthToken updatedAuthToken = request.getUpdatedToken();
         Optional<AuthToken> existingAuthToken = getTokenFromCache(updatedAuthToken.getId());
 
-        if (!existingAuthToken.isPresent()) {
+        if (! existingAuthToken.isPresent()) {
             return "Auth token is not cached";
         } else {
             addTokenToCache(updatedAuthToken.getId(), updatedAuthToken);
@@ -711,34 +724,36 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
 
     void initJwtProducer() {
         try {
+            this.jwtProducer = new JoseJwtProducer();
+
             if (signingKey != null) {
-                this.jwsSigner = new DefaultJWSSignerFactory().createJWSSigner(signingKey);
-                this.jwtVerifier = new JwtVerifier(signingKey, encryptionKey, jwtAudience);
+                this.jwtProducer.setSignatureProvider(JwsUtils.getSignatureProvider(signingKey));
+                this.jwsSignatureVerifier = JwsUtils.getSignatureVerifier(signingKey);
             } else {
-                this.jwsSigner = null;
-                this.jwtVerifier = null;
+                this.jwsSignatureVerifier = null;
             }
 
             if (this.encryptionKey != null) {
-                this.jweEncrypter = createJweEncrypter(encryptionKey);
+                this.jwtProducer.setEncryptionProvider(JweUtils.createJweEncryptionProvider(encryptionKey, ContentAlgorithm.A256CBC_HS512));
+                this.jwtProducer.setJweRequired(true);
+                this.jweDecryptionProvider = JweUtils.createJweDecryptionProvider(encryptionKey, ContentAlgorithm.A256CBC_HS512);
             } else {
-                this.jweEncrypter = null;
+                this.jweDecryptionProvider = null;
             }
 
         } catch (Exception e) {
             this.componentState.setFailed(e);
             this.componentState.setSubState("jwt_producer_not_initialized");
-            this.jwsSigner = null;
-            this.jweEncrypter = null;
+            this.jwtProducer = null;
             log.error("Error while initializing JWT producer in AuthTokenProvider", e);
         }
     }
 
-    public JWK getSigningKey() {
+    public JsonWebKey getSigningKey() {
         return signingKey;
     }
 
-    public void setSigningKey(JWK signingKey) {
+    public void setSigningKey(JsonWebKey signingKey) {
         if (Objects.equals(this.signingKey, signingKey)) {
             return;
         }
@@ -749,11 +764,11 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         initJwtProducer();
     }
 
-    public JWK getEncryptionKey() {
+    public JsonWebKey getEncryptionKey() {
         return encryptionKey;
     }
 
-    public void setEncryptionKey(JWK encryptionKey) {
+    public void setEncryptionKey(JsonWebKey encryptionKey) {
         if (Objects.equals(this.encryptionKey, encryptionKey)) {
             return;
         }
@@ -764,7 +779,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         initJwtProducer();
     }
 
-    public void setKeys(JWK signingKey, JWK encryptionKey) {
+    public void setKeys(JsonWebKey signingKey, JsonWebKey encryptionKey) {
         if (Objects.equals(this.signingKey, signingKey) && Objects.equals(this.encryptionKey, encryptionKey)) {
             return;
         }
@@ -815,7 +830,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         if (log.isDebugEnabled()) {
             log.debug("AuthTokenService.provide(" + user.getName() + ") on " + authTokenId);
         }
-
+        
         // We need to drop the thread context incl user information. This is necessary to avoid running in an infinite loop
         // because we do transport action requests further down, which will hit again the SearchGuardFilter, which might branch
         // to here again if it finds a user authenticated by an auth token
@@ -891,34 +906,6 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private ConfigModel getCurrentConfigModel() {
         return new ConfigModel(privilegesEvaluator.getActionAuthorization(), authorizationService.getRoleMapping(),
                 privilegesEvaluator.getActionGroups());
-    }
-
-    private static JWEEncrypter createJweEncrypter(JWK encryptionKey) throws JOSEException {
-        if (encryptionKey instanceof RSAKey) {
-            return new RSAEncrypter((RSAKey) encryptionKey);
-        } else if (encryptionKey instanceof OctetSequenceKey) {
-            return new AESEncrypter((OctetSequenceKey) encryptionKey);
-        } else if (encryptionKey instanceof ECKey) {
-            return new ECDHEncrypter((ECKey) encryptionKey);
-        } else {
-            throw new IllegalArgumentException("Unsupported key type for encryption: " + encryptionKey.getKeyType());
-        }
-    }
-
-    private static JWSAlgorithm asJwsAlgorithm(Algorithm alg) {
-        if (alg instanceof JWSAlgorithm) {
-            return (JWSAlgorithm) alg;
-        } else {
-            return JWSAlgorithm.parse(alg.getName());
-        }
-    }
-
-    private static JWEAlgorithm asJweAlgorithm(Algorithm alg) {
-        if (alg instanceof JWEAlgorithm) {
-            return (JWEAlgorithm) alg;
-        } else {
-            return JWEAlgorithm.parse(alg.getName());
-        }
     }
 
     static class SpecialPrivilegesEvaluationContextImpl implements SpecialPrivilegesEvaluationContext {
@@ -998,14 +985,17 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     }
 
     private Optional<AuthToken> getTokenFromCache(String id) {
-        return Optional.ofNullable(idToAuthTokenMap).map(cache -> cache.getIfPresent(id));
+        return Optional.ofNullable(idToAuthTokenMap)
+                .map(cache -> cache.getIfPresent(id));
     }
 
     private void addTokenToCache(String id, AuthToken token) {
-        Optional.ofNullable(idToAuthTokenMap).ifPresent(cache -> cache.put(id, token));
+        Optional.ofNullable(idToAuthTokenMap)
+                .ifPresent(cache -> cache.put(id, token));
     }
 
     private void removeTokenFromCache(String id) {
-        Optional.ofNullable(idToAuthTokenMap).ifPresent(cache -> cache.invalidate(id));
+        Optional.ofNullable(idToAuthTokenMap)
+                .ifPresent(cache -> cache.invalidate(id));
     }
 }

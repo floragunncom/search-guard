@@ -937,22 +937,19 @@ public class TestSgConfig {
         }
 
         public static SgDynamicConfiguration<com.floragunn.searchguard.authz.config.Role> toActualRole(ConfigurationRepository.Context parserContext,
-                TestSgConfig.Role... roles) {
-            try {
-                Map<String, com.floragunn.searchguard.authz.config.Role> parsedRoles = new HashMap<>();
+                TestSgConfig.Role... roles) throws ConfigValidationException {
+            Map<String, com.floragunn.searchguard.authz.config.Role> parsedRoles = new HashMap<>();
 
-                for (TestSgConfig.Role role : roles) {
-                    parsedRoles.put(role.getName(),
-                            com.floragunn.searchguard.authz.config.Role.parse(DocNode.wrap(role.toDeepBasicObject()), parserContext).get());
-                }
-
-                return SgDynamicConfiguration.of(CType.ROLES, parsedRoles);
-            } catch (ConfigValidationException e) {
-                throw new RuntimeException(e);
+            for (TestSgConfig.Role role : roles) {
+                parsedRoles.put(role.getName(),
+                        com.floragunn.searchguard.authz.config.Role.parse(DocNode.wrap(role.toDeepBasicObject()), parserContext).get());
             }
+
+            return SgDynamicConfiguration.of(CType.ROLES, parsedRoles);
         }
 
-        public static SgDynamicConfiguration<com.floragunn.searchguard.authz.config.Role> toActualRole(TestSgConfig.Role... roles) {
+        public static SgDynamicConfiguration<com.floragunn.searchguard.authz.config.Role> toActualRole(TestSgConfig.Role... roles)
+                throws ConfigValidationException {
             return toActualRole(new ConfigurationRepository.Context(null, null, null, null, null), roles);
         }
 

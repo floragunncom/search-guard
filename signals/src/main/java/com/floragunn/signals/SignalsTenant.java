@@ -94,7 +94,6 @@ import com.floragunn.signals.watch.state.WatchState;
 import com.floragunn.signals.watch.state.WatchStateIndexReader;
 import com.floragunn.signals.watch.state.WatchStateIndexWriter;
 import com.floragunn.signals.watch.state.WatchStateManager;
-import com.nimbusds.jose.JOSEException;
 
 import static com.floragunn.signals.watch.common.ValidationLevel.LENIENT;
 
@@ -365,11 +364,7 @@ public class SignalsTenant implements Closeable {
         watch.setTenant(name);
         watch.getMeta().setLastEditByUser(user.getName());
         watch.getMeta().setLastEditByDate(new Date());
-        try {
-            watch.getMeta().setAuthToken(internalAuthTokenProvider.getJwt(user, watch.getIdAndHash()));
-        } catch (IllegalStateException | JOSEException e) {
-            throw new RuntimeException("Unexpectd exceptionw while signing watch " + watch, e);
-        }
+        watch.getMeta().setAuthToken(internalAuthTokenProvider.getJwt(user, watch.getIdAndHash()));
 
         watchJson.put("_tenant", watch.getTenant());
         watchJson.put("_meta", watch.getMeta().toMap());

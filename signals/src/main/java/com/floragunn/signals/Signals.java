@@ -56,8 +56,6 @@ import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.state.WatchState;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.BaseEncoding;
-import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.KeyLengthException;
 
 public class Signals extends AbstractLifecycleComponent {
     private static final Logger log = LogManager.getLogger(Signals.class);
@@ -94,9 +92,10 @@ public class Signals extends AbstractLifecycleComponent {
         this.signalsSettings.addChangeListener(this.settingsChangeListener);
     }
 
-    public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool, ScriptService scriptService,
-            NamedXContentRegistry xContentRegistry, NodeEnvironment nodeEnvironment, InternalAuthTokenProvider internalAuthTokenProvider,
-            ProtectedConfigIndexService protectedConfigIndexService, DiagnosticContext diagnosticContext, FeatureService featureService) {
+    public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool,
+           ScriptService scriptService, NamedXContentRegistry xContentRegistry, NodeEnvironment nodeEnvironment,
+           InternalAuthTokenProvider internalAuthTokenProvider, ProtectedConfigIndexService protectedConfigIndexService,
+           DiagnosticContext diagnosticContext, FeatureService featureService) {
 
         try {
             nodeId = nodeEnvironment.nodeId();
@@ -223,8 +222,8 @@ public class Signals extends AbstractLifecycleComponent {
         try {
 
             SignalsTenant signalsTenant = SignalsTenant.create(name, client, clusterService, nodeEnvironment, scriptService, xContentRegistry,
-                    internalAuthTokenProvider, signalsSettings, accountRegistry, tenantState, diagnosticContext, threadPool, trustManagerRegistry,
-                    httpProxyHostRegistry, featureService);
+                    internalAuthTokenProvider, signalsSettings, accountRegistry, tenantState, diagnosticContext, threadPool,
+                    trustManagerRegistry, httpProxyHostRegistry, featureService);
 
             tenants.put(name, signalsTenant);
 
@@ -265,21 +264,11 @@ public class Signals extends AbstractLifecycleComponent {
 
             componentState.setState(State.INITIALIZING, "initializing_keys");
             if (signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey() != null) {
-                try {
-                    internalAuthTokenProvider.setSigningKey(signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey());
-                } catch (JOSEException e) {
-                    throw new SignalsInitializationException(
-                            "Error while initializing watch signing key " + signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey(), e);
-                }
+                internalAuthTokenProvider.setSigningKey(signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey());
             }
 
             if (signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey() != null) {
-                try {
-                    internalAuthTokenProvider.setEncryptionKey(signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey());
-                } catch (KeyLengthException e) {
-                    throw new SignalsInitializationException("Error while initializing watch encryption key "
-                            + signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey(), e);
-                }
+                internalAuthTokenProvider.setEncryptionKey(signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey());
             }
 
             if ((signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey() == null
@@ -323,9 +312,9 @@ public class Signals extends AbstractLifecycleComponent {
 
             initState = InitializationState.INITIALIZED;
             componentState.setInitialized();
-
+            
             log.info("Signals has been successfully initialized");
-
+            
         } catch (SignalsInitializationException e) {
             failureListener.onFailure(e);
             initState = InitializationState.FAILED;
@@ -352,20 +341,18 @@ public class Signals extends AbstractLifecycleComponent {
         int watchLogMappingTotalFieldsLimit = signalsSettings.getStaticSettings().getWatchLogMappingTotalFieldsLimit();
         Template template = createWathLogTemplate(signalsLogIndex, watchLogMappingTotalFieldsLimit);
         ComposableIndexTemplate composableIndexTemplate = ComposableIndexTemplate.builder() //
-                .indexPatterns(ImmutableList.of(signalsLogIndex)) //
-                .template(template) //
-                .build();
+            .indexPatterns(ImmutableList.of(signalsLogIndex)) //
+            .template(template) //
+            .build();
         putRequest.indexTemplate(composableIndexTemplate);
 
         client.execute(TransportPutComposableIndexTemplateAction.TYPE, putRequest, new ActionListener<AcknowledgedResponse>() {
 
-            @Override
-            public void onResponse(AcknowledgedResponse response) {
+            @Override public void onResponse(AcknowledgedResponse response) {
                 log.info("Created signals_log_template");
             }
 
-            @Override
-            public void onFailure(Exception e) {
+            @Override public void onFailure(Exception e) {
                 componentState.addLastException("create_signals_log_template", e);
                 log.error("Error while creating signals_log_template", e);
             }
@@ -376,10 +363,10 @@ public class Signals extends AbstractLifecycleComponent {
     static Template createWathLogTemplate(String signalsLogIndex, int watchLogMappingTotalFieldsLimit) {
         Settings.Builder settingsBuilder = Settings.builder().put("index.hidden", signalsLogIndex.startsWith("."));
         CompressedXContent mappings = null;
-        if (watchLogMappingTotalFieldsLimit > 0) {
+        if(watchLogMappingTotalFieldsLimit > 0) {
             log.debug("Mapping total field limit for log watch index set to '{}'", watchLogMappingTotalFieldsLimit);
             settingsBuilder = settingsBuilder.put("mapping.total_fields.limit", watchLogMappingTotalFieldsLimit);
-        } else if (watchLogMappingTotalFieldsLimit == RUNTIME_DATA_NOT_SEARCHABLE) {
+        } else if(watchLogMappingTotalFieldsLimit == RUNTIME_DATA_NOT_SEARCHABLE) {
             try {
                 log.debug("Runtime data in the watch log index will be stored in non-searchable form.");
                 mappings = new CompressedXContent(DocNode.of("properties.data.type", "object", "properties.data.dynamic", false));
@@ -482,7 +469,6 @@ public class Signals extends AbstractLifecycleComponent {
     public TrustManagerRegistry getTruststoreRegistry() {
         return trustManagerRegistry;
     }
-
     public HttpProxyHostRegistry getHttpProxyHostRegistry() {
         return httpProxyHostRegistry;
     }
@@ -513,16 +499,8 @@ public class Signals extends AbstractLifecycleComponent {
 
         @Override
         public void onChange() {
-            try {
-                internalAuthTokenProvider.setSigningKey(signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey());
-            } catch (JOSEException e) {
-                log.error("Error while updating signing key " + signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey(), e);
-            }
-            try {
-                internalAuthTokenProvider.setEncryptionKey(signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey());
-            } catch (KeyLengthException e) {
-                log.error("Error while updating encryption key " + signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey(), e);
-            }
+            internalAuthTokenProvider.setSigningKey(signalsSettings.getDynamicSettings().getInternalAuthTokenSigningKey());
+            internalAuthTokenProvider.setEncryptionKey(signalsSettings.getDynamicSettings().getInternalAuthTokenEncryptionKey());
         }
     };
 
