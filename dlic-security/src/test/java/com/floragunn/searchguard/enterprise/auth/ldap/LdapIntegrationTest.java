@@ -14,6 +14,10 @@
 
 package com.floragunn.searchguard.enterprise.auth.ldap;
 
+import static com.floragunn.searchguard.test.RestMatchers.isOk;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.*;
+
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
@@ -45,8 +49,6 @@ import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 public class LdapIntegrationTest {
-    // @ClassRule
-    // public static JavaSecurityTestSetup javaSecurity = new JavaSecurityTestSetup();
 
     static TestCertificates certificatesContext = TestCertificates.builder().build();
 
@@ -66,12 +68,19 @@ public class LdapIntegrationTest {
     static TestLdapDirectory.Entry TILDA_ADDITIONAL_USER_INFORMATION_ENTRY = new TestLdapDirectory.Entry("cn=Tilda,ou=people,o=TEST").cn("Tilda")
             .uid("tilda_additional_user_information").userpassword("p-undefined").objectClass("inetOrgPerson");
 
+    static TestLdapDirectory.Entry KRIS_SPECIAL_CHARACTER = new TestLdapDirectory.Entry("cn=Kris/X (Special)\\, escaped comma,ou=people,o=TEST")
+            .cn("Kris/X (Special), escaped comma").uid("kris_special_character").userpassword("p-secret").displayName("Kris/X (Special), really").objectClass("inetOrgPerson");
+    
     static TestLdapDirectory.Entry ALL_ACCESS_GROUP = new TestLdapDirectory.Entry("cn=all_access,ou=groups,o=TEST").cn("all_access")
             .objectClass("groupOfUniqueNames").uniqueMember(KARLOTTA);
 
     static TestLdapDirectory.Entry STD_ACCESS_GROUP = new TestLdapDirectory.Entry("cn=std_access,ou=groups,o=TEST").cn("std_access")
             .objectClass("groupOfUniqueNames").attr("description", "My Description").attr("businessCategory", "x").uniqueMember(THORE);
 
+    static TestLdapDirectory.Entry SPECIAL_CHARACTER_GROUP = new TestLdapDirectory.Entry("cn=Special/X (Really)\\, escaped comma,ou=groups,o=TEST")
+            .cn("Special/X (Really), escaped comma").objectClass("groupOfUniqueNames").attr("description", "My Description")
+            .uniqueMember(KRIS_SPECIAL_CHARACTER);
+    
     static TestLdapDirectory.Entry BUSINESS_CATEGORY_1_GROUP = new TestLdapDirectory.Entry("cn=bc_1,ou=groups,o=TEST").cn("bc_1")
             .objectClass("groupOfUniqueNames").attr("businessCategory", "bc_1");
 
@@ -84,8 +93,9 @@ public class LdapIntegrationTest {
     static TestLdapDirectory.Entry RECURSIVE_GROUP_3 = new TestLdapDirectory.Entry("cn=recursive3,ou=groups,o=TEST").cn("recursive3")
             .objectClass("groupOfUniqueNames").attr("businessCategory", "e").uniqueMember(RECURSIVE_GROUP_1);
 
-    static TestLdapServer tlsLdapServer = TestLdapServer.with(TestLdapDirectory.BASE, KARLOTTA, THORE, PAUL, TILDA_ADDITIONAL_USER_INFORMATION_ENTRY,
-            ALL_ACCESS_GROUP, STD_ACCESS_GROUP, RECURSIVE_GROUP_1, RECURSIVE_GROUP_2, RECURSIVE_GROUP_3, BUSINESS_CATEGORY_1_GROUP)
+    static TestLdapServer tlsLdapServer = TestLdapServer
+            .with(TestLdapDirectory.BASE, KARLOTTA, THORE, PAUL, TILDA_ADDITIONAL_USER_INFORMATION_ENTRY, KRIS_SPECIAL_CHARACTER, ALL_ACCESS_GROUP,
+                    STD_ACCESS_GROUP, SPECIAL_CHARACTER_GROUP, RECURSIVE_GROUP_1, RECURSIVE_GROUP_2, RECURSIVE_GROUP_3, BUSINESS_CATEGORY_1_GROUP)
             .tls(ldapServerCertificate).build();
 
     static TestSgConfig.User TILDA_ADDITIONAL_USER_INFORMATION_USER = new TestSgConfig.User("tilda_additional_user_information")
@@ -342,4 +352,22 @@ public class LdapIntegrationTest {
                     "$.debug[?(@.method=='basic/ldap' && @.message=='Backends successful')].details.user_mapping_attributes.ldap_group_entries[*].businessCategory[0]"));
         }
     }
+    
+
+    /**
+     * Moved from test_ldap_special_characters.bats
+     */
+    @Test
+    public void specialCharacters() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(KRIS_SPECIAL_CHARACTER)) {
+            client.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 17 }));
+            
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
+            assertThat(response, isOk());
+            assertEquals(response.getBody(), "Kris/X (Special), really", response.getBodyAsDocNode().get("user_name"));
+            assertEquals(response.getBody(), Arrays.asList("cn=Special/X (Really)\\, escaped comma,ou=groups,o=TEST"),
+                    response.getBodyAsDocNode().get("backend_roles"));
+        }
+    }
+
 }

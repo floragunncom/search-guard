@@ -47,13 +47,11 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.codova.config.text.Pattern;
-import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authc.session.backend.SessionApi;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationResult.Status;
 import com.floragunn.searchguard.authz.actions.Action;
@@ -158,7 +156,6 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             @Override
             public void onChange(ConfigMap configMap) {
                 SgDynamicConfiguration<AuthorizationConfig> config = configMap.get(CType.AUTHZ);
-                SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
                 AuthorizationConfig authzConfig = AuthorizationConfig.DEFAULT;
 
                 if (config != null && config.getCEntry("default") != null) {
@@ -168,20 +165,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
                     if (log.isDebugEnabled()) {
                         log.debug(authzConfig);
                     }
-                } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
-                    try {
-                        LegacySgConfig sgConfig = legacyConfig.getCEntry("sg_config");
-                        PrivilegesEvaluator.this.authzConfig = authzConfig = AuthorizationConfig.parseLegacySgConfig(sgConfig.getSource(), null,
-                                settings);
-
-                        log.info("Updated authz config (legacy):\n" + legacyConfig);
-                        if (log.isDebugEnabled()) {
-                            log.debug(authzConfig);
-                        }
-                    } catch (ConfigValidationException e) {
-                        log.error("Error while parsing sg_config:\n" + e);
-                    }
-                }
+                } 
 
                 SgDynamicConfiguration<Role> roles = configMap.get(CType.ROLES);
                 SgDynamicConfiguration<Tenant> tenants = configMap.get(CType.TENANTS);

@@ -271,9 +271,9 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
                 validationErrors.add(String.valueOf(i), e);
             }
         }
-
+                
         validationErrors.throwExceptionForPresentErrors();
-
+        
         return result.build();
     }
 
@@ -359,7 +359,7 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
             try (Meter meter = Meter.basic(metricsLevel, userInformationBackendMetrics)) {
                 for (UserInformationBackend backend : additionalUserInformationBackends) {
                     try (Meter subMeter = meter.basic(backend.getType())) {
-                        authCredentials = authCredentials.with(backend.getUserInformation(authCredentials, subMeter).get());
+                        authCredentials = authCredentials.with(backend.getUserInformation(authCredentials, subMeter, debug).get());
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     } catch (ExecutionException e) {

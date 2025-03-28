@@ -166,7 +166,7 @@ public class SearchGuardFilter implements ActionFilter {
             final boolean interClusterRequest = HeaderHelper.isInterClusterRequest(threadContext);
             final boolean trustedClusterRequest = HeaderHelper.isTrustedClusterRequest(threadContext);
             final boolean confRequest = "true".equals(HeaderHelper.getSafeFromHeader(threadContext, ConfigConstants.SG_CONF_REQUEST_HEADER));
-            final boolean passThroughRequest = actionName.equals("cluster:admin/searchguard/license/info")
+            final boolean passThroughRequest = actionName.equals("cluster:admin/searchguard/license/info") || actionName.equals(com.floragunn.searchguard.license.legacy.LicenseInfoAction.NAME)
                     || actionName.startsWith("indices:admin/seq_no") || actionName.equals(WhoAmIAction.NAME);
 
             final boolean internalRequest = (interClusterRequest || HeaderHelper.isDirectRequest(threadContext)) && actionName.startsWith("internal:")

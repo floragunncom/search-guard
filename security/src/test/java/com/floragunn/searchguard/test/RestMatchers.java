@@ -373,6 +373,56 @@ public class RestMatchers {
 
         };
     }
+    
+    public static DiagnosingMatcher<JsonNode> singleNodeAt(String jsonPath, Matcher<?> subMatcher) {
+        return new DiagnosingMatcher<JsonNode>() {
+
+            @Override
+            public void describeTo(Description description) {
+                description.appendText("element at ").appendValue(jsonPath).appendText(" matches ").appendDescriptionOf(subMatcher);
+            }
+
+            @Override
+            protected boolean matches(Object item, Description mismatchDescription) {
+                if (!(item instanceof DocNode)) {
+                    mismatchDescription.appendValue(item != null ? item.getClass() : "null").appendText(" is not a DocNode");
+                    return false;
+                }
+
+                Configuration config = Configuration.builder().options(Option.SUPPRESS_EXCEPTIONS)
+                        .jsonProvider(BasicJsonPathDefaultConfiguration.JSON_PROVIDER)
+                        .mappingProvider(BasicJsonPathDefaultConfiguration.MAPPING_PROVIDER).build();
+
+                Object value = JsonPath.using(config).parse(item).read(jsonPath);
+
+                if (value == null) {
+                    mismatchDescription.appendText("No value at " + jsonPath + " ").appendValue(item);
+                    return false;
+                }
+                
+                if (value instanceof Collection) {
+                    if (((Collection<?>) value).isEmpty()) {
+                        value = null;
+                    } else {
+                        value = ((Collection<?>) value).iterator().next();                        
+                    }
+                }
+
+                if (value instanceof DocNode) {
+                    value = ((DocNode) value).toBasicObject();
+                }
+
+                if (subMatcher.matches(value)) {
+                    return true;
+                } else {
+                    mismatchDescription.appendText("at " + jsonPath + ": ").appendValue(value).appendText("\n");
+                    subMatcher.describeMismatch(value, mismatchDescription);
+                    return false;
+                }
+            }
+
+        };
+    }
 
     public static DiagnosingMatcher<JsonNode> distinctNodesAt(String jsonPath, Matcher<?> subMatcher) {
         return new DiagnosingMatcher<JsonNode>() {

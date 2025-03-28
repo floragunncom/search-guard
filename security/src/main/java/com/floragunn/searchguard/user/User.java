@@ -65,7 +65,8 @@ public class User implements Serializable, UserInformation, AttributeSource {
     private Map<String, String> attributes;
     private Map<String, Object> structuredAttributes;
 
-    //unused, but we keep it for java serialization interop
+    //unused, but we keep it for java serialization interop    
+    @SuppressWarnings("unused")
     private boolean isInjected = false;
     private transient boolean authzComplete = false;
 
@@ -114,7 +115,6 @@ public class User implements Serializable, UserInformation, AttributeSource {
         }
 
         if (customAttributes != null) {
-            this.attributes.putAll(customAttributes.getAttributes());
             this.structuredAttributes.putAll(customAttributes.getStructuredAttributes());
         }
 
@@ -331,21 +331,6 @@ public class User implements Serializable, UserInformation, AttributeSource {
         return true;
     }
 
-    /**
-     * Get the custom attributes associated with this user
-     * 
-     * @return A modifiable map with all the current custom attributes associated with this user
-     * 
-     * @deprecated use getStructuredAttributes() instead
-     */
-    @Deprecated
-    public synchronized final Map<String, String> getCustomAttributesMap() {
-        if (attributes == null) {
-            attributes = new HashMap<>();
-        }
-        return attributes;
-    }
-
     public Map<String, Object> getStructuredAttributes() {
         return structuredAttributes;
     }
@@ -452,7 +437,6 @@ public class User implements Serializable, UserInformation, AttributeSource {
             this.authDomainInfo(authCredentials.getAuthDomainInfo());
             this.backendRoles(authCredentials.getBackendRoles());
             this.searchGuardRoles(authCredentials.getSearchGuardRoles());
-            this.oldAttributes(authCredentials.getAttributes());
             this.attributes(authCredentials.getStructuredAttributes());
             return this;
         }

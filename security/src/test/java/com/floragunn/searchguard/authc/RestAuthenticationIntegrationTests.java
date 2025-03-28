@@ -17,6 +17,13 @@
 
 package com.floragunn.searchguard.authc;
 
+import static com.floragunn.searchguard.test.RestMatchers.isOk;
+import static com.floragunn.searchguard.test.RestMatchers.json;
+import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.is;
+
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Collection;
@@ -76,9 +83,10 @@ public class RestAuthenticationIntegrationTests {
             new Authc.Domain("basic/internal_users_db")//
                     .skipUsers("skip_test_*")//
                     .skipIps("127.0.0.16/30")//
-                    .userMapping(new UserMapping().userNameFrom(
-                            DocNode.of("json_path", "credentials.user_name", "pattern", "(all_access)|(user_.*)|(.+)@(?:subject_pattern_domain)"))
-                            .attrsFrom("pattern", "user_entry.attributes.d")),
+                    .userMapping(new UserMapping()
+                            .userNameFrom(DocNode
+                                    .of("json_path", "credentials.user_name", "pattern", "(all_access)|(user_.*)|(.+)@(?:subject_pattern_domain)"))
+                            .attrsFrom("pattern", "user_entry.attributes.d").attrsFrom("a", "user_entry.attributes.a")),
             new Authc.Domain("trusted_origin")//
                     .skipUsers("skip_test_*")//
                     .skipIps("127.0.0.16/30", "127.0.0.14")//
@@ -150,6 +158,31 @@ public class RestAuthenticationIntegrationTests {
         try (RestHighLevelClient client = cluster.getRestHighLevelClient(USER_WITH_ATTRIBUTES2)) {
             SearchResponse searchResponse = client.search("attr_test_*", 0, 100);
             Assert.assertEquals(3L, searchResponse.hits().total().value());
+        }
+    }
+
+    /**
+     * Moved from test_internal_authorizer.sh
+     */
+    @Test
+    public void basicUserMapping_authInfo() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_WITH_ATTRIBUTES)) {
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
+            assertThat(response, isOk());
+            assertThat(response, json(nodeAt("user_name", is("user_with_attributes"))));
+            assertThat(response, json(nodeAt("sg_roles", containsInAnyOrder("user_user_with_attributes__sg_index_pattern_with_attr_role"))));
+        }
+    }
+
+    /**
+     * Moved from test_internal_users.sh 
+     */
+    @Test
+    public void userAttribute_authInfo() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_WITH_ATTRIBUTES)) {
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
+            assertThat(response, isOk());
+            assertThat(response, json(nodeAt("attribute_names", containsInAnyOrder("pattern", "a"))));
         }
     }
 
@@ -319,7 +352,8 @@ public class RestAuthenticationIntegrationTests {
     public void authDomainInfo() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(ALL_ACCESS)) {
             HttpResponse response = restClient.get("/_searchguard/authinfo");
-            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsString("user").startsWith("User all_access <basic/internal_users_db>"));
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().getAsString("user").startsWith("User all_access <basic/internal_users_db>"));
         }
     }
 

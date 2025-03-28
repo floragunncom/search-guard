@@ -21,12 +21,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.floragunn.codova.config.templates.AttributeSource;
 import com.floragunn.codova.config.templates.ExpressionEvaluationException;
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
@@ -36,6 +39,7 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchguard.TypedComponent;
 import com.floragunn.searchguard.authc.AuthenticationBackend;
+import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.UserInformationBackend;
@@ -73,6 +77,8 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
     private final boolean fakeLoginEnabled;
     private final String fakeLoginDn;
     private final byte[] fakeLoginPassword;
+    
+    private final DocNode configSource;
 
     private final ComponentState componentState = new ComponentState(0, "authentication_backend", TYPE, LDAPAuthenticationBackend.class).initialized()
             .requiresEnterpriseLicense();
@@ -92,6 +98,8 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
         this.fakeLoginEnabled = vNode.get("fake_login.enabled").withDefault(false).asBoolean();
         this.fakeLoginDn = vNode.get("fake_login.password").asString();
         this.fakeLoginPassword = vNode.get("fake_login.password").withDefault("fakeLoginPwd123").asString().getBytes();
+        
+        this.configSource = DocNode.wrap(config);
 
         validationErrors.throwExceptionForPresentErrors();
         
@@ -150,26 +158,37 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
     }
 
     @Override
-    public CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials userInformation, Meter meter)
+    public CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials userInformation, Meter meter, AuthenticationDebugLogger debug)
             throws AuthenticatorUnavailableException {
         SearchResultEntry entry = PrivilegedCode.execute(() -> search(userInformation, meter), AuthenticatorUnavailableException.class);
 
         if (entry == null) {
+            debug.failure("additional_user_information: ldap", "User search failed", "user.name", userInformation.getName(), "user_search", this.configSource.get("user_search"));
             return CompletableFuture.completedFuture(null);
         }
 
         AuthCredentials updatedCredentials = userInformation.userMappingAttribute("ldap_user_entry", entryToMap(entry));
 
+        debug.success("additional_user_information: ldap", "User search successful", ImmutableMap.of("user.name", userInformation.getName(), "ldap_entry",  entryToMap(entry)));        
+        
         AuthCredentials.Builder resultBuilder = updatedCredentials.copy();
 
         if (groupSearch != null) {
             Set<Entry> groupEntries = searchGroups(entry, updatedCredentials, meter);
 
+            debug.success("additional_user_information: ldap", "Group search successful", ImmutableMap.of("group_entries", groupEntries.stream().map((e) -> entryToMap(e)).collect(Collectors.toSet())));        
+            
             resultBuilder.userMappingAttribute("ldap_group_entries", ImmutableList.map(groupEntries, (e) -> entryToMap(e)));
             resultBuilder.backendRoles(extractRoles(groupEntries));
         }
 
         return CompletableFuture.completedFuture(resultBuilder.build());
+    }
+    
+    @Override
+    public CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials userInformation, Meter meter)
+            throws AuthenticatorUnavailableException {
+        return this.getUserInformation(userInformation, meter, AuthenticationDebugLogger.DISABLED);
     }
 
     @Override
@@ -197,6 +216,8 @@ public class LDAPAuthenticationBackend implements AuthenticationBackend, UserInf
             } catch (LDAPException | ExpressionEvaluationException e) {
                 throw new AuthenticatorUnavailableException("Could not create query for LDAP user search", e.getMessage(), e);
             }
+
+            log.trace("Performing LDAP user search: {}, {} {}", filter, userSearchBaseDn, userSearchAttributes);
 
             SearchRequest searchRequest = new SearchRequest(userSearchBaseDn, userSearchScope, filter, this.userSearchAttributes);
             searchRequest.setDerefPolicy(DereferencePolicy.ALWAYS);

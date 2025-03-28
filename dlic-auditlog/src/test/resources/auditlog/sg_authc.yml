@@ -1,0 +1,5 @@
+---
+default:
+  auth_domains:
+  - type: "clientcert"
+  - type: "basic/internal_users_db"

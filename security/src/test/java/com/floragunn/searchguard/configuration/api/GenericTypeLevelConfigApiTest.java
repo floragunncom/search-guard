@@ -42,18 +42,18 @@ public class GenericTypeLevelConfigApiTest {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             HttpResponse getResponseOld = client.get("/_searchguard/config");
             Assert.assertEquals(getResponseOld.getBody(), "true",
-                    DocNode.wrap(DocReader.json().read(getResponseOld.getBody())).getAsNode("config").getAsString("exists"));
+                    DocNode.wrap(DocReader.json().read(getResponseOld.getBody())).getAsNode("authc").getAsString("exists"));
 
-            HttpResponse deleteResponse = client.delete("/_searchguard/config/" + CType.CONFIG.getName());
+            HttpResponse deleteResponse = client.delete("/_searchguard/config/" + CType.AUTHC.getName());
             Assert.assertEquals(deleteResponse.getBody(), 200, deleteResponse.getStatusCode());
 
             HttpResponse getResponseNew = client.get("/_searchguard/config");
             Assert.assertTrue(getResponseNew.getBody(),
-                    DocNode.wrap(DocReader.json().read(getResponseNew.getBody())).getAsNode("config").getAsNode("content").isEmpty());
+                    DocNode.wrap(DocReader.json().read(getResponseNew.getBody())).getAsNode("authc").getAsNode("content").isEmpty());
             Assert.assertEquals(getResponseNew.getBody(), "false",
-                    DocNode.wrap(DocReader.json().read(getResponseNew.getBody())).getAsNode("config").getAsString("exists"));
+                    DocNode.wrap(DocReader.json().read(getResponseNew.getBody())).getAsNode("authc").getAsString("exists"));
 
-            deleteResponse = client.delete("/_searchguard/config/" + CType.CONFIG.getName());
+            deleteResponse = client.delete("/_searchguard/config/" + CType.AUTHC.getName());
             Assert.assertEquals(deleteResponse.getBody(), 404, deleteResponse.getStatusCode());
         }
     }

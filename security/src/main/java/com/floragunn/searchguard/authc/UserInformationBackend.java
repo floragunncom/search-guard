@@ -25,4 +25,9 @@ public interface UserInformationBackend {
     String getType();
 
     CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials userInformation, Meter meter) throws AuthenticatorUnavailableException;
+
+    default CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials userInformation, Meter meter, AuthenticationDebugLogger debug)
+            throws AuthenticatorUnavailableException {
+        return getUserInformation(userInformation, meter);
+    }
 }

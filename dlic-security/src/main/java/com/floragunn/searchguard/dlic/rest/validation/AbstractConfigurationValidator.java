@@ -141,6 +141,7 @@ public abstract class AbstractConfigurationValidator {
                 }
 
             } catch (DocumentParseException | UnexpectedDocumentStructureException e) {
+                e.printStackTrace();
                 log.error(ErrorType.BODY_NOT_PARSEABLE.toString(), validationError(e));
                 this.errorType = ErrorType.BODY_NOT_PARSEABLE;
                 lastException = validationError(e);

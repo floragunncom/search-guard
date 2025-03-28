@@ -32,7 +32,6 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
-import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authc.rest.RestAuthcConfig;
 import com.floragunn.searchguard.authc.rest.authenticators.BasicAuthenticationFrontend;
 import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig.AuthMethod;
@@ -163,7 +162,8 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
                         : authMethod.getType();
 
                 ActivatedFrontendConfig.AuthMethod activatedAuthMethod = new ActivatedFrontendConfig.AuthMethod(type, authMethod.getLabel(),
-                        authMethod.getId(), true, authMethod.isUnavailable(), authMethod.isCaptureUrlFragment(), authMethod.isAutoSelect(), null, authMethod.getMessage());
+                        authMethod.getId(), true, authMethod.isUnavailable(), authMethod.isCaptureUrlFragment(), authMethod.isAutoSelect(), null,
+                        authMethod.getMessage());
 
                 if (authMethod.getAuthenticationFrontend() instanceof ApiAuthenticationFrontend) {
                     try {
@@ -193,7 +193,7 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
                             messageTitle = "Unexpected error while " + type + " login";
                             messageBody = e.toString();
                             StringWriter stringWriter = new StringWriter();
-                            e.printStackTrace(new PrintWriter(stringWriter));                            
+                            e.printStackTrace(new PrintWriter(stringWriter));
                             details = ImmutableMap.of("exception", ImmutableList.ofArray(stringWriter.toString().split("\n")));
                         }
 
@@ -208,15 +208,6 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
         }
 
         private FrontendAuthcConfig getFallbackFrontendConfig() {
-            LegacySgConfig sgConfig = configRepository.getConfiguration(CType.CONFIG).getCEntry("sg_config");
-
-            if (sgConfig != null) {
-                if (sgConfig.getRestAuthcConfig().getAuthenticators().stream()
-                        .anyMatch((d) -> d.getFrontend() != null && "basic".equalsIgnoreCase(d.getFrontend().getType()))) {
-                    return FrontendAuthcConfig.BASIC;
-                }
-            }
-
             RestAuthcConfig restAuthcConfig = configRepository.getConfiguration(CType.AUTHC).getCEntry("default");
 
             if (restAuthcConfig != null) {
@@ -226,8 +217,6 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
             }
 
             return null;
-
         }
     }
-
 }

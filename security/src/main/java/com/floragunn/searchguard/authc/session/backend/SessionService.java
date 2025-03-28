@@ -87,7 +87,6 @@ import com.floragunn.searchguard.authc.RequestMetaData;
 import com.floragunn.searchguard.authc.base.AuthcResult;
 import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
 import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
-import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer;
 import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInfo;
 import com.floragunn.searchguard.authc.rest.RestAuthcConfig;
@@ -219,15 +218,11 @@ public class SessionService {
             public void onChange(ConfigMap configMap) {
                 SgDynamicConfiguration<FrontendAuthcConfig> frontendConfig = configMap.get(CType.FRONTEND_AUTHC);
                 SgDynamicConfiguration<RestAuthcConfig> config = configMap.get(CType.AUTHC);
-                SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
                 RestAuthcConfig restAuthcConfig = null;
 
                 if (config != null && config.getCEntry("default") != null) {
                     restAuthcConfig = config.getCEntry("default");
                     componentState.replacePartsWithType("config", config.getComponentState());
-                } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
-                    restAuthcConfig = legacyConfig.getCEntry("sg_config").getRestAuthcConfig();
-                    componentState.replacePartsWithType("config", legacyConfig.getComponentState());
                 } else {
                     componentState.setState(State.SUSPENDED, "no_configuration");
                 }

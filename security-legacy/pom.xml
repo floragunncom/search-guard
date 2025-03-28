@@ -16,9 +16,9 @@
     <version>${revision}</version>
   </parent>
 
-  <artifactId>search-guard-flx-security-legacy</artifactId>
+  <artifactId>search-guard-flx-legacy-test-framework</artifactId>
   <packaging>jar</packaging>
-  <name>Search Guard FLX: Legacy Security</name>
+  <name>Search Guard FLX: Legacy Test Framework</name>
 
   <dependencies>
 

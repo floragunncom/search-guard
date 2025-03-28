@@ -548,6 +548,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return this;
         }
 
+        public Builder doNotInitializeSgConfig() {
+            this.testSgConfig = null;
+            return this;
+        }
+        
         public Builder sgConfig(TestSgConfig testSgConfig) {
             this.testSgConfig = testSgConfig;
             return this;
@@ -557,17 +562,17 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             this.testSgConfig.ignoreUnauthorizedIndices(ignoreUnauthorizedIndices);
             return this;
         }
-
-        public Builder sgConfigSettings(String keyPath, Object value, Object... more) {
-            this.testSgConfig.sgConfigSettings(keyPath, value, more);
-            return this;
-        }
-
+      
         public Builder authzDebug(boolean debug) {
             this.testSgConfig.authzDebug(debug);
             return this;
         }
-
+        
+        public Builder roleMappingResolutionMode(String roleMappingResolutionMode) {
+            this.testSgConfig.roleMappingResolutionMode(roleMappingResolutionMode);
+            return this;
+        }
+        
         public Builder nodeSettings(Object... settings) {
             for (int i = 0; i < settings.length - 1; i += 2) {
                 String key = String.valueOf(settings[i]);
@@ -655,11 +660,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
         public Builder user(TestSgConfig.User user) {
             testSgConfig.user(user);
-            return this;
-        }
-
-        public Builder user(String name, String password, String... sgRoles) {
-            testSgConfig.user(name, UserPassword.of(password), sgRoles);
             return this;
         }
 
@@ -923,12 +923,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                 delegate.user(user);
                 return this;
             }
-
-            public Builder.Embedded user(String name, String password, String... sgRoles) {
-                delegate.user(name, password, sgRoles);
-                return this;
-            }
-
+          
             public Builder.Embedded user(String name, String password, Role... sgRoles) {
                 delegate.user(name, password, sgRoles);
                 return this;

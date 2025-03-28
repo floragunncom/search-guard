@@ -31,7 +31,6 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authc.blocking.Blocks;
 import com.floragunn.searchguard.authc.internal_users_db.InternalUser;
-import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
 import com.floragunn.searchguard.authc.rest.RestAuthcConfig;
 import com.floragunn.searchguard.authc.session.FrontendAuthcConfig;
 import com.floragunn.searchguard.authz.config.ActionGroup;
@@ -60,8 +59,6 @@ public class CType<T> {
             InternalUser::parse).replaceLegacyEnvVars();
     public static final CType<ActionGroup> ACTIONGROUPS = new CType<ActionGroup>("actiongroups", "Action Group", 1, ActionGroup.class,
             ActionGroup::parse).replaceLegacyEnvVars();
-    public static final CType<LegacySgConfig> CONFIG = new CType<LegacySgConfig>("config", "Config", 2, LegacySgConfig.class, LegacySgConfig::parse,
-            Storage.OPTIONAL).replaceLegacyEnvVars();
     public static final CType<Role> ROLES = new CType<Role>("roles", "Role", 3, Role.class, Role::parse).replaceLegacyEnvVars();
     public static final CType<RoleMapping> ROLESMAPPING = new CType<RoleMapping>("rolesmapping", "Role Mapping", 4, RoleMapping.class,
             RoleMapping::parse).replaceLegacyEnvVars();

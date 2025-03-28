@@ -55,8 +55,6 @@ public class SearchGuardRestApiActions {
                 authorizationService, specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators));
         handlers.add(new LicenseApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators));
-        handlers.add(new SgConfigAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, authorizationService,
-                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators));
         handlers.add(new PermissionsInfoAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog));
         handlers.add(new TenantsApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, authorizationService,

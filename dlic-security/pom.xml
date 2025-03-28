@@ -209,12 +209,6 @@
     </dependency>
 
     <dependency>
-      <groupId>com.floragunn</groupId>
-      <artifactId>search-guard-flx-security-legacy</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-api</artifactId>
       <version>${jjwt.version}</version>
@@ -282,17 +276,19 @@
 
     <dependency>
       <groupId>com.floragunn</groupId>
-      <artifactId>search-guard-flx-security-legacy</artifactId>
-      <classifier>tests</classifier>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-support</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
+    
+
+    <dependency>
+      <groupId>com.floragunn</groupId>
+      <artifactId>search-guard-flx-legacy-test-framework</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+    
 
   </dependencies>
 </project>

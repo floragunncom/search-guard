@@ -86,38 +86,6 @@ public class RoleBasedAccessTest extends AbstractRestApiUnitTest {
 		Assert.assertEquals("", settings.getAsList("sg_all_access.users").get(0), "nagilum");
 		Assert.assertEquals("", settings.getAsList("sg_role_starfleet_library.backend_roles").get(0), "starfleet*");
 		Assert.assertEquals("", settings.getAsList("sg_zdummy_all.users").get(0), "bug108");
-		
-		
-//		// Deprecated get configuration API, acessible for sarek
-//		response = rh.executeGetRequest("_searchguard/api/configuration/internalusers", encodeBasicHeader("sarek", "sarek"));
-//		settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-//		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-//		Assert.assertEquals("", settings.get("admin.hash"));
-//		Assert.assertEquals("", settings.get("sarek.hash"));
-//		Assert.assertEquals("", settings.get("worf.hash"));
-//
-//		// Deprecated get configuration API, acessible for sarek
-//		response = rh.executeGetRequest("_searchguard/api/configuration/actiongroups", encodeBasicHeader("sarek", "sarek"));
-//		//System.out.println(response.getBody());
-//		settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
-//		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-//		Assert.assertEquals("", settings.getAsList("ALL.allowed_actions").get(0), "indices:*"); //mixed action groups not supported
-//		//because jackson can not serialize it. Old format is supported but not a mixture of both
-//		Assert.assertEquals("", settings.getAsList("CLUSTER_MONITOR.allowed_actions").get(0), "cluster:monitor/*");
-//		// new format for action groups
-//		Assert.assertEquals("", settings.getAsList("CRUD_UT.allowed_actions").get(0), "READ_UT");
-		
-		// --- Forbidden ---
-				
-		// license API, not accessible for worf
-		//response = rh.executeGetRequest("_searchguard/api/license", encodeBasicHeader("worf", "worf"));
-		//Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
-		//Assert.assertTrue(response.getBody().contains("does not have any access to endpoint LICENSE"));
-
-		// configuration API, not accessible for worf
-//		response = rh.executeGetRequest("_searchguard/api/configuration/actiongroups", encodeBasicHeader("worf", "worf"));
-//		Assert.assertEquals(HttpStatus.SC_FORBIDDEN, response.getStatusCode());
-//		Assert.assertTrue(response.getBody().contains("does not have any access to endpoint CONFIGURATION"));
 
 		// cache API, not accessible for worf since it's disabled globally
 		response = rh.executeDeleteRequest("_searchguard/api/cache", encodeBasicHeader("worf", "worf"));
@@ -217,10 +185,6 @@ public class RoleBasedAccessTest extends AbstractRestApiUnitTest {
 		settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
 		Assert.assertNull("", settings.get("admin.hash"));
 		
-//		// worf and config
-//		response = rh.executeGetRequest("_searchguard/api/configuration/actiongroups", encodeBasicHeader("bla", "fasel"));
-//		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-		
 		// cache
 		response = rh.executeDeleteRequest("_searchguard/api/cache", encodeBasicHeader("wrong", "wrong"));
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
@@ -228,16 +192,8 @@ public class RoleBasedAccessTest extends AbstractRestApiUnitTest {
 		// -- test user, does not have any endpoints disabled, but has access to API, i.e. full access 
 		
 		rh.sendHTTPClientCertificate = false;
-		
-//		// GET actiongroups
-//		response = rh.executeGetRequest("_searchguard/api/configuration/actiongroups", encodeBasicHeader("test", "test"));
-//		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
 		response = rh.executeGetRequest("_searchguard/api/actiongroups", encodeBasicHeader("test", "test"));
-		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-		
-		// license
-		response = rh.executeGetRequest("_searchguard/api/license", encodeBasicHeader("test", "test"));
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
 
 		// clear cache - globally disabled, has to fail

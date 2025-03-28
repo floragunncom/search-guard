@@ -22,23 +22,6 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import com.floragunn.searchguard.authc.AuthInfoService;
-import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
-import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
-import com.floragunn.searchguard.authz.TenantAccessMapper;
-import com.floragunn.searchguard.authz.TenantManager;
-import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.configuration.CType;
-import com.floragunn.searchguard.configuration.ConfigMap;
-import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.configuration.validation.ConfigModificationValidator;
-import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.DataMigrationApi;
-import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandlerFactory;
-import com.floragunn.searchguard.enterprise.femt.tenants.AvailableTenantService;
-import com.floragunn.searchguard.enterprise.femt.tenants.MultitenancyActivationService;
-import com.floragunn.searchguard.enterprise.femt.tenants.TenantRepository;
-import com.floragunn.searchguard.support.PrivilegedConfigClient;
-import com.floragunn.searchsupport.StaticSettings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -55,17 +38,31 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.SearchGuardModule;
-import com.floragunn.searchguard.authc.legacy.LegacySgConfig;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
+import com.floragunn.searchguard.authz.TenantAccessMapper;
+import com.floragunn.searchguard.authz.TenantManager;
 import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.authz.config.Role;
 import com.floragunn.searchguard.authz.config.Tenant;
+import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ConfigMap;
+import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import com.floragunn.searchguard.configuration.validation.ConfigModificationValidator;
+import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.DataMigrationApi;
+import com.floragunn.searchguard.enterprise.femt.request.handler.RequestHandlerFactory;
+import com.floragunn.searchguard.enterprise.femt.tenants.AvailableTenantService;
+import com.floragunn.searchguard.enterprise.femt.tenants.MultitenancyActivationService;
+import com.floragunn.searchguard.enterprise.femt.tenants.TenantRepository;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
@@ -118,24 +115,12 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
 
         baseDependencies.getConfigurationRepository().subscribeOnChange((ConfigMap configMap) -> {
             SgDynamicConfiguration<FeMultiTenancyConfig> config = configMap.get(FeMultiTenancyConfig.TYPE);
-            SgDynamicConfiguration<LegacySgConfig> legacyConfig = configMap.get(CType.CONFIG);
             FeMultiTenancyConfig feMultiTenancyConfig = null;
 
             if (config != null && config.getCEntry("default") != null) {
                 feMultiTenancyConfig = config.getCEntry("default");
                 componentState.setState(State.INITIALIZED, "using_authc_config");
                 componentState.setConfigVersion(config.getDocVersion());
-            } else if (legacyConfig != null && legacyConfig.getCEntry("sg_config") != null) {
-                try {
-                    LegacySgConfig sgConfig = legacyConfig.getCEntry("sg_config");
-                    feMultiTenancyConfig = FeMultiTenancyConfig.parseLegacySgConfig(sgConfig.getSource(), null);
-                    componentState.setState(State.INITIALIZED, "using_legacy_config");
-                    componentState.setConfigVersion(legacyConfig.getDocVersion());
-                } catch (ConfigValidationException e) {
-                    log.warn("Error while parsing legacy MT configuration", e);
-                    componentState.setFailed(e);
-                    componentState.setConfigVersion(legacyConfig.getDocVersion());
-                }
             } else {
                 feMultiTenancyConfig = FeMultiTenancyConfig.DEFAULT;
                 componentState.setState(State.INITIALIZED, "using_default_config");
