@@ -9,11 +9,11 @@ ALL-UNNAMED:
         mode: "read"
       - path: "/usr/lib/os-release"
         mode: "read"
-      - relative_path: "searchguard-test/es/config/users"
-        relative_to: "home"
+      - relative_path: "users"
+        relative_to: "config"
         mode: "read"
-      - relative_path: "searchguard-test/es/config"
-        relative_to: "home"
+      - relative_path: ""
+        relative_to: "config"
         mode: "read"
   - write_system_properties:
       properties:
