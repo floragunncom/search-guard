@@ -37,6 +37,7 @@
             <outputDirectory>${file.separator}</outputDirectory>
             <includes>
                 <include>plugin-descriptor.properties</include>
+                <include>entitlement-policy.yaml</include>
                 <include>plugin-security.policy</include>
                 <include>THIRD-PARTY.txt</include>
             </includes>
