@@ -15,6 +15,15 @@ ALL-UNNAMED:
       - relative_path: ""
         relative_to: "config"
         mode: "read"
+      - relative_path: "role_mapping.yml"
+        relative_to: "config"
+        mode: "read"
+      - relative_path: "log4j2.properties"
+        relative_to: "config"
+        mode: "read"
+      - relative_path: "log4j2.properties"
+        relative_to: "config"
+        mode: "read"
   - write_system_properties:
       properties:
         - jdk.tls.rejectClientInitiatedRenegotiation
