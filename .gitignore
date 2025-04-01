@@ -44,3 +44,4 @@ plugin/plugin-descriptor.properties
 dev/.downloads
 sgctl.sh
 THIRD-PARTY.txt
+plugin/entitlement-policy.yaml
