@@ -85,6 +85,7 @@ public class KerberosAuthenticationFrontend implements HttpAuthenticationFronten
         Path krb5configFile;
 
         if (!useSystemProperties) {
+            // TODO ES9 plugin needs to correct entitlement to access file, which cannot be configured dynamically.
             krb5configFile = resolve(vNode.get("krb5_config_file").withDefault("/etc/krb5.conf").asString(), "krb5_config_file", validationErrors,
                     context);
         } else {
