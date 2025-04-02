@@ -56,8 +56,8 @@ public class InternalJobDetail<JobConfigType extends JobConfig> implements Confi
     }
 
     @Override
-    public boolean isConcurrentExectionDisallowed() {
-        return delegate.isConcurrentExectionDisallowed();
+    public boolean isConcurrentExecutionDisallowed() {
+        return delegate.isConcurrentExecutionDisallowed();
     }
 
     @Override

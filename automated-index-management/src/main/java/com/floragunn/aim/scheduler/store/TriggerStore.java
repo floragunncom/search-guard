@@ -487,7 +487,7 @@ public interface TriggerStore<JobConfigType extends JobConfig> {
 
                 TriggerFiredBundle triggerFiredBundle = new TriggerFiredBundle(jobDetail, trigger, null, false, new Date(), nextFireTime,
                         previousFireTime, trigger.getNextFireTime());
-                if (jobDetail.isConcurrentExectionDisallowed()) {
+                if (jobDetail.isConcurrentExecutionDisallowed()) {
                     blockIdleTriggers(jobDetail.getKey());
                 } else if (trigger.getNextFireTime() != null) {
                     activeTriggerQueue.add(trigger);
@@ -501,7 +501,7 @@ public interface TriggerStore<JobConfigType extends JobConfig> {
         @Override
         public void triggeredJobComplete(OperableTrigger operableTrigger, JobDetail jobDetail,
                 Trigger.CompletedExecutionInstruction triggerInstCode) {
-            if (jobDetail.isConcurrentExectionDisallowed()) {
+            if (jobDetail.isConcurrentExecutionDisallowed()) {
                 unblockTriggers(jobDetail.getKey());
                 signaler.signalSchedulingChange(0);
             } else {
@@ -687,7 +687,7 @@ public interface TriggerStore<JobConfigType extends JobConfig> {
                     actualTrigger.setNode(node);
                     if (actualTrigger.getState() == InternalOperableTrigger.State.WAITING) {
                         InternalJobDetail<JobConfigType> jobDetail = jobs.get(actualTrigger.getJobKey());
-                        if (jobDetail != null && jobDetail.isConcurrentExectionDisallowed()) {
+                        if (jobDetail != null && jobDetail.isConcurrentExecutionDisallowed()) {
                             unblockTriggers(jobDetail.getKey());
                             signaler.signalSchedulingChange(0);
                         }
