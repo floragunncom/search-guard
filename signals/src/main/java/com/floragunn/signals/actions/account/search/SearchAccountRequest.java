@@ -2,7 +2,6 @@ package com.floragunn.signals.actions.account.search;
 
 import java.io.IOException;
 
-import com.google.common.base.Strings;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -29,9 +28,7 @@ public class SearchAccountRequest extends ActionRequest {
 
     public SearchAccountRequest(StreamInput in) throws IOException {
         super(in);
-//        scroll = in.readOptionalWriteable(Scroll::new);//TODO ES9 class Scroll does not exist, backwards compatibility problems
-        String stringScroll = in.readOptionalString();
-        scroll = Strings.isNullOrEmpty(stringScroll) ? null : TimeValue.parseTimeValue(stringScroll, "SearchAccountRequest scroll");
+        scroll = in.readOptionalTimeValue();
         from = in.readInt();
         size = in.readInt();
         searchSourceBuilder = in.readOptionalWriteable(SearchSourceBuilder::new);
@@ -40,8 +37,7 @@ public class SearchAccountRequest extends ActionRequest {
     @Override
     public void writeTo(final StreamOutput out) throws IOException {
         super.writeTo(out);
-//       out.writeOptionalWriteable(scroll); // TODO ES9 class does not exist, backward compatibility issue
-        out.writeOptionalString(scroll == null ? null : scroll.toString());
+        out.writeOptionalTimeValue(scroll);
         out.writeInt(from);
         out.writeInt(size);
         out.writeOptionalWriteable(searchSourceBuilder);

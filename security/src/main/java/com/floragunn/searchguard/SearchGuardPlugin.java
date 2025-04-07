@@ -353,6 +353,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
 //        if (!settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES, false)) {
         if (false) {
+            // TODO ES9 loading demo cert in this way does not works due to entitlement policy
             //check for demo certificates
             final List<String> files = AccessController.doPrivileged(new PrivilegedAction<List<String>>() {
                 @Override
