@@ -9,8 +9,6 @@ ALL-UNNAMED:
         mode: "read"
       - path: "/usr/lib/os-release"
         mode: "read"
-      - path: "/etc/krb5.conf"
-        mode: "read"
   - write_system_properties:
       properties:
         - jdk.tls.rejectClientInitiatedRenegotiation
