@@ -351,9 +351,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 //            }
 //        }
 
-//        if (!settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES, false)) {
-        if (false) {
-            // TODO ES9 loading demo cert in this way does not works due to entitlement policy
+        if (!settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES, false)) {
             //check for demo certificates
             final List<String> files = AccessController.doPrivileged(new PrivilegedAction<List<String>>() {
                 @Override
@@ -361,7 +359,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     final Path confPath = new Environment(settings, configPath).configDir().toAbsolutePath();
                     if (Files.isDirectory(confPath, LinkOption.NOFOLLOW_LINKS)) {
                         try (Stream<Path> s = Files.walk(confPath)) {
-                            return s.distinct().map(p -> sha256(p)).collect(Collectors.toList());
+                            return s.distinct()
+                                    .filter(p -> !Path.of(configPath + File.separator + "users").equals(p))
+                                    .map(p -> sha256(p))
+                                    .collect(Collectors.toList());
                         } catch (Exception e) {
                             log.error(e);
                             return null;
