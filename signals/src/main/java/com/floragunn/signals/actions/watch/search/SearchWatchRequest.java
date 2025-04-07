@@ -29,9 +29,7 @@ public class SearchWatchRequest extends ActionRequest {
 
     public SearchWatchRequest(StreamInput in) throws IOException {
         super(in);
-//        scroll = in.readOptionalWriteable(Scroll::new);// TODO ES9 class does not exist, backward compatibility issue
-        String stringScroll = in.readOptionalString();
-        scroll = Strings.isNullOrEmpty(stringScroll) ? null : TimeValue.parseTimeValue(stringScroll, "SearchAccountRequest scroll");
+        scroll = in.readOptionalTimeValue();
         from = in.readInt();
         size = in.readInt();
         searchSourceBuilder = in.readOptionalWriteable(SearchSourceBuilder::new);
@@ -40,8 +38,7 @@ public class SearchWatchRequest extends ActionRequest {
     @Override
     public void writeTo(final StreamOutput out) throws IOException {
         super.writeTo(out);
-//        out.writeOptionalWriteable(scroll); // TODO ES9 class Scroll does not exist, backward compatibility issue
-        out.writeOptionalString(scroll == null ? null : scroll.toString());
+        out.writeOptionalTimeValue(scroll);
         out.writeInt(from);
         out.writeInt(size);
         out.writeOptionalWriteable(searchSourceBuilder);

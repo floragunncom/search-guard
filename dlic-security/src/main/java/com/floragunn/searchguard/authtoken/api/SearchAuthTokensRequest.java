@@ -43,9 +43,7 @@ public class SearchAuthTokensRequest extends ActionRequest {
 
     public SearchAuthTokensRequest(StreamInput in) throws IOException {
         super(in);
-//        scroll = in.readOptionalWriteable(Scroll::new); // TODO ES9 class does not exist, backward compatibility issue
-        String stringScroll = in.readOptionalString();
-        scroll = stringScroll == null ? null : TimeValue.parseTimeValue(stringScroll, "SearchAuthTokenRequest scroll");
+        scroll = in.readOptionalTimeValue();
         from = in.readInt();
         size = in.readInt();
         searchSourceBuilder = in.readOptionalWriteable(SearchSourceBuilder::new);
@@ -54,8 +52,7 @@ public class SearchAuthTokensRequest extends ActionRequest {
     @Override
     public void writeTo(final StreamOutput out) throws IOException {
         super.writeTo(out);
-//        out.writeOptionalWriteable(null);// TODO ES9 class Scroll does not exist, backward compatibility issue
-        out.writeOptionalString(scroll == null ? null : scroll.toString());
+        out.writeOptionalTimeValue(scroll);
         out.writeInt(from);
         out.writeInt(size);
         out.writeOptionalWriteable(searchSourceBuilder);
