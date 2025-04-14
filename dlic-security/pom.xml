@@ -141,14 +141,8 @@
       <version>4.0.2</version>
     </dependency>
     <dependency>
-      <!-- Replacement for bcprov-jdk18on (see above)  -->
       <groupId>org.bouncycastle</groupId>
-      <artifactId>bcpkix-jdk15on</artifactId>
-    </dependency>
-    <dependency>
-      <!-- Replacement for bcprov-jdk18on (see above)  -->
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcprov-jdk15on</artifactId>
+      <artifactId>bcpkix-jdk18on</artifactId>
     </dependency>
 
     <dependency>
@@ -173,12 +167,12 @@
           <artifactId>opensaml-xmlsec-impl</artifactId>
         </exclusion>
         <exclusion>
-          <!--  bcprov-jdk18on 1.73 is not compatible with the ES security manager. Thus, we include jdk15on below -->
+          <!-- Bouncy Castle is configured globally -->
           <groupId>org.bouncycastle</groupId>
           <artifactId>bcprov-jdk18on</artifactId>
         </exclusion>
         <exclusion>
-          <!--  bcpkix-jdk18on< 1.73 is not compatible with the ES security manager. Thus, we include jdk15on below -->
+          <!-- Bouncy Castle is configured globally -->
           <groupId>org.bouncycastle</groupId>
           <artifactId>bcpkix-jdk18on</artifactId>
         </exclusion>

@@ -21,8 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import org.bouncycastle.crypto.digests.Blake2bDigest;
-import org.bouncycastle.util.encoders.Hex;
+import org.apache.commons.codec.binary.Hex;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestRequest;
@@ -92,13 +91,9 @@ public class RolesValidator extends AbstractConfigurationValidator {
 
         private String algo = null;
         private List<RegexReplacement> regexReplacements;
-        private final byte[] defaultSalt;
-        private final byte[] salt2;
         private final byte[] prefix;
 
         public MaskedField(final String value, final byte[] salt, final byte[] salt2, final byte[] prefix) {
-            this.defaultSalt = salt;
-            this.salt2 = salt2;
             this.prefix = prefix;
             final List<String> tokens = Splitter.on("::").splitToList(Objects.requireNonNull(value));
             final int tokenCount = tokens.size();
@@ -119,10 +114,10 @@ public class RolesValidator extends AbstractConfigurationValidator {
         }
 
         public byte[] mask(byte[] value) {
-            if (isDefault()) {
-                return blake2bHash(value);
-            } else {
+            if (!isDefault()) {
                 return customHash(value);
+            } else {
+                return null;
             }
         }
 
@@ -136,10 +131,10 @@ public class RolesValidator extends AbstractConfigurationValidator {
                     MessageDigest digest = MessageDigest.getInstance(algo);
 
                     if (prefix != null) {
-                        return Bytes.concat(prefix, Hex.encode(digest.digest(in)));
+                        return Bytes.concat(prefix, Hex.encodeHexString(digest.digest(in)).getBytes());
                     }
 
-                    return Hex.encode(digest.digest(in));
+                    return Hex.encodeHexString(digest.digest(in)).getBytes();
                 } catch (NoSuchAlgorithmException e) {
                     throw new IllegalArgumentException(e);
                 }
@@ -158,19 +153,6 @@ public class RolesValidator extends AbstractConfigurationValidator {
             } else {
                 throw new IllegalArgumentException();
             }
-        }
-
-        private byte[] blake2bHash(byte[] in) {
-            final Blake2bDigest hash = new Blake2bDigest(null, 32, salt2, defaultSalt);
-            hash.update(in, 0, in.length);
-            final byte[] out = new byte[hash.getDigestSize()];
-            hash.doFinal(out, 0);
-
-            if (prefix != null) {
-                return Bytes.concat(prefix, Hex.encode(out));
-            }
-
-            return Hex.encode(out);
         }
 
         private static class RegexReplacement {

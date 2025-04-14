@@ -25,7 +25,9 @@ import java.security.PrivilegedExceptionAction;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.ServiceLoader;
 
 import javax.xml.xpath.XPathExpressionException;
 
@@ -35,6 +37,7 @@ import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
 import org.opensaml.core.config.InitializationException;
 import org.opensaml.core.config.InitializationService;
+import org.opensaml.core.config.Initializer;
 import org.opensaml.saml.metadata.resolver.MetadataResolver;
 
 import com.floragunn.codova.config.net.TLSConfig;
@@ -453,12 +456,31 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, AutoCloseab
                 try {
 
                     thread.setContextClassLoader(InitializationService.class.getClassLoader());
+                    
+                    synchronized (SamlAuthenticator.class) {
+                        Iterator<Initializer> iter = ServiceLoader.load(Initializer.class).iterator();
+                        while (iter.hasNext()) {
+                            try {
+                                Initializer initializer  = iter.next();
 
-                    InitializationService.initialize();
+                                if (initializer instanceof org.opensaml.security.config.GlobalNamedCurveRegistryInitializer) {
+                                    // Skip this one. It is not necessary and makes issues with BouncyCastle
+                                    continue;
+                                }
+                                
+                                initializer.init();
+                            } catch (final InitializationException e) {
+                                log.error("Error initializing module: {}", e.getMessage());
+                                throw e;
+                            }
+                        }
+                        
+                        new org.opensaml.saml.config.impl.XMLObjectProviderInitializer().init();
+                        new org.opensaml.saml.config.impl.SAMLConfigurationInitializer().init();
+                        new org.opensaml.xmlsec.config.impl.XMLObjectProviderInitializer().init();
+                        
+                    }
 
-                    new org.opensaml.saml.config.impl.XMLObjectProviderInitializer().init();
-                    new org.opensaml.saml.config.impl.SAMLConfigurationInitializer().init();
-                    new org.opensaml.xmlsec.config.impl.XMLObjectProviderInitializer().init();
                 } finally {
                     thread.setContextClassLoader(originalClassLoader);
                 }
