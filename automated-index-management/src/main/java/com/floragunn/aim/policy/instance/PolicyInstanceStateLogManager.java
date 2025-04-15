@@ -158,7 +158,7 @@ public class PolicyInstanceStateLogManager {
                 return;
             }
             AcknowledgedResponse putTemplateResponse = client.admin().indices().preparePutTemplate(indexTemplateName).setCreate(true)
-                    .setPatterns(ImmutableList.of(indexNamePrefix + "*")).addAlias(new Alias(aliasName).isHidden(true).writeIndex(false))
+                    .setPatterns(ImmutableList.of(indexNamePrefix + "-*")).addAlias(new Alias(aliasName).isHidden(true).writeIndex(false))
                     .setSettings(
                             Settings.builder().put("index.hidden", true).put(AutomatedIndexManagementSettings.Index.POLICY_NAME.name(), policyName)
                                     .put(AutomatedIndexManagementSettings.Index.ALIAS_MAPPING.name() + "."
@@ -187,7 +187,7 @@ public class PolicyInstanceStateLogManager {
             String indexNamePrefix = settings.getStatic().stateLog().getIndexNamePrefix();
             String indexName = indexNamePrefix + "-000001";
             CreateIndexResponse indexResponse = client.admin().indices().prepareCreate(indexName).setMapping(StateLogEntry.INDEX_MAPPING.toDocNode())
-                    .addAlias(new Alias(aliasName + "-write").isHidden(true).writeIndex(true)).execute().actionGet();
+                    .addAlias(new Alias(getWriteAliasName(aliasName)).isHidden(true).writeIndex(true)).execute().actionGet();
             if (!indexResponse.isAcknowledged()) {
                 throw new StateLogInitializationException("Failed to setup state log index. Create response was not acknowledged");
             } else {

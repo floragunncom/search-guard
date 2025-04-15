@@ -385,7 +385,7 @@ public final class AutomatedIndexManagementSettings {
         }
 
         public class StateLog {
-            public static final Boolean DEFAULT_ENABLED = true;
+            public static final Boolean DEFAULT_ENABLED = false;
             public static final String DEFAULT_INDEX_TEMPLATE_NAME = ".aim_state_log";
             public static final String DEFAULT_INDEX_NAME_PREFIX = ".aim_state_log";
             public static final String DEFAULT_ALIAS_NAME = ".aim_state_log";

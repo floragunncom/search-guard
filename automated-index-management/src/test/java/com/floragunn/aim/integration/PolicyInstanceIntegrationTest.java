@@ -96,7 +96,7 @@ public class PolicyInstanceIntegrationTest {
     public static void setup() {
         MockSupport.init();
         CLUSTER = new LocalCluster.Builder().sslEnabled().resources("sg_config").enableModule(AutomatedIndexManagementModule.class)
-                .nodeSettings("path.repo", SNAPSHOT_REPO_PATH.toAbsolutePath()).waitForComponents("aim").embedded().start();
+                .nodeSettings("path.repo", SNAPSHOT_REPO_PATH.toAbsolutePath(), "aim.state_log.enabled", true).waitForComponents("aim").embedded().start();
         Awaitility.setDefaultTimeout(30, TimeUnit.SECONDS);
         ClusterHelper.Internal.postSettingsUpdate(CLUSTER, AutomatedIndexManagementSettings.Dynamic.DEFAULT_SCHEDULE,
                 new MockSupport.MockSchedule(Schedule.Scope.DEFAULT, Duration.ofHours(1), Duration.ofMinutes(5)));

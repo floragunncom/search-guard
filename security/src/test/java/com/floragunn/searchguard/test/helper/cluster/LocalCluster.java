@@ -153,7 +153,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     }
 
     private static final ImmutableSet<String> MODULES_DISABLED_BY_DEFAULT = ImmutableSet.of("com.floragunn.searchguard.authtoken.AuthTokenModule",
-            "com.floragunn.signals.SignalsModule");
+            "com.floragunn.signals.SignalsModule", "com.floragunn.aim.AutomatedIndexManagementModule");
 
     protected static final AtomicLong num = new AtomicLong();
 

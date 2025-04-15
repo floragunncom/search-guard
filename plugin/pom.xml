@@ -279,6 +279,12 @@
 
         <dependency>
           <groupId>${project.groupId}</groupId>
+          <artifactId>search-guard-flx-aim</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>${project.groupId}</groupId>
           <artifactId>search-guard-flx-scheduler</artifactId>
           <version>${project.version}</version>
         </dependency>
