@@ -54,6 +54,7 @@ public class AuditTestToXContentObjectImplTest {
         when(localNode.getHostName()).thenReturn(localNodeHostName);
         when(localNode.getVersion()).thenReturn(localNodeVersion);
         when(localNode.getMinIndexVersion()).thenReturn(IndexVersion.current());
+        when(localNode.getMinReadOnlyIndexVersion()).thenReturn(IndexVersion.current());
         DiscoveryNodes discoveryNodes = DiscoveryNodes.builder().add(localNode).localNodeId(localNodeId).build();
         when(clusterState.nodes()).thenReturn(discoveryNodes);
     }

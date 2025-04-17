@@ -3,7 +3,6 @@ package org.elasticsearch.plugins;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -11,7 +10,6 @@ import java.util.stream.StreamSupport;
 
 import org.elasticsearch.Build;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.jdk.ModuleQualifiedExportsService;
 import org.elasticsearch.transport.netty4.Netty4Plugin;
 
 import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
@@ -22,8 +20,8 @@ public class SgAwarePluginsService extends PluginsService {
     private static final List<Class<? extends Plugin>> STANDARD_PLUGINS = List.of(Netty4Plugin.class);
 
 
-    public SgAwarePluginsService(Settings settings, List<Class<? extends Plugin>> additionalPlugins) {
-        super(settings, null, null, null);
+    public SgAwarePluginsService(Settings settings, List<Class<? extends Plugin>> additionalPlugins, PluginsLoader pluginsLoader) {
+        super(settings, null, pluginsLoader);
 
         loadSearchGuardPlugin(settings);
         loadMainRestPlugin();
@@ -71,10 +69,10 @@ public class SgAwarePluginsService extends PluginsService {
     }
 
     private static LoadedPlugin createLoadedPlugin(Plugin plugin) {
-        return new LoadedPlugin(createPluginDescriptor(plugin.getClass()),plugin);
+        return new LoadedPlugin(createPluginDescriptor(plugin.getClass()),plugin, SgAwarePluginsService.class.getClassLoader());
     }
     private static LoadedPlugin createLoadedPlugin(Class<? extends Plugin> pluginClass) throws Exception {
-        return new LoadedPlugin(createPluginDescriptor(pluginClass),pluginClass.getDeclaredConstructor().newInstance());
+        return new LoadedPlugin(createPluginDescriptor(pluginClass),pluginClass.getDeclaredConstructor().newInstance(), SgAwarePluginsService.class.getClassLoader());
     }
 
     private static PluginDescriptor createPluginDescriptor(Class<? extends Plugin> pluginClass)  {
@@ -113,10 +111,5 @@ public class SgAwarePluginsService extends PluginsService {
                 }
             }
         });
-    }
-
-    @Override
-    protected void addServerExportsService(Map<String, List<ModuleQualifiedExportsService>> qualifiedExports) {
-        // tests don't run modular
     }
 }

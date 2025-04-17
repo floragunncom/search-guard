@@ -83,7 +83,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
                 new Route(PATCH, "/_searchguard/api/" + resourceName + "/{name}"));
     }
 
-    private void handlePatch(RestChannel channel, final RestRequest request, final Client client) throws IOException {
+    private void handlePatch(RestChannel channel, final RestRequest request, final Client client, final BytesReference content) throws IOException {
         if (request.getXContentType() != XContentType.JSON) {
             badRequestResponse(channel, "PATCH accepts only application/json");
             return;
@@ -101,7 +101,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
         DocPatch jsonPatch;
 
         try {
-            jsonPatch = DocPatch.parse(JsonPatch.MEDIA_TYPE, request.content().utf8ToString());
+            jsonPatch = DocPatch.parse(JsonPatch.MEDIA_TYPE, content.utf8ToString());
         } catch (ConfigValidationException e) {
             log.debug("Error while parsing JSON patch", e);
             badRequestResponse(channel, "Error in JSON patch:\n" + e.toString());
@@ -288,12 +288,12 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
     }
 
     @Override
-    protected void handleApiRequest(RestChannel channel, final RestRequest request, final Client client) throws IOException {
+    protected void handleApiRequest(RestChannel channel, final RestRequest request, final Client client, final BytesReference content) throws IOException {
 
         if (request.method() == Method.PATCH) {
-            handlePatch(channel, request, client);
+            handlePatch(channel, request, client, content);
         } else {
-            super.handleApiRequest(channel, request, client);
+            super.handleApiRequest(channel, request, client, content);
         }
     }
 
