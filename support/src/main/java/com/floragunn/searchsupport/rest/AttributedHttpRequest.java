@@ -67,12 +67,6 @@ public class AttributedHttpRequest implements HttpRequest {
     }
 
     @Override
-    public AttributedHttpRequest releaseAndCopy() {
-        HttpRequest requestCopy = httpRequest.releaseAndCopy();
-        return new AttributedHttpRequest(requestCopy, attributes);
-    }
-
-    @Override
     public void release() {
         httpRequest.release();
     }

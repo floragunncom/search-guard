@@ -7,12 +7,12 @@ import static org.elasticsearch.rest.RestRequest.Method.PUT;
 import java.io.IOException;
 import java.util.List;
 
+import com.floragunn.searchsupport.rest.ProtectingContentRequestWrapper;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.node.NodeClient;
-import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
@@ -118,14 +118,15 @@ public class AccountApiAction extends SignalsBaseRestHandler {
 
     protected RestChannelConsumer handlePut(String accountType, String id, RestRequest request, Client client) throws IOException {
 
-        BytesReference content = request.content();
+
 
         if (request.getXContentType() != XContentType.JSON && request.getXContentType() != XContentType.VND_JSON) {
             return channel -> errorResponse(channel, RestStatus.UNSUPPORTED_MEDIA_TYPE, "Accounts must be of content type application/json");
         }
 
-        return channel -> client.execute(PutAccountAction.INSTANCE, new PutAccountRequest(accountType, id, content, XContentType.JSON),
-                new ActionListener<PutAccountResponse>() {
+        ProtectingContentRequestWrapper protectedRequest = new ProtectingContentRequestWrapper(request);
+        return channel -> client.execute(PutAccountAction.INSTANCE, new PutAccountRequest(accountType, id, protectedRequest.content(), XContentType.JSON),
+                protectedRequest.releaseAfter(new ActionListener<PutAccountResponse>() {
 
                     @Override
                     public void onResponse(PutAccountResponse response) {
@@ -142,7 +143,7 @@ public class AccountApiAction extends SignalsBaseRestHandler {
                     public void onFailure(Exception e) {
                         errorResponse(channel, e);
                     }
-                });
+                }));
 
     }
 

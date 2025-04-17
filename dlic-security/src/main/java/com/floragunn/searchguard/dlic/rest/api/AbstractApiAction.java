@@ -31,6 +31,7 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.StaticDefinable;
 import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
+import com.floragunn.searchsupport.rest.ProtectingContentRequestWrapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -121,7 +122,8 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	protected void handleApiRequest(final RestChannel channel, final RestRequest request, final Client client) throws IOException {
 
             // validate additional settings, if any
-            AbstractConfigurationValidator validator = getValidator(request, request.content());
+
+		AbstractConfigurationValidator validator = getValidator(request, request.content());
             if (!validator.validate()) {
             	request.params().clear();
             	badRequestResponse(channel, validator);
@@ -445,10 +447,15 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         final Object originalRemoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
         final Object originalOrigin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
 		final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
-
+		// ES 9.0.0-beta1 code https://github.com/elastic/elasticsearch/blob/97bc2919ffb5d9e90f809a18233c49a52cf58faa/server/src/main/java/org/elasticsearch/rest/BaseRestHandler.java#L144
+		// The above line of code always calls release method on http request object. Therefore, it is impossible to read
+		// the request body from the code used in the below thread pool. Therefore, we need a request wrappers which
+		// allows reading the request body
+		ProtectingContentRequestWrapper wrappedRestRequest = new ProtectingContentRequestWrapper(request);
+		log.debug("Genuine request hash code '{}', content protecting wrapper '{}'", request, wrappedRestRequest);
         return channel -> {
 
-            threadPool.generic().submit(() -> {
+            threadPool.generic().submit(wrappedRestRequest.releaseAfter(() -> {
 
                 try (StoredContext ctx = threadContext.stashContext()) {
 
@@ -464,13 +471,13 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 					);
 
 
-                    handleApiRequest(channel, request, client);
+                    handleApiRequest(channel, wrappedRestRequest, client);
 
                 } catch (Exception e) {
                     log.error("Error while processing request " + request, e);
                     internalErrorResponse(channel, "Error while processing request: " + e);
                 }
-            });
+            }));
         };
     }
 
