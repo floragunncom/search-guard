@@ -95,12 +95,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.elasticsearch.client</groupId>
-      <artifactId>elasticsearch-rest-client</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>com.selectivem.collections</groupId>
       <artifactId>special-collections-complete</artifactId>
     </dependency>
