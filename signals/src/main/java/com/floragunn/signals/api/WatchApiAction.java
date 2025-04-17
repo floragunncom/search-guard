@@ -11,7 +11,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.node.NodeClient;
-import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestRequest;
@@ -112,14 +112,14 @@ public class WatchApiAction extends SignalsTenantAwareRestHandler {
 
     protected RestChannelConsumer handlePut(String id, RestRequest request, Client client) throws IOException {
 
-        BytesReference content = request.content();
+        ReleasableBytesReference content = request.content();
 
         if (request.getXContentType() != XContentType.JSON && request.getXContentType() != XContentType.VND_JSON) {
             return channel -> errorResponse(channel, RestStatus.UNSUPPORTED_MEDIA_TYPE, "Watches must be of content type application/json");
         }
 
         return channel -> client.execute(PutWatchAction.INSTANCE, new PutWatchRequest(id, content, XContentType.JSON),
-                new ActionListener<PutWatchResponse>() {
+                ActionListener.withRef(new ActionListener<PutWatchResponse>() {
 
                     @Override
                     public void onResponse(PutWatchResponse response) {
@@ -136,9 +136,10 @@ public class WatchApiAction extends SignalsTenantAwareRestHandler {
                     public void onFailure(Exception e) {
                         errorResponse(channel, e);
                     }
-                });
+                }, content));
 
     }
+
 
     @Override
     public String getName() {

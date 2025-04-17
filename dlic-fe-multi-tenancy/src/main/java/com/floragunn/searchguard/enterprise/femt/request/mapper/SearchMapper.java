@@ -63,7 +63,7 @@ public class SearchMapper implements Unscoper<SearchResponse> {
         // SearchResponseSections is still pooled
         SearchResponseSections rewrittenSections = new SearchResponseSections(rewrittenSearchHits, response.getAggregations(), response.getSuggest(),
                 response.isTimedOut(), response.isTerminatedEarly(), null, response.getNumReducePhases());
-        rewrittenSections.decRef(); // Why is "decRef" method invoked here?
+         // Why is "decRef" method invoked here?
         // 1. decRef should be invoked when resources are pooled to release the pooled resource.
         // 2. SearchResponseSections contains only the SearchHits which can be pooled or unpooled.
         // 3. Therefore, invocation rewrittenSections.decRef() can possibly released resources in SearchHits stored inside SearchResponseSections.

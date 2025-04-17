@@ -292,7 +292,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
+            msg.addTupleToRequestBodyReleasable(request.contentOrSourceParam());
         }
 
         if (request != null) {
@@ -337,7 +337,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
+            msg.addTupleToRequestBodyReleasable(request.contentOrSourceParam());
         }
 
         if (request != null) {
@@ -383,7 +383,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
+            msg.addTupleToRequestBodyReleasable(request.contentOrSourceParam());
         }
 
         if (request != null) {
@@ -408,7 +408,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
+            msg.addTupleToRequestBodyReleasable(request.contentOrSourceParam());
         }
         if (request != null) {
             msg.addPath(request.path());
@@ -484,7 +484,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
+            msg.addTupleToRequestBodyReleasable(request.contentOrSourceParam());
         }
         if (request != null) {
             msg.addPath(request.path());
@@ -522,7 +522,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         // getAddress() call is checked in BackendRegistry for null
         msg.addRemoteAddress(remoteAddress.getAddress().getHostAddress());
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
+            msg.addTupleToRequestBodyReleasable(request.contentOrSourceParam());
         }
         if (request != null) {
             msg.addPath(request.path());
@@ -600,7 +600,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
+            msg.addTupleToRequestBodyReleasable(request.contentOrSourceParam());
         }
 
         if (request != null) {
@@ -877,7 +877,7 @@ public abstract class AbstractAuditLog implements AuditLog {
             if (key.startsWith("searchguard") && (key.contains("filepath") || key.contains("file_path"))) {
                 String value = settings.get(key);
                 if (value != null && !value.isEmpty()) {
-                    Path path = value.startsWith("/") ? Paths.get(value) : environment.configFile().resolve(value);
+                    Path path = value.startsWith("/") ? Paths.get(value) : environment.configDir().resolve(value);
                     paths.put(key, path);
                 }
             }

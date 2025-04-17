@@ -52,11 +52,11 @@ public class StaticSettings {
     }
 
     public Path getPlatformPluginsDirectory() {
-        return this.environment.pluginsFile();
+        return this.environment.pluginsDir();
     }
     
     public Path getPatformConfigDirectory() {
-        return this.environment.configFile();
+        return this.environment.configDir();
     }
 
     public <V> V get(Attribute<V> option) {

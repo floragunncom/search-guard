@@ -1,6 +1,7 @@
 package com.floragunn.searchguard.http;
 
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.http.HttpBody;
 import org.elasticsearch.http.HttpRequest;
 import org.junit.Test;
@@ -25,7 +26,7 @@ public class SearchGuardHttpServerTransportTest {
     private HttpBody.Full fullBody;
 
     @Mock
-    private BytesReference bytesReference;
+    private ReleasableBytesReference bytesReference;
 
     @Test
     public void shouldHaveBody() {
