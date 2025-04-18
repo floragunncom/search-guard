@@ -2916,7 +2916,12 @@ public class RestApiTest {
             TermQueryBuilder queryBuilder = QueryBuilders.termQuery("data.testsearch.hits.hits._source.key_418.keyword", "value_418");
             SearchResponse searchResponse = client.search(
                     new SearchRequest(SIGNALS_LOGS_INDEX_NAME).source(new SearchSourceBuilder().query(queryBuilder).size(1))).actionGet();
-            assertThat(searchResponse.getHits().getHits(), arrayWithSize(1));
+            try {
+                assertThat(searchResponse.getHits().getHits(), arrayWithSize(1));
+            } finally {
+                searchResponse.decRef();
+            }
+
         }
     }
 
