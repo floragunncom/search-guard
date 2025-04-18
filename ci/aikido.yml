@@ -11,7 +11,7 @@
         npm install -g @aikidosec/ci-api-client
         echo "Aikido ci-api-client version:"
         aikido-api-client -V
-        echo "Start Aikido Scan for commit: ${CI_COMMIT_SHORT_SHA} and project id ${CI_PROJECT_ID}"
+        echo "Start Aikido Scan for commit: ${CI_COMMIT_SHORT_SHA} and project id ${CI_PROJECT_ID} and base-branch ${AIKIDO_BASE_BRANCH}"
         aikido-api-client \
         --apikey ${AIKIDO_CI_INTEGRATION_TOKEN} \
         scan-release \
@@ -22,7 +22,7 @@
         --fail-on-iac-scan \
         --fail-on-secrets-scan \
         --plain-output \
-        --base-branch aikido-multibranch-scan-test
+        --base-branch ${AIKIDO_BASE_BRANCH}
         
 aikido_schedule_scan:
   extends: ['.aikido_scan_common']
