@@ -9,7 +9,7 @@ variables:
   DOCKER_VERSION: "20.10.17"
   
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
-  MAVEN_CLI_OPTS: "--batch-mode -s settings.xml -q -U"
+  MAVEN_CLI_OPTS: "--batch-mode -s settings.xml -U"
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
 
