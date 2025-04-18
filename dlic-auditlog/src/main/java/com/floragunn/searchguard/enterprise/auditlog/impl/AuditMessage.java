@@ -223,18 +223,12 @@ public final class AuditMessage {
     //    }
 
     public void addTupleToRequestBodyReleasable(Tuple<XContentType, ReleasableBytesReference> xContentTuple) {
-        // TODO ES9 and ES 8.18.0 consider if both methods addTupleToRequestBodyReleasable and addTupleToRequestBody are needed
-        if (xContentTuple != null) {
-            try {
-                auditInfo.put(REQUEST_BODY, XContentHelper.convertToJson(xContentTuple.v2(), false, xContentTuple.v1()));
-                //TODO ES9 and 8.18.0 ReleasableBytesReference - memory leak possible here?
-            } catch (Exception e) {
-                auditInfo.put(REQUEST_BODY, "ERROR: Unable to convert to json because of " + e);
-            }
-        }
+        ReleasableBytesReference bytes = xContentTuple.v2();
+        assert bytes.hasReferences();
+        addTupleToRequestBody(xContentTuple);
     }
 
-    public void addTupleToRequestBody(Tuple<XContentType, BytesReference> xContentTuple) {
+    public void addTupleToRequestBody(Tuple<XContentType, ? extends BytesReference> xContentTuple) {
         if (xContentTuple != null) {
             try {
                 auditInfo.put(REQUEST_BODY, XContentHelper.convertToJson(xContentTuple.v2(), false, xContentTuple.v1()));
