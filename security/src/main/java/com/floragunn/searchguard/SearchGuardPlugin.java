@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -198,6 +199,7 @@ import com.google.common.collect.Lists;
 
 public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements ClusterPlugin, MapperPlugin, ScriptPlugin {
 
+    private final String fileWithoutEntitlementsToAccess;
     private volatile AuthenticatingRestFilter searchGuardRestFilter;
     private volatile SearchGuardInterceptor sgi;
     private AuthorizationService authorizationService;
@@ -267,6 +269,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
     public SearchGuardPlugin(final Settings settings, final Path configPath) {
         super(settings, configPath, isDisabled(settings));
+        /*
+         * Entitlements introduced in ES 9.0.0 and backported to 8.18.0 forbid plugin to access the below file.
+         */
+        this.fileWithoutEntitlementsToAccess = configPath + File.separator + "users";
 
         disabled = isDisabled(settings);
         sslCertReloadEnabled = isSslCertReloadEnabled(settings);
@@ -330,7 +336,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 final Path confPath = new Environment(settings, configPath).configFile().toAbsolutePath();
                 if (Files.isDirectory(confPath, LinkOption.NOFOLLOW_LINKS)) {
                     try (Stream<Path> s = Files.walk(confPath)) {
-                        return s.distinct().filter(p -> checkFilePermissions(p)).collect(Collectors.toList());
+                        return s.distinct()
+                                .filter(p -> !Path.of(fileWithoutEntitlementsToAccess).equals(p))
+                                .filter(p -> checkFilePermissions(p))
+                                .collect(Collectors.toList());
                     } catch (Exception e) {
                         log.error(e);
                         return null;
@@ -358,7 +367,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     final Path confPath = new Environment(settings, configPath).configFile().toAbsolutePath();
                     if (Files.isDirectory(confPath, LinkOption.NOFOLLOW_LINKS)) {
                         try (Stream<Path> s = Files.walk(confPath)) {
-                            return s.distinct().map(p -> sha256(p)).collect(Collectors.toList());
+                            return s.distinct()
+                                    .filter(p -> !Path.of(fileWithoutEntitlementsToAccess).equals(p))
+                                    .map(p -> sha256(p))
+                                    .collect(Collectors.toList());
                         } catch (Exception e) {
                             log.error(e);
                             return null;
