@@ -17,88 +17,7 @@
 
 package com.floragunn.searchguard;
 
-import com.floragunn.codova.config.text.Pattern;
-import com.floragunn.codova.validation.ConfigValidationException;
-import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.SearchGuardModule.QueryCacheWeightProvider;
-import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
-import com.floragunn.searchguard.action.configupdate.TransportConfigUpdateAction;
-import com.floragunn.searchguard.action.whoami.TransportWhoAmIAction;
-import com.floragunn.searchguard.action.whoami.WhoAmIAction;
-import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.auditlog.AuditLog.Origin;
-import com.floragunn.searchguard.auditlog.AuditLogRelay;
-import com.floragunn.searchguard.auditlog.AuditLogSslExceptionHandler;
-import com.floragunn.searchguard.authc.AuthInfoService;
-import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
-import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
-import com.floragunn.searchguard.authc.internal_users_db.InternalUsersAuthenticationBackend;
-import com.floragunn.searchguard.authc.internal_users_db.InternalUsersConfigApi;
-import com.floragunn.searchguard.authc.internal_users_db.InternalUsersDatabase;
-import com.floragunn.searchguard.authc.rest.AuthcCacheApi;
-import com.floragunn.searchguard.authc.rest.AuthenticatingRestFilter;
-import com.floragunn.searchguard.authc.rest.RestAuthcConfigApi;
-import com.floragunn.searchguard.authc.session.FrontendAuthcConfigApi;
-import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
-import com.floragunn.searchguard.authc.session.backend.SessionModule;
-import com.floragunn.searchguard.authz.AuthorizationService;
-import com.floragunn.searchguard.authz.PrivilegesEvaluator;
-import com.floragunn.searchguard.authz.SystemIndexAccess;
-import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
-import com.floragunn.searchguard.authz.actions.Actions;
-import com.floragunn.searchguard.authz.config.AuthorizationConfigApi;
-import com.floragunn.searchguard.authz.indices.SearchGuardDirectoryReaderWrapper;
-import com.floragunn.searchguard.compliance.ComplianceConfig;
-import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.configuration.ClusterInfoHolder;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
-import com.floragunn.searchguard.configuration.StaticSgConfig;
-import com.floragunn.searchguard.configuration.api.BulkConfigApi;
-import com.floragunn.searchguard.configuration.api.GenericTypeLevelConfigApi;
-import com.floragunn.searchguard.configuration.api.MigrateConfigIndexApi;
-import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
-import com.floragunn.searchguard.configuration.variables.ConfigVarApi;
-import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
-import com.floragunn.searchguard.configuration.variables.ConfigVarService;
-import com.floragunn.searchguard.configuration.variables.EncryptionKeys;
-import com.floragunn.searchguard.filter.SearchGuardFilter;
-import com.floragunn.searchguard.http.SearchGuardHttpServerTransport;
-import com.floragunn.searchguard.http.SearchGuardNonSslHttpServerTransport;
-import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
-import com.floragunn.searchguard.license.LicenseRepository;
-import com.floragunn.searchguard.license.SearchGuardLicenseInfoAction;
-import com.floragunn.searchguard.license.SearchGuardLicenseKeyApi;
-import com.floragunn.searchguard.modules.api.ComponentStateRestAction;
-import com.floragunn.searchguard.modules.api.GetComponentStateAction;
-import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
-import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedActionHandlingService;
-import com.floragunn.searchguard.privileges.extended_action_handling.ResourceOwnerService;
-import com.floragunn.searchguard.rest.KibanaInfoAction;
-import com.floragunn.searchguard.rest.PermissionAction;
-import com.floragunn.searchguard.rest.SSLReloadCertAction;
-import com.floragunn.searchguard.rest.SearchGuardConfigUpdateAction;
-import com.floragunn.searchguard.rest.SearchGuardHealthAction;
-import com.floragunn.searchguard.rest.SearchGuardInfoAction;
-import com.floragunn.searchguard.rest.SearchGuardWhoAmIAction;
-import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
-import com.floragunn.searchguard.ssl.SslExceptionHandler;
-import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
-import com.floragunn.searchguard.ssl.transport.SearchGuardSSLNettyTransport;
-import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
-import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.support.HeaderHelper;
-import com.floragunn.searchguard.support.ReflectionHelper;
-import com.floragunn.searchguard.support.SnapshotRestoreHelper;
-import com.floragunn.searchguard.transport.DefaultInterClusterRequestEvaluator;
-import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
-import com.floragunn.searchguard.transport.SearchGuardInterceptor;
-import com.floragunn.searchguard.user.User;
-import com.floragunn.searchsupport.diag.DiagnosticContext;
-import com.floragunn.searchsupport.meta.Meta;
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -208,8 +127,94 @@ import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.watcher.ResourceWatcherService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
+import com.floragunn.codova.config.text.Pattern;
+import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.SearchGuardModule.QueryCacheWeightProvider;
+import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
+import com.floragunn.searchguard.action.configupdate.TransportConfigUpdateAction;
+import com.floragunn.searchguard.action.whoami.TransportWhoAmIAction;
+import com.floragunn.searchguard.action.whoami.WhoAmIAction;
+import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.auditlog.AuditLogRelay;
+import com.floragunn.searchguard.auditlog.AuditLogSslExceptionHandler;
+import com.floragunn.searchguard.authc.AuthInfoService;
+import com.floragunn.searchguard.authc.blocking.BlockedIpRegistry;
+import com.floragunn.searchguard.authc.blocking.BlockedUserRegistry;
+import com.floragunn.searchguard.authc.internal_users_db.InternalUsersAuthenticationBackend;
+import com.floragunn.searchguard.authc.internal_users_db.InternalUsersConfigApi;
+import com.floragunn.searchguard.authc.internal_users_db.InternalUsersDatabase;
+import com.floragunn.searchguard.authc.rest.AuthcCacheApi;
+import com.floragunn.searchguard.authc.rest.AuthenticatingRestFilter;
+import com.floragunn.searchguard.authc.rest.RestAuthcConfigApi;
+import com.floragunn.searchguard.authc.session.FrontendAuthcConfigApi;
+import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
+import com.floragunn.searchguard.authc.session.backend.SessionModule;
+import com.floragunn.searchguard.authz.AuthorizationService;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.SystemIndexAccess;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
+import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.config.AuthorizationConfigApi;
+import com.floragunn.searchguard.authz.indices.SearchGuardDirectoryReaderWrapper;
+import com.floragunn.searchguard.compliance.ComplianceConfig;
+import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.configuration.CType;
+import com.floragunn.searchguard.configuration.ClusterInfoHolder;
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
+import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
+import com.floragunn.searchguard.configuration.StaticSgConfig;
+import com.floragunn.searchguard.configuration.api.BulkConfigApi;
+import com.floragunn.searchguard.configuration.api.GenericTypeLevelConfigApi;
+import com.floragunn.searchguard.configuration.api.MigrateConfigIndexApi;
+import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
+import com.floragunn.searchguard.configuration.validation.RoleRelationsValidator;
+import com.floragunn.searchguard.configuration.variables.ConfigVarApi;
+import com.floragunn.searchguard.configuration.variables.ConfigVarRefreshAction;
+import com.floragunn.searchguard.configuration.variables.ConfigVarService;
+import com.floragunn.searchguard.configuration.variables.EncryptionKeys;
+import com.floragunn.searchguard.filter.SearchGuardFilter;
+import com.floragunn.searchguard.http.SearchGuardHttpServerTransport;
+import com.floragunn.searchguard.http.SearchGuardNonSslHttpServerTransport;
+import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
+import com.floragunn.searchguard.license.LicenseRepository;
+import com.floragunn.searchguard.license.SearchGuardLicenseInfoAction;
+import com.floragunn.searchguard.license.SearchGuardLicenseKeyApi;
+import com.floragunn.searchguard.modules.api.ComponentStateRestAction;
+import com.floragunn.searchguard.modules.api.GetComponentStateAction;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
+import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedActionHandlingService;
+import com.floragunn.searchguard.privileges.extended_action_handling.ResourceOwnerService;
+import com.floragunn.searchguard.rest.KibanaInfoAction;
+import com.floragunn.searchguard.rest.PermissionAction;
+import com.floragunn.searchguard.rest.SSLReloadCertAction;
+import com.floragunn.searchguard.rest.SearchGuardConfigUpdateAction;
+import com.floragunn.searchguard.rest.SearchGuardHealthAction;
+import com.floragunn.searchguard.rest.SearchGuardInfoAction;
+import com.floragunn.searchguard.rest.SearchGuardWhoAmIAction;
+import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
+import com.floragunn.searchguard.ssl.SslExceptionHandler;
+import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
+import com.floragunn.searchguard.ssl.transport.SearchGuardSSLNettyTransport;
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
+import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.HeaderHelper;
+import com.floragunn.searchguard.support.ReflectionHelper;
+import com.floragunn.searchguard.support.SnapshotRestoreHelper;
+import com.floragunn.searchguard.transport.DefaultInterClusterRequestEvaluator;
+import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
+import com.floragunn.searchguard.transport.SearchGuardInterceptor;
+import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.diag.DiagnosticContext;
+import com.floragunn.searchsupport.meta.Meta;
+import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
+
 public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements ClusterPlugin, MapperPlugin, ScriptPlugin {
 
+    private final String fileWithoutEntitlementsToAccess;
     private volatile AuthenticatingRestFilter searchGuardRestFilter;
     private volatile SearchGuardInterceptor sgi;
     private AuthorizationService authorizationService;
@@ -279,6 +284,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
     public SearchGuardPlugin(final Settings settings, final Path configPath) {
         super(settings, configPath, isDisabled(settings));
+        /*
+         * Entitlements introduced in ES 9.0.0 and backported to 8.18.0 forbid plugin to access the below file.
+         */
+        this.fileWithoutEntitlementsToAccess = configPath + File.separator + "users";
 
         disabled = isDisabled(settings);
         sslCertReloadEnabled = isSslCertReloadEnabled(settings);
@@ -358,7 +367,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 final Path confPath = new Environment(settings, configPath).configFile().toAbsolutePath();
                 if (Files.isDirectory(confPath, LinkOption.NOFOLLOW_LINKS)) {
                     try (Stream<Path> s = Files.walk(confPath)) {
-                        return s.distinct().filter(p -> checkFilePermissions(p)).collect(Collectors.toList());
+                        return s.distinct()
+                                .filter(p -> !Path.of(fileWithoutEntitlementsToAccess).equals(p))
+                                .filter(p -> checkFilePermissions(p))
+                                .collect(Collectors.toList());
                     } catch (Exception e) {
                         log.error(e);
                         return null;
@@ -386,7 +398,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     final Path confPath = new Environment(settings, configPath).configFile().toAbsolutePath();
                     if (Files.isDirectory(confPath, LinkOption.NOFOLLOW_LINKS)) {
                         try (Stream<Path> s = Files.walk(confPath)) {
-                            return s.distinct().map(p -> sha256(p)).collect(Collectors.toList());
+                            return s.distinct()
+                                    .filter(p -> !Path.of(fileWithoutEntitlementsToAccess).equals(p))
+                                    .map(p -> sha256(p))
+                                    .collect(Collectors.toList());
                         } catch (Exception e) {
                             log.error(e);
                             return null;
