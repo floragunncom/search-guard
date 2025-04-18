@@ -22,7 +22,7 @@
         --fail-on-iac-scan \
         --fail-on-secrets-scan \
         --plain-output \
-        --base-branch ${AIKIDO_REF_BRANCH}
+        --base-branch aikido-multibranch-scan-test
         
 aikido_schedule_scan:
   extends: ['.aikido_scan_common']
