@@ -24,6 +24,7 @@
         --plain-output \
         --base-branch ${AIKIDO_BASE_BRANCH}
         
+        
 aikido_schedule_scan:
   extends: ['.aikido_scan_common']
   rules:
