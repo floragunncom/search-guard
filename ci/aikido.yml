@@ -28,6 +28,7 @@
           echo "Run secrets scan"
           AIKIDO_CMD="${AIKIDO_CMD} --fail-on-secrets-scan"
         fi
+        echo "$AIKIDO_CMD"
         eval "$AIKIDO_CMD"
         
 
