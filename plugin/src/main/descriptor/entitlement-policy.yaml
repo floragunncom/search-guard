@@ -19,4 +19,5 @@ ALL-UNNAMED:
         - java.security.krb5.conf
         - es.set.netty.runtime.available.processors
         - com.sun.security.enableCRLDP
+        - org.apache.xml.security.ignoreLineBreaks
 
