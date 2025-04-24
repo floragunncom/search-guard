@@ -29,6 +29,7 @@ import org.elasticsearch.common.settings.Settings;
 
 public final class SSLConfigConstants {
 
+    public static final String SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES = "searchguard.allow_unsafe_democertificates";
     public static final String SEARCHGUARD_SSL_HTTP_ENABLED = "searchguard.ssl.http.enabled";
     public static final boolean SEARCHGUARD_SSL_HTTP_ENABLED_DEFAULT = false;
     public static final String SEARCHGUARD_SSL_HTTP_CLIENTAUTH_MODE = "searchguard.ssl.http.clientauth_mode";

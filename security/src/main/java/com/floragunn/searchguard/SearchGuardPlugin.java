@@ -19,13 +19,11 @@ package com.floragunn.searchguard;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.security.AccessController;
-import java.security.MessageDigest;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -215,7 +213,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     private final boolean enterpriseModulesEnabled;
     private final boolean sslOnly;
     private boolean sslCertReloadEnabled;
-    private final List<String> demoCertHashes = new ArrayList<String>(3);
     private volatile ComplianceConfig complianceConfig;
     private volatile ActionRequestIntrospector actionRequestIntrospector;
     private ScriptService scriptService;
@@ -301,22 +298,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         SearchGuardPlugin.protectedIndices = new ProtectedIndices(settings);
         staticSgConfig = new StaticSgConfig(settings);
-
-        demoCertHashes.add("54a92508de7a39d06242a0ffbf59414d7eb478633c719e6af03938daf6de8a1a");
-        demoCertHashes.add("742e4659c79d7cad89ea86aab70aea490f23bbfc7e72abd5f0a5d3fb4c84d212");
-        demoCertHashes.add("db1264612891406639ecd25c894f256b7c5a6b7e1d9054cbe37b77acd2ddd913");
-        demoCertHashes.add("2a5398e20fcb851ec30aa141f37233ee91a802683415be2945c3c312c65c97cf");
-        demoCertHashes.add("33129547ce617f784c04e965104b2c671cce9e794d1c64c7efe58c77026246ae");
-        demoCertHashes.add("c4af0297cc75546e1905bdfe3934a950161eee11173d979ce929f086fdf9794d");
-        demoCertHashes.add("7a355f42c90e7543a267fbe3976c02f619036f5a34ce712995a22b342d83c3ce");
-        demoCertHashes.add("a9b5eca1399ec8518081c0d4a21a34eec4589087ce64c04fb01a488f9ad8edc9");
-
-        //new certs 04/2018
-        demoCertHashes.add("d14aefe70a592d7a29e14f3ff89c3d0070c99e87d21776aa07d333ee877e758f");
-        demoCertHashes.add("54a70016e0837a2b0c5658d1032d7ca32e432c62c55f01a2bf5adcb69a0a7ba9");
-        demoCertHashes.add("bdc141ab2272c779d0f242b79063152c49e1b06a2af05e0fd90d505f2b44d5f5");
-        demoCertHashes.add("3e839e2b059036a99ee4f742814995f2fb0ced7e9d68a47851f43a3c630b5324");
-        demoCertHashes.add("9b13661c073d864c28ad7b13eda67dcb6cbc2f04d116adc7c817c20b4c7ed361");
        
         enterpriseModulesEnabled = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true);
         ReflectionHelper.init(enterpriseModulesEnabled);
@@ -359,41 +340,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             }
         }
 
-        if (!settings.getAsBoolean(ConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES, false)) {
-            //check for demo certificates
-            final List<String> files = AccessController.doPrivileged(new PrivilegedAction<List<String>>() {
-                @Override
-                public List<String> run() {
-                    final Path confPath = new Environment(settings, configPath).configFile().toAbsolutePath();
-                    if (Files.isDirectory(confPath, LinkOption.NOFOLLOW_LINKS)) {
-                        try (Stream<Path> s = Files.walk(confPath)) {
-                            return s.distinct()
-                                    .filter(p -> !Path.of(fileWithoutEntitlementsToAccess).equals(p))
-                                    .map(p -> sha256(p))
-                                    .collect(Collectors.toList());
-                        } catch (Exception e) {
-                            log.error(e);
-                            return null;
-                        }
-                    }
-
-                    return Collections.emptyList();
-                }
-            });
-
-            if (files != null) {
-                demoCertHashes.retainAll(files);
-                if (!demoCertHashes.isEmpty()) {
-                    log.error("Demo certificates found but " + ConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES + " is set to false."
-                            + "See http://docs.search-guard.com/latest/demo-installer-generated-artefacts#allow-demo-certificates-and-auto-initialization");
-                    throw new RuntimeException("Demo certificates found " + demoCertHashes);
-                }
-            } else {
-                throw new RuntimeException("Unable to look for demo certificates");
-            }
-
-        }
-
         if (enterpriseModulesEnabled) {
             ImmutableSet<String> enterpriseModules = ImmutableSet.of("com.floragunn.searchguard.enterprise.auth.EnterpriseAuthFeaturesModule",
                     "com.floragunn.searchguard.authtoken.AuthTokenModule", "com.floragunn.searchguard.enterprise.femt.FeMultiTenancyModule",
@@ -406,32 +352,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         moduleRegistry.add(SessionModule.class.getName());
         moduleRegistry.add("com.floragunn.signals.SignalsModule");
-    }
-
-    private String sha256(Path p) {
-
-        if (!Files.isRegularFile(p, LinkOption.NOFOLLOW_LINKS)) {
-            return "";
-        }
-
-        if (!Files.isReadable(p)) {
-            log.debug("Unreadable file " + p + " found");
-            return "";
-        }
-
-        if (!FileSystems.getDefault().getPathMatcher("regex:(?i).*\\.(pem|jks|pfx|p12)").matches(p)) {
-            log.debug("Not a .pem, .jks, .pfx or .p12 file, skipping");
-            return "";
-        }
-
-        try {
-            MessageDigest digester = MessageDigest.getInstance("SHA256");
-            final String hash = org.bouncycastle.util.encoders.Hex.toHexString(digester.digest(Files.readAllBytes(p)));
-            log.debug(hash + " :: " + p);
-            return hash;
-        } catch (Exception e) {
-            throw new ElasticsearchSecurityException("Unable to digest file " + p, e);
-        }
     }
 
     private boolean checkFilePermissions(final Path p) {
@@ -997,8 +917,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
            
             //SG6
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_ENTERPRISE_MODULES_ENABLED, true, Property.NodeScope, Property.Filtered));
-            settings.add(
-                    Setting.boolSetting(ConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES, false, Property.NodeScope, Property.Filtered));
           
             settings.add(Setting.groupSetting(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS + ".", Property.NodeScope)); //not filtered here
 
