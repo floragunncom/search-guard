@@ -266,6 +266,10 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
     public SearchGuardPlugin(final Settings settings, final Path configPath) {
         super(settings, configPath, isDisabled(settings));
+        /*
+         * Entitlements introduced in ES 9.0.0 and backported to 8.18.0 forbid plugin to access the below file.
+         */
+        this.fileWithoutEntitlementsToAccess = configPath + File.separator + "users";
 
         disabled = isDisabled(settings);
         sslCertReloadEnabled = isSslCertReloadEnabled(settings);
@@ -307,34 +311,34 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         }
 
 
-        // TODO ES9 the code try to read many files. We need permission for each such file in entitlement-policy.yaml
-        // providing that wildcards are unsupported
-//        final List<Path> filesWithWrongPermissions = AccessController.doPrivileged(new PrivilegedAction<List<Path>>() {
-//            @Override
-//            public List<Path> run() {
-//                final Path confPath = new Environment(settings, configPath).configDir().toAbsolutePath();
-//                if (Files.isDirectory(confPath, LinkOption.NOFOLLOW_LINKS)) {
-//                    try (Stream<Path> s = Files.walk(confPath)) {
-//                        return s.distinct().filter(p -> checkFilePermissions(p)).collect(Collectors.toList());
-//                    } catch (Exception e) {
-//                        log.error(e);
-//                        return null;
-//                    }
-//                }
-//                return Collections.emptyList();
-//            }
-//        });
+        final List<Path> filesWithWrongPermissions = AccessController.doPrivileged(new PrivilegedAction<List<Path>>() {
+            @Override
+            public List<Path> run() {
+                final Path confPath = new Environment(settings, configPath).configDir().toAbsolutePath();
+                if (Files.isDirectory(confPath, LinkOption.NOFOLLOW_LINKS)) {
+                    try (Stream<Path> s = Files.walk(confPath)) {
+                        return s.distinct()
+                                .filter(p -> !Path.of(fileWithoutEntitlementsToAccess).equals(p))
+                                .filter(p -> checkFilePermissions(p))
+                                .collect(Collectors.toList());
+                    } catch (Exception e) {
+                        log.error(e);
+                        return null;
+                    }
+                }
+                return Collections.emptyList();
+            }
+        });
 
-//        if (filesWithWrongPermissions != null && filesWithWrongPermissions.size() > 0) {
-//            for (final Path p : filesWithWrongPermissions) {
-//                if (Files.isDirectory(p, LinkOption.NOFOLLOW_LINKS)) {
-//                    log.warn("Directory " + p + " has insecure file permissions (should be 0700)");
-//                } else {
-//                    log.warn("File " + p + " has insecure file permissions (should be 0600)");
-//                }
-//            }
-//        }
-
+        if (filesWithWrongPermissions != null && filesWithWrongPermissions.size() > 0) {
+            for (final Path p : filesWithWrongPermissions) {
+                if (Files.isDirectory(p, LinkOption.NOFOLLOW_LINKS)) {
+                    log.warn("Directory " + p + " has insecure file permissions (should be 0700)");
+                } else {
+                    log.warn("File " + p + " has insecure file permissions (should be 0600)");
+                }
+            }
+        }
 
         if (enterpriseModulesEnabled) {
             ImmutableSet<String> enterpriseModules = ImmutableSet.of("com.floragunn.searchguard.enterprise.auth.EnterpriseAuthFeaturesModule",
