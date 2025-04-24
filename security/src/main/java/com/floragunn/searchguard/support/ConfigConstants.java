@@ -172,8 +172,6 @@ public class ConfigConstants {
     public static final String SEARCHGUARD_NODES_DN = "searchguard.nodes_dn";
     public static final String SEARCHGUARD_DISABLED = "searchguard.disabled";
 
-    public static final String SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES = "searchguard.allow_unsafe_democertificates";
-
     public static final String SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_METADATA_ONLY = "searchguard.compliance.history.write.metadata_only";
     public static final String SEARCHGUARD_COMPLIANCE_HISTORY_READ_METADATA_ONLY = "searchguard.compliance.history.read.metadata_only";
     public static final String SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS = "searchguard.compliance.history.read.watched_fields";

@@ -21,14 +21,17 @@ package com.floragunn.searchguard.ssl;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.AccessController;
 import java.security.KeyStore;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.cert.Certificate;
@@ -36,9 +39,10 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.crypto.Cipher;
 import javax.net.ssl.SSLContext;
@@ -90,6 +94,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
     private X509Certificate[] currentHttpCerts;
     private X509Certificate[] currentTransportTrustedCerts;
     private X509Certificate[] currentHttpTrustedCerts;
+    private final List<String> demoCertHashes = new ArrayList<>(3);
 
     
     private final Environment env;
@@ -109,6 +114,9 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
 
     public DefaultSearchGuardKeyStore(final Settings settings, final Path configPath) {
         super();
+
+        initDemoCertHashes();
+
         this.settings = settings;
         Environment _env;
         try {
@@ -185,6 +193,24 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
         if (httpSSLEnabled && getEnabledSSLCiphers(sslHTTPProvider, true).isEmpty()) {
             throw new ElasticsearchSecurityException("no ssl protocols for https");
         }
+    }
+
+    private void initDemoCertHashes() {
+        demoCertHashes.add("54a92508de7a39d06242a0ffbf59414d7eb478633c719e6af03938daf6de8a1a");
+        demoCertHashes.add("742e4659c79d7cad89ea86aab70aea490f23bbfc7e72abd5f0a5d3fb4c84d212");
+        demoCertHashes.add("db1264612891406639ecd25c894f256b7c5a6b7e1d9054cbe37b77acd2ddd913");
+        demoCertHashes.add("2a5398e20fcb851ec30aa141f37233ee91a802683415be2945c3c312c65c97cf");
+        demoCertHashes.add("33129547ce617f784c04e965104b2c671cce9e794d1c64c7efe58c77026246ae");
+        demoCertHashes.add("c4af0297cc75546e1905bdfe3934a950161eee11173d979ce929f086fdf9794d");
+        demoCertHashes.add("7a355f42c90e7543a267fbe3976c02f619036f5a34ce712995a22b342d83c3ce");
+        demoCertHashes.add("a9b5eca1399ec8518081c0d4a21a34eec4589087ce64c04fb01a488f9ad8edc9");
+
+        //new certs 04/2018
+        demoCertHashes.add("d14aefe70a592d7a29e14f3ff89c3d0070c99e87d21776aa07d333ee877e758f");
+        demoCertHashes.add("54a70016e0837a2b0c5658d1032d7ca32e432c62c55f01a2bf5adcb69a0a7ba9");
+        demoCertHashes.add("bdc141ab2272c779d0f242b79063152c49e1b06a2af05e0fd90d505f2b44d5f5");
+        demoCertHashes.add("3e839e2b059036a99ee4f742814995f2fb0ced7e9d68a47851f43a3c630b5324");
+        demoCertHashes.add("9b13661c073d864c28ad7b13eda67dcb6cbc2f04d116adc7c817c20b4c7ed361");
     }
 
     private String resolve(String propName, boolean mustBeValid) {
@@ -331,6 +357,8 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
             //file path to the pem encoded X509 root certificate (or multiple certificates if we should trust more than one root)
             final String pemTransportTrustedCasFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH,
                     true);
+
+            validateIfDemoCertsAreNotUsedWhenNotAllowed(pemTransportCertFilePath, pemTransportKeyFilePath, pemTransportTrustedCasFilePath);
 
             try {
             	//X509 certificate including its chain (which *may* include the root certificate but, 
@@ -490,6 +518,8 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
             final String pemHttpTrustedCasFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMTRUSTEDCAS_FILEPATH,
                     true);
 
+            validateIfDemoCertsAreNotUsedWhenNotAllowed(pemHttpCertFilePath, pemHttpKeyFilePath, pemHttpTrustedCasFilePath);
+
             if (httpClientAuthMode == ClientAuth.REQUIRE) {
                 checkPath(pemHttpTrustedCasFilePath, SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMTRUSTEDCAS_FILEPATH);
             }
@@ -563,7 +593,63 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
         }
     }
 
-    
+    private void validateIfDemoCertsAreNotUsedWhenNotAllowed(String... certFilesPaths) {
+        if (!settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES, false)) {
+            //check for demo certificates
+            final List<String> files = AccessController.doPrivileged(new PrivilegedAction<List<String>>() {
+                @Override
+                public List<String> run() {
+                    try (Stream<String> s = Stream.of(certFilesPaths)) {
+                        return s.distinct()
+                                .map(Paths::get)
+                                .map(p -> sha256(p))
+                                .collect(Collectors.toList());
+                    } catch (Exception e) {
+                        log.error(e);
+                        return null;
+                    }
+                }
+            });
+
+            if (files != null) {
+                demoCertHashes.retainAll(files);
+                if (!demoCertHashes.isEmpty()) {
+                    log.error("Demo certificates found but " + SSLConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES + " is set to false."
+                            + "See http://docs.search-guard.com/latest/demo-installer-generated-artefacts#allow-demo-certificates-and-auto-initialization");
+                    throw new ElasticsearchException("Demo certificates found " + demoCertHashes);
+                }
+            } else {
+                throw new ElasticsearchException("Unable to load demo certificates from files {}", Arrays.asList(certFilesPaths));
+            }
+
+        }
+    }
+
+    private String sha256(Path p) {
+
+        if (!Files.isRegularFile(p, LinkOption.NOFOLLOW_LINKS)) {
+            return "";
+        }
+
+        if (!Files.isReadable(p)) {
+            log.debug("Unreadable file " + p + " found");
+            return "";
+        }
+
+        if (!FileSystems.getDefault().getPathMatcher("regex:(?i).*\\.(pem|jks|pfx|p12)").matches(p)) {
+            log.debug("Not a .pem, .jks, .pfx or .p12 file, skipping");
+            return "";
+        }
+
+        try {
+            MessageDigest digester = MessageDigest.getInstance("SHA256");
+            final String hash = org.bouncycastle.util.encoders.Hex.toHexString(digester.digest(Files.readAllBytes(p)));
+            log.debug(hash + " :: " + p);
+            return hash;
+        } catch (Exception e) {
+            throw new ElasticsearchSecurityException("Unable to digest file " + p, e);
+        }
+    }
 
     public SSLEngine createHTTPSSLEngine() throws SSLException {
 
