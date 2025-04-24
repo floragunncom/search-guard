@@ -341,6 +341,8 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
                 Property.Filtered));
         settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_DISABLE_CRLDP, false, Property.NodeScope, Property.Filtered));
         settings.add(Setting.longSetting(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_VALIDATION_DATE, -1, -1, Property.NodeScope, Property.Filtered));
+        settings.add(
+                Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_ALLOW_UNSAFE_DEMOCERTIFICATES, false, Property.NodeScope, Property.Filtered));
         return settings;
     }
 
