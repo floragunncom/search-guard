@@ -72,9 +72,9 @@ public class SSLTest extends SingleClusterTest {
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", false)
                 .put("searchguard.ssl.http.enabled", true)
                 .put("searchguard.ssl.http.clientauth_mode", "REQUIRE")
-                .putList(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_PROTOCOLS, "TLSv1.1","TLSv1.2")
+                .putList(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_PROTOCOLS, "TLSv1.2","TLSv1.3")
                 .putList(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED_CIPHERS, "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256")
-                .putList(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_PROTOCOLS, "TLSv1.1","TLSv1.2")
+                .putList(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_PROTOCOLS, "TLSv1.2","TLSv1.3")
                 .putList(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED_CIPHERS, "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256")
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.http.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -112,10 +112,8 @@ public class SSLTest extends SingleClusterTest {
                 .put("searchguard.ssl.http.clientauth_mode", "REQUIRE")
                 .put("searchguard.ssl.http.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.http.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
-                 //WEAK and insecure cipher, do NOT use this, its here for unittesting only!!!
-                .put("searchguard.ssl.http.enabled_ciphers","SSL_RSA_EXPORT_WITH_RC4_40_MD5")
-                 //WEAK and insecure protocol, do NOT use this, its here for unittesting only!!!
-                .put("searchguard.ssl.http.enabled_protocols","SSLv3")
+                .put("searchguard.ssl.http.enabled_ciphers","TLS_RSA_WITH_AES_256_CBC_SHA256")
+                .put("searchguard.ssl.http.enabled_protocols","TLSv1.2")
                 .put("path.home",".")
                 .build();
         
@@ -124,17 +122,15 @@ public class SSLTest extends SingleClusterTest {
             String[] enabledProtocols = new DefaultSearchGuardKeyStore(settings, Paths.get(".")).createHTTPSSLEngine().getEnabledProtocols();
 
             Assert.assertEquals(1, enabledProtocols.length);
-            Assert.assertEquals("SSLv3", enabledProtocols[0]);
+            Assert.assertEquals("TLSv1.2", enabledProtocols[0]);
             Assert.assertEquals(1, enabledCiphers.length);
-            Assert.assertEquals("SSL_RSA_EXPORT_WITH_RC4_40_MD5", enabledCiphers[0]);
+            Assert.assertEquals("TLS_RSA_WITH_AES_256_CBC_SHA256", enabledCiphers[0]);
             
             settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
                     .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                     .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
-                     //WEAK and insecure cipher, do NOT use this, its here for unittesting only!!!
-                    .put("searchguard.ssl.transport.enabled_ciphers","SSL_RSA_EXPORT_WITH_RC4_40_MD5")
-                     //WEAK and insecure protocol, do NOT use this, its here for unittesting only!!!
-                    .put("searchguard.ssl.transport.enabled_protocols","SSLv3")
+                    .put("searchguard.ssl.transport.enabled_ciphers","TLS_RSA_WITH_AES_256_CBC_SHA256")
+                    .put("searchguard.ssl.transport.enabled_protocols","TLSv1.2")
                     .put("path.home",".")
                     .build();
             
@@ -142,17 +138,17 @@ public class SSLTest extends SingleClusterTest {
             enabledProtocols = new DefaultSearchGuardKeyStore(settings, Paths.get(".")).createServerTransportSSLEngine().getEnabledProtocols();
 
             Assert.assertEquals(1, enabledProtocols.length);
-            Assert.assertEquals("SSLv3", enabledProtocols[0]);
+            Assert.assertEquals("TLSv1.2", enabledProtocols[0]);
             Assert.assertEquals(1, enabledCiphers.length);
-            Assert.assertEquals("SSL_RSA_EXPORT_WITH_RC4_40_MD5", enabledCiphers[0]);
+            Assert.assertEquals("TLS_RSA_WITH_AES_256_CBC_SHA256", enabledCiphers[0]);
 
             enabledCiphers = new DefaultSearchGuardKeyStore(settings, Paths.get(".")).createClientTransportSSLEngine(null, -1).getEnabledCipherSuites();
             enabledProtocols = new DefaultSearchGuardKeyStore(settings, Paths.get(".")).createClientTransportSSLEngine(null, -1).getEnabledProtocols();
 
             Assert.assertEquals(1, enabledProtocols.length);
-            Assert.assertEquals("SSLv3", enabledProtocols[0]);
+            Assert.assertEquals("TLSv1.2", enabledProtocols[0]);
             Assert.assertEquals(1, enabledCiphers.length);
-            Assert.assertEquals("SSL_RSA_EXPORT_WITH_RC4_40_MD5", enabledCiphers[0]);
+            Assert.assertEquals("TLS_RSA_WITH_AES_256_CBC_SHA256", enabledCiphers[0]);
         } catch (ElasticsearchSecurityException e) {
             //System.out.println("EXPECTED "+e.getClass().getSimpleName()+" for "+System.getProperty("java.specification.version")+": "+e.toString());
             //e.printStackTrace();

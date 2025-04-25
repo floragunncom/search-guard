@@ -676,7 +676,7 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
         List<String> jdkSupportedCiphers = null;
         List<String> jdkSupportedProtocols = null;
         try {
-            final SSLContext serverContext = SSLContext.getInstance("TLS");
+            final SSLContext serverContext = SSLContext.getInstance("TLSv1.2");
             serverContext.init(null, null, null);
             engine = serverContext.createSSLEngine();
             jdkSupportedCiphers = Arrays.asList(engine.getEnabledCipherSuites());

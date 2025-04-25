@@ -20,7 +20,11 @@ package com.floragunn.searchguard.ssl.util;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.settings.Settings;
 
 public final class SSLConfigConstants {
@@ -79,7 +83,7 @@ public final class SSLConfigConstants {
     public static final String JDK_TLS_REJECT_CLIENT_INITIATED_RENEGOTIATION = "jdk.tls.rejectClientInitiatedRenegotiation";
     
     private static final String[] _SECURE_SSL_PROTOCOLS = {"TLSv1.3", "TLSv1.2"};
-    
+
     public static final String[] getSecureSSLProtocols(Settings settings, boolean http)
     {
         List<String> configuredProtocols = null;
@@ -93,12 +97,25 @@ public final class SSLConfigConstants {
         }
         
         if(configuredProtocols != null && configuredProtocols.size() > 0) {
+            validateIfConfiguredProtocolsAreSecure(configuredProtocols);
             return configuredProtocols.toArray(new String[0]);
         }
         
         return _SECURE_SSL_PROTOCOLS.clone();
     }
-    
+
+    private static void validateIfConfiguredProtocolsAreSecure(List<String> configuredProtocols) {
+        Predicate<String> unsecureProtocolFilter = protocol -> Stream.of(_SECURE_SSL_PROTOCOLS)
+                .noneMatch(secureProtocol -> secureProtocol.equalsIgnoreCase(protocol));
+        String configuredUnsecureProtocols = configuredProtocols.stream()
+                .filter(unsecureProtocolFilter)
+                .collect(Collectors.joining(", "));
+
+        if (! configuredUnsecureProtocols.isEmpty()) {
+            throw new ElasticsearchException(String.format("Protocols: [%s] can not be used since they are outdated and unsecure", configuredUnsecureProtocols));
+        }
+    }
+
     // @formatter:off
     private static final String[] _SECURE_SSL_CIPHERS = 
         {
