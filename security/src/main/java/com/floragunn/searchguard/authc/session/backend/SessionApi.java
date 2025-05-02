@@ -306,9 +306,10 @@ public class SessionApi {
             ReleasableBytesReference body = request.requiredContent();
             XContentType xContentType = request.getXContentType();
 
+            body.mustIncRef();
+
             return (RestChannel channel) -> {
                 try {
-                    body.mustIncRef();
                     Map<String, Object> requestBody = DocReader.format(Format.getByContentType(xContentType.mediaType()))
                             .readObject(BytesReference.toBytes(body));
 
