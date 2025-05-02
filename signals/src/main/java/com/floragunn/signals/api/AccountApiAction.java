@@ -7,12 +7,12 @@ import static org.elasticsearch.rest.RestRequest.Method.PUT;
 import java.io.IOException;
 import java.util.List;
 
-import com.floragunn.searchsupport.rest.ProtectingContentRequestWrapper;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.node.NodeClient;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
@@ -118,32 +118,30 @@ public class AccountApiAction extends SignalsBaseRestHandler {
 
     protected RestChannelConsumer handlePut(String accountType, String id, RestRequest request, Client client) throws IOException {
 
-
+        ReleasableBytesReference content = request.content();
 
         if (request.getXContentType() != XContentType.JSON && request.getXContentType() != XContentType.VND_JSON) {
             return channel -> errorResponse(channel, RestStatus.UNSUPPORTED_MEDIA_TYPE, "Accounts must be of content type application/json");
         }
 
-        ProtectingContentRequestWrapper protectedRequest = new ProtectingContentRequestWrapper(request);
-        return channel -> client.execute(PutAccountAction.INSTANCE, new PutAccountRequest(accountType, id, protectedRequest.content(), XContentType.JSON),
-                protectedRequest.releaseAfter(new ActionListener<PutAccountResponse>() {
+        return channel -> client.execute(PutAccountAction.INSTANCE, new PutAccountRequest(accountType, id, content, XContentType.JSON),
+                ActionListener.withRef(
+                        new ActionListener<PutAccountResponse>() {
+                            @Override
+                            public void onResponse(PutAccountResponse response) {
+                                if (response.getResult() == Result.CREATED || response.getResult() == Result.UPDATED) {
+                                    channel.sendResponse(
+                                            new RestResponse(response.getRestStatus(), convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
+                                } else {
+                                    errorResponse(channel, response.getRestStatus(), response.getMessage(), response.getDetailJsonDocument());
+                                }
+                            }
 
-                    @Override
-                    public void onResponse(PutAccountResponse response) {
-                        if (response.getResult() == Result.CREATED || response.getResult() == Result.UPDATED) {
-
-                            channel.sendResponse(
-                                    new RestResponse(response.getRestStatus(), convertToJson(channel, response, ToXContent.EMPTY_PARAMS)));
-                        } else {
-                            errorResponse(channel, response.getRestStatus(), response.getMessage(), response.getDetailJsonDocument());
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(Exception e) {
+                            @Override
+                            public void onFailure(Exception e) {
                         errorResponse(channel, e);
                     }
-                }));
+                    }, content));
 
     }
 

@@ -31,7 +31,6 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.StaticDefinable;
 import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
-import com.floragunn.searchsupport.rest.ProtectingContentRequestWrapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -44,6 +43,7 @@ import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -119,11 +119,18 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 
 	protected abstract CType<?> getConfigName();
 
-	protected void handleApiRequest(final RestChannel channel, final RestRequest request, final Client client) throws IOException {
+	/**
+     * @param content RestRequest content with incremented reference count. It's important to use its value instead of
+     *                explicitly calling {@link RestRequest#content()} or {@link RestRequest#requiredContent()}.
+     *                Reading the RestRequest content after {@link org.elasticsearch.rest.RestHandler#handleRequest} will cause errors because
+     *                the content reference count will already be decremented. More details <a href="https://github.com/elastic/elasticsearch/pull/116115">RestRequest content</a>
+     */
+	protected void handleApiRequest(final RestChannel channel, final RestRequest request, final Client client, final BytesReference content) throws IOException {
 
             // validate additional settings, if any
+		log.debug("Handling API request for request {}", System.identityHashCode(request));
 
-		AbstractConfigurationValidator validator = getValidator(request, request.content());
+		AbstractConfigurationValidator validator = getValidator(request, content);
             if (!validator.validate()) {
             	request.params().clear();
             	badRequestResponse(channel, validator);
@@ -415,49 +422,46 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	}
 
     @Override
-    protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+	protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
 
-        // consume all parameters first so we can return a correct HTTP status,
-        // not 400
-        consumeParameters(request);
-        
-        // dirty hack to avoid "request does not support having a body" error
-        request.content();
+		// consume all parameters first so we can return a correct HTTP status,
+		// not 400
+		consumeParameters(request);
+
+		// dirty hack to avoid "request does not support having a body" error
+		request.content();
 
 		final ThreadContext threadContext = threadPool.getThreadContext();
 
-        // check if SG index has been initialized
-        if (!ensureIndexExists()) {
-            return channel -> internalErrorResponse(channel, ErrorType.SG_NOT_INITIALIZED.getMessage());
-        }
+		// check if SG index has been initialized
+		if (!ensureIndexExists()) {
+			return channel -> internalErrorResponse(channel, ErrorType.SG_NOT_INITIALIZED.getMessage());
+		}
 
-        // check if request is authorized
-        String authError = restApiPrivilegesEvaluator.checkAccessPermissions(request, getEndpoint());
+		// check if request is authorized
+		String authError = restApiPrivilegesEvaluator.checkAccessPermissions(request, getEndpoint());
 
-        if (authError != null) {
-            log.error("No permission to access REST API: " + authError);
-            final User user = (User) threadContext.getTransient(ConfigConstants.SG_USER);
-            auditLog.logMissingPrivileges(authError, user, request);
-            // for rest request
-            request.params().clear();
-            return channel -> forbidden(channel, "No permission to access REST API: " + authError);
-        }
+		if (authError != null) {
+			log.error("No permission to access REST API: " + authError);
+			final User user = (User) threadContext.getTransient(ConfigConstants.SG_USER);
+			auditLog.logMissingPrivileges(authError, user, request);
+			// for rest request
+			request.params().clear();
+			return channel -> forbidden(channel, "No permission to access REST API: " + authError);
+		}
 
-        final Object originalUser = threadContext.getTransient(ConfigConstants.SG_USER);
-        final Object originalRemoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-        final Object originalOrigin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
+		final Object originalUser = threadContext.getTransient(ConfigConstants.SG_USER);
+		final Object originalRemoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+		final Object originalOrigin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
 		final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
-		// ES 9.0.0-beta1 code https://github.com/elastic/elasticsearch/blob/97bc2919ffb5d9e90f809a18233c49a52cf58faa/server/src/main/java/org/elasticsearch/rest/BaseRestHandler.java#L144
-		// The above line of code always calls release method on http request object. Therefore, it is impossible to read
-		// the request body from the code used in the below thread pool. Therefore, we need a request wrappers which
-		// allows reading the request body
-		ProtectingContentRequestWrapper wrappedRestRequest = new ProtectingContentRequestWrapper(request);
-		log.debug("Genuine request hash code '{}', content protecting wrapper '{}'", request, wrappedRestRequest);
-        return channel -> {
 
-            threadPool.generic().submit(wrappedRestRequest.releaseAfter(() -> {
+		final ReleasableBytesReference content = request.content();
+		content.mustIncRef();
+		return channel -> {
 
-                try (StoredContext ctx = threadContext.stashContext()) {
+			threadPool.generic().submit(() -> {
+
+				try (StoredContext ctx = threadContext.stashContext()) {
 
 					threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
 					threadContext.putTransient(ConfigConstants.SG_USER, originalUser);
@@ -471,15 +475,17 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 					);
 
 
-                    handleApiRequest(channel, wrappedRestRequest, client);
+					handleApiRequest(channel, request, client, content);
 
-                } catch (Exception e) {
-                    log.error("Error while processing request " + request, e);
-                    internalErrorResponse(channel, "Error while processing request: " + e);
-                }
-            }));
-        };
-    }
+				} catch (Exception e) {
+					log.error("Error while processing request " + request, e);
+					internalErrorResponse(channel, "Error while processing request: " + e);
+				} finally {
+					content.decRef();
+				}
+			});
+		};
+	}
 
 	protected boolean checkConfigUpdateResponse(final ConfigUpdateResponse response) {
 
