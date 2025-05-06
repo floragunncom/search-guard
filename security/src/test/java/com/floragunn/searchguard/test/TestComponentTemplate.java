@@ -20,16 +20,24 @@ package com.floragunn.searchguard.test;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.fluent.collections.ImmutableMap;
 
+import java.util.Map;
+
 public class TestComponentTemplate implements Document<TestComponentTemplate> {
     public static TestComponentTemplate DATA_STREAM_MINIMAL = new TestComponentTemplate("test_component_template_data_stream_minimal",
             new TestMapping(new TestMapping.Property("@timestamp", "date", "date_optional_time||epoch_millis")));
 
     private String name;
     private TestMapping mapping;
+    private Map<String, Object> settings;
 
     public TestComponentTemplate(String name, TestMapping mapping) {
         this.name = name;
         this.mapping = mapping;
+    }
+
+    public TestComponentTemplate(String name, ImmutableMap<String, Object> settings) {
+        this.name = name;
+        this.settings = settings;
     }
 
     public String getName() {
@@ -38,6 +46,10 @@ public class TestComponentTemplate implements Document<TestComponentTemplate> {
 
     public TestMapping getMapping() {
         return mapping;
+    }
+
+    public Map<String, Object> getSettings() {
+        return settings;
     }
 
     public void create(GenericRestClient client) throws Exception {
@@ -50,7 +62,11 @@ public class TestComponentTemplate implements Document<TestComponentTemplate> {
 
     @Override
     public Object toBasicObject() {
-        return ImmutableMap.of("template", ImmutableMap.of("mappings", this.mapping.toBasicObject()));
+        ImmutableMap<String, Object> template = ImmutableMap.ofNonNull("settings", settings);
+        if (mapping != null) {
+            template = template.with("mappings", mapping.toBasicObject());
+        }
+        return ImmutableMap.of("template", template);
     }
 
 }

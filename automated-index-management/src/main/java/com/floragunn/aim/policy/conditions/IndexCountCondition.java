@@ -8,12 +8,13 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.fluent.collections.ImmutableMap;
+import org.elasticsearch.cluster.metadata.IndexAbstraction;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.index.Index;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.Comparator;
 
 public class IndexCountCondition extends Condition {
@@ -49,15 +50,23 @@ public class IndexCountCondition extends Condition {
     @Override
     public boolean execute(String index, PolicyInstance.ExecutionContext executionContext, PolicyInstanceState state) throws Exception {
         Metadata metadata = executionContext.getClusterService().state().metadata();
-        AutomatedIndexManagementSettings.Index indexSettings = new AutomatedIndexManagementSettings.Index(metadata.index(index).getSettings());
-        String alias = indexSettings.getAlias(aliasKey);
-        if (alias == null || alias.isEmpty()) {
-            throw new IllegalStateException("No alias found for key '" + aliasKey + "'");
+        IndexAbstraction abstraction = metadata.getIndicesLookup().get(index);
+        Collection<Index> indices;
+
+        if (abstraction != null && abstraction.getParentDataStream() != null) {
+            indices = abstraction.getParentDataStream().getIndices();
+        } else {
+            AutomatedIndexManagementSettings.Index indexSettings = new AutomatedIndexManagementSettings.Index(metadata.index(index).getSettings());
+            String alias = indexSettings.getAlias(aliasKey);
+            if (alias == null || alias.isEmpty()) {
+                throw new IllegalStateException("No alias found for key '" + aliasKey + "'");
+            }
+            indices = metadata.aliasedIndices(alias);
         }
-        Set<Index> aliasedIndices = metadata.aliasedIndices(alias);
-        int overlap = aliasedIndices.size() - maxCount;
+
+        int overlap = indices.size() - maxCount;
         if (overlap > 0) {
-            List<Index> oldestIndices = aliasedIndices.stream().sorted(Comparator.comparingLong(index1 -> metadata.index(index1).getCreationDate()))
+            List<Index> oldestIndices = indices.stream().sorted(Comparator.comparingLong(index1 -> metadata.index(index1).getCreationDate()))
                     .limit(overlap).toList();
             return oldestIndices.stream().anyMatch(index1 -> index.equals(index1.getName()));
         }

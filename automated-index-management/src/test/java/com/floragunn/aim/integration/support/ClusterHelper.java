@@ -9,6 +9,8 @@ import com.floragunn.aim.policy.instance.PolicyInstanceState;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.TestComponentTemplate;
+import com.floragunn.searchguard.test.TestIndexTemplate;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.http.Header;
 import org.apache.http.message.BasicHeader;
@@ -33,6 +35,9 @@ import java.util.Base64;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.floragunn.searchguard.test.RestMatchers.*;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -55,7 +60,7 @@ public class ClusterHelper {
         }
 
         public static GenericRestClient.HttpResponse deletePolicy(LocalCluster cluster, String policyName) throws Exception {
-            return deletePolicy(cluster, DEFAULT_AUTH, policyName);
+            return cluster.getAdminCertRestClient().delete("/_aim/policy/" + policyName);
         }
 
         public static GenericRestClient.HttpResponse getPolicy(LocalCluster cluster, Header auth, String policyName) throws Exception {
@@ -63,7 +68,7 @@ public class ClusterHelper {
         }
 
         public static GenericRestClient.HttpResponse getPolicy(LocalCluster cluster, String policyName) throws Exception {
-            return getPolicy(cluster, DEFAULT_AUTH, policyName);
+            return cluster.getAdminCertRestClient().get("/_aim/policy/" + policyName);
         }
 
         public static GenericRestClient.HttpResponse getPolicyInternal(LocalCluster cluster, Header auth, String policyName) throws Exception {
@@ -71,7 +76,7 @@ public class ClusterHelper {
         }
 
         public static GenericRestClient.HttpResponse getPolicyInternal(LocalCluster cluster, String policyName) throws Exception {
-            return getPolicyInternal(cluster, DEFAULT_AUTH, policyName);
+            return cluster.getAdminCertRestClient().get("/_aim/policy/" + policyName + "/internal");
         }
 
         public static GenericRestClient.HttpResponse putPolicy(LocalCluster cluster, Header auth, String policyName, Policy policy) throws Exception {
@@ -79,7 +84,7 @@ public class ClusterHelper {
         }
 
         public static GenericRestClient.HttpResponse putPolicy(LocalCluster cluster, String policyName, Policy policy) throws Exception {
-            return putPolicy(cluster, DEFAULT_AUTH, policyName, policy);
+            return cluster.getAdminCertRestClient().putJson("/_aim/policy/" + policyName, policy);
         }
 
         public static GenericRestClient.HttpResponse getPolicyInstanceStatus(LocalCluster cluster, Header auth, String indexName) throws Exception {
@@ -87,7 +92,7 @@ public class ClusterHelper {
         }
 
         public static GenericRestClient.HttpResponse getPolicyInstanceStatus(LocalCluster cluster, String indexName) throws Exception {
-            return getPolicyInstanceStatus(cluster, DEFAULT_AUTH, indexName);
+            return cluster.getAdminCertRestClient().get("/_aim/policyinstance/" + indexName + "/state");
         }
 
         public static GenericRestClient.HttpResponse postPolicyInstanceExecute(LocalCluster cluster, Header auth, String indexName) throws Exception {
@@ -95,7 +100,7 @@ public class ClusterHelper {
         }
 
         public static GenericRestClient.HttpResponse postPolicyInstanceExecute(LocalCluster cluster, String indexName) throws Exception {
-            return postPolicyInstanceExecute(cluster, DEFAULT_AUTH, indexName);
+            return cluster.getAdminCertRestClient().post("/_aim/policyinstance/" + indexName + "/execute");
         }
 
         public static GenericRestClient.HttpResponse postPolicyInstanceExecuteRetry(LocalCluster cluster, Header auth, String indexName)
@@ -104,7 +109,7 @@ public class ClusterHelper {
         }
 
         public static GenericRestClient.HttpResponse postPolicyInstanceExecuteRetry(LocalCluster cluster, String indexName) throws Exception {
-            return postPolicyInstanceExecuteRetry(cluster, DEFAULT_AUTH, indexName);
+            return cluster.getAdminCertRestClient().post("/_aim/policyinstance/" + indexName + "/execute/true");
         }
 
         public static GenericRestClient.HttpResponse postPolicyInstanceRetry(LocalCluster cluster, Header auth, String indexName) throws Exception {
@@ -112,7 +117,7 @@ public class ClusterHelper {
         }
 
         public static GenericRestClient.HttpResponse postPolicyInstanceRetry(LocalCluster cluster, String indexName) throws Exception {
-            return postPolicyInstanceRetry(cluster, DEFAULT_AUTH, indexName);
+            return cluster.getAdminCertRestClient().post("/_aim/policyinstance/" + indexName + "/retry");
         }
 
         public static GenericRestClient.HttpResponse deleteSetting(LocalCluster cluster, Header auth, String key) throws Exception {
@@ -120,7 +125,7 @@ public class ClusterHelper {
         }
 
         public static GenericRestClient.HttpResponse deleteSetting(LocalCluster cluster, String key) throws Exception {
-            return deleteSetting(cluster, DEFAULT_AUTH, key);
+            return cluster.getAdminCertRestClient().delete("/_aim/settings/" + key);
         }
 
         public static GenericRestClient.HttpResponse getSetting(LocalCluster cluster, Header auth, String key) throws Exception {
@@ -128,7 +133,7 @@ public class ClusterHelper {
         }
 
         public static GenericRestClient.HttpResponse getSetting(LocalCluster cluster, String key) throws Exception {
-            return getSetting(cluster, DEFAULT_AUTH, key);
+            return cluster.getAdminCertRestClient().get("/_aim/settings/" + key);
         }
 
         public static GenericRestClient.HttpResponse putSetting(LocalCluster cluster, Header auth, String key, String value) throws Exception {
@@ -136,7 +141,26 @@ public class ClusterHelper {
         }
 
         public static GenericRestClient.HttpResponse putSetting(LocalCluster cluster, String key, String value) throws Exception {
-            return putSetting(cluster, DEFAULT_AUTH, key, value);
+            return cluster.getAdminCertRestClient().putJson("/_aim/settings/" + key, value);
+        }
+
+        public static GenericRestClient.HttpResponse createManagedDataStream(LocalCluster cluster, String dataStreamName, String policyName) throws Exception {
+            String templateName = dataStreamName + "_template";
+            String dataStreamPattern = dataStreamName + "*";
+            TestComponentTemplate componentTemplate = new TestComponentTemplate(templateName + "_settings", ImmutableMap.of(AutomatedIndexManagementSettings.Index.POLICY_NAME.name(), policyName));
+            componentTemplate.create(cluster.getAdminCertRestClient());
+            TestComponentTemplate.DATA_STREAM_MINIMAL.create(cluster.getAdminCertRestClient());
+            TestIndexTemplate indexTemplate = new TestIndexTemplate(templateName, dataStreamPattern).dataStream().composedOf(componentTemplate, TestComponentTemplate.DATA_STREAM_MINIMAL);
+            indexTemplate.create(cluster.getAdminCertRestClient());
+            return cluster.getAdminCertRestClient().put("/_data_stream/" + dataStreamName);
+        }
+
+        public static void awaitPolicyInstanceStatusExists(LocalCluster cluster, String indexName) {
+            Awaitility.await().until(() -> ClusterHelper.Rest.getPolicyInstanceStatus(cluster, indexName), statusResponse -> isOk().matches(statusResponse));
+        }
+
+        public static void awaitPolicyInstanceStatusEqual(LocalCluster cluster, String indexName, PolicyInstanceState.Status status) {
+            Awaitility.await().until(() -> ClusterHelper.Rest.getPolicyInstanceStatus(cluster, indexName), statusResponse -> allOf(isOk(), json(nodeAt("data.status", is(status.name())))).matches(statusResponse));
         }
     }
 
