@@ -77,7 +77,7 @@ public class HTTPSpnegoAuthenticator implements LegacyHTTPAuthenticator {
     public HTTPSpnegoAuthenticator(final Settings settings, final Path configPath) {
         super();
         try {
-            final Path configDir = new Environment(settings, configPath).configFile();
+            final Path configDir = new Environment(settings, configPath).configDir();
             final String krb5PathSetting = settings.get("searchguard.kerberos.krb5_filepath");
 
             final SecurityManager sm = System.getSecurityManager();

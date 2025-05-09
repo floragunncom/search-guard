@@ -16,7 +16,9 @@ package com.floragunn.dlic.auth.http.jwt.keybyoidc;
 
 import java.util.HashMap;
 
+import org.elasticsearch.common.logging.internal.LoggerFactoryImpl;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.logging.internal.spi.LoggerFactory;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -26,6 +28,10 @@ import com.google.common.collect.ImmutableMap;
 
 @Deprecated
 public class SingleKeyHTTPJwtKeyByOpenIdConnectAuthenticatorTest {
+
+	static {
+		LoggerFactory.setInstance(new LoggerFactoryImpl());
+	}
 
 	@Test
 	public void basicTest() throws Exception {

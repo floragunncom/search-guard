@@ -73,6 +73,6 @@ public class SamlFilesystemMetadataResolver extends FilesystemMetadataResolver {
         
         Environment env = new Environment(settings, configPath);
 
-        return env.configFile().resolve(originalPath).toAbsolutePath().toFile();
+        return env.configDir().resolve(originalPath).toAbsolutePath().toFile();
     }
 }

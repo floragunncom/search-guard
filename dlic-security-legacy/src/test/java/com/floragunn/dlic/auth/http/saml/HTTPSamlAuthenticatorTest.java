@@ -40,7 +40,9 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import org.elasticsearch.common.logging.internal.LoggerFactoryImpl;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.logging.internal.spi.LoggerFactory;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
@@ -65,8 +67,8 @@ import com.google.common.collect.ImmutableMap;
 public class HTTPSamlAuthenticatorTest {
     
     static {
-        
-        
+
+        LoggerFactory.setInstance(new LoggerFactoryImpl());
         if (Security.getProvider("BC") == null) {
             Security.addProvider(new BouncyCastleProvider());
         }
