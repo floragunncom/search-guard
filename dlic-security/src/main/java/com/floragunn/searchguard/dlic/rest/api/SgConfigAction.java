@@ -95,11 +95,11 @@ public class SgConfigAction extends PatchableResourceApiAction {
 	}
 
     @Override
-    protected void handleApiRequest(RestChannel channel, RestRequest request, Client client) throws IOException {
+    protected void handleApiRequest(RestChannel channel, RestRequest request, Client client, final BytesReference content) throws IOException {
         if (request.method() == Method.PATCH && !allowPutOrPatch) {
             notImplemented(channel, Method.PATCH);
         } else {
-            super.handleApiRequest(channel, request, client);
+            super.handleApiRequest(channel, request, client, content);
         }
     }
 

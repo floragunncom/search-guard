@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.http.HttpBody;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
@@ -36,7 +37,7 @@ import org.elasticsearch.xcontent.XContentParserConfiguration;
 public class FakeRestRequest extends RestRequest {
 
     //private final Map<String, String> headers;
-    private final BytesReference content;
+    private final ReleasableBytesReference content;
     private final Method method;
 
 
@@ -48,7 +49,7 @@ public class FakeRestRequest extends RestRequest {
         this(headers, params, null, Method.GET, "/");
     }
 
-    private FakeRestRequest(Map<String, String> headers, Map<String, String> params, BytesReference content, Method method, String path) {
+    private FakeRestRequest(Map<String, String> headers, Map<String, String> params, ReleasableBytesReference content, Method method, String path) {
         super(XContentParserConfiguration.EMPTY, params, path, convert(headers), new HttpRequest() {
             @Override
             public Method method() {
@@ -104,11 +105,6 @@ public class FakeRestRequest extends RestRequest {
             public void release() {
 
             }
-
-            @Override
-            public HttpRequest releaseAndCopy() {
-                return null;
-            }
         }, null);
         //this.headers = headers;
         this.content = content;
@@ -131,7 +127,7 @@ public class FakeRestRequest extends RestRequest {
     }
 
     @Override
-    public BytesReference content() {
+    public ReleasableBytesReference content() {
         return content;
     }
 
@@ -141,7 +137,7 @@ public class FakeRestRequest extends RestRequest {
 
         private Map<String, String> params = new HashMap<>();
 
-        private BytesReference content;
+        private ReleasableBytesReference content;
 
         private String path = "/";
 
@@ -158,7 +154,11 @@ public class FakeRestRequest extends RestRequest {
         }
 
         public Builder withContent(BytesReference content) {
-            this.content = content;
+            if(content == null) {
+                this.content = null;
+            } else {
+                this.content = ReleasableBytesReference.wrap(content);
+            }
             return this;
         }
 

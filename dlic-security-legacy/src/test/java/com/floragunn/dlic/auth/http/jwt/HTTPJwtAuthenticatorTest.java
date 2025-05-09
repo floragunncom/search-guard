@@ -27,7 +27,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.elasticsearch.common.logging.internal.LoggerFactoryImpl;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.logging.internal.spi.LoggerFactory;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.core.Is;
 import org.junit.Assert;
@@ -48,6 +50,10 @@ import io.jsonwebtoken.io.Serializer;
 import io.jsonwebtoken.security.Keys;
 
 public class HTTPJwtAuthenticatorTest {
+
+    static {
+        LoggerFactory.setInstance(new LoggerFactoryImpl());
+    }
 
     final static byte[] secretKey = new byte[1024];
     

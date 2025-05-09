@@ -32,7 +32,9 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import org.elasticsearch.common.logging.internal.LoggerFactoryImpl;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.logging.internal.spi.LoggerFactory;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
@@ -53,6 +55,10 @@ import org.junit.Test;
 
 @Deprecated
 public class HTTPJwtKeyByOpenIdConnectAuthenticatorTest {
+
+    static {
+        LoggerFactory.setInstance(new LoggerFactoryImpl());
+    }
 
     protected static MockIpdServer mockIdpServer;
 
