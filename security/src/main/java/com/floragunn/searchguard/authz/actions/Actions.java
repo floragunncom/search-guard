@@ -27,6 +27,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -172,6 +173,7 @@ public class Actions {
         cluster("indices:data/read/async_search/get") //
                 .uses(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
 
+        //this one covers also ESQL async delete
         cluster("indices:data/read/async_search/delete") //
                 .deletes(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
 
@@ -180,6 +182,19 @@ public class Actions {
         cluster("indices:data/read/sql");
         cluster("indices:data/read/sql/translate");
         cluster("indices:data/read/sql/close_cursor");
+
+        cluster("indices:data/read/esql") //
+                .createsResource("async_search", response -> {
+                    return objectAttr("asyncExecutionId", Optional.class, false).apply(response).orElse(null);
+                }, null);
+
+        cluster("indices:data/read/esql/async/get") //
+                .uses(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_esql/_all_owners"));
+
+        cluster("indices:data/read/esql/async/stop") //
+                .uses(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_esql/_all_owners"));
+
+
 
         cluster("cluster:monitor/main");
         cluster("cluster:monitor/nodes/info");

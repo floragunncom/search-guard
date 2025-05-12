@@ -10,11 +10,15 @@ import org.elasticsearch.SpecialPermission;
 
 public class ReflectiveAttributeAccessors {
     public static <O> Function<O, Object> objectAttr(String name) {
-        return new ReflectiveAttributeGetter<O, Object>(name, Object.class);
+        return new ReflectiveAttributeGetter<O, Object>(name, Object.class, true);
     }
 
     public static <O, R> Function<O, R> objectAttr(String name, Class<R> type) {
-        return new ReflectiveAttributeGetter<O, R>(name, type);
+        return new ReflectiveAttributeGetter<O, R>(name, type, true);
+    }
+
+    public static <O, R> Function<O, R> objectAttr(String name, Class<R> type, boolean methodWithGetPrefix) {
+        return new ReflectiveAttributeGetter<O, R>(name, type, methodWithGetPrefix);
     }
     
     public static <O, R> Function<O, R> protectedObjectAttr(String name, Class<R> type) {
@@ -30,9 +34,10 @@ public class ReflectiveAttributeAccessors {
         private final String methodName;
         private final Class<R> type;
 
-        ReflectiveAttributeGetter(String attribute, Class<R> type) {
+        ReflectiveAttributeGetter(String attribute, Class<R> type, boolean methodWithGetPrefix) {
             this.attribute = attribute;
-            this.methodName = "get" + attribute.substring(0, 1).toUpperCase() + attribute.substring(1);
+            this.methodName = methodWithGetPrefix? "get" + attribute.substring(0, 1).toUpperCase() + attribute.substring(1) :
+                    attribute;
             this.type = type;
         }
 

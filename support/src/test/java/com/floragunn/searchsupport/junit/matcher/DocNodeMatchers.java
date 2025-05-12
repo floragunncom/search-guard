@@ -54,4 +54,12 @@ public class DocNodeMatchers {
     public static Matcher<DocNode> containsOnlyFields(String jsonPath, Collection<String> fieldNames) {
         return new ContainsOnlyFieldsMatcher(jsonPath, fieldNames.toArray(String[]::new));
     }
+
+    public static Matcher<DocNode> containsList(String jsonPath, Matcher<?>... matchers) {
+        return new ContainsListMatcher(jsonPath, matchers);
+    }
+
+    public static Matcher<DocNode> listDoesNotContain(String jsonPath, Matcher<?>... matchers) {
+        return new ListDoesNotContainMatcher(jsonPath, matchers);
+    }
 }

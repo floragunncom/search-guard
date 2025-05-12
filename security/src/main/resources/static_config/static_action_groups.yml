@@ -140,6 +140,7 @@ SGS_CLUSTER_COMPOSITE_OPS_RO:
   - "indices:data/read/sql"
   - "indices:data/read/sql/translate"
   - "indices:data/read/sql/close_cursor"
+  - "indices:data/read/esql*"
   - "indices:admin/aliases/exists*"
   - "indices:admin/aliases/get*"
   - "indices:data/read/scroll*"
