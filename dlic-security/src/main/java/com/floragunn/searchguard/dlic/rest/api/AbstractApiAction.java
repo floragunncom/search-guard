@@ -120,40 +120,47 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	protected abstract CType<?> getConfigName();
 
 	/**
-     * @param content RestRequest content with incremented reference count. It's important to use its value instead of
-     *                explicitly calling {@link RestRequest#content()} or {@link RestRequest#requiredContent()}.
-     *                Reading the RestRequest content after {@link org.elasticsearch.rest.RestHandler#handleRequest} will cause errors because
-     *                the content reference count will already be decremented. More details <a href="https://github.com/elastic/elasticsearch/pull/116115">RestRequest content</a>
-     */
-	protected void handleApiRequest(final RestChannel channel, final RestRequest request, final Client client, final BytesReference content) throws IOException {
+	 * @param content RestRequest content with incremented reference count. It's important to use its value instead of
+	 *                explicitly calling {@link RestRequest#content()} or {@link RestRequest#requiredContent()}.
+	 *                Reading the RestRequest content after {@link org.elasticsearch.rest.RestHandler#handleRequest} will cause errors because
+	 *                the content reference count will already be decremented. More details
+	 *                <a href="https://github.com/elastic/elasticsearch/pull/116115">RestRequest content</a>
+	 */
+	protected void handleApiRequest(final RestChannel channel, final RestRequest request, final Client client, final BytesReference content)
+			throws IOException {
 
-            // validate additional settings, if any
+		// validate additional settings, if any
 		log.debug("Handling API request for request {}", System.identityHashCode(request));
 
 		AbstractConfigurationValidator validator = getValidator(request, content);
-            if (!validator.validate()) {
-            	request.params().clear();
-            	badRequestResponse(channel, validator);
-            	return;
-            }
-            switch (request.method()) {
-            case DELETE:
-            	handleDelete(channel,request, client, validator.getContentAsNode()); break;
-            case POST:
-            	handlePost(channel,request, client, validator.getContentAsNode());break;
-            case PUT:
-            	handlePut(channel,request, client, validator.getContentAsNode());break;
-            case GET:
-                 handleGet(channel,request, client, validator.getContentAsNode());break;
-            default:
-                badRequestResponse(channel, request.method() + " not supported for " + this.getName()); break;
-            }
+		if (!validator.validate()) {
+			request.params().clear();
+			badRequestResponse(channel, validator);
+			return;
+		}
+		switch (request.method()) {
+		case DELETE:
+			handleDelete(channel, request, client, validator.getContentAsNode());
+			break;
+		case POST:
+			handlePost(channel, request, client, validator.getContentAsNode());
+			break;
+		case PUT:
+			handlePut(channel, request, client, validator.getContentAsNode());
+			break;
+		case GET:
+			handleGet(channel, request, client, validator.getContentAsNode());
+			break;
+		default:
+			badRequestResponse(channel, request.method() + " not supported for " + this.getName());
+			break;
+		}
 
-            //TODO strip source for JsonMappingException
-            //if(jme.getLocation() == null || jme.getLocation().getSourceRef() == null) {
-            //    throw jme;
-            //} else throw new JsonMappingException(null, jme.getMessage());
-       
+		//TODO strip source for JsonMappingException
+		//if(jme.getLocation() == null || jme.getLocation().getSourceRef() == null) {
+		//    throw jme;
+		//} else throw new JsonMappingException(null, jme.getMessage());
+
 	}
 
 	protected void handleDelete(final RestChannel channel, final RestRequest request, final Client client, final DocNode content) throws IOException {
