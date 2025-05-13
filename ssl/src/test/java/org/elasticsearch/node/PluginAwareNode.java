@@ -22,12 +22,16 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.logging.LogConfigurator;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
+import org.elasticsearch.jdk.ModuleQualifiedExportsService;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginsLoader;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PluginAwareNode extends Node {
@@ -43,6 +47,7 @@ public class PluginAwareNode extends Node {
     public PluginAwareNode(boolean masterEligible, final Settings preparedSettings, List<Class<? extends Plugin>> additionalPlugins) {
         super(NodeConstruction.prepareConstruction(
             createEnvironment(preparedSettings),
+            PluginsLoader.createPluginsLoader(Set.of(), Set.of(), Map.of(), false),
             new SgNodeServiceProvider(additionalPlugins),
             true));
         this.masterEligible = masterEligible;
@@ -57,9 +62,9 @@ public class PluginAwareNode extends Node {
     private static Environment configureESLogging(Environment environment) {
         if (!loggingInitialized.get()) {
             try {
-                environment.configFile().toFile().mkdirs();
+                environment.configDir().toFile().mkdirs();
                 byte[] log4jprops = Files.readAllBytes(Paths.get("src/test/resources/log4j2-test.properties"));
-                Files.write(environment.configFile().resolve("log4j2.properties"), log4jprops);
+                Files.write(environment.configDir().resolve("log4j2.properties"), log4jprops);
                 LogConfigurator.registerErrorListener();
                 LogConfigurator.setNodeName("node");
                 LogConfigurator.configure(environment, true);

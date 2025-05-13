@@ -325,6 +325,8 @@ SGS_KIBANA_SERVER:
     - ".slo-observability.summary-v*"
     - "logs-cloud_defend.*"
     - ".elastic-connectors"
+    - ".kibana-siem-rule-migrations*"
+    - ".elastic-connectors*"
     allowed_actions:
     - "SGS_INDICES_ALL"
   - index_patterns:
@@ -352,6 +354,10 @@ SGS_KIBANA_SERVER:
         - "SGS_DELETE"
         - "SGS_MANAGE"
         - "SGS_INDEX"
+    - alias_patterns:
+        - "*"
+      allowed_actions:
+        - "indices:admin/mappings/get"
   data_stream_permissions:
     - data_stream_patterns:
         - ".kibana-event-log-ds*"

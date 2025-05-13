@@ -25,6 +25,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
@@ -302,8 +303,10 @@ public class SessionApi {
         }
 
         private RestChannelConsumer handlePost(RestRequest request, NodeClient client) {
-            BytesReference body = request.requiredContent();
+            ReleasableBytesReference body = request.requiredContent();
             XContentType xContentType = request.getXContentType();
+
+            body.mustIncRef();
 
             return (RestChannel channel) -> {
                 try {
@@ -323,6 +326,8 @@ public class SessionApi {
                 } catch (Exception e) {
                     log.warn("Error while handling request", e);
                     channel.sendResponse(StandardResponse.internalServerError().toRestResponse());
+                } finally {
+                    body.decRef();
                 }
             };
         }

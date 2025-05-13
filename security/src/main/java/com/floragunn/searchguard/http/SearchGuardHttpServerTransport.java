@@ -120,11 +120,6 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
                 }
 
                 @Override
-                public HttpRequest releaseAndCopy() {
-                    return httpRequest.releaseAndCopy();
-                }
-
-                @Override
                 public void release() {
                     httpRequest.release();
                 }
