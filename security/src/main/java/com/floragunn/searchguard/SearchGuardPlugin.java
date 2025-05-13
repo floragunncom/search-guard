@@ -426,7 +426,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         final List<Path> filesWithWrongPermissions = AccessController.doPrivileged(new PrivilegedAction<List<Path>>() {
             @Override
             public List<Path> run() {
-                final Path confPath = new Environment(settings, configPath).configFile().toAbsolutePath();
+                final Path confPath = new Environment(settings, configPath).configDir().toAbsolutePath();
                 if (Files.isDirectory(confPath, LinkOption.NOFOLLOW_LINKS)) {
                     try (Stream<Path> s = Files.walk(confPath)) {
                         return s.distinct()

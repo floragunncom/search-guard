@@ -1,11 +1,7 @@
 package com.floragunn.signals.settings;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
@@ -23,6 +19,7 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.codova.config.temporal.ConstantDurationExpression;
@@ -346,10 +343,12 @@ public class SignalsSettings {
                         .actionGet());
 
                 try {
-                    for (SearchHit hit : response.getHits()) {
-                        if (hit.getSourceAsMap().get("value") != null) {
+                    SearchHits hits = response.getHits();
+                    for (SearchHit hit : hits) {
+                        Map<String, Object> sourceAsMap = hit.getSourceAsMap();
+                        if (sourceAsMap.get("value") != null) {
                             try {
-                                String json = hit.getSourceAsMap().get("value").toString();
+                                String json = sourceAsMap.get("value").toString();
                                 DocNode jsonNode = DocNode.parse(Format.JSON).from(json);
 
                                 if (jsonNode.isList()) {

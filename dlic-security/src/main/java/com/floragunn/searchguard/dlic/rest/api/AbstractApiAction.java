@@ -1,15 +1,15 @@
 /*
  * Copyright 2016-2017 by floragunn GmbH - All rights reserved
- * 
+ *
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed here is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * 
+ *
  * This software is free of charge for non-commercial and academic use.
  * For commercial use in a production environment you have to obtain a license
  * from https://floragunn.com
- * 
+ *
  */
 
 package com.floragunn.searchguard.dlic.rest.api;
@@ -43,6 +43,7 @@ import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.common.bytes.ReleasableBytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
@@ -118,33 +119,47 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 
 	protected abstract CType<?> getConfigName();
 
-	protected void handleApiRequest(final RestChannel channel, final RestRequest request, final Client client) throws IOException {
+	/**
+	 * @param content RestRequest content with incremented reference count. It's important to use its value instead of
+	 *                explicitly calling {@link RestRequest#content()} or {@link RestRequest#requiredContent()}.
+	 *                Reading the RestRequest content after {@link org.elasticsearch.rest.RestHandler#handleRequest} will cause errors because
+	 *                the content reference count will already be decremented. More details
+	 *                <a href="https://github.com/elastic/elasticsearch/pull/116115">RestRequest content</a>
+	 */
+	protected void handleApiRequest(final RestChannel channel, final RestRequest request, final Client client, final BytesReference content)
+			throws IOException {
 
-            // validate additional settings, if any
-            AbstractConfigurationValidator validator = getValidator(request, request.content());
-            if (!validator.validate()) {
-            	request.params().clear();
-            	badRequestResponse(channel, validator);
-            	return;
-            }
-            switch (request.method()) {
-            case DELETE:
-            	handleDelete(channel,request, client, validator.getContentAsNode()); break;
-            case POST:
-            	handlePost(channel,request, client, validator.getContentAsNode());break;
-            case PUT:
-            	handlePut(channel,request, client, validator.getContentAsNode());break;
-            case GET:
-                 handleGet(channel,request, client, validator.getContentAsNode());break;
-            default:
-                badRequestResponse(channel, request.method() + " not supported for " + this.getName()); break;
-            }
+		// validate additional settings, if any
+		log.debug("Handling API request for request {}", System.identityHashCode(request));
+		AbstractConfigurationValidator validator = getValidator(request, content);
+		if (!validator.validate()) {
+			request.params().clear();
+			badRequestResponse(channel, validator);
+			return;
+		}
+		switch (request.method()) {
+		case DELETE:
+			handleDelete(channel, request, client, validator.getContentAsNode());
+			break;
+		case POST:
+			handlePost(channel, request, client, validator.getContentAsNode());
+			break;
+		case PUT:
+			handlePut(channel, request, client, validator.getContentAsNode());
+			break;
+		case GET:
+			handleGet(channel, request, client, validator.getContentAsNode());
+			break;
+		default:
+			badRequestResponse(channel, request.method() + " not supported for " + this.getName());
+			break;
+		}
 
-            //TODO strip source for JsonMappingException
-            //if(jme.getLocation() == null || jme.getLocation().getSourceRef() == null) {
-            //    throw jme;
-            //} else throw new JsonMappingException(null, jme.getMessage());
-       
+		//TODO strip source for JsonMappingException
+		//if(jme.getLocation() == null || jme.getLocation().getSourceRef() == null) {
+		//    throw jme;
+		//} else throw new JsonMappingException(null, jme.getMessage());
+
 	}
 
 	protected void handleDelete(final RestChannel channel, final RestRequest request, final Client client, final DocNode content) throws IOException {
@@ -162,29 +177,29 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 			internalErrorResponse(channel, e.getMessage());
 			return;
 		}
-		
+
 		if (isHidden(existingConfiguration, name)) {
             notFound(channel, getResourceName() + " " + name + " not found.");
             return;
 		}
-		
+
 		if (isReserved(existingConfiguration, name)) {
 			forbidden(channel, "Resource '"+ name +"' is read-only.");
 			return;
 		}
-		
+
         boolean existed = existingConfiguration.exists(name);
         existingConfiguration = existingConfiguration.without(name);
-		
+
 		if (existed) {
 			saveAnUpdateConfigs(client, request, getConfigName(), existingConfiguration, new OnSucessActionListener<DocWriteResponse>(channel) {
-                
+
                 @Override
                 public void onResponse(DocWriteResponse response) {
                     successResponse(channel, "'" + name + "' deleted.");
                 }
             });
-			
+
 		} else {
 			notFound(channel, getResourceName() + " " + name + " not found.");
 		}
@@ -192,7 +207,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 
 	@SuppressWarnings("unchecked")
     protected void handlePut(String name, RestChannel channel, RestRequest request, Client client, DocNode content) throws IOException {
-		
+
 		SgDynamicConfiguration<Object> existingConfiguration;
 		try {
 			existingConfiguration = (SgDynamicConfiguration<Object>) load(getConfigName(), false);
@@ -205,19 +220,19 @@ public abstract class AbstractApiAction extends BaseRestHandler {
             forbidden(channel, "Resource '"+ name +"' is not available.");
             return;
 		}
-		
+
 		if (isReserved(existingConfiguration, name)) {
 			forbidden(channel, "Resource '"+ name +"' is read-only.");
 			return;
 		}
-		
+
 		if (log.isTraceEnabled() && content != null) {
 			log.trace(content.toString());
 		}
-		
+
 		boolean existed = existingConfiguration.exists(name);
 		Parser.ReturningValidationResult<?, ConfigurationRepository.Context> parser = getConfigName().getParser();
-		
+
         ValidationResult<?> validatedConfig = parser.parse(content, cl.getParserContext());
 
         try {
@@ -230,8 +245,8 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         } catch (ConfigValidationException e) {
             badRequestResponse(channel, e.toJsonString());
             return;
-        }		
-		
+        }
+
 		saveAnUpdateConfigs(client, request, getConfigName(), existingConfiguration, new OnSucessActionListener<DocWriteResponse>(channel) {
 
             @Override
@@ -241,14 +256,14 @@ public abstract class AbstractApiAction extends BaseRestHandler {
                 } else {
                     createdResponse(channel, "'" + name + "' created.");
                 }
-                
+
             }
         });
-		
+
 	}
-	
+
 	protected void handlePut(final RestChannel channel, final RestRequest request, final Client client, final DocNode content) throws IOException {
-        
+
         final String name = request.param("name");
 
         if (name == null || name.length() == 0) {
@@ -256,7 +271,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
             return;
         }
 
-        handlePut(name, channel, request, client, content);        
+        handlePut(name, channel, request, client, content);
     }
 
 	protected void handlePost(final RestChannel channel, final RestRequest request, final Client client, final DocNode content) throws IOException {
@@ -266,12 +281,12 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	@SuppressWarnings("resource")
     protected void handleGet(final RestChannel channel, RestRequest request, Client client, final DocNode content)
 	        throws IOException{
-	    
+
 		final String resourcename = request.param("name");
-		
+
 		try {
 			SgDynamicConfiguration<?> configuration;
-			
+
 			// Drop user information to avoid logging audit log events. Audit log is done manually below.
 			try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
 			    configuration = configLoader.loadSync(getConfigName(), "API Request", cl.getParserContext());
@@ -282,8 +297,8 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 			configuration = filter(configuration);
 
 			// no specific resource requested, return complete config
-			if (resourcename == null || resourcename.length() == 0) {			    
-			    // The legacy REST API also returns static configuration. This is a bit weird if you cannot modify it by PUT or DELETE. 
+			if (resourcename == null || resourcename.length() == 0) {
+			    // The legacy REST API also returns static configuration. This is a bit weird if you cannot modify it by PUT or DELETE.
 			    // Anyway, we keep this here to support for example the Search Guard config UI
 			    configuration = staticSgConfig.addTo(configuration);
 
@@ -306,16 +321,16 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 
 	protected final <T> SgDynamicConfiguration<T> load(final CType<T> config, boolean logComplianceEvent) throws ConfigUnavailableException {
         SgDynamicConfiguration<T> loaded;
-        
+
         // Drop user information to avoid logging audit log events. Audit log events are logged manually below.
         try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
             loaded = configLoader.loadSync(config, "API Request", cl.getParserContext());
         }
-        
+
         if (logComplianceEvent) {
             logComplianceEvent(loaded);
         }
-        
+
         loaded = staticSgConfig.addTo(loaded);
 	    return loaded;
 	}
@@ -327,7 +342,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	protected SgDynamicConfiguration<?> filter(SgDynamicConfiguration<?> builder) {
 	    return builder.withoutHidden();
 	}
-	
+
 	abstract class OnSucessActionListener<Response> implements ActionListener<Response> {
 
 	    private final RestChannel channel;
@@ -341,24 +356,24 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         public final void onFailure(Exception e) {
             internalErrorResponse(channel, "Error "+e.getMessage());
         }
-	    
+
 	}
 
 	protected void saveAnUpdateConfigs(final Client client, final RestRequest request, final CType<?> cType,
 	        SgDynamicConfiguration<?> configuration, OnSucessActionListener<DocWriteResponse> actionListener) {
 	    String searchGuardIndex = cl.getEffectiveSearchGuardIndex();
-	    
+
 	    if (searchGuardIndex == null) {
 	        throw new RuntimeException("The Search Guard index has not yet been created");
 	    }
-	    
+
 		final IndexRequest ir = new IndexRequest(searchGuardIndex);
 
 		//final String type = "_doc";
 		final String id = cType.toLCString();
 
 		configuration = configuration.withoutStatic();
-		
+
 		try {
             client.index(ir.id(id)
                     .setRefreshPolicy(RefreshPolicy.IMMEDIATE)
@@ -370,7 +385,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
             throw ExceptionsHelper.convertToElastic(e);
         }
 	}
-	
+
 	private static class ConfigUpdatingActionListener<Response> implements ActionListener<Response>{
 
 	    private final Client client;
@@ -384,9 +399,9 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 
         @Override
         public void onResponse(Response response) {
-            
+
             final ConfigUpdateRequest cur = new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]));
-            
+
             client.execute(ConfigUpdateAction.INSTANCE, cur, new ActionListener<ConfigUpdateResponse>() {
                 @Override
                 public void onResponse(final ConfigUpdateResponse ur) {
@@ -396,20 +411,20 @@ public abstract class AbstractApiAction extends BaseRestHandler {
                     }
                     delegate.onResponse(response);
                 }
-                
+
                 @Override
                 public void onFailure(final Exception e) {
                     delegate.onFailure(e);
                 }
             });
-            
+
         }
 
         @Override
         public void onFailure(Exception e) {
             delegate.onFailure(e);
         }
-	    
+
 	}
 
     @Override
@@ -418,7 +433,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         // consume all parameters first so we can return a correct HTTP status,
         // not 400
         consumeParameters(request);
-        
+
         // dirty hack to avoid "request does not support having a body" error
         request.content();
 
@@ -446,30 +461,34 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         final Object originalOrigin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
 		final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
 
+		final ReleasableBytesReference content = request.content();
+		content.mustIncRef();
         return channel -> {
 
             threadPool.generic().submit(() -> {
 
                 try (StoredContext ctx = threadContext.stashContext()) {
 
-					threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-					threadContext.putTransient(ConfigConstants.SG_USER, originalUser);
-					threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
-					threadContext.putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
+                    threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+                    threadContext.putTransient(ConfigConstants.SG_USER, originalUser);
+                    threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
+                    threadContext.putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
 
-					originalResponseHeaders.entrySet().forEach(
+                    originalResponseHeaders.entrySet().forEach(
 
-							h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
+                            h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
 
-					);
+                    );
 
 
-                    handleApiRequest(channel, request, client);
+                    handleApiRequest(channel, request, client, content);
 
                 } catch (Exception e) {
                     log.error("Error while processing request " + request, e);
                     internalErrorResponse(channel, "Error while processing request: " + e);
-                }
+				} finally {
+					content.decRef();
+				}
             });
         };
     }
@@ -525,7 +544,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		}
 	}
 
-	protected void successResponse(RestChannel channel, SgDynamicConfiguration<?> response) {	    
+	protected void successResponse(RestChannel channel, SgDynamicConfiguration<?> response) {
         try {
             final XContentBuilder builder = channel.newBuilder();
             builder.value(response.toRedactedLegacyBasicObject());
@@ -535,11 +554,11 @@ public abstract class AbstractApiAction extends BaseRestHandler {
             throw ExceptionsHelper.convertToElastic(e);
         }
     }
-	
+
 	protected void badRequestResponse(RestChannel channel, AbstractConfigurationValidator validator) {
         channel.sendResponse(new RestResponse(RestStatus.BAD_REQUEST, validator.errorsAsXContent(channel)));
     }
-	
+
 	protected void successResponse(RestChannel channel, String message) {
 		response(channel, RestStatus.OK, message);
 	}
@@ -572,12 +591,12 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		response(channel, RestStatus.NOT_IMPLEMENTED,
 				"Method " + method.name() + " not supported for this action.");
 	}
-	
+
 	protected final boolean isReserved(SgDynamicConfiguration<?> configuration, String resourceName) {
 	    if(isStatic(configuration, resourceName)) { //static is also always reserved
 	        return true;
 	    }
-	    
+
 	    final Object o = configuration.getCEntry(resourceName);
 	    return o != null && o instanceof Hideable && ((Hideable) o).isReserved();
 	}
@@ -586,19 +605,19 @@ public abstract class AbstractApiAction extends BaseRestHandler {
         final Object o = configuration.getCEntry(resourceName);
         return o != null && o instanceof Hideable && ((Hideable) o).isHidden();
     }
-    
+
     protected final boolean isStatic(SgDynamicConfiguration<?> configuration, String resourceName) {
         final Object o = configuration.getCEntry(resourceName);
         return o != null && o instanceof StaticDefinable && ((StaticDefinable) o).isStatic();
     }
-	
+
 	/**
 	 * Consume all defined parameters for the request. Before we handle the
 	 * request in subclasses where we actually need the parameter, some global
 	 * checks are performed, e.g. check whether the SG index exists. Thus, the
 	 * parameter(s) have not been consumed, and ES will always return a 400 with
 	 * an internal error message.
-	 * 
+	 *
 	 * @param request
 	 */
 	protected void consumeParameters(final RestRequest request) {
@@ -611,7 +630,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 	}
 
 	protected abstract Endpoint getEndpoint();
-	
+
     private <T> void logComplianceEvent(SgDynamicConfiguration<T> result) {
         Map<String, String> fields = ImmutableMap.of(result.getCType().toLCString(), Strings.toString(result));
         auditLog.logDocumentRead(cl.getEffectiveSearchGuardIndex(), result.getCType().toLCString(), null, fields);

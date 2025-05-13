@@ -63,16 +63,6 @@ public class SearchMapper implements Unscoper<SearchResponse> {
         // SearchResponseSections is still pooled
         SearchResponseSections rewrittenSections = new SearchResponseSections(rewrittenSearchHits, response.getAggregations(), response.getSuggest(),
                 response.isTimedOut(), response.isTerminatedEarly(), null, response.getNumReducePhases());
-        rewrittenSections.decRef(); // Why is "decRef" method invoked here?
-        // 1. decRef should be invoked when resources are pooled to release the pooled resource.
-        // 2. SearchResponseSections contains only the SearchHits which can be pooled or unpooled.
-        // 3. Therefore, invocation rewrittenSections.decRef() can possibly released resources in SearchHits stored inside SearchResponseSections.
-        // 4. But SearchHits provided to SearchResponseSections constructor are already unpooled.
-        // 5. Therefore, invocation rewrittenSections.decRef() is not necessary.
-        // 6. However, in ES 8.13.4, SearchResponseSections object is always created as pooled objects by the constructor unless the
-        // search hits are empty
-        // 7. Therefore, invocation rewrittenSections.decRef() is necessary to avoid false positive warnings related to the memory leaks and
-        // class SearchResponseSections.
 
         // SearchResponse is still pooled. It is not possible to create unpooled SearchResponse.
         SearchResponse pooledSearchResponse = new SearchResponse(rewrittenSections,
