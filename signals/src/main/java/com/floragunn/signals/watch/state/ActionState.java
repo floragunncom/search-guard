@@ -111,10 +111,14 @@ public class ActionState implements ToXContentObject {
         if (this.lastCheckResult == false) {
             return false;
         }
+        if (this.acked != null) {
+            return true;
+        }
 
         this.acked = new Ack(Instant.now(), user);
 
         return true;
+
     }
 
     public synchronized boolean unackIfPossible(String user) {
