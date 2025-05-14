@@ -19,7 +19,7 @@ import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 
 import com.floragunn.searchguard.authtoken.AuthToken;
 
-public class PushAuthTokenUpdateRequest extends BaseNodesRequest<PushAuthTokenUpdateRequest> {
+public class PushAuthTokenUpdateRequest extends BaseNodesRequest {
 
     private AuthToken updatedToken;
     private UpdateType updateType;

@@ -325,6 +325,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("IndexRequest"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_trace_task_parent_id"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("audit_trace_task_id"));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("Streamable request body cannot be logged"));
         //may vary because we log shardrequests which are not predictable here
         Assert.assertTrue(TestAuditlogImpl.messages.size() >= 17); 
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));

@@ -20,7 +20,7 @@ package com.floragunn.searchguard.action.licenseinfo;
 
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 
-public class LicenseInfoRequest extends BaseNodesRequest<LicenseInfoRequest> {
+public class LicenseInfoRequest extends BaseNodesRequest {
 
     public LicenseInfoRequest(String... nodesIds) {
         super(nodesIds);

@@ -82,7 +82,7 @@ public class GetComponentStateAction extends ActionType<GetComponentStateAction.
         super(NAME);
     }
 
-    public static class Request extends BaseNodesRequest<Request> {
+    public static class Request extends BaseNodesRequest {
 
         private String moduleId;
         private boolean verbose;

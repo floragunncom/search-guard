@@ -58,7 +58,7 @@ import com.floragunn.searchsupport.meta.Meta;
 public class RoleBasedActionAuthorizationTests {
 
     private static final Actions actions = new Actions(null);
-    private static final ByteSizeValue STATEFUL_SIZE = new ByteSizeValue(10, ByteSizeUnit.MB);
+    private static final ByteSizeValue STATEFUL_SIZE = ByteSizeValue.of(10, ByteSizeUnit.MB);
 
     public static class ClusterPermissions {
 

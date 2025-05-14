@@ -20,7 +20,7 @@ package com.floragunn.searchguard.action.configupdate;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 
-public class ConfigUpdateRequest extends BaseNodesRequest<ConfigUpdateRequest> {
+public class ConfigUpdateRequest extends BaseNodesRequest {
 
     private String[] configTypes;
 

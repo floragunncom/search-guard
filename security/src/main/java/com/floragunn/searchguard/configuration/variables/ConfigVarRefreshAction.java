@@ -74,7 +74,7 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
         client.execute(ConfigVarRefreshAction.INSTANCE, new Request(), actionListener);
     }
 
-    public static class Request extends BaseNodesRequest<Request> {
+    public static class Request extends BaseNodesRequest {
 
         public Request() {
             super((String[]) null);

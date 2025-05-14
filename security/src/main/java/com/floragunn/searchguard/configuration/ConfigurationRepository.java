@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 
 import com.floragunn.codova.config.templates.PipeExpression;
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
+import com.floragunn.searchsupport.Constants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -398,7 +399,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 
                 try {
 
-                    final Map<String, List<AliasMetadata>> aliasMetadata = client.admin().indices().getAliases(new GetAliasesRequest(searchguardIndex)).actionGet().getAliases();
+                    final Map<String, List<AliasMetadata>> aliasMetadata = client.admin().indices().getAliases(new GetAliasesRequest(Constants.DEFAULT_MASTER_TIMEOUT, searchguardIndex)).actionGet().getAliases();
 
                     if(aliasMetadata != null && aliasMetadata.size() == 1) {
 

@@ -5,7 +5,7 @@ workflow:
     - when: always
 
 variables:
-  SG_BUILD_IMAGE: "floragunncom/ci-pipeline-focal-mvn38-java17:0.1.0"
+  SG_BUILD_IMAGE: "maven:3.9.9-amazoncorretto-21-debian"
   DOCKER_VERSION: "20.10.17"
   
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
@@ -34,7 +34,7 @@ default:
         if command -v apt-get &>/dev/null; then
           # For Debian based images, mainly used during Java build and integration tests
           apt-get update &> /dev/null
-          apt-get install jq curl zip xmlstarlet git wget bash sudo zstd zip -y > /dev/null 2>&1
+          apt-get install xmlstarlet -y > /dev/null 2>&1
         elif command -v apk &>/dev/null; then
           # For Alpine based images, mainly used during bash/docker integration tests
           apk update &> /dev/null
@@ -90,6 +90,7 @@ include:
 
 
 build:
+  image: maven:3.9.9-amazoncorretto-21-debian
   allow_failure: false
   stage: build
   rules:

@@ -5,7 +5,7 @@ import java.util.List;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.support.nodes.BaseNodesRequest;
 
-public class CheckForExecutingTriggerRequest extends BaseNodesRequest<CheckForExecutingTriggerRequest> {
+public class CheckForExecutingTriggerRequest extends BaseNodesRequest {
 
     private String schedulerName;
     private List<String> triggerKeys;

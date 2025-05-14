@@ -383,7 +383,12 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
+            if(request.isFullContent()) {
+                msg.addTupleToRequestBody(request.contentOrSourceParam());
+            } else {
+                // list of requests/actions which support streamed content is related to implementation of the RequestBodyChunkConsumer interface.
+                msg.addMissingRequestBodyMessage("Streamable request body cannot be logged");
+            }
         }
 
         if (request != null) {
