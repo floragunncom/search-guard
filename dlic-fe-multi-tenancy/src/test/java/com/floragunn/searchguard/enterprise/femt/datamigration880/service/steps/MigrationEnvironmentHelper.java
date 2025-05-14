@@ -27,6 +27,7 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.Migrat
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchsupport.Constants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -138,7 +139,7 @@ public class MigrationEnvironmentHelper extends ExternalResource {
 
     private void deleteIndexTemplateIfExists() {
         Client client = cluster.getInternalNodeClient();
-        GetIndexTemplatesResponse response = client.admin().indices().prepareGetTemplates(INDEX_TEMPLATE_NAME).execute().actionGet();
+        GetIndexTemplatesResponse response = client.admin().indices().prepareGetTemplates(Constants.DEFAULT_MASTER_TIMEOUT, INDEX_TEMPLATE_NAME).execute().actionGet();
         if(!response.getIndexTemplates().isEmpty()) {
             var acknowledgedResponse = client.admin().indices().prepareDeleteTemplate(INDEX_TEMPLATE_NAME).execute().actionGet();
             assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
@@ -149,7 +150,7 @@ public class MigrationEnvironmentHelper extends ExternalResource {
         try {
             Client client = cluster.getInternalNodeClient();
             for(String index : indexOrAlias) {
-                client.admin().indices().getIndex(new GetIndexRequest().indices(index)).actionGet();
+                client.admin().indices().getIndex(new GetIndexRequest(Constants.DEFAULT_MASTER_TIMEOUT).indices(index)).actionGet();
             }
             return true;
         } catch (Exception e) {
@@ -203,7 +204,7 @@ public class MigrationEnvironmentHelper extends ExternalResource {
         SearchResponse response = client.search(request).actionGet();
         try {
             assertThat(response.getFailedShards(), equalTo(0));
-            return response.getHits().getTotalHits().value;
+            return response.getHits().getTotalHits().value();
         } finally {
             response.decRef();
         }
@@ -348,7 +349,7 @@ public class MigrationEnvironmentHelper extends ExternalResource {
 
     public DocNode getIndexMappingsAsDocNode(String indexName) {
         Client client = cluster.getInternalNodeClient();
-        GetMappingsResponse response = client.admin().indices().getMappings(new GetMappingsRequest().indices(indexName)).actionGet();
+        GetMappingsResponse response = client.admin().indices().getMappings(new GetMappingsRequest(Constants.DEFAULT_MASTER_TIMEOUT).indices(indexName)).actionGet();
         Map<String, Object> source = Optional.of(response) //
             .map(GetMappingsResponse::getMappings) //
             .map(map -> map.get(indexName)) //
@@ -489,7 +490,7 @@ public class MigrationEnvironmentHelper extends ExternalResource {
     public Optional<GetIndexResponse> findHiddenIndexByName(String indexNameOrAlias) {
         Strings.requireNonEmpty(indexNameOrAlias, "Index or alias name is required");
         try {
-            GetIndexRequest request = new GetIndexRequest();
+            GetIndexRequest request = new GetIndexRequest(Constants.DEFAULT_MASTER_TIMEOUT);
             request.indices(indexNameOrAlias).indicesOptions(IndicesOptions.strictExpandHidden());
             GetIndexResponse response = getPrivilegedClient().admin().indices().getIndex(request).actionGet();
             return Optional.ofNullable(response);

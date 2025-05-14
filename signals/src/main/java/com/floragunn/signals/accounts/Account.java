@@ -49,7 +49,7 @@ public abstract class Account implements ToXContentObject {
         SearchRequest request = new SearchRequest(indexName).source(getReferencingWatchesQuery());
         SearchResponse searchResponse = client.search(request).actionGet();
         try {
-            long hits = searchResponse.getHits().getTotalHits().value;
+            long hits = searchResponse.getHits().getTotalHits().value();
 
             return hits > 0;
         } finally {
@@ -63,7 +63,7 @@ public abstract class Account implements ToXContentObject {
 
                     @Override
                     public void onResponse(SearchResponse response) {
-                        if (response.getHits().getTotalHits().value > 0) {
+                        if (response.getHits().getTotalHits().value() > 0) {
                             actionListener.onResponse(Boolean.TRUE);
                         } else {
                             actionListener.onResponse(Boolean.FALSE);

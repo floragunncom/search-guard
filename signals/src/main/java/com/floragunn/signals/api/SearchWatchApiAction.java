@@ -13,7 +13,6 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.action.RestToXContentListener;
-import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.signals.actions.watch.search.SearchWatchAction;
@@ -48,7 +47,7 @@ public class SearchWatchApiAction extends SignalsTenantAwareRestHandler {
         SearchWatchRequest searchWatchRequest = new SearchWatchRequest();
 
         if (scroll != null) {
-            searchWatchRequest.setScroll(new Scroll(parseTimeValue(scroll, null, "scroll")));
+            searchWatchRequest.setScroll(parseTimeValue(scroll, null, "scroll"));
         }
 
         searchWatchRequest.setFrom(from);

@@ -23,6 +23,7 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.Optimi
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.OptimisticLockException;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.RepositoryException;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.Constants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ResourceAlreadyExistsException;
@@ -115,7 +116,7 @@ public class IndexMigrationStateRepository implements MigrationStateRepository {
 
     @Override
     public boolean isIndexCreated() {
-        GetIndexRequest request = new GetIndexRequest().indices("*");
+        GetIndexRequest request = new GetIndexRequest(Constants.DEFAULT_MASTER_TIMEOUT).indices("*");
         GetIndexResponse response = client.admin().indices().getIndex(request).actionGet();
         return Arrays.asList(response.indices()).contains(INDEX_NAME);
     }

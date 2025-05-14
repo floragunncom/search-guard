@@ -72,7 +72,7 @@ import com.selectivem.collections.IndexedImmutableSet;
 public class RoleBasedActionAuthorization implements ActionAuthorization, ComponentStateProvider {
     static final StaticSettings.Attribute<ByteSizeValue> PRECOMPUTED_PRIVILEGES_MAX_HEAP_SIZE = //
             StaticSettings.Attribute.define("searchguard.privileges_evaluation.precomputed_privileges.max_heap_size")
-                    .withDefault(new ByteSizeValue(10, ByteSizeUnit.MB)).asByteSizeValue();
+                    .withDefault(ByteSizeValue.of(10, ByteSizeUnit.MB)).asByteSizeValue();
 
     private static final Logger log = LogManager.getLogger(RoleBasedActionAuthorization.class);
 

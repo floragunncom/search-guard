@@ -135,7 +135,7 @@ public class TruststoreRepository {
                 .indicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN);
         SearchResponse searchResponse = client.search(searchWatchesRequest).actionGet();
         try {
-            return searchResponse.getHits().getTotalHits().value > 0;
+            return searchResponse.getHits().getTotalHits().value() > 0;
         } finally {
             searchResponse.decRef();
         }

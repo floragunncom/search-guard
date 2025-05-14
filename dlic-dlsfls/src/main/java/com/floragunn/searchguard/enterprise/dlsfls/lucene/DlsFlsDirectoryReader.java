@@ -21,28 +21,11 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.codecs.StoredFieldsReader;
-import org.apache.lucene.index.BinaryDocValues;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.index.FieldInfos;
-import org.apache.lucene.index.Fields;
-import org.apache.lucene.index.FilterDirectoryReader;
-import org.apache.lucene.index.ImpactsEnum;
-import org.apache.lucene.index.LeafReader;
-import org.apache.lucene.index.NumericDocValues;
-import org.apache.lucene.index.PointValues;
-import org.apache.lucene.index.PostingsEnum;
-import org.apache.lucene.index.SortedDocValues;
-import org.apache.lucene.index.SortedNumericDocValues;
-import org.apache.lucene.index.SortedSetDocValues;
-import org.apache.lucene.index.StoredFieldVisitor;
-import org.apache.lucene.index.StoredFields;
-import org.apache.lucene.index.TermState;
-import org.apache.lucene.index.Terms;
-import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.*;
 import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.IOBooleanSupplier;
 import org.apache.lucene.util.automaton.CompiledAutomaton;
 import org.elasticsearch.common.lucene.index.SequentialStoredFieldsLeafReader;
 import org.elasticsearch.index.mapper.FieldNamesFieldMapper;
@@ -145,19 +128,6 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                 }
             }
 
-            @Override
-            public void document(int docID, StoredFieldVisitor visitor) throws IOException {
-                if (log.isTraceEnabled()) {
-                    log.trace("FilterLeafReader.document()\nindex: " + dlsFlsContext.getIndexService().index().getName() + "\nfls: "
-                            + dlsFlsContext.getFlsRule() + "\nfieldMasking: " + dlsFlsContext.getFieldMaskingRule());
-                }
-
-                if (dlsFlsContext.hasFlsRestriction() || dlsFlsContext.hasFieldMasking()) {
-                    in.document(docID, new FlsStoredFieldVisitor(visitor, dlsFlsContext.getFlsRule(), dlsFlsContext.getFieldMaskingRule()));
-                } else {
-                    in.document(docID, visitor);
-                }
-            }
 
             @Override
             public Bits getLiveDocs() {
@@ -195,8 +165,13 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
             }
 
             @Override
-            public Fields getTermVectors(int docID) throws IOException {
-                Fields fields = in.getTermVectors(docID);
+            public TermVectors termVectors() throws IOException {
+                TermVectors termVectors = in.termVectors();
+
+                return new TermVectors() {
+                    @Override
+                    public Fields get(int i) throws IOException {
+                        Fields fields = termVectors.get(i);
 
                 if (!dlsFlsContext.hasFlsRestriction() || fields == null) {
                     return fields;
@@ -226,6 +201,8 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                     public int size() {
                         return flsFieldInfos.size();
                     }
+                };
+            }
                 };
             }
 
@@ -538,6 +515,11 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                 @Override
                 public boolean seekExact(BytesRef text) throws IOException {
                     return delegate.seekExact(text);
+                }
+
+                @Override
+                public IOBooleanSupplier prepareSeekExact(BytesRef bytesRef) throws IOException {
+                    return delegate.prepareSeekExact(bytesRef);
                 }
 
                 @Override

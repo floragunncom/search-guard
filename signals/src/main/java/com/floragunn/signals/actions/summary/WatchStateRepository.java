@@ -5,6 +5,7 @@ import static java.util.Objects.requireNonNull;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.searchsupport.Constants;
 import com.floragunn.signals.actions.summary.SortParser.SortByField;
 import com.floragunn.signals.actions.summary.WatchFilter.Range;
 import java.util.List;
@@ -163,7 +164,7 @@ class WatchStateRepository {
 
     private GetMappingsResponse getMappings() {
         ActionFuture<GetMappingsResponse> mappings =
-            privilegedConfigClient.admin().indices().getMappings(new GetMappingsRequest().indices(stateIndexName));
+            privilegedConfigClient.admin().indices().getMappings(new GetMappingsRequest(Constants.DEFAULT_MASTER_TIMEOUT).indices(stateIndexName));
         return mappings.actionGet();
     }
 

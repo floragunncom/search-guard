@@ -175,12 +175,7 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
     }
 
     private String getEsVersion() {
-        String version = Version.CURRENT.toString();
-        // TODO ES9 hack which allaws downloading of ES 9.0.0-beta1, the below code should be removed when ES 9.0.0 is released
-        if(version.equals("9.0.0")) {
-            return "9.0.0-beta1";
-        }
-        return version;
+        return org.elasticsearch.Version.CURRENT.toString();
     }
 
     public static class Node implements LocalEsCluster.Node {

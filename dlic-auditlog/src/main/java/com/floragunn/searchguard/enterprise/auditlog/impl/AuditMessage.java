@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.enterprise.auditlog.impl;
 
+import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.auditlog.AuditLog.Operation;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.user.UserInformation;
@@ -230,6 +231,12 @@ public final class AuditMessage {
             }
         }
     }
+
+    public void addMissingRequestBodyMessage(String cause) {
+        auditInfo.put(REQUEST_BODY, DocNode.of("INFO", cause).toJsonString());
+    }
+
+
 
     public void addMapToRequestBody(Map<String, Object> map) {
         if (map != null) {

@@ -195,7 +195,7 @@ public class ThreadContextAuthzHashProviderIntTest {
             }
         }
 
-        public static class MockActionNodesRequest extends BaseNodesRequest<MockActionNodesRequest> implements IndicesRequest {
+        public static class MockActionNodesRequest extends BaseNodesRequest implements IndicesRequest {
 
             private String index;
 

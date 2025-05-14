@@ -1,6 +1,5 @@
 package org.elasticsearch.node;
 
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.PluginsLoader;

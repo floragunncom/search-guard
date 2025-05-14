@@ -22,6 +22,7 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.Optimi
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionSummary;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchsupport.Constants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
@@ -109,7 +110,7 @@ public class IndexMigrationStateRepositoryTest {
     public void shouldCreateMappings() {
         repository.createIndex();
 
-        GetMappingsRequest request = new GetMappingsRequest().indices(IndexMigrationStateRepository.INDEX_NAME);
+        GetMappingsRequest request = new GetMappingsRequest(Constants.DEFAULT_MASTER_TIMEOUT).indices(IndexMigrationStateRepository.INDEX_NAME);
         GetMappingsResponse response = cluster.getPrivilegedInternalNodeClient().admin().indices().getMappings(request).actionGet();
         MappingMetadata mappingMetadata = response.getMappings().get(IndexMigrationStateRepository.INDEX_NAME);
         assertThat(mappingMetadata, notNullValue());

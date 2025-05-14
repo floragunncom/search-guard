@@ -270,7 +270,7 @@ public class SSLReloadCertsActionTests {
 
         IntStream.range(0, numberOfNodeCerts)
                 .forEach(i -> builder.addNodes(Collections.singletonList(String.format("CN=node-%s.example.com,OU=SearchGuard,O=SearchGuard", i)),
-                        i + 1, null, null, null, NodeCertificateType.transport_and_rest, null));
+                        i + 1, null, null, Collections.singletonList("127.0.0.1"), NodeCertificateType.transport_and_rest, null));
 
         return builder.build();
     }
