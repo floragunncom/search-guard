@@ -29,11 +29,13 @@ import static org.hamcrest.Matchers.not;
 import java.net.InetAddress;
 import java.net.URI;
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -48,6 +50,7 @@ import org.apache.http.HttpStatus;
 import org.apache.http.entity.ContentType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.awaitility.Awaitility;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -3246,6 +3249,94 @@ public class RestApiTest {
 
             response = restClient.delete("/_signals/watch/_main/1/_ack/1");
             assertThat(response.getBody(), response.getBodyAsDocNode(), not(containsValue("error.message", "Signals does not support private tenants")));
+        }
+    }
+
+    @Test
+    public void testAckWatchShouldNotAckAlreadyAckedActionsAgain() throws Exception {
+        String tenant = "_main";
+        String watchId = "watch_with_one_acked_action";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+        String firstAction = "firstAction";
+        String secondAction = "secondAction";
+        String sourceIndex = "testsource_ack_watch_with_acked_action";
+        String sinkIndex = "testsink_ack_watch_with_acked_action";
+
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            Client client = cluster.getInternalNodeClient();
+            client.admin().indices().create(new CreateIndexRequest(sourceIndex)).actionGet();
+            client.admin().indices().create(new CreateIndexRequest(sinkIndex)).actionGet();
+            client.index(new IndexRequest(sourceIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).id("1").source(XContentType.JSON, "a", "x", "b", "y")).actionGet();
+
+            Watch watch = new WatchBuilder(watchId).atMsInterval(100).search(sourceIndex).query("{\"match_all\" : {} }").as("testsearch")
+                    .checkCondition("data.testsearch.hits.hits.length > 0").then()
+                    .index(sinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name(firstAction).and()
+                    .index(sinkIndex).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name(secondAction).build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            awaitMinCountOfDocuments(client, sinkIndex, 2);
+
+            response = restClient.put(watchPath + "/_ack/" + secondAction);
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            AtomicReference<String> firstActionOriginAckTime = new AtomicReference<>();
+            AtomicReference<String> secondActionOriginAckTime = new AtomicReference<>();
+
+            Awaitility.await("One action should be acked")
+                    .atMost(Duration.ofSeconds(2))
+                    .pollInterval(Duration.ofMillis(200))
+                    .untilAsserted(() -> {
+                        HttpResponse stateResponse = restClient.get(watchPath + "/_state");
+
+                        Assert.assertEquals(stateResponse.getBody(), HttpStatus.SC_OK, stateResponse.getStatusCode());
+
+                        Assert.assertTrue(stateResponse.getBodyAsDocNode().getAsNode("actions").getAsNode(secondAction).hasNonNull("acked"));
+                        Assert.assertFalse(stateResponse.getBodyAsDocNode().getAsNode("actions").getAsNode(firstAction).hasNonNull("acked"));
+
+                        secondActionOriginAckTime.set(stateResponse.getBodyAsDocNode().findSingleValueByJsonPath("$.actions." + secondAction + ".acked.on", String.class));
+                    });
+
+            response = restClient.put(watchPath + "/_ack/");
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Awaitility.await("Two actions should be acked at different time")
+                    .atMost(Duration.ofSeconds(2))
+                    .pollInterval(Duration.ofMillis(200))
+                    .untilAsserted(() -> {
+                        HttpResponse stateResponse = restClient.get(watchPath + "/_state");
+
+                        Assert.assertEquals(stateResponse.getBody(), HttpStatus.SC_OK, stateResponse.getStatusCode());
+
+                        Assert.assertTrue(stateResponse.getBodyAsDocNode().getAsNode("actions").getAsNode(secondAction).hasNonNull("acked"));
+                        Assert.assertTrue(stateResponse.getBodyAsDocNode().getAsNode("actions").getAsNode(firstAction).hasNonNull("acked"));
+
+                        Assert.assertEquals(secondActionOriginAckTime.get(), stateResponse.getBodyAsDocNode().findSingleValueByJsonPath("$.actions." + secondAction + ".acked.on", String.class));
+                        Assert.assertNotEquals(secondActionOriginAckTime.get(), stateResponse.getBodyAsDocNode().findSingleValueByJsonPath("$.actions." + firstAction + ".acked.on", String.class));
+
+                        firstActionOriginAckTime.set(stateResponse.getBodyAsDocNode().findSingleValueByJsonPath("$.actions." + firstAction + ".acked.on", String.class));
+                    });
+
+            //acking watch with all actions already acked is OK
+            response = restClient.put(watchPath + "/_ack/");
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Awaitility.await("Actions should not be re-acked")
+                    .pollDelay(Duration.ofSeconds(2))
+                    .untilAsserted(() -> {
+                        HttpResponse stateResponse = restClient.get(watchPath + "/_state");
+
+                        Assert.assertEquals(stateResponse.getBody(), HttpStatus.SC_OK, stateResponse.getStatusCode());
+
+                        Assert.assertTrue(stateResponse.getBodyAsDocNode().getAsNode("actions").getAsNode(secondAction).hasNonNull("acked"));
+                        Assert.assertTrue(stateResponse.getBodyAsDocNode().getAsNode("actions").getAsNode(firstAction).hasNonNull("acked"));
+
+                        Assert.assertEquals(secondActionOriginAckTime.get(), stateResponse.getBodyAsDocNode().findSingleValueByJsonPath("$.actions." + secondAction + ".acked.on", String.class));
+                        Assert.assertEquals(firstActionOriginAckTime.get(), stateResponse.getBodyAsDocNode().findSingleValueByJsonPath("$.actions." + firstAction + ".acked.on", String.class));
+                    });
         }
     }
 
