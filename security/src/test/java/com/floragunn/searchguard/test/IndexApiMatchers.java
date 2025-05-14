@@ -272,7 +272,8 @@ public class IndexApiMatchers {
 
                 if (containsSearchGuardIndices && (index.startsWith(".searchguard") || index.equals("searchguard"))) {
                     seenSearchGuardIndicesBuilder.add(index);
-                } else if (containsEsInternalIndices && (index.startsWith(".logs-deprecation") || index.startsWith(".ds-.logs-deprecation"))) {
+                } else if (containsEsInternalIndices && (index.startsWith(".logs-deprecation") || index.startsWith(".ds-.logs-deprecation")
+                        || index.startsWith(".logs-elasticsearch.deprecation") || index.startsWith(".ds-.logs-elasticsearch.deprecation"))) {
                     // We will just ignore these, as they actually might not exist on embedded clusters
                 } else if (index.startsWith(".ds-")) {
                     // We do a special treatment for data stream backing indices. We convert these to the normal data streams if expected indices contains these.
