@@ -110,7 +110,7 @@ import com.floragunn.signals.watch.severity.SeverityMapping;
 public class SignalsModule implements SearchGuardModule, ComponentStateProvider {
 
     private final boolean enabled;
-    private SignalsSettings signalsSettings;
+    private Signals signals;
     private final ComponentState moduleState = new ComponentState(100, null, "signals", SignalsModule.class);
 
     public SignalsModule(Settings settings) {
@@ -130,7 +130,7 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
             ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
         if (enabled) {
-            return Arrays.asList(new WatchApiAction(settings), new ExecuteWatchApiAction(settings, scriptService, this.signalsSettings),
+            return Arrays.asList(new WatchApiAction(settings), new ExecuteWatchApiAction(settings, scriptService, this.signals),
                     new DeActivateWatchAction(settings, controller), new AckWatchApiAction(settings, controller), new SearchWatchApiAction(settings, clusterSupportsFeature),
                     new AccountApiAction(settings, controller), new SearchAccountApiAction(clusterSupportsFeature), new WatchStateApiAction(settings, controller),
                     new SettingsApiAction(settings, controller), new DeActivateTenantAction(settings, controller),
@@ -213,7 +213,7 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                 }
             });
 
-            this.signalsSettings = signals.getSignalsSettings();
+            this.signals = signals;
 
             return signals.createComponents(baseDependencies.getLocalClient(), baseDependencies.getClusterService(), baseDependencies.getThreadPool(),
                     baseDependencies.getScriptService(), baseDependencies.getxContentRegistry(),

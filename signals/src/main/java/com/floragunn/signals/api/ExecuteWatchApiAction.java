@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import com.floragunn.signals.settings.SignalsSettings;
+import com.floragunn.signals.Signals;
+import com.floragunn.signals.proxy.service.HttpProxyHostRegistry;
+import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import com.floragunn.signals.watch.common.throttle.ThrottlePeriodParser;
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import org.apache.logging.log4j.LogManager;
@@ -41,11 +43,15 @@ public class ExecuteWatchApiAction extends SignalsTenantAwareRestHandler {
     private final Logger log = LogManager.getLogger(this.getClass());
     private final ScriptService scriptService;
     private final ThrottlePeriodParser throttlePeriodParser;
+    private final TrustManagerRegistry trustManagerRegistry;
+    private final HttpProxyHostRegistry httpProxyHostRegistry;
 
-    public ExecuteWatchApiAction(Settings settings, ScriptService scriptService, SignalsSettings signalsSettings) {
+    public ExecuteWatchApiAction(Settings settings, ScriptService scriptService, Signals signals) {
         super(settings);
         this.scriptService = scriptService;
-        this.throttlePeriodParser = new ValidatingThrottlePeriodParser(signalsSettings);
+        this.throttlePeriodParser = new ValidatingThrottlePeriodParser(signals.getSignalsSettings());
+        this.trustManagerRegistry = signals.getTruststoreRegistry();
+        this.httpProxyHostRegistry = signals.getHttpProxyHostRegistry();
     }
 
     @Override
@@ -64,7 +70,7 @@ public class ExecuteWatchApiAction extends SignalsTenantAwareRestHandler {
             //if not ES 8 throws an exception
             request.param("tenant");
             WatchInitializationService watchInitializationService = new WatchInitializationService(null, scriptService,
-                null, null, throttlePeriodParser, LENIENT);
+                trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, LENIENT);
             final RequestBody requestBody = RequestBody.parse(watchInitializationService, request.content().utf8ToString());
 
             if (log.isDebugEnabled()) {
