@@ -782,6 +782,29 @@ public class RestApiTest {
     }
 
     @Test
+    public void testExecuteAnonymousWatchWhichUsesStoredTruststore() throws Exception {
+
+        String tenant = "_main";
+        String executePath = "/_signals/watch/" + tenant + "/_execute";
+
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false);
+            GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+            webhookProvider.uploadMockServerCertificateAsTruststore(cluster, USER_CERTIFICATE, UPLOADED_TRUSTSTORE_ID);
+            Watch watch = new WatchBuilder("tls-webhook-execute-test").atMsInterval(100)
+                .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then()
+                .postWebhook(webhookProvider.getUri()).truststoreId(UPLOADED_TRUSTSTORE_ID).throttledFor("0")
+                .name("testhook").build();
+            HttpResponse response = restClient.postJson(executePath, "{\"watch\":" + watch.toJson() + ",\"skip_actions\": false, \"simulate\": false}");
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+            Thread.sleep(600);
+
+            Assert.assertTrue(webhookProvider.getRequestCount() > 0);
+        }
+    }
+
+    @Test
     public void testWebhookTruststoreFailureWithoutCorrectTruststore() throws Exception {
 
         String tenant = "_main";
