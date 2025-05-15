@@ -337,6 +337,7 @@ SGS_KIBANA_SERVER:
     - "indices:monitor/settings/get"
     - "indices:monitor/stats"
     - "indices:data/read/field_caps*"
+    - "indices:data/read/esql*"
   - index_patterns:
       - ".internal.alerts*"
     allowed_actions:
