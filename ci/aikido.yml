@@ -11,21 +11,35 @@
         npm install -g @aikidosec/ci-api-client
         echo "Aikido ci-api-client version:"
         aikido-api-client -V
-        echo "Start Aikido Scan for commit: ${CI_COMMIT_SHORT_SHA} and project id ${CI_PROJECT_ID}"
-        aikido-api-client \
-        --apikey ${AIKIDO_CI_INTEGRATION_TOKEN} \
-        scan-release \
-        ${CI_PROJECT_ID} \
-        ${CI_COMMIT_SHA} \
-        --minimum-severity-level LOW \
-        --fail-on-sast-scan \
-        --fail-on-iac-scan \
-        --fail-on-secrets-scan \
-        --plain-output
+        echo "Start Aikido Scan for commit: ${CI_COMMIT_SHORT_SHA} and project id ${CI_PROJECT_ID} and base-branch ${AIKIDO_BASE_BRANCH}"
+        AIKIDO_CMD="aikido-api-client \
+          --apikey ${AIKIDO_CI_INTEGRATION_TOKEN} \
+          scan-release \
+          ${CI_PROJECT_ID} \
+          ${CI_COMMIT_SHA} \
+          --minimum-severity-level LOW \
+          --fail-on-sast-scan \
+          --fail-on-iac-scan \
+          --plain-output"
+
+        if [ "${CI_COMMIT_REF_NAME}" = "${CI_DEFAULT_BRANCH}" ]; then
+          echo "Run scan for default branch including secrets-scan"
+          AIKIDO_CMD="${AIKIDO_CMD} --fail-on-secrets-scan"
+        else
+          echo "Run Scan with Aikido base-branch ${AIKIDO_BASE_BRANCH} in scan"
+          AIKIDO_CMD="${AIKIDO_CMD} --base-branch ${AIKIDO_BASE_BRANCH}"
+        fi
         
+        echo "$AIKIDO_CMD"
+        eval "$AIKIDO_CMD"
+
 aikido_schedule_scan:
   extends: ['.aikido_scan_common']
   rules:
     - if:  '$CI_PIPELINE_SOURCE == "schedule"'
       when: always
    
+aikido_release_scan:
+  extends: ['.aikido_scan_common']
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
