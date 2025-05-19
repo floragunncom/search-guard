@@ -29,7 +29,7 @@ public class DataStreamIntegrationTest {
 
     @BeforeAll
     public static void setup() {
-        CLUSTER = new LocalCluster.Builder().singleNode().sslEnabled().enableModule(AutomatedIndexManagementModule.class).useExternalProcessCluster()
+        CLUSTER = new LocalCluster.Builder().singleNode().sslEnabled().nodeSettings("aim.state_log.enabled", false).enableModule(AutomatedIndexManagementModule.class).useExternalProcessCluster()
                 .start();
     }
 

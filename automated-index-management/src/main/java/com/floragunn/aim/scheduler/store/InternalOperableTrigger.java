@@ -375,7 +375,7 @@ public class InternalOperableTrigger extends AbstractDelegateTrigger<OperableTri
             triggerKey = key;
             Long nextFireTimeLong = node.get(NEXT_FIRE_TIME_FIELD).required().asLong();
             nextFireTime = nextFireTimeLong == null ? null : new Date(nextFireTimeLong);
-            Long previousFireTimeLong = node.get(PREVIOUS_FIRE_TIME_FIELD).required().asLong();
+            Long previousFireTimeLong = node.get(PREVIOUS_FIRE_TIME_FIELD).asLong();
             previousFireTime = previousFireTimeLong == null ? null : new Date(previousFireTimeLong);
             timesTriggered = node.get(TIMES_TRIGGERED_FIELD).asInteger();
         }

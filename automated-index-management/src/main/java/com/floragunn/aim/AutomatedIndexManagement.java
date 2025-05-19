@@ -136,12 +136,12 @@ public class AutomatedIndexManagement extends AbstractLifecycleComponent {
     }
 
     private synchronized void startPolicyInstanceManagement() throws SchedulerException {
+        if (policyInstanceStateLogManager != null && aimSettings.getDynamic().getStateLogActive()) {
+            policyInstanceStateLogManager.start();
+        }
         if (!policyInstanceManager.isInitialized()) {
             LOG.info("Starting AIM policy instance manager");
             policyInstanceManager.start();
-        }
-        if (policyInstanceStateLogManager != null && aimSettings.getDynamic().getStateLogActive()) {
-            policyInstanceStateLogManager.start();
         }
     }
 

@@ -25,10 +25,12 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.xcontent.XContentType;
 
 import java.time.Instant;
 
@@ -100,7 +102,6 @@ public class PolicyInstanceStateLogManager {
             setupIndexTemplate();
             setupIndex();
         }
-        initialized = true;
     }
 
     private void putStateLogEntry(String index, PolicyInstanceState state) {
@@ -159,8 +160,10 @@ public class PolicyInstanceStateLogManager {
             }
             AcknowledgedResponse putTemplateResponse = client.admin().indices().preparePutTemplate(indexTemplateName).setCreate(true)
                     .setPatterns(ImmutableList.of(indexNamePrefix + "-*")).addAlias(new Alias(aliasName).isHidden(true).writeIndex(false))
+                    .setMapping(StateLogEntry.INDEX_MAPPING.toDocNode().toJsonString(), XContentType.JSON)
                     .setSettings(
-                            Settings.builder().put("index.hidden", true).put(AutomatedIndexManagementSettings.Index.POLICY_NAME.name(), policyName)
+                            Settings.builder().put(IndexMetadata.SETTING_INDEX_HIDDEN, true)
+                                    .put(AutomatedIndexManagementSettings.Index.POLICY_NAME.name(), policyName)
                                     .put(AutomatedIndexManagementSettings.Index.ALIAS_MAPPING.name() + "."
                                             + AutomatedIndexManagementSettings.Index.DEFAULT_ROLLOVER_ALIAS_KEY, writeAliasName)
                                     .put(AutomatedIndexManagementSettings.Index.ALIAS_MAPPING.name() + ".read_alias", aliasName))
@@ -186,7 +189,7 @@ public class PolicyInstanceStateLogManager {
             }
             String indexNamePrefix = settings.getStatic().stateLog().getIndexNamePrefix();
             String indexName = indexNamePrefix + "-000001";
-            CreateIndexResponse indexResponse = client.admin().indices().prepareCreate(indexName).setMapping(StateLogEntry.INDEX_MAPPING.toDocNode())
+            CreateIndexResponse indexResponse = client.admin().indices().prepareCreate(indexName)
                     .addAlias(new Alias(getWriteAliasName(aliasName)).isHidden(true).writeIndex(true)).execute().actionGet();
             if (!indexResponse.isAcknowledged()) {
                 throw new StateLogInitializationException("Failed to setup state log index. Create response was not acknowledged");

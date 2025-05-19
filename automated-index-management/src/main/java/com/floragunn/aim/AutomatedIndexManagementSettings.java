@@ -72,7 +72,7 @@ public final class AutomatedIndexManagementSettings {
         public void init(PrivilegedConfigClient client) {
             try {
                 ClusterHealthResponse clusterHealthResponse = client.admin().cluster()
-                        .prepareHealth(TimeValue.timeValueSeconds(30), ConfigIndices.SETTINGS_NAME).setWaitForYellowStatus()
+                        .prepareHealth(TimeValue.timeValueSeconds(30), ConfigIndices.SETTINGS_NAME).setWaitForGreenStatus()
                         .setWaitForNoInitializingShards(true).get(TimeValue.timeValueMinutes(5));
                 LOG.debug("Cluster health before loading dynamic settings: {}", clusterHealthResponse);
                 if (clusterHealthResponse.isTimedOut()) {
@@ -385,7 +385,7 @@ public final class AutomatedIndexManagementSettings {
         }
 
         public class StateLog {
-            public static final Boolean DEFAULT_ENABLED = false;
+            public static final Boolean DEFAULT_ENABLED = true;
             public static final String DEFAULT_INDEX_TEMPLATE_NAME = ".aim_state_log";
             public static final String DEFAULT_INDEX_NAME_PREFIX = ".aim_state_log";
             public static final String DEFAULT_ALIAS_NAME = ".aim_state_log";
