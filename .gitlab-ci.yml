@@ -30,11 +30,19 @@ default:
         echo "CI_COMMIT_REF_NAME: $CI_COMMIT_REF_NAME"
         echo "CI_COMMIT_REF_SLUG: $CI_COMMIT_REF_SLUG"
         echo "CI_COMMIT_TAG: $CI_COMMIT_TAG"
-        
-        set +e
-        apk update > /dev/null 2>&1
-        apk add --no-cache gomplate jq curl zip xmlstarlet git wget bash sudo > /dev/null 2>&1
-        set -e
+  
+        if command -v apt-get &>/dev/null; then
+          # For Debian based images, mainly used during Java build and integration tests
+          apt-get update &> /dev/null
+          apt-get install jq curl zip xmlstarlet git wget bash sudo zstd zip -y > /dev/null 2>&1
+        elif command -v apk &>/dev/null; then
+          # For Alpine based images, mainly used during bash/docker integration tests
+          apk update &> /dev/null
+          apk add --no-cache gomplate jq curl zip xmlstarlet git wget bash sudo > /dev/null 2>&1
+        else
+          echo "ERROR! Unsupported Linux distribution. Neither apt-get nor apk found."
+          exit -1
+        fi
 
         if [ -z "$CI_COMMIT_TAG" ]; then 
           export ES_VERSION=$(xmlstarlet sel -t -m "/_:project/_:properties/_:elasticsearch.version" -v . pom.xml)
