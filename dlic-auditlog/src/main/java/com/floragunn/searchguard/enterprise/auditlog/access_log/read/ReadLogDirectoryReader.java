@@ -73,15 +73,16 @@ public class ReadLogDirectoryReader extends FilterDirectoryReader {
             public StoredFields storedFields() throws IOException {
                 StoredFields storedFields = super.storedFields();
                 if (context.getAuditLogConfig().isEnabled() && context.getAuditLogConfig().readHistoryEnabledForIndex(context.getIndex().getName())) {
-                    return new StoredFields() {
-                        @Override
-                        public void document(int docID, StoredFieldVisitor visitor) throws IOException {
+//                    return new StoredFields() {
+//                        @Override
+//                        public void document(int docID, StoredFieldVisitor visitor) throws IOException {
 //                            ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
 //                            storedFields.document(docID, complianceAwareStoredFieldVisitor);
 //                            complianceAwareStoredFieldVisitor.finished();
-                            throw new IllegalArgumentException("Method storedFields.document is still used");
-                        }
-                    };
+////                            throw new IllegalArgumentException("Method storedFields.document is still used");
+//                        }
+//                    };
+                    return storedFields;
                 } else {
                     return storedFields;
                 }
@@ -95,7 +96,7 @@ public class ReadLogDirectoryReader extends FilterDirectoryReader {
 //                    in.document(docID, complianceAwareStoredFieldVisitor);
 //                    complianceAwareStoredFieldVisitor.finished();
 //                } else {
-//                    in.document(docID, visitor);
+                    in.document(docID, visitor);
 //                }
                 throw new IllegalArgumentException("Method document is still used");
             }
@@ -117,14 +118,14 @@ public class ReadLogDirectoryReader extends FilterDirectoryReader {
 
                 @Override
                 public void document(int docID, StoredFieldVisitor visitor) throws IOException {
-                    if (context.getAuditLogConfig().isEnabled()
-                            && context.getAuditLogConfig().readHistoryEnabledForIndex(context.getIndex().getName())) {
-                        ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
-                        delegate.document(docID, complianceAwareStoredFieldVisitor);
-                        complianceAwareStoredFieldVisitor.finished();
-                    } else {
+//                    if (context.getAuditLogConfig().isEnabled()
+//                            && context.getAuditLogConfig().readHistoryEnabledForIndex(context.getIndex().getName())) {
+//                        ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
+//                        delegate.document(docID, complianceAwareStoredFieldVisitor);
+//                        complianceAwareStoredFieldVisitor.finished();
+//                    } else {
                         delegate.document(docID, visitor);
-                    }
+//                    }
                 }
 
                 @Override
