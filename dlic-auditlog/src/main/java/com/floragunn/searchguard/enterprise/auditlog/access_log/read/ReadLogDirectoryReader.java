@@ -76,9 +76,10 @@ public class ReadLogDirectoryReader extends FilterDirectoryReader {
                     return new StoredFields() {
                         @Override
                         public void document(int docID, StoredFieldVisitor visitor) throws IOException {
-                            ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
-                            storedFields.document(docID, complianceAwareStoredFieldVisitor);
-                            complianceAwareStoredFieldVisitor.finished();
+//                            ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
+//                            storedFields.document(docID, complianceAwareStoredFieldVisitor);
+//                            complianceAwareStoredFieldVisitor.finished();
+                            throw new IllegalArgumentException("Method storedFields.document is still used");
                         }
                     };
                 } else {
