@@ -46,7 +46,7 @@
   </distributionManagement>
 
   <properties>
-    <elasticsearch.version>8.18.0</elasticsearch.version>
+    <elasticsearch.version>8.18.0-SNAPSHOT</elasticsearch.version>
     <sg-suite.version>master-SNAPSHOT</sg-suite.version>
     <revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
 
@@ -76,7 +76,7 @@
       <dependency>
         <groupId>co.elastic.clients</groupId>
         <artifactId>elasticsearch-java</artifactId>
-        <version>${elasticsearch.version}</version>
+        <version>8.18.0</version>
       </dependency>
 
       <dependency>
