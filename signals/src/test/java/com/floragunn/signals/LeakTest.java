@@ -35,7 +35,9 @@ public class LeakTest {
         SearchResponse searchResponse = client.search(new SearchRequest(INDEX_NAME)).actionGet();
         // no searchResponse.decRef(), leak here
         log.info("Search response: {}", searchResponse);
+        System.gc();
         Thread.sleep(5000);
+        System.gc();
     }
 
     @Test
@@ -47,8 +49,11 @@ public class LeakTest {
 
         for(int i = 0 ; i < 50; i++) {
             SearchResponse searchResponse = client.search(new SearchRequest(INDEX_NAME)).actionGet();
+            System.gc();
             log.info("Search response: {}", searchResponse);
         }
+        System.gc();
         Thread.sleep(5000);
+        System.gc();
     }
 }
