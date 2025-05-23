@@ -47,7 +47,7 @@ public class LeakTest {
                 .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
         client.index(indexRequest).actionGet();
 
-        for(int i = 0 ; i < 50; i++) {
+        for(int i = 0 ; i < 500; i++) {
             SearchResponse searchResponse = client.search(new SearchRequest(INDEX_NAME)).actionGet();
             System.gc();
             log.info("Search response: {}", searchResponse);
