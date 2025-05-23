@@ -73,15 +73,14 @@ public class ReadLogDirectoryReader extends FilterDirectoryReader {
             public StoredFields storedFields() throws IOException {
                 StoredFields storedFields = super.storedFields();
                 if (context.getAuditLogConfig().isEnabled() && context.getAuditLogConfig().readHistoryEnabledForIndex(context.getIndex().getName())) {
-//                    return new StoredFields() {
-//                        @Override
-//                        public void document(int docID, StoredFieldVisitor visitor) throws IOException {
-//                            ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
-//                            storedFields.document(docID, complianceAwareStoredFieldVisitor);
-//                            complianceAwareStoredFieldVisitor.finished();
-//                        }
-//                    };
-                    return storedFields;
+                    return new StoredFields() {
+                        @Override
+                        public void document(int docID, StoredFieldVisitor visitor) throws IOException {
+                            ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
+                            storedFields.document(docID, complianceAwareStoredFieldVisitor);
+                            complianceAwareStoredFieldVisitor.finished();
+                        }
+                    };
                 } else {
                     return storedFields;
                 }
@@ -93,14 +92,14 @@ public class ReadLogDirectoryReader extends FilterDirectoryReader {
 
                 // The method has been removed in apache lucene 10, ES9
 
-                if (context.getAuditLogConfig().isEnabled() && context.getAuditLogConfig().readHistoryEnabledForIndex(context.getIndex().getName())) {
-                    ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
-                    in.document(docID, complianceAwareStoredFieldVisitor);
-                    complianceAwareStoredFieldVisitor.finished();
-                } else {
-                    in.document(docID, visitor);
-                }
-//                throw new IllegalArgumentException("Method document is still used");
+//                if (context.getAuditLogConfig().isEnabled() && context.getAuditLogConfig().readHistoryEnabledForIndex(context.getIndex().getName())) {
+//                    ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
+//                    in.document(docID, complianceAwareStoredFieldVisitor);
+//                    complianceAwareStoredFieldVisitor.finished();
+//                } else {
+//                    in.document(docID, visitor);
+//                }
+                throw new IllegalArgumentException("Method document is still used");
             }
 
             private class ReadLogStoredFieldsReader extends StoredFieldsReader {
@@ -120,14 +119,14 @@ public class ReadLogDirectoryReader extends FilterDirectoryReader {
 
                 @Override
                 public void document(int docID, StoredFieldVisitor visitor) throws IOException {
-//                    if (context.getAuditLogConfig().isEnabled()
-//                            && context.getAuditLogConfig().readHistoryEnabledForIndex(context.getIndex().getName())) {
-//                        ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
-//                        delegate.document(docID, complianceAwareStoredFieldVisitor);
-//                        complianceAwareStoredFieldVisitor.finished();
-//                    } else {
+                    if (context.getAuditLogConfig().isEnabled()
+                            && context.getAuditLogConfig().readHistoryEnabledForIndex(context.getIndex().getName())) {
+                        ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
+                        delegate.document(docID, complianceAwareStoredFieldVisitor);
+                        complianceAwareStoredFieldVisitor.finished();
+                    } else {
                         delegate.document(docID, visitor);
-//                    }
+                    }
                 }
 
                 @Override
