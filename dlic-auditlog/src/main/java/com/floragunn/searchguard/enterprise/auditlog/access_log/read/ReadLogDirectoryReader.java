@@ -79,7 +79,6 @@ public class ReadLogDirectoryReader extends FilterDirectoryReader {
 //                            ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
 //                            storedFields.document(docID, complianceAwareStoredFieldVisitor);
 //                            complianceAwareStoredFieldVisitor.finished();
-////                            throw new IllegalArgumentException("Method storedFields.document is still used");
 //                        }
 //                    };
                     return storedFields;
@@ -91,14 +90,17 @@ public class ReadLogDirectoryReader extends FilterDirectoryReader {
 
             @Override
             public void document(int docID, StoredFieldVisitor visitor) throws IOException {
-//                if (context.getAuditLogConfig().isEnabled() && context.getAuditLogConfig().readHistoryEnabledForIndex(context.getIndex().getName())) {
-//                    ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
-//                    in.document(docID, complianceAwareStoredFieldVisitor);
-//                    complianceAwareStoredFieldVisitor.finished();
-//                } else {
+
+                // The method has been removed in apache lucene 10, ES9
+
+                if (context.getAuditLogConfig().isEnabled() && context.getAuditLogConfig().readHistoryEnabledForIndex(context.getIndex().getName())) {
+                    ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
+                    in.document(docID, complianceAwareStoredFieldVisitor);
+                    complianceAwareStoredFieldVisitor.finished();
+                } else {
                     in.document(docID, visitor);
-//                }
-                throw new IllegalArgumentException("Method document is still used");
+                }
+//                throw new IllegalArgumentException("Method document is still used");
             }
 
             private class ReadLogStoredFieldsReader extends StoredFieldsReader {
