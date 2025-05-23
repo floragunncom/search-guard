@@ -26,7 +26,7 @@ public class LeakTest {
      * The test should fails from time to time due to leak prevention
      */
     @Test
-    public void causeLeak() {
+    public void causeLeak() throws InterruptedException {
         Client client = cluster.getInternalNodeClient();
         IndexRequest indexRequest = new IndexRequest(INDEX_NAME).source(DocNode.of("foo", "bar")).id("one")
                 .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
@@ -35,5 +35,20 @@ public class LeakTest {
         SearchResponse searchResponse = client.search(new SearchRequest(INDEX_NAME)).actionGet();
         // no searchResponse.decRef(), leak here
         log.info("Search response: {}", searchResponse);
+        Thread.sleep(5000);
+    }
+
+    @Test
+    public void causeMassiveLeak() throws InterruptedException {
+        Client client = cluster.getInternalNodeClient();
+        IndexRequest indexRequest = new IndexRequest(INDEX_NAME).source(DocNode.of("foo", "bar")).id("one")
+                .setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
+        client.index(indexRequest).actionGet();
+
+        for(int i = 0 ; i < 50; i++) {
+            SearchResponse searchResponse = client.search(new SearchRequest(INDEX_NAME)).actionGet();
+            log.info("Search response: {}", searchResponse);
+        }
+        Thread.sleep(5000);
     }
 }
