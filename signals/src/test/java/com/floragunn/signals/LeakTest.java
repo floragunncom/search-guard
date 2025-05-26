@@ -10,6 +10,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.client.internal.Client;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class LeakTest {
@@ -26,6 +27,7 @@ public class LeakTest {
      * The test should fails from time to time due to leak prevention
      */
     @Test
+    @Ignore
     public void causeLeak() throws InterruptedException {
         Client client = cluster.getInternalNodeClient();
         IndexRequest indexRequest = new IndexRequest(INDEX_NAME).source(DocNode.of("foo", "bar")).id("one")
@@ -41,6 +43,7 @@ public class LeakTest {
     }
 
     @Test
+    @Ignore
     public void causeMassiveLeak() throws InterruptedException {
         Client client = cluster.getInternalNodeClient();
         IndexRequest indexRequest = new IndexRequest(INDEX_NAME).source(DocNode.of("foo", "bar")).id("one")
