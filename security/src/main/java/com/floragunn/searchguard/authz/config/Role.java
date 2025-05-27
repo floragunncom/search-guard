@@ -214,6 +214,10 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
             return "index_patterns";
         }
 
+        public boolean usesTemplates() {
+            return !this.indexPatterns.getPatternTemplates().isEmpty() || (this.dls != null && !this.dls.isConstant());
+        }
+
         public static class FlsPattern {
             public static final FlsPattern INCLUDE_ALL = new FlsPattern(Pattern.wildcard(), false, "*");
             public static final FlsPattern EXCLUDE_ALL = new FlsPattern(Pattern.wildcard(), true, "~*");
@@ -439,8 +443,9 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
         private final ImmutableList<IndexPatternTemplate> patternTemplates;
         private final ImmutableList<DateMathExpression> dateMathExpressions;
         private final String asString;
+        private final ImmutableList<Template<String>> source;
 
-        IndexPatterns(Pattern pattern, ImmutableList<IndexPatternTemplate> patternTemplates, ImmutableList<DateMathExpression> dateMathExpressions) {
+        IndexPatterns(Pattern pattern, ImmutableList<IndexPatternTemplate> patternTemplates, ImmutableList<DateMathExpression> dateMathExpressions, ImmutableList<Template<String>> source) {
             this.pattern = pattern;
             this.patternTemplates = patternTemplates;
             this.dateMathExpressions = dateMathExpressions;
@@ -470,6 +475,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
             }
 
             this.asString = asString.toString();
+            this.source = source;
         }
 
         public Pattern getPattern() {
@@ -482,6 +488,10 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
         public ImmutableList<DateMathExpression> getDateMathExpressions() {
             return dateMathExpressions;
+        }
+
+        public ImmutableList<Template<String>> getSource() {
+            return this.source;
         }
 
         @Override
@@ -522,7 +532,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
                 validationErrors.throwExceptionForPresentErrors();
 
                 return new IndexPatterns(Pattern.create(removeLeadingNegations(constantPatterns)), ImmutableList.of(patternTemplates),
-                        ImmutableList.of(dateMathExpressions));
+                        ImmutableList.of(dateMathExpressions), source);
 
             }
 

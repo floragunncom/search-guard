@@ -42,7 +42,7 @@ import com.floragunn.searchsupport.meta.Meta;
 public class DlsFlsProcessedConfig {
     private static final Logger log = LogManager.getLogger(DlsFlsProcessedConfig.class);
 
-    public static final DlsFlsProcessedConfig DEFAULT = new DlsFlsProcessedConfig(DlsFlsConfig.DEFAULT, null, null, null, null, null);
+    public static final DlsFlsProcessedConfig DEFAULT = new DlsFlsProcessedConfig(DlsFlsConfig.DEFAULT, null, null, null, SgDynamicConfiguration.empty(CType.ROLES), null, null);
 
     private final DlsFlsConfig dlsFlsConfig;
     private final RoleBasedDocumentAuthorization documentAuthorization;
@@ -51,12 +51,13 @@ public class DlsFlsProcessedConfig {
     private final boolean validationErrorsPresent;
     private final String validationErrorDescription;
     private final String uniqueValidationErrorToken;
+    private final SgDynamicConfiguration<Role> roleConfig;
     private Future<?> updateFuture;
     private long metadataVersionEffective;
 
     DlsFlsProcessedConfig(DlsFlsConfig dlsFlsConfig, RoleBasedDocumentAuthorization documentAuthorization,
-            RoleBasedFieldAuthorization fieldAuthorization, RoleBasedFieldMasking fieldMasking, ValidationErrors rolesValidationErrors,
-            ValidationErrors rolesMappingValidationErrors) {
+            RoleBasedFieldAuthorization fieldAuthorization, RoleBasedFieldMasking fieldMasking, SgDynamicConfiguration<Role> roleConfig, ValidationErrors rolesValidationErrors,
+        ValidationErrors rolesMappingValidationErrors) {
         this.dlsFlsConfig = dlsFlsConfig;
         this.documentAuthorization = documentAuthorization;
         this.fieldAuthorization = fieldAuthorization;
@@ -64,8 +65,9 @@ public class DlsFlsProcessedConfig {
         this.validationErrorsPresent = ((rolesValidationErrors != null) && (rolesValidationErrors.hasErrors()))//
                 || ((rolesMappingValidationErrors != null) && (rolesMappingValidationErrors.hasErrors()));
         this.uniqueValidationErrorToken = UUID.randomUUID().toString();
-        this.validationErrorDescription = describeValidationErrors(uniqueValidationErrorToken, rolesValidationErrors, //
-                rolesMappingValidationErrors);
+        this.validationErrorDescription = describeValidationErrors(uniqueValidationErrorToken, rolesValidationErrors,//
+            rolesMappingValidationErrors);
+        this.roleConfig = roleConfig;
     }
 
     static DlsFlsProcessedConfig createFrom(ConfigMap configMap, ComponentState componentState, Meta indexMetadata) {
@@ -100,9 +102,10 @@ public class DlsFlsProcessedConfig {
             componentState.setState(State.INITIALIZED);
             ValidationErrors rolesValidationErrors = roleConfig.getValidationErrors();
             ValidationErrors rolesMappingsValidationErrors = Optional.ofNullable(configMap.get(CType.ROLESMAPPING))
-                    .map(SgDynamicConfiguration::getValidationErrors).orElse(null);
-            return new DlsFlsProcessedConfig(dlsFlsConfig, documentAuthorization, fieldAuthorization, fieldMasking, rolesValidationErrors,
-                    rolesMappingsValidationErrors);
+                .map(SgDynamicConfiguration::getValidationErrors)
+                .orElse(null);
+            return new DlsFlsProcessedConfig(dlsFlsConfig, documentAuthorization, fieldAuthorization, fieldMasking, roleConfig, rolesValidationErrors,
+                rolesMappingsValidationErrors);
         } catch (Exception e) {
             log.error("Error while updating DLS/FLS config", e);
             componentState.setFailed(e);
@@ -128,6 +131,10 @@ public class DlsFlsProcessedConfig {
 
     public MetricsLevel getMetricsLevel() {
         return dlsFlsConfig.getMetricsLevel();
+    }
+
+    public SgDynamicConfiguration<Role> getRoleConfig() {
+        return roleConfig;
     }
 
     private void updateIndices(Meta indexMetadata) {

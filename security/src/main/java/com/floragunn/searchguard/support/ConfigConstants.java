@@ -60,6 +60,8 @@ public class ConfigConstants {
 
     public static final String SG_INITIAL_ACTION_CLASS_HEADER = SG_CONFIG_PREFIX+"initial_action_class_header";
 
+    public static final String SG_AUTHZ_HASH_THREAD_CONTEXT_HEADER = "_sg_dls_fls_authz";
+
     /**
      * Set by SSL plugin for https requests only
      */

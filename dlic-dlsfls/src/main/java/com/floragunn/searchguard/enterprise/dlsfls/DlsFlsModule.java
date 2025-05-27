@@ -56,6 +56,7 @@ import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.enterprise.dlsfls.lucene.DlsFlsDirectoryReaderWrapper;
 import com.floragunn.searchguard.license.SearchGuardLicense;
 import com.floragunn.searchguard.license.SearchGuardLicense.Feature;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
@@ -67,6 +68,9 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     // XXX Hack to trigger early initialization of DlsFlsConfig
     @SuppressWarnings("unused")
     private static final CType<DlsFlsConfig> TYPE = DlsFlsConfig.TYPE;
+    
+    static final StaticSettings.Attribute<Boolean> PROVIDE_THREAD_CONTEXT_AUTHZ_HASH = StaticSettings.Attribute
+            .define("searchguard.dls_fls.provide_thread_context_authz_hash").withDefault(false).asBoolean();
 
     private final ComponentState componentState = new ComponentState(1000, null, "dlsfls", DlsFlsModule.class).requiresEnterpriseLicense();
     /**
@@ -104,7 +108,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
 
         this.dlsFlsValve = new DlsFlsValve(baseDependencies.getLocalClient(), baseDependencies.getClusterService(),
                 baseDependencies.getIndexNameExpressionResolver(), baseDependencies.getGuiceDependencies(),
-                baseDependencies.getThreadPool().getThreadContext(), config);
+                baseDependencies.getThreadPool().getThreadContext(), config, baseDependencies.getStaticSettings());
 
         this.dlsFlsSearchOperationListener = new DlsFlsSearchOperationListener(this.dlsFlsBaseContext, config);
 
@@ -189,5 +193,10 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
         return DlsFlsConfigApi.ACTION_HANDLERS;
+    }
+    
+    @Override
+    public StaticSettings.AttributeSet getSettings() {
+        return StaticSettings.AttributeSet.of(PROVIDE_THREAD_CONTEXT_AUTHZ_HASH);
     }
 }

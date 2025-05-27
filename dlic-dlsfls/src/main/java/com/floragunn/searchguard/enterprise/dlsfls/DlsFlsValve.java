@@ -63,11 +63,13 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.enterprise.dlsfls.DlsFlsConfig.Mode;
 import com.floragunn.searchguard.enterprise.dlsfls.filter.DlsFilterLevelActionHandler;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import com.floragunn.searchsupport.meta.Meta;
+
 
 public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvider {
     private static final String MAP_EXECUTION_HINT = "map";
@@ -82,9 +84,10 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
     private final AtomicReference<DlsFlsProcessedConfig> config;
     private final ComponentState componentState = new ComponentState(0, null, "dls_fls_valve", DlsFlsValve.class).initialized();
     private final TimeAggregation applyTimeAggregation = new TimeAggregation.Nanoseconds();
+    private final ThreadContextAuthzHashProvider authzHashProvider;
 
     public DlsFlsValve(Client nodeClient, ClusterService clusterService, IndexNameExpressionResolver resolver, GuiceDependencies guiceDependencies,
-            ThreadContext threadContext, AtomicReference<DlsFlsProcessedConfig> config) {
+            ThreadContext threadContext, AtomicReference<DlsFlsProcessedConfig> config, StaticSettings staticSettings) {
         this.nodeClient = nodeClient;
         this.clusterService = clusterService;
         this.resolver = resolver;
@@ -92,6 +95,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
         this.threadContext = threadContext;
         this.config = config;
         this.componentState.addMetrics("filter_request", applyTimeAggregation);
+        this.authzHashProvider = new ThreadContextAuthzHashProvider(staticSettings, threadContext);
     }
 
     @Override
@@ -134,6 +138,7 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
             boolean hasFieldMasking = fieldMasking.hasRestrictions(context, resolvedIndices, meter);
 
             if (!hasDlsRestrictions && !hasFlsRestrictions && !hasFieldMasking) {
+                authzHashProvider.noRestrictions();
                 return SyncAuthorizationFilter.Result.OK;
             }
 
@@ -168,6 +173,8 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
                     }
                 }
             }
+
+            authzHashProvider.restrictions(context, config);
 
             Object request = context.getRequest();
 
