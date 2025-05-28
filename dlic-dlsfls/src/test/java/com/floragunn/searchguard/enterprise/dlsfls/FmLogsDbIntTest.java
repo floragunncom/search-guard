@@ -86,9 +86,10 @@ public class FmLogsDbIntTest {
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls();
 
     @ClassRule
-    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled() //
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled() //
             .authc(AUTHC).dlsFls(DLSFLS).users(ADMIN, HASHED_IP_USER, HASHED_LOC_USER).resources("dlsfls") //
-            .embedded().build();
+            // An external process cluster is used due to the use of LogsDB indices, which requires an additional native library.
+            .useExternalProcessCluster().build();
 
     @BeforeClass
     public static void setupTestData() throws IOException {
