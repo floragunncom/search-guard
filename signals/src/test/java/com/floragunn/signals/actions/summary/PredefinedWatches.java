@@ -237,23 +237,24 @@ class PredefinedWatches {
         }
     }
     public long countWatchStatusWithAvailableStatusCode(String watchStateIndexName) {
-        try {
-            Client client = localCluster.getPrivilegedInternalNodeClient();
-            SearchRequest request = new SearchRequest(watchStateIndexName);
-            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-            searchSourceBuilder.query(QueryBuilders.existsQuery("last_status.code"));
-            request.source(searchSourceBuilder);
-
-            SearchResponse response = client.search(request).get();
-
-            try {
-                return response.getHits().getTotalHits().value;
-            } finally {
-                response.decRef();
-            }
-        } catch (ExecutionException | InterruptedException e) {
-            throw new RuntimeException("Cannot count watch states with available status code.", e);
-        }
+        throw new IllegalStateException("This method causes memory leak in tests, do not use it.");
+//        try {
+//            Client client = localCluster.getPrivilegedInternalNodeClient();
+//            SearchRequest request = new SearchRequest(watchStateIndexName);
+//            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+//            searchSourceBuilder.query(QueryBuilders.existsQuery("last_status.code"));
+//            request.source(searchSourceBuilder);
+//
+//            SearchResponse response = client.search(request).get();
+//
+//            try {
+//                return response.getHits().getTotalHits().value;
+//            } finally {
+//                response.decRef();
+//            }
+//        } catch (ExecutionException | InterruptedException e) {
+//            throw new RuntimeException("Cannot count watch states with available status code.", e);
+//        }
     }
 
     public class WatchPointer {

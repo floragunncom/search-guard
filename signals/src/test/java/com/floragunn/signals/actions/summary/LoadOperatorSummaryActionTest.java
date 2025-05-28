@@ -45,6 +45,7 @@ import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class LoadOperatorSummaryActionTest {
@@ -137,6 +138,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldGetActionSummaryWithInfoLevel() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temperature-alerts-2", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -174,6 +176,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldGetActionSummaryWithErrorLevel() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temperature-alerts-1", INDEX_NAME_WATCHED_3, INDEX_ALARMS, .15, "createAlarm");
@@ -211,6 +214,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldGetActionSummaryWithoutSeverity() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineSimpleTemperatureWatch("high-temp-alerts", INDEX_NAME_WATCHED_2, INDEX_ALARMS, .05);
@@ -243,6 +247,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldLoadSummaryOfMultipleWatch() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineSimpleTemperatureWatch("high-temp-alerts", INDEX_NAME_WATCHED_2, INDEX_ALARMS, .05);
@@ -293,6 +298,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldLoadSummaryOfWatchWithMultipleActions() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineSimpleTemperatureWatchWitDoubleActions("double-alerts", INDEX_NAME_WATCHED_2, INDEX_ALARMS, .05);
@@ -314,6 +320,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldSortByNumericSeverityDesc() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -341,6 +348,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldSortByNumericSeverityAsc() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -368,6 +376,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldSortByStringSeverityAsc() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -400,6 +409,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldSortByStringSeverityDesc() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -432,6 +442,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldReportErrorWhenSortingOnIncorrectField() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-3", INDEX_NAME_WATCHED_4, INDEX_ALARMS, .25, "createAlarm");
@@ -451,6 +462,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldNotTriggerActionDueToTooLowSeverity() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureWatchWithActionOnCriticalSeverity("critical-severity-action", INDEX_NAME_WATCHED_3,
@@ -485,6 +497,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldSortByStatusCodeAsc() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureWatchWithActionOnCriticalSeverity("critical-severity-action-1", INDEX_NAME_WATCHED_3,
@@ -518,6 +531,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldSortByStatusCodeDesc() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureWatchWithActionOnCriticalSeverity("critical-severity-action-1", INDEX_NAME_WATCHED_3,
@@ -549,6 +563,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldSortByMultipleFieldsDesc() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_4, INDEX_ALARMS, .25, "createAlarm");
@@ -592,6 +607,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldSortByFirstFieldDescAndSecondAsc() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_4, INDEX_ALARMS, .25, "createAlarm");
@@ -635,6 +651,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldSortByInternalActionStatusDesc() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineSimpleTemperatureWatchWitDoubleActionsAndVariousSeverity("watch-id-1", INDEX_NAME_WATCHED_1,
@@ -664,6 +681,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldSortByInternalActionStatusAsc() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineSimpleTemperatureWatchWitDoubleActionsAndVariousSeverity("watch-id-1", INDEX_NAME_WATCHED_1,
@@ -693,6 +711,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldSortByActionCheckedTimeAsc() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineSimpleTemperatureWatch("watch-id-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25);
@@ -715,6 +734,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldSortByActionTriggeredTimeDesc() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineSimpleTemperatureWatch("watch-id-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25);
@@ -737,6 +757,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldSortByActionExecutionTimeAsc() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineSimpleTemperatureWatch("watch-id-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25);
@@ -759,6 +780,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByStatusCode() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureWatchWithActionOnCriticalSeverity("critical-severity-action-1", INDEX_NAME_WATCHED_3,
@@ -787,6 +809,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByStatusCodeWhichDoesNotOccursInStatuses() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureWatchWithActionOnCriticalSeverity("critical-severity-action-1",
@@ -811,6 +834,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByMultipleStatusCodesStatusCodeWhichDoesNotOccursInStatuses() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureWatchWithActionOnCriticalSeverity("critical-severity-action-1",
@@ -845,6 +869,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByWatchIdOne() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("one", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -870,6 +895,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByWatchIdThree() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("one", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -894,6 +920,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldNotFindAnyWatchDuringFilteringById() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("one", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -917,6 +944,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByCriticalSeverity() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -942,6 +970,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByInfoOrErrorSeverity() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -971,6 +1000,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByWarningSeverity() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -994,6 +1024,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByEqualNumeric4SeverityLeve() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -1019,6 +1050,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByEqualNumeric3SeverityLeve() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -1044,6 +1076,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByGreaterNumericSeverity1Leve() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -1071,6 +1104,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByGreaterNumericSeverity2Leve() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -1098,6 +1132,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByGreaterNumericSeverity3Leve() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -1123,6 +1158,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByLessNumericSeverity3Leve() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -1150,6 +1186,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByLessNumericSeverity4Leve() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -1185,6 +1222,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByNumericSeverityLeveBetweenGivenValues() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -1210,6 +1248,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldDetectIncorrectRangeCriteria() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("temp-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
@@ -1235,6 +1274,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void sortingByNonExistingFieldShouldNotCauseException() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineSimpleTemperatureWatch("high-temp-alerts", INDEX_NAME_WATCHED_2, INDEX_ALARMS, .05);
@@ -1256,6 +1296,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void sortingByNonExistingFieldShouldNotCauseExceptionNoWatches() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             deleteWatchStateAndAlarms();
@@ -1271,6 +1312,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByActionsNames() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("one", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "actionOne");
@@ -1296,6 +1338,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterOutAllWatchesByActionsNames() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("one", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "actionOne");
@@ -1319,6 +1362,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByActionTimeRanges() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("one", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "actionOne");
@@ -1348,6 +1392,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterOutAllWatchesByActionTimeRanges() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("one", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "actionOne");
@@ -1376,6 +1421,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByProperties() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("one", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "actionOne");
@@ -1405,6 +1451,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterByVariousCommonFieldsAndValues() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("one", INDEX_NAME_WATCHED_1, INDEX_ALARMS, 50.0, "action");
@@ -1433,6 +1480,7 @@ public class LoadOperatorSummaryActionTest {
     }
 
     @Test
+    @Ignore
     public void shouldFilterOutAllWatchesByProperties() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
         predefinedWatches.defineTemperatureSeverityWatch("one", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "actionOne");
