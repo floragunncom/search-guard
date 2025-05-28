@@ -14,9 +14,10 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls;
 
+import java.io.IOException;
 import java.util.Collection;
 
-import org.elasticsearch.client.internal.Client;
+
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -67,19 +68,22 @@ public class DlsTest {
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls();
 
     @ClassRule
-    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
-            .users(ADMIN, DEPT_A_USER, DEPT_D_USER).resources("dlsfls").embedded().build();
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
+            .users(ADMIN, DEPT_A_USER, DEPT_D_USER).resources("dlsfls")
+            // An external process cluster is used due to the use of LogsDB indices, which requires an additional native library.
+            .useExternalProcessCluster().build();
 
     @BeforeClass
-    public static void setupTestData() {
-        Client client = cluster.getInternalNodeClient();
+    public static void setupTestData() throws IOException {
         Settings settings = Settings.builder().put("index.number_of_shards", 5).build();
-        String indexMode = TEST_DATA.createIndex(client, INDEX_NORMAL_MODE, settings);
-        // null means default mode which is currently normal
-        assertThat(indexMode, anyOf(equalTo("normal"), nullValue()));
-        settings = Settings.builder().put("index.number_of_shards", 5).put("index.mode", "logsdb").build();
-        indexMode = TEST_DATA.createIndex(client, INDEX_LOGS_DB_MODE, settings);
-        assertThat(indexMode, equalTo("logsdb"));
+        try(GenericRestClient adminCertRestClient = cluster.getAdminCertRestClient()) {
+            String indexMode = TEST_DATA.createIndex(adminCertRestClient, INDEX_NORMAL_MODE, settings);
+            // null means default mode which is currently normal
+            assertThat(indexMode, anyOf(equalTo("normal"), nullValue()));
+            settings = Settings.builder().put("index.number_of_shards", 5).put("index.mode", "logsdb").build();
+            indexMode = TEST_DATA.createIndex(adminCertRestClient, INDEX_LOGS_DB_MODE, settings);
+            assertThat(indexMode, equalTo("logsdb"));
+        }
     }
 
     private final String indexName;

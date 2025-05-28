@@ -77,25 +77,27 @@ public class DlsIntTest {
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().metrics("detailed");
 
     @ClassRule
-    public static LocalCluster.Embedded cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
-            .users(ADMIN, DEPT_A_USER, DEPT_D_USER, DEPT_D_TERMS_LOOKUP_USER).resources("dlsfls").embedded().build();
+    public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
+            .users(ADMIN, DEPT_A_USER, DEPT_D_USER, DEPT_D_TERMS_LOOKUP_USER).resources("dlsfls")
+            // An external process cluster is used due to the use of LogsDB indices, which requires an additional native library.
+            .useExternalProcessCluster().build();
 
     @BeforeClass
-    public static void setupTestData() {
-        Client client = cluster.getInternalNodeClient();
+    public static void setupTestData() throws Exception {
         Settings settings = Settings.builder().put("index.number_of_shards", 5).build();
-        TEST_DATA.createIndex(client, INDEX_NORMAL_MODE, settings);
-        settings = Settings.builder().put("index.number_of_shards", 5).put("index.mode", "logsdb").build();
-        TEST_DATA.createIndex(client, INDEX_LOGS_DB_MODE, settings);
+        try(GenericRestClient adminCertRestClient = cluster.getAdminCertRestClient()) {
+            TEST_DATA.createIndex(adminCertRestClient, INDEX_NORMAL_MODE, settings);
+            settings = Settings.builder().put("index.number_of_shards", 5).put("index.mode", "logsdb").build();
+            TEST_DATA.createIndex(adminCertRestClient, INDEX_LOGS_DB_MODE, settings);
 
-        client.index(new IndexRequest("user_dept_terms_lookup").id("dept_d_terms_lookup_user").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
-                .source("dept", "dept_d")).actionGet();
+            adminCertRestClient.postJson("/user_dept_terms_lookup/_doc/dept_d_terms_lookup_user?refresh=true", DocNode.of("dept", "dept_d"));
 
-        String indexMode = TEST_DATA.getIndexMode(client, INDEX_NORMAL_MODE);
-        // null means default mode which is currently normal
-        assertThat(indexMode, anyOf(equalTo("normal"), nullValue()));
-        indexMode = TEST_DATA.getIndexMode(client, INDEX_LOGS_DB_MODE);
-        assertThat(indexMode, equalTo("logsdb"));
+            String indexMode = TEST_DATA.getIndexMode(adminCertRestClient, INDEX_NORMAL_MODE);
+            // null means default mode which is currently normal
+            assertThat(indexMode, anyOf(equalTo("normal"), nullValue()));
+            indexMode = TEST_DATA.getIndexMode(adminCertRestClient, INDEX_LOGS_DB_MODE);
+            assertThat(indexMode, equalTo("logsdb"));
+        }
     }
 
     private final String indexName;
