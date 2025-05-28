@@ -90,9 +90,10 @@ public class ReadLogDirectoryReader extends FilterDirectoryReader {
             @Override
             public void document(int docID, StoredFieldVisitor visitor) throws IOException {
                 if (context.getAuditLogConfig().isEnabled() && context.getAuditLogConfig().readHistoryEnabledForIndex(context.getIndex().getName())) {
-                    ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
-                    in.document(docID, complianceAwareStoredFieldVisitor);
-                    complianceAwareStoredFieldVisitor.finished();
+//                    ComplianceAwareStoredFieldVisitor complianceAwareStoredFieldVisitor = new ComplianceAwareStoredFieldVisitor(visitor, context);
+//                    in.document(docID, complianceAwareStoredFieldVisitor);
+//                    complianceAwareStoredFieldVisitor.finished();
+                    throw new IllegalStateException("Is this method still used?");
                 } else {
                     in.document(docID, visitor);
                 }
