@@ -46,8 +46,8 @@
   </distributionManagement>
 
   <properties>
-<!--    <elasticsearch.version>8.18.0-SNAPSHOT</elasticsearch.version>-->
-    <elasticsearch.version>8.18.0</elasticsearch.version>
+    <elasticsearch.version>8.18.0-SNAPSHOT</elasticsearch.version>
+<!--    <elasticsearch.version>8.18.0</elasticsearch.version>-->
     <sg-suite.version>master-SNAPSHOT</sg-suite.version>
     <revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
 

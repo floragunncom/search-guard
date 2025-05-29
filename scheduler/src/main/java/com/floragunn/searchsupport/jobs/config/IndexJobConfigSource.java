@@ -19,6 +19,33 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchsupport.jobs.cluster.JobDistributor;
 
 public class IndexJobConfigSource<JobType extends JobConfig> implements Iterable<JobType> {
+
+    private static class SearchResponseHolder {
+        private SearchResponse searchResponse;
+
+        public synchronized void hold(SearchResponse searchResponse) {
+            if (this.searchResponse != null) {
+                this.searchResponse.decRef();
+            }
+            this.searchResponse = searchResponse;
+        }
+
+        public synchronized void release() {
+            if (this.searchResponse != null) {
+                this.searchResponse.decRef();
+                this.searchResponse = null;
+            }
+        }
+
+        public synchronized SearchHits getHits() {
+            return searchResponse.getHits();
+        }
+
+        public synchronized String getScrollId() {
+            return searchResponse.getScrollId();
+        }
+    }
+
     private final static Logger log = LogManager.getLogger(IndexJobConfigSource.class);
 
     private final String indexName;
@@ -48,7 +75,7 @@ public class IndexJobConfigSource<JobType extends JobConfig> implements Iterable
     private class IndexJobConfigIterator implements Iterator<JobType> {
         private Iterator<SearchHit> searchHitIterator;
         private SearchRequest searchRequest;
-        private SearchResponse searchResponse;
+        private SearchResponseHolder searchResponse;
         private SearchHits searchHits;
         private JobType current;
         private boolean done = false;
@@ -88,7 +115,7 @@ public class IndexJobConfigSource<JobType extends JobConfig> implements Iterable
                         log.debug("Executing " + this.searchRequest);
                     }
 
-                    this.searchResponse = client.search(searchRequest).actionGet();
+                    this.searchResponse.hold(client.search(searchRequest).actionGet());
                     this.searchHits = this.searchResponse.getHits();
                     this.searchHitIterator = this.searchHits.iterator();
                 } catch (IndexNotFoundException e) {
@@ -103,9 +130,8 @@ public class IndexJobConfigSource<JobType extends JobConfig> implements Iterable
                 }
 
                 if (!this.searchHitIterator.hasNext()) {
-                    this.searchResponse.decRef();
-                    this.searchResponse = client.prepareSearchScroll(this.searchResponse.getScrollId()).setScroll(new TimeValue(10000)).execute()
-                            .actionGet();
+                    this.searchResponse.hold(client.prepareSearchScroll(this.searchResponse.getScrollId()).setScroll(new TimeValue(10000)).execute()
+                            .actionGet());
                     this.searchHits = this.searchResponse.getHits();
                     this.searchHitIterator = this.searchHits.iterator();
 
@@ -139,7 +165,7 @@ public class IndexJobConfigSource<JobType extends JobConfig> implements Iterable
                 if (log.isDebugEnabled()) {
                     log.debug("Loaded jobs from " + indexName + ": " + loaded + "; filtered: " + filtered);
                 }
-                this.searchResponse.decRef();
+                this.searchResponse.release();
             }
         }
 
