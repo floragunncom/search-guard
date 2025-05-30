@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -ex
 
 REPOSITORY=$1
 ARTIFACT=$2

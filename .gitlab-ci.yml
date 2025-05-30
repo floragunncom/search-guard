@@ -98,7 +98,8 @@ build:
       when: never
     - when: always
   script:
-    - | 
+    - |
+       echo "185.11.255.132 maven.search-guard.com" >> /etc/hosts
        SNAPSHOT_REVISION="$CI_COMMIT_REF_SLUG-SNAPSHOT"
        mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
