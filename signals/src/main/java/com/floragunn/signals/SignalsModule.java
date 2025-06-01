@@ -46,10 +46,6 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
-import com.floragunn.searchsupport.jobs.actions.CheckForExecutingTriggerAction;
-import com.floragunn.searchsupport.jobs.actions.SchedulerConfigUpdateAction;
-import com.floragunn.searchsupport.jobs.actions.TransportCheckForExecutingTriggerAction;
-import com.floragunn.searchsupport.jobs.actions.TransportSchedulerConfigUpdateAction;
 import com.floragunn.signals.actions.account.config_update.DestinationConfigUpdateAction;
 import com.floragunn.signals.actions.account.config_update.TransportDestinationConfigUpdateAction;
 import com.floragunn.signals.actions.account.delete.DeleteAccountAction;
@@ -167,8 +163,6 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     new ActionHandler<>(StartStopTenantAction.INSTANCE, TransportStartStopTenantAction.class),
                     new ActionHandler<>(StartStopAction.INSTANCE, TransportStartStopAction.class),
                     new ActionHandler<>(SearchWatchStateAction.INSTANCE, TransportSearchWatchStateAction.class),
-                    new ActionHandler<>(SchedulerConfigUpdateAction.INSTANCE, TransportSchedulerConfigUpdateAction.class),
-                    new ActionHandler<>(CheckForExecutingTriggerAction.INSTANCE, TransportCheckForExecutingTriggerAction.class),
                     new ActionHandler<>(CreateOrReplaceTruststoreAction.INSTANCE, CreateOrReplaceTruststoreAction.UploadTruststoreHandler.class),
                     new ActionHandler<>(FindOneTruststoreAction.INSTANCE, FindOneTruststoreAction.FindOneTruststoreHandler.class),
                     new ActionHandler<>(FindAllTruststoresAction.INSTANCE, FindAllTruststoresAction.FindAllTruststoresHandler.class),
