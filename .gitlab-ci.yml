@@ -34,7 +34,7 @@ default:
         if command -v apt-get &>/dev/null; then
           # For Debian based images, mainly used during Java build and integration tests
           apt-get update &> /dev/null
-          apt-get install xmlstarlet -y > /dev/null 2>&1
+          apt-get install xmlstarlet gnupg -y > /dev/null 2>&1
         elif command -v apk &>/dev/null; then
           # For Alpine based images, mainly used during bash/docker integration tests
           apk update &> /dev/null
