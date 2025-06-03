@@ -1,4 +1,5 @@
 variables:
+  SG_BUILD_IMAGE: "floragunncom/integrationtests:1.0.0-open-jdk-21"
   # IT_BRANCH: "remove-legacy"
   SG_KI_PLUGIN: "b-master-SNAPSHOT"
   # KI_VERSION: "7.16.3" 
