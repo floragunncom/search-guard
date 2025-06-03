@@ -92,7 +92,7 @@ include:
 
 build:
   #image: maven:3.9.9-amazoncorretto-21-debian
-  image: "floragunncom/integrationtests:1.0.0-open-jdk-21"
+  image: "floragunncom/build-java:0.0.1-openjdk-21"
   allow_failure: false
   stage: build
   rules:
