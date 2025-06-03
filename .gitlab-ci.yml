@@ -5,7 +5,8 @@ workflow:
     - when: always
 
 variables:
-  SG_BUILD_IMAGE: "maven:3.9.9-amazoncorretto-21-debian"
+  #SG_BUILD_IMAGE: "maven:3.9.9-amazoncorretto-21-debian"
+  SG_BUILD_IMAGE: "floragunncom/integrationtests:1.0.0-open-jdk-21"
   DOCKER_VERSION: "20.10.17"
   
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
