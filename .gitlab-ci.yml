@@ -6,7 +6,7 @@ workflow:
 
 variables:
   #SG_BUILD_IMAGE: "maven:3.9.9-amazoncorretto-21-debian"
-  SG_BUILD_IMAGE: "floragunncom/build-java:0.0.1-openjdk-21"
+  SG_BUILD_IMAGE: "floragunncom/ci-build-noble-mvn38-java21:0.1.0"
   DOCKER_VERSION: "20.10.17"
   
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
@@ -92,7 +92,7 @@ include:
 
 build:
   #image: maven:3.9.9-amazoncorretto-21-debian
-  image: "floragunncom/build-java:0.0.1-openjdk-21"
+  image: "floragunncom/ci-build-noble-mvn38-java21:0.1.0"
   allow_failure: false
   stage: build
   rules:
