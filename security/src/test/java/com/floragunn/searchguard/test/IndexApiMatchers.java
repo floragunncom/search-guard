@@ -17,6 +17,20 @@
 
 package com.floragunn.searchguard.test;
 
+import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocReader;
+import com.floragunn.codova.documents.DocumentParseException;
+import com.floragunn.codova.documents.Format.UnknownDocTypeException;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.Option;
+import org.hamcrest.Description;
+import org.hamcrest.DiagnosingMatcher;
+import org.hamcrest.Matcher;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -29,20 +43,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.hamcrest.Description;
-import org.hamcrest.DiagnosingMatcher;
-import org.hamcrest.Matcher;
-
-import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
-import com.floragunn.codova.documents.DocNode;
-import com.floragunn.codova.documents.DocReader;
-import com.floragunn.codova.documents.DocumentParseException;
-import com.floragunn.codova.documents.Format.UnknownDocTypeException;
-import com.floragunn.fluent.collections.ImmutableMap;
-import com.floragunn.fluent.collections.ImmutableSet;
-import com.jayway.jsonpath.Configuration;
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.Option;
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
 
 public class IndexApiMatchers {
     private static final Pattern DS_BACKING_INDEX_PATTERN = Pattern.compile("\\.ds-(.+)-[0-9\\.]+-[0-9]+");
@@ -63,6 +66,16 @@ public class IndexApiMatchers {
         }
 
         return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices);
+    }
+
+    public static SqlLimitedToMatcher sqlLimitedTo(TestIndexLike... testIndices) {
+        Map<String, TestIndexLike> indexNameMap = new HashMap<>();
+
+        for (TestIndexLike testIndex : testIndices) {
+            indexNameMap.put(testIndex.getName(), testIndex);
+        }
+
+        return new SqlLimitedToMatcher(indexNameMap);
     }
 
     public static IndexMatcher limitedTo(TestIndexLike... testIndices) {
@@ -326,19 +339,15 @@ public class IndexApiMatchers {
             return pendingDocuments;
         }
 
-        private ImmutableSet<String> getExpectedIndices() {
-            return ImmutableSet.of(indexNameMap.keySet());
-        }
-
         @Override
         public IndexMatcher but(IndexMatcher other) {
             if (other instanceof LimitedToMatcher) {
-                return new ContainsExactlyMatcher(intersection(this.indexNameMap, ((LimitedToMatcher) other).indexNameMap), //
+                return new ContainsExactlyMatcher(testIndicesIntersection(this.indexNameMap, ((LimitedToMatcher) other).indexNameMap), //
                         this.containsSearchGuardIndices && other.containsSearchGuardIndices(), //
                         this.containsEsInternalIndices && other.containsEsInternalIndices(), //
                         this.jsonPath, this.statusCodeWhenEmpty);
             } else if (other instanceof ContainsExactlyMatcher) {
-                return new ContainsExactlyMatcher(intersection(this.indexNameMap, ((ContainsExactlyMatcher) other).indexNameMap), //
+                return new ContainsExactlyMatcher(testIndicesIntersection(this.indexNameMap, ((ContainsExactlyMatcher) other).indexNameMap), //
                         this.containsSearchGuardIndices && other.containsSearchGuardIndices(), //
                         this.containsEsInternalIndices && other.containsEsInternalIndices(), //
                         this.jsonPath, this.statusCodeWhenEmpty);
@@ -350,24 +359,6 @@ public class IndexApiMatchers {
             } else {
                 throw new RuntimeException("Unexpected argument " + other);
             }
-        }
-
-        private Map<String, TestIndexLike> intersection(Map<String, TestIndexLike> map1, Map<String, TestIndexLike> map2) {
-            Map<String, TestIndexLike> result = new HashMap<>();
-
-            for (Map.Entry<String, TestIndexLike> entry : map1.entrySet()) {
-                String key = entry.getKey();
-                TestIndexLike index1 = entry.getValue();
-                TestIndexLike index2 = map2.get(key);
-
-                if (index2 == null) {
-                    continue;
-                }
-
-                result.put(key, index1.intersection(index2));
-            }
-
-            return Collections.unmodifiableMap(result);
         }
 
         @Override
@@ -409,6 +400,157 @@ public class IndexApiMatchers {
             return indexNameMap.containsKey(testIndex.getName());
         }
 
+    }
+
+    public static class SqlLimitedToMatcher extends AbstractIndexMatcher implements IndexMatcher {
+
+        private boolean shouldContainColumns;
+
+        public SqlLimitedToMatcher(Map<String, TestIndexLike> indexNameMap) {
+            super(indexNameMap, false, false);
+            this.shouldContainColumns = true;
+        }
+
+        public SqlLimitedToMatcher(Map<String, TestIndexLike> indexNameMap, int statusCodeWhenEmpty, boolean shouldContainColumns) {
+            super(indexNameMap, false, false, null, statusCodeWhenEmpty);
+            this.shouldContainColumns = shouldContainColumns;
+        }
+
+        @Override
+        protected boolean matchesImpl(Collection<?> collection, Description mismatchDescription, GenericRestClient.HttpResponse response) {
+            DocNode responseBody;
+            if (collection.size() != 1 || !(collection.iterator().next() instanceof Map)) {
+                mismatchDescription.appendText("Expected collection with one element of Map type containing response body");
+                return false;
+            } else {
+                responseBody = DocNode.wrap(collection.iterator().next());
+            }
+
+            if (this.shouldContainColumns) {
+                if (! responseBody.containsKey("columns")) {
+                    mismatchDescription.appendText(responseBody.toJsonString() + "\nresponse body doesn't contain 'columns' key\n");
+                    return false;
+                }
+
+                Set<String> expectedColumnsNames = getExpectedColumnsNames();
+                List<?> actualColumnsNames = responseBody.findByJsonPath("$.columns[*].name");
+
+                Matcher<Collection<?>> columnsSizeMatcher = hasSize(expectedColumnsNames.size());
+                if (! columnsSizeMatcher.matches(actualColumnsNames)) {
+                    mismatchDescription.appendText(responseBody.toJsonString() + "\n$.columns[*].name expected: ");
+                    columnsSizeMatcher.describeTo(mismatchDescription);
+                    mismatchDescription.appendText(", actual: ");
+                    columnsSizeMatcher.describeMismatch(actualColumnsNames, mismatchDescription);
+                    return false;
+                }
+
+                Matcher<Iterable<?>> columnsMatcher = containsInAnyOrder(expectedColumnsNames.toArray(new String[] {}));
+                if (! columnsMatcher.matches(actualColumnsNames)) {
+                    mismatchDescription.appendText(responseBody.toJsonString() + "\n$.columns[*].name expected: ");
+                    columnsMatcher.describeTo(mismatchDescription);
+                    mismatchDescription.appendText(", actual: ");
+                    columnsMatcher.describeMismatch(actualColumnsNames, mismatchDescription);
+                    return false;
+                }
+            } else {
+                if (responseBody.containsKey("columns")) {
+                    mismatchDescription.appendText(responseBody.toJsonString() + "\nresponse body shouldn't contain 'columns' key\n");
+                    return false;
+                }
+            }
+
+            if (! responseBody.containsKey("rows")) {
+                mismatchDescription.appendText(responseBody.toJsonString() + "\nresponse body doesn't contain 'rows' key\n");
+                return false;
+            }
+
+            List<Collection<?>> expectedRows = getExpectedRows();
+            List<?> actualRows = responseBody.findByJsonPath("$.rows[*]");
+
+            List<Matcher<Iterable<?>>> containsExpectedRow = expectedRows.stream().map(values -> containsInAnyOrder(values.toArray(new Object[] {}))).collect(Collectors.toUnmodifiableList());
+            Matcher<Matcher<Iterable<?>>> containsAnyOfExpectedRows = anyOf(containsExpectedRow.toArray(new Matcher[] {}));
+            List<Object> unexpectedRows = new ArrayList<>();
+            for (Object row : actualRows) {
+                if (! containsAnyOfExpectedRows.matches(row)) {
+                    unexpectedRows.add(row);
+                }
+            }
+
+            if (unexpectedRows.isEmpty()) {
+                return true;
+            } else {
+                mismatchDescription.appendText(responseBody.toJsonString() + "\nresponse body contains some unexpected rows:");
+                mismatchDescription.appendValue(unexpectedRows);
+                return false;
+            }
+        }
+
+        private List<Collection<?>> getExpectedRows() {
+            return indexNameMap.entrySet().stream()
+                    .flatMap(entry -> entry.getValue().getDocuments().values().stream())
+                    .map(Map::values)
+                    .collect(Collectors.toUnmodifiableList());
+        }
+
+        private Set<String> getExpectedColumnsNames() {
+            TestIndexLike testIndexLike = indexNameMap.values().iterator().next();
+            DocNode docSource = DocNode.wrap(testIndexLike.getDocuments().values().iterator().next());
+            return docSource.keySet();
+        }
+
+        public SqlLimitedToMatcher shouldContainColumns(boolean shouldContainColumns) {
+            this.shouldContainColumns = shouldContainColumns;
+            return this;
+        }
+
+        @Override
+        public IndexMatcher but(IndexMatcher other) {
+            if (other instanceof SqlLimitedToMatcher sqlLimitedToMatcher) {
+                return new SqlLimitedToMatcher(
+                        testIndicesIntersection(this.indexNameMap, sqlLimitedToMatcher.indexNameMap), this.statusCodeWhenEmpty,
+                        this.shouldContainColumns
+                );
+            } else {
+                throw new RuntimeException("Unexpected argument " + other);
+            }
+        }
+
+        @Override
+        public IndexMatcher at(String jsonPath) {
+            throw new UnsupportedOperationException("Not supported by this matcher");
+        }
+
+        @Override
+        public IndexMatcher whenEmpty(int statusCode) {
+            return new SqlLimitedToMatcher(this.indexNameMap, statusCode, this.shouldContainColumns);
+        }
+
+        @Override
+        public boolean isCoveredBy(IndexMatcher other) {
+            if (other instanceof SqlLimitedToMatcher sqlLimitedToMatcher) {
+                return sqlLimitedToMatcher.indexNameMap.keySet().containsAll(this.indexNameMap.keySet());
+            } else {
+                throw new RuntimeException("Unexpected argument " + other);
+            }
+        }
+
+        @Override
+        public boolean covers(TestIndex testIndex) {
+            return indexNameMap.containsKey(testIndex.getName());
+        }
+
+        @Override
+        public void describeTo(Description description) {
+            if (indexNameMap.isEmpty()) {
+                if (this.statusCodeWhenEmpty == 200) {
+                    description.appendText("a 200 OK response with an empty result set");
+                } else {
+                    description.appendText("a response with status code " + this.statusCodeWhenEmpty);
+                }
+            } else {
+                description.appendText("a 200 OK response no indices other than " + indexNameMap.keySet().stream().collect(Collectors.joining(", ")));
+            }
+        }
     }
 
     public static class LimitedToMatcher extends AbstractIndexMatcher implements IndexMatcher {
@@ -533,10 +675,6 @@ public class IndexApiMatchers {
                         .appendText("\n\n").appendValue(formatResponse(response));
                 return false;
             }
-        }
-
-        private ImmutableSet<String> getExpectedIndices() {
-            return ImmutableSet.of(indexNameMap.keySet());
         }
 
         @Override
@@ -909,6 +1047,28 @@ public class IndexApiMatchers {
             }
 
             return false;
+        }
+
+        protected Map<String, TestIndexLike> testIndicesIntersection(Map<String, TestIndexLike> map1, Map<String, TestIndexLike> map2) {
+            Map<String, TestIndexLike> result = new HashMap<>();
+
+            for (Map.Entry<String, TestIndexLike> entry : map1.entrySet()) {
+                String key = entry.getKey();
+                TestIndexLike index1 = entry.getValue();
+                TestIndexLike index2 = map2.get(key);
+
+                if (index2 == null) {
+                    continue;
+                }
+
+                result.put(key, index1.intersection(index2));
+            }
+
+            return Collections.unmodifiableMap(result);
+        }
+
+        protected ImmutableSet<String> getExpectedIndices() {
+            return ImmutableSet.of(indexNameMap.keySet());
         }
 
     }
