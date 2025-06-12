@@ -71,7 +71,7 @@ public class FmIntTest {
             .roles(new Role("all_access").indexPermissions("*").on("*").dataStreamPermissions("*").on("*").clusterPermissions("*"))
             .addFieldValueMatcher("hits.hits[*]._source.source_ip", true, not(matchesPattern(HEX_HASH_PATTERN)), matchesPattern(IP_ADDRESS_PATTERN))
             .addFieldValueMatcher("_source.source_ip", false, not(matchesPattern(HEX_HASH_PATTERN)), matchesPattern(IP_ADDRESS_PATTERN))
-            .addFieldValueMatcher("hits.hits[*]._source.source_loc", true, not(matchesPattern(HEX_HASH_PATTERN)), matchesPattern(IP_ADDRESS_PATTERN))
+           .addFieldValueMatcher("hits.hits[*]._source.source_loc", true, not(matchesPattern(HEX_HASH_PATTERN)), matchesPattern(IP_ADDRESS_PATTERN))
             .addFieldValueMatcher("aggregations.test_agg.buckets[*].key", true, not(matchesPattern(HEX_HASH_PATTERN)), matchesPattern(LOCATION_PATTERN))
             .addFieldValueMatcher("hits.total.value", false, equalTo(1));
 
@@ -115,7 +115,7 @@ public class FmIntTest {
             .adminCertUser()//
             .addFieldValueMatcher("hits.hits[*]._source.source_ip", true, not(matchesPattern(HEX_HASH_PATTERN)), matchesPattern(IP_ADDRESS_PATTERN))
             .addFieldValueMatcher("_source.source_ip", false, not(matchesPattern(HEX_HASH_PATTERN)), matchesPattern(IP_ADDRESS_PATTERN))
-            .addFieldValueMatcher("hits.hits[*]._source.source_loc", true, not(matchesPattern(HEX_HASH_PATTERN)), matchesPattern(IP_ADDRESS_PATTERN))
+           .addFieldValueMatcher("hits.hits[*]._source.source_loc", true, not(matchesPattern(HEX_HASH_PATTERN)), matchesPattern(IP_ADDRESS_PATTERN))
             .addFieldValueMatcher("aggregations.test_agg.buckets[*].key", true, not(matchesPattern(HEX_HASH_PATTERN)), matchesPattern(LOCATION_PATTERN))
             .addFieldValueMatcher("hits.total.value", false, equalTo(1));
 

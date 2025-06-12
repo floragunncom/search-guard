@@ -214,6 +214,18 @@ public class GenericRestClient implements AutoCloseable {
         return postJson(path, DocWriter.json().writeAsString(body), headers);
     }
 
+    public HttpResponse postSql(String query, Header... headers) throws Exception {
+        return postSql(DocNode.of("query", query), headers);
+    }
+
+    public HttpResponse postSql(Map<String, Object> body, Header... headers) throws Exception {
+        final String bodyString = DocWriter.json().writeAsString(body);
+        final String path = "_sql?format=json";
+        HttpPost uriRequest = new HttpPost(getHttpServerUri() + "/" + path);
+        uriRequest.setEntity(new StringEntity(bodyString, org.apache.http.entity.ContentType.APPLICATION_JSON));
+        return executeRequest(uriRequest, new RequestInfo().path(path).method("POST").requestBody(bodyString), mergeHeaders(CONTENT_TYPE_JSON, headers));
+    }
+
     public HttpResponse post(String path) throws Exception {
         HttpPost uriRequest = new HttpPost(getHttpServerUri() + "/" + path);
         return executeRequest(uriRequest, new RequestInfo().path(path).method("POST"));
