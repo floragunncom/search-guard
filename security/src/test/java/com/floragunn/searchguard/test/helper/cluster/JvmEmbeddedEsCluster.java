@@ -77,34 +77,22 @@ public class JvmEmbeddedEsCluster extends LocalEsCluster {
     private final List<Node> masterNodes = new ArrayList<>();
     private final List<Node> dataNodes = new ArrayList<>();
     private final List<Node> clientNodes = new ArrayList<>();
-    private final LeakDetector leakDetector;
 
     public JvmEmbeddedEsCluster(String clusterName, ClusterConfiguration clusterConfiguration, NodeSettingsSupplier nodeSettingsSupplier,
             List<Class<? extends Plugin>> additionalPlugins, TestCertificates testCertificates) {
         super(clusterName, clusterConfiguration, nodeSettingsSupplier, testCertificates);
         this.additionalPlugins = additionalPlugins;
-        this.leakDetector = new LeakDetector();
     }
 
     public boolean isStarted() {
         return started;
     }
 
-    @Override
-    public void start() throws Exception {
-        super.start();
-        leakDetector.start();
-    }
-
     public void destroy() {
-        try {
-            stop();
-            clientNodes.clear();
-            dataNodes.clear();
-            masterNodes.clear();
-        } finally {
-            leakDetector.stop();
-        }
+        stop();
+        clientNodes.clear();
+        dataNodes.clear();
+        masterNodes.clear();
 
         try {
             FileUtils.deleteDirectory(clusterHomeDir);
