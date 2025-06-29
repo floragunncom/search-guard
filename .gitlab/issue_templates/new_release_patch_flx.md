@@ -10,7 +10,7 @@
 
 *The release branches have been created for the preceding minor release. Please complete the versions listed below by replacing `?` by the respective version numbers.* 
 
-- `sg-flx-3.?.x-es-9.9.?`
+- `sg-flx-3.?.x-es-8.18.x`
 - `sg-flx-3.?.x-es-9.?.x`
 - `sgctl-3.?.x`
 
