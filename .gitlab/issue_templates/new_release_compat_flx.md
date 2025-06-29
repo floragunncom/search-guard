@@ -26,7 +26,7 @@
 
 ## Elasticsearch plugin 
 
-- [ ] Create a branch `prepare-es-?.?.?` from `master` or `main-es8`. *Replace ?.? by the respective Elasticsearch version*
+- [ ] Create a branch `prepare-es-?.?.?` from `main`. *Replace ?.? by the respective Elasticsearch version*
 - [ ] Edit `pom.xml` in the root directory and set `<elasticsearch.version>` to the new Elasticsearch version. Check for compilation errors and fix these.
 - [ ] Submit a merge request for  `prepare-es-?.?`. Check the CI for errors and fix these.
 - [ ] Review the [Elasticsearch release notes](https://www.elastic.co/guide/en/elasticsearch/reference/current/es-release-notes.html) for further changes that might be relevant to Search Guard. Make further adaptions to the code if necessary. Note: If such adaptions are necessary, increasing the version number of Search Guard might be indicated.
@@ -35,17 +35,17 @@
 
 ## Kibana plugin
 
-- [ ] Create a branch `prepare-es-?.?.?` from `master` or `main-es8`. *Replace ?.? by the respective Elasticsearch version*
+- [ ] Create a branch `prepare-es-?.?.?` from `main`. *Replace ?.? by the respective Elasticsearch version*
 - [ ] Edit `kibana.json` in the root directory and set `version` to the new Kibana version. Run unit tests to check for potential errors and fix these.
-- [ ] Edit `.gitlab-ci-branch-specific.yml`. Update `ES_VERSION`. Update `SG_ES_PLUGIN` to point to `b-prepare-es-?.?.?-SNAPSHOT`. This is the branch of the snapshot of the Elasticsearch plugin created above. 
+- [ ] Edit `.gitlab-ci-branch-specific.yml`. Update `ES_VERSION`. Update `SG_ES_PLUGIN` to point to `prepare-es-?.?.?-SNAPSHOT`. This is the branch of the snapshot of the Elasticsearch plugin created above. 
 - [ ] Submit a merge request for  `prepare-es-?.?`. Check the CI for errors and fix these.
 - [ ] Review the [Kibana release notes](https://www.elastic.co/guide/en/kibana/current/release-notes.html) for further changes that might be relevant to Search Guard. Make further adaptions to the code if necessary. Note: If such adaptions are necessary, increasing the version number of Search Guard might be indicated.
 
 ## Finalize
 
-- [ ] Merge the merge requests to `master` or `main-es8` if the CI is green.
+- [ ] Merge the merge requests to `main` if the CI is green.
   - [ ] Merge search-guard-suite-enterprise
-  - [ ] In search-guard-kibana-plugin revert `.gitlab-ci-branch-specific.yml` to have `SG_ES_PLUGIN` to point to `b-master-SNAPSHOT`.
+  - [ ] In search-guard-kibana-plugin revert `.gitlab-ci-branch-specific.yml` to have `SG_ES_PLUGIN` to point to `main-SNAPSHOT`.
   - [ ] Merge search-guard-kibana-plugin
 
 # Adapting release branches
@@ -54,23 +54,23 @@
 
 ## Elasticsearch plugin 
 
-- [ ] Create a branch `sg-flx-1.?.x-es-?.?.x` from the existing release branch. Adapt the Elasticsearch version in the branch name.
+- [ ] Create a branch `sg-flx-3.?.x-es-?.?.x` from the existing release branch. Adapt the Elasticsearch version in the branch name.
 - [ ] Cherry pick the commit from the merged `prepare-es-?.?` merge request onto the release branch. Fix conflicts and compilation errors if necessary.
-- [ ] Push the branch and tag it with `sg-flx-1.?.?-es-?.?.?`. *Replace `?.?.?` by the respective versions. Creating the tag will trigger the release CI. Check CI for failures and possibly re-try failed test jobs.*
+- [ ] Push the branch and tag it with `sg-flx-3.?.?-es-?.?.?`. *Replace `?.?.?` by the respective versions. Creating the tag will trigger the release CI. Check CI for failures and possibly re-try failed test jobs.*
 
 ## Kibana plugin
 
-- [ ] Create a branch `sg-flx-1.?.x-es-?.?.x` from the existing release branch. Adapt the Elasticsearch version in the branch name.
+- [ ] Create a branch `sg-flx-3.?.x-es-?.?.x` from the existing release branch. Adapt the Elasticsearch version in the branch name.
 - [ ] Cherry pick the commit from the merged `prepare-es-?.?` merge request onto the release branch. Fix conflicts if necessary.  Run unit tests to check for potential errors and fix these.
 - [ ] Verify that `SG_ES_PLUGIN` in `.gitlab-branch-specific.yml` has the value `?.?.?-es-$$ES_VERSION` *?.?.? should be the SG release version. The two dollar signs are intentional. This allows the CI to target the respective correct backend plugin when overriding the ES/Kibana patch version by the release tag.*
-- [ ] Push the branch and tag it with `sg-flx-1.?.?-es-?.?.?`. *Replace `?.?.?` by the respective versions. Creating the tag will trigger the release CI. Check CI for failures and possibly re-try failed test jobs.*
+- [ ] Push the branch and tag it with `sg-flx-3.?.?-es-?.?.?`. *Replace `?.?.?` by the respective versions. Creating the tag will trigger the release CI. Check CI for failures and possibly re-try failed test jobs.*
 
   
 # Documentation
 
 ## Adapt download links
 
-- [ ] in `_config.yml` adapt `sgv` and `kbv` columns in sections `sgversions` -> `search-guard-flx-8` and `search-guard-flx-7`. 
+- [ ] in `_config.yml` adapt `sgv` and `kbv` columns the sections `sgversions` -> `search-guard-flx-9` (or `search-guard-flx-8` or `search-guard-flx-7`). 
 
 ## Final activation
 
