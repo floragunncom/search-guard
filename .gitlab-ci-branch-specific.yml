@@ -1,5 +1,5 @@
 variables:
   SG_KI_PLUGIN: "b-main-sg-classic-SNAPSHOT"
-  IT_BRANCH: "main-sg-classic"
+  IT_BRANCH: "classic-cert-fix"
   KI_VERSION: "7.17.10"
 
