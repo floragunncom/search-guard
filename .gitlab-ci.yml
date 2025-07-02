@@ -26,7 +26,7 @@ stages:
   # - test
   - package
   - "Backend Int Tests Core"
-  # - "Backend Int Tests Features"
+  - "Backend Int Tests Features"
   # - "Frontend Int Tests Core"
   # - "Frontend Int Tests Features"
   # - "Frontend Int Tests External Features"
@@ -544,7 +544,7 @@ deploy_staging:
 include:
   - local: '.gitlab-ci-branch-specific.yml'
   - local: 'ci/backend-int-tests.yml'
-  # - local: 'ci/backend-int-tests-features.yml'
+  - local: 'ci/backend-int-tests-features.yml'
   # - local: 'ci/frontend-int-tests.yml'
   # - local: 'ci/frontend-int-tests-features.yml'
   # - local: 'ci/frontend-int-tests-external-features.yml'

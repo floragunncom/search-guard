@@ -8,66 +8,66 @@ compliance_1:
     TEST: "compliance_1"
     TEST_ENVIRONMENT: "compliance_1"
 
-compliance_2:
-  extends:
-  - .be_integration_test_ext
-  variables:
-    TEST: "compliance_2"
-    TEST_ENVIRONMENT: "compliance_2"
+# compliance_2:
+#   extends:
+#   - .be_integration_test_ext
+#   variables:
+#     TEST: "compliance_2"
+#     TEST_ENVIRONMENT: "compliance_2"
     
-compliance_3:
-  extends:
-  - .be_integration_test_ext
-  variables:
-    TEST: "compliance_3"
-    TEST_ENVIRONMENT: "compliance_3"    
+# compliance_3:
+#   extends:
+#   - .be_integration_test_ext
+#   variables:
+#     TEST: "compliance_3"
+#     TEST_ENVIRONMENT: "compliance_3"    
 
-compliance_ccs:
-  extends:
-  - .be_integration_test_ext
-  variables:
-    TEST: "compliance_ccs"
-    TEST_ENVIRONMENT: "compliance_ccs"
+# compliance_ccs:
+#   extends:
+#   - .be_integration_test_ext
+#   variables:
+#     TEST: "compliance_ccs"
+#     TEST_ENVIRONMENT: "compliance_ccs"
 
-compliance_1_clientnode:
-  extends:
-  - .be_integration_test_ext
-  variables:
-    TEST: "compliance_1_clientnode"
-    TEST_ENVIRONMENT: "compliance_1"
+# compliance_1_clientnode:
+#   extends:
+#   - .be_integration_test_ext
+#   variables:
+#     TEST: "compliance_1_clientnode"
+#     TEST_ENVIRONMENT: "compliance_1"
 
-compliance_2_clientnode:
-  extends:
-  - .be_integration_test_ext
-  variables:
-    TEST: "compliance_2_clientnode"
-    TEST_ENVIRONMENT: "compliance_2"
+# compliance_2_clientnode:
+#   extends:
+#   - .be_integration_test_ext
+#   variables:
+#     TEST: "compliance_2_clientnode"
+#     TEST_ENVIRONMENT: "compliance_2"
 
-compliance_3_clientnode:
-  extends:
-  - .be_integration_test_ext
-  variables:
-    TEST: "compliance_3_clientnode"
-    TEST_ENVIRONMENT: "compliance_3"    
+# compliance_3_clientnode:
+#   extends:
+#   - .be_integration_test_ext
+#   variables:
+#     TEST: "compliance_3_clientnode"
+#     TEST_ENVIRONMENT: "compliance_3"    
 
-signals_1:
-  extends:
-  - .be_integration_test_ext
-  variables:
-    TEST: "signals_1"
-    TEST_ENVIRONMENT: "signals_1"
-    TEST_COMPOSEFILE: "docker-compose-signals.yml"
+# signals_1:
+#   extends:
+#   - .be_integration_test_ext
+#   variables:
+#     TEST: "signals_1"
+#     TEST_ENVIRONMENT: "signals_1"
+#     TEST_COMPOSEFILE: "docker-compose-signals.yml"
 
-signals_2:
-  extends:
-  - .be_integration_test_ext
-  variables:
-    TEST: "signals_2"
-    TEST_ENVIRONMENT: "signals_1"
-    TEST_COMPOSEFILE: "docker-compose-signals.yml"
+# signals_2:
+#   extends:
+#   - .be_integration_test_ext
+#   variables:
+#     TEST: "signals_2"
+#     TEST_ENVIRONMENT: "signals_1"
+#     TEST_COMPOSEFILE: "docker-compose-signals.yml"
 
 
 .be_integration_test_ext:
   stage: "Backend Int Tests Features"
   extends:
-  - .be_integration_test
+  - .be_integration_test  
