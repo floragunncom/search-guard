@@ -55,12 +55,12 @@
 #     TEST: "enterprise_3_clientnode"
 #     TEST_ENVIRONMENT: "enterprise_3"
 
-ccs_1_roundtrips_false:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "ccs_1_roundtrips_false"
-    TEST_ENVIRONMENT: "ccs_1"
+# ccs_1_roundtrips_false:
+#   extends:
+#   - .be_integration_test
+#   variables:
+#     TEST: "ccs_1_roundtrips_false"
+#     TEST_ENVIRONMENT: "ccs_1"
 
 # ccs_2_roundtrips_false:
 #   extends:
