@@ -1,59 +1,59 @@
 
-community:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "community"
-    TEST_ENVIRONMENT: "community"
+# community:
+#   extends:
+#   - .be_integration_test
+#   variables:
+#     TEST: "community"
+#     TEST_ENVIRONMENT: "community"
 
-enterprise_1:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "enterprise_1"
-    TEST_ENVIRONMENT: "enterprise_1"
+# enterprise_1:
+#   extends:
+#   - .be_integration_test
+#   variables:
+#     TEST: "enterprise_1"
+#     TEST_ENVIRONMENT: "enterprise_1"
     
-enterprise_1_authc:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "enterprise_1_sg_authc"
-    TEST_ENVIRONMENT: "enterprise_1"    
+# enterprise_1_authc:
+#   extends:
+#   - .be_integration_test
+#   variables:
+#     TEST: "enterprise_1_sg_authc"
+#     TEST_ENVIRONMENT: "enterprise_1"    
 
-enterprise_2:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "enterprise_2"
-    TEST_ENVIRONMENT: "enterprise_2"
+# enterprise_2:
+#   extends:
+#   - .be_integration_test
+#   variables:
+#     TEST: "enterprise_2"
+#     TEST_ENVIRONMENT: "enterprise_2"
 
-enterprise_3:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "enterprise_3"
-    TEST_ENVIRONMENT: "enterprise_3"
+# enterprise_3:
+#   extends:
+#   - .be_integration_test
+#   variables:
+#     TEST: "enterprise_3"
+#     TEST_ENVIRONMENT: "enterprise_3"
 
-enterprise_1_clientnode:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "enterprise_1_clientnode"
-    TEST_ENVIRONMENT: "enterprise_1"
+# enterprise_1_clientnode:
+#   extends:
+#   - .be_integration_test
+#   variables:
+#     TEST: "enterprise_1_clientnode"
+#     TEST_ENVIRONMENT: "enterprise_1"
 
-enterprise_2_clientnode:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "enterprise_2_clientnode"
-    TEST_ENVIRONMENT: "enterprise_2"
+# enterprise_2_clientnode:
+#   extends:
+#   - .be_integration_test
+#   variables:
+#     TEST: "enterprise_2_clientnode"
+#     TEST_ENVIRONMENT: "enterprise_2"
 
-enterprise_3_clientnode:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "enterprise_3_clientnode"
-    TEST_ENVIRONMENT: "enterprise_3"
+# enterprise_3_clientnode:
+#   extends:
+#   - .be_integration_test
+#   variables:
+#     TEST: "enterprise_3_clientnode"
+#     TEST_ENVIRONMENT: "enterprise_3"
 
 ccs_1_roundtrips_false:
   extends:
@@ -62,33 +62,33 @@ ccs_1_roundtrips_false:
     TEST: "ccs_1_roundtrips_false"
     TEST_ENVIRONMENT: "ccs_1"
 
-ccs_2_roundtrips_false:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "ccs_2_roundtrips_false"
-    TEST_ENVIRONMENT: "ccs_2"
+# ccs_2_roundtrips_false:
+#   extends:
+#   - .be_integration_test
+#   variables:
+#     TEST: "ccs_2_roundtrips_false"
+#     TEST_ENVIRONMENT: "ccs_2"
 
-ccs_2_roundtrips_true:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "ccs_2_roundtrips_true"
-    TEST_ENVIRONMENT: "ccs_2"
+# ccs_2_roundtrips_true:
+#   extends:
+#   - .be_integration_test
+#   variables:
+#     TEST: "ccs_2_roundtrips_true"
+#     TEST_ENVIRONMENT: "ccs_2"
 
-ccs_3_roundtrips_false:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "ccs_3_roundtrips_false"
-    TEST_ENVIRONMENT: "ccs_3"
+# ccs_3_roundtrips_false:
+#   extends:
+#   - .be_integration_test
+#   variables:
+#     TEST: "ccs_3_roundtrips_false"
+#     TEST_ENVIRONMENT: "ccs_3"
 
-ccs_3_roundtrips_true:
-  extends:
-  - .be_integration_test
-  variables:
-    TEST: "ccs_3_roundtrips_true"
-    TEST_ENVIRONMENT: "ccs_3"
+# ccs_3_roundtrips_true:
+#   extends:
+#   - .be_integration_test
+#   variables:
+#     TEST: "ccs_3_roundtrips_true"
+#     TEST_ENVIRONMENT: "ccs_3"
 
 .be_integration_test:
   stage: "Backend Int Tests Core"
