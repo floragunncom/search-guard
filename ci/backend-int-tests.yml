@@ -27,12 +27,12 @@
 #     TEST: "enterprise_2"
 #     TEST_ENVIRONMENT: "enterprise_2"
 
-# enterprise_3:
-#   extends:
-#   - .be_integration_test
-#   variables:
-#     TEST: "enterprise_3"
-#     TEST_ENVIRONMENT: "enterprise_3"
+enterprise_3:
+  extends:
+  - .be_integration_test
+  variables:
+    TEST: "enterprise_3"
+    TEST_ENVIRONMENT: "enterprise_3"
 
 # enterprise_1_clientnode:
 #   extends:

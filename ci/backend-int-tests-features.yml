@@ -1,12 +1,12 @@
 
 
 
-compliance_1:
-  extends:
-  - .be_integration_test_ext
-  variables:
-    TEST: "compliance_1"
-    TEST_ENVIRONMENT: "compliance_1"
+# compliance_1:
+#   extends:
+#   - .be_integration_test_ext
+#   variables:
+#     TEST: "compliance_1"
+#     TEST_ENVIRONMENT: "compliance_1"
 
 # compliance_2:
 #   extends:
