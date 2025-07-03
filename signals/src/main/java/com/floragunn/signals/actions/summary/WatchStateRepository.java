@@ -7,7 +7,14 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.signals.actions.summary.SortParser.SortByField;
 import com.floragunn.signals.actions.summary.WatchFilter.Range;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest;
 import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
@@ -20,12 +27,14 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.RangeQueryBuilder;
 import org.elasticsearch.index.query.TermQueryBuilder;
+import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
 
 class WatchStateRepository {
+    private final static Logger log = LogManager.getLogger(WatchStateRepository.class);
     private static final String PROP = "properties";
     private static final String FIELDS = "fields";
     private final String stateIndexName;
@@ -36,16 +45,31 @@ class WatchStateRepository {
         this.privilegedConfigClient = requireNonNull(privilegedConfigClient);
     }
 
-    public SearchResponse search(WatchFilter watchFilter,  List<SortByField> sorting) {
+    public SearchResponse search(WatchFilter watchFilter,  List<SortByField> sorting, Collection<String> watchIdFilter) {
         requireNonNull(watchFilter, "Watch filter is required");
         requireNonNull(sorting, "Sorting is required");
         GetMappingsResponse mappings = getMappings();
         DocNode docNode = extractFieldNames(mappings);
-        return searchWithFilteringOutMissingSortingFields(watchFilter, sorting, docNode);
+        return searchWithFilteringOutMissingSortingFields(watchFilter, sorting, docNode, watchIdFilter);
+    }
+
+    public SearchResponse findNeverExecutedWatchesWithSeverity(String tenant, Collection<String> watchIds, int size) {
+        requireNonNull(tenant, "Tenant is required");
+        requireNonNull(watchIds, "Watch ids are required");
+        SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource();
+        sourceBuilder.size(size);
+        sourceBuilder.query(QueryBuilders.boolQuery()
+                .filter(QueryBuilders.termQuery("_tenant", tenant))
+                .filter(QueryBuilders.idsQuery().addIds(watchIds.toArray(new String[0])))
+                .mustNot(QueryBuilders.existsQuery("last_execution")));
+
+        SearchRequest request = new SearchRequest(stateIndexName).source(sourceBuilder);
+
+        return privilegedConfigClient.search(request).actionGet();
     }
 
     private SearchResponse searchWithFilteringOutMissingSortingFields(WatchFilter watchFilter, List<SortByField> sorting,
-        DocNode fieldsDefinedInMappings) {
+        DocNode fieldsDefinedInMappings, Collection<String> watchIdFilter) {
 
         SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource();
         for(SortByField field : sorting) {
@@ -59,15 +83,22 @@ class WatchStateRepository {
             sourceBuilder.sort(sortBuilder);
         }
         BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
+        buildWatchIdsQuery(watchIdFilter, boolQueryBuilder);
         buildStatusCodeQuery(watchFilter, boolQueryBuilder);
-        buildWatchIdQuery(watchFilter, boolQueryBuilder);
         buildSeverityQuery(watchFilter, boolQueryBuilder);
         buildActionsNamesQuery(watchFilter, boolQueryBuilder);
         buildActionsPropertiesQuery(watchFilter, boolQueryBuilder);
         buildRangeQueries(watchFilter, boolQueryBuilder);
         sourceBuilder.query(boolQueryBuilder);
         SearchRequest request = new SearchRequest(stateIndexName).source(sourceBuilder);
+        log.debug("Request used by operator view to load watch state '{}'", request);
         return privilegedConfigClient.search(request).actionGet();
+    }
+
+    private static void buildWatchIdsQuery(Collection<String> watchIdFilter, BoolQueryBuilder boolQueryBuilder) {
+        if(watchIdFilter != null) {
+            boolQueryBuilder.filter(QueryBuilders.idsQuery().addIds(watchIdFilter.toArray(new String[0])));
+        }
     }
 
     private static void buildRangeQueries(WatchFilter watchFilter, BoolQueryBuilder boolQueryBuilder) {
@@ -140,13 +171,6 @@ class WatchStateRepository {
                 orQueryBuilder.should(query);
             }
             boolQueryBuilder.must(orQueryBuilder);
-        }
-    }
-
-    private static void buildWatchIdQuery(WatchFilter watchFilter, BoolQueryBuilder boolQueryBuilder) {
-        if(watchFilter.containsWatchId()) {
-            MatchQueryBuilder watchIdQuery = QueryBuilders.matchQuery("last_execution.watch.id", watchFilter.getWatchId());
-            boolQueryBuilder.must(watchIdQuery);
         }
     }
 

@@ -12,11 +12,13 @@ import org.elasticsearch.rest.RestStatus;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.floragunn.signals.actions.summary.SafeDocNodeReader.getDoubleValue;
@@ -115,6 +117,7 @@ public class LoadOperatorSummaryData implements Document {
         public static final String FIELD_DESCRIPTION = "description";
         public static final String FIELD_SEVERITY_DETAILS = "severity_details";
         public static final String FIELD_ACTIONS = "actions";
+        public static final String FIELD_REASON = "reason";
         private final String id;
         private final String statusCode;
         private final String severity;
@@ -122,15 +125,17 @@ public class LoadOperatorSummaryData implements Document {
         private final WatchSeverityDetails severityDetails;
 
         private final Map<String, ActionSummary> actions;
+        private final String reason;
 
         public WatchSummary(String id, String statusCode, String severity, String description, WatchSeverityDetails severityDetails,
-            Map<String, ActionSummary> details) {
+            Map<String, ActionSummary> details, String reason) {
             this.id = id;
             this.statusCode = statusCode;
             this.severity = severity;
             this.description = description;
             this.severityDetails = severityDetails;
             this.actions = Objects.requireNonNull(details);
+            this.reason = Objects.requireNonNull(reason);
         }
 
         private static WatchSummary parse(DocNode node) {
@@ -142,7 +147,7 @@ public class LoadOperatorSummaryData implements Document {
                 actionsSummary.put(actionName, ActionSummary.parse(actionsNode.getAsNode(actionName)));
             }
             return new WatchSummary(node.getAsString(FIELD_WATCH_ID), node.getAsString(FIELD_STATUS_CODE), node.getAsString(FIELD_SEVERITY),
-                node.getAsString(FIELD_DESCRIPTION), details, actionsSummary);
+                node.getAsString(FIELD_DESCRIPTION), details, actionsSummary, node.getAsString(FIELD_REASON));
         }
 
         Map<String, Object> toBasicObject() {
@@ -152,7 +157,7 @@ public class LoadOperatorSummaryData implements Document {
             Map<String, Object> actionMap = createActionSummaryMap();
             return ImmutableMap.of(FIELD_WATCH_ID, getPureId(), FIELD_STATUS_CODE, statusCode, FIELD_SEVERITY, severity,
                 FIELD_DESCRIPTION, description, FIELD_SEVERITY_DETAILS, severityMap)
-                .with(ImmutableMap.of(FIELD_ACTIONS, actionMap, FIELD_TENANT, getTenant()));
+                .with(ImmutableMap.of(FIELD_ACTIONS, actionMap, FIELD_TENANT, getTenant(), FIELD_REASON, reason));
         }
 
         private Map<String, Object> createActionSummaryMap() {
@@ -195,6 +200,19 @@ public class LoadOperatorSummaryData implements Document {
 
     public LoadOperatorSummaryData(List<WatchSummary> watches) {
         this.watches = watches;
+    }
+
+    public LoadOperatorSummaryData with(LoadOperatorSummaryData loadOperatorSummaryData) {
+        List<WatchSummary> newWatches = new ArrayList<>(this.watches);
+        Set<String> includedIds = this.watches.stream() //
+                .map(summary -> summary.id) //
+                .collect(Collectors.toSet());
+        for (WatchSummary watch : loadOperatorSummaryData.watches) {
+            if (!includedIds.contains(watch.id)) {
+                newWatches.add(watch);
+            }
+        }
+        return new LoadOperatorSummaryData(newWatches);
     }
 
     @Override
