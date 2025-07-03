@@ -20,10 +20,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+
+import com.floragunn.signals.watch.result.Status;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.rest.RestStatus;
 
 public class LoadOperatorSummaryRequest extends Request {
+    private static final String DEFAULT_SORTING = "-severity_details.level_numeric";
     private final String tenant;// TODO field might be redundant
     private final String sorting;
     private final String watchId;
@@ -66,6 +69,20 @@ public class LoadOperatorSummaryRequest extends Request {
         this.ranges = prepareRanges(requestBody);
         this.actionProperties = prepareActionProperties(requestBody);
         validateRange("level_numeric", levelNumericEqualTo, levelNumericGreaterThan, levelNumericLessThan);
+    }
+
+    LoadOperatorSummaryRequest(String tenant, List<Status.Code> statusCodes) {
+        this.tenant = tenant;
+        this.sorting = null;
+        this.watchStatusCodes = statusCodes.stream().map(Status.Code::toString).toList();
+        this.watchId = null;
+        this.severities = List.of();
+        this.levelNumericEqualTo = null;
+        this.levelNumericGreaterThan = null;
+        this.levelNumericLessThan = null;
+        this.actionNames = List.of();
+        this.ranges = prepareRanges(DocNode.EMPTY);
+        this.actionProperties = prepareActionProperties(DocNode.EMPTY);
     }
 
     private ActionProperties prepareActionProperties(DocNode docNode) {
@@ -117,8 +134,11 @@ public class LoadOperatorSummaryRequest extends Request {
     public LoadOperatorSummaryRequest(String tenant, String sorting, UnparsedDocument<?> body) throws DocumentParseException {
         this(tenant, sorting, body.parseAsDocNode());
     }
-
-    public String getSorting() {
+    
+    public String getSortingOrDefault() {
+        if(sorting == null || sorting.isBlank()) {
+            return DEFAULT_SORTING;
+        }
         return sorting;
     }
 
@@ -126,8 +146,7 @@ public class LoadOperatorSummaryRequest extends Request {
     public Object toBasicObject() {
         return ImmutableMap.of(LoadOperatorSummaryRequestConstants.FIELD_TENANT, tenant,
                 LoadOperatorSummaryRequestConstants.FIELD_SORTING, sorting,
-                LoadOperatorSummaryRequestConstants.FIELD_WATCH_STATUS_CODE, watchStatusCodes,//
-                LoadOperatorSummaryRequestConstants.FIELD_WATCH_ID, watchId)//
+                LoadOperatorSummaryRequestConstants.FIELD_WATCH_STATUS_CODE, watchStatusCodes)//
             .with(LoadOperatorSummaryRequestConstants.FIELD_SEVERITIES, severities) //
             .with(LoadOperatorSummaryRequestConstants.FIELD_LEVEL_NUMERIC_EQUAL_TO, levelNumericEqualTo)//
             .with(LoadOperatorSummaryRequestConstants.FIELD_LEVEL_NUMERIC_GREATER_THAN, levelNumericGreaterThan)//
@@ -139,6 +158,10 @@ public class LoadOperatorSummaryRequest extends Request {
 
     WatchFilter getWatchFilter() {
         return new WatchFilter(watchId, watchStatusCodes, severities, actionNames, ranges, actionProperties);
+    }
+
+    String getTenant() {
+        return tenant;
     }
 
     private void validateRange(String rangeName, Number equal, Number greater, Number less) {
