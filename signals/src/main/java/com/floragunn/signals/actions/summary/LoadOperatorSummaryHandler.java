@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+
+import com.floragunn.signals.watch.result.Status;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchStatusException;
@@ -33,12 +35,15 @@ import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
+import org.jetbrains.annotations.NotNull;
 
 public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryRequest, StandardResponse> {
 
     private static final Logger log = LogManager.getLogger(LoadOperatorSummaryHandler.class);
+    public static final int DEFAULT_MAX_RESULTS = 5000;
 
     private final WatchStateRepository watchStateRepository;
+    private final WatchRepository watchRepository;
 
     private final Signals signals;
 
@@ -49,25 +54,63 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
         super(LoadOperatorSummaryAction.INSTANCE, handlerDependencies);
         this.signals = signals;
         this.watchStateRepository = new WatchStateRepository(getStateIndexName(), PrivilegedConfigClient.adapt(nodeClient));
+        this.watchRepository = new WatchRepository(getWatchIndexName(), PrivilegedConfigClient.adapt(nodeClient));
     }
+
 
     @Override
     protected CompletableFuture<StandardResponse> doExecute(LoadOperatorSummaryRequest request) {
        return supplyAsync(() -> {
             try {
+                String watchId = request.getWatchFilter().getWatchId();
+                String tenant = request.getTenant();
+
                 List<SortByField> sorting = SortParser.parseSortingExpression(request.getSorting());
-                SearchResponse search = watchStateRepository.search(request.getWatchFilter(), sorting);
-                try {
-                    LoadOperatorSummaryData loadOperatorSummaryData = convertSearchResultToResponse(search);
-                    return new StandardResponse(200).data(loadOperatorSummaryData);
-                } finally {
-                    search.decRef();
-                }
+                LoadOperatorSummaryData failedWatchesData = loadFailedWatches(tenant);
+                LoadOperatorSummaryData notExecutedWatchesWithSeverity = loadNeverExecutedWatchesWithSeverity(tenant);
+
+                List<String> watchIds = watchRepository.searchWatchIdsWithSeverityAndNames(tenant, watchId, DEFAULT_MAX_RESULTS);
+                LoadOperatorSummaryData loadOperatorSummaryData = loadWatchesByFilter(request, sorting, watchIds);
+
+                return new StandardResponse(200).data(failedWatchesData.with(notExecutedWatchesWithSeverity).with(loadOperatorSummaryData));
             } catch (Exception ex) {
                 log.error("Cannot load signal watch state summary", ex);
                 return new StandardResponse(400).error(ex.getMessage());
             }
        });
+    }
+
+    private @NotNull LoadOperatorSummaryData loadWatchesByFilter(LoadOperatorSummaryRequest request, List<SortByField> sorting,
+            List<String> watchIds) {
+        SearchResponse search = watchStateRepository.search(request.getWatchFilter(), sorting, watchIds);
+        try {
+            return convertSearchResultToResponse(search);
+        } finally {
+            search.decRef();
+        }
+    }
+
+    private LoadOperatorSummaryData loadNeverExecutedWatchesWithSeverity(String tenant) {
+//        List<String> watchIdsToExclude = watchStateRepository.findAllTenantsWatchesIds(tenant, DEFAULT_MAX_RESULTS);
+//        List<WatchSummary> neverExecutedWatches = watchRepository.findWatchesWithOtherIds(tenant, watchIdsToExclude, DEFAULT_MAX_RESULTS)
+//                .stream() //
+//                .map(watchId -> new WatchSummary(watchId, null, null, "Watch has been never executed", null, null)) //
+//                .toList();
+//        return new LoadOperatorSummaryData(neverExecutedWatches);
+        List<String> watchesWithSeverity = watchRepository.searchWatchIdsWithSeverityAndNames(tenant, null, DEFAULT_MAX_RESULTS);
+        SearchResponse response = watchStateRepository.findNeverExecutedWatchesWithSeverity(tenant, watchesWithSeverity,
+                DEFAULT_MAX_RESULTS);
+        return convertSearchResultToResponse(response);
+    }
+
+    private @NotNull LoadOperatorSummaryData loadFailedWatches(String tenant) {
+        LoadOperatorSummaryRequest failedWatchesRequest = new LoadOperatorSummaryRequest(tenant, List.of(Status.Code.ACTION_FAILED, Status.Code.EXECUTION_FAILED));
+        try {
+            SearchResponse failedWatchesResponse = watchStateRepository.search(failedWatchesRequest.getWatchFilter(), List.of(), null);
+            return convertSearchResultToResponse(failedWatchesResponse);
+        } finally {
+            failedWatchesRequest.decRef();
+        }
     }
 
     private LoadOperatorSummaryData convertSearchResultToResponse(SearchResponse searchResponse) {
@@ -129,5 +172,9 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
 
     private String getStateIndexName() {
         return signals.getSignalsSettings().getStaticSettings().getIndexNames().getWatchesState();
+    }
+
+    private String getWatchIndexName() {
+        return signals.getSignalsSettings().getStaticSettings().getIndexNames().getWatches();
     }
 }

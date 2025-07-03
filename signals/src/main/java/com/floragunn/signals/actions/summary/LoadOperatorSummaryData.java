@@ -12,11 +12,13 @@ import org.elasticsearch.rest.RestStatus;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.floragunn.signals.actions.summary.SafeDocNodeReader.getDoubleValue;
@@ -195,6 +197,19 @@ public class LoadOperatorSummaryData implements Document {
 
     public LoadOperatorSummaryData(List<WatchSummary> watches) {
         this.watches = watches;
+    }
+
+    public LoadOperatorSummaryData with(LoadOperatorSummaryData loadOperatorSummaryData) {
+        List<WatchSummary> newWatches = new ArrayList<>(this.watches);
+        Set<String> includedIds = this.watches.stream() //
+                .map(summary -> summary.id) //
+                .collect(Collectors.toSet());
+        for (WatchSummary watch : loadOperatorSummaryData.watches) {
+            if (!includedIds.contains(watch.id)) {
+                newWatches.add(watch);
+            }
+        }
+        return new LoadOperatorSummaryData(newWatches);
     }
 
     @Override

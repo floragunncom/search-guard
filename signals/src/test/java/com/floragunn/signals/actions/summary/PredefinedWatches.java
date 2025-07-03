@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
+
+import com.floragunn.signals.watch.severity.SeverityLevel;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -112,10 +114,13 @@ class PredefinedWatches {
                 .search(inputTemperatureIndex).size(0).aggregation(aggregation).as(maxTemperatureSearch)//
                 .put(String.format("{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
                 .checkCondition(tooHighTemperatureCondition)//
+                .consider("data." + maxTemperatureSearch + ".aggregations." + aggregationNameMaxTemperature + ".value")//
+                    .greaterOrEqual(-1000).as(INFO)
                 .then().index(outputAlarmIndex).name("createAlarm").build();
             String watchPath = createWatchPath(watchId);
             log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
             HttpResponse response = restClient.putJson(watchPath, watch);
+            log.info("Watch creation response code '{}' and body '{}'.", response.getStatusCode(), response.getBody());
             assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
             WatchPointer watchPointer = new WatchPointer(watchPath);
             watchesToDelete.add(watchPointer);
@@ -147,8 +152,11 @@ class PredefinedWatches {
                 .search(inputTemperatureIndex).size(0).aggregation(aggregation).as(maxTemperatureSearch)//
                 .put(String.format("{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
                 .checkCondition(tooHighTemperatureCondition)//
+                .consider("data." + maxTemperatureSearch + ".aggregations." + aggregationNameMaxTemperature + ".value")//
+                    .greaterOrEqual(-1000).as(INFO)
                 .then().index(outputAlarmIndex).name(ACTION_CREATE_ALARM_ONE)
                 .and().index(outputAlarmIndex).name(ACTION_CREATE_ALARM_TWO)
+
                 .build();
             String watchPath = createWatchPath(watchId);
             log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());

@@ -225,8 +225,6 @@ public class LoadOperatorSummaryActionTest {
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "high-temp-alerts"));
             assertThat(body, containsAnyValues("data.watches[0].status_code", "ACTION_EXECUTED", "ACTION_THROTTLED"));
-            assertThat(body, fieldIsNull("data.watches[0].severity"));
-            assertThat(body, fieldIsNull("data.watches[0].severity_details"));
             assertThat(body, containsFieldPointedByJsonPath("data.watches[0]", "description"));
             assertThat(body, docNodeSizeEqualTo("data.watches[0].actions", 1));
             assertThat(body, containsValue("data.watches[0].actions.createAlarm.check_result", true));
@@ -278,7 +276,6 @@ public class LoadOperatorSummaryActionTest {
 
             assertThat(body, containsValue("data.watches[1].watch_id", "high-temp-alerts"));
             assertThat(body, containsAnyValues("data.watches[1].status_code", "ACTION_EXECUTED", "ACTION_THROTTLED"));
-            assertThat(body, fieldIsNull("data.watches[1].severity"));
             assertThat(body, containsFieldPointedByJsonPath("data.watches[1]", "severity"));
             assertThat(body, containsFieldPointedByJsonPath("data.watches[1].actions.createAlarm", "triggered"));
             assertThat(body, containsFieldPointedByJsonPath("data.watches[1].actions.createAlarm", "checked"));
