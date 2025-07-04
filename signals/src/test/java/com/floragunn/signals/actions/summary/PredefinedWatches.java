@@ -22,11 +22,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
-import com.floragunn.signals.watch.severity.SeverityLevel;
 import org.apache.http.HttpStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.awaitility.Awaitility;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.internal.Client;
@@ -50,6 +51,42 @@ class PredefinedWatches {
         this.watchesToDelete = new ArrayList<>();
     }
 
+    public WatchPointer defineTemperatureWithoutSeverities(String watchId, String inputTemperatureIndex, String outputAlarmIndex,
+            double temperatureLimit, String actionName) {
+        final String aggregationNameMaxTemperature = "max_temperature";
+        final String maxTemperatureSearch = "max_temperature_search";
+        final String maxTemperatureLimitName = "max_temperature";
+        final String staticLimitsName = "limits";
+        String tooHighTemperatureCondition = new StringBuilder("data.")//
+                .append(maxTemperatureSearch)
+                .append(".aggregations.")//
+                .append(aggregationNameMaxTemperature)//
+                .append(".value > data.")//
+                .append(staticLimitsName)//
+                .append(".")//
+                .append(maxTemperatureLimitName)//
+                .toString();
+        try (GenericRestClient restClient = localCluster.getRestClient(watchUser)){
+            DocNode aggregation = DocNode.of(aggregationNameMaxTemperature, DocNode.of("max", DocNode.of("field", "temperature")));
+
+            Watch watch = new WatchBuilder(watchId)
+                    .triggerNow() //
+                    .search(inputTemperatureIndex).size(0).aggregation(aggregation).as(maxTemperatureSearch)//
+                    .put(String.format("{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
+                    .checkCondition(tooHighTemperatureCondition)//
+                    .then().index(outputAlarmIndex).name(actionName).build();
+            String watchPath = createWatchPath(watchId);
+            log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            WatchPointer watchPointer = new WatchPointer(watchPath);
+            watchesToDelete.add(watchPointer);
+            return watchPointer;
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot define test watch", e);
+        }
+    }
+
     public WatchPointer defineTemperatureSeverityWatch(String watchId, String inputTemperatureIndex, String outputAlarmIndex,
         double temperatureLimit, String actionName) {
         final String aggregationNameMaxTemperature = "max_temperature";
@@ -69,7 +106,7 @@ class PredefinedWatches {
             DocNode aggregation = DocNode.of(aggregationNameMaxTemperature, DocNode.of("max", DocNode.of("field", "temperature")));
 
             Watch watch = new WatchBuilder(watchId)
-                .triggerNow()
+                .triggerNow() //
                 .search(inputTemperatureIndex).size(0).aggregation(aggregation).as(maxTemperatureSearch)//
                 .put(String.format("{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
                 .checkCondition(tooHighTemperatureCondition)//
@@ -80,6 +117,89 @@ class PredefinedWatches {
                     .greaterOrEqual(10).as(ERROR)//
                     .greaterOrEqual(15).as(CRITICAL)//
                 .then().index(outputAlarmIndex).name(actionName).build();
+            String watchPath = createWatchPath(watchId);
+            log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            WatchPointer watchPointer = new WatchPointer(watchPath);
+            watchesToDelete.add(watchPointer);
+            return watchPointer;
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot define test watch", e);
+        }
+    }
+
+    public WatchPointer defineErrorWatch(String watchId, String inputTemperatureIndex, double temperatureLimit, String actionName) {
+        final String aggregationNameMaxTemperature = "max_temperature";
+        final String maxTemperatureSearch = "max_temperature_search";
+        final String maxTemperatureLimitName = "max_temperature";
+        final String staticLimitsName = "limits";
+        String tooHighTemperatureCondition = new StringBuilder("data.")//
+                .append(maxTemperatureSearch)
+                .append(".aggregations.")//
+                .append(aggregationNameMaxTemperature)//
+                .append("value > data.")// <-- error in condition
+                .append(staticLimitsName)//
+                .append(".")//
+                .append(maxTemperatureLimitName)//
+                .toString();
+        try (GenericRestClient restClient = localCluster.getRestClient(watchUser)){
+            DocNode aggregation = DocNode.of(aggregationNameMaxTemperature, DocNode.of("max", DocNode.of("field", "temperature")));
+
+            Watch watch = new WatchBuilder(watchId)
+                    .triggerNow() //
+                    .search(inputTemperatureIndex).size(0).aggregation(aggregation).as(maxTemperatureSearch)//
+                    .put(String.format("{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
+                    .checkCondition(tooHighTemperatureCondition)//
+                    .consider("data." + maxTemperatureSearch + ".aggregations." + aggregationNameMaxTemperature + ".value")//
+                    .greaterOrEqual(0).as(NONE)//
+                    .greaterOrEqual(3).as(INFO)//
+                    .greaterOrEqual(7).as(WARNING)//
+                    .greaterOrEqual(10).as(ERROR)//
+                    .greaterOrEqual(15).as(CRITICAL)//
+                    .then().index("! this is an invalid index name !?#").name(actionName).build();
+            String watchPath = createWatchPath(watchId);
+            log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
+            HttpResponse response = restClient.putJson(watchPath, watch);
+            assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            WatchPointer watchPointer = new WatchPointer(watchPath);
+            watchesToDelete.add(watchPointer);
+            return watchPointer;
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot define test watch", e);
+        }
+    }
+
+    public WatchPointer defineTemperatureSeverityWatchWithCronTrigger(String watchId, String inputTemperatureIndex, String outputAlarmIndex,
+            double temperatureLimit, String actionName, String cronExpression) {
+        final String aggregationNameMaxTemperature = "max_temperature";
+        final String maxTemperatureSearch = "max_temperature_search";
+        final String maxTemperatureLimitName = "max_temperature";
+        final String staticLimitsName = "limits";
+        String tooHighTemperatureCondition = new StringBuilder("data.")//
+                .append(maxTemperatureSearch)
+                .append(".aggregations.")//
+                .append(aggregationNameMaxTemperature)//
+                .append(".value > data.")//
+                .append(staticLimitsName)//
+                .append(".")//
+                .append(maxTemperatureLimitName)//
+                .toString();
+        try (GenericRestClient restClient = localCluster.getRestClient(watchUser)){
+            DocNode aggregation = DocNode.of(aggregationNameMaxTemperature, DocNode.of("max", DocNode.of("field", "temperature")));
+
+            Watch watch = new WatchBuilder(watchId)
+                    .cronTrigger(cronExpression) //
+                    .search(inputTemperatureIndex).size(0).aggregation(aggregation).as(maxTemperatureSearch)//
+                    .put(String.format("{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
+                    .checkCondition(tooHighTemperatureCondition)//
+                    .consider("data." + maxTemperatureSearch + ".aggregations." + aggregationNameMaxTemperature + ".value")//
+                    .greaterOrEqual(0).as(NONE)//
+                    .greaterOrEqual(3).as(INFO)//
+                    .greaterOrEqual(7).as(WARNING)//
+                    .greaterOrEqual(10).as(ERROR)//
+                    .greaterOrEqual(15).as(CRITICAL)//
+                    .then().index(outputAlarmIndex).name(actionName).build();
             String watchPath = createWatchPath(watchId);
             log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
             HttpResponse response = restClient.putJson(watchPath, watch);
@@ -244,6 +364,7 @@ class PredefinedWatches {
             response.decRef();
         }
     }
+
     public long countWatchStatusWithAvailableStatusCode(String watchStateIndexName) {
         try {
             Client client = localCluster.getPrivilegedInternalNodeClient();
@@ -262,6 +383,51 @@ class PredefinedWatches {
         } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException("Cannot count watch states with available status code.", e);
         }
+    }
+
+    public boolean watchExecuted(String watchIdWithTenantPrefix) {
+        Objects.requireNonNull(watchIdWithTenantPrefix, "Watch id is required");
+        if(!watchIdWithTenantPrefix.contains("/")) {
+            throw new IllegalArgumentException("Watch id must contain tenant prefix, e.g. 'tenant/watchId'. Provided: " + watchIdWithTenantPrefix);
+        }
+        Client client = localCluster.getPrivilegedInternalNodeClient();
+
+        GetResponse getResponse = client.get(new GetRequest(".signals_watches_state", watchIdWithTenantPrefix)).actionGet();
+        if(getResponse.isExists()) {
+            DocNode sources = DocNode.wrap(getResponse.getSourceAsMap());
+            DocNode lastStatus = sources.getAsNode("last_status");
+            if(lastStatus != null) {
+                String executed = lastStatus.getAsString("code");
+                return executed != null;
+            }
+        }
+        return false;
+    }
+
+    public boolean watchesExecuted(String...watchIdWithTenantPrefix) {
+        Objects.requireNonNull(watchIdWithTenantPrefix, "Watch ids are required");
+        for(String watchId : watchIdWithTenantPrefix) {
+            if(!watchExecuted(watchId)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public boolean watchHasEmptyLastStatus(String watchIdWithTenantPrefix) {
+        Objects.requireNonNull(watchIdWithTenantPrefix, "Watch id is required");
+        if(!watchIdWithTenantPrefix.contains("/")) {
+            throw new IllegalArgumentException("Watch id must contain tenant prefix, e.g. 'tenant/watchId'. Provided: " + watchIdWithTenantPrefix);
+        }
+        Client client = localCluster.getPrivilegedInternalNodeClient();
+
+        GetResponse getResponse = client.get(new GetRequest(".signals_watches_state", watchIdWithTenantPrefix)).actionGet();
+        if(getResponse.isExists()) {
+            DocNode sources = DocNode.wrap(getResponse.getSourceAsMap());
+            DocNode lastStatus = sources.getAsNode("last_status");
+            return lastStatus == null || lastStatus.isEmpty();
+        }
+        return false;
     }
 
     public class WatchPointer {

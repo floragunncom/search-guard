@@ -26,6 +26,7 @@ import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.rest.RestStatus;
 
 public class LoadOperatorSummaryRequest extends Request {
+    private static final String DEFAULT_SORTING = "-severity_details.level_numeric";
     private final String tenant;// TODO field might be redundant
     private final String sorting;
     private final String watchId;
@@ -135,6 +136,13 @@ public class LoadOperatorSummaryRequest extends Request {
     }
 
     public String getSorting() {
+        return sorting;
+    }
+    
+    public String getSortingOrDefault() {
+        if(sorting == null || sorting.isBlank()) {
+            return DEFAULT_SORTING;
+        }
         return sorting;
     }
 
