@@ -94,12 +94,6 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
     }
 
     private LoadOperatorSummaryData loadNeverExecutedWatchesWithSeverity(String tenant) {
-//        List<String> watchIdsToExclude = watchStateRepository.findAllTenantsWatchesIds(tenant, DEFAULT_MAX_RESULTS);
-//        List<WatchSummary> neverExecutedWatches = watchRepository.findWatchesWithOtherIds(tenant, watchIdsToExclude, DEFAULT_MAX_RESULTS)
-//                .stream() //
-//                .map(watchId -> new WatchSummary(watchId, null, null, "Watch has been never executed", null, null)) //
-//                .toList();
-//        return new LoadOperatorSummaryData(neverExecutedWatches);
         List<String> allWatchesWithSeverity = watchRepository.searchWatchIdsWithSeverityAndNames(tenant, null, DEFAULT_MAX_RESULTS);
         SearchResponse response = watchStateRepository.findNeverExecutedWatchesWithSeverity(tenant, allWatchesWithSeverity,
                 DEFAULT_MAX_RESULTS);

@@ -148,7 +148,6 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("temperature-alerts-2", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.countWatchStatusWithAvailableStatusCode(INDEX_SIGNALS_WATCHES_STATE) > 0);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/temperature-alerts-2"));
 
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
 
@@ -187,7 +186,7 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("temperature-alerts-1", INDEX_NAME_WATCHED_3, INDEX_ALARMS, .15, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.getCountOfDocuments(INDEX_ALARMS) > 0);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/temperature-alerts-1"));
+            waitForWatchStatuses(predefinedWatches, 1);
 
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
 
@@ -226,7 +225,7 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineSimpleTemperatureWatch("high-temp-alerts", INDEX_NAME_WATCHED_2, INDEX_ALARMS, .05);
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.getCountOfDocuments(INDEX_ALARMS) > 0);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/high-temp-alerts"));
+            waitForWatchStatuses(predefinedWatches, 1);
 
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
 
@@ -259,7 +258,7 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("temperature-alerts", INDEX_NAME_WATCHED_3, INDEX_ALARMS, .15, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.getCountOfDocuments(INDEX_ALARMS) > 0);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/high-temp-alerts", "_main/temperature-alerts"));
+            waitForWatchStatuses(predefinedWatches, 2);
             String sorting = "-severity_details.level_numeric";
 
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, EMPTY_JSON_BODY);
@@ -310,7 +309,7 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineSimpleTemperatureWatchWitDoubleActions("double-alerts", INDEX_NAME_WATCHED_2, INDEX_ALARMS, .05);
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.getCountOfDocuments(INDEX_ALARMS) > 0);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/double-alerts"));
+            waitForWatchStatuses(predefinedWatches, 1);
 
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", "{}");
 
@@ -334,7 +333,7 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("temp-3", INDEX_NAME_WATCHED_4, INDEX_ALARMS, .25, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.getCountOfDocuments(INDEX_ALARMS) > 2);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/temp-1", "_main/temp-2", "_main/temp-3"));
+            waitForWatchStatuses(predefinedWatches, 3);
             String sorting = "-severity_details.level_numeric";
 
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, EMPTY_JSON_BODY);
@@ -365,9 +364,7 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("temp-3", INDEX_NAME_WATCHED_4, INDEX_ALARMS, .25, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.getCountOfDocuments(INDEX_ALARMS) > 2);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/temp-1"));
-            await().until(() -> predefinedWatches.watchesExecuted("_main/temp-2"));
-            await().until(() -> predefinedWatches.watchesExecuted("_main/temp-3"));
+            waitForWatchStatuses(predefinedWatches, 2);
             String sorting = "+severity_details.level_numeric";
 
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, EMPTY_JSON_BODY);
@@ -457,7 +454,7 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("temp-3", INDEX_NAME_WATCHED_4, INDEX_ALARMS, .25, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.getCountOfDocuments(INDEX_ALARMS) > 0);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/temp-3"));
+            waitForWatchStatuses(predefinedWatches, 1);
             final String fieldName = "incorrect-field";
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=+" + fieldName, EMPTY_JSON_BODY);
 
@@ -1134,7 +1131,7 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("temp-4", INDEX_NAME_WATCHED_4, INDEX_ALARMS, .25, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.getCountOfDocuments(INDEX_ALARMS) > 3);
-            await().until(() -> predefinedWatches.watchesExecuted( "_main/temp-3", "_main/temp-4"));
+            waitForWatchStatuses(predefinedWatches, 2);
             String requestBody = DocNode.of("level_numeric_greater_than", 2).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
@@ -1162,7 +1159,7 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("temp-4", INDEX_NAME_WATCHED_4, INDEX_ALARMS, .25, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.getCountOfDocuments(INDEX_ALARMS) > 3);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/temp-1", "_main/temp-2", "_main/temp-3", "_main/temp-4"));
+            waitForWatchStatuses(predefinedWatches, 4);
             String requestBody = DocNode.of("level_numeric_greater_than", 3).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
@@ -1188,7 +1185,7 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("temp-4", INDEX_NAME_WATCHED_4, INDEX_ALARMS, .25, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.getCountOfDocuments(INDEX_ALARMS) > 3);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/temp-1", "_main/temp-2", "_main/temp-3", "_main/temp-4"));
+            waitForWatchStatuses(predefinedWatches, 4);
             String requestBody = DocNode.of("level_numeric_less_than", 3).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
@@ -1216,7 +1213,7 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("temp-4", INDEX_NAME_WATCHED_4, INDEX_ALARMS, .25, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.getCountOfDocuments(INDEX_ALARMS) > 3);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/temp-1", "_main/temp-2", "_main/temp-3", "_main/temp-4"));
+            waitForWatchStatuses(predefinedWatches, 4);
             String requestBody = DocNode.of("level_numeric_less_than", 4).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
@@ -1252,7 +1249,7 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("temp-4", INDEX_NAME_WATCHED_4, INDEX_ALARMS, .25, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.getCountOfDocuments(INDEX_ALARMS) > 3);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/temp-1", "_main/temp-2", "_main/temp-3", "_main/temp-4"));
+            waitForWatchStatuses(predefinedWatches, 4);
             String requestBody = DocNode.of("level_numeric_greater_than", 2,"level_numeric_less_than", 4).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
@@ -1278,7 +1275,7 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("temp-4", INDEX_NAME_WATCHED_4, INDEX_ALARMS, .25, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.getCountOfDocuments(INDEX_ALARMS) > 3);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/temp-1", "_main/temp-2", "_main/temp-3", "_main/temp-4"));
+            waitForWatchStatuses(predefinedWatches, 4);
             String requestBody = DocNode.of("level_numeric_greater_than", 2,"level_numeric_less_than", 4)//
                 .with("level_numeric_equal_to", 1)//
                 .toJsonString();
@@ -1302,7 +1299,7 @@ public class LoadOperatorSummaryActionTest {
 
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.getCountOfDocuments(INDEX_ALARMS) > 0);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/high-temp-alerts"));
+            waitForWatchStatuses(predefinedWatches, 1);
             String sorting = "actions.not-existing-action.triggered";
 
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, EMPTY_JSON_BODY);
@@ -1531,7 +1528,6 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("watch_with_very_long_name", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.countWatchStatusWithAvailableStatusCode(INDEX_SIGNALS_WATCHES_STATE) > 0);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/watch_with_very_long_name"));
             DocNode requestBody = DocNode.of("watch_id", "watch_with_very");
 
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", requestBody);
@@ -1553,7 +1549,6 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("watch_with_very_long_name", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.countWatchStatusWithAvailableStatusCode(INDEX_SIGNALS_WATCHES_STATE) > 0);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/watch_with_very_long_name"));
             DocNode requestBody = DocNode.of("watch_id", "nosuchprefix");
 
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", requestBody);
@@ -1601,7 +1596,6 @@ public class LoadOperatorSummaryActionTest {
                 TRIGGER_CRON_DISTANT_FUTURE);
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.countWatchStatusWithAvailableStatusCode(INDEX_SIGNALS_WATCHES_STATE) > 0);
-            await().until(() -> predefinedWatches.watchesExecuted("_main/watch_with_very_long_name"));
             await().until(() -> predefinedWatches.watchHasEmptyLastStatus("_main/watch_executed_in_distant_future"));
             DocNode requestBody = DocNode.of("watch_id", "watch_with");
 

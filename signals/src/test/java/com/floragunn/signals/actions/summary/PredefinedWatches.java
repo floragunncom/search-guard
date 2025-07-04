@@ -138,7 +138,7 @@ class PredefinedWatches {
                 .append(maxTemperatureSearch)
                 .append(".aggregations.")//
                 .append(aggregationNameMaxTemperature)//
-                .append("value > data.")// <-- error in condition
+                .append("value > data.")//
                 .append(staticLimitsName)//
                 .append(".")//
                 .append(maxTemperatureLimitName)//
@@ -157,7 +157,9 @@ class PredefinedWatches {
                     .greaterOrEqual(7).as(WARNING)//
                     .greaterOrEqual(10).as(ERROR)//
                     .greaterOrEqual(15).as(CRITICAL)//
-                    .then().index("! this is an invalid index name !?#").name(actionName).build();
+                    .then()//
+                    .index("! this is an invalid index name !?#")// <-- incorrect index name this will cause an error during action execution
+                    .name(actionName).build();
             String watchPath = createWatchPath(watchId);
             log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
             HttpResponse response = restClient.putJson(watchPath, watch);
@@ -383,35 +385,6 @@ class PredefinedWatches {
         } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException("Cannot count watch states with available status code.", e);
         }
-    }
-
-    public boolean watchExecuted(String watchIdWithTenantPrefix) {
-        Objects.requireNonNull(watchIdWithTenantPrefix, "Watch id is required");
-        if(!watchIdWithTenantPrefix.contains("/")) {
-            throw new IllegalArgumentException("Watch id must contain tenant prefix, e.g. 'tenant/watchId'. Provided: " + watchIdWithTenantPrefix);
-        }
-        Client client = localCluster.getPrivilegedInternalNodeClient();
-
-        GetResponse getResponse = client.get(new GetRequest(".signals_watches_state", watchIdWithTenantPrefix)).actionGet();
-        if(getResponse.isExists()) {
-            DocNode sources = DocNode.wrap(getResponse.getSourceAsMap());
-            DocNode lastStatus = sources.getAsNode("last_status");
-            if(lastStatus != null) {
-                String executed = lastStatus.getAsString("code");
-                return executed != null;
-            }
-        }
-        return false;
-    }
-
-    public boolean watchesExecuted(String...watchIdWithTenantPrefix) {
-        Objects.requireNonNull(watchIdWithTenantPrefix, "Watch ids are required");
-        for(String watchId : watchIdWithTenantPrefix) {
-            if(!watchExecuted(watchId)) {
-                return false;
-            }
-        }
-        return true;
     }
 
     public boolean watchHasEmptyLastStatus(String watchIdWithTenantPrefix) {

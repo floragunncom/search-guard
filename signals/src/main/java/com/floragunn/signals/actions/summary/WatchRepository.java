@@ -56,31 +56,6 @@ class WatchRepository {
         }
     }
 
-    /**
-     * @param tenant required valid tenant name
-     * @param watchIdsToExclude list of watch ids to exclude from the result
-     * @param size maximum number of results to return
-     * @return list contains ids with tenant prefix
-     */
-    public List<String> findWatchesWithOtherIds(String tenant, List<String> watchIdsToExclude, int size) {
-        Objects.requireNonNull(tenant, "tenant is required");
-        Objects.requireNonNull(watchIdsToExclude, "watchIdsToExclude is required");
-        SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource();
-        sourceBuilder.size(size);
-        sourceBuilder.fetchSource(false);
-        BoolQueryBuilder query = QueryBuilders.boolQuery() //
-                .filter(tenantIs(tenant)) //
-                .filter(severityLevelExistsQuery()) //
-                .mustNot(QueryBuilders.idsQuery().addIds(watchIdsToExclude.toArray(String[]::new)));
-        sourceBuilder.query(query);
-
-        SearchRequest request = new SearchRequest(watchIndexName).source(sourceBuilder);
-        SearchResponse searchResponse = privilegedConfigClient.search(request).actionGet();
-        return Arrays.stream(searchResponse.getHits().getHits()) //
-                .map(SearchHit::getId) //
-                .toList();
-    }
-
     private static @NotNull AbstractQueryBuilder<?> withNamePrefix(String namePrefix) {
         if( namePrefix == null || namePrefix.isEmpty()) {
             return QueryBuilders.matchAllQuery();
