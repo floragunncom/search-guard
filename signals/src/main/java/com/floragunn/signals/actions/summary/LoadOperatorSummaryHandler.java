@@ -65,15 +65,18 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
     protected CompletableFuture<StandardResponse> doExecute(LoadOperatorSummaryRequest request) {
        return supplyAsync(() -> {
             try {
-                String watchId = request.getWatchFilter().getWatchId();
+                String watchIdFilter = request.getWatchFilter().getWatchId();
                 String tenant = request.getTenant();
 
                 List<SortByField> sorting = SortParser.parseSortingExpression(request.getSortingOrDefault());
                 LoadOperatorSummaryData failedWatchesData = loadFailedWatches(tenant);
                 LoadOperatorSummaryData notExecutedWatchesWithSeverity = loadNeverExecutedWatchesWithSeverity(tenant);
 
-                List<String> watchIds = watchRepository.searchWatchIdsWithSeverityAndNames(tenant, watchId, DEFAULT_MAX_RESULTS);
-                LoadOperatorSummaryData loadOperatorSummaryData = loadWatchesByFilter(request, sorting, watchIds);
+                List<WatchActionNames> watchActionNames = watchRepository.searchWatchIdsWithSeverityAndNames(tenant, watchIdFilter, DEFAULT_MAX_RESULTS);
+                List<String> watchIds = watchActionNames.stream() //
+                        .map(WatchActionNames::watchIdWithTenantPrefix) //
+                        .collect(Collectors.toList());
+                LoadOperatorSummaryData loadOperatorSummaryData = loadWatchesByFilter(request, sorting, watchIds).filterActions(watchActionNames);
 
                 return new StandardResponse(200).data(failedWatchesData.with(notExecutedWatchesWithSeverity).with(loadOperatorSummaryData));
             } catch (Exception ex) {
@@ -94,10 +97,13 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
     }
 
     private LoadOperatorSummaryData loadNeverExecutedWatchesWithSeverity(String tenant) {
-        List<String> allWatchesWithSeverity = watchRepository.searchWatchIdsWithSeverityAndNames(tenant, null, DEFAULT_MAX_RESULTS);
-        SearchResponse response = watchStateRepository.findNeverExecutedWatchesWithSeverity(tenant, allWatchesWithSeverity,
+        List<WatchActionNames> allWatchesWithSeverity = watchRepository.searchWatchIdsWithSeverityAndNames(tenant, null, DEFAULT_MAX_RESULTS);
+        List<String> allWatchIdsWithSeverity = allWatchesWithSeverity.stream() //
+                .map(WatchActionNames::watchIdWithTenantPrefix) //
+                .toList();
+        SearchResponse response = watchStateRepository.findNeverExecutedWatchesWithSeverity(tenant, allWatchIdsWithSeverity,
                 DEFAULT_MAX_RESULTS);
-        return convertSearchResultToResponse(response, REASON_NEVER_EXECUTED_WATCH_WITH_SEVERITY);
+        return convertSearchResultToResponse(response, REASON_NEVER_EXECUTED_WATCH_WITH_SEVERITY).filterActions(allWatchesWithSeverity);
     }
 
     private @NotNull LoadOperatorSummaryData loadFailedWatches(String tenant) {

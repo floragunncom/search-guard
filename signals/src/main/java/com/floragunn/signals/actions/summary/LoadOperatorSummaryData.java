@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -189,6 +190,21 @@ public class LoadOperatorSummaryData implements Document {
             }
             return null;
         }
+
+        public WatchSummary filterActions(Set<String> allowedActionNames) {
+            if(allowedActionNames == null) {
+                return this; // No filtering needed
+            }
+            Map<String, ActionSummary> newActions = new LinkedHashMap<>();
+            for(Map.Entry<String, ActionSummary> entry : actions.entrySet()) {
+                if (allowedActionNames.contains(entry.getKey())) {
+                    newActions.put(entry.getKey(), entry.getValue());
+                }
+            }
+
+            return new WatchSummary(this.id, this.statusCode, this.severity, this.description,
+                this.severityDetails, newActions, this.reason);
+        }
     }
 
     private final List<WatchSummary> watches;
@@ -198,8 +214,17 @@ public class LoadOperatorSummaryData implements Document {
         this.watches = docNode.getAsListFromNodes(FIELD_WATCHES, WatchSummary::parse);
     }
 
-    public LoadOperatorSummaryData(List<WatchSummary> watches) {
+    LoadOperatorSummaryData(List<WatchSummary> watches) {
         this.watches = watches;
+    }
+
+    public LoadOperatorSummaryData filterActions(List<WatchActionNames> watchActionNames) {
+        Map<String, Set<String>> actionNamesByWatchId = watchActionNames.stream()
+                .collect(Collectors.toMap(WatchActionNames::watchIdWithTenantPrefix, WatchActionNames::actionNamesAsSet));
+        List<WatchSummary> filteredWatches = watches.stream() //
+                .map(watchSummary -> watchSummary.filterActions(actionNamesByWatchId.get(watchSummary.id))) //
+                .toList();
+        return new LoadOperatorSummaryData(filteredWatches);
     }
 
     public LoadOperatorSummaryData with(LoadOperatorSummaryData loadOperatorSummaryData) {
