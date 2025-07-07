@@ -3,13 +3,14 @@ package com.floragunn.signals.actions.summary;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.jayway.jsonpath.PathNotFoundException;
+import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.common.time.DateFormatter;
+import org.elasticsearch.rest.RestStatus;
+
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.regex.Pattern;
-import org.elasticsearch.ElasticsearchStatusException;
-import org.elasticsearch.common.time.DateFormatter;
-import org.elasticsearch.rest.RestStatus;
 
 class SafeDocNodeReader {
 
@@ -22,7 +23,11 @@ class SafeDocNodeReader {
     static Long getLongValue(DocNode docNode, String key) {
         try {
             if (docNode.containsKey(key)) {
-                return docNode.getNumber(key).longValue();
+                Number number = docNode.getNumber(key);
+                if (number == null) { // node exists but its value is null
+                    return null;
+                }
+                return number.longValue();
             } else {
                 return null;
             }
@@ -34,7 +39,11 @@ class SafeDocNodeReader {
     static Integer getIntValue(DocNode docNode, String key) {
         try {
             if (docNode.containsKey(key)) {
-                return docNode.getNumber(key).intValue();
+                Number number = docNode.getNumber(key);
+                if (number == null) { // node exists but its value is null
+                    return null;
+                }
+                return number.intValue();
             } else {
                 return null;
             }
@@ -46,7 +55,11 @@ class SafeDocNodeReader {
     static Double getDoubleValue(DocNode docNode, String key) {
         try {
             if (docNode.containsKey(key)) {
-                return docNode.getNumber(key).doubleValue();
+                Number number = docNode.getNumber(key);
+                if (number == null) { // node exists but its value is null
+                    return null;
+                }
+                return number.doubleValue();
             } else {
                 return null;
             }

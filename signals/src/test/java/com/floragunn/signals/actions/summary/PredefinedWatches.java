@@ -31,8 +31,10 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.hamcrest.Matchers;
 
 class PredefinedWatches {
 
@@ -88,7 +90,10 @@ class PredefinedWatches {
     }
 
     public WatchPointer defineTemperatureSeverityWatch(String watchId, String inputTemperatureIndex, String outputAlarmIndex,
-        double temperatureLimit, String actionName) {
+        double temperatureLimit, String...actionNames) {
+        if(actionNames == null || actionNames.length == 0) {
+            throw new IllegalArgumentException("At least one action name is required.");
+        }
         final String aggregationNameMaxTemperature = "max_temperature";
         final String maxTemperatureSearch = "max_temperature_search";
         final String maxTemperatureLimitName = "max_temperature";
@@ -105,7 +110,7 @@ class PredefinedWatches {
         try (GenericRestClient restClient = localCluster.getRestClient(watchUser)){
             DocNode aggregation = DocNode.of(aggregationNameMaxTemperature, DocNode.of("max", DocNode.of("field", "temperature")));
 
-            Watch watch = new WatchBuilder(watchId)
+            WatchBuilder.ActionBuilder severityMappingBuilder = new WatchBuilder(watchId)
                 .triggerNow() //
                 .search(inputTemperatureIndex).size(0).aggregation(aggregation).as(maxTemperatureSearch)//
                 .put(String.format("{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
@@ -116,11 +121,19 @@ class PredefinedWatches {
                     .greaterOrEqual(7).as(WARNING)//
                     .greaterOrEqual(10).as(ERROR)//
                     .greaterOrEqual(15).as(CRITICAL)//
-                .then().index(outputAlarmIndex).name(actionName).build();
+                .then();
+            WatchBuilder.AbstractActionBuilder abstractActionBuilder = null;
+            for(String actionName: actionNames) {
+                if(abstractActionBuilder != null) {
+                    abstractActionBuilder.and();
+                }
+                abstractActionBuilder = severityMappingBuilder.index(outputAlarmIndex).name(actionName);
+            }
+            Watch watch = abstractActionBuilder.build();
             String watchPath = createWatchPath(watchId);
             log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
             HttpResponse response = restClient.putJson(watchPath, watch);
-            assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            assertThat(response.getStatusCode(), Matchers.anyOf(equalTo(HttpStatus.SC_CREATED), equalTo(HttpStatus.SC_OK)));
             WatchPointer watchPointer = new WatchPointer(watchPath);
             watchesToDelete.add(watchPointer);
             return watchPointer;
@@ -368,11 +381,17 @@ class PredefinedWatches {
     }
 
     public long countWatchStatusWithAvailableStatusCode(String watchStateIndexName) {
+        QueryBuilder query = QueryBuilders.existsQuery("last_status.code");
+        return countWatchByQuery(watchStateIndexName, query);
+    }
+
+    private long countWatchByQuery(String watchStateIndexName, QueryBuilder query) {
         try {
             Client client = localCluster.getPrivilegedInternalNodeClient();
             SearchRequest request = new SearchRequest(watchStateIndexName);
             SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-            searchSourceBuilder.query(QueryBuilders.existsQuery("last_status.code"));
+
+            searchSourceBuilder.query(query);
             request.source(searchSourceBuilder);
 
             SearchResponse response = client.search(request).get();
@@ -387,10 +406,18 @@ class PredefinedWatches {
         }
     }
 
+    public long countWatchByActionName(String watchStateIndexName, String actionName) {
+        return countWatchByQuery(watchStateIndexName, QueryBuilders.existsQuery("actions." + actionName));
+    }
+
+    public long countWatchByAckStatus(String watchStateIndexName, String actionName) {
+        return countWatchByQuery(watchStateIndexName, QueryBuilders.existsQuery("actions." + actionName + ".acked.on"));
+    }
+
     public boolean watchHasEmptyLastStatus(String watchIdWithTenantPrefix) {
         Objects.requireNonNull(watchIdWithTenantPrefix, "Watch id is required");
         if(!watchIdWithTenantPrefix.contains("/")) {
-            throw new IllegalArgumentException("Watch id must contain tenant prefix, e.g. 'tenant/watchId'. Provided: " + watchIdWithTenantPrefix);
+            throw new IllegalArgumentException("Watch id must contain tenant prefix, e.g. 'tenant/watchIdWithTenantPrefix'. Provided: " + watchIdWithTenantPrefix);
         }
         Client client = localCluster.getPrivilegedInternalNodeClient();
 

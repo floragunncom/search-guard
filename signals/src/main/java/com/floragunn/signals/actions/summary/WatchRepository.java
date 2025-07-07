@@ -1,5 +1,7 @@
 package com.floragunn.signals.actions.summary;
 
+import com.floragunn.codova.documents.DocNode;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -34,10 +36,11 @@ class WatchRepository {
      * @return list contains ids with tenant prefix
      *
      */
-    public List<String> searchWatchIdsWithSeverityAndNames(String tenant, String namePrefix, int size) {
+    public List<WatchActionNames> searchWatchIdsWithSeverityAndIdPrefix(String tenant, String namePrefix, int size) {
         Objects.requireNonNull(tenant, "tenant is required");
         SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource();
         sourceBuilder.size(size);
+        sourceBuilder.fetchSource(new String[]{"actions.name"}, new String[0]);
 
         BoolQueryBuilder boolQuery = QueryBuilders.boolQuery() //
                 .filter(tenantIs(tenant)) //
@@ -46,21 +49,37 @@ class WatchRepository {
         sourceBuilder.query(boolQuery);
 
         SearchRequest request = new SearchRequest(watchIndexName).source(sourceBuilder);
+
+
         SearchResponse searchResponse = privilegedConfigClient.search(request).actionGet();
         try {
             return Arrays.stream(searchResponse.getHits().getHits()) //
-                    .map(SearchHit::getId) //
+                    .map(this::convertHitToWatchActionNames) //
                     .toList();
         } finally {
             searchResponse.decRef();
         }
     }
 
+    private WatchActionNames convertHitToWatchActionNames(SearchHit hit) {
+        String watchId = hit.getId();
+        DocNode documentSources = DocNode.wrap(hit.getSourceAsMap());
+        ImmutableList<DocNode> actions = documentSources.getAsListOfNodes("actions");
+        if (actions == null || actions.isEmpty()) {
+            return new WatchActionNames(watchId, ImmutableList.empty());
+        }
+        List<String> actionNames = actions.stream() //
+                .map(docNode -> docNode.getAsString("name")) //
+                .filter(Objects::nonNull) //
+                .toList();
+        return new WatchActionNames(watchId, actionNames);
+    }
+
     private static @NotNull AbstractQueryBuilder<?> withNamePrefix(String namePrefix) {
         if( namePrefix == null || namePrefix.isEmpty()) {
             return QueryBuilders.matchAllQuery();
         }
-        return QueryBuilders.prefixQuery("_name", namePrefix);
+        return QueryBuilders.prefixQuery("_name", namePrefix.toLowerCase());
     }
 
     private static @NotNull TermQueryBuilder tenantIs(String tenant) {
