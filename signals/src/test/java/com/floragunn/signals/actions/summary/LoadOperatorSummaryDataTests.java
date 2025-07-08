@@ -36,7 +36,7 @@ public class LoadOperatorSummaryDataTests {
     }
 
     private ActionSummary actionSummary() {
-        return new ActionSummary(NOW, NOW, true, NOW, "err", "200", "ok");
+        return new ActionSummary(NOW, NOW, true, NOW, "err", "200", "ok", null, null);
     }
 
     private WatchSummary watchSummary(String id, Map<String, ActionSummary> actions) {

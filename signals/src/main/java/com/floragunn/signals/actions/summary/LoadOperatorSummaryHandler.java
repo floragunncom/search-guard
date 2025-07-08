@@ -18,6 +18,8 @@ import com.floragunn.signals.actions.summary.LoadOperatorSummaryData.ActionSumma
 import com.floragunn.signals.actions.summary.LoadOperatorSummaryData.WatchSeverityDetails;
 import com.floragunn.signals.actions.summary.LoadOperatorSummaryData.WatchSummary;
 import com.floragunn.signals.actions.summary.SortParser.SortByField;
+
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -154,13 +156,22 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
                 statusCode = lastStatus.getAsString("code");
                 statusDetails = lastStatus.getAsString("detail");
             }
+            String ackBy = null;
+            Instant ackOn = null;
+            DocNode ackedNode = node.getAsNode("acked");
+            if(Objects.nonNull(ackedNode)) {
+                ackBy = ackedNode.getAsString("by");
+                ackOn = getInstantValue(ackedNode, "on");
+            }
             return new ActionSummary(getInstantValue(node, "last_triggered"),
                 getInstantValue(node, "last_check"),
                 node.getBoolean("last_check_result"),
                 getInstantValue(node, "last_execution"),
                 node.getAsString("last_error"),
                 statusCode,
-                statusDetails);
+                statusDetails,
+                ackBy,
+                ackOn);
         } catch (ConfigValidationException e) {
             throw new ElasticsearchStatusException("Cannot parse watch state action details", RestStatus.INTERNAL_SERVER_ERROR, e);
         }

@@ -67,6 +67,8 @@ public class LoadOperatorSummaryData implements Document {
         public static final String FIELD_ERROR = "error";
         public static final String FIELD_STATUS_CODE = "status_code";
         public static final String FIELD_STATUS_DETAILS = "status_details";
+        public static final String FIELD_ACK_BY_USER = "ack_by";
+        public static final String FIELD_ACK_ON = "ack_on";
         private final Instant triggered;
         private final Instant checked;
         private final Boolean checkResult;
@@ -74,6 +76,8 @@ public class LoadOperatorSummaryData implements Document {
         private final String error;
         private final String statusCode;
         private final String statusDetails;
+        private final String ackByUser;
+        private final Instant ackTime;
 
         public ActionSummary(
             Instant triggered,
@@ -82,7 +86,9 @@ public class LoadOperatorSummaryData implements Document {
             Instant execution,
             String error,
             String statusCode,
-            String statusDetails) {
+            String statusDetails,
+            String ackByUser,
+            Instant ackTime) {
             this.triggered = triggered;
             this.checked = checked;
             this.checkResult = checkResult;
@@ -90,13 +96,15 @@ public class LoadOperatorSummaryData implements Document {
             this.error = error;
             this.statusCode = statusCode;
             this.statusDetails = statusDetails;
+            this.ackByUser = ackByUser;
+            this.ackTime = ackTime;
         }
 
         public static ActionSummary parse(DocNode node) {
             try {
                 return new ActionSummary(stringToInstant(node.getAsString(FIELD_TRIGGERED)), stringToInstant(node.getAsString(FIELD_CHECKED)),
                     node.getBoolean(FIELD_CHECK_RESULT), stringToInstant(node.getAsString(FIELD_EXECUTION)), node.getAsString(FIELD_ERROR),
-                    node.getAsString(FIELD_STATUS_CODE), node.getAsString(FIELD_STATUS_DETAILS));
+                    node.getAsString(FIELD_STATUS_CODE), node.getAsString(FIELD_STATUS_DETAILS), node.getAsString(FIELD_ACK_BY_USER), stringToInstant(node.getAsString(FIELD_ACK_ON)));
             } catch (ConfigValidationException e) {
                 throw new ElasticsearchStatusException("Cannot parse action summary", RestStatus.INTERNAL_SERVER_ERROR, e);
             }
@@ -104,8 +112,8 @@ public class LoadOperatorSummaryData implements Document {
 
         Map<String, Object> toBasicObject() {
             return ImmutableMap.<String, Object>of(FIELD_TRIGGERED, instantToString(triggered), FIELD_CHECKED, instantToString(checked), FIELD_CHECK_RESULT, checkResult)
-                .with(ImmutableMap.of(FIELD_EXECUTION, instantToString(execution),
-                    FIELD_ERROR, error, FIELD_STATUS_CODE, statusCode, FIELD_STATUS_DETAILS, statusDetails));
+                .with(ImmutableMap.of(FIELD_EXECUTION, instantToString(execution), FIELD_ERROR, error, FIELD_STATUS_CODE, statusCode, FIELD_STATUS_DETAILS, statusDetails))
+                    .with(ImmutableMap.of(FIELD_ACK_BY_USER, ackByUser, FIELD_ACK_ON, instantToString(ackTime)));
         }
 
     }

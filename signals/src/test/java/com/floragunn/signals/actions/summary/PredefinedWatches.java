@@ -410,6 +410,10 @@ class PredefinedWatches {
         return countWatchByQuery(watchStateIndexName, QueryBuilders.existsQuery("actions." + actionName));
     }
 
+    public long countWatchByAckStatus(String watchStateIndexName, String actionName) {
+        return countWatchByQuery(watchStateIndexName, QueryBuilders.existsQuery("actions." + actionName + ".acked.on"));
+    }
+
     public boolean watchHasEmptyLastStatus(String watchIdWithTenantPrefix) {
         Objects.requireNonNull(watchIdWithTenantPrefix, "Watch id is required");
         if(!watchIdWithTenantPrefix.contains("/")) {

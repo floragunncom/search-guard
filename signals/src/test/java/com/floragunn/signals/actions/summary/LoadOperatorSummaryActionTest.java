@@ -11,12 +11,14 @@ import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.valueSat
 import static com.floragunn.signals.actions.summary.PredefinedWatches.ACTION_CREATE_ALARM_ONE;
 import static com.floragunn.signals.actions.summary.PredefinedWatches.ACTION_CREATE_ALARM_TWO;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.apache.http.HttpStatus.SC_OK;
 import static org.awaitility.Awaitility.await;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.closeTo;
+import static org.hamcrest.Matchers.isEmptyOrNullString;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 
@@ -175,6 +177,8 @@ public class LoadOperatorSummaryActionTest {
             assertThat(body, containsFieldPointedByJsonPath("data.watches[0].actions.createAlarm", "execution"));
             assertThat(body, fieldIsNull("data.watches[0].actions.createAlarm.error"));
             assertThat(body, fieldIsNull("data.watches[0].actions.createAlarm.status_details"));
+            assertThat(body, fieldIsNull("data.watches[0].actions.createAlarm.ack_by"));
+            assertThat(body, fieldIsNull("data.watches[0].actions.createAlarm.ack_on"));
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1716,12 +1720,38 @@ public class LoadOperatorSummaryActionTest {
         }
     }
 
+    @Test
+    public void shouldIncludeDataRelatedToWatchAck() throws Exception {
+        PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
+        predefinedWatches.defineTemperatureSeverityWatch("level-critical", INDEX_NAME_WATCHED_9, INDEX_ALARMS, .25, "createAlarm");
+        try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
+            waitForWatchWithAction(predefinedWatches, "createAlarm");
+            HttpResponse ackResponse = restClient.put("/_signals/watch/_main/level-critical/_ack");
+            log.info("Watch ack response status code '{}' and body '{}'.", ackResponse.getStatusCode(), ackResponse.getBody());
+            assertThat(ackResponse.getStatusCode(), equalTo(SC_OK));
+            waitForWatchAckByUser(predefinedWatches, "createAlarm");
+
+
+            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
+
+            log.info("Watch summary response body '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(200));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, docNodeSizeEqualTo("data.watches", 1));
+            assertThat(body, containsValue("data.watches[0].watch_id", "level-critical"));
+            assertThat(body, containsValue("data.watches[0].actions.createAlarm.ack_by", USER_ADMIN.getName()));
+            assertThat(body, not(fieldIsNull("data.watches[0].actions.createAlarm.ack_on")));
+        } finally {
+            predefinedWatches.deleteWatches();
+        }
+    }
+
     private static void waitForFirstActionNonEmptyStatus(GenericRestClient restClient) {
         await().ignoreException(AssertionError.class).until(() -> {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", "{}");
             log.info("Waiting for status code of the first action state, body '{}'.", response.getBody());
             DocNode body = response.getBodyAsDocNode();
-            assertThat(body, valueSatisfiesMatcher("data.watches[0].status_code", String.class, not(Matchers.isEmptyOrNullString())));
+            assertThat(body, valueSatisfiesMatcher("data.watches[0].status_code", String.class, not(isEmptyOrNullString())));
             return true;
         });
     }
@@ -1730,6 +1760,11 @@ public class LoadOperatorSummaryActionTest {
         await().pollDelay(500, MILLISECONDS)//
             .until(() -> predefinedWatches.countWatchStatusWithAvailableStatusCode(INDEX_SIGNALS_WATCHES_STATE) >= //
                 expectedNumberOfWatchStatuses);
+    }
+
+    private static void waitForWatchAckByUser(PredefinedWatches predefinedWatches, String actionName) {
+        await().pollDelay(500, MILLISECONDS)//
+                .until(() -> predefinedWatches.countWatchByAckStatus(INDEX_SIGNALS_WATCHES_STATE, actionName) > 0);
     }
 
     private static void waitForWatchWithAction(PredefinedWatches predefinedWatches, String actionName) {
