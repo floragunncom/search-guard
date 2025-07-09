@@ -134,10 +134,6 @@ public class LoadOperatorSummaryRequest extends Request {
     public LoadOperatorSummaryRequest(String tenant, String sorting, UnparsedDocument<?> body) throws DocumentParseException {
         this(tenant, sorting, body.parseAsDocNode());
     }
-
-    public String getSorting() {
-        return sorting;
-    }
     
     public String getSortingOrDefault() {
         if(sorting == null || sorting.isBlank()) {

@@ -54,30 +54,6 @@ class WatchStateRepository {
         return searchWithFilteringOutMissingSortingFields(watchFilter, sorting, docNode, watchIdFilter);
     }
 
-    /**
-     *
-     * @param tenant required valid tenant name
-     * @param size max number of results to return
-     * @return ids with tenant prefix
-     */
-    public List<String> findAllTenantsWatchesIds(String tenant, int size) {
-        requireNonNull(tenant, "Tenant is required");
-        SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource();
-        sourceBuilder.size(size);
-        sourceBuilder.fetchSource(false);
-        sourceBuilder.query(QueryBuilders.termQuery("_tenant", tenant));
-        SearchRequest request = new SearchRequest(stateIndexName).source(sourceBuilder);
-
-        SearchResponse searchResponse = privilegedConfigClient.search(request).actionGet();
-        try {
-            return Arrays.stream(searchResponse.getHits().getHits()) //
-                    .map(SearchHit::getId) //
-                    .toList();
-        } finally {
-            searchResponse.decRef();
-        }
-    }
-
     public SearchResponse findNeverExecutedWatchesWithSeverity(String tenant, Collection<String> watchIds, int size) {
         requireNonNull(tenant, "Tenant is required");
         requireNonNull(watchIds, "Watch ids are required");
@@ -110,14 +86,13 @@ class WatchStateRepository {
         BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
         buildWatchIdsQuery(watchIdFilter, boolQueryBuilder);
         buildStatusCodeQuery(watchFilter, boolQueryBuilder);
-//        buildWatchIdQuery(watchFilter, boolQueryBuilder);
         buildSeverityQuery(watchFilter, boolQueryBuilder);
         buildActionsNamesQuery(watchFilter, boolQueryBuilder);
         buildActionsPropertiesQuery(watchFilter, boolQueryBuilder);
         buildRangeQueries(watchFilter, boolQueryBuilder);
         sourceBuilder.query(boolQueryBuilder);
         SearchRequest request = new SearchRequest(stateIndexName).source(sourceBuilder);
-        log.info("Request used by operator view to load watch state '{}'", request);
+        log.debug("Request used by operator view to load watch state '{}'", request);
         return privilegedConfigClient.search(request).actionGet();
     }
 
@@ -197,13 +172,6 @@ class WatchStateRepository {
                 orQueryBuilder.should(query);
             }
             boolQueryBuilder.must(orQueryBuilder);
-        }
-    }
-
-    private static void buildWatchIdQuery(WatchFilter watchFilter, BoolQueryBuilder boolQueryBuilder) {
-        if(watchFilter.containsWatchId()) {
-            MatchQueryBuilder watchIdQuery = QueryBuilders.matchQuery("last_execution.watch.id", watchFilter.getWatchId());
-            boolQueryBuilder.must(watchIdQuery);
         }
     }
 
