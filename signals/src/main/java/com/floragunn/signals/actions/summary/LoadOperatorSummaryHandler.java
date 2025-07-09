@@ -70,15 +70,16 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
                 String watchIdFilter = request.getWatchFilter().getWatchId();
                 String tenant = request.getTenant();
 
-                List<SortByField> sorting = SortParser.parseSortingExpression(request.getSortingOrDefault());
-                LoadOperatorSummaryData failedWatchesData = loadFailedWatches(tenant);
+                String sorting = request.getSortingOrDefault();
+                LoadOperatorSummaryData failedWatchesData = loadFailedWatches(tenant, sorting);
                 LoadOperatorSummaryData notExecutedWatchesWithSeverity = loadNeverExecutedWatchesWithSeverity(tenant);
 
                 List<WatchActionNames> watchActionNames = watchRepository.searchWatchIdsWithSeverityAndNames(tenant, watchIdFilter, DEFAULT_MAX_RESULTS);
                 List<String> watchIds = watchActionNames.stream() //
                         .map(WatchActionNames::watchIdWithTenantPrefix) //
                         .collect(Collectors.toList());
-                LoadOperatorSummaryData loadOperatorSummaryData = loadWatchesByFilter(request, sorting, watchIds).filterActions(watchActionNames);
+                LoadOperatorSummaryData loadOperatorSummaryData = loadWatchesByFilter(request, SortParser.parseSortingExpression(sorting), watchIds)
+                        .filterActions(watchActionNames);
 
                 return new StandardResponse(200).data(failedWatchesData.with(notExecutedWatchesWithSeverity).with(loadOperatorSummaryData));
             } catch (Exception ex) {
@@ -108,8 +109,9 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
         return convertSearchResultToResponse(response, REASON_NEVER_EXECUTED_WATCH_WITH_SEVERITY).filterActions(allWatchesWithSeverity);
     }
 
-    private @NotNull LoadOperatorSummaryData loadFailedWatches(String tenant) {
-        LoadOperatorSummaryRequest failedWatchesRequest = new LoadOperatorSummaryRequest(tenant, List.of(Status.Code.ACTION_FAILED, Status.Code.EXECUTION_FAILED));
+    private @NotNull LoadOperatorSummaryData loadFailedWatches(String tenant, String sorting) {
+        List<Status.Code> statusCodes = List.of(Status.Code.ACTION_FAILED, Status.Code.EXECUTION_FAILED);
+        LoadOperatorSummaryRequest failedWatchesRequest = new LoadOperatorSummaryRequest(tenant, statusCodes, sorting);
         try {
             SearchResponse failedWatchesResponse = watchStateRepository.search(failedWatchesRequest.getWatchFilter(), List.of(), null);
             return convertSearchResultToResponse(failedWatchesResponse, REASON_FAILED_WATCH);

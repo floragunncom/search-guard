@@ -44,7 +44,6 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.xcontent.XContentType;
-import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;

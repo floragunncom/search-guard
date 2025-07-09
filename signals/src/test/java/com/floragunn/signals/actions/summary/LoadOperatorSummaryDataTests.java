@@ -120,7 +120,7 @@ public class LoadOperatorSummaryDataTests {
         actions.put("action_1", actionSummary());
         WatchSummary watchSummary = watchSummary("tenant/watch", actions);
         LoadOperatorSummaryData summaryData = new LoadOperatorSummaryData(List.of(watchSummary));
-        WatchActionNames watchActionNames = new WatchActionNames("tenant/watch", List.of("not_present"));
+        WatchActionNames watchActionNames = new WatchActionNames("tenant/watch", List.of());
 
         LoadOperatorSummaryData filteredSummaryData = summaryData.filterActions(
                 List.of(watchActionNames));// just remove all actions because non actions are present in watch definition

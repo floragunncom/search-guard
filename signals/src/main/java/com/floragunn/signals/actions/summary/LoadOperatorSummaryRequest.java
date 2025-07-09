@@ -71,9 +71,9 @@ public class LoadOperatorSummaryRequest extends Request {
         validateRange("level_numeric", levelNumericEqualTo, levelNumericGreaterThan, levelNumericLessThan);
     }
 
-    LoadOperatorSummaryRequest(String tenant, List<Status.Code> statusCodes) {
+    LoadOperatorSummaryRequest(String tenant, List<Status.Code> statusCodes, String sorting) {
         this.tenant = tenant;
-        this.sorting = null;
+        this.sorting = sorting;
         this.watchStatusCodes = statusCodes.stream().map(Status.Code::toString).toList();
         this.watchId = null;
         this.severities = List.of();
