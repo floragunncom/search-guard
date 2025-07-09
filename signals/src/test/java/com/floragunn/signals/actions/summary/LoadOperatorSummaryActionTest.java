@@ -1657,17 +1657,17 @@ public class LoadOperatorSummaryActionTest {
     @Test
     public void shouldIncludeWatchesWithExecutionFailuresAndNeverExecutedWatchesDisregardsFilter() throws Exception {
         PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
-        predefinedWatches.defineTemperatureSeverityWatch("myveryuniquename", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
+        predefinedWatches.defineTemperatureSeverityWatch("my_unique_name", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
         predefinedWatches.defineTemperatureSeverityWatch("another_name", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
         predefinedWatches.defineErrorWatch("error_in_condition_definition", INDEX_NAME_WATCHED_1, .25, "my_alarm");
         predefinedWatches.defineTemperatureSeverityWatchWithCronTrigger("watch_executed_in_distant_future", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "my_alarm",
                 TRIGGER_CRON_DISTANT_FUTURE);
-        predefinedWatches.defineTemperatureWithoutSeverities("myvery_watch_without_severities_are_always_ignored", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
+        predefinedWatches.defineTemperatureWithoutSeverities("my_watch_without_severities_are_always_ignored", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
 
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.countWatchStatusWithAvailableStatusCode(INDEX_SIGNALS_WATCHES_STATE) > 3);
             await().until(() -> predefinedWatches.watchHasEmptyLastStatus("_main/watch_executed_in_distant_future"));
-            DocNode requestBody = DocNode.of("watch_id", "myvery"); //name filter
+            DocNode requestBody = DocNode.of("watch_id", "my_"); //name filter
 
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", requestBody);
 
@@ -1680,7 +1680,7 @@ public class LoadOperatorSummaryActionTest {
             assertThat(body, containsValue("data.watches[0].tenant", "_main"));
             assertThat(body, containsValue("data.watches[1].watch_id", "watch_executed_in_distant_future"));
             assertThat(body, containsValue("data.watches[1].reason", "never_executed_watch_with_severity"));
-            assertThat(body, containsValue("data.watches[2].watch_id", "myveryuniquename"));
+            assertThat(body, containsValue("data.watches[2].watch_id", "my_unique_name"));
             assertThat(body, containsValue("data.watches[2].reason", "match_filter"));
         } finally {
             predefinedWatches.deleteWatches();
