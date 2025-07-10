@@ -79,7 +79,7 @@ class WatchRepository {
         if( namePrefix == null || namePrefix.isEmpty()) {
             return QueryBuilders.matchAllQuery();
         }
-        return QueryBuilders.prefixQuery("_name", namePrefix);
+        return QueryBuilders.prefixQuery("_name", namePrefix.toLowerCase());
     }
 
     private static @NotNull TermQueryBuilder tenantIs(String tenant) {
