@@ -43,7 +43,6 @@ import org.jetbrains.annotations.NotNull;
 public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryRequest, StandardResponse> {
 
     private static final Logger log = LogManager.getLogger(LoadOperatorSummaryHandler.class);
-    public static final int DEFAULT_MAX_RESULTS = 1500;
     public static final String REASON_FAILED_WATCH = "failed_watch";
     public static final String REASON_NEVER_EXECUTED_WATCH_WITH_SEVERITY = "never_executed_watch_with_severity";
     public static final String REASON_MATCH_FILTER = "match_filter";
@@ -69,13 +68,13 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
             try {
                 String tenant = request.getTenant();
                 List<WatchActionNames> watchesWithSeveritiesPreFilteredById = watchRepository.searchWatchIdsWithSeverityAndIdPrefix(tenant,
-                        request.getWatchFilter().getWatchId(), DEFAULT_MAX_RESULTS);
+                        request.getWatchFilter().getWatchId(), request.getSizeOrDefault());
                 List<String> initialWatchIdsList = watchesWithSeveritiesPreFilteredById.stream() //
                         .map(WatchActionNames::watchIdWithTenantPrefix) //
                         .collect(Collectors.toList());
 
                 LoadOperatorSummaryData failedWatchesData = loadFailedWatches(request, initialWatchIdsList);
-                LoadOperatorSummaryData notExecutedWatchesWithSeverity = loadNeverExecutedWatchesWithSeverity(tenant,
+                LoadOperatorSummaryData notExecutedWatchesWithSeverity = loadNeverExecutedWatchesWithSeverity(tenant, request.getSizeOrDefault(),
                         watchesWithSeveritiesPreFilteredById);
 
                 LoadOperatorSummaryData loadOperatorSummaryData = loadWatchesByFilter(request, initialWatchIdsList) //
@@ -92,7 +91,7 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
     private @NotNull LoadOperatorSummaryData loadWatchesByFilter(LoadOperatorSummaryRequest request,
             List<String> watchIds) {
         List<SortByField> sorting = SortParser.parseSortingExpression(request.getSortingOrDefault());
-        SearchResponse search = watchStateRepository.search(request.getWatchFilter(), sorting, watchIds);
+        SearchResponse search = watchStateRepository.search(request.getWatchFilter(), sorting, request.getSizeOrDefault(), watchIds);
         try {
             return convertSearchResultToResponse(search, REASON_MATCH_FILTER);
         } finally {
@@ -100,11 +99,11 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
         }
     }
 
-    private LoadOperatorSummaryData loadNeverExecutedWatchesWithSeverity(String tenant, List<WatchActionNames> watchesWithSeveritiesPreFilteredById) {
+    private LoadOperatorSummaryData loadNeverExecutedWatchesWithSeverity(String tenant, int size, List<WatchActionNames> watchesWithSeveritiesPreFilteredById) {
         List<String> watchIds = watchesWithSeveritiesPreFilteredById.stream() //
                 .map(WatchActionNames::watchIdWithTenantPrefix) //
                 .toList();
-        SearchResponse response = watchStateRepository.findNeverExecutedWatchesWithSeverity(tenant, watchIds, DEFAULT_MAX_RESULTS);
+        SearchResponse response = watchStateRepository.findNeverExecutedWatchesWithSeverity(tenant, watchIds, size);
         return convertSearchResultToResponse(response, REASON_NEVER_EXECUTED_WATCH_WITH_SEVERITY).filterActions(watchesWithSeveritiesPreFilteredById);
     }
 
@@ -113,7 +112,7 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
         LoadOperatorSummaryRequest failedWatchesRequest = request.withWatchStatusCodes(statusCodes);
         List<SortByField> sorting = SortParser.parseSortingExpression(request.getSortingOrDefault());
         try {
-            SearchResponse failedWatchesResponse = watchStateRepository.search(failedWatchesRequest.getWatchFilter(), sorting, watchIdsFilter);
+            SearchResponse failedWatchesResponse = watchStateRepository.search(failedWatchesRequest.getWatchFilter(), sorting, request.getSizeOrDefault(), watchIdsFilter);
             return convertSearchResultToResponse(failedWatchesResponse, REASON_FAILED_WATCH);
         } finally {
             failedWatchesRequest.decRef();
