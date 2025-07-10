@@ -27,7 +27,7 @@ import org.elasticsearch.rest.RestStatus;
 
 public class LoadOperatorSummaryRequest extends Request {
     private static final String DEFAULT_SORTING = "-severity_details.level_numeric";
-    private static final int DEFAULT_MAX_RESULTS = 1500;
+    public static final int DEFAULT_SIZE = 10;
     private final String tenant;// TODO field might be redundant
     private final String sorting;
     private final Integer size;
@@ -159,7 +159,7 @@ public class LoadOperatorSummaryRequest extends Request {
 
     public int getSizeOrDefault() {
         if(size == null) {
-            return DEFAULT_MAX_RESULTS;
+            return DEFAULT_SIZE;
         }
         return size;
     }
