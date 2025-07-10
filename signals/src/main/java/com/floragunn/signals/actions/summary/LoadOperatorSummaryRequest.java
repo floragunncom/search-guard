@@ -71,19 +71,29 @@ public class LoadOperatorSummaryRequest extends Request {
         validateRange("level_numeric", levelNumericEqualTo, levelNumericGreaterThan, levelNumericLessThan);
     }
 
-    LoadOperatorSummaryRequest(String tenant, List<Status.Code> statusCodes, String sorting) {
+    LoadOperatorSummaryRequest(String tenant, String sorting, List<Status.Code> statusCodes, List<String> severities,
+                               Integer levelNumericEqualTo, Integer levelNumericGreaterThan, Integer levelNumericLessThan,
+                               List<String> actionNames, RangesFilters ranges, ActionProperties actionProperties) {
         this.tenant = tenant;
         this.sorting = sorting;
-        this.watchStatusCodes = statusCodes.stream().map(Status.Code::toString).toList();
+        this.watchStatusCodes = statusCodes.stream().map(Status.Code::toString).toList();;
         this.watchId = null;
-        this.severities = List.of();
-        this.levelNumericEqualTo = null;
-        this.levelNumericGreaterThan = null;
-        this.levelNumericLessThan = null;
-        this.actionNames = List.of();
-        this.ranges = prepareRanges(DocNode.EMPTY);
-        this.actionProperties = prepareActionProperties(DocNode.EMPTY);
+        this.severities = severities;
+        this.levelNumericEqualTo = levelNumericEqualTo;
+        this.levelNumericGreaterThan = levelNumericGreaterThan;
+        this.levelNumericLessThan = levelNumericLessThan;
+        this.actionNames = actionNames;
+        this.ranges = ranges;
+        this.actionProperties = actionProperties;
+        validateRange("level_numeric", levelNumericEqualTo, levelNumericGreaterThan, levelNumericLessThan);
     }
+
+    LoadOperatorSummaryRequest withWatchStatusCodes(List<Status.Code> statusCodes) {
+        Objects.requireNonNull(watchStatusCodes, "Watch status codes must not be null");
+        return new LoadOperatorSummaryRequest(tenant, sorting, statusCodes, severities, levelNumericEqualTo,
+            levelNumericGreaterThan, levelNumericLessThan, actionNames, ranges, actionProperties);
+    }
+
 
     private ActionProperties prepareActionProperties(DocNode docNode) {
         String extractedActionNameForCheckResult = getActionNameByPattern(docNode,

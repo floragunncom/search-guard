@@ -36,7 +36,7 @@ class WatchRepository {
      * @return list contains ids with tenant prefix
      *
      */
-    public List<WatchActionNames> searchWatchIdsWithSeverityAndNames(String tenant, String namePrefix, int size) {
+    public List<WatchActionNames> searchWatchIdsWithSeverityAndIdPrefix(String tenant, String namePrefix, int size) {
         Objects.requireNonNull(tenant, "tenant is required");
         SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource();
         sourceBuilder.size(size);
