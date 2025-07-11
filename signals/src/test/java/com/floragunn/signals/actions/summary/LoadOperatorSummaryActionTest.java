@@ -1797,6 +1797,26 @@ public class LoadOperatorSummaryActionTest {
         }
     }
 
+    @Test
+    public void shouldReturnTwoOnlyWatches() throws Exception {
+        PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
+        predefinedWatches.defineSimpleTemperatureWatch("watch-1", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .05);
+        predefinedWatches.defineSimpleTemperatureWatch("watch-2", INDEX_NAME_WATCHED_2, INDEX_ALARMS, .05);
+        predefinedWatches.defineSimpleTemperatureWatch("watch-3", INDEX_NAME_WATCHED_3, INDEX_ALARMS, .05);
+        try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
+            waitForWatchStatuses(predefinedWatches, 3);
+
+            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?size=2", EMPTY_JSON_BODY);
+
+            log.info("Watch summary response body '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(200));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, docNodeSizeEqualTo("data.watches", 2));
+        } finally {
+            predefinedWatches.deleteWatches();
+        }
+    }
+
     private static void waitForFirstActionNonEmptyStatus(GenericRestClient restClient) {
         await().ignoreException(AssertionError.class).until(() -> {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", "{}");

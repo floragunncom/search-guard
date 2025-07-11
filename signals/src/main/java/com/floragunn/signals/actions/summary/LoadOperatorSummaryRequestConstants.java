@@ -6,6 +6,7 @@ public class LoadOperatorSummaryRequestConstants {
     public static final String ACTIONS_PREFIX = "actions.";
     public static final String FIELD_TENANT = "tenant";
     public static final String FIELD_SORTING = "sorting";
+    public static final String FIELD_SIZE = "size";
     public static final String FIELD_WATCH_STATUS_CODE = "watch_status_codes";
     public static final String FIELD_WATCH_ID = "watch_id";
     public static final String FIELD_SEVERITIES = "severities";
