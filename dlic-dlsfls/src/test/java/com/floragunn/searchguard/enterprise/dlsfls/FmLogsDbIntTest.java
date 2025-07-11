@@ -66,7 +66,10 @@ public class FmLogsDbIntTest {
      * Increase DOC_COUNT for manual test runs with bigger test data sets
      */
     static final int DOC_COUNT = 200;
-    static final TestData TEST_DATA = TestData.documentCount(DOC_COUNT).timestampColumnName("@timestamp").get();
+    static final TestData TEST_DATA = TestData.documentCount(DOC_COUNT) //
+            .seed(1) //
+            .timestampColumnName("@timestamp") //
+            .get();
     static final String INDEX_NAME = "logs";
     static final String INDEX_PATTERN = INDEX_NAME + "*";
   
@@ -169,16 +172,17 @@ public class FmLogsDbIntTest {
 
     @Test
     public void search_masked_terms() throws Exception {
+        String sourceIp = TEST_DATA.anyDocument().getContent().get("source_ip").toString();
 
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
-            GenericRestClient.HttpResponse response = client.get("/" + INDEX_NAME + "/_search?pretty&q=source_ip:102.101.145.140");
+            GenericRestClient.HttpResponse response = client.get("/" + INDEX_NAME + "/_search?pretty&q=source_ip:" + sourceIp);
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             System.out.println(response.getBody());
             Assert.assertFalse(response.getBody(), response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[*]").isEmpty());
         }
 
         try (GenericRestClient client = cluster.getRestClient(HASHED_IP_USER)) {
-            GenericRestClient.HttpResponse response = client.get("/" + INDEX_NAME + "/_search?pretty&q=source_ip:102.101.145.140");
+            GenericRestClient.HttpResponse response = client.get("/" + INDEX_NAME + "/_search?pretty&q=source_ip:" + sourceIp);
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             System.out.println(response.getBody());
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[*]").isEmpty());

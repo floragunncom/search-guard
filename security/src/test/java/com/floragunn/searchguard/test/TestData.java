@@ -14,6 +14,10 @@
  * limitations under the License.
  *
  */
+/*
+ * Includes code from https://github.com/opensearch-project/security/blob/70591197c705ca6f42f765186a05837813f80ff3/src/integrationTest/java/org/opensearch/test/framework/TestData.java
+ * which is Copyright OpenSearch Contributors
+ */
 
 package com.floragunn.searchguard.test;
 
@@ -137,7 +141,7 @@ public class TestData {
         long start = System.currentTimeMillis();
 
         client.admin().indices()
-                .create(new CreateIndexRequest(name).settings(settings).simpleMapping(timestampColumn, "type=date,format=date_optional_time"))
+                .create(new CreateIndexRequest(name).settings(settings).mapping(DocNode.of("properties", getFieldsMappings())))
                 .actionGet();
         int nextRefresh = (int) Math.floor((random.nextGaussian() * 0.5 + 0.5) * refreshAfter);
         int i = 0;
@@ -181,8 +185,7 @@ public class TestData {
                 settingsDocNode = settingsDocNode.with(key, settings.get(key));
             }
 
-            GenericRestClient.HttpResponse response = client.putJson(indexName, DocNode.of("mappings.properties.timestamp",
-                    DocNode.of("type", "date", "format", "date_optional_time"), "settings", settingsDocNode));
+            GenericRestClient.HttpResponse response = client.putJson(indexName, DocNode.of("mappings.properties", getFieldsMappings(), "settings", settingsDocNode));
 
             if (response.getStatusCode() != 200) {
                 throw new RuntimeException("Error while creating index " + indexName + "\n" + response);
@@ -227,6 +230,16 @@ public class TestData {
                     response = client.post(indexName + "/_rollover/");
                     if (response.getStatusCode() != 200) {
                         throw new RuntimeException("Error while performing rollover of " + indexName + "\n" + response);
+                    }
+
+                    DocNode mappings = getFieldMappingsWithoutTimestamp();
+                    if (!mappings.isEmpty()) {
+                        DocNode mappingRequestBody = DocNode.of("properties", mappings);
+                        GenericRestClient.HttpResponse mappingsResponse = client.putJson("/" + indexName + "/_mapping", mappingRequestBody);
+                        if (mappingsResponse.getStatusCode() != 200) {
+                            throw new RuntimeException(
+                                    "Cannot update mappings for data stream '" + indexName + "' response code '" + mappingsResponse.getStatusCode() + "' and body '" + mappingsResponse.getBody() + "'");
+                        }
                     }
 
                     nextRollover += rolloverAfter;
@@ -340,7 +353,10 @@ public class TestData {
         return ImmutableMap
                 .<String, Object>of("source_ip", randomIpAddress(random), "dest_ip", randomIpAddress(random), "source_loc",
                         randomLocationName(random), "dest_loc", randomLocationName(random), "dept", randomDepartmentName(random))
-                .with(timestampColumn, randomTimestamp(random)).with(Optional.ofNullable(additionalAttributes).orElse(ImmutableMap.empty()));
+                .with(timestampColumn, randomTimestamp(random))
+                .with(Optional.ofNullable(additionalAttributes).orElse(ImmutableMap.empty()))
+                .with("object", ImmutableMap.of("dept", randomDepartmentName(random), "integer_field", random.nextInt()))
+                .with("geo_point", randomGeoPointString(random));
     }
 
     private Map<String, Map<String, Object>> addTestDocAttributesToCustomDocuments(Random random, Map<String, Map<String, Object>> customDocuments) {
@@ -374,6 +390,14 @@ public class TestData {
     private String randomTimestamp(Random random) {
         long epochMillis = random.longs(1, -2857691960709L, 2857691960709L).findFirst().getAsLong();
         return Instant.ofEpochMilli(epochMillis).toString();
+    }
+
+    private String randomGeoPointString(Random random) {
+        return randomDouble(random, -90, 90) + "," + randomDouble(random, -180, 180);
+    }
+
+    private double randomDouble(Random random, double from, double to) {
+        return from + (to - from) * random.nextDouble();
     }
 
     private static String randomId(Random random) {
@@ -432,7 +456,8 @@ public class TestData {
         private final String timestampColumnName;
         private final ImmutableMap<String, Map<String, Object>> customDocuments;
 
-        public Key(int seed, int size, int deletedDocumentCount, int refreshAfter, ImmutableMap<String, Object> additionalAttributes, String timestampColumnName, ImmutableMap<String, Map<String, Object>> customDocuments) {
+        public Key(int seed, int size, int deletedDocumentCount, int refreshAfter, ImmutableMap<String, Object> additionalAttributes,
+                String timestampColumnName, ImmutableMap<String, Map<String, Object>> customDocuments) {
             super();
             this.seed = seed;
             this.size = size;
@@ -573,14 +598,16 @@ public class TestData {
                 this.refreshAfter = this.size / this.segmentCount;
             }
 
-            return new Key(seed, size, deletedDocumentCount, refreshAfter, ImmutableMap.of(additionalAttributes), timestampColumnName, ImmutableMap.of(customDocuments));
+            return new Key(seed, size, deletedDocumentCount, refreshAfter, ImmutableMap.of(additionalAttributes), timestampColumnName,
+                    ImmutableMap.of(customDocuments));
         }
 
         public TestData get() {
             Key key = toKey();
 
             try {
-                return cache.get(key, () -> new TestData(seed, size, deletedDocumentCount, refreshAfter, rolloverAfter, ImmutableMap.of(additionalAttributes), key.timestampColumnName, ImmutableMap.of(customDocuments)));
+                return cache.get(key, () -> new TestData(seed, size, deletedDocumentCount, refreshAfter, rolloverAfter,
+                        ImmutableMap.of(additionalAttributes), key.timestampColumnName, ImmutableMap.of(customDocuments)));
             } catch (ExecutionException e) {
                 throw new RuntimeException(e);
             }
@@ -607,6 +634,18 @@ public class TestData {
         public String getUri(String index) {
             return "/" + index + "/_doc/" + id;
         }
+    }
+
+    DocNode getFieldsMappings() {
+        DocNode objectMappings = DocNode.of( "object.properties.dept.type", "text", "object.properties.dept.fields.keyword.type", "keyword", "object.properties.integer_field.type", "integer");
+        DocNode geoPointMappings = DocNode.of("geo_point.type", "geo_point");
+        return DocNode.of(timestampColumn, DocNode.of("type", "date", "format", "date_optional_time"), "source_ip.type", "ip",
+                "dest_ip.type", "ip", "source_loc.type", "text", "source_loc.fields.keyword.type", "keyword", "dest_loc.type", "text",
+                "dest_loc.fields.keyword.type", "keyword", "dept.type", "text", "dept.fields.keyword.type", "keyword").with(objectMappings).with(geoPointMappings);
+    }
+
+    DocNode getFieldMappingsWithoutTimestamp() {
+        return getFieldsMappings().without(timestampColumn);
     }
 
 }

@@ -38,7 +38,6 @@ import java.util.Collection;
 import java.util.List;
 
 import org.apache.http.message.BasicHeader;
-import org.elasticsearch.Version;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.indices.SystemIndexDescriptor;
 import org.elasticsearch.plugins.Plugin;
@@ -978,6 +977,20 @@ public class IndexAuthorizationReadOnlyIntTests {
 
         @Override
         public Collection<SystemIndexDescriptor> getSystemIndexDescriptors(Settings settings) {
+            String mappingJson = index_system.getFieldsMappings() //
+                    .with(DocNode.of("prefix.type", "text", "prefix.fields.keyword.type", "keyword")) //
+                    .toJsonString();
+            String mappings = """
+                    {
+                     	"_doc": {
+                     		"_meta": {
+                     			"my_test_version": "8.0.0",
+                     			"managed_index_mappings_version": 0
+                     		},
+                     		"properties": "!!mappings-placeholder!!"
+                     	}
+                     }
+                    """.replace("\"!!mappings-placeholder!!\"", mappingJson);
             return ImmutableList.of(//
                     SystemIndexDescriptor.builder()//
                             .setIndexPattern(".index_system*").setDescription("Test system indices")
@@ -991,10 +1004,8 @@ public class IndexAuthorizationReadOnlyIntTests {
                              */
                             .setType(SystemIndexDescriptor.Type.EXTERNAL_MANAGED)
                             .setSettings(Settings.builder().build())
-                            .setVersionMetaKey("my_test_version")
-                            .setMappings("{\"_doc\":{\"_meta\":{\"my_test_version\":\"8.0.0\",\"managed_index_mappings_version\":0},\"properties\":{\"dept\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"dest_ip\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"dest_loc\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"prefix\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"source_ip\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"source_loc\":{\"type\":\"text\",\"fields\":{\"keyword\":{\"type\":\"keyword\",\"ignore_above\":256}}},\"timestamp\":{\"type\":\"date\"}}}}")//
+                            .setMappings(mappings)//
                             .setPrimaryIndex(index_system.getName())
-                            .setMinimumNodeVersion(Version.V_8_0_0)
                             .setOrigin("origin-with-allowed-system-indices")
                             .setAllowedElasticProductOrigins(ImmutableList.of("origin-with-allowed-system-indices")).setNetNew().build());
         }
