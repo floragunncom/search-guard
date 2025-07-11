@@ -248,6 +248,10 @@ public class LoadOperatorSummaryData implements Document {
         return new LoadOperatorSummaryData(newWatches);
     }
 
+    public int getSize() {
+        return watches.size();
+    }
+
     @Override
     public Map<String, Object> toBasicObject() {
         List<Map<String, Object>> watchesMap = watches.stream().map(WatchSummary::toBasicObject).collect(Collectors.toList());

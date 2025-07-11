@@ -12,7 +12,7 @@ public class LoadOperatorSummaryAction extends Action<LoadOperatorSummaryRequest
     public static final RestApi REST_API = new RestApi()//
         .name("Operation summary")
         .handlesPost("/_signals/watch/{tenant}/summary")
-        .with(INSTANCE, (params, body) -> new LoadOperatorSummaryRequest(params.get("tenant"), params.get("sorting"), body));
+        .with(INSTANCE, (params, body) -> new LoadOperatorSummaryRequest(params.get("tenant"), params.get("sorting"), params.get("size"), body));
 
     public LoadOperatorSummaryAction() {
         super(NAME, LoadOperatorSummaryRequest::new, StandardResponse::new);
