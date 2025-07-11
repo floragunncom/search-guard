@@ -43,6 +43,11 @@ public class TestIndex implements TestIndexLike {
         this.testData = testData;
     }
 
+    @Override
+    public DocNode getFieldsMappings() {
+        return testData.getFieldsMappings();
+    }
+
     public void create(Client client) {
         ThreadContext threadContext = client.threadPool().getThreadContext();
 

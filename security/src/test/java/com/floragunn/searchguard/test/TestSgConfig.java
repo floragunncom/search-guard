@@ -1635,6 +1635,7 @@ public class TestSgConfig {
         private String metrics;
         private Boolean dlsAllowNow;
         private String mode;
+        private String fieldAnonymizationPrefix;
 
         public DlsFls() {
         }
@@ -1649,10 +1650,16 @@ public class TestSgConfig {
             return this;
         }
 
+        public DlsFls fieldAnonymizationPrefix(String prefix) {
+            this.fieldAnonymizationPrefix = prefix;
+            return this;
+        }
+
         @Override
         public Object toBasicObject() {
             return ImmutableMap.ofNonNull("debug", debug, "metrics", metrics, "dls",
-                    ImmutableMap.ofNonNull("allow_now", dlsAllowNow, "mode", mode));
+                    ImmutableMap.ofNonNull("allow_now", dlsAllowNow, "mode", mode),
+                    "field_anonymization", ImmutableMap.ofNonNull("prefix", fieldAnonymizationPrefix));
         }
 
         @Override

@@ -1,5 +1,6 @@
 package com.floragunn.searchguard.test;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;

@@ -110,6 +110,10 @@ public class RoleBasedFieldMasking
 
         public abstract Field get(String field);
 
+        public boolean isNotMasked(String field) {
+            return get(field) == null;
+        }
+
         public abstract boolean isAllowAll();
 
         public static class SingleRole extends FieldMaskingRule {

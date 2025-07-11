@@ -50,6 +50,14 @@ public class TestAlias implements TestIndexLike {
     }
 
     @Override
+    public DocNode getFieldsMappings() {
+        return indices.stream() //
+                .map(TestIndexLike::getFieldsMappings) //
+                .findFirst() //
+                .orElseThrow();
+    }
+
+    @Override
     public String toString() {
         return "Test alias name '" + name + "'";
     }
