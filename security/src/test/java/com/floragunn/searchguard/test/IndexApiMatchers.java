@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -49,6 +50,8 @@ import static org.hamcrest.Matchers.hasSize;
 
 public class IndexApiMatchers {
     private static final Pattern DS_BACKING_INDEX_PATTERN = Pattern.compile("\\.ds-(.+)-[0-9\\.]+-[0-9]+");
+    private static final Pattern SHORT_ISO_TIMESTAMP = Pattern.compile("\\b\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z\\b");
+    private static final Pattern GEO_COORD_PATTERN = Pattern.compile("([0-9-]+)\\.(\\d+),\\s*([0-9-]+)\\.(\\d+)");
 
     public static IndexMatcher containsExactly(TestIndexLike... testIndices) {
         Map<String, TestIndexLike> indexNameMap = new HashMap<>();
@@ -131,6 +134,11 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public DocNode getFieldsMappings() {
+            return DocNode.EMPTY;
+        }
+
+        @Override
         public Set<String> getDocumentIds() {
             return null;
         }
@@ -146,6 +154,11 @@ public class IndexApiMatchers {
         @Override
         public Map<String, Map<String, ?>> getDocuments() {
             return null;
+        }
+
+        @Override
+        public DocNode getFieldsMappings() {
+            return DocNode.EMPTY;
         }
 
         @Override
@@ -437,7 +450,8 @@ public class IndexApiMatchers {
 
                 Matcher<Collection<?>> columnsSizeMatcher = hasSize(expectedColumnsNames.size());
                 if (! columnsSizeMatcher.matches(actualColumnsNames)) {
-                    mismatchDescription.appendText(responseBody.toJsonString() + "\n$.columns[*].name expected: ");
+                    String expectedColumnNamesString = expectedColumnsNames.stream().collect(Collectors.joining(", "));
+                    mismatchDescription.appendText(responseBody.toJsonString() + "\n$.columns[*].name expected (" + expectedColumnNamesString + "):");
                     columnsSizeMatcher.describeTo(mismatchDescription);
                     mismatchDescription.appendText(", actual: ");
                     columnsSizeMatcher.describeMismatch(actualColumnsNames, mismatchDescription);
@@ -467,7 +481,11 @@ public class IndexApiMatchers {
             List<Collection<?>> expectedRows = getExpectedRows();
             List<?> actualRows = responseBody.findByJsonPath("$.rows[*]");
 
-            List<Matcher<Iterable<?>>> containsExpectedRow = expectedRows.stream().map(values -> containsInAnyOrder(values.toArray(new Object[] {}))).collect(Collectors.toUnmodifiableList());
+            List<Matcher<Iterable<?>>> containsExpectedRow = expectedRows.stream() //
+                    .map(this::flattenListWithMaps) //
+                    .map(this::normalizeSqlRow) //
+                    .map(values -> containsInAnyOrder(values.toArray(new Object[] {}))) //
+                    .collect(Collectors.toUnmodifiableList());
             Matcher<Matcher<Iterable<?>>> containsAnyOfExpectedRows = anyOf(containsExpectedRow.toArray(new Matcher[] {}));
             List<Object> unexpectedRows = new ArrayList<>();
             for (Object row : actualRows) {
@@ -485,6 +503,18 @@ public class IndexApiMatchers {
             }
         }
 
+        private Collection<?> flattenListWithMaps(Collection<?> collection) {
+            // collection with simple values and maps
+            return collection.stream().flatMap( simpleValueOrMap -> {
+              if(simpleValueOrMap instanceof Map<?, ?> map) {
+                  // in case of map we need all values in map
+                  return map.values().stream();
+              } else {
+                  return Stream.of(simpleValueOrMap);
+              }
+            }).toList();
+        }
+
         private List<Collection<?>> getExpectedRows() {
             return indexNameMap.entrySet().stream()
                     .flatMap(entry -> entry.getValue().getDocuments().values().stream())
@@ -492,10 +522,49 @@ public class IndexApiMatchers {
                     .collect(Collectors.toUnmodifiableList());
         }
 
+        private Collection<?> normalizeSqlRow(Collection<?> collection) {
+            return collection.stream().map(this::normalizeValue).toList();
+        }
+
+        private Object normalizeValue(Object o) {
+            if (o instanceof String string) {
+                if (containsTooShortIsoTimestamp(string)) {
+                    // add milliseconds
+                    return string.replace("Z", ".000Z");
+                }
+                var matcher = GEO_COORD_PATTERN.matcher(string);
+                if (matcher.matches()) { // reformat geo point to match format used in SQL results
+                    return "POINT (" + matcher.group(3) + "." + matcher.group(4) + " "  + matcher.group(1) + "." + matcher.group(2) + ")";
+                }
+                return string;
+            } else {
+                return o;
+            }
+        }
+
+        public static boolean containsTooShortIsoTimestamp(String input) {
+            return input != null && SHORT_ISO_TIMESTAMP.matcher(input).matches();
+        }
+
         private Set<String> getExpectedColumnsNames() {
+            Set<String> columnNames = new LinkedHashSet<>();
             TestIndexLike testIndexLike = indexNameMap.values().iterator().next();
-            DocNode docSource = DocNode.wrap(testIndexLike.getDocuments().values().iterator().next());
-            return docSource.keySet();
+            Map<String, ?> sampleDocument = testIndexLike.getDocuments().values().iterator().next();
+            DocNode docSource = DocNode.wrap(sampleDocument);
+            for (Map.Entry<String, Object> entry : docSource.entrySet()) {
+                // currently only one level is supported
+                if (entry.getValue() instanceof Map<?,?> subdocument) {
+                    Set<String> fullSubFieldNames = subdocument.keySet() //
+                            .stream() //
+                            .map(Object::toString) //
+                            .map(subfield -> entry.getKey() + "." + subfield) //
+                            .collect(Collectors.toSet());
+                    columnNames.addAll(fullSubFieldNames);
+                } else {
+                    columnNames.add(entry.getKey());
+                }
+            }
+            return columnNames;
         }
 
         public SqlLimitedToMatcher shouldContainColumns(boolean shouldContainColumns) {

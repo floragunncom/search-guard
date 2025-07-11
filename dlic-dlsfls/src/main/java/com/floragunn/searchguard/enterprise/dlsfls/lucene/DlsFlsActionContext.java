@@ -11,6 +11,10 @@
  * from https://floragunn.com
  *
  */
+/*
+ * Includes code from https://github.com/opensearch-project/security/blob/6e78dd9d1a1e5e05d50b626d796bd3011ac5c530/src/main/java/org/opensearch/security/configuration/DlsFlsFilterLeafReader.java
+ * which is Copyright OpenSearch Contributors
+ */
 package com.floragunn.searchguard.enterprise.dlsfls.lucene;
 
 import org.apache.lucene.search.Query;
@@ -89,5 +93,20 @@ public class DlsFlsActionContext {
     @Override
     public String toString() {
         return indexService.index() + " [" + dlsQuery + "; " + flsRule + "; " + fieldMaskingRule + "]";
+    }
+
+    public boolean isAllowed(String field) {
+        return isAllowed(flsRule, fieldMaskingRule, field);
+    }
+
+    /**
+     * Check if the user is allowed to access the field. Combine FLS and FM.
+     */
+    public static boolean isAllowed(FlsRule flsRule, FieldMaskingRule fieldMaskingRule, String field) {
+        return flsRule.isAllowed(field) && fieldMaskingRule.isNotMasked(field);
+    }
+
+    public boolean isAllowedButPossiblyMasked(String field) {
+        return flsRule.isAllowed(field);
     }
 }

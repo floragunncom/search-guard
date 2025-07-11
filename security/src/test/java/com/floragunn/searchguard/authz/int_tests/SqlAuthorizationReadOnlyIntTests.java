@@ -28,6 +28,7 @@ import com.floragunn.searchguard.test.TestIndex;
 import com.floragunn.searchguard.test.TestIndexTemplate;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.hamcrest.Matchers;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -243,7 +244,7 @@ public class SqlAuthorizationReadOnlyIntTests {
 
             )
             .addFieldValueMatcher("$.columns[*].name", false, hasItem(endsWith("_loc")))
-            .addFieldValueMatcher("$.rows[*]", true, contains(not(matchesPattern(HEX_HASH_PATTERN)), matchesPattern(HEX_HASH_PATTERN)));
+            .addFieldValueMatcher("$.rows[*]", true, contains(not(matchesPattern(HEX_HASH_PATTERN)), Matchers.nullValue()));
 
     /**
      * The SUPER_UNLIMITED_USER authenticates with an admin cert, which will cause all access control code to be skipped.

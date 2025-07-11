@@ -32,6 +32,8 @@ public interface TestIndexLike {
 
     Map<String, Map<String, ?>> getDocuments();
 
+    DocNode getFieldsMappings();
+
     default TestIndexLike.Filtered filteredBy(Predicate<DocNode> filter) {
         return new Filtered(this, filter);
     }
@@ -50,6 +52,10 @@ public interface TestIndexLike {
         }
 
         return this;
+    }
+
+    default Map<String, ?> firstDocument() {
+        return getDocuments().values().stream().findFirst().orElseThrow();
     }
 
     public static class Filtered implements TestIndexLike {
@@ -89,6 +95,11 @@ public interface TestIndexLike {
             }
 
             return result;
+        }
+
+        @Override
+        public DocNode getFieldsMappings() {
+            return testIndexLike.getFieldsMappings();
         }
 
         @Override

@@ -11,6 +11,10 @@
  * from https://floragunn.com
  *
  */
+/*
+ * Includes code from https://github.com/opensearch-project/security/blob/6e78dd9d1a1e5e05d50b626d796bd3011ac5c530/src/main/java/org/opensearch/security/configuration/DlsFlsFilterLeafReader.java
+ * which is Copyright OpenSearch Contributors
+ */
 package com.floragunn.searchguard.enterprise.dlsfls.lucene;
 
 import java.io.IOException;
@@ -32,7 +36,6 @@ import org.elasticsearch.index.mapper.FieldNamesFieldMapper;
 import org.elasticsearch.indices.IndicesModule;
 
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldAuthorization.FlsRule;
 import com.floragunn.searchguard.enterprise.dlsfls.RoleBasedFieldMasking.FieldMaskingRule;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.google.common.collect.Iterators;
@@ -84,13 +87,12 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
 
                 try {
                     if (dlsFlsContext.hasFlsRestriction()) {
-                        FlsRule flsRule = dlsFlsContext.getFlsRule();
 
                         FieldInfos originalFieldInfos = delegate.getFieldInfos();
                         List<FieldInfo> restrictedFieldInfos = new ArrayList<>(originalFieldInfos.size());
 
                         for (FieldInfo fieldInfo : originalFieldInfos) {
-                            if (isMetaField(fieldInfo.name) || flsRule.isAllowed(fieldInfo.name)) {
+                            if (isMetaField(fieldInfo.name) || dlsFlsContext.isAllowed(fieldInfo.name)) {
                                 restrictedFieldInfos.add(fieldInfo);
                             }
                         }
@@ -120,7 +122,7 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                     return new StoredFields() {
                         @Override
                         public void document(int docID, StoredFieldVisitor visitor) throws IOException {
-                            storedFields.document(docID, new FlsStoredFieldVisitor(visitor, dlsFlsContext.getFlsRule(), dlsFlsContext.getFieldMaskingRule()));
+                            storedFields.document(docID, new FlsStoredFieldVisitor(visitor, dlsFlsContext));
                         }
                     };
                 } else {
@@ -181,7 +183,7 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
 
                     @Override
                     public Iterator<String> iterator() {
-                        return Iterators.<String>filter(fields.iterator(), (field) -> dlsFlsContext.getFlsRule().isAllowed(field));
+                        return Iterators.<String>filter(fields.iterator(), dlsFlsContext::isAllowed);
                     }
 
                     @Override
@@ -190,7 +192,7 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                             return new FilteredTerms(in.terms(field));
                         }
 
-                        if (isMetaField(field) || dlsFlsContext.getFlsRule().isAllowed(field)) {
+                        if (isMetaField(field) || dlsFlsContext.isAllowed(field)) {
                             return in.terms(field);
                         } else {
                             return null;
@@ -208,7 +210,7 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
 
             @Override
             public NumericDocValues getNumericDocValues(String field) throws IOException {
-                return isMetaField(field) || dlsFlsContext.getFlsRule().isAllowed(field) ? in.getNumericDocValues(field) : null;
+                return isMetaField(field) || dlsFlsContext.isAllowed(field) ? in.getNumericDocValues(field) : null;
             }
 
             @Override
@@ -223,7 +225,7 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                     return binaryDocValues;
                 }
 
-                if (!dlsFlsContext.getFlsRule().isAllowed(field)) {
+                if (!dlsFlsContext.isAllowed(field)) {
                     return null;
                 }
 
@@ -273,7 +275,8 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                     return in.getSortedDocValues(field);
                 }
 
-                if (!dlsFlsContext.getFlsRule().isAllowed(field)) {
+                if (!dlsFlsContext.isAllowedButPossiblyMasked(field)) {
+                    // isAllowedButPossiblyMasked is safe here because we process field masking later on
                     return null;
                 }
 
@@ -350,7 +353,7 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
 
             @Override
             public SortedNumericDocValues getSortedNumericDocValues(final String field) throws IOException {
-                return isMetaField(field) || dlsFlsContext.getFlsRule().isAllowed(field) ? in.getSortedNumericDocValues(field) : null;
+                return isMetaField(field) || dlsFlsContext.isAllowed(field) ? in.getSortedNumericDocValues(field) : null;
             }
 
             @Override
@@ -359,7 +362,8 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                     return in.getSortedSetDocValues(field);
                 }
 
-                if (!dlsFlsContext.getFlsRule().isAllowed(field)) {
+                if (!dlsFlsContext.isAllowedButPossiblyMasked(field)) {
+                    // isAllowedButPossiblyMasked is safe here because we process field masking later on
                     return null;
                 }
 
@@ -441,12 +445,13 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
 
             @Override
             public NumericDocValues getNormValues(final String field) throws IOException {
-                return isMetaField(field) || dlsFlsContext.getFlsRule().isAllowed(field) ? in.getNormValues(field) : null;
+                return isMetaField(field) || dlsFlsContext.isAllowed(field) ? in.getNormValues(field) : null;
             }
 
             @Override
             public PointValues getPointValues(String field) throws IOException {
-                return isMetaField(field) || dlsFlsContext.getFlsRule().isAllowed(field) ? in.getPointValues(field) : null;
+                // this is not a string so we cannot hash this, therefore we return null
+                return isMetaField(field) || dlsFlsContext.isAllowed(field) ? in.getPointValues(field) : null;
             }
 
             @Override
@@ -459,11 +464,7 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                     return in.terms(field);
                 }
 
-                if (dlsFlsContext.getFieldMaskingRule().get(field) != null) {
-                    return null;
-                }
-
-                if (dlsFlsContext.getFlsRule().isAllowed(field)) {
+                if (dlsFlsContext.isAllowed(field)) {
                     return in.terms(field);
                 } else {
                     return null;
@@ -595,7 +596,7 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                     }
 
                     if (dlsFlsContext.hasFlsRestriction() || dlsFlsContext.hasFieldMasking()) {
-                        visitor = new FlsStoredFieldVisitor(visitor, dlsFlsContext.getFlsRule(), dlsFlsContext.getFieldMaskingRule());
+                        visitor = new FlsStoredFieldVisitor(visitor, dlsFlsContext);
                     }
 
                     delegate.document(docID, visitor);
@@ -691,8 +692,7 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
 
                     private boolean isAllowed(BytesRef term) {
                         String fieldName = term.utf8ToString();
-
-                        return isMetaField(fieldName) || dlsFlsContext.getFlsRule().isAllowed(fieldName);
+                        return isMetaField(fieldName) || dlsFlsContext.isAllowed(fieldName);
                     }
 
                 }
