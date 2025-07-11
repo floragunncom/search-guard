@@ -114,6 +114,154 @@ public class RoleBasedFieldAuthorizationTest {
         }
 
         @Test
+        public void singleRole_mixed_objects() throws Exception {
+            Role role = new TestSgConfig.Role("role").indexPermissions("*").fls("~object", "object.a*", "~object.a1*").on("*").toActualRole();
+            RoleBasedFieldAuthorization.FlsRule.SingleRole subject = new RoleBasedFieldAuthorization.FlsRule.SingleRole(
+                    role.getIndexPermissions().get(0));
+
+            assertFalse(subject.toString(), subject.isAllowAll());
+            assertFalse(subject.toString(), subject.isAllowed("object"));
+            assertTrue(subject.toString(), subject.isAllowed("object.allowed"));
+            assertFalse(subject.toString(), subject.isAllowed("object.disallowed"));
+            assertFalse(subject.toString(), subject.isAllowed("object.a1_not_allowed"));
+        }
+
+        @Test
+        public void singleRole_subobjects() throws Exception {
+            Role role = new TestSgConfig.Role("role").indexPermissions("*").fls("object").on("*").toActualRole();
+            RoleBasedFieldAuthorization.FlsRule.SingleRole subject = new RoleBasedFieldAuthorization.FlsRule.SingleRole(
+                    role.getIndexPermissions().get(0));
+
+            assertFalse(subject.toString(), subject.isAllowAll());
+            assertTrue(subject.toString(), subject.isAllowed("object"));
+            assertTrue(subject.toString(), subject.isAllowed("object.allowed"));
+            assertTrue(subject.toString(), subject.isAllowed("object.also.allowed"));
+            assertFalse(subject.toString(), subject.isAllowed("object_not_allowed"));
+            assertFalse(subject.toString(), subject.isAllowed("objects"));// same as object_not_allowed
+        }
+
+        @Test
+        public void singleRole_subobjects_not_grant_parent_access() throws Exception {
+            Role role = new TestSgConfig.Role("role").indexPermissions("*").fls("object.child.grandchild").on("*").toActualRole();
+            RoleBasedFieldAuthorization.FlsRule.SingleRole subject = new RoleBasedFieldAuthorization.FlsRule.SingleRole(
+                    role.getIndexPermissions().get(0));
+
+            assertFalse(subject.toString(), subject.isAllowAll());
+            assertFalse(subject.toString(), subject.isAllowed("object"));
+            assertFalse(subject.toString(), subject.isAllowed("object.child"));
+            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild"));
+        }
+
+        @Test
+        public void singleRole_subobjects_allow_parent_access_on_exclusion() throws Exception {
+            Role role = new TestSgConfig.Role("role").indexPermissions("*").fls("~object.child.grandchild").on("*").toActualRole();
+            RoleBasedFieldAuthorization.FlsRule.SingleRole subject = new RoleBasedFieldAuthorization.FlsRule.SingleRole(
+                    role.getIndexPermissions().get(0));
+
+            assertFalse(subject.toString(), subject.isAllowAll());
+            assertTrue(subject.toString(), subject.isAllowed("object"));
+            assertTrue(subject.toString(), subject.isAllowed("object.child"));
+            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild"));
+        }
+
+        @Test
+        public void singleRole_subobjects_exclusion_and_inclusions_on_various_levels_allowed_start() throws Exception {
+            Role role = new TestSgConfig.Role("role") //
+                    .indexPermissions("*") //
+                    .fls("object*", "~object_top_secret*", "~object.child*", "object.child.grandchild*", "~object.child.grandchild.leaf*") //
+                    .on("*") //
+                    .toActualRole();
+            RoleBasedFieldAuthorization.FlsRule.SingleRole subject = new RoleBasedFieldAuthorization.FlsRule.SingleRole(
+                    role.getIndexPermissions().get(0));
+
+            assertFalse(subject.toString(), subject.isAllowAll());
+            assertFalse(subject.toString(), subject.isAllowed("o"));
+            assertTrue(subject.toString(), subject.isAllowed("object")); //object*
+            assertTrue(subject.toString(), subject.isAllowed("object.allowed_because_not_excluded")); //object*
+            assertTrue(subject.toString(), subject.isAllowed("object_top")); //object*
+            assertFalse(subject.toString(), subject.isAllowed("object_top_secret")); //~object_top_secret*
+            assertFalse(subject.toString(), subject.isAllowed("object_top_secret1")); //~object_top_secret*
+            assertFalse(subject.toString(), subject.isAllowed("object_top_secret1")); //~object_top_secret*
+            assertFalse(subject.toString(), subject.isAllowed("object_top_secret.child")); //~object_top_secret*
+            assertFalse(subject.toString(), subject.isAllowed("object_top_secret.child1")); //~object_top_secret*
+            assertFalse(subject.toString(), subject.isAllowed("object_top_secret.child1.subchild")); //~object_top_secret*
+            assertFalse(subject.toString(), subject.isAllowed("object.child")); //~object.child*
+            assertFalse(subject.toString(), subject.isAllowed("object.child_1")); //~object.child*
+            assertFalse(subject.toString(), subject.isAllowed("object.child_2")); //~object.child*
+            assertFalse(subject.toString(), subject.isAllowed("object.child.child")); //~object.child*
+            assertFalse(subject.toString(), subject.isAllowed("object.child_3.child")); //~object.child*
+            assertFalse(subject.toString(), subject.isAllowed("object.child.grand")); //~object.child*
+            assertFalse(subject.toString(), subject.isAllowed("object.child.grand")); //~object.child*
+            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild"));//object.child.grandchild*
+            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild_1"));//object.child.grandchild*
+            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchildleaf"));//object.child.grandchild*
+            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild.a"));//object.child.grandchild*
+            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild.a.b"));//object.child.grandchild*
+            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild.a.b.c"));//object.child.grandchild*
+            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild.leaf")); //~object.child.grandchild.leaf*
+            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild.leaf_1")); //~object.child.grandchild.leaf*
+            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild.leaf_2")); //~object.child.grandchild.leaf*
+            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild.leaf_2.a.b.c")); //~object.child.grandchild.leaf*
+        }
+
+        @Test
+        public void singleRole_subobjects_exclusion_and_inclusions_on_various_levels_disallowed_start() throws Exception {
+            Role role = new TestSgConfig.Role("role") //
+                    .indexPermissions("*") //
+                    .fls("~object*", "object_top_secret*", "object.child*", "~object.child.grandchild*", "object.child.grandchild.leaf*") //
+                    .on("*") //
+                    .toActualRole();
+            RoleBasedFieldAuthorization.FlsRule.SingleRole subject = new RoleBasedFieldAuthorization.FlsRule.SingleRole(
+                    role.getIndexPermissions().get(0));
+
+            assertFalse(subject.toString(), subject.isAllowAll());
+            assertFalse(subject.toString(), subject.isAllowed("o"));
+            assertFalse(subject.toString(), subject.isAllowed("object")); //~object*
+            assertFalse(subject.toString(), subject.isAllowed("object.allowed_because_not_excluded")); //~object*
+            assertFalse(subject.toString(), subject.isAllowed("object_top")); //~object*
+            assertTrue(subject.toString(), subject.isAllowed("object_top_secret")); //object_top_secret*
+            assertTrue(subject.toString(), subject.isAllowed("object_top_secret1")); //object_top_secret*
+            assertTrue(subject.toString(), subject.isAllowed("object_top_secret1")); //object_top_secret*
+            assertTrue(subject.toString(), subject.isAllowed("object_top_secret.child")); //object_top_secret*
+            assertTrue(subject.toString(), subject.isAllowed("object_top_secret.child1")); //object_top_secret*
+            assertTrue(subject.toString(), subject.isAllowed("object_top_secret.child1.subchild")); //object_top_secret*
+            assertTrue(subject.toString(), subject.isAllowed("object.child")); //object.child*
+            assertTrue(subject.toString(), subject.isAllowed("object.child_1")); //object.child*
+            assertTrue(subject.toString(), subject.isAllowed("object.child_2")); //object.child*
+            assertTrue(subject.toString(), subject.isAllowed("object.child.child")); //object.child*
+            assertTrue(subject.toString(), subject.isAllowed("object.child_3.child")); //object.child*
+            assertTrue(subject.toString(), subject.isAllowed("object.child.grand")); //object.child*
+            assertTrue(subject.toString(), subject.isAllowed("object.child.grand")); //object.child*
+            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild"));//~object.child.grandchild*
+            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild_1"));//~object.child.grandchild*
+            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchildleaf"));//~object.child.grandchild*
+            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild.a"));//~object.child.grandchild*
+            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild.a.b"));//~object.child.grandchild*
+            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild.a.b.c"));//~object.child.grandchild*
+            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild.leaf")); //object.child.grandchild.leaf*
+            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild.leaf_1")); //object.child.grandchild.leaf*
+            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild.leaf_2")); //object.child.grandchild.leaf*
+            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild.leaf_2.a.b.c")); //object.child.grandchild.leaf*
+        }
+
+        @Test
+        public void singleRole_field_access_exceptions() throws Exception {
+            Role role = new TestSgConfig.Role("role") //
+                    .indexPermissions("*") //
+                    .fls("a*", "~a1*") //
+                    .on("*") //
+                    .toActualRole();
+            RoleBasedFieldAuthorization.FlsRule.SingleRole subject = new RoleBasedFieldAuthorization.FlsRule.SingleRole(
+                    role.getIndexPermissions().get(0));
+
+            assertFalse(subject.toString(), subject.isAllowAll());
+            assertFalse(subject.toString(), subject.isAllowed("b"));
+            assertTrue(subject.toString(), subject.isAllowed("abc"));
+            assertFalse(subject.toString(), subject.isAllowed("a1"));
+            assertFalse(subject.toString(), subject.isAllowed("a123"));
+        }
+
+        @Test
         public void multiRole_simple_positive() throws Exception {
             Role role1 = new TestSgConfig.Role("role1").indexPermissions("*").fls("a").on("*").toActualRole();
             Role role2 = new TestSgConfig.Role("role2").indexPermissions("*").fls("b").on("*").toActualRole();

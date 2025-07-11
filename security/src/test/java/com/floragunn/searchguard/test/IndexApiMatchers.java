@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,6 +47,8 @@ import com.jayway.jsonpath.Option;
 
 public class IndexApiMatchers {
     private static final Pattern DS_BACKING_INDEX_PATTERN = Pattern.compile("\\.ds-(.+)-[0-9\\.]+-[0-9]+");
+    private static final Pattern SHORT_ISO_TIMESTAMP = Pattern.compile("\\b\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z\\b");
+    private static final Pattern GEO_COORD_PATTERN = Pattern.compile("([0-9-]+)\\.(\\d+),\\s*([0-9-]+)\\.(\\d+)");
 
     public static IndexMatcher containsExactly(TestIndexLike... testIndices) {
         Map<String, TestIndexLike> indexNameMap = new HashMap<>();
@@ -118,6 +121,11 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public DocNode getFieldsMappings() {
+            return DocNode.EMPTY;
+        }
+
+        @Override
         public Set<String> getDocumentIds() {
             return null;
         }
@@ -133,6 +141,11 @@ public class IndexApiMatchers {
         @Override
         public Map<String, Map<String, ?>> getDocuments() {
             return null;
+        }
+
+        @Override
+        public DocNode getFieldsMappings() {
+            return DocNode.EMPTY;
         }
 
         @Override

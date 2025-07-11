@@ -11,6 +11,10 @@
  * from https://floragunn.com
  *
  */
+/*
+ * Includes code from https://github.com/opensearch-project/security/blob/70591197c705ca6f42f765186a05837813f80ff3/src/main/java/org/opensearch/security/privileges/dlsfls/FlsStoredFieldVisitor.java
+ * which is Copyright OpenSearch Contributors
+ */
 package com.floragunn.searchguard.enterprise.dlsfls.lucene;
 
 import java.io.ByteArrayInputStream;
@@ -50,14 +54,16 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
     private static final  ImmutableSet<String> META_FIELDS = ImmutableSet.of(IndicesModule.getBuiltInMetadataFields()).with("_primary_term");
     
     private final StoredFieldVisitor delegate;
+    private final DlsFlsActionContext dlsFlsContext;
     private final FlsRule flsRule;
     private final FieldMaskingRule fieldMaskingRule;
 
-    public FlsStoredFieldVisitor(StoredFieldVisitor delegate, FlsRule flsRule, FieldMaskingRule fieldMaskingRule) {
+    public FlsStoredFieldVisitor(StoredFieldVisitor delegate, DlsFlsActionContext dlsFlsContext) {
         super();
         this.delegate = delegate;
-        this.flsRule = flsRule;
-        this.fieldMaskingRule = fieldMaskingRule;
+        this.dlsFlsContext = dlsFlsContext;
+        this.flsRule = dlsFlsContext.getFlsRule();
+        this.fieldMaskingRule = dlsFlsContext.getFieldMaskingRule();
         
         if (log.isDebugEnabled()) {
             log.debug("Created FlsStoredFieldVisitor for " + flsRule + "; " + fieldMaskingRule);
@@ -87,7 +93,7 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
 
     @Override
     public Status needsField(FieldInfo fieldInfo) throws IOException {
-        return META_FIELDS.contains(fieldInfo.name) || flsRule.isAllowed(fieldInfo.name) ? delegate.needsField(fieldInfo) : Status.NO;
+        return META_FIELDS.contains(fieldInfo.name) || dlsFlsContext.isAllowed(fieldInfo.name) ? delegate.needsField(fieldInfo) : Status.NO;
     }
 
     @Override
@@ -212,8 +218,7 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
                     case FIELD_NAME:
                         this.currentName = parser.currentName();
                         this.fullCurrentName = this.fullParentName == null ? this.currentName : this.fullParentName + "." + this.currentName;
-                        
-                        if (META_FIELDS.contains(fullCurrentName) || flsRule.isAllowed(fullCurrentName)) {                       
+                        if (META_FIELDS.contains(fullCurrentName) || flsRule.isAllowed(fullCurrentName)) {
                             generator.writeFieldName(parser.currentName());
                         } else {
                             skipNext = true;

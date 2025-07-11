@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.test;
 
+import com.floragunn.codova.documents.DocNode;
+
 import java.util.Map;
 import java.util.Set;
 
@@ -30,6 +32,11 @@ public class TestDataStream implements TestIndexLike {
         this.testData = testData;
     }
 
+    @Override
+    public DocNode getFieldsMappings() {
+        return testData.getFieldsMappings();
+    }
+
     public void create(GenericRestClient client) throws Exception {
         GenericRestClient.HttpResponse response = client.head(name);
         if (response.getStatusCode() == 200) {
@@ -39,6 +46,15 @@ public class TestDataStream implements TestIndexLike {
         response = client.put("/_data_stream/" + name);
         if (response.getStatusCode() != 200 && response.getStatusCode() != 201) {
             throw new RuntimeException("Error while creating data stream " + name + "\n" + response);
+        }
+        DocNode mappings = testData.getFieldMappingsWithoutTimestamp();
+        if (! mappings.isEmpty()) {
+            DocNode mappingRequestBody = DocNode.of("properties", mappings);
+            GenericRestClient.HttpResponse mappingsResponse = client.putJson("/" + name + "/_mapping", mappingRequestBody);
+            if (mappingsResponse.getStatusCode() != 200) {
+                throw new RuntimeException(
+                        "Cannot update mappings for data stream '" + name + "' response code '" + mappingsResponse.getStatusCode() + "' and body '" + mappingsResponse.getBody() + "'");
+            }
         }
 
         testData.putDocuments(client, name);

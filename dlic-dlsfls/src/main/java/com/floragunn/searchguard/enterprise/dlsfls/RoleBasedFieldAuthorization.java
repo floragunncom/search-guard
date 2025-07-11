@@ -14,11 +14,17 @@
  * limitations under the License.
  * 
  */
-
+/*
+ * Includes code from https://github.com/opensearch-project/security/blob/70591197c705ca6f42f765186a05837813f80ff3/src/main/java/org/opensearch/security/privileges/dlsfls/FieldPrivileges.java
+ * which is Copyright OpenSearch Contributors
+ */
 package com.floragunn.searchguard.enterprise.dlsfls;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -115,6 +121,12 @@ public class RoleBasedFieldAuthorization
         public static final FlsRule ALLOW_ALL = new FlsRule.SingleRole(ImmutableList.of(Role.Index.FlsPattern.INCLUDE_ALL));
         public static final FlsRule DENY_ALL = new FlsRule.SingleRole(ImmutableList.of(Role.Index.FlsPattern.EXCLUDE_ALL));
 
+        /**
+         * This method checks if the method is allowed in terms of FLS. To determine if access to a field is allowed for a user, we also need to 
+         * consider field masking. Method {@link com.floragunn.searchguard.enterprise.dlsfls.lucene.DlsFlsActionContext#isAllowed(String)} does this.
+         * Therefore, the method {@link com.floragunn.searchguard.enterprise.dlsfls.lucene.DlsFlsActionContext#isAllowed(String)} should be preferred
+         * over this method.
+         */
         public abstract boolean isAllowed(String field);
 
         public abstract boolean isAllowAll();
@@ -197,16 +209,33 @@ public class RoleBasedFieldAuthorization
                 boolean allowed = false;
 
                 for (Role.Index.FlsPattern pattern : this.patterns) {
-                    if (pattern.getPattern().matches(field)) {
-                        if (pattern.isExcluded()) {
-                            allowed = false;
-                        } else {
-                            allowed = true;
+                    for (String fieldOrItsParent : fieldItselfWithAllItsParent(field)) {
+                        Boolean directlyAllowed = isDirectlyAllowed(pattern, fieldOrItsParent);
+                        if(directlyAllowed != null) {
+                            allowed = directlyAllowed;
+                            break;
                         }
                     }
                 }
 
                 return allowed;
+            }
+
+            private static Boolean isDirectlyAllowed(Role.Index.FlsPattern pattern, String field) {
+                if (pattern.getPattern().matches(field)) {
+                    return !pattern.isExcluded();
+                }
+                return null;
+            }
+
+            static List<String> fieldItselfWithAllItsParent(String fieldName) {
+                List<String> result = new ArrayList<>();
+                result.add(fieldName);
+                for(int lastDot = fieldName.lastIndexOf("."); fieldName.contains(".");  lastDot = fieldName.lastIndexOf(".")) {
+                    fieldName = fieldName.substring(0, lastDot);
+                    result.add(fieldName);
+                }
+                return result;
             }
 
             public boolean isAllowAll() {
