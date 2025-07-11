@@ -8,9 +8,7 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.signals.actions.summary.SortParser.SortByField;
 import com.floragunn.signals.actions.summary.WatchFilter.Range;
 
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -22,12 +20,10 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.ExistsQueryBuilder;
-import org.elasticsearch.index.query.MatchQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.RangeQueryBuilder;
 import org.elasticsearch.index.query.TermQueryBuilder;
-import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.SortBuilders;
@@ -45,12 +41,12 @@ class WatchStateRepository {
         this.privilegedConfigClient = requireNonNull(privilegedConfigClient);
     }
 
-    public SearchResponse search(WatchFilter watchFilter,  List<SortByField> sorting, Collection<String> watchIdFilter) {
+    public SearchResponse search(WatchFilter watchFilter,  List<SortByField> sorting, int size, Collection<String> watchIdFilter) {
         requireNonNull(watchFilter, "Watch filter is required");
         requireNonNull(sorting, "Sorting is required");
         GetMappingsResponse mappings = getMappings();
         DocNode docNode = extractFieldNames(mappings);
-        return searchWithFilteringOutMissingSortingFields(watchFilter, sorting, docNode, watchIdFilter);
+        return searchWithFilteringOutMissingSortingFields(watchFilter, sorting, size, docNode, watchIdFilter);
     }
 
     public SearchResponse findNeverExecutedWatchesWithSeverity(String tenant, Collection<String> watchIds, int size) {
@@ -69,7 +65,7 @@ class WatchStateRepository {
     }
 
     private SearchResponse searchWithFilteringOutMissingSortingFields(WatchFilter watchFilter, List<SortByField> sorting,
-        DocNode fieldsDefinedInMappings, Collection<String> watchIdFilter) {
+        int size, DocNode fieldsDefinedInMappings, Collection<String> watchIdFilter) {
 
         SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource();
         for(SortByField field : sorting) {
@@ -82,6 +78,7 @@ class WatchStateRepository {
             FieldSortBuilder sortBuilder = SortBuilders.fieldSort(field.getDocumentFieldName()).order(order);
             sourceBuilder.sort(sortBuilder);
         }
+        sourceBuilder.size(size);
         BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
         buildWatchIdsQuery(watchIdFilter, boolQueryBuilder);
         buildStatusCodeQuery(watchFilter, boolQueryBuilder);

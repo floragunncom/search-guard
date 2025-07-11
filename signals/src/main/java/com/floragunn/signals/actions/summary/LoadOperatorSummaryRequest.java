@@ -27,8 +27,10 @@ import org.elasticsearch.rest.RestStatus;
 
 public class LoadOperatorSummaryRequest extends Request {
     private static final String DEFAULT_SORTING = "-severity_details.level_numeric";
+    public static final int DEFAULT_SIZE = 10;
     private final String tenant;// TODO field might be redundant
     private final String sorting;
+    private final Integer size;
     private final String watchId;
     private final List<String> watchStatusCodes;
     private final List<String> severities;
@@ -43,6 +45,7 @@ public class LoadOperatorSummaryRequest extends Request {
         DocNode docNode = message.requiredDocNode();
         this.tenant = docNode.getAsString(LoadOperatorSummaryRequestConstants.FIELD_TENANT);
         this.sorting = docNode.getAsString(LoadOperatorSummaryRequestConstants.FIELD_SORTING);
+        this.size = getIntValue(docNode, LoadOperatorSummaryRequestConstants.FIELD_SIZE);
         this.watchId = docNode.getAsString(LoadOperatorSummaryRequestConstants.FIELD_WATCH_ID);
         this.watchStatusCodes = Optional.<List<String>>ofNullable(docNode.getAsListOfStrings(LoadOperatorSummaryRequestConstants.FIELD_WATCH_STATUS_CODE))//
             .orElseGet(Collections::emptyList);
@@ -55,9 +58,10 @@ public class LoadOperatorSummaryRequest extends Request {
         this.actionProperties = prepareActionProperties(docNode);
     }
 
-    private LoadOperatorSummaryRequest(String tenant, String sorting, DocNode requestBody) {
+    private LoadOperatorSummaryRequest(String tenant, String sorting, String size, DocNode requestBody) {
         this.tenant = tenant == null ? requestBody.getAsString(LoadOperatorSummaryRequestConstants.FIELD_TENANT) : tenant;
         this.sorting = sorting;
+        this.size = size == null ? null : Integer.parseInt(size);
         this.watchStatusCodes = requestBody.getAsListOfStrings("status_codes");
         this.watchId = requestBody.getAsString("watch_id");
         this.severities = requestBody.getAsListOfStrings("severities");
@@ -71,11 +75,12 @@ public class LoadOperatorSummaryRequest extends Request {
         validateRange("level_numeric", levelNumericEqualTo, levelNumericGreaterThan, levelNumericLessThan);
     }
 
-    LoadOperatorSummaryRequest(String tenant, String sorting, List<Status.Code> statusCodes, List<String> severities,
+    LoadOperatorSummaryRequest(String tenant, String sorting, Integer size, List<Status.Code> statusCodes, List<String> severities,
                                Integer levelNumericEqualTo, Integer levelNumericGreaterThan, Integer levelNumericLessThan,
                                List<String> actionNames, RangesFilters ranges, ActionProperties actionProperties) {
         this.tenant = tenant;
         this.sorting = sorting;
+        this.size = size;
         this.watchStatusCodes = statusCodes.stream().map(Status.Code::toString).toList();;
         this.watchId = null;
         this.severities = severities;
@@ -90,7 +95,7 @@ public class LoadOperatorSummaryRequest extends Request {
 
     LoadOperatorSummaryRequest withWatchStatusCodes(List<Status.Code> statusCodes) {
         Objects.requireNonNull(watchStatusCodes, "Watch status codes must not be null");
-        return new LoadOperatorSummaryRequest(tenant, sorting, statusCodes, severities, levelNumericEqualTo,
+        return new LoadOperatorSummaryRequest(tenant, sorting, size, statusCodes, severities, levelNumericEqualTo,
             levelNumericGreaterThan, levelNumericLessThan, actionNames, ranges, actionProperties);
     }
 
@@ -141,8 +146,8 @@ public class LoadOperatorSummaryRequest extends Request {
         return new RangesFilters(levelNumericRange, actionsCheckedRange, actionsTriggeredRange, actionsExecutionRange);
     }
 
-    public LoadOperatorSummaryRequest(String tenant, String sorting, UnparsedDocument<?> body) throws DocumentParseException {
-        this(tenant, sorting, body.parseAsDocNode());
+    public LoadOperatorSummaryRequest(String tenant, String sorting, String size, UnparsedDocument<?> body) throws DocumentParseException {
+        this(tenant, sorting, size, body.parseAsDocNode());
     }
     
     public String getSortingOrDefault() {
@@ -150,6 +155,13 @@ public class LoadOperatorSummaryRequest extends Request {
             return DEFAULT_SORTING;
         }
         return sorting;
+    }
+
+    public int getSizeOrDefault() {
+        if(size == null) {
+            return DEFAULT_SIZE;
+        }
+        return size;
     }
 
     @Override
