@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.rest.RestStatus;
@@ -35,6 +37,8 @@ import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
 import com.floragunn.searchsupport.meta.Meta;
 
 public class PrivilegesEvaluationResult {
+
+    private static final Logger log = LogManager.getLogger(PrivilegesEvaluationResult.class);
 
     /**
      * The user has all necessary privileges for a action request
@@ -335,7 +339,7 @@ public class PrivilegesEvaluationResult {
 
             return result.toString();
         } catch (RuntimeException e) {
-            e.printStackTrace();
+            log.debug("Privileges evaluation results toString failed", e);
             throw new RuntimeException(e);
         }
     }

@@ -34,6 +34,8 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -46,6 +48,8 @@ import com.floragunn.codova.validation.errors.MissingAttribute;
 import com.floragunn.codova.validation.errors.ValidationError;
 
 public final class SearchGuardLicense implements Writeable, Document<SearchGuardLicense> {
+
+    private static final Logger log = LogManager.getLogger(SearchGuardLicense.class);
 
     private static final DateTimeFormatter DEFAULT_FOMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd").withLocale(Locale.ENGLISH);
     private static final int MAX_ALLOWED_DAYS_BEFORE_START_DAY = 30;
@@ -185,7 +189,7 @@ public final class SearchGuardLicense implements Writeable, Document<SearchGuard
         try {
             parseDate(issueDate);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.debug("Cannot parse issue date", e);
             validationErrors.add(new InvalidAttributeValue("issued_date", issueDate, null).cause(e));
         }
 
@@ -200,7 +204,7 @@ public final class SearchGuardLicense implements Writeable, Document<SearchGuard
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.debug("Cannot parse expiry date", e);
             validationErrors.add(new InvalidAttributeValue("expiry_date", expiryDate, null).cause(e));
         }
 
@@ -225,7 +229,7 @@ public final class SearchGuardLicense implements Writeable, Document<SearchGuard
                 validationErrors.add(new ValidationError("start_date", "License cannot be applied earlier than " + DEFAULT_FOMATTER.format(earliestAllowedStartDate), startDate));
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.debug("Cannot parse start date", e);
             validationErrors.add(new InvalidAttributeValue("start_date", startDate, null).cause(e));
         }
 
