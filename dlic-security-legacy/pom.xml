@@ -58,11 +58,20 @@
           <artifactId>joda-time</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-lang3</artifactId>
+        </exclusion>
+        <exclusion>
           <!-- Exclusion because the dependent version has vulnerable dependencies. Replaced by explicit dependency just below.  -->
           <groupId>org.apache.santuario</groupId>
           <artifactId>xmlsec</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <!-- replacement for exclusion from com.onelogin:java-saml -->
     </dependency>
 
     <dependency>
