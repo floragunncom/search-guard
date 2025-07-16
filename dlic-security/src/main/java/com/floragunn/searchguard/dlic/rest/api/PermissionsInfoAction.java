@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -51,6 +53,8 @@ import com.google.common.collect.ImmutableList;
  * Provides the evaluated REST API permissions for the currently logged in user 
  */
 public class PermissionsInfoAction extends BaseRestHandler {
+
+    private static final Logger log = LogManager.getLogger(PermissionsInfoAction.class);
 
     private final RestApiPrivilegesEvaluator restApiPrivilegesEvaluator;
     private final ThreadPool threadPool;
@@ -140,7 +144,7 @@ public class PermissionsInfoAction extends BaseRestHandler {
                     builder.endObject();
                     response = new RestResponse(RestStatus.OK, builder);
                 } catch (final Exception e1) {
-                    e1.printStackTrace();
+                    log.warn("Permission info action failed", e1);
                     builder = channel.newBuilder(); //NOSONAR
                     builder.startObject();
                     builder.field("error", e1.toString());
