@@ -335,7 +335,6 @@ public class PrivilegesEvaluationResult {
 
             return result.toString();
         } catch (RuntimeException e) {
-            e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
