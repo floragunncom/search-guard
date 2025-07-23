@@ -148,7 +148,7 @@
       <!-- Replacement dependency for com.onelogin:java-saml (see above) -->
       <groupId>org.apache.santuario</groupId>
       <artifactId>xmlsec</artifactId>
-      <version>4.0.2</version>
+      <version>4.0.4</version>
     </dependency>
     <dependency>
       <groupId>org.bouncycastle</groupId>
