@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -560,8 +561,15 @@ public class EmailAction extends ActionHandler {
             message.setSubject(email.getSubject(), "UTF-8");
             message.setFrom(new InternetAddress(email.getFromRecipient().getAddress(), email.getFromRecipient().getName(), "UTF-8"));
 
-            if (email.getReplyToRecipient() != null) {
-                message.setReplyTo(toInternetAddressArray(email.getReplyToRecipient()));
+            List<Recipient> replyToRecipients = email.getReplyToRecipients();
+            if (replyToRecipients != null) {
+                Address[] addresses = replyToRecipients.stream() //
+                        .filter(Objects::nonNull) //
+                        .flatMap(r -> Arrays.stream(toInternetAddressArray(r))) //
+                        .toArray(Address[]::new);
+                if(addresses.length > 0) {
+                    message.setReplyTo(addresses);
+                }
             }
 
             if (email.getRecipients() != null) {
