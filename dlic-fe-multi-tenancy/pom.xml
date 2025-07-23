@@ -88,13 +88,13 @@
     <dependency>
       <groupId>org.ow2.asm</groupId>
       <artifactId>asm-commons</artifactId>
-      <version>7.2</version>
+      <version>9.8</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.ow2.asm</groupId>
       <artifactId>asm-util</artifactId>
-      <version>7.2</version>
+      <version>9.8</version>
       <scope>test</scope>
     </dependency>
 
