@@ -115,7 +115,7 @@ public class RoleRelationsValidator extends ConfigModificationValidator<Role> {
     private <T> SgDynamicConfiguration<T> getConfigFromMap(CType<T> typeToLoad) {
         return findCurrentConfiguration(typeToLoad)
                 .orElseGet(() -> {
-                    log.warn("Config of type {} is unavailable, an empty config will be used instead", typeToLoad.getName());
+                    log.debug("Config of type {} is unavailable, an empty config will be used instead", typeToLoad.getName());
                     return SgDynamicConfiguration.empty(typeToLoad);
                 });
     }
