@@ -1352,7 +1352,7 @@ public class ActionTest {
             Assert.assertTrue(receivedMail, receivedMail.contains("Subject: Test Subject"));
             Assert.assertTrue(receivedMail, receivedMail.contains("From: from@default.sgtest"));
             Assert.assertTrue(receivedMail, receivedMail.contains("To: to@specific.sgtest"));
-            Assert.assertTrue(receivedMail.indexOf("Content-ID: <test2>") < receivedMail.indexOf("Content-ID: <test1>"));
+            Assert.assertTrue(receivedMail.indexOf("Content-ID: <test2") < receivedMail.indexOf("Content-ID: <test1"));
 
         } finally {
             greenMail.stop();
@@ -1416,7 +1416,7 @@ public class ActionTest {
             Assert.assertTrue(receivedMail, receivedMail.contains("Subject: Test Subject"));
             Assert.assertTrue(receivedMail, receivedMail.contains("From: from@default.sgtest"));
             Assert.assertTrue(receivedMail, receivedMail.contains("To: to@specific.sgtest"));
-            Assert.assertTrue(receivedMail.indexOf("Content-ID: <test2>") < receivedMail.indexOf("Content-ID: <test1>"));
+            Assert.assertTrue(receivedMail.indexOf("Content-ID: <test2") < receivedMail.indexOf("Content-ID: <test1"));
 
         } finally {
             greenMail.stop();
