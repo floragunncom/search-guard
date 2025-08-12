@@ -176,6 +176,7 @@ public class LdapIntegrationTest {
             new Authc.Domain("basic/internal_users_db")//
                     .additionalUserInformation(new AdditionalUserInformation("ldap", DocNode.of(//
                             "idp.hosts", "#{var:ldapHost}", //
+                            "idp.follow_referrals", false, //
                             "idp.tls.trusted_cas", certificatesContext.getCaCertificate().getCertificateString(), //
                             "idp.tls.verify_hostnames", false, //
                             "user_search.filter.raw", "(uid=${user.name})", //

@@ -113,7 +113,8 @@ public final class LDAPConnectionManager implements Closeable, ComponentStatePro
             opts.setResponseTimeoutMillis(responseTimeout.toMillis());
         }
 
-        opts.setFollowReferrals(true);
+        boolean followReferrals = vNode.get("follow_referrals").withDefault(true).asBoolean();
+        opts.setFollowReferrals(followReferrals);
 
         this.poolMinSize = vNode.get("connection_pool.min_size").withDefault(3).asInt();
         this.poolMaxSize = vNode.get("connection_pool.max_size").withDefault(10).asInt();
