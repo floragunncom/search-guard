@@ -21,7 +21,7 @@ OPTIND=1
 assumeyes=0
 initsg=0
 cluster_mode=0
-SGCTL_VERSION="3.1.0"
+SGCTL_VERSION="3.1.2"
 SGCTL_LINK="https://maven.search-guard.com/search-guard-flx-release/com/floragunn/sgctl/$SGCTL_VERSION/sgctl-$SGCTL_VERSION.sh"
 
 function show_help() {
