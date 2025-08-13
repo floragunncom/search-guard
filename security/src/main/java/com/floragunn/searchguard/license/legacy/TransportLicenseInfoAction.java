@@ -33,7 +33,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
+import org.elasticsearch.transport.AbstractTransportRequest;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.license.LicenseRepository;
@@ -58,7 +58,7 @@ public class TransportLicenseInfoAction extends
         this.settings = settings;
     }
 
-    public static class NodeLicenseRequest extends TransportRequest {
+    public static class NodeLicenseRequest extends AbstractTransportRequest {
 
         public NodeLicenseRequest(final LicenseInfoRequest request) {
             super();

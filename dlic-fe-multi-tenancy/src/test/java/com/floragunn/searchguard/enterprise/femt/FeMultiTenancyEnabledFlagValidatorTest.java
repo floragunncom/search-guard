@@ -79,7 +79,7 @@ public class FeMultiTenancyEnabledFlagValidatorTest {
     @Test
     public void configEntry_shouldValidateFeMtEnabledFlag_valueChanges_thereIsKibanaIndex() throws Exception {
 
-        when(metadata.getIndicesLookup()).thenReturn(new TreeMap<>(ImmutableMap.of(KIBANA_INDEX + "_1.2.3", null)));
+        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID).getIndicesLookup()).thenReturn(new TreeMap<>(ImmutableMap.of(KIBANA_INDEX + "_1.2.3", null)));
 
         //try to disable MT
         ConfigMap configMap = configMapWithConfig(
@@ -121,7 +121,7 @@ public class FeMultiTenancyEnabledFlagValidatorTest {
     @Test
     public void configEntry_shouldValidateFeMtEnabledFlag_valueChanges_thereIsNoKibanaIndex() throws Exception {
 
-        when(metadata.getIndicesLookup()).thenReturn(new TreeMap<>());
+        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID).getIndicesLookup()).thenReturn(new TreeMap<>());
 
         //try to disable MT
         ConfigMap configMap = configMapWithConfig(
@@ -221,7 +221,7 @@ public class FeMultiTenancyEnabledFlagValidatorTest {
     @Test
     public void config_shouldValidateFeMtEnabledFlag_valueChanges_thereIsKibanaIndex() throws Exception {
 
-        when(metadata.getIndicesLookup()).thenReturn(new TreeMap<>(ImmutableMap.of(KIBANA_INDEX, null)));
+        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID).getIndicesLookup()).thenReturn(new TreeMap<>(ImmutableMap.of(KIBANA_INDEX, null)));
 
         //try to disable MT
         ConfigMap configMap = configMapWithConfig(
@@ -266,7 +266,7 @@ public class FeMultiTenancyEnabledFlagValidatorTest {
     @Test
     public void config_shouldValidateFeMtEnabledFlag_valueChanges_thereIsNoKibanaIndex() throws Exception {
 
-        when(metadata.getIndicesLookup()).thenReturn(new TreeMap<>());
+        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID).getIndicesLookup()).thenReturn(new TreeMap<>());
 
         //try to disable MT
         ConfigMap configMap = configMapWithConfig(
@@ -404,7 +404,7 @@ public class FeMultiTenancyEnabledFlagValidatorTest {
     @Test
     public void configList_shouldValidateFeMtEnabledFlag_valueChanges_thereIsKibanaIndex() throws Exception {
 
-        when(metadata.getIndicesLookup()).thenReturn(new TreeMap<>(ImmutableMap.of(KIBANA_INDEX + "001", null)));
+        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID).getIndicesLookup()).thenReturn(new TreeMap<>(ImmutableMap.of(KIBANA_INDEX + "001", null)));
 
         //try to disable MT
         ConfigMap configMap = configMapWithConfig(
@@ -449,7 +449,7 @@ public class FeMultiTenancyEnabledFlagValidatorTest {
     @Test
     public void configList_shouldValidateFeMtEnabledFlag_valueChanges_thereIsNoKibanaIndex() throws Exception {
 
-        when(metadata.getIndicesLookup()).thenReturn(new TreeMap<>());
+        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID).getIndicesLookup()).thenReturn(new TreeMap<>());
 
         //try to disable MT
         ConfigMap configMap = configMapWithConfig(

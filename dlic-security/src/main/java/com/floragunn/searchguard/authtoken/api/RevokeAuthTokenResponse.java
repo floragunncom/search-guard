@@ -40,7 +40,6 @@ public class RevokeAuthTokenResponse extends ActionResponse implements ToXConten
     }
 
     public RevokeAuthTokenResponse(StreamInput in) throws IOException {
-        super(in);
         this.info = in.readOptionalString();
         this.restStatus = in.readEnum(RestStatus.class);
         this.error = in.readOptionalString();

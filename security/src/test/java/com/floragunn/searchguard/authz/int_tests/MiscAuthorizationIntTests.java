@@ -21,6 +21,8 @@ import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
+import static com.floragunn.searchsupport.Constants.DEFAULT_ACK_TIMEOUT;
+import static com.floragunn.searchsupport.Constants.DEFAULT_MASTER_TIMEOUT;
 import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static com.floragunn.searchsupport.junit.matcher.ExceptionsMatchers.messageContainsMatcher;
@@ -32,7 +34,6 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 
-import com.floragunn.searchsupport.Constants;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -138,7 +139,7 @@ public class MiscAuthorizationIntTests {
             client.index(new IndexRequest("alias_resolve_test_index_allow_aliased_2").setRefreshPolicy(RefreshPolicy.IMMEDIATE)
                     .source(XContentType.JSON, "index", "alias_resolve_test_index_allow_aliased_2", "b", "y", "date", "1985/01/01")).actionGet();
             client.admin().indices().aliases(
-                    new IndicesAliasesRequest().addAliasAction(AliasActions.add().alias("alias_resolve_test_alias_1").index("alias_resolve_test_*")))
+                    new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT).addAliasAction(AliasActions.add().alias("alias_resolve_test_alias_1").index("alias_resolve_test_*")))
                     .actionGet();
 
             Client clientFof = clusterFof.getInternalNodeClient();
@@ -152,7 +153,7 @@ public class MiscAuthorizationIntTests {
                     "resolve_test_disallow_2", "b", "yy", "date", "1985/01/01")).actionGet();
 
             clientFof.admin().indices()
-                    .aliases(new IndicesAliasesRequest()
+                    .aliases(new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT)
                             .addAliasAction(new AliasActions(AliasActions.Type.ADD).alias("resolve_test_allow_alias").indices("resolve_test_*")))
                     .actionGet();
 
@@ -299,7 +300,7 @@ public class MiscAuthorizationIntTests {
 
 
         clientFof = clusterFof.getInternalNodeClient();
-        boolean exists = clientFof.admin().indices().getIndex(new GetIndexRequest(Constants.DEFAULT_MASTER_TIMEOUT).indices(targetIndex)).actionGet().indices().length > 0;
+        boolean exists = clientFof.admin().indices().getIndex(new GetIndexRequest(DEFAULT_MASTER_TIMEOUT).indices(targetIndex)).actionGet().indices().length > 0;
         assertThat(exists, is(true));
 
     }

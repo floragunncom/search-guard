@@ -20,8 +20,6 @@ import com.floragunn.signals.truststore.rest.FindAllTruststoresAction;
 import com.floragunn.signals.truststore.rest.FindOneTruststoreAction;
 import com.floragunn.signals.truststore.rest.CreateOrReplaceTruststoreAction;
 import com.floragunn.signals.truststore.rest.TransportTruststoreUpdatedAction;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.settings.ClusterSettings;
@@ -142,7 +140,7 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
     }
 
     @Override
-    public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+    public List<ActionHandler> getActions() {
         if (enabled) {
             return Arrays.asList(actionHandler(AckAndGetWatchAction.INSTANCE, TransportAckAndGetWatchAction.class),
                     actionHandler(AckWatchAction.INSTANCE, TransportAckWatchAction.class),

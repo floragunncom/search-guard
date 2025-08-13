@@ -27,7 +27,6 @@ public class GetWatchStateResponse extends ActionResponse implements ToXContentO
     }
 
     public GetWatchStateResponse(StreamInput in) throws IOException {
-        super(in);
         restStatus = in.readEnum(RestStatus.class);
         watchToStatusMap = in.readMap(StreamInput::readString, StreamInput::readBytesReference);
     }

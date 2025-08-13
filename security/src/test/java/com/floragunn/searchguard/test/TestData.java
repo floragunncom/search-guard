@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
+import com.floragunn.searchsupport.Constants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
@@ -262,7 +263,7 @@ public class TestData {
     }
 
     public static String getIndexMode(Client client, String indexName) {
-        return client.admin().indices().prepareGetSettings(indexName).get().getSetting(indexName, "index.mode");
+        return client.admin().indices().prepareGetSettings(Constants.DEFAULT_MASTER_TIMEOUT, indexName).get().getSetting(indexName, "index.mode");
     }
 
     public static String getIndexMode(GenericRestClient client, String indexName) {

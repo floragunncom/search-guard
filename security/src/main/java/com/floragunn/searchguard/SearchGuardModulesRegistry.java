@@ -167,8 +167,8 @@ public class SearchGuardModulesRegistry {
         return result;
     }
 
-    public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> result = new ArrayList<>();
+    public List<ActionHandler> getActions() {
+        List<ActionHandler> result = new ArrayList<>();
 
         for (SearchGuardModule module : modules) {
             result.addAll(module.getActions());

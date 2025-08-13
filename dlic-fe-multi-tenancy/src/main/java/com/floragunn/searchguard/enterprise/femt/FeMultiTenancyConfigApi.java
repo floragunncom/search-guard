@@ -45,7 +45,7 @@ public class FeMultiTenancyConfigApi extends TypeLevelConfigApi {
             .handlesGet("/_searchguard/current_user/tenants").with(GetAvailableTenantsAction.INSTANCE, (params, body) -> new StandardRequests.EmptyRequest())//
             .name("/_searchguard/config/frontend_multi_tenancy");
 
-    public static final ImmutableList<ActionHandler<?, ?>> ACTION_HANDLERS = ImmutableList.of(
+    public static final ImmutableList<ActionHandler> ACTION_HANDLERS = ImmutableList.of(
             actionHandler(FeMultiTenancyConfigApi.GetAction.INSTANCE, FeMultiTenancyConfigApi.GetAction.Handler.class),
             actionHandler(FeMultiTenancyConfigApi.PutAction.INSTANCE, FeMultiTenancyConfigApi.PutAction.Handler.class),
             actionHandler(FeMultiTenancyConfigApi.PatchAction.INSTANCE, FeMultiTenancyConfigApi.PatchAction.Handler.class),
