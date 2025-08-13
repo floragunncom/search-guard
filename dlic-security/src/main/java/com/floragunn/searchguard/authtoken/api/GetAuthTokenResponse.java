@@ -45,7 +45,6 @@ public class GetAuthTokenResponse extends ActionResponse implements ToXContentOb
     }
 
     public GetAuthTokenResponse(StreamInput in) throws IOException {
-        super(in);
         this.restStatus = in.readEnum(RestStatus.class);
         this.error = in.readOptionalString();
 

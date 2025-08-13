@@ -40,10 +40,10 @@ public class AuthorizationConfigApi extends TypeLevelConfigApi {
             .handlesPatch("/_searchguard/config/authz").with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body)))
             .name("/_searchguard/config/authz");
 
-    public static final List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> ACTION_HANDLERS = List.of(
-            new ActionHandler<>(AuthorizationConfigApi.GetAction.INSTANCE, AuthorizationConfigApi.GetAction.Handler.class),
-            new ActionHandler<>(AuthorizationConfigApi.PutAction.INSTANCE, AuthorizationConfigApi.PutAction.Handler.class),
-            new ActionHandler<>(AuthorizationConfigApi.PatchAction.INSTANCE, AuthorizationConfigApi.PatchAction.Handler.class));
+    public static final List<ActionHandler> ACTION_HANDLERS = List.of(
+            new ActionHandler(AuthorizationConfigApi.GetAction.INSTANCE, AuthorizationConfigApi.GetAction.Handler.class),
+            new ActionHandler(AuthorizationConfigApi.PutAction.INSTANCE, AuthorizationConfigApi.PutAction.Handler.class),
+            new ActionHandler(AuthorizationConfigApi.PatchAction.INSTANCE, AuthorizationConfigApi.PatchAction.Handler.class));
 
     public static class GetAction extends TypeLevelConfigApi.GetAction {
         public static final GetAction INSTANCE = new GetAction();
