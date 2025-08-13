@@ -222,7 +222,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     }
 
     @Override
-    public ImmutableList<ActionHandler<?, ?>> getActions() {
+    public ImmutableList<ActionHandler> getActions() {
         return FeMultiTenancyConfigApi.ACTION_HANDLERS
                 .with(DataMigrationApi.ACTION_HANDLERS);
     }

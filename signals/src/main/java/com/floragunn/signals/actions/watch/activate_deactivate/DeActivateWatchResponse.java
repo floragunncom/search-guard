@@ -30,7 +30,6 @@ public class DeActivateWatchResponse extends ActionResponse implements ToXConten
     }
 
     public DeActivateWatchResponse(StreamInput in) throws IOException {
-        super(in);
         id = in.readString();
         version = in.readVLong();
         result = in.readEnum(Result.class);

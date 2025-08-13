@@ -73,12 +73,12 @@ public class SessionModule implements SearchGuardModule, ComponentStateProvider 
     }
 
     @Override
-    public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+    public List<ActionHandler> getActions() {
         return ImmutableList.of(//
-                new ActionHandler<>(SessionApi.GetExtendedInfoAction.INSTANCE, SessionApi.GetExtendedInfoAction.Handler.class),
-                new ActionHandler<>(SessionApi.CreateAction.INSTANCE, SessionApi.CreateAction.Handler.class),
-                new ActionHandler<>(SessionApi.DeleteAction.INSTANCE, SessionApi.DeleteAction.Handler.class),
-                new ActionHandler<>(PushSessionTokenUpdateAction.INSTANCE, PushSessionTokenUpdateAction.TransportAction.class)//
+                new ActionHandler(SessionApi.GetExtendedInfoAction.INSTANCE, SessionApi.GetExtendedInfoAction.Handler.class),
+                new ActionHandler(SessionApi.CreateAction.INSTANCE, SessionApi.CreateAction.Handler.class),
+                new ActionHandler(SessionApi.DeleteAction.INSTANCE, SessionApi.DeleteAction.Handler.class),
+                new ActionHandler(PushSessionTokenUpdateAction.INSTANCE, PushSessionTokenUpdateAction.TransportAction.class)//
         ).with(SessionServiceConfigApi.ACTION_HANDLERS);
     }
 

@@ -87,14 +87,14 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
     }
 
     @Override
-    public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+    public List<ActionHandler> getActions() {
         return ImmutableList
-                .of(new ActionHandler<>(CreateAuthTokenAction.INSTANCE, TransportCreateAuthTokenAction.class),
-                        new ActionHandler<>(PushAuthTokenUpdateAction.INSTANCE, TransportPushAuthTokenUpdateAction.class),
-                        new ActionHandler<>(GetAuthTokenAction.INSTANCE, TransportGetAuthTokenAction.class),
-                        new ActionHandler<>(RevokeAuthTokenAction.INSTANCE, TransportRevokeAuthTokenAction.class),
-                        new ActionHandler<>(SearchAuthTokensAction.INSTANCE, TransportSearchAuthTokensAction.class),
-                        new ActionHandler<>(AuthTokenInfoAction.INSTANCE, TransportAuthTokenInfoAction.class))
+                .of(new ActionHandler(CreateAuthTokenAction.INSTANCE, TransportCreateAuthTokenAction.class),
+                        new ActionHandler(PushAuthTokenUpdateAction.INSTANCE, TransportPushAuthTokenUpdateAction.class),
+                        new ActionHandler(GetAuthTokenAction.INSTANCE, TransportGetAuthTokenAction.class),
+                        new ActionHandler(RevokeAuthTokenAction.INSTANCE, TransportRevokeAuthTokenAction.class),
+                        new ActionHandler(SearchAuthTokensAction.INSTANCE, TransportSearchAuthTokensAction.class),
+                        new ActionHandler(AuthTokenInfoAction.INSTANCE, TransportAuthTokenInfoAction.class))
                 .with(AuthTokenServiceConfigApi.ACTION_HANDLERS);
     }
 

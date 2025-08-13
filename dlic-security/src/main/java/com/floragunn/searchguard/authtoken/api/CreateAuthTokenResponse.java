@@ -38,7 +38,6 @@ public class CreateAuthTokenResponse extends ActionResponse implements ToXConten
     }
 
     public CreateAuthTokenResponse(StreamInput in) throws IOException {
-        super(in);
         this.authToken = new AuthToken(in);
         this.jwt = in.readString();
     }

@@ -486,7 +486,7 @@ public class TenantsTest {
 
     private void createKibanaIndicesAndAliases(String...indices_names) {
         Client client = cluster.getInternalNodeClient();
-        IndicesAliasesRequest addAliasesRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest addAliasesRequest = new IndicesAliasesRequest(Constants.DEFAULT_MASTER_TIMEOUT, Constants.DEFAULT_ACK_TIMEOUT);
         for (String alias : indices_names) {
             String indexName = alias + "_1.2.3";
             CreateIndexResponse createIndexResponse = client.admin().indices().create(new CreateIndexRequest(indexName)).actionGet();

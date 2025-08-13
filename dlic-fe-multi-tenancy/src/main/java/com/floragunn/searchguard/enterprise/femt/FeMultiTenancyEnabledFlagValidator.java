@@ -20,6 +20,7 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.service.ClusterService;
 
 import java.util.ArrayList;
@@ -108,7 +109,7 @@ class FeMultiTenancyEnabledFlagValidator extends ConfigModificationValidator<FeM
         String kibanaIndexNamePrefix = Objects.requireNonNullElse(
                 feMultiTenancyConfigurationProvider.getKibanaIndex(), FeMultiTenancyConfig.DEFAULT.getIndex()
         );
-        return clusterService.state().metadata().getIndicesLookup().keySet()
+        return clusterService.state().metadata().getProject(Metadata.DEFAULT_PROJECT_ID).getIndicesLookup().keySet()
                 .stream().anyMatch(name -> name.startsWith(kibanaIndexNamePrefix));
     }
 

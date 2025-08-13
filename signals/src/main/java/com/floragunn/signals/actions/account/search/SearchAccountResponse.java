@@ -26,7 +26,6 @@ public class SearchAccountResponse extends ActionResponse implements ToXContentO
     }
 
     public SearchAccountResponse(StreamInput in) throws IOException {
-        super(in);
         this.searchResponse = new SearchResponse(in);
     }
 

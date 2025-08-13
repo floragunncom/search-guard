@@ -151,8 +151,8 @@ public class ThreadContextAuthzHashProviderIntTest {
 
     public static class MockPlugin extends Plugin implements ActionPlugin {
 
-        public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-            return Arrays.asList(new ActionHandler<>(MockTransportAction.TYPE, MockTransportAction.class));
+        public List<ActionHandler> getActions() {
+            return Arrays.asList(new ActionHandler(MockTransportAction.TYPE, MockTransportAction.class));
         }
 
         @Override

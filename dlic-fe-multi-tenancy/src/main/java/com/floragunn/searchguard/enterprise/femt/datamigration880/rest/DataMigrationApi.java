@@ -35,9 +35,9 @@ public class DataMigrationApi {
             .with(GetDataMigrationStateAction.INSTANCE)//
             .name("GET /_searchguard/config/fe_multi_tenancy/data_migration/8_8_0");
 
-    public static final ImmutableList<ActionPlugin.ActionHandler<?, ?>> ACTION_HANDLERS = ImmutableList.of(
-            new ActionPlugin.ActionHandler<>(StartDataMigrationAction.INSTANCE, StartDataMigrationHandler.class),
-            new ActionPlugin.ActionHandler<>(GetDataMigrationStateAction.INSTANCE, GetDataMigrationStateHandler.class)
+    public static final ImmutableList<ActionPlugin.ActionHandler> ACTION_HANDLERS = ImmutableList.of(
+            new ActionPlugin.ActionHandler(StartDataMigrationAction.INSTANCE, StartDataMigrationHandler.class),
+            new ActionPlugin.ActionHandler(GetDataMigrationStateAction.INSTANCE, GetDataMigrationStateHandler.class)
     );
 
 }

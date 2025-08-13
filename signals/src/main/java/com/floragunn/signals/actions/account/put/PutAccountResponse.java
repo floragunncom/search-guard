@@ -32,7 +32,6 @@ public class PutAccountResponse extends ActionResponse implements ToXContentObje
     }
 
     public PutAccountResponse(StreamInput in) throws IOException {
-        super(in);
         id = in.readString();
         version = in.readVLong();
         result = in.readEnum(Result.class);
