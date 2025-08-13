@@ -38,10 +38,10 @@ public class SearchGuardLicenseKeyApi extends TypeLevelConfigApi {
             .handlesPatch("/_searchguard/license/key").with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body)))
             .name("/_searchguard/license/key");
     
-    public static final ImmutableList<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> ACTION_HANDLERS = ImmutableList.of(
-            new ActionHandler<>(SearchGuardLicenseKeyApi.GetAction.INSTANCE, SearchGuardLicenseKeyApi.GetAction.Handler.class),
-            new ActionHandler<>(SearchGuardLicenseKeyApi.PutAction.INSTANCE, SearchGuardLicenseKeyApi.PutAction.Handler.class),
-            new ActionHandler<>(SearchGuardLicenseKeyApi.PatchAction.INSTANCE, SearchGuardLicenseKeyApi.PatchAction.Handler.class));
+    public static final ImmutableList<ActionHandler> ACTION_HANDLERS = ImmutableList.of(
+            new ActionHandler(SearchGuardLicenseKeyApi.GetAction.INSTANCE, SearchGuardLicenseKeyApi.GetAction.Handler.class),
+            new ActionHandler(SearchGuardLicenseKeyApi.PutAction.INSTANCE, SearchGuardLicenseKeyApi.PutAction.Handler.class),
+            new ActionHandler(SearchGuardLicenseKeyApi.PatchAction.INSTANCE, SearchGuardLicenseKeyApi.PatchAction.Handler.class));
 
     public static class GetAction extends TypeLevelConfigApi.GetAction {
         public static final GetAction INSTANCE = new GetAction();

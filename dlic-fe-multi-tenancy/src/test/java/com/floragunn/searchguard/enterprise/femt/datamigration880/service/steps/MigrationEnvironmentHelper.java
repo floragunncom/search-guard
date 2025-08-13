@@ -75,6 +75,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.floragunn.searchguard.support.PrivilegedConfigClient.adapt;
+import static com.floragunn.searchsupport.Constants.DEFAULT_ACK_TIMEOUT;
+import static com.floragunn.searchsupport.Constants.DEFAULT_MASTER_TIMEOUT;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 import static org.elasticsearch.common.Strings.requireNonEmpty;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -139,7 +141,7 @@ public class MigrationEnvironmentHelper extends ExternalResource {
 
     private void deleteIndexTemplateIfExists() {
         Client client = cluster.getInternalNodeClient();
-        GetIndexTemplatesResponse response = client.admin().indices().prepareGetTemplates(Constants.DEFAULT_MASTER_TIMEOUT, INDEX_TEMPLATE_NAME).execute().actionGet();
+        GetIndexTemplatesResponse response = client.admin().indices().prepareGetTemplates(DEFAULT_MASTER_TIMEOUT, INDEX_TEMPLATE_NAME).execute().actionGet();
         if(!response.getIndexTemplates().isEmpty()) {
             var acknowledgedResponse = client.admin().indices().prepareDeleteTemplate(INDEX_TEMPLATE_NAME).execute().actionGet();
             assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
@@ -150,7 +152,7 @@ public class MigrationEnvironmentHelper extends ExternalResource {
         try {
             Client client = cluster.getInternalNodeClient();
             for(String index : indexOrAlias) {
-                client.admin().indices().getIndex(new GetIndexRequest(Constants.DEFAULT_MASTER_TIMEOUT).indices(index)).actionGet();
+                client.admin().indices().getIndex(new GetIndexRequest(DEFAULT_MASTER_TIMEOUT).indices(index)).actionGet();
             }
             return true;
         } catch (Exception e) {
@@ -193,7 +195,7 @@ public class MigrationEnvironmentHelper extends ExternalResource {
 
     public Settings getIndexSettings(String index) {
         Client client = cluster.getInternalNodeClient();
-        GetSettingsRequest request = new GetSettingsRequest().indices(index);
+        GetSettingsRequest request = new GetSettingsRequest(DEFAULT_MASTER_TIMEOUT).indices(index);
         return client.admin().indices().getSettings(request).actionGet().getIndexToSettings().get(index);
     }
 
@@ -234,7 +236,7 @@ public class MigrationEnvironmentHelper extends ExternalResource {
         String configuredIndexNamePrefix = getConfiguredIndexPrefix();
 
         BulkRequest bulkRequest = new BulkRequest();
-        IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT);
         PutIndexTemplateRequest templateRequest = new PutIndexTemplateRequest(INDEX_TEMPLATE_NAME) //
             .patterns(Collections.singletonList(configuredIndexNamePrefix + "*")) //
             .settings(Settings.builder().put("index.hidden", true));
@@ -267,7 +269,7 @@ public class MigrationEnvironmentHelper extends ExternalResource {
     public void createIndex(String indexNamesPrefix, int numberOfReplicas, Settings additionalSettings, DoubleAliasIndex...indices) {
         BulkRequest bulkRequestCreateIndices = new BulkRequest();
         BulkRequest bulkRequestClearIndices = new BulkRequest();
-        IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest();
+        IndicesAliasesRequest indicesAliasesRequest = new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT);
         Settings.Builder settings = Settings.builder()
             .put("index.hidden", true)
             .put("index.number_of_replicas", numberOfReplicas);
@@ -349,7 +351,7 @@ public class MigrationEnvironmentHelper extends ExternalResource {
 
     public DocNode getIndexMappingsAsDocNode(String indexName) {
         Client client = cluster.getInternalNodeClient();
-        GetMappingsResponse response = client.admin().indices().getMappings(new GetMappingsRequest(Constants.DEFAULT_MASTER_TIMEOUT).indices(indexName)).actionGet();
+        GetMappingsResponse response = client.admin().indices().getMappings(new GetMappingsRequest(DEFAULT_MASTER_TIMEOUT).indices(indexName)).actionGet();
         Map<String, Object> source = Optional.of(response) //
             .map(GetMappingsResponse::getMappings) //
             .map(map -> map.get(indexName)) //
@@ -490,7 +492,7 @@ public class MigrationEnvironmentHelper extends ExternalResource {
     public Optional<GetIndexResponse> findHiddenIndexByName(String indexNameOrAlias) {
         Strings.requireNonEmpty(indexNameOrAlias, "Index or alias name is required");
         try {
-            GetIndexRequest request = new GetIndexRequest(Constants.DEFAULT_MASTER_TIMEOUT);
+            GetIndexRequest request = new GetIndexRequest(DEFAULT_MASTER_TIMEOUT);
             request.indices(indexNameOrAlias).indicesOptions(IndicesOptions.strictExpandHidden());
             GetIndexResponse response = getPrivilegedClient().admin().indices().getIndex(request).actionGet();
             return Optional.ofNullable(response);

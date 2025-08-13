@@ -30,10 +30,10 @@ import java.util.List;
 
 public class SchedulerModule implements SearchGuardModule {
     @Override
-    public List<ActionPlugin.ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+    public List<ActionPlugin.ActionHandler> getActions() {
         return List.of(
-                new ActionPlugin.ActionHandler<>(CheckForExecutingTriggerAction.INSTANCE, TransportCheckForExecutingTriggerAction.class),
-                new ActionPlugin.ActionHandler<>(SchedulerConfigUpdateAction.INSTANCE, TransportSchedulerConfigUpdateAction.class)
+                new ActionPlugin.ActionHandler(CheckForExecutingTriggerAction.INSTANCE, TransportCheckForExecutingTriggerAction.class),
+                new ActionPlugin.ActionHandler(SchedulerConfigUpdateAction.INSTANCE, TransportSchedulerConfigUpdateAction.class)
         );
     }
 }

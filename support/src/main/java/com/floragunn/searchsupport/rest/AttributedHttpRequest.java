@@ -57,6 +57,11 @@ public class AttributedHttpRequest implements HttpRequest {
     }
 
     @Override
+    public void setBody(HttpBody body) {
+        httpRequest.setBody(body);
+    }
+
+    @Override
     public List<String> strictCookies() {
         return httpRequest.strictCookies();
     }
@@ -64,6 +69,11 @@ public class AttributedHttpRequest implements HttpRequest {
     @Override
     public HttpRequest removeHeader(String header) {
         return httpRequest.removeHeader(header);
+    }
+
+    @Override
+    public boolean hasContent() {
+        return httpRequest.hasContent();
     }
 
     @Override

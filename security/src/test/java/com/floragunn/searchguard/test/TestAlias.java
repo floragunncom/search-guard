@@ -24,12 +24,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchsupport.Constants;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.client.internal.Client;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableSet;
+
+import static com.floragunn.searchsupport.Constants.DEFAULT_ACK_TIMEOUT;
+import static com.floragunn.searchsupport.Constants.DEFAULT_MASTER_TIMEOUT;
 
 public class TestAlias implements TestIndexLike {
 
@@ -63,12 +67,12 @@ public class TestAlias implements TestIndexLike {
     }
 
     public void create(Client client) {
-        client.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices(getIndexNamesAsArray()).alias(name)))
+        client.admin().indices().aliases(new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT).addAliasAction(AliasActions.add().indices(getIndexNamesAsArray()).alias(name)))
                 .actionGet();
 
         if (writeIndex != null) {
             client.admin().indices()
-                    .aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().index(writeIndex.getName()).alias(name).writeIndex(true)))
+                    .aliases(new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT).addAliasAction(AliasActions.add().index(writeIndex.getName()).alias(name).writeIndex(true)))
                     .actionGet();
         }
     }

@@ -66,7 +66,7 @@ public interface SearchGuardModule {
         return Collections.emptyList();
     }
 
-    default List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+    default List<ActionHandler> getActions() {
         return Collections.emptyList();
     }
 

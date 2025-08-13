@@ -23,7 +23,6 @@ public class GetSettingsResponse extends ActionResponse {
     }
 
     public GetSettingsResponse(StreamInput in) throws IOException {
-        super(in);
         this.status = in.readEnum(Status.class);
         this.result = in.readOptionalString();
         this.contentType = in.readOptionalString();
