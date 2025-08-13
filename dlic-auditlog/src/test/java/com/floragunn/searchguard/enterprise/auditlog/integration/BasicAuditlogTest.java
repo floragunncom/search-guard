@@ -35,6 +35,9 @@ import com.floragunn.searchguard.legacy.test.RestHelper.HttpResponse;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
+import static com.floragunn.searchsupport.Constants.DEFAULT_ACK_TIMEOUT;
+import static com.floragunn.searchsupport.Constants.DEFAULT_MASTER_TIMEOUT;
+
 public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
     
     @Test
@@ -438,9 +441,9 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         tc.index(new IndexRequest("kirk").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
         tc.index(new IndexRequest("role01_role02").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
 
-        tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("starfleet","starfleet_academy","starfleet_library").alias("sf"))).actionGet();
-        tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("klingonempire","vulcangov").alias("nonsf"))).actionGet();
-        tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().indices("public").alias("unrestricted"))).actionGet();
+        tc.admin().indices().aliases(new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT).addAliasAction(AliasActions.add().indices("starfleet","starfleet_academy","starfleet_library").alias("sf"))).actionGet();
+        tc.admin().indices().aliases(new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT).addAliasAction(AliasActions.add().indices("klingonempire","vulcangov").alias("nonsf"))).actionGet();
+        tc.admin().indices().aliases(new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT).addAliasAction(AliasActions.add().indices("public").alias("unrestricted"))).actionGet();
 
         TestAuditlogImpl.clear();
         
@@ -514,7 +517,7 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         Client tc = getNodeClient();
         for(int i=0; i<3; i++)
         tc.index(new IndexRequest("vulcangov").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source("{\"content\":1}", XContentType.JSON)).actionGet();
-        tc.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(AliasActions.add().alias("thealias").index("vulcangov"))).actionGet();
+        tc.admin().indices().aliases(new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT).addAliasAction(AliasActions.add().alias("thealias").index("vulcangov"))).actionGet();
 
         TestAuditlogImpl.clear();
         HttpResponse response = rh.executeGetRequest("thealias/_search?pretty&ignore_unavailable=true", encodeBasicHeader("admin", "admin"));

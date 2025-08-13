@@ -30,7 +30,6 @@ import java.util.function.Supplier;
 
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
-import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.IndicesRequest;
@@ -152,7 +151,7 @@ public class ThreadContextAuthzHashProviderIntTest {
 
     public static class MockPlugin extends Plugin implements ActionPlugin {
 
-        public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+        public List<ActionHandler> getActions() {
             return Arrays.asList(actionHandler(MockTransportAction.TYPE, MockTransportAction.class));
         }
 

@@ -39,6 +39,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.AbstractTransportRequest;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportService;
 
@@ -145,7 +146,7 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
             }
         }
 
-        public static class NodeRequest extends TransportRequest {
+        public static class NodeRequest extends AbstractTransportRequest {
 
             public NodeRequest(StreamInput in) throws IOException {
                 super(in);

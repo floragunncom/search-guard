@@ -29,7 +29,6 @@ public class PutSettingsResponse extends ActionResponse implements ToXContentObj
     }
 
     public PutSettingsResponse(StreamInput in) throws IOException {
-        super(in);
 
         result = in.readEnum(Result.class);
         restStatus = in.readEnum(RestStatus.class);

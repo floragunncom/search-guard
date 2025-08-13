@@ -89,7 +89,7 @@ public class SearchGuardInterceptorIntegrationTests {
 
     public static class MockActionPlugin extends Plugin implements ActionPlugin {
 
-        public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+        public List<ActionHandler> getActions() {
             return Arrays.asList(actionHandler(MockTransportAction.TYPE, MockTransportAction.class));
         }
         @Override

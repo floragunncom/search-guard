@@ -49,7 +49,6 @@ public class GetAccountResponse extends ActionResponse implements ToXContentObje
     }
 
     public GetAccountResponse(StreamInput in) throws IOException {
-        super(in);
         this.id = in.readString();
         this.exists = in.readBoolean();
         this.version = in.readLong();

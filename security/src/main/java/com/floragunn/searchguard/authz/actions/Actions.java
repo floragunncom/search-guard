@@ -309,7 +309,7 @@ public class Actions {
         dataStream("indices:monitor/data_stream/stats");
 
         if (modulesRegistry != null) {
-            for (ActionHandler<?, ?> action : modulesRegistry.getActions()) {
+            for (ActionHandler action : modulesRegistry.getActions()) {
                 builder.action(action.getAction());
             }
         }

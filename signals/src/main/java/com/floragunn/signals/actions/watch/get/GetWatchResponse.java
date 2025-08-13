@@ -57,7 +57,6 @@ public class GetWatchResponse extends ActionResponse implements ToXContentObject
     }
 
     public GetWatchResponse(StreamInput in) throws IOException {
-        super(in);
         this.tenant = in.readOptionalString();
         this.id = in.readString();
         this.exists = in.readBoolean();

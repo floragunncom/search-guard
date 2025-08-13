@@ -29,6 +29,7 @@ import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
+import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportRequest;
@@ -83,11 +84,11 @@ public class ComplianceIndexTemplateActionFilter implements ActionFilter {
     }
 
     private ComposableIndexTemplate getComposableIndexTemplateCurrentState(String indexTemplateName) {
-        return clusterService.state().metadata().templatesV2().get(indexTemplateName);
+        return clusterService.state().metadata().getProject(Metadata.DEFAULT_PROJECT_ID).templatesV2().get(indexTemplateName);
     }
 
     private IndexTemplateMetadata getLegacyIndexTemplateCurrentState(String indexTemplateName) {
-        return clusterService.state().metadata().templates().get(indexTemplateName);
+        return clusterService.state().metadata().getProject(Metadata.DEFAULT_PROJECT_ID).templates().get(indexTemplateName);
     }
 
     private class PutIndexTemplateListenerWrapper<Response> implements ActionListener<Response> {

@@ -12,7 +12,6 @@ public class StartStopResponse extends ActionResponse {
     }
 
     public StartStopResponse(StreamInput in) throws IOException {
-        super(in);
 
     }
 

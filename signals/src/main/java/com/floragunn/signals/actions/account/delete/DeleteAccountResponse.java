@@ -29,7 +29,6 @@ public class DeleteAccountResponse extends ActionResponse implements ToXContentO
     }
 
     public DeleteAccountResponse(StreamInput in) throws IOException {
-        super(in);
         id = in.readString();
         version = in.readVLong();
         result = in.readEnum(Result.class);

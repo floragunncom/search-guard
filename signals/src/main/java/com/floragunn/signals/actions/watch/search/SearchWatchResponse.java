@@ -26,7 +26,6 @@ public class SearchWatchResponse extends ActionResponse implements ToXContentObj
     }
 
     public SearchWatchResponse(StreamInput in) throws IOException {
-        super(in);
         this.searchResponse = new SearchResponse(in);
     }
 
