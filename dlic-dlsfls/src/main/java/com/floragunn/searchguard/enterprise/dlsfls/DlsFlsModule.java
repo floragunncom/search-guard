@@ -191,7 +191,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     }
 
     @Override
-    public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+    public List<ActionHandler> getActions() {
         return DlsFlsConfigApi.ACTION_HANDLERS;
     }
     

@@ -53,6 +53,7 @@ import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.cluster.metadata.IndexAbstraction;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
+import org.elasticsearch.cluster.metadata.ProjectMetadata;
 import org.elasticsearch.common.regex.Regex;
 
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -72,18 +73,19 @@ public class WildcardExpressionResolver {
     }
 
     public static List<String> resolveEmptyOrTrivialWildcard(IndicesOptions options, Metadata metadata) {
+        ProjectMetadata project = metadata.getProject(Metadata.DEFAULT_PROJECT_ID);
         if (options.expandWildcardsOpen() && options.expandWildcardsClosed() && options.expandWildcardsHidden()) {
-            return Arrays.asList(metadata.getConcreteAllIndices());
+            return Arrays.asList(project.getConcreteAllIndices());
         } else if (options.expandWildcardsOpen() && options.expandWildcardsClosed()) {
-            return Arrays.asList(metadata.getConcreteVisibleIndices());
+            return Arrays.asList(project.getConcreteVisibleIndices());
         } else if (options.expandWildcardsOpen() && options.expandWildcardsHidden()) {
-            return Arrays.asList(metadata.getConcreteAllOpenIndices());
+            return Arrays.asList(project.getConcreteAllOpenIndices());
         } else if (options.expandWildcardsOpen()) {
-            return Arrays.asList(metadata.getConcreteVisibleOpenIndices());
+            return Arrays.asList(project.getConcreteVisibleOpenIndices());
         } else if (options.expandWildcardsClosed() && options.expandWildcardsHidden()) {
-            return Arrays.asList(metadata.getConcreteAllClosedIndices());
+            return Arrays.asList(project.getConcreteAllClosedIndices());
         } else if (options.expandWildcardsClosed()) {
-            return Arrays.asList(metadata.getConcreteVisibleClosedIndices());
+            return Arrays.asList(project.getConcreteVisibleClosedIndices());
         } else {
             return Collections.emptyList();
         }
@@ -141,7 +143,8 @@ public class WildcardExpressionResolver {
             }
 
             if (excludeState != null && type == IndexAbstraction.Type.CONCRETE_INDEX) {
-                IndexMetadata indexMetadata = metadata.index(entry.getKey());
+                ProjectMetadata project = metadata.getProject(Metadata.DEFAULT_PROJECT_ID);
+                IndexMetadata indexMetadata = project.index(entry.getKey());
 
                 if (indexMetadata != null && excludeState == indexMetadata.getState()) {
                     continue;

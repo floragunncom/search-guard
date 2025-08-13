@@ -38,7 +38,6 @@ public class SearchAuthTokensResponse extends ActionResponse implements ToXConte
     }
 
     public SearchAuthTokensResponse(StreamInput in) throws IOException {
-        super(in);
         this.searchResponse = new SearchResponse(in);
     }
 

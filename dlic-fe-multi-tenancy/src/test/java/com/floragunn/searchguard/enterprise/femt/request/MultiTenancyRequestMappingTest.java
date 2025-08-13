@@ -26,6 +26,7 @@ import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.user.User;
+import com.floragunn.searchsupport.Constants;
 import com.floragunn.searchsupport.junit.matcher.DocNodeMatchers;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
@@ -65,6 +66,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static com.floragunn.searchsupport.Constants.DEFAULT_ACK_TIMEOUT;
+import static com.floragunn.searchsupport.Constants.DEFAULT_MASTER_TIMEOUT;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsOnlyFields;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeSizeEqualTo;
@@ -3267,7 +3270,7 @@ public class MultiTenancyRequestMappingTest {
         Client client = cluster.getInternalNodeClient();
         IndicesAliasesRequest.AliasActions addAlias = IndicesAliasesRequest.AliasActions.add().index(KIBANA_INDEX).alias(aliasName);
         AcknowledgedResponse acknowledgedResponse = client.admin().indices()
-                .aliases(new IndicesAliasesRequest().addAliasAction(addAlias))
+                .aliases(new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT).addAliasAction(addAlias))
                 .actionGet();
         assertThat(acknowledgedResponse.isAcknowledged(), equalTo(true));
     }

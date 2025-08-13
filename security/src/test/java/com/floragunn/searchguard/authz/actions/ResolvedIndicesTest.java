@@ -32,6 +32,7 @@ import org.elasticsearch.Version;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
+import org.elasticsearch.cluster.metadata.ProjectMetadata;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
 import org.hamcrest.Matcher;
@@ -189,8 +190,9 @@ public class ResolvedIndicesTest {
     private static Meta metaForIndexMetadata(IndexMetadata...indexMetadata) {
         Metadata esMetadata = mock(Metadata.class, Mockito.RETURNS_DEEP_STUBS);
         ImmutableOpenMap<String, IndexMetadata> indicesMetadataMap = createIndexMetaMap(indexMetadata);
-        when(esMetadata.indices()).thenReturn(indicesMetadataMap);
-        when(esMetadata.getIndices()).thenReturn(indicesMetadataMap);
+        ProjectMetadata project = esMetadata.getProject(Metadata.DEFAULT_PROJECT_ID);
+        when(project.indices()).thenReturn(indicesMetadataMap);
+        when(project.indices()).thenReturn(indicesMetadataMap);
         return Meta.from(esMetadata);
     }
 

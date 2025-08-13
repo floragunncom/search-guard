@@ -31,7 +31,6 @@ public class ExecuteWatchResponse extends ActionResponse implements ToXContentOb
     }
 
     public ExecuteWatchResponse(StreamInput in) throws IOException {
-        super(in);
         this.tenant = in.readOptionalString();
         this.id = in.readString();
         this.status = in.readEnum(Status.class);

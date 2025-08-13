@@ -26,8 +26,6 @@ import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.settings.ClusterSettings;
@@ -75,7 +73,7 @@ public class SessionModule implements SearchGuardModule, ComponentStateProvider 
     }
 
     @Override
-    public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+    public List<ActionHandler> getActions() {
         return ImmutableList.of(//
                 actionHandler(SessionApi.GetExtendedInfoAction.INSTANCE, SessionApi.GetExtendedInfoAction.Handler.class),
                 actionHandler(SessionApi.CreateAction.INSTANCE, SessionApi.CreateAction.Handler.class),

@@ -21,6 +21,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.Version;
 import org.elasticsearch.bootstrap.BootstrapContext;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexVersions;
 
@@ -89,7 +90,7 @@ class MultiTenancyChecker {
         }
 
         public Map<String, IndexMetadata> findIndicesMetadata() {
-            Map<String, IndexMetadata> indicesMetadata = context.metadata().indices();
+            Map<String, IndexMetadata> indicesMetadata = context.metadata().getProject(Metadata.DEFAULT_PROJECT_ID).indices();
             if(log.isInfoEnabled()) {
                 String names = indicesMetadata.entrySet()
                     .stream()

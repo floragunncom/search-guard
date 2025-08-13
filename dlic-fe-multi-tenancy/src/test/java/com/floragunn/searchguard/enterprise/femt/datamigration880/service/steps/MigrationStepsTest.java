@@ -35,6 +35,7 @@ import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchsupport.Constants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -94,6 +95,8 @@ import static com.floragunn.searchguard.enterprise.femt.datamigration880.service
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.MigrationEnvironmentHelper.TENANT_MANAGEMENT;
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.MigrationEnvironmentHelper.doubleAliasIndexToTenantDataWithoutTenantName;
 import static com.floragunn.searchguard.support.PrivilegedConfigClient.adapt;
+import static com.floragunn.searchsupport.Constants.DEFAULT_ACK_TIMEOUT;
+import static com.floragunn.searchsupport.Constants.DEFAULT_MASTER_TIMEOUT;
 import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static java.time.ZoneOffset.UTC;
@@ -564,7 +567,7 @@ public class MigrationStepsTest {
             AliasActions aliasAction = new AliasActions(AliasActions.Type.ADD) //
                 .alias(index.shortAlias()) //
                 .indices(index.indexName(), additionalIndex);
-            client.admin().indices().aliases(new IndicesAliasesRequest().addAliasAction(aliasAction)).actionGet();
+            client.admin().indices().aliases(new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT).addAliasAction(aliasAction)).actionGet();
 
             var ex = (StepException) assertThatThrown(() -> populateTenantsStep.execute(context), instanceOf(StepException.class));
 

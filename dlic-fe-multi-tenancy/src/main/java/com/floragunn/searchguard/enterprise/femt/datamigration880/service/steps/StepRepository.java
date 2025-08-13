@@ -130,7 +130,7 @@ class StepRepository {
 
     public GetSettingsResponse getIndexSettings(String...indices) {
         Objects.requireNonNull(indices, "Indices are required");
-        GetSettingsRequest request = new GetSettingsRequest().indices(indices);
+        GetSettingsRequest request = new GetSettingsRequest(Constants.DEFAULT_MASTER_TIMEOUT).indices(indices);
         return client.admin().indices().getSettings(request).actionGet();
     }
 

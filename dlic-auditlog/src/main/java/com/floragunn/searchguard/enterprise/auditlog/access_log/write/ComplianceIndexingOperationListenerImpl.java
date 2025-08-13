@@ -89,7 +89,7 @@ public final class ComplianceIndexingOperationListenerImpl implements IndexingOp
                 try {
     
                     final GetResult getResult = shard.getService().getForUpdate(index.id(),
-                            index.getIfSeqNo(), index.getIfPrimaryTerm());
+                            index.getIfSeqNo(), index.getIfPrimaryTerm(), null); // TODO ES 9.1.x is null a gFields ok here?
     
                     if (getResult.isExists()) {
                         threadContext.set(new Context(getResult));

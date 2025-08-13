@@ -23,8 +23,6 @@ import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.settings.ClusterSettings;
@@ -89,7 +87,7 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
     }
 
     @Override
-    public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
+    public List<ActionHandler> getActions() {
         return ImmutableList
                 .of(actionHandler(CreateAuthTokenAction.INSTANCE, TransportCreateAuthTokenAction.class),
                         actionHandler(PushAuthTokenUpdateAction.INSTANCE, TransportPushAuthTokenUpdateAction.class),

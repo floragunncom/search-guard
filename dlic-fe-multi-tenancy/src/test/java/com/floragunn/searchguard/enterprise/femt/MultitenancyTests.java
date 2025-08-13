@@ -26,7 +26,6 @@ import co.elastic.clients.elasticsearch.core.mget.MultiGetResponseItem;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.authz.config.Tenant;
 import com.floragunn.searchguard.client.RestHighLevelClient;
-import com.floragunn.searchsupport.Constants;
 import com.google.common.collect.ImmutableList;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
@@ -53,6 +52,8 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import static com.floragunn.searchsupport.Constants.DEFAULT_ACK_TIMEOUT;
+import static com.floragunn.searchsupport.Constants.DEFAULT_MASTER_TIMEOUT;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeSizeEqualTo;
@@ -257,7 +258,7 @@ public class MultitenancyTests {
         } finally {
             try {
                 Client tc = cluster.getInternalNodeClient();
-                tc.admin().indices().prepareAliases().removeAlias(".kibana_8.8.0_001", ".kibana").get();
+                tc.admin().indices().prepareAliases(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT).removeAlias(".kibana_8.8.0_001", ".kibana").get();
                 tc.admin().indices().delete(new DeleteIndexRequest(".kibana_8.8.0_001")).actionGet();
             } catch (Exception ignored) {
                 Assert.fail("Unexpected exception " + ignored);
@@ -623,7 +624,7 @@ public class MultitenancyTests {
                 response = adminCertClient.put("/_searchguard/config/fe_multi_tenancy/activation");
 
                 assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
-                GetMappingsRequest request = new GetMappingsRequest(Constants.DEFAULT_MASTER_TIMEOUT).indices(indices.toArray(String[]::new));
+                GetMappingsRequest request = new GetMappingsRequest(DEFAULT_MASTER_TIMEOUT).indices(indices.toArray(String[]::new));
                 GetMappingsResponse mappingsResponse = client.admin().indices().getMappings(request).actionGet();
                 Map<String, MappingMetadata> mappings = mappingsResponse.getMappings();
                 long numberOfIndicesWithExtendedMappings = indices.stream() //
