@@ -30,7 +30,6 @@ public class DeleteWatchResponse extends ActionResponse implements ToXContentObj
     }
 
     public DeleteWatchResponse(StreamInput in) throws IOException {
-        super(in);
         id = in.readString();
         version = in.readVLong();
         result = in.readEnum(Result.class);

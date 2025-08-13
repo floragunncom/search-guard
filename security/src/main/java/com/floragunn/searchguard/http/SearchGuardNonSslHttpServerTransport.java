@@ -20,7 +20,6 @@ package com.floragunn.searchguard.http;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchsupport.rest.AttributedHttpRequest;
 import io.netty.handler.ssl.SslHandler;
-import org.elasticsearch.action.bulk.IncrementalBulkService;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
@@ -46,14 +45,12 @@ import java.util.function.BiConsumer;
 public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransport {
 
     private final BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext;
-    private final IncrementalBulkService.Enabled incremantalBulkServiceEnabled;
 
     public SearchGuardNonSslHttpServerTransport(final Settings settings, final NetworkService networkService,
                                                 final ThreadPool threadPool, final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher,
                                                 BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext, final ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory, Tracer tracer) {
         super(settings, networkService, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, tracer, TLSConfig.noTLS(), null, null);
         this.perRequestThreadContext = perRequestThreadContext;
-        this.incremantalBulkServiceEnabled = new IncrementalBulkService.Enabled(clusterSettings);
     }
 
     @Override
@@ -76,7 +73,7 @@ public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransp
     protected class NonSslHttpChannelHandler extends Netty4HttpServerTransport.HttpChannelHandler {
 
         protected NonSslHttpChannelHandler(Netty4HttpServerTransport transport, final HttpHandlingSettings handlingSettings) {
-            super(transport, handlingSettings, TLSConfig.noTLS(), null, null, incremantalBulkServiceEnabled);
+            super(transport, handlingSettings, TLSConfig.noTLS(), null, null);
         }
 
         @Override

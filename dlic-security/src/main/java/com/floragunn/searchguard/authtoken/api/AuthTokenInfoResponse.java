@@ -37,7 +37,6 @@ public class AuthTokenInfoResponse extends ActionResponse implements ToXContentO
     }
 
     public AuthTokenInfoResponse(StreamInput in) throws IOException {
-        super(in);
         in.readInt();
         this.enabled = in.readBoolean();
         this.initialized = in.readBoolean();

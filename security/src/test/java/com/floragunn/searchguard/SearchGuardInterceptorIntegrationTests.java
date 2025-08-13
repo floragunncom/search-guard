@@ -87,8 +87,8 @@ public class SearchGuardInterceptorIntegrationTests {
 
     public static class MockActionPlugin extends Plugin implements ActionPlugin {
 
-        public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-            return Arrays.asList(new ActionHandler<>(MockTransportAction.TYPE, MockTransportAction.class));
+        public List<ActionHandler> getActions() {
+            return Arrays.asList(new ActionHandler(MockTransportAction.TYPE, MockTransportAction.class));
         }
         @Override
         public List<RestHandler> getRestHandlers(Settings settings, NamedWriteableRegistry namedWriteableRegistry, RestController restController, ClusterSettings clusterSettings,

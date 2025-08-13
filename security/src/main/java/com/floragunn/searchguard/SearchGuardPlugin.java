@@ -50,8 +50,6 @@ import org.apache.lucene.search.Weight;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.TransportVersion;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.search.TransportSearchScrollAction;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.bootstrap.BootstrapCheck;
@@ -452,45 +450,45 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     }
 
     @Override
-    public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> actions = new ArrayList<>(1);
+    public List<ActionHandler> getActions() {
+        List<ActionHandler> actions = new ArrayList<>(1);
         if (!disabled && !sslOnly) {
-            actions.add(new ActionHandler<>(ConfigUpdateAction.INSTANCE, TransportConfigUpdateAction.class));
-            actions.add(new ActionHandler<>(WhoAmIAction.INSTANCE, TransportWhoAmIAction.class));
-            actions.add(new ActionHandler<>(GetComponentStateAction.INSTANCE, GetComponentStateAction.TransportAction.class));
-            actions.add(new ActionHandler<>(SearchGuardLicenseInfoAction.INSTANCE, SearchGuardLicenseInfoAction.Handler.class));
-            actions.add(new ActionHandler<>(com.floragunn.searchguard.license.legacy.LicenseInfoAction.INSTANCE, com.floragunn.searchguard.license.legacy.TransportLicenseInfoAction.class));
-            actions.add(new ActionHandler<>(BulkConfigApi.GetAction.INSTANCE, BulkConfigApi.GetAction.Handler.class));
-            actions.add(new ActionHandler<>(BulkConfigApi.UpdateAction.INSTANCE, BulkConfigApi.UpdateAction.Handler.class));
-            actions.add(new ActionHandler<>(GenericTypeLevelConfigApi.DeleteAction.INSTANCE, GenericTypeLevelConfigApi.DeleteAction.Handler.class));
-            actions.add(new ActionHandler<>(ConfigVarRefreshAction.INSTANCE, ConfigVarRefreshAction.TransportAction.class));
-            actions.add(new ActionHandler<>(ConfigVarApi.GetAction.INSTANCE, ConfigVarApi.GetAction.Handler.class));
-            actions.add(new ActionHandler<>(ConfigVarApi.UpdateAction.INSTANCE, ConfigVarApi.UpdateAction.Handler.class));
-            actions.add(new ActionHandler<>(ConfigVarApi.DeleteAction.INSTANCE, ConfigVarApi.DeleteAction.Handler.class));
-            actions.add(new ActionHandler<>(ConfigVarApi.GetAllAction.INSTANCE, ConfigVarApi.GetAllAction.Handler.class));
-            actions.add(new ActionHandler<>(ConfigVarApi.UpdateAllAction.INSTANCE, ConfigVarApi.UpdateAllAction.Handler.class));
-            actions.add(new ActionHandler<>(InternalUsersConfigApi.GetAction.INSTANCE, InternalUsersConfigApi.GetAction.Handler.class));
-            actions.add(new ActionHandler<>(InternalUsersConfigApi.DeleteAction.INSTANCE, InternalUsersConfigApi.DeleteAction.Handler.class));
-            actions.add(new ActionHandler<>(InternalUsersConfigApi.PutAction.INSTANCE, InternalUsersConfigApi.PutAction.Handler.class));
-            actions.add(new ActionHandler<>(InternalUsersConfigApi.PatchAction.INSTANCE, InternalUsersConfigApi.PatchAction.Handler.class));
-            actions.add(new ActionHandler<>(GetActivatedFrontendConfigAction.INSTANCE, GetActivatedFrontendConfigAction.Handler.class));
-            actions.add(new ActionHandler<>(RestAuthcConfigApi.GetAction.INSTANCE, RestAuthcConfigApi.GetAction.Handler.class));
-            actions.add(new ActionHandler<>(RestAuthcConfigApi.PutAction.INSTANCE, RestAuthcConfigApi.PutAction.Handler.class));
-            actions.add(new ActionHandler<>(RestAuthcConfigApi.PatchAction.INSTANCE, RestAuthcConfigApi.PatchAction.Handler.class));
-            actions.add(new ActionHandler<>(RestAuthcConfigApi.DeleteAction.INSTANCE, RestAuthcConfigApi.DeleteAction.Handler.class));
-            actions.add(new ActionHandler<>(AuthcCacheApi.DeleteAction.INSTANCE, AuthcCacheApi.DeleteAction.TransportAction.class));
+            actions.add(new ActionHandler(ConfigUpdateAction.INSTANCE, TransportConfigUpdateAction.class));
+            actions.add(new ActionHandler(WhoAmIAction.INSTANCE, TransportWhoAmIAction.class));
+            actions.add(new ActionHandler(GetComponentStateAction.INSTANCE, GetComponentStateAction.TransportAction.class));
+            actions.add(new ActionHandler(SearchGuardLicenseInfoAction.INSTANCE, SearchGuardLicenseInfoAction.Handler.class));
+            actions.add(new ActionHandler(com.floragunn.searchguard.license.legacy.LicenseInfoAction.INSTANCE, com.floragunn.searchguard.license.legacy.TransportLicenseInfoAction.class));
+            actions.add(new ActionHandler(BulkConfigApi.GetAction.INSTANCE, BulkConfigApi.GetAction.Handler.class));
+            actions.add(new ActionHandler(BulkConfigApi.UpdateAction.INSTANCE, BulkConfigApi.UpdateAction.Handler.class));
+            actions.add(new ActionHandler(GenericTypeLevelConfigApi.DeleteAction.INSTANCE, GenericTypeLevelConfigApi.DeleteAction.Handler.class));
+            actions.add(new ActionHandler(ConfigVarRefreshAction.INSTANCE, ConfigVarRefreshAction.TransportAction.class));
+            actions.add(new ActionHandler(ConfigVarApi.GetAction.INSTANCE, ConfigVarApi.GetAction.Handler.class));
+            actions.add(new ActionHandler(ConfigVarApi.UpdateAction.INSTANCE, ConfigVarApi.UpdateAction.Handler.class));
+            actions.add(new ActionHandler(ConfigVarApi.DeleteAction.INSTANCE, ConfigVarApi.DeleteAction.Handler.class));
+            actions.add(new ActionHandler(ConfigVarApi.GetAllAction.INSTANCE, ConfigVarApi.GetAllAction.Handler.class));
+            actions.add(new ActionHandler(ConfigVarApi.UpdateAllAction.INSTANCE, ConfigVarApi.UpdateAllAction.Handler.class));
+            actions.add(new ActionHandler(InternalUsersConfigApi.GetAction.INSTANCE, InternalUsersConfigApi.GetAction.Handler.class));
+            actions.add(new ActionHandler(InternalUsersConfigApi.DeleteAction.INSTANCE, InternalUsersConfigApi.DeleteAction.Handler.class));
+            actions.add(new ActionHandler(InternalUsersConfigApi.PutAction.INSTANCE, InternalUsersConfigApi.PutAction.Handler.class));
+            actions.add(new ActionHandler(InternalUsersConfigApi.PatchAction.INSTANCE, InternalUsersConfigApi.PatchAction.Handler.class));
+            actions.add(new ActionHandler(GetActivatedFrontendConfigAction.INSTANCE, GetActivatedFrontendConfigAction.Handler.class));
+            actions.add(new ActionHandler(RestAuthcConfigApi.GetAction.INSTANCE, RestAuthcConfigApi.GetAction.Handler.class));
+            actions.add(new ActionHandler(RestAuthcConfigApi.PutAction.INSTANCE, RestAuthcConfigApi.PutAction.Handler.class));
+            actions.add(new ActionHandler(RestAuthcConfigApi.PatchAction.INSTANCE, RestAuthcConfigApi.PatchAction.Handler.class));
+            actions.add(new ActionHandler(RestAuthcConfigApi.DeleteAction.INSTANCE, RestAuthcConfigApi.DeleteAction.Handler.class));
+            actions.add(new ActionHandler(AuthcCacheApi.DeleteAction.INSTANCE, AuthcCacheApi.DeleteAction.TransportAction.class));
             actions.addAll(AuthorizationConfigApi.ACTION_HANDLERS);
             actions.addAll(SearchGuardLicenseKeyApi.ACTION_HANDLERS);
-            actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.GetAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.GetAction.Handler.class));
-            actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.PutAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.PutAction.Handler.class));
-            actions.add(new ActionHandler<>(FrontendAuthcConfigApi.TypeLevel.PatchAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.PatchAction.Handler.class));
-            actions.add(new ActionHandler<>(FrontendAuthcConfigApi.DocumentLevel.GetAction.INSTANCE, FrontendAuthcConfigApi.DocumentLevel.GetAction.Handler.class));
-            actions.add(new ActionHandler<>(FrontendAuthcConfigApi.DocumentLevel.PutAction.INSTANCE, FrontendAuthcConfigApi.DocumentLevel.PutAction.Handler.class));
-            actions.add(new ActionHandler<>(FrontendAuthcConfigApi.DocumentLevel.PatchAction.INSTANCE, FrontendAuthcConfigApi.DocumentLevel.PatchAction.Handler.class));
-            actions.add(new ActionHandler<>(SearchGuardCapabilities.GetCapabilitiesAction.INSTANCE, SearchGuardCapabilities.GetCapabilitiesAction.TransportAction.class));
-            actions.add(new ActionHandler<>(ProtectedConfigIndexService.TriggerConfigIndexCreationAction.INSTANCE, ProtectedConfigIndexService.TriggerConfigIndexCreationAction.TransportAction.class));
+            actions.add(new ActionHandler(FrontendAuthcConfigApi.TypeLevel.GetAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.GetAction.Handler.class));
+            actions.add(new ActionHandler(FrontendAuthcConfigApi.TypeLevel.PutAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.PutAction.Handler.class));
+            actions.add(new ActionHandler(FrontendAuthcConfigApi.TypeLevel.PatchAction.INSTANCE, FrontendAuthcConfigApi.TypeLevel.PatchAction.Handler.class));
+            actions.add(new ActionHandler(FrontendAuthcConfigApi.DocumentLevel.GetAction.INSTANCE, FrontendAuthcConfigApi.DocumentLevel.GetAction.Handler.class));
+            actions.add(new ActionHandler(FrontendAuthcConfigApi.DocumentLevel.PutAction.INSTANCE, FrontendAuthcConfigApi.DocumentLevel.PutAction.Handler.class));
+            actions.add(new ActionHandler(FrontendAuthcConfigApi.DocumentLevel.PatchAction.INSTANCE, FrontendAuthcConfigApi.DocumentLevel.PatchAction.Handler.class));
+            actions.add(new ActionHandler(SearchGuardCapabilities.GetCapabilitiesAction.INSTANCE, SearchGuardCapabilities.GetCapabilitiesAction.TransportAction.class));
+            actions.add(new ActionHandler(ProtectedConfigIndexService.TriggerConfigIndexCreationAction.INSTANCE, ProtectedConfigIndexService.TriggerConfigIndexCreationAction.TransportAction.class));
 
-            actions.add(new ActionHandler<>(MigrateConfigIndexApi.INSTANCE, MigrateConfigIndexApi.Handler.class));
+            actions.add(new ActionHandler(MigrateConfigIndexApi.INSTANCE, MigrateConfigIndexApi.Handler.class));
         }
 
         actions.addAll(moduleRegistry.getActions());

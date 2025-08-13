@@ -191,10 +191,10 @@ public class ResourceOwnerServiceTests {
 
     public static class MockActionPlugin extends Plugin implements ActionPlugin {
 
-        public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-            return Arrays.asList(new ActionHandler<>(MockSubmitTransportAction.TYPE, MockSubmitTransportAction.class),
-                    new ActionHandler<>(MockGetTransportAction.TYPE, MockGetTransportAction.class),
-                    new ActionHandler<>(MockDeleteTransportAction.TYPE, MockDeleteTransportAction.class));
+        public List<ActionHandler> getActions() {
+            return Arrays.asList(new ActionHandler(MockSubmitTransportAction.TYPE, MockSubmitTransportAction.class),
+                    new ActionHandler(MockGetTransportAction.TYPE, MockGetTransportAction.class),
+                    new ActionHandler(MockDeleteTransportAction.TYPE, MockDeleteTransportAction.class));
         }
 
         @Override
