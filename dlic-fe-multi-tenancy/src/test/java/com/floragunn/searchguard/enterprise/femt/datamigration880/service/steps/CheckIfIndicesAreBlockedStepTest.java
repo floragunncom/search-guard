@@ -34,6 +34,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.util.EnumSet;
 
 import static com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus.DATA_INDICES_LOCKED_ERROR;
 import static java.time.ZoneOffset.UTC;
