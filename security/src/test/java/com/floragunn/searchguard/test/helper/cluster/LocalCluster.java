@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -88,6 +89,9 @@ import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.TestSgConfig.UserPassword;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.google.common.base.Strings;
+import org.junit.rules.Timeout;
+import org.junit.runner.Description;
+import org.junit.runners.model.Statement;
 
 import static java.util.stream.Collectors.joining;
 
@@ -149,6 +153,8 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
     private static final Logger log = LogManager.getLogger(LocalCluster.class);
 
+    private final Timeout timeout = new Timeout(3, TimeUnit.MINUTES);
+
     static {
         System.setProperty("sg.default_init.dir", new File("./sgconfig").getAbsolutePath());
     }
@@ -184,7 +190,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             List<LocalCluster> clusterDependencies, Map<String, LocalCluster> remotes, List<TestIndex> testIndices,
             List<TestDataStream> testDataStreams, List<TestAlias> testAliases, List<TestComponentTemplate> componentTemplates,
             List<TestIndexTemplate> indexTemplates, boolean logRequests, boolean externalProcessCluster, ImmutableList<String> waitForComponents) {
+
+        // Workaround related to static initialization problems. Feel free to remove the below line if this not affects test results.
+        // Please see: https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/538#note_35169
         IndexMetadata.builder("abc");
+
         this.resourceFolder = resourceFolder;
         this.plugins = plugins;
         this.clusterConfiguration = clusterConfiguration;
@@ -1095,4 +1105,8 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
     }
 
+    @Override
+    public Statement apply(Statement base, Description description) {
+        return timeout.apply(super.apply(base, description), description);
+    }
 }
