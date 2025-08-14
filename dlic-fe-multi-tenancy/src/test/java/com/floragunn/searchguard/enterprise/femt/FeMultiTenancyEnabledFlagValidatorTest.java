@@ -21,9 +21,13 @@ import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.Metadata;
+import org.elasticsearch.cluster.metadata.ProjectMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.logging.internal.LoggerFactoryImpl;
+import org.elasticsearch.logging.internal.spi.LoggerFactory;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -44,6 +48,10 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class FeMultiTenancyEnabledFlagValidatorTest {
 
+    static {
+        EsLogging.initLogging();
+    }
+
     @Mock
     private ConfigurationRepository configurationRepository;
 
@@ -56,6 +64,8 @@ public class FeMultiTenancyEnabledFlagValidatorTest {
     private ClusterState clusterState;
     @Mock
     private Metadata metadata;
+    @Mock
+    private ProjectMetadata projectMetadata;
 
     private static final String KIBANA_INDEX = ".kibana";
 
@@ -73,8 +83,8 @@ public class FeMultiTenancyEnabledFlagValidatorTest {
 
     @Test
     public void configEntry_shouldValidateFeMtEnabledFlag_valueChanges_thereIsKibanaIndex() throws Exception {
-
-        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID).getIndicesLookup()).thenReturn(new TreeMap<>(ImmutableMap.of(KIBANA_INDEX + "_1.2.3", null)));
+        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID)).thenReturn(projectMetadata);
+        when(projectMetadata.getIndicesLookup()).thenReturn(new TreeMap<>(ImmutableMap.of(KIBANA_INDEX + "_1.2.3", null)));
 
         //try to disable MT
         ConfigMap configMap = configMapWithConfig(
@@ -115,8 +125,8 @@ public class FeMultiTenancyEnabledFlagValidatorTest {
 
     @Test
     public void configEntry_shouldValidateFeMtEnabledFlag_valueChanges_thereIsNoKibanaIndex() throws Exception {
-
-        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID).getIndicesLookup()).thenReturn(new TreeMap<>());
+        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID)).thenReturn(projectMetadata);
+        when(projectMetadata.getIndicesLookup()).thenReturn(new TreeMap<>());
 
         //try to disable MT
         ConfigMap configMap = configMapWithConfig(
@@ -215,8 +225,8 @@ public class FeMultiTenancyEnabledFlagValidatorTest {
 
     @Test
     public void config_shouldValidateFeMtEnabledFlag_valueChanges_thereIsKibanaIndex() throws Exception {
-
-        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID).getIndicesLookup()).thenReturn(new TreeMap<>(ImmutableMap.of(KIBANA_INDEX, null)));
+        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID)).thenReturn(projectMetadata);
+        when(projectMetadata.getIndicesLookup()).thenReturn(new TreeMap<>(ImmutableMap.of(KIBANA_INDEX, null)));
 
         //try to disable MT
         ConfigMap configMap = configMapWithConfig(
@@ -261,7 +271,8 @@ public class FeMultiTenancyEnabledFlagValidatorTest {
     @Test
     public void config_shouldValidateFeMtEnabledFlag_valueChanges_thereIsNoKibanaIndex() throws Exception {
 
-        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID).getIndicesLookup()).thenReturn(new TreeMap<>());
+        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID)).thenReturn(projectMetadata);
+        when(projectMetadata.getIndicesLookup()).thenReturn(new TreeMap<>());
 
         //try to disable MT
         ConfigMap configMap = configMapWithConfig(
@@ -398,8 +409,8 @@ public class FeMultiTenancyEnabledFlagValidatorTest {
 
     @Test
     public void configList_shouldValidateFeMtEnabledFlag_valueChanges_thereIsKibanaIndex() throws Exception {
-
-        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID).getIndicesLookup()).thenReturn(new TreeMap<>(ImmutableMap.of(KIBANA_INDEX + "001", null)));
+        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID)).thenReturn(projectMetadata);
+        when(projectMetadata.getIndicesLookup()).thenReturn(new TreeMap<>(ImmutableMap.of(KIBANA_INDEX + "001", null)));
 
         //try to disable MT
         ConfigMap configMap = configMapWithConfig(
@@ -443,8 +454,8 @@ public class FeMultiTenancyEnabledFlagValidatorTest {
 
     @Test
     public void configList_shouldValidateFeMtEnabledFlag_valueChanges_thereIsNoKibanaIndex() throws Exception {
-
-        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID).getIndicesLookup()).thenReturn(new TreeMap<>());
+        when(metadata.getProject(Metadata.DEFAULT_PROJECT_ID)).thenReturn(projectMetadata);
+        when(projectMetadata.getIndicesLookup()).thenReturn(new TreeMap<>());
 
         //try to disable MT
         ConfigMap configMap = configMapWithConfig(

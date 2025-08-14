@@ -50,6 +50,7 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.PluginAwareNode;
@@ -183,6 +184,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             List<LocalCluster> clusterDependencies, Map<String, LocalCluster> remotes, List<TestIndex> testIndices,
             List<TestDataStream> testDataStreams, List<TestAlias> testAliases, List<TestComponentTemplate> componentTemplates,
             List<TestIndexTemplate> indexTemplates, boolean logRequests, boolean externalProcessCluster, ImmutableList<String> waitForComponents) {
+        IndexMetadata.builder("abc");
         this.resourceFolder = resourceFolder;
         this.plugins = plugins;
         this.clusterConfiguration = clusterConfiguration;
