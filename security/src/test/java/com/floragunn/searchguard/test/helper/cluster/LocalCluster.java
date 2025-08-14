@@ -50,6 +50,7 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.PluginAwareNode;
@@ -183,6 +184,11 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             List<LocalCluster> clusterDependencies, Map<String, LocalCluster> remotes, List<TestIndex> testIndices,
             List<TestDataStream> testDataStreams, List<TestAlias> testAliases, List<TestComponentTemplate> componentTemplates,
             List<TestIndexTemplate> indexTemplates, boolean logRequests, boolean externalProcessCluster, ImmutableList<String> waitForComponents) {
+
+        // Workaround related to static initialization problems. Feel free to remove the below line if this not affects test results.
+        // Please see: https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/538#note_35169
+        IndexMetadata.builder("abc");
+
         this.resourceFolder = resourceFolder;
         this.plugins = plugins;
         this.clusterConfiguration = clusterConfiguration;
