@@ -24,6 +24,7 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.fluent.collections.UnmodifiableCollection;
 import com.floragunn.searchsupport.meta.MetaImpl.DefaultMetaImpl;
+import com.floragunn.searchsupport.util.EsLogging;
 
 /**
  * Abstraction for the ES index space metadata. 
@@ -267,6 +268,7 @@ public interface Meta extends Document<Meta> {
     interface Mock {
 
         static Meta indices(String... indexNames) {
+            EsLogging.initLogging();
             return DefaultMetaImpl.indices(indexNames);
         }
 
