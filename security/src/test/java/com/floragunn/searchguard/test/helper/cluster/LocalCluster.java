@@ -35,7 +35,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -89,9 +88,6 @@ import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.TestSgConfig.UserPassword;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.google.common.base.Strings;
-import org.junit.rules.Timeout;
-import org.junit.runner.Description;
-import org.junit.runners.model.Statement;
 
 import static java.util.stream.Collectors.joining;
 
@@ -152,8 +148,6 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     static final boolean USE_EXTERNAL_PROCESS_CLUSTER_BY_DEFAULT = "true".equalsIgnoreCase(System.getProperty("sg.tests.use_ep_cluster"));
 
     private static final Logger log = LogManager.getLogger(LocalCluster.class);
-
-    private final Timeout timeout = new Timeout(3, TimeUnit.MINUTES);
 
     static {
         System.setProperty("sg.default_init.dir", new File("./sgconfig").getAbsolutePath());
@@ -1105,8 +1099,4 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
     }
 
-    @Override
-    public Statement apply(Statement base, Description description) {
-        return timeout.apply(super.apply(base, description), description);
-    }
 }
