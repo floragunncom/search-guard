@@ -843,7 +843,6 @@
               --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.xml/jdk.xml.internal=ALL-UNNAMED</argLine>
             <rerunFailingTestsCount>3</rerunFailingTestsCount>
             <forkCount>1</forkCount>
-            <forkedProcessTimeoutInSeconds>300</forkedProcessTimeoutInSeconds>
             <reuseForks>false</reuseForks>
             <systemPropertyVariables>
               <forkno>fork_${surefire.forkNumber}</forkno>
