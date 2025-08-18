@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.core.CheckedFunction;
 import org.elasticsearch.index.query.BaseTermQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
@@ -80,8 +81,13 @@ public class RoleBasedDocumentAuthorizationTest {
 
     @RunWith(Parameterized.class)
     public static class IndicesAndAliases_getRestriction {
-        final static Meta BASIC = indices("index_a1", "index_a2", "index_b1", "index_b2")//
-                .alias("alias_a").of("index_a1", "index_a2");
+        final static Meta BASIC;
+        static {
+            EsLogging.initLogging();
+            BASIC = indices("index_a1", "index_a2", "index_b1", "index_b2")//
+                    .alias("alias_a").of("index_a1", "index_a2");
+
+        }
 
         final static Meta.Index index_a1 = (Meta.Index) BASIC.getIndexOrLike("index_a1");
         final static Meta.Index index_a2 = (Meta.Index) BASIC.getIndexOrLike("index_a2");

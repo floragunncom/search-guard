@@ -19,6 +19,7 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchsupport.meta.Meta;
+import com.floragunn.searchsupport.util.EsLogging;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
@@ -154,7 +155,11 @@ public class RoleBasedFieldMaskingTest {
 
     @RunWith(Parameterized.class)
     public static class IndicesAndAliases_getRestriction {
-        final static Meta META = indices("index_a1", "hr", "it");
+        final static Meta META;
+        static {
+            EsLogging.initLogging();
+            META = indices("index_a1", "hr", "it");
+        }
 
         final static Meta.Index INDEX_A1 = (Meta.Index) META.getIndexOrLike("index_a1");
         final static Meta.Index INDEX_HR = (Meta.Index) META.getIndexOrLike("hr");
