@@ -38,6 +38,9 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
 public class AuditTestToXContentObjectImplTest {
+    static {
+        EsLogging.initLogging();
+    }
 
     @ClassRule
     public static EsLogging esLogging = new EsLogging();
