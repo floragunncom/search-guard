@@ -31,6 +31,7 @@ import static org.hamcrest.Matchers.nullValue;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.index.IndexRequest;
@@ -40,6 +41,7 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
@@ -62,6 +64,7 @@ import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import org.junit.rules.Timeout;
 
 public class AuthTokenIntegrationTest {
     public static final int MAX_TOKEN_PER_USER = 10;
@@ -85,6 +88,9 @@ public class AuthTokenIntegrationTest {
                             .attrsFrom("index", "user_entry.attributes.test_attr_1.c").attrsFrom("all", "user_entry.attributes.test_attr_1"))))
             .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))
             .users(USER_ALIAS_PUB_ACCESS, USER_DATA_STREAM_PUB_ACCESS).build();
+
+    @Rule
+    public Timeout timeout = new Timeout(3, TimeUnit.MINUTES);
 
     @BeforeClass
     public static void setupTestData() throws Exception {
