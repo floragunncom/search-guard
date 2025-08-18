@@ -26,8 +26,6 @@ import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.metadata.ProjectMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
-import org.elasticsearch.common.logging.internal.LoggerFactoryImpl;
-import org.elasticsearch.logging.internal.spi.LoggerFactory;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
