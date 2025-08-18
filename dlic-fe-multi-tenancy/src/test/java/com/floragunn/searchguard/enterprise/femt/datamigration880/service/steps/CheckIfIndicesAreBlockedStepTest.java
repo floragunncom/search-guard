@@ -22,6 +22,7 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.Tenant
 import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.cluster.block.ClusterBlockException;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,6 +45,7 @@ import static org.mockito.Mockito.when;
 public class CheckIfIndicesAreBlockedStepTest {
 
     static {
+        IndexMetadata.builder("workaround to avoid problems related to static init of enum APIBlock");
         EsLogging.initLogging();
     }
 
