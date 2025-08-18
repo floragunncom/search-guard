@@ -40,6 +40,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.floragunn.searchsupport.action.StandardRequests;
+import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.TransportCreateIndexAction;
@@ -56,6 +57,10 @@ import org.junit.Before;
 import org.junit.Test;
 
 public class AuditlogTest {
+
+    static {
+        EsLogging.initLogging();
+    }
 
     private static final List<String> DISABLED_FIELDS = Arrays.asList(FORMAT_VERSION, REQUEST_EFFECTIVE_USER, CATEGORY);
     public static final TimeValue MASTER_NODE_TIMEOUT = TimeValue.timeValueSeconds(40);
