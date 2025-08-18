@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.core.CheckedFunction;
 import org.elasticsearch.index.query.BaseTermQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
