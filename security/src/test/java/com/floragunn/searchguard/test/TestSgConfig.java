@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -335,7 +336,9 @@ public class TestSgConfig {
         if (indexName.startsWith(".")) {
             settings.put("index.hidden", true);
         }
-        client.admin().indices().create(new CreateIndexRequest(indexName).settings(settings)).actionGet();
+        client.admin().indices().create(new CreateIndexRequest(indexName).settings(settings))
+                // TODO ES 9.1.x - do we need timeout here?
+                .actionGet(30, TimeUnit.SECONDS);
 
         writeOptionalConfigToIndex(client, CType.ROLES, "sg_roles.yml", overrideRoleSettings);
         writeOptionalConfigToIndex(client, CType.INTERNALUSERS, "sg_internal_users.yml", overrideUserSettings);
