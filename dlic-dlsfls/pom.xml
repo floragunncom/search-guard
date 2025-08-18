@@ -89,7 +89,7 @@
           <rerunFailingTestsCount>0</rerunFailingTestsCount>
           <forkCount>1</forkCount>
           <forkedProcessTimeoutInSeconds>300</forkedProcessTimeoutInSeconds>
-          <reuseForks>true</reuseForks>
+          <reuseForks>false</reuseForks>
           <systemPropertyVariables>
             <forkno>fork_${surefire.forkNumber}</forkno>
           </systemPropertyVariables>
