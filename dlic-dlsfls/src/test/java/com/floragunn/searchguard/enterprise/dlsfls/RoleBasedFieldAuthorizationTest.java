@@ -18,6 +18,7 @@ import static com.floragunn.searchsupport.meta.Meta.Mock.indices;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.floragunn.searchsupport.util.EsLogging;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
@@ -330,7 +331,12 @@ public class RoleBasedFieldAuthorizationTest {
     }
 
     public static class IndicesAndAliases_getRestriction {
-        final static Meta META = indices("index_a1");
+        final static Meta META;
+        static {
+            EsLogging.initLogging();
+            // we need to have logger initialized here
+            META = indices("index_a1");
+        }
 
         final static Meta.Index index_a1 = (Meta.Index) META.getIndexOrLike("index_a1");
 
