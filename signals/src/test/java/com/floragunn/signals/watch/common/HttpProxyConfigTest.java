@@ -93,7 +93,7 @@ public class HttpProxyConfigTest {
 
         assertThat(createdConfig.getProxy().toURI(), equalTo(proxyUri));
         assertThat(createdConfig.getType(), equalTo(ProxyTypeProvider.Type.USE_INLINE_PROXY));
-        Mockito.verifyZeroInteractions(httpProxyHostRegistry);
+        Mockito.verifyNoInteractions(httpProxyHostRegistry);
 
         config = new ValidatingDocNode(DocNode.of("proxy", "default"), new ValidationErrors());
 
@@ -101,7 +101,7 @@ public class HttpProxyConfigTest {
 
         assertThat(createdConfig.getProxy(), nullValue());
         assertThat(createdConfig.getType(), equalTo(ProxyTypeProvider.Type.USE_DEFAULT_PROXY));
-        Mockito.verifyZeroInteractions(httpProxyHostRegistry);
+        Mockito.verifyNoInteractions(httpProxyHostRegistry);
 
         config = new ValidatingDocNode(DocNode.of("proxy", "none"), new ValidationErrors());
 
@@ -109,6 +109,6 @@ public class HttpProxyConfigTest {
 
         assertThat(createdConfig.getProxy(), nullValue());
         assertThat(createdConfig.getType(), equalTo(ProxyTypeProvider.Type.USE_NO_PROXY));
-        Mockito.verifyZeroInteractions(httpProxyHostRegistry);
+        Mockito.verifyNoInteractions(httpProxyHostRegistry);
     }
 }
