@@ -172,6 +172,7 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<Ht
     public CompletableFuture<User> authenticate(AuthCredentials credentials, AuthenticationDebugLogger debug)
             throws AuthenticatorUnavailableException, CredentialsException {
         Meter meter = Meter.basic(sessionService.getMetricsLevel(), authenticationBackendMetrics);
+        log.info("SG authentication started in thread '{}'", Thread.currentThread().getName());
 
         try {
             CompletableFuture<User> result = new CompletableFuture<User>();
@@ -185,6 +186,7 @@ public class SessionTokenAuthenticationDomain implements AuthenticationDomain<Ht
                         meter.close();
 
                         if (ok) {
+                            log.info("SG authentication started in thread, continued in '{}'", Thread.currentThread().getName());
                             result.complete(User.forUser(sessionToken.getUserName()).type(SessionService.USER_TYPE)
                                     .backendRoles(sessionToken.getBase().getBackendRoles())
                                     .searchGuardRoles(sessionToken.getBase().getSearchGuardRoles()).specialAuthzConfig(sessionToken.getId())
