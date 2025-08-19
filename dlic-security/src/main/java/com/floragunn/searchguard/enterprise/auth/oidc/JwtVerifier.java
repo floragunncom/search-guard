@@ -27,6 +27,11 @@ import org.apache.cxf.rs.security.jose.jwt.JwtUtils;
 import com.floragunn.searchguard.authc.AuthenticatorUnavailableException;
 import com.google.common.base.Strings;
 
+import java.time.Instant;
+
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+
 public class JwtVerifier {
 
     private final KeyProvider keyProvider;
@@ -96,12 +101,17 @@ public class JwtVerifier {
         }
     }
 
-    private void validateClaims(JwtToken jwt) throws BadCredentialsException, JwtException {
+    private void validateClaims(JwtToken jwt) throws JwtException {
         JwtClaims claims = jwt.getClaims();
 
         if (claims != null) {
             JwtUtils.validateJwtExpiry(claims, 0, false);
-            JwtUtils.validateJwtNotBefore(claims, 0, false);
+            try {
+                JwtUtils.validateJwtNotBefore(claims, 0, false);
+            } catch (JwtException jwtException) {
+                String notBefore = DateTimeFormatter.ISO_DATE_TIME.format(Instant.ofEpochSecond(claims.getNotBefore()).atZone(ZoneId.systemDefault()));
+                throw new JwtException(jwtException.getMessage() + ", not before claim is set to: " + notBefore);
+            }
         }
     }
 
