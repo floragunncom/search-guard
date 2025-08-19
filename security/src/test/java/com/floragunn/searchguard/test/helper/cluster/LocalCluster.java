@@ -232,18 +232,24 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
     @Override
     protected void after() {
+        log.info("Local cluster rule after");
         if (this.executedRequests != null && !this.executedRequests.isEmpty()) {
             System.out.println("\n=========\nExecuted requests:\n"
                     + this.executedRequests.stream().map(r -> r.toString()).collect(Collectors.joining("\n\n\n")));
         }
 
+        log.info("Local cluster rule after: check if cluster is started");
         if (localEsCluster != null && localEsCluster.isStarted()) {
             try {
                 Thread.sleep(1234);
+                log.info("Local cluster rule after: Try to destroy cluster");
                 localEsCluster.destroy();
+                log.info("Local cluster rule after: Cluster destroyed");
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                log.info("Local cluster rule after: Sth went wrong", e);
+                throw new RuntimeException("Cannot destroy cluster", e);
             } finally {
+                log.info("Local cluster rule after: Local cluster is equal to null");
                 localEsCluster = null;
             }
         }
