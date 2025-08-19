@@ -59,7 +59,7 @@ public class AuditlogIntegrationTest {
     );
 
     @Rule
-    public Timeout timeout = new Timeout(3, TimeUnit.MINUTES);
+    public Timeout timeout = new Timeout(180, TimeUnit.SECONDS);
 
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder()

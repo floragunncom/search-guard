@@ -90,7 +90,7 @@ public class AuthTokenIntegrationTest {
             .users(USER_ALIAS_PUB_ACCESS, USER_DATA_STREAM_PUB_ACCESS).build();
 
     @Rule
-    public Timeout timeout = new Timeout(3, TimeUnit.MINUTES);
+    public Timeout timeout = Timeout.builder().withTimeout(90, TimeUnit.SECONDS).withLookingForStuckThread(true).build();
 
     @BeforeClass
     public static void setupTestData() throws Exception {
@@ -143,7 +143,7 @@ public class AuthTokenIntegrationTest {
     /**
      * Tests the case that a default signing key is generated and can be used if no explicit signing key is specified in the config.
      */
-    @Test
+    @Test // TODO ES 9.1.x test is executed forever
     public void defaultSigningKey() throws Exception {
         try (LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin").sslEnabled()
                 .sgConfig(new TestSgConfig().resources("authtoken")//
@@ -176,6 +176,7 @@ public class AuthTokenIntegrationTest {
             }
 
             try (GenericRestClient client = cluster.getRestClient(new BasicHeader("Authorization", "Bearer " + token))) {
+                // TODO ES 9.1.x: The request with token caused the test lasts forever. Probably the response is never returned because AssertionError is thrown
                 HttpResponse response = client.postJson("/pub_test_allow_because_from_token/_search", "{\"query\":{\"match_all\":{}}}");
                 assertThat(response, isOk());
             }
@@ -565,7 +566,7 @@ public class AuthTokenIntegrationTest {
         }
     }
 
-    @Test
+    @Test // TODO ES 9.1.x test is executed forever
     public void revocationWithoutSpecialPrivsTest() throws Exception {
         TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").authc(TestSgConfig.Authc.DEFAULT)//
                 .authTokenService(
@@ -596,6 +597,7 @@ public class AuthTokenIntegrationTest {
 
             for (LocalEsCluster.Node node : cluster.nodes()) {
                 try (RestHighLevelClient client = node.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
+                    // TODO ES 9.1.x: The request with token caused the test lasts forever. Probably the response is never returned because AssertionError is thrown
                     co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
                     assertThat(searchResponse.hits().total().value(), equalTo(1L));
@@ -694,7 +696,7 @@ public class AuthTokenIntegrationTest {
     }
 
     @Test
-    public void encryptedAuthTokenTest() throws Exception {
+    public void encryptedAuthTokenTest() throws Exception { // TODO ES 9.1.x test is executed forever
         TestSgConfig sgConfig = new TestSgConfig().resources("authtoken").authc(TestSgConfig.Authc.DEFAULT)//
                 .authTokenService(new TestSgConfig.AuthTokenService().enabled(true).jwtSigningKeyHs512(TestJwk.OCT_1_K)
                         .jwtEncryptionKeyA256kw(TestJwk.OCT_256_1_K).jwtAudClaim("searchguard_tokenauth").maxValidity("1y")
@@ -741,6 +743,7 @@ public class AuthTokenIntegrationTest {
             }
 
             try (RestHighLevelClient client = cluster.getRestHighLevelClient(new BasicHeader("Authorization", "Bearer " + token))) {
+                // TODO ES 9.1.x: The request with token caused the test lasts forever. Probably the response is never returned because AssertionError is thrown
                 co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("pub_test_allow_because_from_token");
 
                 assertThat(searchResponse.hits().total().value(), equalTo(1L));

@@ -56,7 +56,7 @@ public class SessionIntegrationTest {
             .resources("session").sgConfig(TEST_SG_CONFIG).sslEnabled().embedded().build();
 
     @Rule
-    public Timeout timeout = new Timeout(3, TimeUnit.MINUTES);
+    public Timeout timeout = new Timeout(90, TimeUnit.SECONDS);
 
     @Test
     public void startSession_basic() throws Exception {
@@ -192,7 +192,7 @@ public class SessionIntegrationTest {
         }
     }
 
-    @Test
+    @Test // TODO ES 9.1.x test is executed forever
     public void justBasicAuthWithoutFrontendConfigTest() throws Exception {
         try (LocalCluster cluster = new LocalCluster.Builder().resources("session").user(BASIC_USER).authc(AUTHC).sslEnabled().singleNode().start()) {
             String token;
@@ -215,6 +215,7 @@ public class SessionIntegrationTest {
             }
 
             try (GenericRestClient restClient = cluster.getRestClient(new BearerAuthorization(token))) {
+                // TODO ES 9.1.x: The request with token caused the test lasts forever. Probably the response is never returned because AssertionError is thrown
                 HttpResponse response = restClient.get("/_searchguard/authinfo");
 
                 Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
