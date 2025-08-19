@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.ssl.http;
 
+import io.netty.channel.EventLoop;
 import io.netty.handler.ssl.SslHandler;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.http.HttpBody;
@@ -36,26 +37,38 @@ public class AttributedHttpRequest implements HttpRequest {
 
     private final SslHandler sslHandler;
 
+    private final EventLoop eventLoop;
 
-    private AttributedHttpRequest(HttpRequest httpRequest, SslHandler sslHandler) {
+
+    private AttributedHttpRequest(HttpRequest httpRequest, SslHandler sslHandler, EventLoop eventLoop) {
         this.httpRequest = Objects.requireNonNull(httpRequest, "Http request is required.");
         this.sslHandler = sslHandler;
+        this.eventLoop = Objects.requireNonNull(eventLoop, "Event loop is required.");
     }
 
-    public static AttributedHttpRequest create(HttpRequest httpRequest, SslHandler sslhandler) {
+    public static AttributedHttpRequest create(HttpRequest httpRequest, SslHandler sslhandler, EventLoop eventLoop) {
         Objects.requireNonNull(httpRequest, "Http request is required.");
+        Objects.requireNonNull(eventLoop, "Event loop is required.");
         if(httpRequest instanceof AttributedHttpRequest request) {
-            return request.withSslHandler(sslhandler);
+            return request.withSslHandler(sslhandler).withEventLoop(eventLoop);
         }
-        return new AttributedHttpRequest(httpRequest, sslhandler);
+        return new AttributedHttpRequest(httpRequest, sslhandler, eventLoop);
     }
 
     private AttributedHttpRequest withSslHandler(SslHandler sslhandler) {
-        return new AttributedHttpRequest(this.httpRequest, sslhandler);
+        return new AttributedHttpRequest(this.httpRequest, sslhandler, this.eventLoop);
+    }
+
+    private AttributedHttpRequest withEventLoop(EventLoop eventLoop) {
+        return new AttributedHttpRequest(this.httpRequest, this.sslHandler, eventLoop);
     }
 
     public SslHandler getSslHandler() {
         return sslHandler;
+    }
+
+    public EventLoop getEventLoop() {
+        return eventLoop;
     }
 
     @Override

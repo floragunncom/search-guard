@@ -171,7 +171,6 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                             "Search Guard not initialized (SG11). See https://docs.search-guard.com/latest/sgctl"));
                     return;
                 }
-
                 RestChannel channelWrapper = new SendOnceRestChannelWrapper(channel);
                 authenticationProcessor.authenticate(request, channelWrapper, (result) -> {
                     if (authenticationProcessor.isDebugEnabled() && DebugApi.PATH.equals(request.path())) {

@@ -101,6 +101,7 @@ public class HTTPJwtAuthenticatorIntegrationTest {
             assertThat(response.getBody(), response.getStatusCode(), equalTo(201));
             String token = response.getBodyAsDocNode().getAsString("token");
             try (GenericRestClient tokenClient = cluster.getRestClient(new BearerAuthorization(token))) {
+                // TODO ES 9.1.x: The request with token caused the test lasts forever. Probably the response is never returned because AssertionError is thrown
                 response = tokenClient.get("/_searchguard/authinfo");
                 log.info("Session token '{}' used to retrieve auth info '{}'.", token, response.getBody());
                 assertThat(response.getStatusCode(), equalTo(200));
