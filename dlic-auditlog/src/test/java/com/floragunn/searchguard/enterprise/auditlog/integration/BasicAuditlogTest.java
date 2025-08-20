@@ -381,7 +381,9 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         //System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("cluster:admin/settings/update"));
-        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices.recovery.max_bytes_per_sec"));
+        // TODO ES 9.1.x: audit_request_body, format has been changed, previous value "indices.recovery.max_bytes_per_sec
+        Assert.assertTrue("Incorrect response: " + TestAuditlogImpl.sb,  TestAuditlogImpl.sb.toString().contains("{\\\"indices\\\":{\\\"recovery\\\":{\\\"max_bytes_per_sec\\\":\\\"50mb\\\"}"));
+
         //may vary because we log may hit master directly or not
         Assert.assertTrue(TestAuditlogImpl.messages.size() > 1);
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
