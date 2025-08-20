@@ -292,7 +292,12 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
+            if (request.isFullContent()) {
+                msg.addTupleToRequestBody(request.contentOrSourceParam());
+            } else {
+                // list of requests/actions which support streamed content is related to implementation of the RequestBodyChunkConsumer interface.
+                msg.addMissingRequestBodyMessage("Streamable request body cannot be logged");
+            }
         }
 
         if (request != null) {
@@ -337,7 +342,12 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
+            if (request.isFullContent()) {
+                msg.addTupleToRequestBody(request.contentOrSourceParam());
+            } else {
+                // list of requests/actions which support streamed content is related to implementation of the RequestBodyChunkConsumer interface.
+                msg.addMissingRequestBodyMessage("Streamable request body cannot be logged");
+            }
         }
 
         if (request != null) {
@@ -383,7 +393,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            if(request.isFullContent()) {
+            if (request.isFullContent()) {
                 msg.addTupleToRequestBody(request.contentOrSourceParam());
             } else {
                 // list of requests/actions which support streamed content is related to implementation of the RequestBodyChunkConsumer interface.
@@ -413,7 +423,12 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
+            if (request.isFullContent()) {
+                msg.addTupleToRequestBody(request.contentOrSourceParam());
+            } else {
+                // list of requests/actions which support streamed content is related to implementation of the RequestBodyChunkConsumer interface.
+                msg.addMissingRequestBodyMessage("Streamable request body cannot be logged");
+            }
         }
         if (request != null) {
             msg.addPath(request.path());
@@ -489,7 +504,12 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
+            if (request.isFullContent()) {
+                msg.addTupleToRequestBody(request.contentOrSourceParam());
+            } else {
+                // list of requests/actions which support streamed content is related to implementation of the RequestBodyChunkConsumer interface.
+                msg.addMissingRequestBodyMessage("Streamable request body cannot be logged");
+            }
         }
         if (request != null) {
             msg.addPath(request.path());
@@ -527,7 +547,12 @@ public abstract class AbstractAuditLog implements AuditLog {
         // getAddress() call is checked in BackendRegistry for null
         msg.addRemoteAddress(remoteAddress.getAddress().getHostAddress());
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
+            if (request.isFullContent()) {
+                msg.addTupleToRequestBody(request.contentOrSourceParam());
+            } else {
+                // list of requests/actions which support streamed content is related to implementation of the RequestBodyChunkConsumer interface.
+                msg.addMissingRequestBodyMessage("Streamable request body cannot be logged");
+            }
         }
         if (request != null) {
             msg.addPath(request.path());
@@ -605,7 +630,12 @@ public abstract class AbstractAuditLog implements AuditLog {
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
         if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
+            if (request.isFullContent()) {
+                msg.addTupleToRequestBody(request.contentOrSourceParam());
+            } else {
+                // list of requests/actions which support streamed content is related to implementation of the RequestBodyChunkConsumer interface.
+                msg.addMissingRequestBodyMessage("Streamable request body cannot be logged");
+            }
         }
 
         if (request != null) {
