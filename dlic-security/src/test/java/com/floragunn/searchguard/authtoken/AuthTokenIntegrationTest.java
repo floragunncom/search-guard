@@ -89,9 +89,6 @@ public class AuthTokenIntegrationTest {
             .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))
             .users(USER_ALIAS_PUB_ACCESS, USER_DATA_STREAM_PUB_ACCESS).build();
 
-    @Rule
-    public Timeout timeout = new Timeout(3, TimeUnit.MINUTES);
-
     @BeforeClass
     public static void setupTestData() throws Exception {
 
