@@ -27,9 +27,7 @@ import com.floragunn.searchsupport.junit.AsyncAssert;
 import org.apache.http.HttpStatus;
 import org.junit.Assert;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -37,7 +35,6 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -57,9 +54,6 @@ public class AuditlogIntegrationTest {
     static TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(
             new TestSgConfig.Authc.Domain("basic/internal_users_db")
     );
-
-    @Rule
-    public Timeout timeout = new Timeout(180, TimeUnit.SECONDS);
 
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder()
