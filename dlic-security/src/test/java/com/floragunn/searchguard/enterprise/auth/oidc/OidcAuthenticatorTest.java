@@ -15,6 +15,10 @@ package com.floragunn.searchguard.enterprise.auth.oidc;
 
 import java.io.FileNotFoundException;
 import java.net.URLEncoder;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
 import com.floragunn.codova.validation.VariableResolvers;
@@ -33,6 +37,8 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.google.common.collect.ImmutableMap;
+import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
+import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -317,6 +323,30 @@ public class OidcAuthenticatorTest {
 
         Assert.assertNotNull(authCredentials);
         Assert.assertEquals(TestJwts.MCCOY_SUBJECT, authCredentials.getUsername());
+    }
+
+    @Test
+    public void testNotBeforeInTheFuture() throws Exception {
+        OidcAuthenticator authenticator = new OidcAuthenticator(basicAuthenticatorSettings, testContext);
+        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+
+        Instant future = Instant.now().plusSeconds(30);
+        JwtToken notBeforeInTheFuture = TestJwts.create(TestJwts.MCCOY_SUBJECT, TestJwts.TEST_AUDIENCE, JwtConstants.CLAIM_NOT_BEFORE, future.getEpochSecond());
+        String notBeforeInTheFutureSigned = TestJwts.createSigned(notBeforeInTheFuture, TestJwk.OCT_1);
+
+        String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), notBeforeInTheFutureSigned);
+
+        Map<String, Object> request = ImmutableMap.of("sso_result", ssoResponse, "sso_context", authMethod.getSsoContext(), "frontend_base_url",
+                FRONTEND_BASE_URL);
+
+        try {
+            AuthCredentials authCredentials = authenticator.extractCredentials(request);
+            Assert.fail("Expected exception, got: " + authCredentials);
+        } catch (CredentialsException e) {
+            Assert.assertTrue(e.getMessage(), e.getMessage().contains("not before claim is set to:"));
+            Assert.assertTrue(e.getMessage(), e.getMessage().contains(DateTimeFormatter.ISO_DATE_TIME.format(future.atZone(ZoneId.systemDefault()).truncatedTo(ChronoUnit.SECONDS))));
+        }
     }
 
 }
