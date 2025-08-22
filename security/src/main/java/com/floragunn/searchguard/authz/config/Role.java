@@ -14,12 +14,17 @@
  * limitations under the License.
  * 
  */
+/*
+ * Includes code from https://github.com/opensearch-project/security/blob/70591197c705ca6f42f765186a05837813f80ff3/src/main/java/org/opensearch/security/privileges/dlsfls/FieldPrivileges.java
+ * which is Copyright OpenSearch Contributors
+ */
 
 package com.floragunn.searchguard.authz.config;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -254,6 +259,36 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
             public boolean isExcluded() {
                 return excluded;
+            }
+
+            public List<FlsPattern> getParentObjectPatterns() {
+                if (excluded || source.indexOf('.') == -1) {
+                    return Collections.emptyList();
+                }
+
+                List<FlsPattern> subPatterns = new ArrayList<>();
+
+                for (int pos = source.indexOf('.'); pos != -1; pos = source.indexOf('.', pos + 1)) {
+                    String subString = source.substring(0, pos);
+
+                    subPatterns.add(new FlsPattern(Pattern.createUnchecked(subString), false, subString));
+                }
+
+                return subPatterns;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (o instanceof FlsPattern that) {
+                    return this.source.equals(that.source);
+                } else {
+                    return false;
+                }
+            }
+
+            @Override
+            public int hashCode() {
+                return source.hashCode();
             }
 
             @Override

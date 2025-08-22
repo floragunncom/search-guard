@@ -57,10 +57,10 @@ public class RoleBasedFieldAuthorizationTest {
                     role.getIndexPermissions().get(0));
 
             assertFalse(subject.toString(), subject.isAllowAll());
-            assertTrue(subject.toString(), subject.isAllowed("a"));
-            assertTrue(subject.toString(), subject.isAllowed("b"));
-            assertFalse(subject.toString(), subject.isAllowed("c"));
-            assertFalse(subject.toString(), subject.isAllowed("aa"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("a"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("b"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("c"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("aa"));
         }
 
         @Test
@@ -70,10 +70,10 @@ public class RoleBasedFieldAuthorizationTest {
                     role.getIndexPermissions().get(0));
 
             assertFalse(subject.toString(), subject.isAllowAll());
-            assertTrue(subject.toString(), subject.isAllowed("a"));
-            assertTrue(subject.toString(), subject.isAllowed("b"));
-            assertFalse(subject.toString(), subject.isAllowed("c"));
-            assertTrue(subject.toString(), subject.isAllowed("aa"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("a"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("b"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("c"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("aa"));
         }
 
         @Test
@@ -83,10 +83,10 @@ public class RoleBasedFieldAuthorizationTest {
                     role.getIndexPermissions().get(0));
 
             assertFalse(subject.toString(), subject.isAllowAll());
-            assertFalse(subject.toString(), subject.isAllowed("a"));
-            assertFalse(subject.toString(), subject.isAllowed("b"));
-            assertTrue(subject.toString(), subject.isAllowed("c"));
-            assertFalse(subject.toString(), subject.isAllowed("aa"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("a"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("b"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("c"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("aa"));
         }
 
         @Test
@@ -96,8 +96,8 @@ public class RoleBasedFieldAuthorizationTest {
                     role.getIndexPermissions().get(0));
 
             assertFalse(subject.toString(), subject.isAllowAll());
-            assertFalse(subject.toString(), subject.isAllowed("a"));
-            assertFalse(subject.toString(), subject.isAllowed(""));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("a"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive(""));
         }
 
         @Test
@@ -107,10 +107,10 @@ public class RoleBasedFieldAuthorizationTest {
                     role.getIndexPermissions().get(0));
 
             assertFalse(subject.toString(), subject.isAllowAll());
-            assertTrue(subject.toString(), subject.isAllowed("a"));
-            assertTrue(subject.toString(), subject.isAllowed("a2"));
-            assertFalse(subject.toString(), subject.isAllowed("a1"));
-            assertFalse(subject.toString(), subject.isAllowed("b"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("a"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("a2"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("a1"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("b"));
         }
 
         @Test
@@ -120,10 +120,10 @@ public class RoleBasedFieldAuthorizationTest {
                     role.getIndexPermissions().get(0));
 
             assertFalse(subject.toString(), subject.isAllowAll());
-            assertFalse(subject.toString(), subject.isAllowed("object"));
-            assertTrue(subject.toString(), subject.isAllowed("object.allowed"));
-            assertFalse(subject.toString(), subject.isAllowed("object.disallowed"));
-            assertFalse(subject.toString(), subject.isAllowed("object.a1_not_allowed"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.allowed"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.disallowed"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.a1_not_allowed"));
         }
 
         @Test
@@ -133,11 +133,11 @@ public class RoleBasedFieldAuthorizationTest {
                     role.getIndexPermissions().get(0));
 
             assertFalse(subject.toString(), subject.isAllowAll());
-            assertTrue(subject.toString(), subject.isAllowed("object"));
-            assertTrue(subject.toString(), subject.isAllowed("object.allowed"));
-            assertTrue(subject.toString(), subject.isAllowed("object.also.allowed"));
-            assertFalse(subject.toString(), subject.isAllowed("object_not_allowed"));
-            assertFalse(subject.toString(), subject.isAllowed("objects"));// same as object_not_allowed
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.allowed"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.also.allowed"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object_not_allowed"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("objects"));// same as object_not_allowed
         }
 
         @Test
@@ -147,9 +147,18 @@ public class RoleBasedFieldAuthorizationTest {
                     role.getIndexPermissions().get(0));
 
             assertFalse(subject.toString(), subject.isAllowAll());
-            assertFalse(subject.toString(), subject.isAllowed("object"));
-            assertFalse(subject.toString(), subject.isAllowed("object.child"));
-            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child.grandchild"));
+
+            assertTrue(subject.toString(), subject.isAllowedAssumingParentsAreAllowed("object.child.grandchild"));
+            assertFalse(subject.toString(), subject.isAllowedAssumingParentsAreAllowed("object.child"));
+            assertTrue(subject.toString(), subject.isObjectAllowedAssumingParentsAreAllowed("object.child"));
+            assertFalse(subject.toString(), subject.isAllowedAssumingParentsAreAllowed("text_field"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("text_field"));
+            assertFalse(subject.toString(), subject.isAllowedAssumingParentsAreAllowed("object.child.text_field"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.text_field"));
+            assertTrue("a.b.c.d is allowed", subject.isAllowedRecursive("object.child.grandchild.text_field"));
         }
 
         @Test
@@ -159,9 +168,14 @@ public class RoleBasedFieldAuthorizationTest {
                     role.getIndexPermissions().get(0));
 
             assertFalse(subject.toString(), subject.isAllowAll());
-            assertTrue(subject.toString(), subject.isAllowed("object"));
-            assertTrue(subject.toString(), subject.isAllowed("object.child"));
-            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.grandchild"));
+
+            assertFalse(subject.toString(), subject.isAllowedAssumingParentsAreAllowed("object.child.grandchild"));
+            assertTrue(subject.toString(), subject.isAllowedAssumingParentsAreAllowed("object.child"));
+            assertTrue(subject.toString(), subject.isObjectAllowedAssumingParentsAreAllowed("object.child"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.grandchild.text_field"));
         }
 
         @Test
@@ -175,33 +189,33 @@ public class RoleBasedFieldAuthorizationTest {
                     role.getIndexPermissions().get(0));
 
             assertFalse(subject.toString(), subject.isAllowAll());
-            assertFalse(subject.toString(), subject.isAllowed("o"));
-            assertTrue(subject.toString(), subject.isAllowed("object")); //object*
-            assertTrue(subject.toString(), subject.isAllowed("object.allowed_because_not_excluded")); //object*
-            assertTrue(subject.toString(), subject.isAllowed("object_top")); //object*
-            assertFalse(subject.toString(), subject.isAllowed("object_top_secret")); //~object_top_secret*
-            assertFalse(subject.toString(), subject.isAllowed("object_top_secret1")); //~object_top_secret*
-            assertFalse(subject.toString(), subject.isAllowed("object_top_secret1")); //~object_top_secret*
-            assertFalse(subject.toString(), subject.isAllowed("object_top_secret.child")); //~object_top_secret*
-            assertFalse(subject.toString(), subject.isAllowed("object_top_secret.child1")); //~object_top_secret*
-            assertFalse(subject.toString(), subject.isAllowed("object_top_secret.child1.subchild")); //~object_top_secret*
-            assertFalse(subject.toString(), subject.isAllowed("object.child")); //~object.child*
-            assertFalse(subject.toString(), subject.isAllowed("object.child_1")); //~object.child*
-            assertFalse(subject.toString(), subject.isAllowed("object.child_2")); //~object.child*
-            assertFalse(subject.toString(), subject.isAllowed("object.child.child")); //~object.child*
-            assertFalse(subject.toString(), subject.isAllowed("object.child_3.child")); //~object.child*
-            assertFalse(subject.toString(), subject.isAllowed("object.child.grand")); //~object.child*
-            assertFalse(subject.toString(), subject.isAllowed("object.child.grand")); //~object.child*
-            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild"));//object.child.grandchild*
-            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild_1"));//object.child.grandchild*
-            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchildleaf"));//object.child.grandchild*
-            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild.a"));//object.child.grandchild*
-            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild.a.b"));//object.child.grandchild*
-            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild.a.b.c"));//object.child.grandchild*
-            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild.leaf")); //~object.child.grandchild.leaf*
-            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild.leaf_1")); //~object.child.grandchild.leaf*
-            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild.leaf_2")); //~object.child.grandchild.leaf*
-            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild.leaf_2.a.b.c")); //~object.child.grandchild.leaf*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("o"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object")); //object*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.allowed_because_not_excluded")); //object*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object_top")); //object*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object_top_secret")); //~object_top_secret*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object_top_secret1")); //~object_top_secret*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object_top_secret1")); //~object_top_secret*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object_top_secret.child")); //~object_top_secret*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object_top_secret.child1")); //~object_top_secret*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object_top_secret.child1.subchild")); //~object_top_secret*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child")); //~object.child*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child_1")); //~object.child*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child_2")); //~object.child*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.child")); //~object.child*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child_3.child")); //~object.child*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.grand")); //~object.child*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.grand")); //~object.child*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child.grandchild"));//object.child.grandchild*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child.grandchild_1"));//object.child.grandchild*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child.grandchildleaf"));//object.child.grandchild*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child.grandchild.a"));//object.child.grandchild*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child.grandchild.a.b"));//object.child.grandchild*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child.grandchild.a.b.c"));//object.child.grandchild*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.grandchild.leaf")); //~object.child.grandchild.leaf*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.grandchild.leaf_1")); //~object.child.grandchild.leaf*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.grandchild.leaf_2")); //~object.child.grandchild.leaf*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.grandchild.leaf_2.a.b.c")); //~object.child.grandchild.leaf*
         }
 
         @Test
@@ -215,33 +229,33 @@ public class RoleBasedFieldAuthorizationTest {
                     role.getIndexPermissions().get(0));
 
             assertFalse(subject.toString(), subject.isAllowAll());
-            assertFalse(subject.toString(), subject.isAllowed("o"));
-            assertFalse(subject.toString(), subject.isAllowed("object")); //~object*
-            assertFalse(subject.toString(), subject.isAllowed("object.allowed_because_not_excluded")); //~object*
-            assertFalse(subject.toString(), subject.isAllowed("object_top")); //~object*
-            assertTrue(subject.toString(), subject.isAllowed("object_top_secret")); //object_top_secret*
-            assertTrue(subject.toString(), subject.isAllowed("object_top_secret1")); //object_top_secret*
-            assertTrue(subject.toString(), subject.isAllowed("object_top_secret1")); //object_top_secret*
-            assertTrue(subject.toString(), subject.isAllowed("object_top_secret.child")); //object_top_secret*
-            assertTrue(subject.toString(), subject.isAllowed("object_top_secret.child1")); //object_top_secret*
-            assertTrue(subject.toString(), subject.isAllowed("object_top_secret.child1.subchild")); //object_top_secret*
-            assertTrue(subject.toString(), subject.isAllowed("object.child")); //object.child*
-            assertTrue(subject.toString(), subject.isAllowed("object.child_1")); //object.child*
-            assertTrue(subject.toString(), subject.isAllowed("object.child_2")); //object.child*
-            assertTrue(subject.toString(), subject.isAllowed("object.child.child")); //object.child*
-            assertTrue(subject.toString(), subject.isAllowed("object.child_3.child")); //object.child*
-            assertTrue(subject.toString(), subject.isAllowed("object.child.grand")); //object.child*
-            assertTrue(subject.toString(), subject.isAllowed("object.child.grand")); //object.child*
-            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild"));//~object.child.grandchild*
-            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild_1"));//~object.child.grandchild*
-            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchildleaf"));//~object.child.grandchild*
-            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild.a"));//~object.child.grandchild*
-            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild.a.b"));//~object.child.grandchild*
-            assertFalse(subject.toString(), subject.isAllowed("object.child.grandchild.a.b.c"));//~object.child.grandchild*
-            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild.leaf")); //object.child.grandchild.leaf*
-            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild.leaf_1")); //object.child.grandchild.leaf*
-            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild.leaf_2")); //object.child.grandchild.leaf*
-            assertTrue(subject.toString(), subject.isAllowed("object.child.grandchild.leaf_2.a.b.c")); //object.child.grandchild.leaf*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("o"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object")); //~object*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.allowed_because_not_excluded")); //~object*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object_top")); //~object*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object_top_secret")); //object_top_secret*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object_top_secret1")); //object_top_secret*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object_top_secret1")); //object_top_secret*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object_top_secret.child")); //object_top_secret*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object_top_secret.child1")); //object_top_secret*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object_top_secret.child1.subchild")); //object_top_secret*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child")); //object.child*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child_1")); //object.child*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child_2")); //object.child*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child.child")); //object.child*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child_3.child")); //object.child*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child.grand")); //object.child*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child.grand")); //object.child*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.grandchild"));//~object.child.grandchild*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.grandchild_1"));//~object.child.grandchild*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.grandchildleaf"));//~object.child.grandchild*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.grandchild.a"));//~object.child.grandchild*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.grandchild.a.b"));//~object.child.grandchild*
+            assertFalse(subject.toString(), subject.isAllowedRecursive("object.child.grandchild.a.b.c"));//~object.child.grandchild*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child.grandchild.leaf")); //object.child.grandchild.leaf*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child.grandchild.leaf_1")); //object.child.grandchild.leaf*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child.grandchild.leaf_2")); //object.child.grandchild.leaf*
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child.grandchild.leaf_2.a.b.c")); //object.child.grandchild.leaf*
         }
 
         @Test
@@ -255,11 +269,13 @@ public class RoleBasedFieldAuthorizationTest {
                     role.getIndexPermissions().get(0));
 
             assertFalse(subject.toString(), subject.isAllowAll());
-            assertFalse(subject.toString(), subject.isAllowed("b"));
-            assertTrue(subject.toString(), subject.isAllowed("abc"));
-            assertFalse(subject.toString(), subject.isAllowed("a1"));
-            assertFalse(subject.toString(), subject.isAllowed("a123"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("b"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("abc"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("a1"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("a123"));
         }
+        
+        
 
         @Test
         public void multiRole_simple_positive() throws Exception {
@@ -272,10 +288,10 @@ public class RoleBasedFieldAuthorizationTest {
             ));
 
             assertFalse(subject.toString(), subject.isAllowAll());
-            assertTrue(subject.toString(), subject.isAllowed("a"));
-            assertTrue(subject.toString(), subject.isAllowed("b"));
-            assertFalse(subject.toString(), subject.isAllowed("c"));
-            assertFalse(subject.toString(), subject.isAllowed("aa"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("a"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("b"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("c"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("aa"));
         }
 
         @Test
@@ -289,10 +305,10 @@ public class RoleBasedFieldAuthorizationTest {
                     new RoleBasedFieldAuthorization.FlsRule.SingleRole(role2.getIndexPermissions().get(0)) //
             ));
 
-            assertTrue(subject.toString(), subject.isAllowed("a"));
-            assertTrue(subject.toString(), subject.isAllowed("b"));
-            assertTrue(subject.toString(), subject.isAllowed("c"));
-            assertTrue(subject.toString(), subject.isAllowed("aa"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("a"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("b"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("c"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("aa"));
         }
 
         @Test
@@ -305,10 +321,10 @@ public class RoleBasedFieldAuthorizationTest {
                     new RoleBasedFieldAuthorization.FlsRule.SingleRole(role2.getIndexPermissions().get(0)) //
             ));
 
-            assertTrue(subject.toString(), subject.isAllowed("a"));
-            assertTrue(subject.toString(), subject.isAllowed("a2"));
-            assertFalse(subject.toString(), subject.isAllowed("a1"));
-            assertFalse(subject.toString(), subject.isAllowed("a12"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("a"));
+            assertTrue(subject.toString(), subject.isAllowedRecursive("a2"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("a1"));
+            assertFalse(subject.toString(), subject.isAllowedRecursive("a12"));
         }
 
     }
@@ -327,24 +343,24 @@ public class RoleBasedFieldAuthorizationTest {
             RoleBasedFieldAuthorization subject = new RoleBasedFieldAuthorization(roleConfig, META, MetricsLevel.NONE);
 
             RoleBasedFieldAuthorization.FlsRule flsRule = subject.getRestriction(ctx("restricted_role_1"), index_a1, Meter.NO_OP);
-            assertTrue(flsRule.toString(), flsRule.isAllowed("a"));
-            assertFalse(flsRule.toString(), flsRule.isAllowed("b"));
+            assertTrue(flsRule.toString(), flsRule.isAllowedRecursive("a"));
+            assertFalse(flsRule.toString(), flsRule.isAllowedRecursive("b"));
 
             flsRule = subject.getRestriction(ctx("restricted_role_2"), index_a1, Meter.NO_OP);
-            assertFalse(flsRule.toString(), flsRule.isAllowed("a"));
-            assertTrue(flsRule.toString(), flsRule.isAllowed("b"));
+            assertFalse(flsRule.toString(), flsRule.isAllowedRecursive("a"));
+            assertTrue(flsRule.toString(), flsRule.isAllowedRecursive("b"));
 
             flsRule = subject.getRestriction(ctx("restricted_role_1", "restricted_role_2"), index_a1, Meter.NO_OP);
-            assertTrue(flsRule.toString(), flsRule.isAllowed("a"));
-            assertTrue(flsRule.toString(), flsRule.isAllowed("b"));
+            assertTrue(flsRule.toString(), flsRule.isAllowedRecursive("a"));
+            assertTrue(flsRule.toString(), flsRule.isAllowedRecursive("b"));
 
             flsRule = subject.getRestriction(ctx("non_restricted_role"), index_a1, Meter.NO_OP);
-            assertTrue(flsRule.toString(), flsRule.isAllowed("a"));
-            assertTrue(flsRule.toString(), flsRule.isAllowed("b"));
+            assertTrue(flsRule.toString(), flsRule.isAllowedRecursive("a"));
+            assertTrue(flsRule.toString(), flsRule.isAllowedRecursive("b"));
 
             flsRule = subject.getRestriction(ctx("restricted_role_1", "non_restricted_role"), index_a1, Meter.NO_OP);
-            assertTrue(flsRule.toString(), flsRule.isAllowed("a"));
-            assertTrue(flsRule.toString(), flsRule.isAllowed("b"));
+            assertTrue(flsRule.toString(), flsRule.isAllowedRecursive("a"));
+            assertTrue(flsRule.toString(), flsRule.isAllowedRecursive("b"));
         }
 
         private static PrivilegesEvaluationContext ctx(String... roles) {
