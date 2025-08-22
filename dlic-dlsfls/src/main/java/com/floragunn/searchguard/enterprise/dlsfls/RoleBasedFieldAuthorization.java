@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -122,18 +121,37 @@ public class RoleBasedFieldAuthorization
         public static final FlsRule DENY_ALL = new FlsRule.SingleRole(ImmutableList.of(Role.Index.FlsPattern.EXCLUDE_ALL));
 
         /**
-         * This method checks if the method is allowed in terms of FLS. To determine if access to a field is allowed for a user, we also need to 
+         * Recursive isAllowed check. For nested fields (a.b.c), it also checks for the parents whether these are allowed.
+         * This method checks if the method is allowed in terms of FLS. To determine if access to a field is allowed for a user, we also need to
          * consider field masking. Method {@link com.floragunn.searchguard.enterprise.dlsfls.lucene.DlsFlsActionContext#isAllowed(String)} does this.
          * Therefore, the method {@link com.floragunn.searchguard.enterprise.dlsfls.lucene.DlsFlsActionContext#isAllowed(String)} should be preferred
          * over this method.
          */
-        public abstract boolean isAllowed(String field);
+        public abstract boolean isAllowedRecursive(String field);
+
+        /**
+         * Checks whether the current field is allowed, assuming the status of
+         * the parent fields has been already checked. This can be used in
+         * a JSON parser which recursively walks from the root of the document tree
+         * up to the leafs.
+         */
+        public abstract boolean isAllowedAssumingParentsAreAllowed(String field);
+
+        /**
+         * Similar to isAllowedAssumingParentsAreAllowed(); however, there are additions
+         * for the "include" mode, i.e. when fields must be positively specified in order
+         * to be included. In this case, an include rule for a.b.c also generates implicit
+         * include rules for a.b and a. This is because in order to be able to display
+         * a.b.c, we also need to display a.b and a.
+         */
+        public abstract boolean isObjectAllowedAssumingParentsAreAllowed(String field);
 
         public abstract boolean isAllowAll();
 
         static class SingleRole extends FlsRule {
             final Role.Index sourceIndex;
             final ImmutableList<Role.Index.FlsPattern> patterns;
+            final ImmutableList<Role.Index.FlsPattern> objectOnlyPatterns;
             final Map<String, Boolean> cache;
             final boolean allowAll;
 
@@ -165,6 +183,8 @@ public class RoleBasedFieldAuthorization
                     this.patterns = sourceIndex.getFls();
                 }
 
+                this.objectOnlyPatterns = getObjectOnlyPatterns(this.patterns);
+
                 this.allowAll = patterns.isEmpty()
                         || (patterns.size() == 1 && patterns.get(0).getPattern().isWildcard() && !patterns.get(0).isExcluded());
 
@@ -177,33 +197,80 @@ public class RoleBasedFieldAuthorization
 
             public SingleRole(ImmutableList<Role.Index.FlsPattern> patterns) {
                 this.patterns = patterns;
+                this.objectOnlyPatterns = getObjectOnlyPatterns(patterns);
                 this.sourceIndex = null;
                 this.allowAll = patterns.isEmpty()
                         || (patterns.size() == 1 && patterns.get(0).getPattern().isWildcard() && !patterns.get(0).isExcluded());
                 this.cache = null;
             }
 
-            public boolean isAllowed(String field) {
+            public boolean isAllowedRecursive(String field) {
                 if (allowAll) {
                     return true;
                 }
                 
                 if (cache == null) {
-                    return internalIsAllowed(field);
+                    return internalIsAllowedRecursive(field);
                 } else {
                     Boolean allowed = this.cache.get(field);
 
                     if (allowed != null) {
                         return allowed;
                     } else {
-                        allowed = internalIsAllowed(field);
+                        allowed = internalIsAllowedRecursive(field);
                         this.cache.put(field, allowed);
                         return allowed;
                     }
                 }
             }
 
-            private boolean internalIsAllowed(String field) {
+            @Override
+            public boolean isAllowedAssumingParentsAreAllowed(String field) {
+                if (allowAll) {
+                    return true;
+                }
+
+                return isAllowedNonRecursive(field);
+            }
+
+            @Override
+            public boolean isObjectAllowedAssumingParentsAreAllowed(String field) {
+                if (isAllowAll()) {
+                    return true;
+                }
+
+                if (this.objectOnlyPatterns.isEmpty()) {
+                    return isAllowedAssumingParentsAreAllowed(field);
+                }
+
+                boolean allowed = false;
+
+                for (Role.Index.FlsPattern pattern : this.objectOnlyPatterns) {
+                    Boolean directlyAllowed = isDirectlyAllowed(pattern, field);
+                    if(directlyAllowed != null) {
+                        allowed = directlyAllowed;
+                    }
+                }
+
+                return allowed;
+            }
+
+            private boolean isAllowedNonRecursive(String field) {
+                field = stripKeywordSuffix(field);
+
+                boolean allowed = false;
+
+                for (Role.Index.FlsPattern pattern : this.patterns) {
+                    Boolean directlyAllowed = isDirectlyAllowed(pattern, field);
+                    if(directlyAllowed != null) {
+                        allowed = directlyAllowed;
+                    }
+                }
+
+                return allowed;
+            }
+
+            private boolean internalIsAllowedRecursive(String field) {
                 field = stripKeywordSuffix(field);
 
                 boolean allowed = false;
@@ -250,6 +317,17 @@ public class RoleBasedFieldAuthorization
                     return "FLS:" + patterns;
                 }
             }
+
+            private ImmutableList<Role.Index.FlsPattern> getObjectOnlyPatterns(ImmutableList<Role.Index.FlsPattern> patterns) {
+                ImmutableList.Builder<Role.Index.FlsPattern> objectOnlyPatterns = new ImmutableList.Builder();
+
+                for (Role.Index.FlsPattern pattern : patterns) {
+                    objectOnlyPatterns.addAll(pattern.getParentObjectPatterns());
+                }
+
+                // If there are already explicit exclusions on certain object-only inclusions, we can remove these again
+                return objectOnlyPatterns.build().without(patterns);
+            }
         }
 
         static class MultiRole extends FlsRule {
@@ -269,29 +347,68 @@ public class RoleBasedFieldAuthorization
                 }
             }
 
-            public boolean isAllowed(String field) {
+            public boolean isAllowedRecursive(String field) {
                 if (allowAll) {
                     return true;
                 } else if (cache == null) {
-                    return internalIsAllowed(field);
+                    return internalIsAllowedRecursive(field);
                 } else {
                     Boolean allowed = this.cache.get(field);
 
                     if (allowed != null) {
                         return allowed;
                     } else {
-                        allowed = internalIsAllowed(field);
+                        allowed = internalIsAllowedRecursive(field);
                         this.cache.put(field, allowed);
                         return allowed;
                     }
                 }
             }
 
-            private boolean internalIsAllowed(String field) {
+            @Override
+            public boolean isAllowedAssumingParentsAreAllowed(String field) {
+                if (allowAll) {
+                    return true;
+                }
+
+                return internalIsAllowedAssumingParentsAreAllowed(field);
+            }
+
+            @Override
+            public boolean isObjectAllowedAssumingParentsAreAllowed(String field) {
+                if (allowAll) {
+                    return true;
+                }
+                return internalIsObjectAllowedAssumingParentsAreAllowed(field);
+            }
+
+            private boolean internalIsAllowedRecursive(String field) {
                 field = stripKeywordSuffix(field);
 
                 for (SingleRole entry : this.entries) {
-                    if (entry.isAllowed(field)) {
+                    if (entry.isAllowedRecursive(field)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            private boolean internalIsAllowedAssumingParentsAreAllowed(String field) {
+                field = stripKeywordSuffix(field);
+
+                for (SingleRole entry : this.entries) {
+                    if (entry.isAllowedAssumingParentsAreAllowed(field)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            private boolean internalIsObjectAllowedAssumingParentsAreAllowed(String field) {
+                for (SingleRole entry : this.entries) {
+                    if (entry.isAllowedAssumingParentsAreAllowed(field)) {
                         return true;
                     }
                 }
