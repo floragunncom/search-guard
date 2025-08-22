@@ -103,10 +103,10 @@ public class DlsFlsActionContext {
      * Check if the user is allowed to access the field. Combine FLS and FM.
      */
     public static boolean isAllowed(FlsRule flsRule, FieldMaskingRule fieldMaskingRule, String field) {
-        return flsRule.isAllowed(field) && fieldMaskingRule.isNotMasked(field);
+        return flsRule.isAllowedRecursive(field) && fieldMaskingRule.isNotMasked(field);
     }
 
     public boolean isAllowedButPossiblyMasked(String field) {
-        return flsRule.isAllowed(field);
+        return flsRule.isAllowedRecursive(field);
     }
 }

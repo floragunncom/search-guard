@@ -168,8 +168,17 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
         private final JsonGenerator generator;
         private final FlsRule flsRule;
         private final FieldMaskingRule fieldMaskingRule;
-        private String currentName;
+        // queuedFieldName will contain the unqualified name of a field that was encountered, but not yet written.
+        // It is necessary to queue the field names because it can depend on the type of the following value whether
+        // the field/value pair will be written: If the value is object-valued, we will also start writing the object
+        // if we expect the object to contain allowed values, even if the object itself is not fully allowed.
+        private String queuedFieldName;
+        // fullCurrentName contains the qualified name of the current field. Changes for every FIELD_NAME token. Does
+        // include names of parent objects concatenated by ".". If the current field is named "c" and the parent
+        // objects are named "a", "b", this will contain "a.b.c".
         private String fullCurrentName;
+        // fullParentName contains the qualified name of the object containing the current field. Will be null if the
+        // current field is at the root object of the document.
         private String fullParentName;
         private Deque<String> nameStack = new ArrayDeque<>();
 
@@ -182,47 +191,60 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
 
         @SuppressWarnings("incomplete-switch")
         private void copy() throws IOException {
-            boolean skipNext = false;
-            
             for (JsonToken token = parser.currentToken() != null ? parser.currentToken() : parser.nextToken(); token != null; token = parser
                     .nextToken()) {
 
-                if (!skipNext) {
-                    switch (token) {
+                if (this.queuedFieldName != null) {
+                    boolean startOfObjectOrArray = (token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY);
+                    String fullQueuedFieldName = this.fullParentName == null ? this.queuedFieldName : this.fullParentName + "." + this.queuedFieldName;
+                    this.queuedFieldName = null;
+
+                    if (META_FIELDS.contains(fullQueuedFieldName)
+                            || flsRule.isAllowedAssumingParentsAreAllowed(fullQueuedFieldName)
+                            || (startOfObjectOrArray && flsRule.isObjectAllowedAssumingParentsAreAllowed(fullQueuedFieldName))) {
+                        generator.writeFieldName(parser.currentName());
+                        this.fullCurrentName = fullQueuedFieldName;
+                    } else {
+                        // If the current field name is disallowed by FLS, we will skip the next token.
+                        // If the next token is an object or array start, all the child tokens will be also skipped
+                        if (startOfObjectOrArray) {
+                            parser.skipChildren();
+                        }
+                        continue;
+                    }
+                }
+
+                switch (token) {
+                    case FIELD_NAME:
+                        // We do not immediately write field names, because we need to know the type of the value
+                        // when checking FLS rules
+                        this.queuedFieldName = parser.currentName();
+                        break;
 
                     case START_OBJECT:
                         generator.writeStartObject();
-                        if (fullParentName != null) {
-                            nameStack.add(fullParentName);
+                        if (this.fullParentName != null) {
+                            nameStack.add(this.fullParentName);
                         }
                         this.fullParentName = this.fullCurrentName;
+                        break;
+
+                    case END_OBJECT:
+                        generator.writeEndObject();
+                        this.fullCurrentName = this.fullParentName;
+                        if (nameStack.isEmpty()) {
+                            this.fullParentName = null;
+                        } else {
+                            this.fullParentName = nameStack.removeLast();
+                        }
                         break;
 
                     case START_ARRAY:
                         generator.writeStartArray();
                         break;
 
-                    case END_OBJECT:
-                        generator.writeEndObject();
-                        if (nameStack.isEmpty()) {
-                            fullParentName = null;
-                        } else {
-                            fullParentName = nameStack.removeLast();
-                        }
-                        break;
-
                     case END_ARRAY:
                         generator.writeEndArray();
-                        break;
-
-                    case FIELD_NAME:
-                        this.currentName = parser.currentName();
-                        this.fullCurrentName = this.fullParentName == null ? this.currentName : this.fullParentName + "." + this.currentName;
-                        if (META_FIELDS.contains(fullCurrentName) || flsRule.isAllowed(fullCurrentName)) {
-                            generator.writeFieldName(parser.currentName());
-                        } else {
-                            skipNext = true;
-                        }
                         break;
 
                     case VALUE_TRUE:
@@ -253,7 +275,6 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
                         } else {
                             generator.writeString(parser.getText());
                         }
-
                         break;
 
                     case VALUE_EMBEDDED_OBJECT:
@@ -263,22 +284,8 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
                     default:
                         throw new IllegalStateException("Unexpected token: " + token);
 
-                    }
-
-                } else {
-                    skipNext = false;
-                    switch (token) {
-
-                    case START_OBJECT:
-                        parser.skipChildren();
-                        break;
-
-                    case START_ARRAY:
-                        parser.skipChildren();
-                        break;
-
-                    }
                 }
+
             }
         }
     }
