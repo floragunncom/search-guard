@@ -9,8 +9,8 @@ import org.elasticsearch.common.io.stream.NamedWriteable;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.settings.SecureString;
-import org.elasticsearch.common.text.Text;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.xcontent.Text;
 
 import java.io.IOException;
 import java.time.ZoneId;
