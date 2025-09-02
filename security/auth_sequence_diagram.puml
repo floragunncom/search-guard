@@ -1,0 +1,130 @@
+@startuml
+
+title Search Guard Authentication
+
+actor "User" as User
+
+participant SearchGuardHttpServerTransport
+participant "AuthenticatingRestFilter::AuthenticatingRestHandler\n <<wraps HttpServerTransport::Dispatcher>>" as AuthenticatingRestHandler
+participant "RestAuthenticationProcessor::Default" as RestAuthenticationProcessor
+participant RestRequestAuthenticationProcessor
+participant "AuthenticationDomain<HttpAuthenticationFrontend>" as AuthenticationDomain
+database "UserCache\nCache<AuthCredentials, User>" as UserCache
+participant HttpAuthenticationFrontend
+participant API
+
+User -> SearchGuardHttpServerTransport: incomingRequest(request, ...)
+activate SearchGuardHttpServerTransport
+
+== Request preprocessing ==
+
+SearchGuardHttpServerTransport -> SearchGuardHttpServerTransport: fixNonStandardContentType(request)
+activate SearchGuardHttpServerTransport
+note right of SearchGuardHttpServerTransport
+  Content type header is changed to a type supported by ES.
+  The original type is stored in **X-SG-Original-Content-Type**.
+end note
+SearchGuardHttpServerTransport --> SearchGuardHttpServerTransport: HttpRequest
+deactivate SearchGuardHttpServerTransport
+
+... omitted ES/Netty handling details ...
+
+== Request validity checks ==
+
+SearchGuardHttpServerTransport -> AuthenticatingRestHandler: handleRequest(request, ...)
+
+deactivate SearchGuardHttpServerTransport
+
+activate AuthenticatingRestHandler
+AuthenticatingRestHandler -> AuthenticatingRestHandler: checkRequest(request, ...)
+activate AuthenticatingRestHandler
+opt request contains bad header
+    AuthenticatingRestHandler --> User: 403 Forbidden
+end
+opt request has no SSLInfo
+    AuthenticatingRestHandler --> User: 403 Forbidden
+end
+deactivate AuthenticatingRestHandler
+
+opt request does not require authentication
+    note right of AuthenticatingRestHandler
+        No authentication required for this request.
+        E.g. OPTIONS request or request to an endpoint that is
+        explicitly excluded from authentication.
+    end note
+    AuthenticatingRestHandler -> API
+end
+
+== Authentication ==
+
+opt request contains AdminDN
+    note right of AuthenticatingRestHandler
+        Admin Cert authentication does not need further checks.
+    end note
+    AuthenticatingRestHandler -> API
+end
+
+AuthenticatingRestHandler -> RestAuthenticationProcessor: authenticate(request, ...)
+
+deactivate AuthenticatingRestHandler
+
+activate RestAuthenticationProcessor
+opt request ip address is not allowlisted
+    RestAuthenticationProcessor --> User: 403 Forbidden
+end
+opt request ip address is blocked
+    RestAuthenticationProcessor --> User: 401 Unauthorized
+end
+deactivate AuthenticatingRestHandler
+
+create RestRequestAuthenticationProcessor
+RestAuthenticationProcessor -> RestRequestAuthenticationProcessor: new(...)
+
+RestAuthenticationProcessor -> RestRequestAuthenticationProcessor: authenticate(...)
+deactivate RestAuthenticationProcessor
+
+activate RestRequestAuthenticationProcessor
+
+
+loop For each available AuthenticationDomain while not authenticated
+    RestRequestAuthenticationProcessor -> RestRequestAuthenticationProcessor: select next domain
+
+    RestRequestAuthenticationProcessor -> HttpAuthenticationFrontend: extractCredentials(request)
+    HttpAuthenticationFrontend --> RestRequestAuthenticationProcessor: credentials?
+
+    alt No credentials found or error occurred
+        RestRequestAuthenticationProcessor -> RestRequestAuthenticationProcessor: continue with next domain
+    else Credentials found
+        RestRequestAuthenticationProcessor -> UserCache: get(credentials)
+        UserCache --> RestRequestAuthenticationProcessor: user?
+        alt User cache hit found
+            RestRequestAuthenticationProcessor -> RestRequestAuthenticationProcessor: user is authenticated
+            ... authorization ...
+            RestRequestAuthenticationProcessor -> API: authenticated user
+        else User cache disabled or no hit found
+            RestRequestAuthenticationProcessor -> AuthenticationDomain: authenticate(credentials)
+            AuthenticationDomain --> RestRequestAuthenticationProcessor: ok | fail
+            alt fail
+                RestRequestAuthenticationProcessor -> RestRequestAuthenticationProcessor: Continue with next domain
+            else ok
+                RestRequestAuthenticationProcessor -> RestRequestAuthenticationProcessor: User is authenticated
+                ... authorization ...
+                opt User cache enabled
+                    RestRequestAuthenticationProcessor -> UserCache: put(credentials, user)
+                end
+                RestRequestAuthenticationProcessor -> API: authenticated user
+                deactivate RestRequestAuthenticationProcessor
+            end alt
+        end alt
+    end alt
+end loop
+
+
+
+
+
+deactivate RestRequestAuthenticationProcessor
+
+API --> User: API Response
+
+@enduml
