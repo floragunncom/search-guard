@@ -59,6 +59,7 @@ public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransp
 
     @Override
     public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
+        // TODO further investigate if we can authenticate here (code from AuthentcatingRestFilter)
         Channel nettyChannel = ((Netty4HttpChannel) httpChannel).getNettyChannel();
         SslHandler sslhandler = (SslHandler) nettyChannel.pipeline().get("ssl_http");
         super.incomingRequest(AttributedHttpRequest.create(httpRequest, sslhandler, nettyChannel.eventLoop()), httpChannel);
