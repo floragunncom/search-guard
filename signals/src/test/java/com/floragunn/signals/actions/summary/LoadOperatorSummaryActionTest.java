@@ -158,6 +158,7 @@ public class LoadOperatorSummaryActionTest {
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "temperature-alerts-2"));
             assertThat(body, containsValue("data.watches[0].reason", "match_filter"));
+            assertThat(body, containsValue("data.watches[0].active", true));
             assertThat(body, containsAnyValues("data.watches[0].status_code", "ACTION_EXECUTED", "ACTION_THROTTLED"));
             assertThat(body, containsValue("data.watches[0].severity", "info"));
             assertThat(body, containsFieldPointedByJsonPath("data.watches[0]", "description"));
@@ -178,6 +179,38 @@ public class LoadOperatorSummaryActionTest {
             assertThat(body, fieldIsNull("data.watches[0].actions.createAlarm.status_details"));
             assertThat(body, fieldIsNull("data.watches[0].actions.createAlarm.ack_by"));
             assertThat(body, fieldIsNull("data.watches[0].actions.createAlarm.ack_on"));
+        } finally {
+            predefinedWatches.deleteWatches();
+        }
+    }
+
+    @Test
+    public void shouldIncludeWatchActivityStatus() throws Exception {
+        PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
+        predefinedWatches.defineTemperatureSeverityWatch("temperature-alerts-2", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
+        try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
+            await().until(() -> predefinedWatches.countWatchStatusWithAvailableStatusCode(INDEX_SIGNALS_WATCHES_STATE) > 0);
+
+            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
+
+            log.info("Watch summary response body '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(200));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, docNodeSizeEqualTo("data.watches", 1));
+            assertThat(body, containsValue("data.watches[0].watch_id", "temperature-alerts-2"));
+            assertThat(body, containsValue("data.watches[0].active", true));
+
+            // Deactivate the watch
+            response = restClient.delete("/_signals/watch/_main/temperature-alerts-2/_active");
+            log.info("Watch deactive response status code '{}' and body '{}'.", response.getStatusCode(),  response.getBody());
+
+            // Check if deactivated status is reflected in summary (operator view)
+            response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
+            assertThat(response.getStatusCode(), equalTo(200));
+            body = response.getBodyAsDocNode();
+            assertThat(body, docNodeSizeEqualTo("data.watches", 1));
+            assertThat(body, containsValue("data.watches[0].watch_id", "temperature-alerts-2"));
+            assertThat(body, containsValue("data.watches[0].active", false));
         } finally {
             predefinedWatches.deleteWatches();
         }

@@ -70,6 +70,7 @@ import com.google.common.hash.Hashing;
 
 public class Watch extends WatchElement implements JobConfig, ToXContentObject {
     private final static Logger log = LogManager.getLogger(Watch.class);
+    public static final boolean DEFAULT_ACTIVE = true;
 
     public static Map<String, String> WITHOUT_AUTH_TOKEN_PARAM_MAP = Collections.singletonMap("include_auth_token", "false");
 
@@ -487,7 +488,7 @@ public class Watch extends WatchElement implements JobConfig, ToXContentObject {
         if (vJsonNode.hasNonNull("active")) {
             result.active = vJsonNode.get("active").asBoolean();
         } else {
-            result.active = true;
+            result.active = DEFAULT_ACTIVE;
         }
 
         if (vJsonNode.hasNonNull("log_runtime_data")) {
