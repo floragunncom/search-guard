@@ -20,9 +20,12 @@ package com.floragunn.searchguard.http;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 
+import com.floragunn.searchguard.authc.rest.AuthenticatingRestFilter;
 import com.floragunn.searchsupport.rest.AttributedHttpRequest;
+import io.netty.channel.EventLoop;
 import io.netty.handler.ssl.SslHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -56,20 +59,25 @@ import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTra
 public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServerTransport {
     private static final Logger log = LogManager.getLogger(SearchGuardHttpServerTransport.class);
 
+    private final AuthenticatingRestFilter authenticatingRestFilter;
+
     public SearchGuardHttpServerTransport(final Settings settings, final NetworkService networkService,
                                           final ThreadPool threadPool, final SearchGuardKeyStore sgks, final SslExceptionHandler sslExceptionHandler,
                                           final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher, ClusterSettings clusterSettings,
-                                          SharedGroupFactory sharedGroupFactory, Tracer tracer, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext) {
+                                          SharedGroupFactory sharedGroupFactory, Tracer tracer, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext,
+                                        AuthenticatingRestFilter authenticatingRestFilter) {
         super(settings, networkService, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler, tracer, perRequestThreadContext);
+        this.authenticatingRestFilter = Objects.requireNonNull(authenticatingRestFilter, "AuthenticatingRestFilter must not be null");
     }
 
     @Override
     public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
         Netty4HttpChannel netty4HttpChannel = (Netty4HttpChannel) httpChannel;
         final SslHandler sslhandler = (SslHandler) netty4HttpChannel.getNettyChannel().pipeline().get("ssl_http");
-        ImmutableMap<String, Object> attributes = ImmutableMap.of("sg_ssl_handler", sslhandler, "sg_event_loop", netty4HttpChannel.getNettyChannel().eventLoop());
+        EventLoop eventLoop = netty4HttpChannel.getNettyChannel().eventLoop();
+        ImmutableMap<String, Object> attributes = ImmutableMap.of("sg_ssl_handler", sslhandler);
         HttpRequest fixedRequest = fixNonStandardContentType(httpRequest);
-        super.incomingRequest(AttributedHttpRequest.create(fixedRequest, attributes), httpChannel);
+        authenticatingRestFilter.authenticate(super::incomingRequest, AttributedHttpRequest.create(fixedRequest, attributes), httpChannel, eventLoop);
     }
 
     /**

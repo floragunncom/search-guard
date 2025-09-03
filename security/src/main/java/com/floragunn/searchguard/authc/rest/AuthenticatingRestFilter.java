@@ -17,22 +17,27 @@
 
 package com.floragunn.searchguard.authc.rest;
 
-import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 
+import io.netty.channel.EventLoop;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.ExceptionsHelper;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.http.HttpChannel;
+import org.elasticsearch.http.HttpRequest;
+import org.elasticsearch.http.HttpResponse;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
-import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -65,6 +70,12 @@ import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 
 public class AuthenticatingRestFilter implements ComponentStateProvider {
+
+    // TODO ES 9.1.x: better name for the interface is needed
+    @FunctionalInterface
+    public interface RequestAcceptor {
+        void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel);
+    }
 
     private static final Logger log = LogManager.getLogger(AuthenticatingRestFilter.class);
 
@@ -119,33 +130,31 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     }
 
     public HttpServerTransport.Dispatcher wrap(HttpServerTransport.Dispatcher original) {
-        return new AuthenticatingRestHandler(original);
+        return original;
+        // return new AuthenticatingRestHandler(original);
     }
     
     public RestAuthenticationProcessor getAuthenticationProcessor() {
         return authenticationProcessor;
     }
 
-    class AuthenticatingRestHandler implements HttpServerTransport.Dispatcher {
-        private final HttpServerTransport.Dispatcher original;
+    public void authenticate(RequestAcceptor requestAcceptor, HttpRequest httpRequest, HttpChannel httpChannel, EventLoop eventLoop) {
+        var handler = new AuthenticatingRestHandler(requestAcceptor, eventLoop);
+        handler.handleRequest(httpRequest, httpChannel);
+    }
 
-        AuthenticatingRestHandler(HttpServerTransport.Dispatcher original) {
+    class AuthenticatingRestHandler  {
+        private final RequestAcceptor original;
+        private final EventLoop eventLoop;
+
+        AuthenticatingRestHandler(RequestAcceptor original, EventLoop eventLoop) {
             this.original = original;
+            this.eventLoop = eventLoop;
         }
 
-        @Override
-        public void dispatchRequest(RestRequest request, RestChannel channel, ThreadContext threadContext) {
-            handleRequest(request, channel);
-        }
-
-        @Override
-        public void dispatchBadRequest(RestChannel channel, ThreadContext threadContext, Throwable cause) {
-            handleRequest(channel.request(), channel); //TODO log cause
-        }
-
-        private void handleRequest(RestRequest request, RestChannel channel) {
+        private void handleRequest(HttpRequest request, HttpChannel channel) {
             org.apache.logging.log4j.ThreadContext.clearAll();
-            diagnosticContext.traceActionStack(request.getHttpRequest().method() + " " + request.getHttpRequest().uri());
+            diagnosticContext.traceActionStack(request.method() + " " + request.rawPath());
 
             if (!checkRequest(request, channel)) {
                 return;
@@ -160,21 +169,21 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
                     User user = new User(sslPrincipal, AuthDomainInfo.TLS_CERT);
                     threadContext.putTransient(ConfigConstants.SG_USER, user);
-                    auditLog.logSucceededLogin(user, true, null, request);
-                    original.dispatchRequest(request, channel, threadContext);
+                    // TODO ES 9.1.x restore auditlog call
+//                    auditLog.logSucceededLogin(user, true, null, request);
+                    original.incomingRequest(request, channel);
                     return;
                 }
 
                 if (authenticationProcessor == null) {
                     log.error("Not yet initialized (you may need to run sgctl)");
-                    channel.sendResponse(new RestResponse(RestStatus.SERVICE_UNAVAILABLE,
-                            "Search Guard not initialized (SG11). See https://docs.search-guard.com/latest/sgctl"));
+                    createAndSendResponse(channel, request, RestStatus.SERVICE_UNAVAILABLE, "text/plain); charset=UTF-8",
+                            "Search Guard not initialized (SG11). See https://docs.search-guard.com/latest/sgctl");
                     return;
                 }
-                RestChannel channelWrapper = new SendOnceRestChannelWrapper(channel);
-                authenticationProcessor.authenticate(request, channelWrapper, (result) -> {
-                    if (authenticationProcessor.isDebugEnabled() && DebugApi.PATH.equals(request.path())) {
-                        sendDebugInfo(channelWrapper, result);
+                authenticationProcessor.authenticate(request, channel, (result) -> {
+                    if (authenticationProcessor.isDebugEnabled() && DebugApi.PATH.equals(request.rawPath())) {
+                        sendDebugInfo(channel, request, result);
                         return;
                     }
 
@@ -185,74 +194,54 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                         org.apache.logging.log4j.ThreadContext.put("user", result.getUser() != null ? result.getUser().getName() : null);
 
                         try {
-                            original.dispatchRequest(request, channel, threadContext);
+                            original.incomingRequest(request, channel);
                         } catch (Exception e) {
                             log.error("Error in " + original, e);
-                            try {
-                                channelWrapper.sendResponse(new RestResponse(channel, e));
-                            } catch (IOException e1) {
-                                log.error(e1);
-                            }
+                            createAndSendResponseException(channel, request, e);
                         }
                     } else {
                         org.apache.logging.log4j.ThreadContext.remove("user");
 
                         if (result.getRestStatus() != null) {
 
-                            final RestResponse response = createResponse(request, result);
-
-                            if (!result.getHeaders().isEmpty()) {
-                                result.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
-                            }
-
-                            channelWrapper.sendResponse(response);
+                            createResponse(channel, request, result);
                         }
                     }
                 }, (e) -> {
-                    try {
-                        channelWrapper.sendResponse(new RestResponse(channelWrapper, e));
-                    } catch (IOException e1) {
-                        log.error(e1);
-                    }
+                    createAndSendResponseException(channel, request, e);
                 });
             } else {
-                original.dispatchRequest(request, channel, threadContext);
+                original.incomingRequest(request, channel);
             }
         }
 
-        private boolean isAuthcRequired(RestRequest request) {
-            return request.method() != Method.OPTIONS && !"/_searchguard/license".equals(request.path())
-                    && !"/_searchguard/license".equals(request.path()) && !"/_searchguard/health".equals(request.path())
-                    && !("/_searchguard/auth/session".equals(request.path()) && request.method() == Method.POST);
+        private boolean isAuthcRequired(HttpRequest request) {
+            String path = request.rawPath();
+            return request.method() != Method.OPTIONS && !"/_searchguard/license".equals(path)
+                    && !"/_searchguard/license".equals(path) && !"/_searchguard/health".equals(path)
+                    && !("/_searchguard/auth/session".equals(path) && request.method() == Method.POST);
         }
 
-        private boolean checkRequest(RestRequest request, RestChannel channel) {
+        private boolean checkRequest(HttpRequest request, HttpChannel channel) {
 
             threadContext.putTransient(ConfigConstants.SG_ORIGIN, Origin.REST.toString());
 
             if (containsBadHeader(request)) {
                 final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
                 log.error(exception);
-                auditLog.logBadHeaders(request);
-                try {
-                    channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, exception));
-                } catch (IOException e) {
-                    log.error(e,e);
-                    channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
-                }
+                // TODO ES 9.1.x restore auditlog call
+//                auditLog.logBadHeaders(request);
+                createAndSendResponseException(channel, request, exception, RestStatus.FORBIDDEN);
+
                 return false;
             }
 
             if (SSLRequestHelper.containsBadHeader(threadContext, ConfigConstants.SG_CONFIG_PREFIX)) {
                 final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
                 log.error(exception);
-                auditLog.logBadHeaders(request);
-                try {
-                    channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, exception));
-                } catch (IOException e) {
-                    log.error(e,e);
-                    channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
-                }
+                // TODO ES 9.1.x restore auditlog call
+//                auditLog.logBadHeaders(request);
+                    createAndSendResponseException(channel, request, exception, RestStatus.FORBIDDEN);
                 return false;
             }
 
@@ -271,47 +260,78 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 }
             } catch (SSLPeerUnverifiedException e) {
                 log.error("No ssl info", e);
-                auditLog.logSSLException(request, e);
-                try {
-                    channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, e));
-                } catch (IOException ex) {
-                    log.error(e,e);
-                    channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
-                }
+                // TODO ES 9.1.x restore auditlog call
+//                auditLog.logSSLException(request, e);
+                    createAndSendResponseException(channel, request, e, RestStatus.FORBIDDEN);
                 return false;
             }
 
             return true;
         }
 
-        private void sendDebugInfo(RestChannel channel, AuthcResult authcResult) {
-            RestResponse response = new RestResponse(authcResult.getRestStatus(), "application/json", authcResult.toPrettyJsonString());
-            if (!authcResult.getHeaders().isEmpty()) {
-                authcResult.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
-            }
-            channel.sendResponse(response);
+        private void sendDebugInfo(HttpChannel channel, HttpRequest request, AuthcResult authcResult) {
+            createAndSendResponse(channel, request, authcResult.getRestStatus(), "application/json", authcResult.getHeaders(), authcResult.toPrettyJsonString());
         }
 
 
     }
 
-    public static RestResponse createUnauthorizedResponse(RestRequest request) {
-        return createResponse(request, AuthcResult.stop(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED));
+    public static void createUnauthorizedResponse(HttpChannel channel, HttpRequest request) {
+        createResponse(channel, request, AuthcResult.stop(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED));
     }
 
-    public static RestResponse createResponse(RestRequest request, AuthcResult result) {
+    public static void createResponse(HttpChannel channel, HttpRequest request, AuthcResult result) {
         final String statusMessage = result.getRestStatusMessage()==null?result.getRestStatus().name():result.getRestStatusMessage();
         final String accept = request.header("accept");
 
         if(accept == null || (!accept.startsWith("application/json") && !accept.startsWith("application/vnd.elasticsearch+json"))) {
-            return new RestResponse(result.getRestStatus(), statusMessage);
+            createAndSendResponse(channel, request, result.getRestStatus(), "text/plain); charset=UTF-8", statusMessage);
         }
 
-        return new RestResponse(result.getRestStatus(), "application/json", DocNode.of(//
+        String bodyString = DocNode.of(//
                 "status", result.getRestStatus().getStatus(), //
                 "error.reason", statusMessage, //
                 "error.type", "authentication_exception" //
-        ).toJsonString());
+        ).toJsonString();
+        createAndSendResponse(channel, request, result.getRestStatus(), "application/json; charset=UTF-8", result.getHeaders(), bodyString);
+    }
+
+    public static void createAndSendResponse(HttpChannel channel, HttpRequest request, RestStatus restStatus, String contentType, Map<String, List<String>> additionalHeaders, String body) {
+        HttpResponse httpResponse = createResponse(request, restStatus, contentType, body);
+        additionalHeaders.forEach((k, v) -> v.forEach((e) -> httpResponse.addHeader(k, e)));
+        channel.sendResponse(httpResponse, new ActionListener<Void>() {
+            @Override
+            public void onResponse(Void unused) {
+                log.debug("Response sent");
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                log.error("Cannot send response with status '{}' for request {} {}", restStatus,  request.method(), request.rawPath(), e);
+            }
+        });
+    }
+
+    static private void createAndSendResponse(HttpChannel channel, HttpRequest request, RestStatus restStatus, String contentType, String body) {
+        createAndSendResponse(channel, request, restStatus, contentType, Map.of(), body);
+    }
+
+    private static HttpResponse createResponse(HttpRequest request, RestStatus restStatus, String contentType, String body) {
+        BytesArray responseBody = new BytesArray(body);
+        HttpResponse httpResponse = request.createResponse(restStatus, responseBody);
+        httpResponse.addHeader("Content-Type", contentType);
+        return httpResponse;
+    }
+
+    static private void createAndSendResponseException(HttpChannel channel, HttpRequest request, Exception e) {
+        RestStatus status = ExceptionsHelper.status(e);
+        createAndSendResponseException(channel, request, e, status);
+    }
+
+    static private void createAndSendResponseException(HttpChannel channel, HttpRequest request, Exception e, RestStatus status) {
+        String message = e.getMessage();
+        // TODO ES 9.1.x the code is simplified in compersion to previous version.
+        createAndSendResponse(channel, request, status, "text/plain); charset=UTF-8", message);
     }
 
     @Override
@@ -335,7 +355,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
     }
 
-    private static boolean containsBadHeader(RestRequest request) {
+    private static boolean containsBadHeader(HttpRequest request) {
         for (String key : request.getHeaders().keySet()) {
             if (key != null && key.trim().toLowerCase().startsWith(ConfigConstants.SG_CONFIG_PREFIX.toLowerCase())) {
                 return true;

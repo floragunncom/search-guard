@@ -53,12 +53,14 @@ import com.floragunn.searchsupport.cstate.metrics.CacheStats;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import com.google.common.cache.Cache;
+import org.elasticsearch.http.HttpChannel;
+import org.elasticsearch.http.HttpRequest;
 
 import inet.ipaddr.IPAddress;
 
 public interface RestAuthenticationProcessor extends ComponentStateProvider {
 
-    void authenticate(RestRequest request, RestChannel channel, Consumer<AuthcResult> onResult,
+    void authenticate(HttpRequest httpRequest, HttpChannel httpChannel, Consumer<AuthcResult> onResult,
             Consumer<Exception> onFailure);
 
     boolean isDebugEnabled();
@@ -126,7 +128,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
             }
         }
 
-        public void authenticate(RestRequest request, RestChannel channel, Consumer<AuthcResult> onResult,
+        public void authenticate(HttpRequest httpRequest, HttpChannel httpChannel, Consumer<AuthcResult> onResult,
                 Consumer<Exception> onFailure) {
             Meter meter = Meter.basic(authcConfig.getMetricsLevel(), authenticateMetrics);
 
@@ -154,7 +156,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
             }
 
             if (log.isTraceEnabled()) {
-                log.trace("Rest authentication request from {} [original: {}]", remoteIpAddress, request.getHttpChannel().getRemoteAddress());
+                log.trace("Rest authentication request from {} [original: {}]", remoteIpAddress, httpChannel.getRemoteAddress());
             }
 
             if (clientInfo.isTrustedProxy()) {
@@ -165,11 +167,12 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
 
             if (blockedIpRegistry.isIpBlocked(remoteIpAddress)) {
                 if (log.isDebugEnabled()) {
-                    log.debug("Rejecting REST request because of blocked address: " + request.getHttpChannel().getRemoteAddress());
+                    log.debug("Rejecting REST request because of blocked address: " + httpChannel.getRemoteAddress());
                 }
-                auditLog.logBlockedIp(request, request.getHttpChannel().getRemoteAddress());
+                // TODO ES 9.1.x restore auditlog call
+//                auditLog.logBlockedIp(request, request.getHttpChannel().getRemoteAddress());
                 meter.close();
-                channel.sendResponse(AuthenticatingRestFilter.createUnauthorizedResponse(request));
+                AuthenticatingRestFilter.createUnauthorizedResponse(httpChannel, httpRequest);
                 onResult.accept(new AuthcResult(AuthcResult.Status.STOP));
                 return;
             }
