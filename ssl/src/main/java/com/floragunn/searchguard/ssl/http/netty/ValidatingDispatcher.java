@@ -21,8 +21,6 @@ import java.nio.file.Path;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 
-import com.floragunn.searchsupport.rest.AttributedHttpRequest;
-import io.netty.channel.EventLoop;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -30,7 +28,6 @@ import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpServerTransport.Dispatcher;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
@@ -39,7 +36,6 @@ import org.elasticsearch.rest.RestStatus;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
-import org.elasticsearch.threadpool.ThreadPool;
 
 public class ValidatingDispatcher implements Dispatcher {
 
@@ -50,51 +46,21 @@ public class ValidatingDispatcher implements Dispatcher {
     private final SslExceptionHandler errorHandler;
     private final Settings settings;
     private final Path configPath;
-    private final ThreadPool threadPool;
 
     public ValidatingDispatcher(final ThreadContext threadContext, final Dispatcher originalDispatcher, 
-            final Settings settings, final Path configPath, final SslExceptionHandler errorHandler, ThreadPool threadPool) {
+            final Settings settings, final Path configPath, final SslExceptionHandler errorHandler) {
         super();
         this.threadContext = threadContext;
         this.originalDispatcher = originalDispatcher;
         this.settings = settings;
         this.configPath = configPath;
         this.errorHandler = errorHandler;
-        this.threadPool = threadPool;
     }
 
     @Override
     public void dispatchRequest(RestRequest request, RestChannel channel, ThreadContext threadContext) {
-        this.dispatchRequestAsync(request, channel, threadContext);
-    }
-
-    public void dispatchRequestSync(RestRequest request, RestChannel channel, ThreadContext threadContext) {
-        // TODO ES 9.1.x: delete the method
         checkRequest(request, channel);
         originalDispatcher.dispatchRequest(request, channel, threadContext);
-    }
-
-    public void dispatchRequestAsync(RestRequest request, RestChannel channel, ThreadContext threadContext) {
-        checkRequest(request, channel);
-        // TODO ES 9.1.x: we need to find better solution
-        HttpRequest httpRequest = request.getHttpRequest();
-        if(httpRequest instanceof AttributedHttpRequest attributedHttpRequest) {
-            EventLoop eventLoop = attributedHttpRequest.getAttribute("sg_event_loop")
-                    .filter(EventLoop.class::isInstance)
-                    .map(EventLoop.class::cast)
-                    .orElseThrow(() -> {
-                        logger.error("Netty event loop not present, request '{}'", httpRequest);
-                        return new IllegalStateException("Netty event loop not present, cannot use correct thread");
-                    });
-
-            Runnable runnableWithContext = threadPool.getThreadContext()
-                    .preserveContext(() -> originalDispatcher.dispatchRequest(request, channel, threadContext));
-            eventLoop.execute(runnableWithContext);
-        } else {
-            // TODO ES 9.1.x: maybe throw...
-            logger.error("Netty event loop not present, invalid type of request '{}'", httpRequest);
-            throw new IllegalStateException("Netty event loop not present, incorrect request type");
-        }
     }
 
     @Override
