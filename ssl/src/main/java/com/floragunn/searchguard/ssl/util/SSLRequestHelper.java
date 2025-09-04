@@ -48,6 +48,7 @@ import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.env.Environment;
+import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
@@ -106,7 +107,11 @@ public class SSLRequestHelper {
     }
 
     public static SSLInfo getSSLInfo(final Settings settings, final Path configPath, final RestRequest request, PrincipalExtractor principalExtractor) throws SSLPeerUnverifiedException {
-        final SslHandler sslhandler = Optional.ofNullable(request.getHttpRequest())
+        return getSSLInfo(settings, configPath, request.getHttpRequest(), principalExtractor);
+    }
+
+    public static SSLInfo getSSLInfo(final Settings settings, final Path configPath, final HttpRequest request, PrincipalExtractor principalExtractor) throws SSLPeerUnverifiedException {
+        final SslHandler sslhandler = Optional.ofNullable(request)
             .filter(AttributedHttpRequest.class::isInstance)
             .map(AttributedHttpRequest.class::cast)
             .flatMap(attributeRequest -> attributeRequest.getAttribute("sg_ssl_handler"))

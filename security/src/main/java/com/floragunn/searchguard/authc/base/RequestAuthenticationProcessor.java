@@ -25,7 +25,6 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -50,7 +49,7 @@ import com.google.common.cache.Cache;
 public abstract class RequestAuthenticationProcessor<AuthenticatorType extends AuthenticationFrontend> {
     private static final Logger log = LogManager.getLogger(RequestAuthenticationProcessor.class);
 
-    protected final RequestMetaData<RestRequest> request;
+    protected final RequestMetaData<?> request;
     protected final AuditLog auditLog;
     private final Collection<AuthenticationDomain<AuthenticatorType>> authenticationDomains;
     private final Iterator<AuthenticationDomain<AuthenticatorType>> authenticationDomainIter;
@@ -67,7 +66,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
 
     protected AuthCredentials authCredentials = null;
 
-    public RequestAuthenticationProcessor(RequestMetaData<RestRequest> request,
+    public RequestAuthenticationProcessor(RequestMetaData<?> request,
             Collection<AuthenticationDomain<AuthenticatorType>> authenticationDomains, AdminDNs adminDns, PrivilegesEvaluator privilegesEvaluator,
             Cache<AuthCredentials, User> userCache, Cache<String, User> impersonationCache, AuditLog auditLog,
             BlockedUserRegistry blockedUserRegistry, List<AuthFailureListener> ipAuthFailureListeners, List<String> requiredLoginPrivileges,
@@ -101,7 +100,7 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
     protected abstract AuthDomainState handleCurrentAuthenticationDomain(AuthenticationDomain<AuthenticatorType> authenticationDomain,
             Consumer<AuthcResult> onResult, Consumer<Exception> onFailure);
 
-    protected AuthcResult handleChallenge(RestRequest restRequest) {
+    protected AuthcResult handleChallenge() {
         return null;
     }
 
@@ -222,7 +221,8 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
                 if (authenticatedUser != null) {
                     if (adminDns.isAdmin(authenticatedUser)) {
                         log.error("Cannot authenticate rest user because admin user is not permitted to login via HTTP");
-                        auditLog.logFailedLogin(authenticatedUser, true, null, request.getRequest());
+                        // TODO ES 9.1.x restore auditlog call
+//                        auditLog.logFailedLogin(authenticatedUser, true, null, request.getRequest());
                         debug.failure(authenticationDomain.getType(),
                                 "User name is associated with an administrator. These are only allowed to login via certificate.");
                         onResult.accept(AuthcResult.stop(RestStatus.FORBIDDEN,
@@ -265,14 +265,16 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
                         new RestImpersonationProcessor<AuthenticatorType>(authenticatedUser, getImpersonationUser(), authenticationDomains, adminDns,
                                 impersonationCache).impersonate((result) -> {
                                     if (result.getUser() != null) {
-                                        auditLog.logSucceededLogin(result.getUser(), false, authenticatedUser, request.getRequest());
+                                        // TODO ES 9.1.x restore auditlog call
+//                                        auditLog.logSucceededLogin(result.getUser(), false, authenticatedUser, request.getRequest());
                                     }
                                     onResult.accept(result);
                                 }, onFailure);
                     } else {
                         // This is the happy case :-)
 
-                        auditLog.logSucceededLogin(authenticatedUser, false, authenticatedUser, request.getRequest());
+                        // TODO ES 9.1.x restore auditlog call
+//                        auditLog.logSucceededLogin(authenticatedUser, false, authenticatedUser, request.getRequest());
                         if (debug.isEnabled()) {
                             debug.success(authenticationDomain.getType(), "User is logged in", "user",
                                     ImmutableMap.of("name", authenticatedUser.getName(), "roles", authenticatedUser.getRoles(), "search_guard_roles",
@@ -331,10 +333,11 @@ public abstract class RequestAuthenticationProcessor<AuthenticatorType extends A
         try {
             log.warn("Authentication failed for {} from {}", authCredentials == null ? null : authCredentials.getUsername(), request);
 
-            auditLog.logFailedLogin(authCredentials != null ? authCredentials : AuthCredentials.NONE, false, null, request.getRequest());
+            // TODO ES 9.1.x restore auditlog call
+//            auditLog.logFailedLogin(authCredentials != null ? authCredentials : AuthCredentials.NONE, false, null, request.getRequest());
             notifyIpAuthFailureListeners(authCredentials);
 
-            AuthcResult challengeHandled = handleChallenge(request.getRequest());
+            AuthcResult challengeHandled = handleChallenge();
 
             if (challengeHandled != null) {
                 return challengeHandled;

@@ -20,13 +20,14 @@ package com.floragunn.searchguard.authc;
 import java.util.List;
 import java.util.Map;
 
+import com.floragunn.searchguard.authc.session.BaseRequestMetaData;
 import org.elasticsearch.rest.RestRequest;
 
 import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInfo;
 
 import inet.ipaddr.IPAddress;
 
-public abstract class RequestMetaData<T> {
+public abstract class RequestMetaData<T> implements BaseRequestMetaData {
     private final T request;
     private final IPAddress directIpAddress;
     private final IPAddress originatingIpAddress;

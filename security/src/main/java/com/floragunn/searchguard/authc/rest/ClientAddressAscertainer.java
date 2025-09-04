@@ -26,6 +26,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.http.HttpChannel;
+import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
@@ -74,7 +76,13 @@ public abstract class ClientAddressAscertainer {
 
     private static final Logger log = LogManager.getLogger(ClientAddressAscertainer.class);
 
-    public abstract ClientIpInfo getActualRemoteAddress(RestRequest request);
+    public ClientIpInfo getActualRemoteAddress(RestRequest request) {
+        HttpRequest httpRequest = request.getHttpRequest();
+        HttpChannel httpChannel = request.getHttpChannel();
+        return getActualRemoteAddress(httpRequest, httpChannel);
+    }
+
+    public abstract ClientIpInfo getActualRemoteAddress(HttpRequest request, HttpChannel httpChannel);
 
     static class CIDRBased extends ClientAddressAscertainer {
 
@@ -87,20 +95,20 @@ public abstract class ClientAddressAscertainer {
         }
 
         @Override
-        public ClientIpInfo getActualRemoteAddress(RestRequest request) {
-            IPAddress directIpAddress = ipAddressGenerator.from(request.getHttpChannel().getRemoteAddress().getAddress());
+        public ClientIpInfo getActualRemoteAddress(HttpRequest request, HttpChannel httpChannel) {
+            IPAddress directIpAddress = ipAddressGenerator.from(httpChannel.getRemoteAddress().getAddress());
 
             if (!trustedProxies.contains(directIpAddress)) {
                 if (log.isDebugEnabled()) {
                     log.debug("Request from untrusted host: " + directIpAddress);
                 }
-                return ClientIpInfo.untrusted(directIpAddress, request.getHttpChannel().getRemoteAddress());
+                return ClientIpInfo.untrusted(directIpAddress, httpChannel.getRemoteAddress());
             }
 
             List<String> xffHeaders = request.getHeaders().get(remoteIpHeader);
 
             if (xffHeaders == null || xffHeaders.isEmpty()) {
-                return ClientIpInfo.trusted(directIpAddress, directIpAddress, request.getHttpChannel().getRemoteAddress());
+                return ClientIpInfo.trusted(directIpAddress, directIpAddress, httpChannel.getRemoteAddress());
             }
 
             List<IPAddressString> ipAddressStrings = xffHeaders.stream().flatMap(h -> splitter.splitToStream(h)).map(ip -> new IPAddressString(ip))
@@ -116,7 +124,7 @@ public abstract class ClientAddressAscertainer {
                         if (log.isDebugEnabled()) {
                             log.debug("Request from trusted proxy " + directIpAddress + "; actual client: " + ip);
                         }
-                        return ClientIpInfo.trusted(directIpAddress, ip, request.getHttpChannel().getRemoteAddress());
+                        return ClientIpInfo.trusted(directIpAddress, ip, httpChannel.getRemoteAddress());
                     }
                 } catch (AddressStringException | IncompatibleAddressException e) {
                     log.warn("Unparseable IP in XFF headers of request: " + xffHeaders, e);
@@ -131,7 +139,7 @@ public abstract class ClientAddressAscertainer {
             }
 
             try {
-                return ClientIpInfo.trusted(directIpAddress, ipAddressStrings.get(0).toAddress(), request.getHttpChannel().getRemoteAddress());
+                return ClientIpInfo.trusted(directIpAddress, ipAddressStrings.get(0).toAddress(), httpChannel.getRemoteAddress());
             } catch (AddressStringException | IncompatibleAddressException e) {
                 log.warn("Unparseable IP in XFF headers of request: " + xffHeaders, e);
                 throw new ElasticsearchStatusException("Invalid " + remoteIpHeader + "header", RestStatus.BAD_REQUEST);
@@ -154,20 +162,20 @@ public abstract class ClientAddressAscertainer {
         }
 
         @Override
-        public ClientIpInfo getActualRemoteAddress(RestRequest request) {
-            IPAddress directIpAddress = ipAddressGenerator.from(request.getHttpChannel().getRemoteAddress().getAddress());
-            String ipAddressString = request.getHttpChannel().getRemoteAddress().getAddress().getHostAddress();
+        public ClientIpInfo getActualRemoteAddress(HttpRequest request, HttpChannel httpChannel) {
+            IPAddress directIpAddress = ipAddressGenerator.from(httpChannel.getRemoteAddress().getAddress());
+            String ipAddressString = httpChannel.getRemoteAddress().getAddress().getHostAddress();
 
             if (!trustedProxiesPattern.matcher(ipAddressString).matches()) {
                 if (log.isDebugEnabled()) {
                     log.debug("Request from untrusted host: " + directIpAddress);
                 }
-                return ClientIpInfo.untrusted(directIpAddress, request.getHttpChannel().getRemoteAddress());
+                return ClientIpInfo.untrusted(directIpAddress, httpChannel.getRemoteAddress());
             }
             List<String> xffHeaders = request.getHeaders().get(remoteIpHeader);
 
             if (xffHeaders == null || xffHeaders.isEmpty()) {
-                return ClientIpInfo.trusted(directIpAddress, directIpAddress, request.getHttpChannel().getRemoteAddress());
+                return ClientIpInfo.trusted(directIpAddress, directIpAddress, httpChannel.getRemoteAddress());
             }
 
             List<IPAddressString> ipAddressStrings = xffHeaders.stream().flatMap(h -> splitter.splitToStream(h)).map(ip -> new IPAddressString(ip))
@@ -184,7 +192,7 @@ public abstract class ClientAddressAscertainer {
                             log.debug("Request from trusted proxy " + directIpAddress + "; actual client: " + ip);
                         }
 
-                        return ClientIpInfo.trusted(directIpAddress, ip, request.getHttpChannel().getRemoteAddress());
+                        return ClientIpInfo.trusted(directIpAddress, ip, httpChannel.getRemoteAddress());
                     }
                 } catch (AddressStringException | IncompatibleAddressException e) {
                     log.warn("Unparseable IP in XFF headers of request: " + xffHeaders, e);
@@ -198,7 +206,7 @@ public abstract class ClientAddressAscertainer {
             }
 
             try {
-                return ClientIpInfo.trusted(directIpAddress, ipAddressStrings.get(0).toAddress(), request.getHttpChannel().getRemoteAddress());
+                return ClientIpInfo.trusted(directIpAddress, ipAddressStrings.get(0).toAddress(), httpChannel.getRemoteAddress());
             } catch (AddressStringException | IncompatibleAddressException e) {
                 log.warn("Unparseable IP in XFF headers of request: " + xffHeaders, e);
                 throw new ElasticsearchStatusException("Invalid " + remoteIpHeader + "header", RestStatus.BAD_REQUEST);
@@ -209,9 +217,9 @@ public abstract class ClientAddressAscertainer {
     static class Inactive extends ClientAddressAscertainer {
 
         @Override
-        public ClientIpInfo getActualRemoteAddress(RestRequest request) {
-            return ClientIpInfo.untrusted(ipAddressGenerator.from(request.getHttpChannel().getRemoteAddress().getAddress()),
-                    request.getHttpChannel().getRemoteAddress());
+        public ClientIpInfo getActualRemoteAddress(HttpRequest request, HttpChannel httpChannel) {
+            return ClientIpInfo.untrusted(ipAddressGenerator.from(httpChannel.getRemoteAddress().getAddress()),
+                    httpChannel.getRemoteAddress());
         }
     }
 

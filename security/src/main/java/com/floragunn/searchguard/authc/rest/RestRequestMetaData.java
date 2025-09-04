@@ -38,6 +38,11 @@ public class RestRequestMetaData extends RequestMetaData<RestRequest> {
     }
 
     @Override
+    public String getUri() {
+        return getRequest().uri();
+    }
+
+    @Override
     public String getHeader(String headerName) {
         return getRequest().header(headerName);
     }

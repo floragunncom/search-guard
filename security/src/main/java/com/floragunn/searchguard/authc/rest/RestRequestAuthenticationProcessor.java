@@ -24,9 +24,9 @@ import java.util.function.Consumer;
 
 import com.floragunn.searchguard.SignalsTenantParamResolver;
 import com.floragunn.searchguard.support.ConfigConstants;
+import org.elasticsearch.http.HttpRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.fluent.collections.ImmutableList;
@@ -49,11 +49,11 @@ import com.google.common.cache.Cache;
 public class RestRequestAuthenticationProcessor extends RequestAuthenticationProcessor<HttpAuthenticationFrontend> {
     private static final Logger log = LogManager.getLogger(RestRequestAuthenticationProcessor.class);
 
-    private final RequestMetaData<RestRequest> request;
+    private final RequestMetaData<HttpRequest> request;
 
     private LinkedHashSet<String> challenges = new LinkedHashSet<>(2);
 
-    public RestRequestAuthenticationProcessor(RequestMetaData<RestRequest> request,
+    public RestRequestAuthenticationProcessor(RequestMetaData<HttpRequest> request,
              Collection<AuthenticationDomain<HttpAuthenticationFrontend>> authenticationDomains, AdminDNs adminDns,
             PrivilegesEvaluator privilegesEvaluator, Cache<AuthCredentials, User> userCache, Cache<String, User> impersonationCache,
             AuditLog auditLog, BlockedUserRegistry blockedUserRegistry, List<AuthFailureListener> ipAuthFailureListeners,
@@ -99,7 +99,8 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
             if (log.isDebugEnabled()) {
                 log.debug("Rejecting REST request because of blocked user: " + ac.getUsername() + "; authDomain: " + authenticationDomain);
             }
-            auditLog.logBlockedUser(ac, false, ac, request.getRequest());
+            // TODO ES 9.1.x restore auditlog call
+//            auditLog.logBlockedUser(ac, false, ac, request.getRequest());
             return AuthDomainState.SKIP;
         }
 
@@ -139,7 +140,7 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
     }
 
     @Override
-    protected AuthcResult handleChallenge(RestRequest restRequest) {
+    protected AuthcResult handleChallenge() {
 
         if (challenges.size() == 0) {
             return null;
@@ -155,17 +156,8 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
 
     @Override
     protected String getRequestedTenant() {
-        return SignalsTenantParamResolver.getRequestedTenant(request.getRequest());
+        return SignalsTenantParamResolver.getRequestedTenant(request);
     }
-
-    /*@Override
-    protected String getRequestedTenant() {
-        if (restHandler instanceof TenantAwareRestHandler) {
-            return ((TenantAwareRestHandler) restHandler).getTenantName(request);
-        } else {
-            return request.getHeader("sgtenant") != null ? request.getHeader("sgtenant") : request.getHeader("sg_tenant");
-        }
-    }*/
 
     @Override
     protected String getImpersonationUser() {

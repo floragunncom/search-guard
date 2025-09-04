@@ -100,7 +100,8 @@ public class ApiAuthenticationProcessor extends RequestAuthenticationProcessor<A
             if (log.isDebugEnabled()) {
                 log.debug("Rejecting REST request because of blocked user: " + ac.getUsername() + "; authDomain: " + authenticationDomain);
             }
-            auditLog.logBlockedUser(ac, false, ac, super.request.getRequest());
+            // TODO ES 9.1.x restore auditlog call
+//            auditLog.logBlockedUser(ac, false, ac, super.request.getRequest());
             debug.failure(authenticationFrontend.getType(), "User " + ac.getUsername() + " is blocked");
 
             return AuthDomainState.SKIP;

@@ -1,6 +1,7 @@
 package com.floragunn.searchguard;
 
-import org.elasticsearch.rest.RestRequest;
+import com.floragunn.searchguard.authc.RequestMetaData;
+import com.floragunn.searchguard.authc.session.BaseRequestMetaData;
 
 import java.util.Optional;
 
@@ -12,7 +13,7 @@ public class SignalsTenantParamResolver {
 
     }
 
-    public static String getRequestedTenant(RestRequest request) {
+    public static String getRequestedTenant(BaseRequestMetaData request) {
         //TODO ES8 RestHandler refactoring: check precedence
         //not sure if precedence is correct here
         final Optional<String> tenantFromUri = getSignalsTenantFrom(request);
@@ -26,14 +27,14 @@ public class SignalsTenantParamResolver {
                 return tenantParamValue;
             }
         } else {
-            return request.header("sgtenant") != null ? request.header("sgtenant") : request.header("sg_tenant");
+            return request.getHeader("sgtenant") != null ? request.getHeader("sgtenant") : request.getHeader("sg_tenant");
         }
     }
 
 
-    public static Optional<String> getSignalsTenantFrom(RestRequest request) {
-        if(request.uri().startsWith("/_signals/watch/") || request.uri().startsWith("/_signals/tenant/")) {
-            return Optional.of(request.uri().split("/")[3]);
+    public static Optional<String> getSignalsTenantFrom(BaseRequestMetaData request) {
+        if(request.getUri().startsWith("/_signals/watch/") || request.getUri().startsWith("/_signals/tenant/")) {
+            return Optional.of(request.getUri().split("/")[3]);
         }
 
         return Optional.empty();

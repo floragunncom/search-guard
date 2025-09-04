@@ -25,8 +25,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -128,7 +126,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
             }
         }
 
-        public void authenticate(HttpRequest httpRequest, HttpChannel httpChannel, Consumer<AuthcResult> onResult,
+        public void authenticate(HttpRequest request, HttpChannel httpChannel, Consumer<AuthcResult> onResult,
                 Consumer<Exception> onFailure) {
             Meter meter = Meter.basic(authcConfig.getMetricsLevel(), authenticateMetrics);
 
@@ -136,12 +134,12 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
 
             ClientIpInfo clientInfo = null;
             try {
-                clientInfo = clientAddressAscertainer.getActualRemoteAddress(request);
+                clientInfo = clientAddressAscertainer.getActualRemoteAddress(request, httpChannel);
             } catch (ElasticsearchStatusException e) {
                 onFailure.accept(e);
                 return;
             }
-            RequestMetaData<RestRequest> requestMetaData = new RestRequestMetaData(request, clientInfo, sslPrincipal);
+            RequestMetaData<HttpRequest> requestMetaData = new HttpRequestMetadata(request, clientInfo, sslPrincipal);
             IPAddress remoteIpAddress = clientInfo.getOriginatingIpAddress();
 
             if (!ipAddressAcceptanceRules.accept(requestMetaData)) {
@@ -172,7 +170,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
                 // TODO ES 9.1.x restore auditlog call
 //                auditLog.logBlockedIp(request, request.getHttpChannel().getRemoteAddress());
                 meter.close();
-                AuthenticatingRestFilter.createUnauthorizedResponse(httpChannel, httpRequest);
+                AuthenticatingRestFilter.createUnauthorizedResponse(httpChannel, request);
                 onResult.accept(new AuthcResult(AuthcResult.Status.STOP));
                 return;
             }

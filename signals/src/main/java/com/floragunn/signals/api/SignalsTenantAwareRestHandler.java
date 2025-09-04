@@ -19,6 +19,7 @@ package com.floragunn.signals.api;
 
 import com.floragunn.searchguard.SignalsTenantParamResolver;
 import com.floragunn.searchguard.authc.rest.TenantAwareRestHandler;
+import com.floragunn.searchguard.authc.session.BaseRequestMetaData;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.action.StandardResponse;
 import org.apache.http.HttpStatus;
@@ -39,7 +40,8 @@ public abstract class SignalsTenantAwareRestHandler extends SignalsBaseRestHandl
 
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
-        if (User.USER_TENANT.equals(SignalsTenantParamResolver.getRequestedTenant(request))) {
+        BaseRequestMetaData requestMetaData = BaseRequestMetaData.adapt(request);
+        if (User.USER_TENANT.equals(SignalsTenantParamResolver.getRequestedTenant(requestMetaData))) {
             return unsupportedPrivateTenantErrorResponse(request);
         }
         return getRestChannelConsumer(request, client);
