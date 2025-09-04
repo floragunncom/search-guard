@@ -17,9 +17,11 @@
 
 package com.floragunn.searchguard.authc.rest;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 
@@ -156,6 +158,36 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             org.apache.logging.log4j.ThreadContext.clearAll();
             diagnosticContext.traceActionStack(request.method() + " " + request.rawPath());
 
+            if(log.isDebugEnabled()) {
+                String threadName = Thread.currentThread().getName();
+                String transientHeaders = threadContext.getTransientHeaders()
+                        .entrySet()
+                        .stream()
+                        .map(e -> e.getKey() + "=" + e.getValue())
+                        .collect(Collectors.joining("\n"));
+                log.debug("Incoming request '{} {}' handled in thread '{}' with transient headers:\n{}", request.method(), request.rawPath(), threadName, transientHeaders);
+            }
+
+            // TODO ES 9.1.x this is improper way of cleaning up the threadcontext. We need to fix this
+//            List<String> transientHeadersToRemove = List.of(ConfigConstants.SG_USER,
+//                    ConfigConstants.SG_ORIGIN,
+//                    "_sg_ssl_principal",
+//                    "_sg_ssl_peer_certificates",
+//                    "_sg_ssl_protocol",
+//                    "_sg_ssl_cipher",
+//                    "_sg_remote_address",
+//                    SG_REMOTE_ADDRESS_HEADER,
+//                    ConfigConstants.SG_DLS_QUERY_HEADER,
+//                    ConfigConstants.SG_FLS_FIELDS_HEADER,
+//                    ConfigConstants.SG_MASKED_FIELD_HEADER,
+//                    ConfigConstants.SG_DOC_WHITELST_HEADER,
+//                    ConfigConstants.SG_FILTER_LEVEL_DLS_DONE,
+//                    ConfigConstants.SG_DLS_MODE_HEADER,
+//                    ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER,
+//                    ConfigConstants.SG_AUTHZ_HASH_THREAD_CONTEXT_HEADER
+//            );
+            threadContext.newEmptyContext();
+
             if (!checkRequest(request, channel)) {
                 return;
             }
@@ -177,7 +209,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
                 if (authenticationProcessor == null) {
                     log.error("Not yet initialized (you may need to run sgctl)");
-                    createAndSendResponse(channel, request, RestStatus.SERVICE_UNAVAILABLE, "text/plain); charset=UTF-8",
+                    createAndSendResponse(channel, request, RestStatus.SERVICE_UNAVAILABLE, "text/plain; charset=UTF-8",
                             "Search Guard not initialized (SG11). See https://docs.search-guard.com/latest/sgctl");
                     return;
                 }
@@ -204,7 +236,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
                         if (result.getRestStatus() != null) {
 
-                            createResponse(channel, request, result);
+                            createAndSendResponse(channel, request, result);
                         }
                     }
                 }, (e) -> {
@@ -277,15 +309,15 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     }
 
     public static void createUnauthorizedResponse(HttpChannel channel, HttpRequest request) {
-        createResponse(channel, request, AuthcResult.stop(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED));
+        createAndSendResponse(channel, request, AuthcResult.stop(RestStatus.UNAUTHORIZED, ConfigConstants.UNAUTHORIZED));
     }
 
-    public static void createResponse(HttpChannel channel, HttpRequest request, AuthcResult result) {
+    public static void createAndSendResponse(HttpChannel channel, HttpRequest request, AuthcResult result) {
         final String statusMessage = result.getRestStatusMessage()==null?result.getRestStatus().name():result.getRestStatusMessage();
         final String accept = request.header("accept");
 
         if(accept == null || (!accept.startsWith("application/json") && !accept.startsWith("application/vnd.elasticsearch+json"))) {
-            createAndSendResponse(channel, request, result.getRestStatus(), "text/plain); charset=UTF-8", statusMessage);
+            createAndSendResponse(channel, request, result.getRestStatus(), "text/plain; charset=UTF-8", statusMessage);
         }
 
         String bodyString = DocNode.of(//
@@ -298,11 +330,12 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
     public static void createAndSendResponse(HttpChannel channel, HttpRequest request, RestStatus restStatus, String contentType, Map<String, List<String>> additionalHeaders, String body) {
         HttpResponse httpResponse = createResponse(request, restStatus, contentType, body);
+        request.release();
         additionalHeaders.forEach((k, v) -> v.forEach((e) -> httpResponse.addHeader(k, e)));
         channel.sendResponse(httpResponse, new ActionListener<Void>() {
             @Override
             public void onResponse(Void unused) {
-                log.debug("Response sent");
+                log.debug("Send response with status '{}' for request {} {}", restStatus,  request.method(), request.rawPath());
             }
 
             @Override
@@ -317,9 +350,11 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     }
 
     private static HttpResponse createResponse(HttpRequest request, RestStatus restStatus, String contentType, String body) {
-        BytesArray responseBody = new BytesArray(body);
+        BytesArray responseBody = new BytesArray(body.getBytes(StandardCharsets.UTF_8));
+        int size = responseBody.array().length;
         HttpResponse httpResponse = request.createResponse(restStatus, responseBody);
         httpResponse.addHeader("Content-Type", contentType);
+        httpResponse.addHeader("Content-Length", Integer.toString(size));
         return httpResponse;
     }
 
@@ -331,7 +366,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     static private void createAndSendResponseException(HttpChannel channel, HttpRequest request, Exception e, RestStatus status) {
         String message = e.getMessage();
         // TODO ES 9.1.x the code is simplified in compersion to previous version.
-        createAndSendResponse(channel, request, status, "text/plain); charset=UTF-8", message);
+        createAndSendResponse(channel, request, status, "text/plain; charset=UTF-8", message);
     }
 
     @Override
