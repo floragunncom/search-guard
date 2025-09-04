@@ -7,6 +7,8 @@ updates:
       interval: daily
     ignore:
       - dependency-name: "org.elasticsearch*"
+      - dependency-name: "com.fasterxml.jackson.*"
+      - dependency-name: "org.apache.maven.resolver:maven-resolver-connector-basic"
     #pull-request-branch-name:
       #separator: 'default: "-"'
       #prefix: 'default: "dependabot"'
