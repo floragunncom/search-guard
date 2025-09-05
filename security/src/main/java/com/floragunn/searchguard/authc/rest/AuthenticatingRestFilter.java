@@ -22,7 +22,6 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 
@@ -88,8 +87,11 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     public static final String HEADER_SG_SSL_PROTOCOL = "_sg_ssl_protocol";
     public static final String HEADER_SG_SSL_CIPHER = "_sg_ssl_cipher";
 
+    // TODO ES 9.1.x: this list might not be complete
     private final static ImmutableSet<String> SG_AUTH_HEADERS = ImmutableSet.of(ConfigConstants.SG_USER,
             ConfigConstants.SG_ORIGIN,
+            ConfigConstants.SG_XFF_DONE,
+            ConfigConstants.SG_REMOTE_ADDRESS,
             HEADER_SG_SSL_PRINCIPAL,
             HEADER_SG_SSL_PEER_CERTIFICATES,
             HEADER_SG_SSL_PROTOCOL,
@@ -162,7 +164,9 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     public void authenticate(RequestAcceptor requestAcceptor, HttpRequest httpRequest, HttpChannel httpChannel, EventLoop eventLoop) {
         log.info("Starting authentication for request {} {} which is '{}'", httpRequest.method(), httpRequest.rawPath(), httpRequest);
         var handler = new AuthenticatingRestHandler(requestAcceptor, eventLoop);
-        handler.handleRequest(httpRequest, httpChannel);
+        try (ThreadContext.StoredContext nothing = threadContext.stashContext()) {
+            handler.handleRequest(httpRequest, httpChannel);
+        }
     }
 
     class AuthenticatingRestHandler  {
@@ -201,36 +205,6 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
         private void handleRequest(HttpRequest request, HttpChannel channel) {
             org.apache.logging.log4j.ThreadContext.clearAll();
             diagnosticContext.traceActionStack(request.method() + " " + request.rawPath());
-
-            if(log.isDebugEnabled()) {
-                String threadName = Thread.currentThread().getName();
-                String transientHeaders = threadContext.getTransientHeaders()
-                        .entrySet()
-                        .stream()
-                        .map(e -> e.getKey() + "=" + e.getValue())
-                        .collect(Collectors.joining("\n"));
-                log.debug("Incoming request '{} {}' handled in thread '{}' with transient headers:\n{}", request.method(), request.rawPath(), threadName, transientHeaders);
-            }
-
-            // TODO ES 9.1.x this is improper way of cleaning up the threadcontext. We need to fix this
-//            List<String> transientHeadersToRemove = List.of(ConfigConstants.SG_USER,
-//                    ConfigConstants.SG_ORIGIN,
-//                    "_sg_ssl_principal",
-//                    "_sg_ssl_peer_certificates",
-//                    "_sg_ssl_protocol",
-//                    "_sg_ssl_cipher",
-//                    "_sg_remote_address",
-//                    SG_REMOTE_ADDRESS_HEADER,
-//                    ConfigConstants.SG_DLS_QUERY_HEADER,
-//                    ConfigConstants.SG_FLS_FIELDS_HEADER,
-//                    ConfigConstants.SG_MASKED_FIELD_HEADER,
-//                    ConfigConstants.SG_DOC_WHITELST_HEADER,
-//                    ConfigConstants.SG_FILTER_LEVEL_DLS_DONE,
-//                    ConfigConstants.SG_DLS_MODE_HEADER,
-//                    ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER,
-//                    ConfigConstants.SG_AUTHZ_HASH_THREAD_CONTEXT_HEADER
-//            );
-            threadContext.newEmptyContext();
             if (!checkRequest(request, channel)) {
                 return;
             }
@@ -365,7 +339,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
         final String accept = request.header("accept");
 
         if (accept == null || (!accept.startsWith("application/json") && !accept.startsWith("application/vnd.elasticsearch+json"))) {
-            createAndSendResponse(channel, request, result.getRestStatus(), "text/plain; charset=UTF-8", statusMessage);
+            createAndSendResponse(channel, request, result.getRestStatus(), "text/plain; charset=UTF-8", result.getHeaders(), statusMessage);
         } else {
 
             String bodyString = DocNode.of(//
