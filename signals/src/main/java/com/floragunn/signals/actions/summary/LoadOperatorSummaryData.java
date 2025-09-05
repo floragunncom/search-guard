@@ -127,24 +127,27 @@ public class LoadOperatorSummaryData implements Document {
         public static final String FIELD_SEVERITY_DETAILS = "severity_details";
         public static final String FIELD_ACTIONS = "actions";
         public static final String FIELD_REASON = "reason";
+        public static final String FIELD_ACTIVE = "active";
         private final String id;
         private final String statusCode;
         private final String severity;
         private final String description;
         private final WatchSeverityDetails severityDetails;
+        private final Boolean active;
 
         private final Map<String, ActionSummary> actions;
         private final String reason;
 
         public WatchSummary(String id, String statusCode, String severity, String description, WatchSeverityDetails severityDetails,
-            Map<String, ActionSummary> details, String reason) {
+            Map<String, ActionSummary> actions, String reason, Boolean active) {
             this.id = id;
             this.statusCode = statusCode;
             this.severity = severity;
             this.description = description;
             this.severityDetails = severityDetails;
-            this.actions = Objects.requireNonNull(details);
+            this.actions = Objects.requireNonNull(actions);
             this.reason = Objects.requireNonNull(reason);
+            this.active = active;
         }
 
         private static WatchSummary parse(DocNode node) {
@@ -156,7 +159,7 @@ public class LoadOperatorSummaryData implements Document {
                 actionsSummary.put(actionName, ActionSummary.parse(actionsNode.getAsNode(actionName)));
             }
             return new WatchSummary(node.getAsString(FIELD_WATCH_ID), node.getAsString(FIELD_STATUS_CODE), node.getAsString(FIELD_SEVERITY),
-                node.getAsString(FIELD_DESCRIPTION), details, actionsSummary, node.getAsString(FIELD_REASON));
+                node.getAsString(FIELD_DESCRIPTION), details, actionsSummary, node.getAsString(FIELD_REASON), null);
         }
 
         Map<String, Object> toBasicObject() {
@@ -166,7 +169,7 @@ public class LoadOperatorSummaryData implements Document {
             Map<String, Object> actionMap = createActionSummaryMap();
             return ImmutableMap.of(FIELD_WATCH_ID, getPureId(), FIELD_STATUS_CODE, statusCode, FIELD_SEVERITY, severity,
                 FIELD_DESCRIPTION, description, FIELD_SEVERITY_DETAILS, severityMap)
-                .with(ImmutableMap.of(FIELD_ACTIONS, actionMap, FIELD_TENANT, getTenant(), FIELD_REASON, reason));
+                .with(ImmutableMap.of(FIELD_ACTIONS, actionMap, FIELD_TENANT, getTenant(), FIELD_ACTIVE, active, FIELD_REASON, reason));
         }
 
         private Map<String, Object> createActionSummaryMap() {
@@ -211,7 +214,11 @@ public class LoadOperatorSummaryData implements Document {
             }
 
             return new WatchSummary(this.id, this.statusCode, this.severity, this.description,
-                this.severityDetails, newActions, this.reason);
+                this.severityDetails, newActions, this.reason, this.active);
+        }
+
+        WatchSummary withActive(Boolean watchActive) {
+            return new WatchSummary(this.id, this.statusCode, this.severity, this.description, this.severityDetails, this.actions, this.reason, watchActive);
         }
     }
 
@@ -246,6 +253,16 @@ public class LoadOperatorSummaryData implements Document {
             }
         }
         return new LoadOperatorSummaryData(newWatches);
+    }
+
+    public LoadOperatorSummaryData withActive(List<WatchActionNames> watchesWithActive) {
+        Map<String, Boolean> watchIdToActive = new HashMap<>(watchesWithActive.size());
+        for (WatchActionNames watch : watchesWithActive) {
+            watchIdToActive.put(watch.watchIdWithTenantPrefix(), watch.active());
+        }
+        return new LoadOperatorSummaryData(watches.stream() //
+                .map(watch -> watch.withActive(watchIdToActive.get(watch.id))) //
+                .collect(Collectors.toList()));
     }
 
     public int getSize() {

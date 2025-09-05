@@ -1,8 +1,10 @@
 package com.floragunn.signals.actions.summary;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
+import com.floragunn.signals.watch.Watch;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.query.AbstractQueryBuilder;
@@ -40,7 +42,7 @@ class WatchRepository {
         Objects.requireNonNull(tenant, "tenant is required");
         SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource();
         sourceBuilder.size(size);
-        sourceBuilder.fetchSource(new String[]{"actions.name"}, new String[0]);
+        sourceBuilder.fetchSource(new String[]{"active", "actions.name"}, new String[0]);
 
         BoolQueryBuilder boolQuery = QueryBuilders.boolQuery() //
                 .filter(tenantIs(tenant)) //
@@ -65,14 +67,24 @@ class WatchRepository {
         String watchId = hit.getId();
         DocNode documentSources = DocNode.wrap(hit.getSourceAsMap());
         ImmutableList<DocNode> actions = documentSources.getAsListOfNodes("actions");
+        Boolean active = isWatchActive(documentSources);
         if (actions == null || actions.isEmpty()) {
-            return new WatchActionNames(watchId, ImmutableList.empty());
+            return new WatchActionNames(watchId, ImmutableList.empty(), active);
         }
         List<String> actionNames = actions.stream() //
                 .map(docNode -> docNode.getAsString("name")) //
                 .filter(Objects::nonNull) //
                 .toList();
-        return new WatchActionNames(watchId, actionNames);
+        return new WatchActionNames(watchId, actionNames, active);
+    }
+
+    private static Boolean isWatchActive(DocNode documentSources) {
+        try {
+            Boolean active = documentSources.getBoolean("active");
+            return active == null ? Watch.DEFAULT_ACTIVE : active;
+        } catch (ConfigValidationException e) {
+            return null;
+        }
     }
 
     private static @NotNull AbstractQueryBuilder<?> withNamePrefix(String namePrefix) {
