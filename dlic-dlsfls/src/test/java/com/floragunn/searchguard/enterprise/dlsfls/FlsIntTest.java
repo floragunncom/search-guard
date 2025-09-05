@@ -94,11 +94,11 @@ public class FlsIntTest {
     static final TestSgConfig.User INCLUDE_OBJECT_USER = new TestSgConfig.User("include_object")
             .roles(new Role("include_object").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("object").on(INDEX_PATTERN).clusterPermissions("*"));
 
-    static final TestSgConfig.User EXCLUDE_OBJECT_NESTED_FIELD_USER = new TestSgConfig.User("exclude_object_nested_field")
-            .roles(new Role("exclude_object_nested_field").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("~object.integer_field").on(INDEX_PATTERN).clusterPermissions("*"));
+    static final TestSgConfig.User EXCLUDE_OBJECT_FIELD_USER = new TestSgConfig.User("exclude_object_field")
+            .roles(new Role("exclude_object_field").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("~object.integer_field").on(INDEX_PATTERN).clusterPermissions("*"));
 
-    static final TestSgConfig.User INCLUDE_OBJECT_NESTED_FIELD_USER = new TestSgConfig.User("include_object_nested_field")
-            .roles(new Role("include_object_nested_field").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("object.integer_field").on(INDEX_PATTERN).clusterPermissions("*"));
+    static final TestSgConfig.User INCLUDE_OBJECT_FIELD_USER = new TestSgConfig.User("include_object_field")
+            .roles(new Role("include_object_field").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("object.integer_field").on(INDEX_PATTERN).clusterPermissions("*"));
 
     static final TestSgConfig.User INCLUDE_LOC_USER = new TestSgConfig.User("include_loc").roles(new Role("include_loc")
             .indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("*_loc", "timestamp").on(INDEX_PATTERN).clusterPermissions("*"));
@@ -116,8 +116,8 @@ public class FlsIntTest {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled() //
             .authc(AUTHC).dlsFls(DLSFLS) //
-            .users(ADMIN, EXCLUDE_IP_USER, EXCLUDE_OBJECT_USER, INCLUDE_OBJECT_USER, EXCLUDE_OBJECT_NESTED_FIELD_USER, //
-                    INCLUDE_OBJECT_NESTED_FIELD_USER, INCLUDE_LOC_USER, MULTI_ROLE_USER, EXCLUDE_LOC_USER) //
+            .users(ADMIN, EXCLUDE_IP_USER, EXCLUDE_OBJECT_USER, INCLUDE_OBJECT_USER, EXCLUDE_OBJECT_FIELD_USER, //
+                    INCLUDE_OBJECT_FIELD_USER, INCLUDE_LOC_USER, MULTI_ROLE_USER, EXCLUDE_LOC_USER) //
             .resources("dlsfls")
             // An external process cluster is used due to the use of LogsDB indices, which requires an additional native library.
             .useExternalProcessCluster().build();
@@ -177,7 +177,7 @@ public class FlsIntTest {
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.object)]").size() == 0); // none null value of _source.object field
         }
 
-        try (GenericRestClient client = cluster.getRestClient(EXCLUDE_OBJECT_NESTED_FIELD_USER)) {
+        try (GenericRestClient client = cluster.getRestClient(EXCLUDE_OBJECT_FIELD_USER)) {
             GenericRestClient.HttpResponse response = client.get("/" + indexName + "/_search?pretty");
             assertThat(response, isOk());
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.object)]").size() != 0);
@@ -214,13 +214,13 @@ public class FlsIntTest {
             Assert.assertEquals(response.getBody(), 0, response.getBodyAsDocNode().get("hits", "total", "value"));
         }
 
-        try (GenericRestClient client = cluster.getRestClient(INCLUDE_OBJECT_NESTED_FIELD_USER)) {
+        try (GenericRestClient client = cluster.getRestClient(INCLUDE_OBJECT_FIELD_USER)) {
             GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_search?pretty", query);
             assertThat(response, isOk());
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("hits").getAsNode("total").getNumber("value").intValue() != 0);
         }
 
-        try (GenericRestClient client = cluster.getRestClient(EXCLUDE_OBJECT_NESTED_FIELD_USER)) {
+        try (GenericRestClient client = cluster.getRestClient(EXCLUDE_OBJECT_FIELD_USER)) {
             GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_search?pretty", query);
             assertThat(response, isOk());
             Assert.assertEquals(response.getBody(), 0, response.getBodyAsDocNode().get("hits", "total", "value"));
@@ -259,13 +259,13 @@ public class FlsIntTest {
             Assert.assertEquals(response.getBody(), 0, response.getBodyAsDocNode().get("hits", "total", "value"));
         }
 
-        try (GenericRestClient client = cluster.getRestClient(INCLUDE_OBJECT_NESTED_FIELD_USER)) {
+        try (GenericRestClient client = cluster.getRestClient(INCLUDE_OBJECT_FIELD_USER)) {
             GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_search?pretty", query);
             assertThat(response, isOk());
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("hits").getAsNode("total").getNumber("value").intValue() != 0);
         }
 
-        try (GenericRestClient client = cluster.getRestClient(EXCLUDE_OBJECT_NESTED_FIELD_USER)) {
+        try (GenericRestClient client = cluster.getRestClient(EXCLUDE_OBJECT_FIELD_USER)) {
             GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_search?pretty", query);
             assertThat(response, isOk());
             Assert.assertEquals(response.getBody(), 0, response.getBodyAsDocNode().get("hits", "total", "value"));
@@ -368,7 +368,7 @@ public class FlsIntTest {
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("_source").get("source_loc") != null);
         }
 
-        try (GenericRestClient client = cluster.getRestClient(EXCLUDE_OBJECT_NESTED_FIELD_USER)) {
+        try (GenericRestClient client = cluster.getRestClient(EXCLUDE_OBJECT_FIELD_USER)) {
             GenericRestClient.HttpResponse response = client.get(docUrl);
 
             assertThat(response, isOk());
@@ -391,7 +391,7 @@ public class FlsIntTest {
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("_source").get("source_loc") != null);
         }
 
-        try (GenericRestClient client = cluster.getRestClient(INCLUDE_OBJECT_NESTED_FIELD_USER)) {
+        try (GenericRestClient client = cluster.getRestClient(INCLUDE_OBJECT_FIELD_USER)) {
             GenericRestClient.HttpResponse response = client.get(docUrl);
 
             assertThat(response, isOk());
