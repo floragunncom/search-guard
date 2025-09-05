@@ -1,22 +1,32 @@
 @startuml
 
+
 title Search Guard Authentication
 
 actor "User" as User
 
+participant "Netty4HttpPipeliningHandler (ES)" as Netty4HttpPipeliningHandler
 participant SearchGuardHttpServerTransport
+participant SearchGuardSSLNettyHttpServerTransport
+participant "AbstractHttpServerTransport (ES)" as AbstractHttpServerTransport
+participant AttributedHttpRequest
+participant "RestRequest (ES)" as RestRequest
+participant "DefaultRestChannel (ES)" as DefaultRestChannel
 participant "AuthenticatingRestFilter::AuthenticatingRestHandler\n <<wraps HttpServerTransport::Dispatcher>>" as AuthenticatingRestHandler
 participant "RestAuthenticationProcessor::Default" as RestAuthenticationProcessor
 participant RestRequestAuthenticationProcessor
 participant "AuthenticationDomain<HttpAuthenticationFrontend>" as AuthenticationDomain
 database "UserCache\nCache<AuthCredentials, User>" as UserCache
 participant HttpAuthenticationFrontend
+participant "HttpServerTransport::Dispatcher (ES)\n <<wrapt by AuthenticatingRestHandler>>" as Dispatcher
 participant API
 
-User -> SearchGuardHttpServerTransport: incomingRequest(request, ...)
+User -> Netty4HttpPipeliningHandler: channelRead(ChannelHandlerContext, Object)
+
 activate SearchGuardHttpServerTransport
 
-== Request preprocessing ==
+Netty4HttpPipeliningHandler -> Netty4HttpPipeliningHandler: handlePipelinedRequest(ChannelHandlerContext, Netty4HttpRequest)
+Netty4HttpPipeliningHandler -> SearchGuardHttpServerTransport: incomingRequest(Netty4HttpRequest, HttpChannel)
 
 SearchGuardHttpServerTransport -> SearchGuardHttpServerTransport: fixNonStandardContentType(request)
 activate SearchGuardHttpServerTransport
@@ -27,23 +37,68 @@ end note
 SearchGuardHttpServerTransport --> SearchGuardHttpServerTransport: HttpRequest
 deactivate SearchGuardHttpServerTransport
 
-... omitted ES/Netty handling details ...
+SearchGuardHttpServerTransport -> AttributedHttpRequest: create(HttpRequest, ImmutableMap<String,Object>)
+AttributedHttpRequest --> SearchGuardHttpServerTransport: AttributedHttpRequest
 
-== Request validity checks ==
+SearchGuardHttpServerTransport -> SearchGuardSSLNettyHttpServerTransport: incomingRequest(AttributedHttpRequest, HttpChannel)
 
-SearchGuardHttpServerTransport -> AuthenticatingRestHandler: handleRequest(request, ...)
+deactivate SearchGuardHttpServerTransport
+activate SearchGuardSSLNettyHttpServerTransport
+
+note right of SearchGuardSSLNettyHttpServerTransport
+  The **AttributedHttpRequest** seems to be created here again.
+  This might be redundant.
+end note
+SearchGuardSSLNettyHttpServerTransport -> AttributedHttpRequest: create(AttributedHttpRequest, ImmutableMap<String,Object>)
+AttributedHttpRequest --> SearchGuardSSLNettyHttpServerTransport: AttributedHttpRequest
+
+SearchGuardSSLNettyHttpServerTransport -> AbstractHttpServerTransport: incomingRequest(AttributedHttpRequest, HttpChannel)
+
+deactivate SearchGuardSSLNettyHttpServerTransport
+activate AbstractHttpServerTransport
+
+AbstractHttpServerTransport -> AbstractHttpServerTransport: handleIncomingReqeust(HttpRequest, HttpChannel, Exception)
+
+activate AbstractHttpServerTransport
+
+AbstractHttpServerTransport -> RestRequest: request(XContentParserConfiguration, HttpRequest, HttpChannel)
+RestRequest --> AbstractHttpServerTransport: RestRequest
+
+AbstractHttpServerTransport -> DefaultRestChannel: new(HttpChannel, HttpRequest, RestRequest, ...)
+DefaultRestChannel --> AbstractHttpServerTransport: DefaultRestChannel
+
+AbstractHttpServerTransport -> AbstractHttpServerTransport: dispatchRequest(RestRequest, RestChannel, Exception)
+
+activate AbstractHttpServerTransport
+
+note right of AbstractHttpServerTransport
+    The ThreadContext is stashed here
+end note
+AbstractHttpServerTransport -> AuthenticatingRestHandler: dispatchRequest(RestRequest, RestChannel, ThreadContext)
+
+deactivate AbstractHttpServerTransport
+deactivate AbstractHttpServerTransport
+deactivate AbstractHttpServerTransport
+
+activate AuthenticatingRestHandler
+
+AuthenticatingRestHandler -> AuthenticatingRestHandler: handleRequest(RestRequest, RestChannel)
+
+
+
 
 deactivate SearchGuardHttpServerTransport
 
 activate AuthenticatingRestHandler
-AuthenticatingRestHandler -> AuthenticatingRestHandler: checkRequest(request, ...)
+AuthenticatingRestHandler -> AuthenticatingRestHandler: checkRequest(RestRequest, RestChannel)
 activate AuthenticatingRestHandler
+
 opt request contains bad header
     AuthenticatingRestHandler --> User: 403 Forbidden
-end
+end opt
 opt request has no SSLInfo
     AuthenticatingRestHandler --> User: 403 Forbidden
-end
+end opt
 deactivate AuthenticatingRestHandler
 
 opt request does not require authentication
@@ -52,8 +107,8 @@ opt request does not require authentication
         E.g. OPTIONS request or request to an endpoint that is
         explicitly excluded from authentication.
     end note
-    AuthenticatingRestHandler -> API
-end
+    AuthenticatingRestHandler -> Dispatcher: dispatchRequest(RestRequest, RestChannel, ThreadContext)
+end opt
 
 == Authentication ==
 
@@ -61,8 +116,8 @@ opt request contains AdminDN
     note right of AuthenticatingRestHandler
         Admin Cert authentication does not need further checks.
     end note
-    AuthenticatingRestHandler -> API
-end
+    AuthenticatingRestHandler -> Dispatcher: dispatchRequest(RestRequest, RestChannel, ThreadContext)
+end opt
 
 AuthenticatingRestHandler -> RestAuthenticationProcessor: authenticate(request, ...)
 
@@ -71,10 +126,11 @@ deactivate AuthenticatingRestHandler
 activate RestAuthenticationProcessor
 opt request ip address is not allowlisted
     RestAuthenticationProcessor --> User: 403 Forbidden
-end
+end opt
+
 opt request ip address is blocked
     RestAuthenticationProcessor --> User: 401 Unauthorized
-end
+end opt
 deactivate AuthenticatingRestHandler
 
 create RestRequestAuthenticationProcessor
@@ -100,7 +156,7 @@ loop For each available AuthenticationDomain while not authenticated
         alt User cache hit found
             RestRequestAuthenticationProcessor -> RestRequestAuthenticationProcessor: user is authenticated
             ... authorization ...
-            RestRequestAuthenticationProcessor -> API: authenticated user
+            RestRequestAuthenticationProcessor -> Dispatcher: dispatchRequest(RestRequest, RestChannel, ThreadContext)
         else User cache disabled or no hit found
             RestRequestAuthenticationProcessor -> AuthenticationDomain: authenticate(credentials)
             AuthenticationDomain --> RestRequestAuthenticationProcessor: ok | fail
@@ -112,19 +168,19 @@ loop For each available AuthenticationDomain while not authenticated
                 opt User cache enabled
                     RestRequestAuthenticationProcessor -> UserCache: put(credentials, user)
                 end
-                RestRequestAuthenticationProcessor -> API: authenticated user
+                RestRequestAuthenticationProcessor -> Dispatcher: dispatchRequest(RestRequest, RestChannel, ThreadContext)
                 deactivate RestRequestAuthenticationProcessor
             end alt
         end alt
     end alt
 end loop
 
-
-
-
+Dispatcher -> API: process request
 
 deactivate RestRequestAuthenticationProcessor
 
 API --> User: API Response
+
+caption Participants with "(ES)" are part of Elasticsearch and not Search Guard codebase.
 
 @enduml
