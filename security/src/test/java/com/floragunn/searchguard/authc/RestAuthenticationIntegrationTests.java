@@ -252,6 +252,24 @@ public class RestAuthenticationIntegrationTests {
     }
 
     @Test
+    //Java 17 java.net.BindException: Can't assign requested address
+    public void trustedOrigin_success_auth() throws Exception {
+
+        try (GenericRestClient client = cluster.getRestClient(new BasicHeader("x-proxy-user", ADDITIONAL_USER_INFORMATION_USER.getName()),
+                new BasicHeader("x-proxy-roles", "proxy_role1"), new BasicHeader("x-proxy-roles", "proxy_role2"))) {
+
+            client.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 14 }));
+
+            GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            Assert.assertEquals(response.getBody(), ADDITIONAL_USER_INFORMATION_USER.getName(), response.getBodyAsDocNode().get("user_name"));
+            Assert.assertEquals(response.getBody(), Arrays.asList("proxy_role1", "proxy_role2"), response.getBodyAsDocNode().get("backend_roles"));
+            Assert.assertEquals(response.getBody(), Arrays.asList("additional_user_information_role"), response.getBodyAsDocNode().get("sg_roles"));
+            Assert.assertEquals(response.getBody(), Arrays.asList("from_user_entry"), response.getBodyAsDocNode().get("attribute_names"));
+        }
+    }
+
+    @Test
     public void skipUser_integration() throws Exception {
 
         try (GenericRestClient client = cluster.getRestClient(SKIP_TEST_USER)) {

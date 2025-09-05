@@ -25,6 +25,8 @@ import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 
+import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.authc.rest.authenticators.RestoresHeadersDispatcher;
 import io.netty.channel.EventLoop;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -79,9 +81,22 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
         void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel);
     }
 
+    public static final String HEADER_SG_SSL_PRINCIPAL = "_sg_ssl_principal";
+    public static final String HEADER_SG_SSL_PEER_CERTIFICATES = "_sg_ssl_peer_certificates";
+    public static final String HEADER_SG_SSL_PROTOCOL = "_sg_ssl_protocol";
+    public static final String HEADER_SG_SSL_CIPHER = "_sg_ssl_cipher";
+
+    private final static ImmutableSet<String> SG_AUTH_HEADERS = ImmutableSet.of(ConfigConstants.SG_USER,
+            ConfigConstants.SG_ORIGIN,
+            HEADER_SG_SSL_PRINCIPAL,
+            HEADER_SG_SSL_PEER_CERTIFICATES,
+            HEADER_SG_SSL_PROTOCOL,
+            HEADER_SG_SSL_CIPHER);
+
     private static final Logger log = LogManager.getLogger(AuthenticatingRestFilter.class);
 
     private final AuditLog auditLog;
+    private final ThreadPool threadPool;
     private final ThreadContext threadContext;
     private final PrincipalExtractor principalExtractor;
     private final Settings settings;
@@ -98,6 +113,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             DiagnosticContext diagnosticContext) {
         this.adminDns = adminDns;
         this.auditLog = auditLog;
+        this.threadPool = threadPool;
         this.threadContext = threadPool.getThreadContext();
         this.principalExtractor = principalExtractor;
         this.settings = settings;
@@ -132,8 +148,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     }
 
     public HttpServerTransport.Dispatcher wrap(HttpServerTransport.Dispatcher original) {
-        return original;
-        // return new AuthenticatingRestHandler(original);
+        return new RestoresHeadersDispatcher(original, SG_AUTH_HEADERS);
     }
     
     public RestAuthenticationProcessor getAuthenticationProcessor() {
@@ -141,17 +156,39 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     }
 
     public void authenticate(RequestAcceptor requestAcceptor, HttpRequest httpRequest, HttpChannel httpChannel, EventLoop eventLoop) {
+        log.info("Starting authentication for request {} {} which is '{}'", httpRequest.method(), httpRequest.rawPath(), httpRequest);
         var handler = new AuthenticatingRestHandler(requestAcceptor, eventLoop);
         handler.handleRequest(httpRequest, httpChannel);
     }
 
     class AuthenticatingRestHandler  {
         private final RequestAcceptor original;
-        private final EventLoop eventLoop;
 
         AuthenticatingRestHandler(RequestAcceptor original, EventLoop eventLoop) {
-            this.original = original;
-            this.eventLoop = eventLoop;
+            this.original = new RequestAcceptor() {
+                @Override
+                public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
+                    // preserveContext - is called to preserve authentication info in the thread context
+                    Runnable continueRequestProcessing = threadPool.getThreadContext().preserveContext(() -> {
+                        if (log.isInfoEnabled()) {
+                            String threadName = Thread.currentThread().getName();
+                            String transientHeaders = threadContext.getTransientHeaders()
+                                    .entrySet()
+                                    .stream()
+                                    .map(e -> e.getKey() + "=" + e.getValue())
+                                    .collect(Collectors.joining("\n"));
+                            log.info("Request '{} {}' continues processing in thread '{}' will be executed with the following context '{}'", httpRequest.method(), httpRequest.rawPath(), threadName, transientHeaders);
+                        }
+                        original.incomingRequest(httpRequest, httpChannel);
+                    });
+                    // we need to restore the event loop as the current thread. This is crucial for two authentication domains
+                    // - SessionTokenAuthenticationDomain
+                    // - AuthTokenAuthenticationDomain
+                    // these domain retrieves the token from the ES indices therefore switch threads. Unfortunately ES does not allow to read
+                    // request body from other threads than Netty event loop. Therefore, processing fails on the further stages.
+                    eventLoop.execute(continueRequestProcessing);
+                }
+            };
         }
 
         private void handleRequest(HttpRequest request, HttpChannel channel) {
@@ -187,7 +224,6 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 //                    ConfigConstants.SG_AUTHZ_HASH_THREAD_CONTEXT_HEADER
 //            );
             threadContext.newEmptyContext();
-
             if (!checkRequest(request, channel)) {
                 return;
             }
@@ -227,9 +263,11 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
                         try {
                             original.incomingRequest(request, channel);
+                            return;
                         } catch (Exception e) {
                             log.error("Error in " + original, e);
                             createAndSendResponseException(channel, request, e);
+                            return;
                         }
                     } else {
                         org.apache.logging.log4j.ThreadContext.remove("user");
@@ -237,6 +275,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                         if (result.getRestStatus() != null) {
 
                             createAndSendResponse(channel, request, result);
+                            return;
                         }
                     }
                 }, (e) -> {
@@ -244,6 +283,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 });
             } else {
                 original.incomingRequest(request, channel);
+                return;
             }
         }
 
@@ -281,14 +321,14 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             try {
                 if ((sslInfo = SSLRequestHelper.getSSLInfo(settings, configPath, request, principalExtractor)) != null) {
                     if (sslInfo.getPrincipal() != null) {
-                        threadContext.putTransient("_sg_ssl_principal", sslInfo.getPrincipal());
+                        threadContext.putTransient(HEADER_SG_SSL_PRINCIPAL, sslInfo.getPrincipal());
                     }
 
                     if (sslInfo.getX509Certs() != null) {
-                        threadContext.putTransient("_sg_ssl_peer_certificates", sslInfo.getX509Certs());
+                        threadContext.putTransient(HEADER_SG_SSL_PEER_CERTIFICATES, sslInfo.getX509Certs());
                     }
-                    threadContext.putTransient("_sg_ssl_protocol", sslInfo.getProtocol());
-                    threadContext.putTransient("_sg_ssl_cipher", sslInfo.getCipher());
+                    threadContext.putTransient(HEADER_SG_SSL_PROTOCOL, sslInfo.getProtocol());
+                    threadContext.putTransient(HEADER_SG_SSL_CIPHER, sslInfo.getCipher());
                 }
             } catch (SSLPeerUnverifiedException e) {
                 log.error("No ssl info", e);
@@ -316,16 +356,17 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
         final String statusMessage = result.getRestStatusMessage()==null?result.getRestStatus().name():result.getRestStatusMessage();
         final String accept = request.header("accept");
 
-        if(accept == null || (!accept.startsWith("application/json") && !accept.startsWith("application/vnd.elasticsearch+json"))) {
+        if (accept == null || (!accept.startsWith("application/json") && !accept.startsWith("application/vnd.elasticsearch+json"))) {
             createAndSendResponse(channel, request, result.getRestStatus(), "text/plain; charset=UTF-8", statusMessage);
-        }
+        } else {
 
-        String bodyString = DocNode.of(//
-                "status", result.getRestStatus().getStatus(), //
-                "error.reason", statusMessage, //
-                "error.type", "authentication_exception" //
-        ).toJsonString();
-        createAndSendResponse(channel, request, result.getRestStatus(), "application/json; charset=UTF-8", result.getHeaders(), bodyString);
+            String bodyString = DocNode.of(//
+                    "status", result.getRestStatus().getStatus(), //
+                    "error.reason", statusMessage, //
+                    "error.type", "authentication_exception" //
+            ).toJsonString();
+            createAndSendResponse(channel, request, result.getRestStatus(), "application/json; charset=UTF-8", result.getHeaders(), bodyString);
+        }
     }
 
     public static void createAndSendResponse(HttpChannel channel, HttpRequest request, RestStatus restStatus, String contentType, Map<String, List<String>> additionalHeaders, String body) {
