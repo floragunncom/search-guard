@@ -84,7 +84,10 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
                         request.getWatchFilter(), initialWatchIdsList) //
                         .filterActions(watchesWithSeveritiesPreFilteredById);
 
-                return new StandardResponse(200).data(failedWatchesData.with(notExecutedWatchesWithSeverity).with(loadOperatorSummaryData));
+                LoadOperatorSummaryData result = failedWatchesData.with(notExecutedWatchesWithSeverity) //
+                        .with(loadOperatorSummaryData) //
+                        .withActive(watchesWithSeveritiesPreFilteredById);
+                return new StandardResponse(200).data(result);
             } catch (Exception ex) {
                 log.error("Cannot load signal watch state summary", ex);
                 return new StandardResponse(400).error(ex.getMessage());
@@ -94,6 +97,9 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
 
     private @NotNull LoadOperatorSummaryData loadWatchesByFilter(String sortingString, int size, WatchFilter watchFilter,
             List<String> watchIds) {
+        if ((size <= 0) || watchIds.isEmpty()) {
+            return new LoadOperatorSummaryData(List.of());
+        }
         List<SortByField> sorting = SortParser.parseSortingExpression(sortingString);
         SearchResponse search = watchStateRepository.search(watchFilter, sorting, size, watchIds);
         try {
@@ -107,6 +113,9 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
         List<String> watchIds = watchesWithSeveritiesPreFilteredById.stream() //
                 .map(WatchActionNames::watchIdWithTenantPrefix) //
                 .toList();
+        if ((size <= 0) || watchIds.isEmpty()) {
+            return new LoadOperatorSummaryData(List.of());
+        }
         SearchResponse response = watchStateRepository.findNeverExecutedWatchesWithSeverity(tenant, watchIds, size);
         return convertSearchResultToResponse(response, REASON_NEVER_EXECUTED_WATCH_WITH_SEVERITY).filterActions(watchesWithSeveritiesPreFilteredById);
     }
@@ -146,7 +155,7 @@ public class LoadOperatorSummaryHandler extends Handler<LoadOperatorSummaryReque
             }
             return new WatchSummary(documentFields.getId(), docNodeLastStatus.getAsString("code"),
                 docNodeLastStatus.getAsString("severity"), docNodeLastStatus.getAsString("detail"), severityDetails,
-                mapActionSummary, reason);
+                mapActionSummary, reason, null);
         } catch (DocumentParseException e) {
             throw new ElasticsearchStatusException("Cannot parse watch state search response", RestStatus.INTERNAL_SERVER_ERROR, e);
         }

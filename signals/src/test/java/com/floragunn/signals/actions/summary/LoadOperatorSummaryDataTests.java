@@ -40,7 +40,7 @@ public class LoadOperatorSummaryDataTests {
     }
 
     private WatchSummary watchSummary(String id, Map<String, ActionSummary> actions) {
-        return new WatchSummary(id, "status", "sev", "desc", null, actions, "reason");
+        return new WatchSummary(id, "status", "sev", "desc", null, actions, "reason", null);
     }
 
     @Test
@@ -50,7 +50,7 @@ public class LoadOperatorSummaryDataTests {
         actions.put("deleted_action", actionSummary());
         WatchSummary watchSummary = watchSummary("tenant1/watch1", actions);
         LoadOperatorSummaryData summaryData = new LoadOperatorSummaryData(List.of(watchSummary));
-        WatchActionNames watchActionNames = new WatchActionNames("tenant1/watch1", List.of("existing_action"));
+        WatchActionNames watchActionNames = new WatchActionNames("tenant1/watch1", List.of("existing_action"), null);
 
         LoadOperatorSummaryData filteredSummaryData = summaryData.filterActions(List.of(watchActionNames));
 
@@ -66,7 +66,7 @@ public class LoadOperatorSummaryDataTests {
         actions.put("deleted_action", actionSummary());
         WatchSummary watchSummary = watchSummary("tenant1/watch1", actions);
         LoadOperatorSummaryData summaryData = new LoadOperatorSummaryData(List.of(watchSummary));
-        WatchActionNames watchActionNames = new WatchActionNames("tenant1/watch1", List.of());
+        WatchActionNames watchActionNames = new WatchActionNames("tenant1/watch1", List.of(), null);
 
         LoadOperatorSummaryData filteredSummaryData = summaryData.filterActions(List.of(watchActionNames));
 
@@ -86,8 +86,8 @@ public class LoadOperatorSummaryDataTests {
         WatchSummary watchSummary_1 = watchSummary("tenant1/watch1", new HashMap<>(actions));
         WatchSummary watchSummary_2 = watchSummary("tenant1/watch2", new HashMap<>(actions));
         LoadOperatorSummaryData summaryData = new LoadOperatorSummaryData(List.of(watchSummary_1, watchSummary_2));
-        WatchActionNames watchActionNames_1 = new WatchActionNames("tenant1/watch1", List.of("existing_action_1"));
-        WatchActionNames watchActionNames_2 = new WatchActionNames("tenant1/watch2", List.of("existing_action_2", "existing_action_3"));
+        WatchActionNames watchActionNames_1 = new WatchActionNames("tenant1/watch1", List.of("existing_action_1"), null);
+        WatchActionNames watchActionNames_2 = new WatchActionNames("tenant1/watch2", List.of("existing_action_2", "existing_action_3"), null);
 
         LoadOperatorSummaryData filteredSummaryData = summaryData.filterActions(List.of(watchActionNames_1, watchActionNames_2));
 
@@ -120,7 +120,7 @@ public class LoadOperatorSummaryDataTests {
         actions.put("action_1", actionSummary());
         WatchSummary watchSummary = watchSummary("tenant/watch", actions);
         LoadOperatorSummaryData summaryData = new LoadOperatorSummaryData(List.of(watchSummary));
-        WatchActionNames watchActionNames = new WatchActionNames("tenant/watch", List.of());
+        WatchActionNames watchActionNames = new WatchActionNames("tenant/watch", List.of(), null);
 
         LoadOperatorSummaryData filteredSummaryData = summaryData.filterActions(
                 List.of(watchActionNames));// just remove all actions because non actions are present in watch definition
@@ -137,7 +137,7 @@ public class LoadOperatorSummaryDataTests {
         WatchSummary watchSummary = watchSummary("tenant/watch", actions);
         LoadOperatorSummaryData data = new LoadOperatorSummaryData(List.of(watchSummary));
         WatchActionNames watchActionNames = new WatchActionNames("tenant/other_watch",
-                List.of("another_action")); // watch "tenant/other_watch" does not exist in state index
+                List.of("another_action"), null); // watch "tenant/other_watch" does not exist in state index
 
         LoadOperatorSummaryData filteredSummaryData = data.filterActions(List.of(watchActionNames));
 
