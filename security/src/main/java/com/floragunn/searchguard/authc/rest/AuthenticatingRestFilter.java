@@ -19,12 +19,14 @@ package com.floragunn.searchguard.authc.rest;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authc.rest.authenticators.RestoresHeadersDispatcher;
 import io.netty.channel.EventLoop;
@@ -104,6 +106,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     private final DiagnosticContext diagnosticContext;
     private final AdminDNs adminDns;
     private final ComponentState componentState = new ComponentState(1, "authc", "rest_filter");
+    private final ThreadLocal<ImmutableMap<String, Object>> authContext;
 
     private volatile RestAuthenticationProcessor authenticationProcessor;
 
@@ -119,6 +122,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
         this.settings = settings;
         this.configPath = configPath;
         this.diagnosticContext = diagnosticContext;
+        this.authContext = new ThreadLocal<>();
 
         configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
 
@@ -148,7 +152,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     }
 
     public HttpServerTransport.Dispatcher wrap(HttpServerTransport.Dispatcher original) {
-        return new RestoresHeadersDispatcher(original, SG_AUTH_HEADERS);
+        return new RestoresHeadersDispatcher(original, authContext::get);
     }
     
     public RestAuthenticationProcessor getAuthenticationProcessor() {
@@ -164,29 +168,32 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     class AuthenticatingRestHandler  {
         private final RequestAcceptor original;
 
-        AuthenticatingRestHandler(RequestAcceptor original, EventLoop eventLoop) {
+        AuthenticatingRestHandler(RequestAcceptor originalAcceptor, EventLoop eventLoop) {
             this.original = new RequestAcceptor() {
+                // This acceptor take care of restoring the authentication context in the netty event loop thread
+                // and then call the original acceptor
                 @Override
                 public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
-                    // preserveContext - is called to preserve authentication info in the thread context
-                    Runnable continueRequestProcessing = threadPool.getThreadContext().preserveContext(() -> {
-                        if (log.isInfoEnabled()) {
-                            String threadName = Thread.currentThread().getName();
-                            String transientHeaders = threadContext.getTransientHeaders()
-                                    .entrySet()
-                                    .stream()
-                                    .map(e -> e.getKey() + "=" + e.getValue())
-                                    .collect(Collectors.joining("\n"));
-                            log.info("Request '{} {}' continues processing in thread '{}' will be executed with the following context '{}'", httpRequest.method(), httpRequest.rawPath(), threadName, transientHeaders);
+                    // gather authentication context from the current thread
+                    Map<String, Object> currentAuthContext = new HashMap<>();
+                    for (String key : SG_AUTH_HEADERS) {
+                        Object value = threadContext.getTransient(key);
+                        currentAuthContext.put(key, value);
+                    }
+                    // we need to continue processing in the netty event loop thread. Because only form the thread request content can be read
+                    eventLoop.execute(() -> {
+                        // store auth context in the thread local variable so that it can be restored in RestoresHeadersDispatcher.
+                        // It is impossible to restore the thread context directly here because ES clean thread context in
+                        // org.elasticsearch.http.AbstractHttpServerTransport.dispatchRequest
+                        // TODO ES 9.1.x we need to take care also for Log4j context
+                        authContext.set(ImmutableMap.of(currentAuthContext));
+                        try {
+                            // continue processing of HTTP request
+                            originalAcceptor.incomingRequest(httpRequest, httpChannel);
+                        } finally {
+                            authContext.remove();
                         }
-                        original.incomingRequest(httpRequest, httpChannel);
                     });
-                    // we need to restore the event loop as the current thread. This is crucial for two authentication domains
-                    // - SessionTokenAuthenticationDomain
-                    // - AuthTokenAuthenticationDomain
-                    // these domain retrieves the token from the ES indices therefore switch threads. Unfortunately ES does not allow to read
-                    // request body from other threads than Netty event loop. Therefore, processing fails on the further stages.
-                    eventLoop.execute(continueRequestProcessing);
                 }
             };
         }
@@ -258,6 +265,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                     if (result.getStatus() == AuthcResult.Status.PASS) {
                         // make it possible to filter logs by username
                         threadContext.putTransient(ConfigConstants.SG_USER, result.getUser());
+                        // TODO ES 9.1.x this is not longer valid solution in ES 9.1.x. The Log4j context needs to be set in the netty event loop thread
                         org.apache.logging.log4j.ThreadContext.clearAll();
                         org.apache.logging.log4j.ThreadContext.put("user", result.getUser() != null ? result.getUser().getName() : null);
 
@@ -365,7 +373,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                     "error.reason", statusMessage, //
                     "error.type", "authentication_exception" //
             ).toJsonString();
-            createAndSendResponse(channel, request, result.getRestStatus(), "application/json; charset=UTF-8", result.getHeaders(), bodyString);
+            createAndSendResponse(channel, request, result.getRestStatus(), "application/json", result.getHeaders(), bodyString);
         }
     }
 

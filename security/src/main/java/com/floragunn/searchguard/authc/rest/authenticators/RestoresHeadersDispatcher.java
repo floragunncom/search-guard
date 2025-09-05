@@ -1,5 +1,6 @@
 package com.floragunn.searchguard.authc.rest.authenticators;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpServerTransport;
@@ -7,15 +8,16 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 
 import java.util.Objects;
+import java.util.function.Supplier;
 
 public class RestoresHeadersDispatcher implements HttpServerTransport.Dispatcher {
 
     private final HttpServerTransport.Dispatcher originalDispatcher;
-    private final ImmutableSet<String> headersToRestore;
+    private final Supplier<ImmutableMap<String, Object>> contextSupplier;
 
-    public RestoresHeadersDispatcher(HttpServerTransport.Dispatcher originalDispatcher, ImmutableSet<String> headersToRestore) {
+    public RestoresHeadersDispatcher(HttpServerTransport.Dispatcher originalDispatcher, Supplier<ImmutableMap<String, Object>> contextSupplier) {
         this.originalDispatcher = Objects.requireNonNull(originalDispatcher, "Original dispatcher must not be null");
-        this.headersToRestore = Objects.requireNonNull(headersToRestore, "Headers to restore must not be null");
+        this.contextSupplier = Objects.requireNonNull(contextSupplier, "Context to restore must not be null");
     }
 
     @Override
@@ -31,11 +33,7 @@ public class RestoresHeadersDispatcher implements HttpServerTransport.Dispatcher
     }
 
     private void restoreHeaders(ThreadContext threadContext) {
-        for (String header : headersToRestore) {
-            Object value = threadContext.getTransient(header);
-            if (value != null) {
-                threadContext.putTransient(header, value);
-            }
-        }
+        ImmutableMap<String, Object> contextToRestore = contextSupplier.get();
+        contextToRestore.forEach(threadContext::putTransient);
     }
 }
