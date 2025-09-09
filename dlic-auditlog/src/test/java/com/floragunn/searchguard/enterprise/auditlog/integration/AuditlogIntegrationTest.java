@@ -37,6 +37,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
+import static com.floragunn.searchguard.test.RestMatchers.isUnauthorized;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasKey;
@@ -66,10 +68,55 @@ public class AuditlogIntegrationTest {
                     ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, TestAuditlogImpl.class.getName(),
                     ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true,
                     ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, true,
+                    ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, Collections.emptyList(),
                     ConfigConstants.SEARCHGUARD_AUDIT_THREADPOOL_SIZE, 0,
                     ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_USERS, Collections.singletonList(AUDIT_IGNORED_USER.getName())
             )
             .embedded().build();
+
+    @Test
+    public void testAuditLog_failedLogin() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(cluster.getBasicAuthHeader(USER.getName(), USER.getPassword() + 1))) {
+            TestAuditlogImpl.clear();
+
+            String searchQuery = """
+                    {
+                      "query": {
+                        "match": {
+                          "message": "error"
+                        }
+                      }
+                    }
+                    """;
+            GenericRestClient.HttpResponse response = client.postJson("/index/_search", searchQuery);
+            assertThat(response, isUnauthorized());
+
+            AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.FAILED_LOGIN).size() == 1, Duration.ofSeconds(2));
+        }
+    }
+
+    @Test
+    public void testAuditLog_succeededLogin() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(cluster.getBasicAuthHeader(USER.getName(), USER.getPassword()))) {
+            TestAuditlogImpl.clear();
+
+            String searchQuery = """
+                    {
+                      "query": {
+                        "match": {
+                          "message": "error"
+                        }
+                      }
+                    }
+                    """;
+            GenericRestClient.HttpResponse response = client.postJson("/index/_search", searchQuery);
+            assertThat(response, isNotFound());
+
+            AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.AUTHENTICATED).size() == 1, Duration.ofSeconds(2));
+            DocNode auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.AUTHENTICATED).get(0).toJson());
+            assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.REQUEST_BODY), equalTo(searchQuery));
+        }
+    }
 
     @Test
     public void testAuditLog_kibanaLogin() throws Exception {
