@@ -21,7 +21,6 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchsupport.rest.AttributedHttpRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.bulk.IncrementalBulkService;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
@@ -107,7 +106,6 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
     protected class SSLHttpChannelHandler extends Netty4HttpServerTransport.HttpChannelHandler {
 
         protected SSLHttpChannelHandler(Netty4HttpServerTransport transport, final HttpHandlingSettings handlingSettings) {
-            // TODO ES 9.1.x - parameter IncrementalBulkService.Enabled enabled removed
             super(transport, handlingSettings, TLSConfig.noTLS(), null, null);
         }
 
