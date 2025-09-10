@@ -694,7 +694,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             if (httpSSLEnabled) {
 
                 final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
-                        configPath, evaluateSslExceptionHandler(), threadPool);
+                        configPath, evaluateSslExceptionHandler());
                 //TODO close sghst
                 final SearchGuardHttpServerTransport sghst = new SearchGuardHttpServerTransport(settings, networkService, threadPool, sgks,
                         evaluateSslExceptionHandler(), xContentRegistry, searchGuardRestFilter.wrap(validatingDispatcher), clusterSettings, sharedGroupFactory, tracer, perRequestThreadContext);
