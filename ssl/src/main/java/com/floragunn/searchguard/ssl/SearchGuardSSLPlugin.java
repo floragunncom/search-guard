@@ -207,7 +207,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         if (httpSSLEnabled) {
 
             final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
-                    configPath, NOOP_SSL_EXCEPTION_HANDLER, threadPool);
+                    configPath, NOOP_SSL_EXCEPTION_HANDLER);
             final SearchGuardSSLNettyHttpServerTransport sgsnht = new SearchGuardSSLNettyHttpServerTransport(settings, networkService,
                     threadPool, sgks, xContentRegistry, validatingDispatcher, clusterSettings, sharedGroupFactory, NOOP_SSL_EXCEPTION_HANDLER, tracer, perRequestThreadContext);
 
