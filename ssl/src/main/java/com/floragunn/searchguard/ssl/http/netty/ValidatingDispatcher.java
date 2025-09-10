@@ -65,18 +65,7 @@ public class ValidatingDispatcher implements Dispatcher {
 
     @Override
     public void dispatchRequest(RestRequest request, RestChannel channel, ThreadContext threadContext) {
-        this.dispatchRequestAsync(request, channel, threadContext);
-    }
-
-    public void dispatchRequestSync(RestRequest request, RestChannel channel, ThreadContext threadContext) {
-        // TODO ES 9.1.x: delete the method
         checkRequest(request, channel);
-        originalDispatcher.dispatchRequest(request, channel, threadContext);
-    }
-
-    public void dispatchRequestAsync(RestRequest request, RestChannel channel, ThreadContext threadContext) {
-        checkRequest(request, channel);
-        // TODO ES 9.1.x: we need to find better solution
         HttpRequest httpRequest = request.getHttpRequest();
         if(httpRequest instanceof AttributedHttpRequest attributedHttpRequest) {
             EventLoop eventLoop = attributedHttpRequest.getEventLoop();
@@ -85,9 +74,8 @@ public class ValidatingDispatcher implements Dispatcher {
                     .preserveContext(() -> originalDispatcher.dispatchRequest(request, channel, threadContext));
             eventLoop.execute(runnableWithContext);
         } else {
-            // TODO ES 9.1.x: maybe throw...
+            assert false : "Expected AttributedHttpRequest but got " + httpRequest.getClass();
             logger.error("Netty event loop not present, invalid type of request '{}'", httpRequest);
-            throw new IllegalStateException("Netty event loop not present, incorrect request type");
         }
     }
 
