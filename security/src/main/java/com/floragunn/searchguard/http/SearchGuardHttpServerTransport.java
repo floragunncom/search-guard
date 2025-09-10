@@ -53,6 +53,8 @@ import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
 
+import static com.floragunn.searchsupport.rest.AttributedHttpRequest.ATTRIBUTE_EVENT_LOOP;
+
 public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServerTransport {
     private static final Logger log = LogManager.getLogger(SearchGuardHttpServerTransport.class);
 
@@ -67,7 +69,7 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
     public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
         Netty4HttpChannel netty4HttpChannel = (Netty4HttpChannel) httpChannel;
         final SslHandler sslhandler = (SslHandler) netty4HttpChannel.getNettyChannel().pipeline().get("ssl_http");
-        ImmutableMap<String, Object> attributes = ImmutableMap.of("sg_ssl_handler", sslhandler, "sg_event_loop", netty4HttpChannel.getNettyChannel().eventLoop());
+        ImmutableMap<String, Object> attributes = ImmutableMap.of("sg_ssl_handler", sslhandler, ATTRIBUTE_EVENT_LOOP, netty4HttpChannel.getNettyChannel().eventLoop());
         HttpRequest fixedRequest = fixNonStandardContentType(httpRequest);
         super.incomingRequest(AttributedHttpRequest.create(fixedRequest, attributes), httpChannel);
     }

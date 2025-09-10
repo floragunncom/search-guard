@@ -48,6 +48,8 @@ import io.netty.handler.ssl.SslHandler;
 
 import java.util.function.BiConsumer;
 
+import static com.floragunn.searchsupport.rest.AttributedHttpRequest.ATTRIBUTE_EVENT_LOOP;
+
 public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTransport {
 
     private static final Logger logger = LogManager.getLogger(SearchGuardSSLNettyHttpServerTransport.class);
@@ -70,7 +72,7 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
     public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
         Channel nettyChannel = ((Netty4HttpChannel) httpChannel).getNettyChannel();
         final SslHandler sslhandler = (SslHandler) nettyChannel.pipeline().get("ssl_http");
-        ImmutableMap<String, Object> attributes = ImmutableMap.of("sg_ssl_handler", sslhandler, "sg_event_loop", nettyChannel.eventLoop());
+        ImmutableMap<String, Object> attributes = ImmutableMap.of("sg_ssl_handler", sslhandler, ATTRIBUTE_EVENT_LOOP, nettyChannel.eventLoop());
         super.incomingRequest(AttributedHttpRequest.create(httpRequest, attributes), httpChannel);
     }
 
