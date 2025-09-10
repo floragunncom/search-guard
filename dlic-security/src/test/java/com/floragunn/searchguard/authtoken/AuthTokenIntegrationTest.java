@@ -140,7 +140,7 @@ public class AuthTokenIntegrationTest {
     /**
      * Tests the case that a default signing key is generated and can be used if no explicit signing key is specified in the config.
      */
-    @Test // TODO ES 9.1.x test is executed forever
+    @Test
     public void defaultSigningKey() throws Exception {
         try (LocalCluster cluster = new LocalCluster.Builder().nodeSettings("searchguard.restapi.roles_enabled.0", "sg_admin").sslEnabled()
                 .sgConfig(new TestSgConfig().resources("authtoken")//
