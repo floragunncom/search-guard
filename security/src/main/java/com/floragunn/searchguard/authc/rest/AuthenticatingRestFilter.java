@@ -76,6 +76,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     private final DiagnosticContext diagnosticContext;
     private final AdminDNs adminDns;
     private final ComponentState componentState = new ComponentState(1, "authc", "rest_filter");
+    private final ThreadPool threadPool;
 
     private volatile RestAuthenticationProcessor authenticationProcessor;
 
@@ -85,6 +86,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             DiagnosticContext diagnosticContext) {
         this.adminDns = adminDns;
         this.auditLog = auditLog;
+        this.threadPool = threadPool;
         this.threadContext = threadPool.getThreadContext();
         this.principalExtractor = principalExtractor;
         this.settings = settings;
@@ -119,7 +121,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     }
 
     public HttpServerTransport.Dispatcher wrap(HttpServerTransport.Dispatcher original) {
-        return new AuthenticatingRestHandler(original);
+        return new AuthenticatingRestHandler(new ExecuteInNettyEventLoopDispatcher(original, threadPool));
     }
     
     public RestAuthenticationProcessor getAuthenticationProcessor() {

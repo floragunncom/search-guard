@@ -16,6 +16,8 @@ import java.util.Optional;
 
 public class AttributedHttpRequest implements HttpRequest {
 
+    public static final String ATTRIBUTE_EVENT_LOOP = "sg_event_loop";
+
     private final HttpRequest httpRequest;
 
     private ImmutableMap<String, Object> attributes;
