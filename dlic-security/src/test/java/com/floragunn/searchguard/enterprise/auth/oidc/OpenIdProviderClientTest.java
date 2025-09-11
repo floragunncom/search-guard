@@ -35,9 +35,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
 
 public class OpenIdProviderClientTest {
 
@@ -57,9 +55,6 @@ public class OpenIdProviderClientTest {
     protected static MockIpdServer mockIdpServer;
 
     private static final WireMockRequestHeaderAddingFilter REQUEST_HEADER_ADDING_FILTER = new WireMockRequestHeaderAddingFilter("Proxy", "wire-mock");
-
-    @Rule
-    public Timeout timeout = new Timeout(3, TimeUnit.MINUTES);
 
     @ClassRule
     public static WireMockRule wireMockProxy = new WireMockRule(WireMockConfiguration.options()

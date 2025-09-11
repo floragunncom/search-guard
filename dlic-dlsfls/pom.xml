@@ -80,8 +80,8 @@
         <configuration>
           <argLine>-Xmx3072m ${surefireArgLine}</argLine>
           <rerunFailingTestsCount>0</rerunFailingTestsCount>
-          <forkCount>1</forkCount>
-          <reuseForks>false</reuseForks>
+          <forkCount>3</forkCount>
+          <reuseForks>true</reuseForks>
           <systemPropertyVariables>
             <forkno>fork_${surefire.forkNumber}</forkno>
           </systemPropertyVariables>
