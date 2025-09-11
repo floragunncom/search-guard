@@ -16,8 +16,6 @@ package com.floragunn.searchguard.authtoken;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 
 import com.floragunn.searchguard.authc.AuthenticationDebugLogger;
@@ -31,8 +29,6 @@ import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
 
 public class AuthTokenAuthenticationDomain implements AuthenticationDomain<HttpAuthenticationFrontend> {
-
-    private final static Logger log = LogManager.getLogger(AuthTokenAuthenticationDomain.class);
 
     private final AuthTokenService authTokenService;
     private final AuthTokenHttpJwtAuthenticator httpAuthenticator;
@@ -54,7 +50,7 @@ public class AuthTokenAuthenticationDomain implements AuthenticationDomain<HttpA
 
     @Override
     public CompletableFuture<User> authenticate(AuthCredentials credentials, AuthenticationDebugLogger debug) {
-        log.info("SG authentication started in thread '{}'", Thread.currentThread().getName());
+
         try {
 
             CompletableFuture<User> result = new CompletableFuture<User>();

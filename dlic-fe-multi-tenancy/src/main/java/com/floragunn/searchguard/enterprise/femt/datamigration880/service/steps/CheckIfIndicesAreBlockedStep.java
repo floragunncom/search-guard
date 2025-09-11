@@ -53,8 +53,7 @@ class CheckIfIndicesAreBlockedStep implements MigrationStep {
                     continue;
                 }
                 boolean currentIndexIsBlocked = false;
-                IndexMetadata.APIBlock[] values = IndexMetadata.APIBlock.values();
-                List<String> blockSettingsName = Arrays.stream(values) //
+                List<String> blockSettingsName = Arrays.stream(IndexMetadata.APIBlock.values()) //
                     .map(IndexMetadata.APIBlock::settingName) //
                     .toList();
                 for (String blockType : blockSettingsName) {
