@@ -92,6 +92,8 @@ public class AuditlogIntegrationTest {
             assertThat(response, isUnauthorized());
 
             AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.FAILED_LOGIN).size() == 1, Duration.ofSeconds(2));
+            DocNode auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.FAILED_LOGIN).get(0).toJson());
+            assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.REQUEST_BODY), equalTo(searchQuery));
         }
     }
 

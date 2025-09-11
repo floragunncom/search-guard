@@ -30,6 +30,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.rest.RestChannel;
+import org.elasticsearch.rest.RestContentAggregator;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestResponse;
@@ -207,7 +208,9 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                                 result.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
                             }
 
-                            channelWrapper.sendResponse(response);
+                            RestContentAggregator.aggregate(request, aggregated -> {
+                                channelWrapper.sendResponse(response);
+                            });
                         }
                     }
                 }, (e) -> {
