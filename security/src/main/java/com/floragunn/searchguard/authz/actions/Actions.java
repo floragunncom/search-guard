@@ -175,6 +175,10 @@ public class Actions {
         cluster("indices:data/read/async_search/delete") //
                 .deletes(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
 
+        cluster("cluster:monitor/async_search/status") //
+                .uses(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
+
+
         cluster("indices:searchguard:async_search/_all_owners");
 
         cluster("indices:data/read/sql");

@@ -19,8 +19,10 @@ package com.floragunn.searchguard.authz.int_tests;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.RestMatchers;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.hamcrest.Matcher;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -33,10 +35,13 @@ import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.valueSatisfiesMatcher;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.notNullValue;
 
 public class DataStreamDownsampleIntTest {
 
@@ -70,12 +75,42 @@ public class DataStreamDownsampleIntTest {
 
             );
 
+    static TestSgConfig.User USER_ASYNC_1 = new TestSgConfig.User("async_one")//
+            .description("async one")//
+            .roles(//
+                    new TestSgConfig.Role("async_one") //
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO") // needed for _async_search
+                            .dataStreamPermissions("SGS_READ") //
+                            .on(DATA_STREAM_NAME)
+
+            );
+
+    static TestSgConfig.User USER_ASYNC_2 = new TestSgConfig.User("async_two")//
+            .description("async two")//
+            .roles(//
+                    new TestSgConfig.Role("async_two") //
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO") // needed for _async_search
+                            .dataStreamPermissions("SGS_READ") //
+                            .on(DATA_STREAM_NAME)
+
+            );
+    static TestSgConfig.User USER_ASYNC_BYPASS_OWNER_CHECK = new TestSgConfig.User("async_bypass_owner_check")//
+            .description("async two")//
+            .roles(//
+                    new TestSgConfig.Role("async_bypass_owner_check") //
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "indices:searchguard:async_search/_all_owners") //
+                            .dataStreamPermissions("SGS_READ") //
+                            .on(DATA_STREAM_NAME)
+
+            );
+
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder()
             .singleNode()
             .sslEnabled()
             .authzDebug(true)
-            .users(USER_WITH_ACCESS_TO_DATA_STREAM_AND_TARGET_INDEX, USER_WITH_ACCESS_ONLY_TO_DATA_STREAM)
+            .users(USER_WITH_ACCESS_TO_DATA_STREAM_AND_TARGET_INDEX, USER_WITH_ACCESS_ONLY_TO_DATA_STREAM,
+                    USER_ASYNC_1, USER_ASYNC_2, USER_ASYNC_BYPASS_OWNER_CHECK)
             .enterpriseModulesEnabled()
             .dlsFls(new TestSgConfig.DlsFls())
             .useExternalProcessCluster()
@@ -157,6 +192,38 @@ public class DataStreamDownsampleIntTest {
 
             response = client.postJson(dataStreamBackingIndex + "/_downsample/" + "downsample_target_2", DocNode.of("fixed_interval", "1h"));
             assertThat(response, isForbidden());
+        }
+    }
+
+    /*
+     * This test feet better to the class ResourceOwnerServiceTests. However, to test async search status request we need external process cluster
+     * which is expensive to start. Therefore, we keep it here.
+     */
+    @Test
+    public void testAsyncSearch() throws Exception {
+        try (GenericRestClient client1 = cluster.getRestClient(USER_ASYNC_1);
+                GenericRestClient client2 = cluster.getRestClient(USER_ASYNC_2);
+                GenericRestClient clientBypassOwnerCheck = cluster.getRestClient(USER_ASYNC_BYPASS_OWNER_CHECK)) {
+            // user associated with client1 starts an async search operation so she or he becomes the resource owner
+            GenericRestClient.HttpResponse response = client1.postJson("/" + DATA_STREAM_NAME + "/_async_search?&wait_for_completion_timeout=1ms",
+                    DocNode.EMPTY);
+            assertThat(response, RestMatchers.isOk());
+            String asyncSearchId = response.getBodyAsDocNode().getAsString("id");
+            assertThat(asyncSearchId, notNullValue());
+
+            // status for the allowed user (resource owner)
+            response = client1.get("/_async_search/status/" + asyncSearchId);
+            assertThat(response, RestMatchers.isOk());
+
+            // status for the not allowed user
+            response = client2.get("/_async_search/status/" + asyncSearchId);
+            assertThat(response, RestMatchers.isForbidden());
+            Matcher<String> reasonMatcher = containsString("is not owned by user " + USER_ASYNC_2.getName());
+            assertThat(response.getBodyAsDocNode(), valueSatisfiesMatcher("$.error.reason", String.class, reasonMatcher));
+
+            // status for the user bypassing owner check
+            response = clientBypassOwnerCheck.get("/_async_search/status/" + asyncSearchId);
+            assertThat(response, RestMatchers.isOk());
         }
     }
 
