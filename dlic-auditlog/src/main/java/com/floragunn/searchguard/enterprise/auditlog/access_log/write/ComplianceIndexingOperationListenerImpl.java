@@ -22,9 +22,6 @@ import org.elasticsearch.index.engine.Engine.DeleteResult;
 import org.elasticsearch.index.engine.Engine.Index;
 import org.elasticsearch.index.engine.Engine.IndexResult;
 import org.elasticsearch.index.get.GetResult;
-import org.elasticsearch.index.mapper.InferenceMetadataFieldsMapper;
-import org.elasticsearch.index.mapper.MappingLookup;
-import org.elasticsearch.index.mapper.RoutingFieldMapper;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.IndexingOperationListener;
 import org.elasticsearch.index.shard.ShardId;
@@ -90,11 +87,8 @@ public final class ComplianceIndexingOperationListenerImpl implements IndexingOp
     
             if (shard.isReadAllowed()) {
                 try {
-                    MappingLookup mappingLookup = shard.mapperService().mappingLookup();
-                    boolean inferenceEnabled = InferenceMetadataFieldsMapper.isEnabled(mappingLookup) && (!mappingLookup.inferenceFields().isEmpty());
-                    String[] gFields = inferenceEnabled ? new String[] { RoutingFieldMapper.NAME, InferenceMetadataFieldsMapper.NAME } : new String[] { RoutingFieldMapper.NAME };
                     final GetResult getResult = shard.getService().getForUpdate(index.id(),
-                            index.getIfSeqNo(), index.getIfPrimaryTerm(), gFields); // TODO ES 9.1.x is null a gFields ok here?
+                            index.getIfSeqNo(), index.getIfPrimaryTerm(), null);
     
                     if (getResult.isExists()) {
                         threadContext.set(new Context(getResult));
