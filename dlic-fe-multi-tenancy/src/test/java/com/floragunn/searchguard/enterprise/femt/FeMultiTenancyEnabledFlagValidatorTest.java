@@ -27,6 +27,7 @@ import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.metadata.ProjectMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -46,9 +47,8 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class FeMultiTenancyEnabledFlagValidatorTest {
 
-    static {
-        EsLogging.initLogging();
-    }
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
 
     @Mock
     private ConfigurationRepository configurationRepository;
