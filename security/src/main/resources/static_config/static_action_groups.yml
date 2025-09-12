@@ -144,6 +144,7 @@ SGS_CLUSTER_COMPOSITE_OPS_RO:
   - "indices:admin/aliases/get*"
   - "indices:data/read/scroll*"
   - "indices:data/read/async_search/*"
+  - "cluster:monitor/async_search/status"
   - "indices:data/read/close_point_in_time"
   type: "cluster"
   description: "Allow readonly bulk and m* operations"
