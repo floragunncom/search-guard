@@ -26,6 +26,7 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -45,9 +46,8 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class ExecuteInNettyEventLoopDispatcherTest {
 
-    static {
-        EsLogging.initLogging();
-    }
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
 
     @Mock
     private Dispatcher originalDispatcher;

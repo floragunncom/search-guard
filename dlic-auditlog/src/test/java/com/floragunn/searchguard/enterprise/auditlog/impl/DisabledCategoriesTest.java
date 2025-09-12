@@ -37,6 +37,7 @@ import org.elasticsearch.common.settings.Settings.Builder;
 import org.elasticsearch.tasks.Task;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -51,9 +52,8 @@ import com.google.common.base.Joiner;
 
 public class DisabledCategoriesTest {
 
-    static {
-        EsLogging.initLogging();
-    }
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
 
     ClusterService cs = mock(ClusterService.class);
     DiscoveryNode dn = mock(DiscoveryNode.class);

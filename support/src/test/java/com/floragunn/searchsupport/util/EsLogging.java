@@ -18,10 +18,18 @@ package com.floragunn.searchsupport.util;
 
 import org.elasticsearch.common.logging.internal.LoggerFactoryImpl;
 import org.elasticsearch.logging.internal.spi.LoggerFactory;
+import org.junit.Rule;
+import org.junit.rules.ExternalResource;
+import org.junit.rules.TestRule;
+import org.junit.runner.Description;
+import org.junit.runners.model.Statement;
 
-public final class EsLogging {
+public final class EsLogging extends ExternalResource {
+    static {
+        initLogging();
+    }
 
-    private EsLogging() {
+    public EsLogging() {
 
     }
 
