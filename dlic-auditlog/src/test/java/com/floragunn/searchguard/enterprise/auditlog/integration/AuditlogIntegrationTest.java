@@ -21,14 +21,18 @@ import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestSgConfig;
+import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.BearerAuthorization;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchsupport.junit.AsyncAssert;
+import com.floragunn.searchsupport.junit.matcher.DocNodeMatchers;
 import org.apache.http.HttpStatus;
+import org.apache.http.message.BasicHeader;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.net.InetAddress;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -37,7 +41,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static com.floragunn.searchguard.test.RestMatchers.isBadRequest;
+import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
+import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.isUnauthorized;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -52,6 +59,20 @@ public class AuditlogIntegrationTest {
             .roles(new TestSgConfig.Role("all_access").indexPermissions("*").on("*").clusterPermissions("*"));
     static final TestSgConfig.User USER = new TestSgConfig.User("user")
             .roles(new TestSgConfig.Role("all_access").indexPermissions("*").on("*").aliasPermissions("*").on("*").clusterPermissions("*"));
+    static final TestSgConfig.User BLOCKED_USER = new TestSgConfig.User("blocked_user")
+            .roles(new TestSgConfig.Role("all_access").indexPermissions("*").on("*").aliasPermissions("*").on("*").clusterPermissions("*"));
+
+    static final String BLOCKED_IP = "127.0.0.255";
+
+    static final String REVOCATED_CERT_DN = "CN=client-1.example.com,OU=SearchGuard,O=SearchGuard";
+
+    static final TestCertificates testCertificates = TestCertificates.builder()
+            .ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard")
+            .addNodes("CN=node-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .addClients("CN=client-0.example.com,OU=SearchGuard,O=SearchGuard", REVOCATED_CERT_DN)
+            .addAdminClients("CN=admin-0.example.com,OU=SearchGuard,O=SearchGuard")
+            .certificatesRevocationList("CN=client-1.example.com,OU=SearchGuard,O=SearchGuard")
+            .build();
 
     static TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(
             new TestSgConfig.Authc.Domain("basic/internal_users_db")
@@ -59,11 +80,15 @@ public class AuditlogIntegrationTest {
 
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder()
-            .users(AUDIT_IGNORED_USER, USER)
+            .users(AUDIT_IGNORED_USER, USER, BLOCKED_USER)
             .authc(AUTHC)
-            .sslEnabled()
+            .blockedUser("block user by name", BLOCKED_USER.getName())
+            .blockedIp("block ip", BLOCKED_IP)
+            .sslEnabled(testCertificates)
             .enterpriseModulesEnabled()
             .nodeSettings(
+                    "searchguard.ssl.http.crl.validate", true,
+                    "searchguard.ssl.http.crl.prefer_crlfile_over_ocsp", true,
                     "action.destructive_requires_name", false,
                     ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, TestAuditlogImpl.class.getName(),
                     ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true,
@@ -98,8 +123,31 @@ public class AuditlogIntegrationTest {
     }
 
     @Test
+    public void testAuditLog_blockedUser() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(BLOCKED_USER)) {
+            TestAuditlogImpl.clear();
+
+            String searchQuery = """
+                    {
+                      "query": {
+                        "match": {
+                          "message": "error"
+                        }
+                      }
+                    }
+                    """;
+            GenericRestClient.HttpResponse response = client.postJson("/index/_search", searchQuery);
+            assertThat(response, isUnauthorized());
+
+            AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.BLOCKED_USER).size() == 1, Duration.ofSeconds(2));
+            DocNode auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.BLOCKED_USER).get(0).toJson());
+            assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.REQUEST_BODY), equalTo(searchQuery));
+        }
+    }
+
+    @Test
     public void testAuditLog_succeededLogin() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient(cluster.getBasicAuthHeader(USER.getName(), USER.getPassword()))) {
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
             TestAuditlogImpl.clear();
 
             String searchQuery = """
@@ -116,6 +164,127 @@ public class AuditlogIntegrationTest {
 
             AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.AUTHENTICATED).size() == 1, Duration.ofSeconds(2));
             DocNode auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.AUTHENTICATED).get(0).toJson());
+            assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.REQUEST_BODY), equalTo(searchQuery));
+        }
+    }
+
+    @Test
+    public void testAuditLog_succeededLogin_bigRequestBody() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            TestAuditlogImpl.clear();
+
+            StringBuilder bodyBuilder = new StringBuilder();
+            int numberOfDocs = 10000;
+
+            for (int i = 0; i < numberOfDocs; i++) {
+                bodyBuilder.append("{ \"index\": { \"_id\": \"" + i  +"\" } }\n");
+                bodyBuilder.append("{ \"title\": \"Doc " + i + "\", \"content\": \"Hello world\" }\n");
+            }
+
+            GenericRestClient.HttpResponse response = client.postJson("test_big_bulk/_bulk", bodyBuilder.toString());
+            assertThat(response, isOk());
+
+            AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.AUTHENTICATED).size() == 1, Duration.ofSeconds(2));
+            DocNode auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.AUTHENTICATED).get(0).toJson());
+            assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.REQUEST_BODY), equalTo(bodyBuilder.toString()));
+
+            response = client.post("test_big_bulk/_refresh");
+            assertThat(response, isOk());
+            response = client.get("test_big_bulk/_search");
+            assertThat(response, isOk());
+            assertThat(response.getBodyAsDocNode(), DocNodeMatchers.containsValue("$.hits.total.value", numberOfDocs));
+        }
+    }
+
+    @Test
+    public void testAuditLog_succeededLogin_invalidJsonBody() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            TestAuditlogImpl.clear();
+
+            String searchQuery = """
+                    {{
+                      "query": {
+                        "match": {
+                          "message": "error"
+                        }
+                      }
+                    }
+                    """;
+            GenericRestClient.HttpResponse response = client.postJson("/index/_search", searchQuery);
+            assertThat(response, isBadRequest());
+
+            AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.AUTHENTICATED).size() == 1, Duration.ofSeconds(2));
+            DocNode auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.AUTHENTICATED).get(0).toJson());
+            assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.REQUEST_BODY), equalTo(searchQuery));
+        }
+    }
+
+    @Test
+    public void testAuditLog_badHeaders() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER, new BasicHeader("_sg_cause_bad_header_log", "value"))) {
+            TestAuditlogImpl.clear();
+
+            String searchQuery = """
+                    {
+                      "query": {
+                        "match": {
+                          "message": "error"
+                        }
+                      }
+                    }
+                    """;
+            GenericRestClient.HttpResponse response = client.postJson("/index/_search", searchQuery);
+            assertThat(response, isForbidden());
+
+            AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.BAD_HEADERS).size() == 1, Duration.ofSeconds(2));
+            DocNode auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.BAD_HEADERS).get(0).toJson());
+            assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.REQUEST_BODY), equalTo(searchQuery));
+        }
+    }
+
+    @Test
+    public void testAuditLog_blockedIp() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER)) {
+            client.setLocalAddress(InetAddress.getByName(BLOCKED_IP));
+            TestAuditlogImpl.clear();
+
+            String searchQuery = """
+                    {
+                      "query": {
+                        "match": {
+                          "message": "error"
+                        }
+                      }
+                    }
+                    """;
+            GenericRestClient.HttpResponse response = client.postJson("/index/_search", searchQuery);
+            assertThat(response, isUnauthorized());
+
+            AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.BLOCKED_IP).size() == 1, Duration.ofSeconds(2));
+            DocNode auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.BLOCKED_IP).get(0).toJson());
+            assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.REQUEST_BODY), equalTo(searchQuery));
+        }
+    }
+
+    @Test
+    public void testAuditLog_sslException() throws Exception {
+        try (GenericRestClient client = cluster.getUserCertRestClient(REVOCATED_CERT_DN, false)) {
+            TestAuditlogImpl.clear();
+
+            String searchQuery = """
+                    {
+                      "query": {
+                        "match": {
+                          "message": "error"
+                        }
+                      }
+                    }
+                    """;
+            GenericRestClient.HttpResponse response = client.postJson("index/_search", searchQuery);
+            assertThat(response, isForbidden());
+
+            AsyncAssert.awaitAssert("Messages arrived", () -> getMessagesByCategory(AuditMessage.Category.SSL_EXCEPTION).size() == 1, Duration.ofSeconds(2));
+            DocNode auditMessage = DocNode.parse(Format.JSON).from(getMessagesByCategory(AuditMessage.Category.SSL_EXCEPTION).get(0).toJson());
             assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.REQUEST_BODY), equalTo(searchQuery));
         }
     }

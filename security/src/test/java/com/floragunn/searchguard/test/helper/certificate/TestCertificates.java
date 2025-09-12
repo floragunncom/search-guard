@@ -21,15 +21,22 @@ import static com.floragunn.searchguard.test.helper.certificate.TestCertificateF
 import static java.util.Collections.emptyList;
 
 import java.io.File;
+import java.security.cert.X509CRL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.test.helper.certificate.utils.DnGenerator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bouncycastle.asn1.x500.X500Name;
 import org.elasticsearch.common.settings.Settings;
 
 import com.floragunn.fluent.collections.ImmutableList;
@@ -43,13 +50,15 @@ public class TestCertificates {
     private final TestCertificate caCertificate;
     private final ImmutableList<TestCertificate> nodeCertificates;
     private final ImmutableList<TestCertificate> clientCertificates;
+    private final TestCertificatesRevocationList certificatesRevocationList;
     private final File resources;
 
     private TestCertificates(TestCertificate caCertificate, List<TestCertificate> nodeCertificates, List<TestCertificate> clientCertificates,
-            TestCertificateFactory testCertificateFactory, File resources) {
+                             TestCertificatesRevocationList certificatesRevocationList, TestCertificateFactory testCertificateFactory, File resources) {
         this.caCertificate = caCertificate;
         this.nodeCertificates = ImmutableList.of(nodeCertificates);
         this.clientCertificates = ImmutableList.of(clientCertificates);
+        this.certificatesRevocationList = certificatesRevocationList;
         this.testCertificateFactory = testCertificateFactory;
         this.resources = resources;
     }
@@ -74,6 +83,13 @@ public class TestCertificates {
         return clientCertificates.get(0);
     }
 
+    public Optional<TestCertificate> getClientCertificate(String subjectDistinguishedName) {
+        X500Name name = DnGenerator.clientDn.apply(subjectDistinguishedName);
+        return clientCertificates.stream()
+                .filter(testCert -> testCert.getCertificate().getSubject().equals(name))
+                .findFirst();
+    }
+
     public List<TestCertificate> getNodesCertificates() {
         return nodeCertificates;
     }
@@ -90,6 +106,10 @@ public class TestCertificates {
                 });
     }
 
+    public TestCertificatesRevocationList getCertificatesRevocationList() {
+        return certificatesRevocationList;
+    }
+
     public TestCertificate create(String dn) {
         String privateKeyPassword = "secret_" + (new Random().nextInt());
         TestCertificatesBuilder.CertificatesDefaults certificatesDefaults = new TestCertificatesBuilder.CertificatesDefaults();
@@ -102,7 +122,7 @@ public class TestCertificates {
 
     public TestCertificates at(File directory) {
         return new TestCertificates(caCertificate.at(directory), nodeCertificates.map(c -> c.at(directory)),
-                clientCertificates.map(c -> c.at(directory)), testCertificateFactory, directory);
+                clientCertificates.map(c -> c.at(directory)), certificatesRevocationList.at(directory), testCertificateFactory, directory);
     }
 
     public Settings getSgSettings() {
@@ -124,6 +144,10 @@ public class TestCertificates {
         result.put("searchguard.ssl.transport.pemtrustedcas_filepath", getCaCertFile().getAbsolutePath());
         result.put("searchguard.ssl.http.pemtrustedcas_filepath", getCaCertFile().getAbsolutePath());
         result.put("searchguard.ssl.http.enabled", true);
+
+        if (certificatesRevocationList != null) {
+            result.put("searchguard.ssl.http.crl.file_path", certificatesRevocationList.getCrlFile().getAbsolutePath());
+        }
 
         return result.build();
     }
@@ -149,6 +173,7 @@ public class TestCertificates {
         private TestCertificate caCertificate;
         private final List<TestCertificate> nodesCertificates = new ArrayList<>();
         private final List<TestCertificate> clientsCertificates = new ArrayList<>();
+        private TestCertificatesRevocationList crl;
         private final File resources;
 
         public TestCertificatesBuilder(TestCertificateFactory testCertificateFactory) {
@@ -165,7 +190,7 @@ public class TestCertificates {
             if (nodesCertificates.isEmpty()) {
                 addNodes(DEFAULT_ONE_NODE_DN);
             }
-            return new TestCertificates(caCertificate, nodesCertificates, clientsCertificates, testCertificateFactory, resources);
+            return new TestCertificates(caCertificate, nodesCertificates, clientsCertificates, crl, testCertificateFactory, resources);
         }
 
         public TestCertificatesBuilder defaults(Function<CertificatesDefaults, CertificatesDefaults> defaultsFunction) {
@@ -227,6 +252,24 @@ public class TestCertificates {
 
         public TestCertificatesBuilder addClients(List<String> dnList, int validityDays, String privateKeyPassword) {
             addClients(dnList, validityDays, privateKeyPassword, false);
+            return this;
+        }
+
+        public TestCertificatesBuilder certificatesRevocationList(String... dn) {
+            return certificatesRevocationList(Arrays.asList(dn));
+        }
+
+        public TestCertificatesBuilder certificatesRevocationList(List<String> certificatesDnList) {
+            validateCaCertificate();
+
+            Set<X500Name> certificatesDns = certificatesDnList.stream().map(DnGenerator.clientDn).collect(Collectors.toSet());
+            Predicate<TestCertificate> shouldBeRevoked = testCert -> certificatesDns.contains(testCert.getCertificate().getSubject());
+
+            List<TestCertificate> revokedCerts = clientsCertificates.stream().filter(shouldBeRevoked).toList();
+
+            X509CRL crl = testCertificateFactory.createCertificatesRevocationList(caCertificate, revokedCerts);
+            this.crl = new TestCertificatesRevocationList(crl, resources);
+
             return this;
         }
 

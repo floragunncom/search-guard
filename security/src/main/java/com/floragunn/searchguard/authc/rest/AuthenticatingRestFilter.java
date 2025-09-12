@@ -191,11 +191,14 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                             original.dispatchRequest(request, channel, threadContext);
                         } catch (Exception e) {
                             log.error("Error in " + original, e);
-                            try {
-                                channelWrapper.sendResponse(new RestResponse(channel, e));
-                            } catch (IOException e1) {
-                                log.error(e1);
-                            }
+                            Runnable handler = () -> RestContentAggregator.aggregate(request, aggregated -> {
+                                try {
+                                    channelWrapper.sendResponse(new RestResponse(channel, e));
+                                } catch (IOException e1) {
+                                    log.error(e1);
+                                }
+                            });
+                            InNettyEventLoopRequestHandler.handleInNettyEventLoop(request, handler, threadPool);
                         }
                     } else {
                         org.apache.logging.log4j.ThreadContext.remove("user");
@@ -208,17 +211,21 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                                 result.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
                             }
 
-                            RestContentAggregator.aggregate(request, aggregated -> {
+                            Runnable handler = () -> RestContentAggregator.aggregate(request, aggregated -> {
                                 channelWrapper.sendResponse(response);
                             });
+                            InNettyEventLoopRequestHandler.handleInNettyEventLoop(request, handler, threadPool);
                         }
                     }
                 }, (e) -> {
-                    try {
-                        channelWrapper.sendResponse(new RestResponse(channelWrapper, e));
-                    } catch (IOException e1) {
-                        log.error(e1);
-                    }
+                    Runnable handler = () -> RestContentAggregator.aggregate(request, aggregated -> {
+                        try {
+                            channelWrapper.sendResponse(new RestResponse(channelWrapper, e));
+                        } catch (IOException e1) {
+                            log.error(e1);
+                        }
+                    });
+                    InNettyEventLoopRequestHandler.handleInNettyEventLoop(request, handler, threadPool);
                 });
             } else {
                 original.dispatchRequest(request, channel, threadContext);
@@ -239,12 +246,17 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
                 log.error(exception);
                 auditLog.logBadHeaders(request);
-                try {
-                    channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, exception));
-                } catch (IOException e) {
-                    log.error(e,e);
-                    channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
-                }
+
+                Runnable handler = () -> RestContentAggregator.aggregate(request, aggregated -> {
+                    try {
+                        channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, exception));
+                    } catch (IOException e) {
+                        log.error(e,e);
+                        channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
+                    }
+                });
+                InNettyEventLoopRequestHandler.handleInNettyEventLoop(request, handler, threadPool);
+
                 return false;
             }
 
@@ -252,12 +264,15 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
                 log.error(exception);
                 auditLog.logBadHeaders(request);
-                try {
-                    channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, exception));
-                } catch (IOException e) {
-                    log.error(e,e);
-                    channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
-                }
+                Runnable handler = () -> RestContentAggregator.aggregate(request, aggregated -> {
+                    try {
+                        channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, exception));
+                    } catch (IOException e) {
+                        log.error(e,e);
+                        channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
+                    }
+                });
+                InNettyEventLoopRequestHandler.handleInNettyEventLoop(request, handler, threadPool);
                 return false;
             }
 
@@ -277,12 +292,15 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             } catch (SSLPeerUnverifiedException e) {
                 log.error("No ssl info", e);
                 auditLog.logSSLException(request, e);
-                try {
-                    channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, e));
-                } catch (IOException ex) {
-                    log.error(e,e);
-                    channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
-                }
+                Runnable handler = () -> RestContentAggregator.aggregate(request, aggregated -> {
+                    try {
+                        channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, e));
+                    } catch (IOException ex) {
+                        log.error(e,e);
+                        channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
+                    }
+                });
+                InNettyEventLoopRequestHandler.handleInNettyEventLoop(request, handler, threadPool);
                 return false;
             }
 
@@ -294,7 +312,10 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             if (!authcResult.getHeaders().isEmpty()) {
                 authcResult.getHeaders().forEach((k, v) -> v.forEach((e) -> response.addHeader(k, e)));
             }
-            channel.sendResponse(response);
+            Runnable handler = () -> RestContentAggregator.aggregate(channel.request(), aggregated -> {
+                channel.sendResponse(response);
+            });
+            InNettyEventLoopRequestHandler.handleInNettyEventLoop(channel.request(), handler, threadPool);
         }
 
 

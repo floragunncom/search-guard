@@ -22,6 +22,7 @@ import java.io.FileWriter;
 import java.io.StringWriter;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
+import java.security.cert.X509CRL;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -57,6 +58,15 @@ public class CertificateAndPrivateKeyWriter {
         } catch (Exception e) {
             log.error("Error while writing certificate to file: {}", certificateFile.getAbsolutePath(), e);
             throw new RuntimeException(String.format("Error while writing to file: %s", certificateFile.getAbsolutePath()), e);
+        }
+    }
+
+    public static void saveCrl(File crlFile, X509CRL crl) {
+        try (JcaPEMWriter writer = new JcaPEMWriter(new FileWriter(crlFile))) {
+            writer.writeObject(crl);
+        } catch (Exception e) {
+            log.error("Error while writing crl to file: {}", crlFile.getAbsolutePath(), e);
+            throw new RuntimeException(String.format("Error while writing to file: %s", crlFile.getAbsolutePath()), e);
         }
     }
 

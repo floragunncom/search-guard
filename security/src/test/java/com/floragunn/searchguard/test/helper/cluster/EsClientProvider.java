@@ -66,8 +66,14 @@ public interface EsClientProvider {
         return new TestCertificateBasedSSLContextProvider(getTestCertificates().getCaCertificate(), getTestCertificates().getAdminCertificate());
     }
 
-    default SSLContextProvider getUserClientSslContextProvider(String subjectDistinguishedName) {
-        TestCertificate userCertificate = getTestCertificates().create(subjectDistinguishedName);
+    default SSLContextProvider getUserClientSslContextProvider(String subjectDistinguishedName, boolean createNewClientCert) {
+        TestCertificate userCertificate;
+        if (createNewClientCert) {
+            userCertificate = getTestCertificates().create(subjectDistinguishedName);
+        } else {
+            userCertificate = getTestCertificates().getClientCertificate(subjectDistinguishedName)
+                    .orElseThrow(() -> new RuntimeException("Cannot find a client certificate with subjectDistinguishedName equal to " + subjectDistinguishedName));
+        }
         return new TestCertificateBasedSSLContextProvider(getTestCertificates().getCaCertificate(), userCertificate);
     }
 
@@ -111,8 +117,11 @@ public interface EsClientProvider {
                 getRequestInfoConsumer());
     }
 
-    default GenericRestClient getUserCertRestClient(String subject, Header... headers) {
-        SSLContext sslContext = getUserClientSslContextProvider(subject).getSslContext(true);
+    /**
+     * @param createCert - if true, creates new client certificate with the provided subject for the rest client. Otherwise, tries to find an existing certificate.
+     */
+    default GenericRestClient getUserCertRestClient(String subject, boolean createCert, Header... headers) {
+        SSLContext sslContext = getUserClientSslContextProvider(subject, createCert).getSslContext(true);
         return new GenericRestClient(getHttpAddress(), Arrays.asList(headers), sslContext, UserCredentialsHolder.basic(subject, null),
                 getRequestInfoConsumer());
     }

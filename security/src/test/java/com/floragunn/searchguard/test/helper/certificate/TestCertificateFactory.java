@@ -29,7 +29,9 @@ import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.*;
 import org.bouncycastle.cert.CertIOException;
 import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.X509v2CRLBuilder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
+import org.bouncycastle.cert.jcajce.JcaX509CRLConverter;
 import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.operator.ContentSigner;
@@ -41,6 +43,10 @@ import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.Provider;
+import java.security.cert.CRLException;
+import java.security.cert.X509CRL;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -165,6 +171,33 @@ public class TestCertificateFactory {
         } catch (OperatorCreationException | CertIOException e) {
             log.error("Error while generating node certificate", e);
             throw new RuntimeException("Error while generating node certificate", e);
+        }
+    }
+
+    public X509CRL createCertificatesRevocationList(TestCertificate caCert, List<TestCertificate> revokedCerts) {
+        try {
+            X500Name issuer = caCert.getCertificate().getSubject();
+
+            Date now = Date.from(Instant.now());
+            Date nextUpdate = Date.from(Instant.now().plus(30, ChronoUnit.DAYS));
+            X509v2CRLBuilder crlBuilder = new X509v2CRLBuilder(issuer, now);
+            crlBuilder.setNextUpdate(nextUpdate);
+
+            revokedCerts.forEach(cert -> {
+                BigInteger revokedSerial = cert.getCertificate().getSerialNumber();
+                Date revocationDate = new Date();
+                crlBuilder.addCRLEntry(revokedSerial, revocationDate, CRLReason.unspecified);
+            });
+
+
+            ContentSigner signer = new JcaContentSignerBuilder(asymmetricCryptographyAlgorithm.getSignatureAlgorithmName()).setProvider(
+                    securityProvider).build(caCert.getKeyPair().getPrivate());
+
+            JcaX509CRLConverter crlConverter = new JcaX509CRLConverter().setProvider(securityProvider);
+            return crlConverter.getCRL(crlBuilder.build(signer));
+        } catch (OperatorCreationException | CRLException e) {
+            log.error("Error while generating certificates revocation list", e);
+            throw new RuntimeException("Error while generating certificates revocation list", e);
         }
     }
 

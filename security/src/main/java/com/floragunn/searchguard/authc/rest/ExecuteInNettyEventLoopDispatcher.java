@@ -46,43 +46,12 @@ class ExecuteInNettyEventLoopDispatcher implements Dispatcher {
     @Override
     public void dispatchRequest(RestRequest request, RestChannel channel, ThreadContext threadContext) {
         Runnable runnable = () -> original.dispatchRequest(request, channel, threadContext);
-        dispatch(request, runnable);
+        InNettyEventLoopRequestHandler.handleInNettyEventLoop(request, runnable, threadPool);
     }
 
     @Override
     public void dispatchBadRequest(RestChannel channel, ThreadContext threadContext, Throwable cause) {
         Runnable runnable = () -> original.dispatchBadRequest(channel, threadContext, cause);
-        dispatch(channel.request(), runnable);
-    }
-
-    private void dispatch(RestRequest request, Runnable runnable) {
-        HttpRequest httpRequest = request.getHttpRequest();
-        if (httpRequest instanceof AttributedHttpRequest attributedHttpRequest) {
-            EventLoop eventLoop = getEventLoop(attributedHttpRequest);
-            if (eventLoop != null) {
-                if (eventLoop.inEventLoop()) {
-                    // already in the correct thread
-                    runnable.run();
-                } else {
-                    Runnable runnableWithContext = threadPool.getThreadContext().preserveContext(runnable);
-                    eventLoop.execute(runnableWithContext);
-                }
-            } else {
-                log.error("Netty event loop not present, request '{}'", request);
-                assert false : "Netty event loop not present, cannot use correct thread";
-                runnable.run();
-            }
-        } else {
-            assert false : "Expected AttributedHttpRequest but got " + httpRequest.getClass();
-            log.error("Netty event loop not present, invalid type of request '{}'", httpRequest);
-            runnable.run();
-        }
-    }
-
-    private EventLoop getEventLoop(AttributedHttpRequest request) {
-        return request.getAttribute(ATTRIBUTE_EVENT_LOOP) //
-                .filter(EventLoop.class::isInstance) //
-                .map(EventLoop.class::cast) //
-                .orElse(null);
+        InNettyEventLoopRequestHandler.handleInNettyEventLoop(channel.request(), runnable, threadPool);
     }
 }

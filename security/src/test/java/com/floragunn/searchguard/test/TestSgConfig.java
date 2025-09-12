@@ -92,6 +92,7 @@ public class TestSgConfig {
     private NestedValueMap overrideFrontendConfigSettings;
     private NestedValueMap overrideFrontendMultiTenancyConfigSettings;
     private NestedValueMap overrideTenantSettings;
+    private NestedValueMap overrideBlockSettings;
     private Authc authc;
     private DlsFls dlsFls;
     private Authz authz;
@@ -116,6 +117,26 @@ public class TestSgConfig {
 
     public TestSgConfig var(String name, Supplier<Object> variableSupplier) {
         this.variableSuppliers.put(name, variableSupplier);
+        return this;
+    }
+
+    public TestSgConfig blockedUser(String blockName, String user) {
+        if (overrideBlockSettings == null) {
+            overrideBlockSettings = new NestedValueMap();
+        }
+        overrideBlockSettings.put(new NestedValueMap.Path(blockName, "value"), user);
+        overrideBlockSettings.put(new NestedValueMap.Path(blockName, "type"), "name");
+        overrideBlockSettings.put(new NestedValueMap.Path(blockName, "verdict"), "disallow");
+        return this;
+    }
+
+    public TestSgConfig blockedIp(String blockName, String ip) {
+        if (overrideBlockSettings == null) {
+            overrideBlockSettings = new NestedValueMap();
+        }
+        overrideBlockSettings.put(new NestedValueMap.Path(blockName, "value"), ip);
+        overrideBlockSettings.put(new NestedValueMap.Path(blockName, "type"), "ip");
+        overrideBlockSettings.put(new NestedValueMap.Path(blockName, "verdict"), "disallow");
         return this;
     }
 
@@ -326,6 +347,7 @@ public class TestSgConfig {
                 ? overrideFrontendMultiTenancyConfigSettings.clone()
                 : null;
         result.overrideTenantSettings = overrideTenantSettings != null ? overrideTenantSettings.clone() : null;
+        result.overrideBlockSettings = overrideBlockSettings != null ? overrideBlockSettings.clone() : null;
 
         return result;
     }
@@ -342,7 +364,7 @@ public class TestSgConfig {
         writeOptionalConfigToIndex(client, CType.ROLESMAPPING, "sg_roles_mapping.yml", overrideRoleMappingSettings);
         writeConfigToIndex(client, CType.ACTIONGROUPS, "sg_action_groups.yml");
         writeOptionalConfigToIndex(client, CType.TENANTS, "sg_tenants.yml", overrideTenantSettings);
-        writeOptionalConfigToIndex(client, CType.BLOCKS, "sg_blocks.yml", null);
+        writeOptionalConfigToIndex(client, CType.BLOCKS, "sg_blocks.yml", overrideBlockSettings);
         writeOptionalConfigToIndex(client, CType.FRONTEND_AUTHC, "sg_frontend_authc.yml", overrideFrontendConfigSettings);
         writeOptionalConfigToIndex(client, "frontend_multi_tenancy", "sg_frontend_multi_tenancy.yml", overrideFrontendMultiTenancyConfigSettings);
 
@@ -391,7 +413,7 @@ public class TestSgConfig {
         request = request.with(getConfigDocNode(CType.ROLESMAPPING, "sg_roles_mapping.yml", overrideRoleMappingSettings));
         request = request.with(getConfigDocNode(CType.ACTIONGROUPS, "sg_action_groups.yml", null));
         request = request.with(getConfigDocNode(CType.TENANTS, "sg_tenants.yml", null));
-        request = request.with(getConfigDocNode(CType.BLOCKS, "sg_blocks.yml", null));
+        request = request.with(getConfigDocNode(CType.BLOCKS, "sg_blocks.yml", overrideBlockSettings));
         request = request.with(getConfigDocNode(CType.FRONTEND_AUTHC, "sg_frontend_authc.yml", overrideFrontendConfigSettings));
 
         request = request.with(ConfigDocument.bulkUpdateMap(authc != null ? authc : Authc.DEFAULT, authz, sessions, dlsFls, authTokenService));

@@ -45,7 +45,7 @@ public abstract class BaseClientCertificateUserNameMappingTest {
 
     @Test
     public void shouldIgnoreCasesInDirectoryStringAttributesNames() throws Exception {
-        try(GenericRestClient client = getLocalCluster().getUserCertRestClient(subjectDistinguishedName)) {
+        try(GenericRestClient client = getLocalCluster().getUserCertRestClient(subjectDistinguishedName, true)) {
             GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
 
             assertThat(response.getStatusCode(), equalTo(200));

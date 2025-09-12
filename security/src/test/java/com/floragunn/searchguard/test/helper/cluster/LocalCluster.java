@@ -724,6 +724,16 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return this;
         }
 
+        public Builder blockedUser(String blockName, String user) {
+            testSgConfig.blockedUser(blockName, user);
+            return this;
+        }
+
+        public Builder blockedIp(String blockName, String ip) {
+            testSgConfig.blockedIp(blockName, ip);
+            return this;
+        }
+
         public Builder.Embedded embedded() {
             return new Builder.Embedded(this);
         }
