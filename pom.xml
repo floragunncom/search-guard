@@ -834,7 +834,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.5.3</version>
+          <version>3.5.4</version>
           <configuration>
             <!-- add-opens is necessary for powermock on Java 17 -->
             <!-- java.xml/jdk.xml.internal=ALL-UNNAMED required after wiremock bump to 3.5.4-->
