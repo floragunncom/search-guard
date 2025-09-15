@@ -122,7 +122,7 @@ public class TestCertificates {
 
     public TestCertificates at(File directory) {
         return new TestCertificates(caCertificate.at(directory), nodeCertificates.map(c -> c.at(directory)),
-                clientCertificates.map(c -> c.at(directory)), certificatesRevocationList.at(directory), testCertificateFactory, directory);
+                clientCertificates.map(c -> c.at(directory)), certificatesRevocationList != null? certificatesRevocationList.at(directory) : null, testCertificateFactory, directory);
     }
 
     public Settings getSgSettings() {
