@@ -1271,6 +1271,8 @@ public abstract class AbstractAuditLog implements AuditLog {
                     msg.addTupleToRequestBody(new Tuple<>(request.getXContentType(), body));
                     save(msg);
                 });
+        } else {
+            save(msg);
         }
     }
 
