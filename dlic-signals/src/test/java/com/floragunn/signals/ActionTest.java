@@ -26,12 +26,13 @@ import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.XContentType;
-import org.junit.*;
-import org.junit.runner.RunWith;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.Test;
 import org.mockito.Mockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.signals.accounts.AccountRegistry;
@@ -52,10 +53,6 @@ import com.floragunn.signals.watch.init.WatchInitializationService;
 import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
 import static org.mockito.Mockito.when;
 
-@PowerMockIgnore({ "javax.script.*", "javax.crypto.*", "javax.management.*", "sun.security.*", "java.security.*", "javax.net.ssl.*", "javax.net.*",
-        "javax.security.*" })
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(AccountRegistry.class)
 public class ActionTest {
 
     private static NamedXContentRegistry xContentRegistry;
