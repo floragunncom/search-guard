@@ -79,7 +79,7 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
 
             FlsRule flsRule = fieldAuthorization.getRestriction(privilegesEvaluationContext, index, meter);
 
-            return createFieldPredicate((field) -> flsRule.isAllowed(removeSuffix(field)));
+            return createFieldPredicate((field) -> flsRule.isAllowedRecursive(removeSuffix(field)));
         } catch (PrivilegesEvaluationException e) {
             log.error("Error while evaluating FLS for index " + indexName, e);
             componentState.addLastException("filter_fields", e);
