@@ -109,9 +109,7 @@ public class SSLRequestHelper {
         final SslHandler sslhandler = Optional.ofNullable(request.getHttpRequest())
             .filter(AttributedHttpRequest.class::isInstance)
             .map(AttributedHttpRequest.class::cast)
-            .flatMap(attributeRequest -> attributeRequest.getAttribute("sg_ssl_handler"))
-            .filter(SslHandler.class::isInstance)
-            .map(SslHandler.class::cast)
+            .flatMap(attributedRequest -> Optional.ofNullable(attributedRequest.getSslHandler()))
             .orElse(null);
         if(sslhandler == null) {
             return null;

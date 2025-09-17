@@ -72,8 +72,7 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
     @Override
     public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
         final SslHandler sslhandler = (SslHandler) ((Netty4HttpChannel) httpChannel).getNettyChannel().pipeline().get("ssl_http");
-        ImmutableMap<String, Object> attributes = ImmutableMap.of("sg_ssl_handler", sslhandler);
-        super.incomingRequest(AttributedHttpRequest.create(httpRequest, attributes), httpChannel);
+        super.incomingRequest(AttributedHttpRequest.create(httpRequest, sslhandler), httpChannel);
     }
 
     @Override
