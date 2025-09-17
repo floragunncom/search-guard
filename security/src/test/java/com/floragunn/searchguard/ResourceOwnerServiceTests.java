@@ -81,6 +81,8 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.SimpleRestHandler;
 
+import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHandler;
+
 public class ResourceOwnerServiceTests {
 
     private static TestSgConfig.Role ROLE_OWN_INDEX = new TestSgConfig.Role("own_index")//
@@ -192,9 +194,9 @@ public class ResourceOwnerServiceTests {
     public static class MockActionPlugin extends Plugin implements ActionPlugin {
 
         public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-            return Arrays.asList(new ActionHandler<>(MockSubmitTransportAction.TYPE, MockSubmitTransportAction.class),
-                    new ActionHandler<>(MockGetTransportAction.TYPE, MockGetTransportAction.class),
-                    new ActionHandler<>(MockDeleteTransportAction.TYPE, MockDeleteTransportAction.class));
+            return Arrays.asList(actionHandler(MockSubmitTransportAction.TYPE, MockSubmitTransportAction.class),
+                    actionHandler(MockGetTransportAction.TYPE, MockGetTransportAction.class),
+                    actionHandler(MockDeleteTransportAction.TYPE, MockDeleteTransportAction.class));
         }
 
         @Override

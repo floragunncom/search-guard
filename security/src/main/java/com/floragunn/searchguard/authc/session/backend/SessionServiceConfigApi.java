@@ -29,6 +29,8 @@ import com.floragunn.searchguard.configuration.api.TypeLevelConfigApi;
 import com.floragunn.searchsupport.action.RestApi;
 import com.google.common.collect.ImmutableList;
 
+import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHandler;
+
 public class SessionServiceConfigApi extends TypeLevelConfigApi {
 
     public static final RestApi REST_API = new RestApi()//
@@ -38,9 +40,9 @@ public class SessionServiceConfigApi extends TypeLevelConfigApi {
             .name("/_searchguard/config/sessions");
 
     public static final ImmutableList<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> ACTION_HANDLERS = ImmutableList.of(
-            new ActionHandler<>(SessionServiceConfigApi.GetAction.INSTANCE, SessionServiceConfigApi.GetAction.Handler.class),
-            new ActionHandler<>(SessionServiceConfigApi.PutAction.INSTANCE, SessionServiceConfigApi.PutAction.Handler.class),
-            new ActionHandler<>(SessionServiceConfigApi.PatchAction.INSTANCE, SessionServiceConfigApi.PatchAction.Handler.class));
+            actionHandler(SessionServiceConfigApi.GetAction.INSTANCE, SessionServiceConfigApi.GetAction.Handler.class),
+            actionHandler(SessionServiceConfigApi.PutAction.INSTANCE, SessionServiceConfigApi.PutAction.Handler.class),
+            actionHandler(SessionServiceConfigApi.PatchAction.INSTANCE, SessionServiceConfigApi.PatchAction.Handler.class));
 
     public static class GetAction extends TypeLevelConfigApi.GetAction {
         public static final GetAction INSTANCE = new GetAction();

@@ -29,6 +29,8 @@ import com.floragunn.searchguard.configuration.api.TypeLevelConfigApi;
 import com.floragunn.searchsupport.action.RestApi;
 import com.google.common.collect.ImmutableList;
 
+import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHandler;
+
 public class DlsFlsConfigApi extends TypeLevelConfigApi {
 
     public static final RestApi REST_API = new RestApi()//
@@ -38,9 +40,9 @@ public class DlsFlsConfigApi extends TypeLevelConfigApi {
             .with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body))).name("/_searchguard/config/authz_dlsfls");
 
     public static final ImmutableList<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> ACTION_HANDLERS = ImmutableList.of(
-            new ActionHandler<>(DlsFlsConfigApi.GetAction.INSTANCE, DlsFlsConfigApi.GetAction.Handler.class),
-            new ActionHandler<>(DlsFlsConfigApi.PutAction.INSTANCE, DlsFlsConfigApi.PutAction.Handler.class),
-            new ActionHandler<>(DlsFlsConfigApi.PatchAction.INSTANCE, DlsFlsConfigApi.PatchAction.Handler.class));
+            actionHandler(DlsFlsConfigApi.GetAction.INSTANCE, DlsFlsConfigApi.GetAction.Handler.class),
+            actionHandler(DlsFlsConfigApi.PutAction.INSTANCE, DlsFlsConfigApi.PutAction.Handler.class),
+            actionHandler(DlsFlsConfigApi.PatchAction.INSTANCE, DlsFlsConfigApi.PatchAction.Handler.class));
 
     public static class GetAction extends TypeLevelConfigApi.GetAction {
         public static final GetAction INSTANCE = new GetAction();

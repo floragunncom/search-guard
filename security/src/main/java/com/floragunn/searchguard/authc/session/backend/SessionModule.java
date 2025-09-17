@@ -56,6 +56,8 @@ import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 
+import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHandler;
+
 public class SessionModule implements SearchGuardModule, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(SessionModule.class);
 
@@ -75,10 +77,10 @@ public class SessionModule implements SearchGuardModule, ComponentStateProvider 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
         return ImmutableList.of(//
-                new ActionHandler<>(SessionApi.GetExtendedInfoAction.INSTANCE, SessionApi.GetExtendedInfoAction.Handler.class),
-                new ActionHandler<>(SessionApi.CreateAction.INSTANCE, SessionApi.CreateAction.Handler.class),
-                new ActionHandler<>(SessionApi.DeleteAction.INSTANCE, SessionApi.DeleteAction.Handler.class),
-                new ActionHandler<>(PushSessionTokenUpdateAction.INSTANCE, PushSessionTokenUpdateAction.TransportAction.class)//
+                actionHandler(SessionApi.GetExtendedInfoAction.INSTANCE, SessionApi.GetExtendedInfoAction.Handler.class),
+                actionHandler(SessionApi.CreateAction.INSTANCE, SessionApi.CreateAction.Handler.class),
+                actionHandler(SessionApi.DeleteAction.INSTANCE, SessionApi.DeleteAction.Handler.class),
+                actionHandler(PushSessionTokenUpdateAction.INSTANCE, PushSessionTokenUpdateAction.TransportAction.class)//
         ).with(SessionServiceConfigApi.ACTION_HANDLERS);
     }
 

@@ -30,6 +30,8 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.api.TypeLevelConfigApi;
 import com.floragunn.searchsupport.action.RestApi;
 
+import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHandler;
+
 public class FeMultiTenancyConfigApi extends TypeLevelConfigApi {
 
     public static final RestApi REST_API = new RestApi()//
@@ -44,11 +46,11 @@ public class FeMultiTenancyConfigApi extends TypeLevelConfigApi {
             .name("/_searchguard/config/frontend_multi_tenancy");
 
     public static final ImmutableList<ActionHandler<?, ?>> ACTION_HANDLERS = ImmutableList.of(
-            new ActionHandler<>(FeMultiTenancyConfigApi.GetAction.INSTANCE, FeMultiTenancyConfigApi.GetAction.Handler.class),
-            new ActionHandler<>(FeMultiTenancyConfigApi.PutAction.INSTANCE, FeMultiTenancyConfigApi.PutAction.Handler.class),
-            new ActionHandler<>(FeMultiTenancyConfigApi.PatchAction.INSTANCE, FeMultiTenancyConfigApi.PatchAction.Handler.class),
-            new ActionHandler<>(GetAvailableTenantsAction.INSTANCE, GetAvailableTenantsAction.GetAvailableTenantsHandler.class),
-            new ActionHandler<>(MultitenancyActivationAction.INSTANCE, MultitenancyActivationAction.MultitenancyActivationHandler.class)
+            actionHandler(FeMultiTenancyConfigApi.GetAction.INSTANCE, FeMultiTenancyConfigApi.GetAction.Handler.class),
+            actionHandler(FeMultiTenancyConfigApi.PutAction.INSTANCE, FeMultiTenancyConfigApi.PutAction.Handler.class),
+            actionHandler(FeMultiTenancyConfigApi.PatchAction.INSTANCE, FeMultiTenancyConfigApi.PatchAction.Handler.class),
+            actionHandler(GetAvailableTenantsAction.INSTANCE, GetAvailableTenantsAction.GetAvailableTenantsHandler.class),
+            actionHandler(MultitenancyActivationAction.INSTANCE, MultitenancyActivationAction.MultitenancyActivationHandler.class)
         );
 
     public static class GetAction extends TypeLevelConfigApi.GetAction {

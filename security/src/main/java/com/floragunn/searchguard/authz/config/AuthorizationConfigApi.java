@@ -32,6 +32,8 @@ import com.google.common.collect.ImmutableList;
 
 import java.util.List;
 
+import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHandler;
+
 public class AuthorizationConfigApi extends TypeLevelConfigApi {
 
     public static final RestApi REST_API = new RestApi()//
@@ -41,9 +43,9 @@ public class AuthorizationConfigApi extends TypeLevelConfigApi {
             .name("/_searchguard/config/authz");
 
     public static final List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> ACTION_HANDLERS = List.of(
-            new ActionHandler<>(AuthorizationConfigApi.GetAction.INSTANCE, AuthorizationConfigApi.GetAction.Handler.class),
-            new ActionHandler<>(AuthorizationConfigApi.PutAction.INSTANCE, AuthorizationConfigApi.PutAction.Handler.class),
-            new ActionHandler<>(AuthorizationConfigApi.PatchAction.INSTANCE, AuthorizationConfigApi.PatchAction.Handler.class));
+            actionHandler(AuthorizationConfigApi.GetAction.INSTANCE, AuthorizationConfigApi.GetAction.Handler.class),
+            actionHandler(AuthorizationConfigApi.PutAction.INSTANCE, AuthorizationConfigApi.PutAction.Handler.class),
+            actionHandler(AuthorizationConfigApi.PatchAction.INSTANCE, AuthorizationConfigApi.PatchAction.Handler.class));
 
     public static class GetAction extends TypeLevelConfigApi.GetAction {
         public static final GetAction INSTANCE = new GetAction();
