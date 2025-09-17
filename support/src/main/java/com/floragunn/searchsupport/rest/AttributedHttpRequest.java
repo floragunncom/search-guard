@@ -1,6 +1,23 @@
+/*
+ * Copyright 2025 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.searchsupport.rest;
 
-import com.floragunn.fluent.collections.ImmutableMap;
+import io.netty.handler.ssl.SslHandler;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.http.HttpBody;
 import org.elasticsearch.http.HttpRequest;
@@ -12,38 +29,33 @@ import org.elasticsearch.rest.RestStatus;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 public class AttributedHttpRequest implements HttpRequest {
 
     private final HttpRequest httpRequest;
 
-    private ImmutableMap<String, Object> attributes;
+    private final SslHandler sslHandler;
 
 
-    private AttributedHttpRequest(HttpRequest httpRequest, ImmutableMap<String, Object> attributes) {
-        // TODO provide type safe attribute implementation
+    private AttributedHttpRequest(HttpRequest httpRequest, SslHandler sslHandler) {
         this.httpRequest = Objects.requireNonNull(httpRequest, "Http request is required.");
-        this.attributes = Objects.requireNonNull(attributes, "Request attributes are required");
+        this.sslHandler = sslHandler;
     }
 
-    public static AttributedHttpRequest create(HttpRequest httpRequest, ImmutableMap<String, Object> attributes) {
+    public static AttributedHttpRequest create(HttpRequest httpRequest, SslHandler sslhandler) {
         Objects.requireNonNull(httpRequest, "Http request is required.");
-        Objects.requireNonNull(attributes, "Request attributes are required");
         if(httpRequest instanceof AttributedHttpRequest request) {
-            ImmutableMap<String, Object> commonAttributes = request.attributes.with(attributes);
-            return request.withAttributes(commonAttributes);
+            return request.withSslHandler(sslhandler);
         }
-        return new AttributedHttpRequest(httpRequest, attributes);
+        return new AttributedHttpRequest(httpRequest, sslhandler);
     }
 
-    private AttributedHttpRequest withAttributes(ImmutableMap<String, Object> commonAttributes) {
-        return new AttributedHttpRequest(this.httpRequest, commonAttributes);
+    private AttributedHttpRequest withSslHandler(SslHandler sslhandler) {
+        return new AttributedHttpRequest(this.httpRequest, sslhandler);
     }
 
-    public Optional<Object> getAttribute(String name) {
-        Objects.requireNonNull(name, "Attribute name is required.");
-        return Optional.ofNullable(attributes.get(name));
+    public SslHandler getSslHandler() {
+        return sslHandler;
     }
 
     @Override
