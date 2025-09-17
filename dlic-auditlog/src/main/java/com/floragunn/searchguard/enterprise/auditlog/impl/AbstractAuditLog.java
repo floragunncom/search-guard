@@ -42,7 +42,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
@@ -75,7 +74,6 @@ import org.elasticsearch.index.engine.Engine.Index;
 import org.elasticsearch.index.engine.Engine.IndexResult;
 import org.elasticsearch.index.get.GetResult;
 import org.elasticsearch.index.shard.ShardId;
-import org.elasticsearch.rest.RestContentAggregator;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -304,7 +302,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addEffectiveUser(effectiveUser);
         msg.addIsAdminDn(sgadmin);
 
-        appendRequestBodyToMessageAndSave(msg, request);
+        save(msg);
     }
 
     @Override
@@ -346,7 +344,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addEffectiveUser(effectiveUser);
         msg.addIsAdminDn(sgadmin);
 
-        appendRequestBodyToMessageAndSave(msg, request);
+        save(msg);
     }
 
     @Override
@@ -386,7 +384,14 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addEffectiveUser(effectiveUser);
         msg.addIsAdminDn(sgadmin);
 
-        appendRequestBodyToMessageAndSave(msg, request);
+        if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
+            AuditRestRequestBodyReader.readRequestBody(request, body -> {
+                msg.addTupleToRequestBody(new Tuple<>(request.getXContentType(), body));
+                save(msg);
+            });
+        } else {
+            save(msg);
+        }
     }
 
     @Override
@@ -407,7 +412,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         msg.addEffectiveUser(effectiveUser);
 
-        appendRequestBodyToMessageAndSave(msg, request);
+        save(msg);
     }
 
     @Override
@@ -482,7 +487,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         msg.addEffectiveUser(getUser());
 
-        appendRequestBodyToMessageAndSave(msg, request);
+        save(msg);
     }
 
     @Override
@@ -518,7 +523,7 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         msg.addEffectiveUser(getUser());
 
-        appendRequestBodyToMessageAndSave(msg, request);
+        save(msg);
     }
 
     @Override
@@ -593,7 +598,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addException(t);
         msg.addEffectiveUser(getUser());
 
-        appendRequestBodyToMessageAndSave(msg, request);
+        save(msg);
     }
 
     @Override
@@ -1265,30 +1270,6 @@ public abstract class AbstractAuditLog implements AuditLog {
         //check category enabled
         //check action
         //check ignoreAuditUsers
-    }
-
-    private void appendRequestBodyToMessageAndSave(AuditMessage msg, RestRequest request) {
-        if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            if (checkRequestFailed(msg.getCategory())) {
-                //we can aggregate the content, further processing of the request should be interrupted
-                //unlike the AuditRestRequestBodyReader, the aggregator should call HttpBody.Stream.next()
-                RestContentAggregator.aggregate(request, aggregatedRequest -> {
-                    msg.addTupleToRequestBody(request.contentOrSourceParam());
-                    save(msg);
-                });
-            } else {
-                AuditRestRequestBodyReader.readRequestBody(request, body -> {
-                    msg.addTupleToRequestBody(new Tuple<>(request.getXContentType(), body));
-                    save(msg);
-                });
-            }
-        }
-    }
-
-    private boolean checkRequestFailed(Category category) {
-        return Set.of(Category.FAILED_LOGIN, Category.BLOCKED_USER, Category.MISSING_PRIVILEGES, Category.BAD_HEADERS, Category.BLOCKED_IP, Category.SSL_EXCEPTION)
-                .contains(category);
-
     }
 
     protected String serializeRequestContent(TransportRequest transportRequest) {
