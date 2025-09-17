@@ -30,6 +30,8 @@ import com.floragunn.searchguard.configuration.api.TypeLevelConfigApi;
 import com.floragunn.searchsupport.action.RestApi;
 import com.google.common.collect.ImmutableList;
 
+import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHandler;
+
 public class SearchGuardLicenseKeyApi extends TypeLevelConfigApi {
 
     public static final RestApi REST_API = new RestApi()//
@@ -39,9 +41,9 @@ public class SearchGuardLicenseKeyApi extends TypeLevelConfigApi {
             .name("/_searchguard/license/key");
     
     public static final ImmutableList<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> ACTION_HANDLERS = ImmutableList.of(
-            new ActionHandler<>(SearchGuardLicenseKeyApi.GetAction.INSTANCE, SearchGuardLicenseKeyApi.GetAction.Handler.class),
-            new ActionHandler<>(SearchGuardLicenseKeyApi.PutAction.INSTANCE, SearchGuardLicenseKeyApi.PutAction.Handler.class),
-            new ActionHandler<>(SearchGuardLicenseKeyApi.PatchAction.INSTANCE, SearchGuardLicenseKeyApi.PatchAction.Handler.class));
+            actionHandler(SearchGuardLicenseKeyApi.GetAction.INSTANCE, SearchGuardLicenseKeyApi.GetAction.Handler.class),
+            actionHandler(SearchGuardLicenseKeyApi.PutAction.INSTANCE, SearchGuardLicenseKeyApi.PutAction.Handler.class),
+            actionHandler(SearchGuardLicenseKeyApi.PatchAction.INSTANCE, SearchGuardLicenseKeyApi.PatchAction.Handler.class));
 
     public static class GetAction extends TypeLevelConfigApi.GetAction {
         public static final GetAction INSTANCE = new GetAction();

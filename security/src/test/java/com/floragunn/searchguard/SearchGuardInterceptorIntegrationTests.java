@@ -69,6 +69,8 @@ import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.SimpleRestHandler;
 
+import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHandler;
+
 public class SearchGuardInterceptorIntegrationTests {
 
     @Test
@@ -88,7 +90,7 @@ public class SearchGuardInterceptorIntegrationTests {
     public static class MockActionPlugin extends Plugin implements ActionPlugin {
 
         public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-            return Arrays.asList(new ActionHandler<>(MockTransportAction.TYPE, MockTransportAction.class));
+            return Arrays.asList(actionHandler(MockTransportAction.TYPE, MockTransportAction.class));
         }
         @Override
         public List<RestHandler> getRestHandlers(Settings settings, NamedWriteableRegistry namedWriteableRegistry, RestController restController, ClusterSettings clusterSettings,

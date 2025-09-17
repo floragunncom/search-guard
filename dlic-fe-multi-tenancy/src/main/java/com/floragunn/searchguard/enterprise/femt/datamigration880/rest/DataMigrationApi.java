@@ -22,6 +22,8 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.rest.StartData
 import com.floragunn.searchsupport.action.RestApi;
 import org.elasticsearch.plugins.ActionPlugin;
 
+import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHandler;
+
 /**
  * Groups all REST endpoints and action handlers related to data migration
  */
@@ -36,8 +38,8 @@ public class DataMigrationApi {
             .name("GET /_searchguard/config/fe_multi_tenancy/data_migration/8_8_0");
 
     public static final ImmutableList<ActionPlugin.ActionHandler<?, ?>> ACTION_HANDLERS = ImmutableList.of(
-            new ActionPlugin.ActionHandler<>(StartDataMigrationAction.INSTANCE, StartDataMigrationHandler.class),
-            new ActionPlugin.ActionHandler<>(GetDataMigrationStateAction.INSTANCE, GetDataMigrationStateHandler.class)
+            actionHandler(StartDataMigrationAction.INSTANCE, StartDataMigrationHandler.class),
+            actionHandler(GetDataMigrationStateAction.INSTANCE, GetDataMigrationStateHandler.class)
     );
 
 }

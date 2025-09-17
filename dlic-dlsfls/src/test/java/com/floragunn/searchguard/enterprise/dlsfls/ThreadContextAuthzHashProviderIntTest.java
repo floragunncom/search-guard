@@ -17,6 +17,7 @@ package com.floragunn.searchguard.enterprise.dlsfls;
 import static com.floragunn.searchguard.test.RestMatchers.distinctNodesAt;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
+import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHandler;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
@@ -152,7 +153,7 @@ public class ThreadContextAuthzHashProviderIntTest {
     public static class MockPlugin extends Plugin implements ActionPlugin {
 
         public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-            return Arrays.asList(new ActionHandler<>(MockTransportAction.TYPE, MockTransportAction.class));
+            return Arrays.asList(actionHandler(MockTransportAction.TYPE, MockTransportAction.class));
         }
 
         @Override

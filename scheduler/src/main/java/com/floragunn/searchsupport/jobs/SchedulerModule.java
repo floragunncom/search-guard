@@ -28,12 +28,14 @@ import org.elasticsearch.plugins.ActionPlugin;
 
 import java.util.List;
 
+import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHandler;
+
 public class SchedulerModule implements SearchGuardModule {
     @Override
     public List<ActionPlugin.ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
         return List.of(
-                new ActionPlugin.ActionHandler<>(CheckForExecutingTriggerAction.INSTANCE, TransportCheckForExecutingTriggerAction.class),
-                new ActionPlugin.ActionHandler<>(SchedulerConfigUpdateAction.INSTANCE, TransportSchedulerConfigUpdateAction.class)
+                actionHandler(CheckForExecutingTriggerAction.INSTANCE, TransportCheckForExecutingTriggerAction.class),
+                actionHandler(SchedulerConfigUpdateAction.INSTANCE, TransportSchedulerConfigUpdateAction.class)
         );
     }
 }

@@ -29,6 +29,8 @@ import com.floragunn.searchguard.configuration.api.TypeLevelConfigApi;
 import com.floragunn.searchsupport.action.RestApi;
 import com.google.common.collect.ImmutableList;
 
+import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHandler;
+
 public class AuthTokenServiceConfigApi extends TypeLevelConfigApi {
 
     public static final RestApi REST_API = new RestApi()//
@@ -40,9 +42,9 @@ public class AuthTokenServiceConfigApi extends TypeLevelConfigApi {
             .name("/_searchguard/config/auth_token_service");
 
     public static final ImmutableList<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> ACTION_HANDLERS = ImmutableList.of(
-            new ActionHandler<>(AuthTokenServiceConfigApi.GetAction.INSTANCE, AuthTokenServiceConfigApi.GetAction.Handler.class),
-            new ActionHandler<>(AuthTokenServiceConfigApi.PutAction.INSTANCE, AuthTokenServiceConfigApi.PutAction.Handler.class),
-            new ActionHandler<>(AuthTokenServiceConfigApi.PatchAction.INSTANCE, AuthTokenServiceConfigApi.PatchAction.Handler.class));
+            actionHandler(AuthTokenServiceConfigApi.GetAction.INSTANCE, AuthTokenServiceConfigApi.GetAction.Handler.class),
+            actionHandler(AuthTokenServiceConfigApi.PutAction.INSTANCE, AuthTokenServiceConfigApi.PutAction.Handler.class),
+            actionHandler(AuthTokenServiceConfigApi.PatchAction.INSTANCE, AuthTokenServiceConfigApi.PatchAction.Handler.class));
 
     public static class GetAction extends TypeLevelConfigApi.GetAction {
         public static final GetAction INSTANCE = new GetAction();

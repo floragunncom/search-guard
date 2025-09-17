@@ -70,6 +70,8 @@ import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 
+import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHandler;
+
 public class AuthTokenModule implements SearchGuardModule, ComponentStateProvider {
     private static final Logger log = LogManager.getLogger(AuthTokenModule.class);
 
@@ -89,12 +91,12 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
         return ImmutableList
-                .of(new ActionHandler<>(CreateAuthTokenAction.INSTANCE, TransportCreateAuthTokenAction.class),
-                        new ActionHandler<>(PushAuthTokenUpdateAction.INSTANCE, TransportPushAuthTokenUpdateAction.class),
-                        new ActionHandler<>(GetAuthTokenAction.INSTANCE, TransportGetAuthTokenAction.class),
-                        new ActionHandler<>(RevokeAuthTokenAction.INSTANCE, TransportRevokeAuthTokenAction.class),
-                        new ActionHandler<>(SearchAuthTokensAction.INSTANCE, TransportSearchAuthTokensAction.class),
-                        new ActionHandler<>(AuthTokenInfoAction.INSTANCE, TransportAuthTokenInfoAction.class))
+                .of(actionHandler(CreateAuthTokenAction.INSTANCE, TransportCreateAuthTokenAction.class),
+                        actionHandler(PushAuthTokenUpdateAction.INSTANCE, TransportPushAuthTokenUpdateAction.class),
+                        actionHandler(GetAuthTokenAction.INSTANCE, TransportGetAuthTokenAction.class),
+                        actionHandler(RevokeAuthTokenAction.INSTANCE, TransportRevokeAuthTokenAction.class),
+                        actionHandler(SearchAuthTokensAction.INSTANCE, TransportSearchAuthTokensAction.class),
+                        actionHandler(AuthTokenInfoAction.INSTANCE, TransportAuthTokenInfoAction.class))
                 .with(AuthTokenServiceConfigApi.ACTION_HANDLERS);
     }
 

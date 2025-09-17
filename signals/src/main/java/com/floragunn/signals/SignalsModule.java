@@ -103,6 +103,8 @@ import com.floragunn.signals.watch.checks.Condition;
 import com.floragunn.signals.watch.checks.Transform;
 import com.floragunn.signals.watch.severity.SeverityMapping;
 
+import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHandler;
+
 public class SignalsModule implements SearchGuardModule, ComponentStateProvider {
 
     private final boolean enabled;
@@ -142,38 +144,38 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
     @Override
     public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
         if (enabled) {
-            return Arrays.asList(new ActionHandler<>(AckAndGetWatchAction.INSTANCE, TransportAckAndGetWatchAction.class),
-                new ActionHandler<>(AckWatchAction.INSTANCE, TransportAckWatchAction.class),
-                    new ActionHandler<>(GetWatchAction.INSTANCE, TransportGetWatchAction.class),
-                    new ActionHandler<>(PutWatchAction.INSTANCE, TransportPutWatchAction.class),
-                    new ActionHandler<>(DeleteWatchAction.INSTANCE, TransportDeleteWatchAction.class),
-                    new ActionHandler<>(SearchWatchAction.INSTANCE, TransportSearchWatchAction.class),
-                    new ActionHandler<>(com.floragunn.signals.actions.watch.activate_deactivate.DeActivateWatchAction.INSTANCE,
+            return Arrays.asList(actionHandler(AckAndGetWatchAction.INSTANCE, TransportAckAndGetWatchAction.class),
+                    actionHandler(AckWatchAction.INSTANCE, TransportAckWatchAction.class),
+                    actionHandler(GetWatchAction.INSTANCE, TransportGetWatchAction.class),
+                    actionHandler(PutWatchAction.INSTANCE, TransportPutWatchAction.class),
+                    actionHandler(DeleteWatchAction.INSTANCE, TransportDeleteWatchAction.class),
+                    actionHandler(SearchWatchAction.INSTANCE, TransportSearchWatchAction.class),
+                    actionHandler(com.floragunn.signals.actions.watch.activate_deactivate.DeActivateWatchAction.INSTANCE,
                             TransportDeActivateWatchAction.class),
-                    new ActionHandler<>(ExecuteWatchAction.INSTANCE, TransportExecuteWatchAction.class),
-                    new ActionHandler<>(DestinationConfigUpdateAction.INSTANCE, TransportDestinationConfigUpdateAction.class),
-                    new ActionHandler<>(PutAccountAction.INSTANCE, TransportPutAccountAction.class),
-                    new ActionHandler<>(GetAccountAction.INSTANCE, TransportGetAccountAction.class),
-                    new ActionHandler<>(DeleteAccountAction.INSTANCE, TransportDeleteAccountAction.class),
-                    new ActionHandler<>(SearchAccountAction.INSTANCE, TransportSearchAccountAction.class),
-                    new ActionHandler<>(GetWatchStateAction.INSTANCE, TransportGetWatchStateAction.class),
-                    new ActionHandler<>(SettingsUpdateAction.INSTANCE, TransportSettingsUpdateAction.class),
-                    new ActionHandler<>(GetSettingsAction.INSTANCE, TransportGetSettingsAction.class),
-                    new ActionHandler<>(PutSettingsAction.INSTANCE, TransportPutSettingsAction.class),
-                    new ActionHandler<>(StartStopTenantAction.INSTANCE, TransportStartStopTenantAction.class),
-                    new ActionHandler<>(StartStopAction.INSTANCE, TransportStartStopAction.class),
-                    new ActionHandler<>(SearchWatchStateAction.INSTANCE, TransportSearchWatchStateAction.class),
-                    new ActionHandler<>(CreateOrReplaceTruststoreAction.INSTANCE, CreateOrReplaceTruststoreAction.UploadTruststoreHandler.class),
-                    new ActionHandler<>(FindOneTruststoreAction.INSTANCE, FindOneTruststoreAction.FindOneTruststoreHandler.class),
-                    new ActionHandler<>(FindAllTruststoresAction.INSTANCE, FindAllTruststoresAction.FindAllTruststoresHandler.class),
-                    new ActionHandler<>(DeleteTruststoreAction.INSTANCE, DeleteTruststoreAction.DeleteTruststoreHandler.class),
-                    new ActionHandler<>(TransportTruststoreUpdatedAction.TruststoreUpdatedActionType.INSTANCE, TransportTruststoreUpdatedAction.class),
-                    new ActionHandler<>(ProxyApi.CreateOrReplaceProxyAction.INSTANCE, ProxyApi.CreateOrReplaceProxyAction.CreateOrUpdateProxyHandler.class),
-                    new ActionHandler<>(ProxyApi.FindOneProxyAction.INSTANCE, ProxyApi.FindOneProxyAction.FindOneProxyHandler.class),
-                    new ActionHandler<>(ProxyApi.DeleteProxyAction.INSTANCE, ProxyApi.DeleteProxyAction.DeleteProxyHandler.class),
-                    new ActionHandler<>(ProxyApi.FindAllProxiesAction.INSTANCE, ProxyApi.FindAllProxiesAction.FindAllProxiesHandler.class),
-                    new ActionHandler<>(TransportProxyUpdatedAction.ProxyUpdatedActionType.INSTANCE, TransportProxyUpdatedAction.class),
-                    new ActionHandler<>(LoadOperatorSummaryAction.INSTANCE, LoadOperatorSummaryHandler.class)
+                    actionHandler(ExecuteWatchAction.INSTANCE, TransportExecuteWatchAction.class),
+                    actionHandler(DestinationConfigUpdateAction.INSTANCE, TransportDestinationConfigUpdateAction.class),
+                    actionHandler(PutAccountAction.INSTANCE, TransportPutAccountAction.class),
+                    actionHandler(GetAccountAction.INSTANCE, TransportGetAccountAction.class),
+                    actionHandler(DeleteAccountAction.INSTANCE, TransportDeleteAccountAction.class),
+                    actionHandler(SearchAccountAction.INSTANCE, TransportSearchAccountAction.class),
+                    actionHandler(GetWatchStateAction.INSTANCE, TransportGetWatchStateAction.class),
+                    actionHandler(SettingsUpdateAction.INSTANCE, TransportSettingsUpdateAction.class),
+                    actionHandler(GetSettingsAction.INSTANCE, TransportGetSettingsAction.class),
+                    actionHandler(PutSettingsAction.INSTANCE, TransportPutSettingsAction.class),
+                    actionHandler(StartStopTenantAction.INSTANCE, TransportStartStopTenantAction.class),
+                    actionHandler(StartStopAction.INSTANCE, TransportStartStopAction.class),
+                    actionHandler(SearchWatchStateAction.INSTANCE, TransportSearchWatchStateAction.class),
+                    actionHandler(CreateOrReplaceTruststoreAction.INSTANCE, CreateOrReplaceTruststoreAction.UploadTruststoreHandler.class),
+                    actionHandler(FindOneTruststoreAction.INSTANCE, FindOneTruststoreAction.FindOneTruststoreHandler.class),
+                    actionHandler(FindAllTruststoresAction.INSTANCE, FindAllTruststoresAction.FindAllTruststoresHandler.class),
+                    actionHandler(DeleteTruststoreAction.INSTANCE, DeleteTruststoreAction.DeleteTruststoreHandler.class),
+                    actionHandler(TransportTruststoreUpdatedAction.TruststoreUpdatedActionType.INSTANCE, TransportTruststoreUpdatedAction.class),
+                    actionHandler(ProxyApi.CreateOrReplaceProxyAction.INSTANCE, ProxyApi.CreateOrReplaceProxyAction.CreateOrUpdateProxyHandler.class),
+                    actionHandler(ProxyApi.FindOneProxyAction.INSTANCE, ProxyApi.FindOneProxyAction.FindOneProxyHandler.class),
+                    actionHandler(ProxyApi.DeleteProxyAction.INSTANCE, ProxyApi.DeleteProxyAction.DeleteProxyHandler.class),
+                    actionHandler(ProxyApi.FindAllProxiesAction.INSTANCE, ProxyApi.FindAllProxiesAction.FindAllProxiesHandler.class),
+                    actionHandler(TransportProxyUpdatedAction.ProxyUpdatedActionType.INSTANCE, TransportProxyUpdatedAction.class),
+                    actionHandler(LoadOperatorSummaryAction.INSTANCE, LoadOperatorSummaryHandler.class)
             );
         } else {
             return Collections.emptyList();
