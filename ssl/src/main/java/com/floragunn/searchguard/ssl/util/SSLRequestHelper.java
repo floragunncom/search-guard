@@ -17,7 +17,7 @@
 
 package com.floragunn.searchguard.ssl.util;
 
-import com.floragunn.searchsupport.rest.AttributedHttpRequest;
+import com.floragunn.searchguard.ssl.http.AttributedHttpRequest;
 import io.netty.handler.ssl.SslHandler;
 
 import java.io.File;

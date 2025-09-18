@@ -17,7 +17,7 @@
 
 package com.floragunn.searchguard.http;
 
-import com.floragunn.searchsupport.rest.AttributedHttpRequest;
+import com.floragunn.searchguard.ssl.http.AttributedHttpRequest;
 import io.netty.handler.ssl.SslHandler;
 import org.elasticsearch.action.bulk.IncrementalBulkService;
 import org.elasticsearch.common.network.NetworkService;

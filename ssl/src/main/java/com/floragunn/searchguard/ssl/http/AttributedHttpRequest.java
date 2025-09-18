@@ -15,7 +15,7 @@
  *
  */
 
-package com.floragunn.searchsupport.rest;
+package com.floragunn.searchguard.ssl.http;
 
 import io.netty.handler.ssl.SslHandler;
 import org.elasticsearch.common.bytes.BytesReference;
