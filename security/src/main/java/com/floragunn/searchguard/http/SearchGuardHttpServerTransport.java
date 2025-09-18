@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
-import com.floragunn.searchsupport.rest.AttributedHttpRequest;
+import com.floragunn.searchguard.ssl.http.AttributedHttpRequest;
 import io.netty.handler.ssl.SslHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

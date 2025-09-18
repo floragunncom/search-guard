@@ -25,14 +25,6 @@
       <groupId>org.elasticsearch</groupId>
       <artifactId>elasticsearch</artifactId>
     </dependency>
-
-    <dependency>
-      <groupId>io.netty</groupId>
-      <artifactId>netty-handler</artifactId>
-      <version>${netty.version}</version>
-      <scope>compile</scope>
-    </dependency>
-
     <dependency>
       <groupId>org.wiremock</groupId>
       <artifactId>wiremock</artifactId>
