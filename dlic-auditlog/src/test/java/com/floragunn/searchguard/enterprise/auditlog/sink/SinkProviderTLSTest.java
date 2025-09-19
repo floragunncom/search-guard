@@ -27,10 +27,6 @@ import org.apache.http.impl.bootstrap.HttpServer;
 import org.apache.http.impl.bootstrap.ServerBootstrap;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.Settings.Builder;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
 
 import com.floragunn.searchguard.enterprise.auditlog.helper.MockAuditMessageFactory;
 import com.floragunn.searchguard.enterprise.auditlog.helper.TestHttpHandler;
@@ -39,7 +35,11 @@ import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.enterprise.auditlog.sink.SinkProvider;
 import com.floragunn.searchguard.enterprise.auditlog.sink.WebhookSink;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Test;
 
 public class SinkProviderTLSTest {
 

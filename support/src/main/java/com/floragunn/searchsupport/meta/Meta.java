@@ -24,8 +24,6 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.fluent.collections.UnmodifiableCollection;
 import com.floragunn.searchsupport.meta.MetaImpl.DefaultMetaImpl;
-import org.elasticsearch.common.logging.internal.LoggerFactoryImpl;
-import org.elasticsearch.logging.internal.spi.LoggerFactory;
 
 /**
  * Abstraction for the ES index space metadata. 
@@ -269,8 +267,6 @@ public interface Meta extends Document<Meta> {
     interface Mock {
 
         static Meta indices(String... indexNames) {
-            LoggerFactoryImpl factory = new LoggerFactoryImpl();
-            LoggerFactory.setInstance(factory);
             return DefaultMetaImpl.indices(indexNames);
         }
 
