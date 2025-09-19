@@ -7,7 +7,6 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
-import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.index.IndexService;
@@ -63,7 +62,7 @@ public class GetMapper implements Unscoper<GetResponse> {
         if (fields.isEmpty()) {
             return PartitionedFields.empty();
         } else {
-            IndexMetadata indexMetadata = clusterService.state().getMetadata().getProject(Metadata.DEFAULT_PROJECT_ID).indices().get(getResponse.getIndex());
+            IndexMetadata indexMetadata = clusterService.state().getMetadata().getProject().indices().get(getResponse.getIndex());
             IndexService indexService = indexMetadata != null ? indicesService.indexService(indexMetadata.getIndex()) : null;
 
             if (indexService != null) {
