@@ -45,6 +45,7 @@ import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.DiagnosingMatcher;
 import org.hamcrest.Matcher;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -81,13 +82,10 @@ public class RoleBasedDocumentAuthorizationTest {
 
     @RunWith(Parameterized.class)
     public static class IndicesAndAliases_getRestriction {
-        final static Meta BASIC;
-        static {
-            EsLogging.initLogging();
-            BASIC = indices("index_a1", "index_a2", "index_b1", "index_b2")//
+        @ClassRule
+        public static EsLogging esLogging = new EsLogging();
+        final static Meta BASIC = indices("index_a1", "index_a2", "index_b1", "index_b2")//
                     .alias("alias_a").of("index_a1", "index_a2");
-
-        }
 
         final static Meta.Index index_a1 = (Meta.Index) BASIC.getIndexOrLike("index_a1");
         final static Meta.Index index_a2 = (Meta.Index) BASIC.getIndexOrLike("index_a2");
@@ -463,6 +461,8 @@ public class RoleBasedDocumentAuthorizationTest {
 
     @RunWith(Parameterized.class)
     public static class IndicesAndAliases_hasRestriction {
+        @ClassRule
+        public static EsLogging esLogging = new EsLogging();
         final static Meta BASIC = indices("index_a1", "index_a2", "index_b1", "index_b2")//
                 .alias("alias_a").of("index_a1", "index_a2");
 

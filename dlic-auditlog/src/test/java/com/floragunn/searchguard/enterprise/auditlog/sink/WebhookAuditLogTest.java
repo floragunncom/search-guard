@@ -25,14 +25,11 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 
+import com.floragunn.searchsupport.util.EsLogging;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.bootstrap.HttpServer;
 import org.apache.http.impl.bootstrap.ServerBootstrap;
 import org.elasticsearch.common.settings.Settings;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
 
 import com.floragunn.searchguard.enterprise.auditlog.helper.LoggingSink;
 import com.floragunn.searchguard.enterprise.auditlog.helper.MockAuditMessageFactory;
@@ -45,9 +42,17 @@ import com.floragunn.searchguard.enterprise.auditlog.sink.WebhookSink.WebhookFor
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.network.PortAllocator;
 import com.floragunn.searchguard.support.ConfigConstants;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Test;
 
 public class WebhookAuditLogTest {
-    
+
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
+
     protected HttpServer server = null;
 
     @Before
