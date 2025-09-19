@@ -19,7 +19,6 @@ import static org.mockito.Mockito.when;
 
 import java.net.InetSocketAddress;
 
-import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -31,9 +30,6 @@ import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
 
 public class MockAuditMessageFactory {
-    static {
-        EsLogging.initLogging();
-    }
 
     public static AuditMessage validAuditMessage() {
         return validAuditMessage(Category.FAILED_LOGIN);

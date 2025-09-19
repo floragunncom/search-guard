@@ -23,6 +23,7 @@ import com.floragunn.searchsupport.util.EsLogging;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -155,11 +156,9 @@ public class RoleBasedFieldMaskingTest {
 
     @RunWith(Parameterized.class)
     public static class IndicesAndAliases_getRestriction {
-        final static Meta META;
-        static {
-            EsLogging.initLogging();
-            META = indices("index_a1", "hr", "it");
-        }
+        @ClassRule
+        public static EsLogging esLogging = new EsLogging();
+        final static Meta META = indices("index_a1", "hr", "it");
 
         final static Meta.Index INDEX_A1 = (Meta.Index) META.getIndexOrLike("index_a1");
         final static Meta.Index INDEX_HR = (Meta.Index) META.getIndexOrLike("hr");

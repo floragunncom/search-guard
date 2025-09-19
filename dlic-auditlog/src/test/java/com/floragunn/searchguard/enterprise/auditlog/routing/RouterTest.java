@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -34,6 +35,9 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public class RouterTest extends AbstractAuditlogiUnitTest{
+
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
     
 	@Test
 	public void testValidConfiguration() throws Exception {

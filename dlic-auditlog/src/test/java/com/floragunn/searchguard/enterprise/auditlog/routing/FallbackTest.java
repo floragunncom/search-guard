@@ -18,8 +18,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.enterprise.auditlog.AbstractAuditlogiUnitTest;
@@ -33,6 +35,9 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public class FallbackTest extends AbstractAuditlogiUnitTest {
+
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
     
 	@Test
 	public void testFallback() throws Exception {

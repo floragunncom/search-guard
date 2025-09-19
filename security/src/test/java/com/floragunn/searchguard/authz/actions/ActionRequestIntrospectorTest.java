@@ -24,6 +24,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -38,6 +39,7 @@ import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.hamcrest.Description;
 import org.hamcrest.DiagnosingMatcher;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.authz.SystemIndexAccess;
@@ -45,6 +47,9 @@ import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionR
 import com.floragunn.searchsupport.meta.Meta;
 
 public class ActionRequestIntrospectorTest {
+
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
 
     static final Actions ACTIONS = new Actions(null);
     static final Meta META = indices("index_a11", "index_a12", "index_a21", "index_a22", "index_b1", "index_b2")//

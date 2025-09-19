@@ -14,8 +14,10 @@
 
 package com.floragunn.searchguard.enterprise.auditlog.routing;
 
+import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -31,6 +33,9 @@ import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 
 public class PerfTest extends AbstractAuditlogiUnitTest {
+
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
 
 	@Test
 	@Ignore("jvm crash on cci")
