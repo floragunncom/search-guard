@@ -25,7 +25,6 @@ import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
-import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.junit.Assert;
@@ -54,7 +53,7 @@ public class ProtectedConfigIndexServiceTest {
 
         service.onNodeStart();
 
-        AsyncAssert.awaitAssert("Index created", () -> clusterService.state().getMetadata().getProject(Metadata.DEFAULT_PROJECT_ID).indices().containsKey(".test_mapping_update"),
+        AsyncAssert.awaitAssert("Index created", () -> clusterService.state().getMetadata().getProject().indices().containsKey(".test_mapping_update"),
                 Duration.ofSeconds(10));
 
         service = new ProtectedConfigIndexService(cluster.getInternalNodeClient(), clusterService, cluster.getInjectable(ThreadPool.class),
@@ -69,7 +68,7 @@ public class ProtectedConfigIndexServiceTest {
         service.onNodeStart();
 
         AsyncAssert.awaitAssert(
-                "Index updated", () -> clusterService.state().getMetadata().getProject(Metadata.DEFAULT_PROJECT_ID).indices().get(".test_mapping_update").mapping().getSourceAsMap()
+                "Index updated", () -> clusterService.state().getMetadata().getProject().indices().get(".test_mapping_update").mapping().getSourceAsMap()
                         .get("properties").equals(ImmutableMap.of("x", ImmutableMap.of("type", "text"), "y", ImmutableMap.of("type", "text"))),
                 Duration.ofSeconds(10));
 
@@ -107,11 +106,11 @@ public class ProtectedConfigIndexServiceTest {
 
         AsyncAssert
                 .awaitAssert("Index updated",
-                        () -> clusterService.state().getMetadata().getProject(Metadata.DEFAULT_PROJECT_ID).indices().get(indexName).mapping().getSourceAsMap().get("properties")
+                        () -> clusterService.state().getMetadata().getProject().indices().get(indexName).mapping().getSourceAsMap().get("properties")
                                 .equals(ImmutableMap.of("x", ImmutableMap.of("type", "text"), "y", ImmutableMap.of("type", "text"))),
                         Duration.ofSeconds(30));
 
-        AsyncAssert.awaitAssert("Index hidden", () -> clusterService.state().getMetadata().getProject(Metadata.DEFAULT_PROJECT_ID).indices().get(indexName).isHidden(),
+        AsyncAssert.awaitAssert("Index hidden", () -> clusterService.state().getMetadata().getProject().indices().get(indexName).isHidden(),
                 Duration.ofSeconds(10));
     }
 
@@ -139,7 +138,7 @@ public class ProtectedConfigIndexServiceTest {
 
         service.onNodeStart();
 
-        AsyncAssert.awaitAssert("Index hidden", () -> clusterService.state().getMetadata().getProject(Metadata.DEFAULT_PROJECT_ID).indices().get(indexName).isHidden(),
+        AsyncAssert.awaitAssert("Index hidden", () -> clusterService.state().getMetadata().getProject().indices().get(indexName).isHidden(),
                 Duration.ofSeconds(10));
     }
 

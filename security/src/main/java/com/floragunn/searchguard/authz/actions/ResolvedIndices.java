@@ -443,7 +443,7 @@ public class ResolvedIndices {
             boolean includeIndices = scope.includeIndices;
             boolean includeAliases = (scope.includeAliases && !request.indicesOptions().ignoreAliases()) || scope == IndicesRequestInfo.Scope.ALIAS; // An explict ALIAS scope overrides ignoreAliases
 
-            SortedMap<String, IndexAbstraction> indicesLookup = metadata.getProject(Metadata.DEFAULT_PROJECT_ID).getIndicesLookup();
+            SortedMap<String, IndexAbstraction> indicesLookup = metadata.getProject().getIndicesLookup();
 
             ImmutableSet.Builder<Meta.Index> indices = new ImmutableSet.Builder<>();
             ImmutableSet.Builder<Meta.NonExistent> nonExistingIndices = new ImmutableSet.Builder<>();

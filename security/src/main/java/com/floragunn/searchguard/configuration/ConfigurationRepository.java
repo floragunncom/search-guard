@@ -63,7 +63,6 @@ import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.metadata.ProjectMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
@@ -344,7 +343,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
     private ProjectMetadata getDefaultProjectMetadata() {
-        return clusterService.state().projectState(Metadata.DEFAULT_PROJECT_ID).metadata();
+        return clusterService.state().projectState().metadata();
     }
 
     private void loadConfigurationOnStartup(String searchguardIndex) {
