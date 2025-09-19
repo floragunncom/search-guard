@@ -195,7 +195,7 @@ public class ResolvedIndicesTest {
     private static Meta metaForIndexMetadata(IndexMetadata...indexMetadata) {
         Metadata esMetadata = mock(Metadata.class, Mockito.RETURNS_DEEP_STUBS);
         ImmutableOpenMap<String, IndexMetadata> indicesMetadataMap = createIndexMetaMap(indexMetadata);
-        ProjectMetadata project = esMetadata.getProject(Metadata.DEFAULT_PROJECT_ID);
+        ProjectMetadata project = esMetadata.getProject();
         when(project.indices()).thenReturn(indicesMetadataMap);
         when(project.indices()).thenReturn(indicesMetadataMap);
         return Meta.from(esMetadata);

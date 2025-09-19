@@ -42,7 +42,6 @@ import org.elasticsearch.action.search.TransportSearchScrollAction;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
-import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -359,7 +358,7 @@ public class DlsFilterLevelActionHandler {
             documentFields = Collections.emptyMap();
             metadataFields = Collections.emptyMap();
         } else {
-            IndexMetadata indexMetadata = clusterService.state().getMetadata().getProject(Metadata.DEFAULT_PROJECT_ID).indices().get(hit.getIndex());
+            IndexMetadata indexMetadata = clusterService.state().getMetadata().getProject().indices().get(hit.getIndex());
             IndexService indexService = indexMetadata != null ? indicesService.indexService(indexMetadata.getIndex()) : null;
 
             if (indexService != null) {

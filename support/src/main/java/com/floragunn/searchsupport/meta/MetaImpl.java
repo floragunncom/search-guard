@@ -37,7 +37,6 @@ import com.floragunn.fluent.collections.UnmodifiableCollection;
 
 import org.elasticsearch.cluster.metadata.DataStreamLifecycle;
 import org.elasticsearch.cluster.metadata.DataStreamOptions;
-import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.metadata.ProjectMetadata;
 
 import org.elasticsearch.index.IndexMode;
@@ -554,7 +553,7 @@ public abstract class MetaImpl implements Meta {
         }
 
         public DefaultMetaImpl(org.elasticsearch.cluster.metadata.Metadata esMetadata) {
-            ProjectMetadata project = esMetadata.getProject(Metadata.DEFAULT_PROJECT_ID);
+            ProjectMetadata project = esMetadata.getProject();
             ImmutableSet.Builder<Index> indices = new ImmutableSet.Builder<>(project.indices().size());
             ImmutableMap.Builder<String, Meta.IndexLikeObject> nameMap = new ImmutableMap.Builder<>(project.indices().size());
             ImmutableSet.Builder<Index> indicesWithoutParents = new ImmutableSet.Builder<>(project.indices().size());

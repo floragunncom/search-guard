@@ -73,7 +73,7 @@ public class WildcardExpressionResolver {
     }
 
     public static List<String> resolveEmptyOrTrivialWildcard(IndicesOptions options, Metadata metadata) {
-        ProjectMetadata project = metadata.getProject(Metadata.DEFAULT_PROJECT_ID);
+        ProjectMetadata project = metadata.getProject();
         if (options.expandWildcardsOpen() && options.expandWildcardsClosed() && options.expandWildcardsHidden()) {
             return Arrays.asList(project.getConcreteAllIndices());
         } else if (options.expandWildcardsOpen() && options.expandWildcardsClosed()) {
@@ -143,7 +143,7 @@ public class WildcardExpressionResolver {
             }
 
             if (excludeState != null && type == IndexAbstraction.Type.CONCRETE_INDEX) {
-                ProjectMetadata project = metadata.getProject(Metadata.DEFAULT_PROJECT_ID);
+                ProjectMetadata project = metadata.getProject();
                 IndexMetadata indexMetadata = project.index(entry.getKey());
 
                 if (indexMetadata != null && excludeState == indexMetadata.getState()) {

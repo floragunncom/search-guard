@@ -224,7 +224,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
 
             IndexAbstraction indexAbstraction;
             Metadata metadata = clusterState.getMetadata();
-            ProjectMetadata project = metadata.getProject(Metadata.DEFAULT_PROJECT_ID);
+            ProjectMetadata project = metadata.getProject();
             if ((indexAbstraction = project.getIndicesLookup().get(configIndex.getName())) != null) {
                 final IndexMetadata indexMetadata = project.index(indexAbstraction.getWriteIndex());
                 if (log.isTraceEnabled()) {
@@ -379,7 +379,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
     }
 
     private int getMappingVersion(ConfigIndexState configIndex, ClusterState clusterState) {
-        ProjectMetadata project = clusterState.getMetadata().getProject(Metadata.DEFAULT_PROJECT_ID);
+        ProjectMetadata project = clusterState.getMetadata().getProject();
         IndexMetadata index = project.index(project.getIndicesLookup().get(configIndex.getName()).getWriteIndex());
         MappingMetadata mapping = index.mapping();
 
