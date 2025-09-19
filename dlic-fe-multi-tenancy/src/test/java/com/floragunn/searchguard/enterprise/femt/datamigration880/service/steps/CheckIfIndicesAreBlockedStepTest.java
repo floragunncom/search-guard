@@ -25,6 +25,7 @@ import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -44,9 +45,11 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class CheckIfIndicesAreBlockedStepTest {
 
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
+
     static {
         IndexMetadata.builder("workaround to avoid problems related to static init of enum APIBlock");
-        EsLogging.initLogging();
     }
 
     private static final ZonedDateTime NOW = ZonedDateTime.of(LocalDateTime.of(1990, 1, 1, 1, 1), UTC);
