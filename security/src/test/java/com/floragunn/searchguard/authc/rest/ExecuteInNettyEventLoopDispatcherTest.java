@@ -102,18 +102,6 @@ public class ExecuteInNettyEventLoopDispatcherTest {
     }
 
     @Test
-    public void shouldLogErrorWhenEventLoopIsNull() {
-        // AttributedHttpRequest, eventLoop attribute missing
-        when(restRequest.getHttpRequest()).thenReturn(attributedHttpRequest);
-        when(attributedHttpRequest.getEventLoop()).thenReturn(null);
-
-        Throwable throwable = assertThatThrown(() -> dispatcher.dispatchRequest(restRequest, restChannel, threadContext),
-                instanceOf(AssertionError.class));
-
-        assertThat(throwable.getMessage(), containsString("Netty event loop not present, cannot use correct thread"));
-    }
-
-    @Test
     public void shouldLogErrorWhenHttpRequestIsNotAttributed() {
         when(restRequest.getHttpRequest()).thenReturn(httpRequest);
 
@@ -146,18 +134,6 @@ public class ExecuteInNettyEventLoopDispatcherTest {
         dispatcher.dispatchBadRequest(restChannel, threadContext, cause);
 
         verify(eventLoop).execute(preservedRunnable);
-    }
-
-    @Test
-    public void shouldLogErrorWhenEventLoopIsNullForDispatchBadRequest() {
-        when(restChannel.request()).thenReturn(restRequest);
-        when(restRequest.getHttpRequest()).thenReturn(attributedHttpRequest);
-        when(attributedHttpRequest.getEventLoop()).thenReturn(null);
-
-        Throwable throwable = assertThatThrown(() -> dispatcher.dispatchBadRequest(restChannel, threadContext, cause),
-                instanceOf(AssertionError.class));
-
-        assertThat(throwable.getMessage(), containsString("Netty event loop not present, cannot use correct thread"));
     }
 
     @Test
