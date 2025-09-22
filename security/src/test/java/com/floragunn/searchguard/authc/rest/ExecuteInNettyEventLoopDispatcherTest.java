@@ -16,7 +16,7 @@
  */
 package com.floragunn.searchguard.authc.rest;
 
-import com.floragunn.searchsupport.rest.AttributedHttpRequest;
+import com.floragunn.searchguard.ssl.http.AttributedHttpRequest;
 import com.floragunn.searchsupport.util.EsLogging;
 import io.netty.channel.EventLoop;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -81,7 +81,7 @@ public class ExecuteInNettyEventLoopDispatcherTest {
     @Test
     public void shouldDelegateDispatchRequestToOriginalDispatcherWhenInEventLoop() {
         when(restRequest.getHttpRequest()).thenReturn(attributedHttpRequest);
-        when(attributedHttpRequest.getAttribute("sg_event_loop")).thenReturn(Optional.of(eventLoop));
+        when(attributedHttpRequest.getEventLoop()).thenReturn(eventLoop);
         when(eventLoop.inEventLoop()).thenReturn(true);
 
         dispatcher.dispatchRequest(restRequest, restChannel, threadContext);
@@ -92,7 +92,7 @@ public class ExecuteInNettyEventLoopDispatcherTest {
     @Test
     public void shouldPreserveContextAndExecuteOnEventLoopWhenNotInEventLoop() {
         when(restRequest.getHttpRequest()).thenReturn(attributedHttpRequest);
-        when(attributedHttpRequest.getAttribute("sg_event_loop")).thenReturn(Optional.of(eventLoop));
+        when(attributedHttpRequest.getEventLoop()).thenReturn(eventLoop);
         when(eventLoop.inEventLoop()).thenReturn(false);
         doReturn(preservedRunnable).when(threadContext).preserveContext(Mockito.any(Runnable.class));
 
@@ -105,7 +105,7 @@ public class ExecuteInNettyEventLoopDispatcherTest {
     public void shouldLogErrorWhenEventLoopIsNull() {
         // AttributedHttpRequest, eventLoop attribute missing
         when(restRequest.getHttpRequest()).thenReturn(attributedHttpRequest);
-        when(attributedHttpRequest.getAttribute("sg_event_loop")).thenReturn(Optional.empty());
+        when(attributedHttpRequest.getEventLoop()).thenReturn(null);
 
         Throwable throwable = assertThatThrown(() -> dispatcher.dispatchRequest(restRequest, restChannel, threadContext),
                 instanceOf(AssertionError.class));
@@ -127,7 +127,7 @@ public class ExecuteInNettyEventLoopDispatcherTest {
     public void shouldDelegateDispatchBadRequestToOriginalDispatcherWhenInEventLoop() {
         when(restChannel.request()).thenReturn(restRequest);
         when(restRequest.getHttpRequest()).thenReturn(attributedHttpRequest);
-        when(attributedHttpRequest.getAttribute("sg_event_loop")).thenReturn(Optional.of(eventLoop));
+        when(attributedHttpRequest.getEventLoop()).thenReturn(eventLoop);
         when(eventLoop.inEventLoop()).thenReturn(true);
 
         dispatcher.dispatchBadRequest(restChannel, threadContext, cause);
@@ -139,7 +139,7 @@ public class ExecuteInNettyEventLoopDispatcherTest {
     public void shouldPreserveContextAndExecuteBadRequestOnEventLoopWhenNotInEventLoop() {
         when(restChannel.request()).thenReturn(restRequest);
         when(restRequest.getHttpRequest()).thenReturn(attributedHttpRequest);
-        when(attributedHttpRequest.getAttribute("sg_event_loop")).thenReturn(Optional.of(eventLoop));
+        when(attributedHttpRequest.getEventLoop()).thenReturn(eventLoop);
         when(eventLoop.inEventLoop()).thenReturn(false);
         doReturn(preservedRunnable).when(threadContext).preserveContext(Mockito.any(Runnable.class));
 
@@ -152,7 +152,7 @@ public class ExecuteInNettyEventLoopDispatcherTest {
     public void shouldLogErrorWhenEventLoopIsNullForDispatchBadRequest() {
         when(restChannel.request()).thenReturn(restRequest);
         when(restRequest.getHttpRequest()).thenReturn(attributedHttpRequest);
-        when(attributedHttpRequest.getAttribute("sg_event_loop")).thenReturn(Optional.empty());
+        when(attributedHttpRequest.getEventLoop()).thenReturn(null);
 
         Throwable throwable = assertThatThrown(() -> dispatcher.dispatchBadRequest(restChannel, threadContext, cause),
                 instanceOf(AssertionError.class));
