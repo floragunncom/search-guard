@@ -332,6 +332,11 @@ SGS_KIBANA_SERVER:
     allowed_actions:
     - "SGS_INDICES_ALL"
   - index_patterns:
+      - "security_solution-cloud_security_posture.*"
+    allowed_actions:
+        - "SGS_READ"
+        - "indices:admin/get"
+  - index_patterns:
     - "*"
     allowed_actions:
     - "indices:admin/aliases*"
@@ -365,6 +370,7 @@ SGS_KIBANA_SERVER:
     - data_stream_patterns:
         - ".kibana-event-log-ds*"
         - ".kibana-reporting*"
+        - ".edr-workflow-insights*"
       allowed_actions:
         - "*"
 
