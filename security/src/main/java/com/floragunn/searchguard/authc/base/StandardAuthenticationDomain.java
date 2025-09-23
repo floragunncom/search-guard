@@ -332,7 +332,6 @@ public class StandardAuthenticationDomain<AuthenticatorType extends Authenticati
     @Override
     public CompletableFuture<User> authenticate(AuthCredentials authCredentials, AuthenticationDebugLogger debug)
             throws AuthenticatorUnavailableException, CredentialsException {
-        log.info("SG authentication started in thread '{}'", Thread.currentThread().getName());
         try (Meter meter = Meter.basic(metricsLevel, authenticationBackendMetrics)) {
             authCredentials = authenticationBackend.authenticate(authCredentials, meter).get();
         } catch (InterruptedException e) {
