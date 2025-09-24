@@ -291,9 +291,6 @@ public abstract class AbstractAuditLog implements AuditLog {
         AuditMessage msg = new AuditMessage(Category.FAILED_LOGIN, clusterState, getOrigin(), Origin.REST);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
-        }
 
         if (request != null) {
             msg.addPath(request.path());
@@ -336,9 +333,6 @@ public abstract class AbstractAuditLog implements AuditLog {
         AuditMessage msg = new AuditMessage(Category.BLOCKED_USER, clusterState, getOrigin(), Origin.REST);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
-        }
 
         if (request != null) {
             msg.addPath(request.path());
@@ -351,7 +345,6 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addIsAdminDn(sgadmin);
 
         save(msg);
-
     }
 
     @Override
@@ -382,20 +375,23 @@ public abstract class AbstractAuditLog implements AuditLog {
         AuditMessage msg = new AuditMessage(Category.AUTHENTICATED, clusterState, getOrigin(), Origin.REST);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
-        }
-
         if (request != null) {
             msg.addPath(request.path());
             msg.addRestHeaders(request.getHeaders(), excludeSensitiveHeaders);
             msg.addRestParams(request.params());
         }
-
         msg.addInitiatingUser(initiatingUser);
         msg.addEffectiveUser(effectiveUser);
         msg.addIsAdminDn(sgadmin);
-        save(msg);
+
+        if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
+            AuditRestRequestBodyReader.readRequestBody(request, body -> {
+                msg.addTupleToRequestBody(new Tuple<>(request.getXContentType(), body));
+                save(msg);
+            });
+        } else {
+            save(msg);
+        }
     }
 
     @Override
@@ -407,9 +403,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         AuditMessage msg = new AuditMessage(Category.MISSING_PRIVILEGES, clusterState, getOrigin(), Origin.REST);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
-        }
+
         if (request != null) {
             msg.addPath(request.path());
             msg.addRestHeaders(request.getHeaders(), excludeSensitiveHeaders);
@@ -417,6 +411,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
 
         msg.addEffectiveUser(effectiveUser);
+
         save(msg);
     }
 
@@ -483,9 +478,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         AuditMessage msg = new AuditMessage(Category.BAD_HEADERS, clusterState, getOrigin(), Origin.REST);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
-        }
+
         if (request != null) {
             msg.addPath(request.path());
             msg.addRestHeaders(request.getHeaders(), excludeSensitiveHeaders);
@@ -521,9 +514,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         AuditMessage msg = new AuditMessage(Category.BLOCKED_IP, clusterState, getOrigin(), Origin.REST);
         // getAddress() call is checked in BackendRegistry for null
         msg.addRemoteAddress(remoteAddress.getAddress().getHostAddress());
-        if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
-        }
+
         if (request != null) {
             msg.addPath(request.path());
             msg.addRestHeaders(request.getHeaders(), excludeSensitiveHeaders);
@@ -533,7 +524,6 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addEffectiveUser(getUser());
 
         save(msg);
-
     }
 
     @Override
@@ -599,9 +589,6 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
-        if (request != null && logRequestBody && request.hasContentOrSourceParam()) {
-            msg.addTupleToRequestBody(request.contentOrSourceParam());
-        }
 
         if (request != null) {
             msg.addPath(request.path());
@@ -610,6 +597,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         }
         msg.addException(t);
         msg.addEffectiveUser(getUser());
+
         save(msg);
     }
 
@@ -1283,8 +1271,6 @@ public abstract class AbstractAuditLog implements AuditLog {
         //check action
         //check ignoreAuditUsers
     }
-
-
 
     protected String serializeRequestContent(TransportRequest transportRequest) {
         if (transportRequest instanceof CreateIndexRequest) {
