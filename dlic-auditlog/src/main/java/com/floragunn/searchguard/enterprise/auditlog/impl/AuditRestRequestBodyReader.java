@@ -14,6 +14,8 @@
 
 package com.floragunn.searchguard.enterprise.auditlog.impl;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.CompositeBytesReference;
 import org.elasticsearch.common.bytes.ReleasableBytesReference;
@@ -28,15 +30,20 @@ import java.util.function.Consumer;
  */
 class AuditRestRequestBodyReader {
 
+    private final static Logger log = LogManager.getLogger(AuditRestRequestBodyReader.class);
+
     /**
      * Reads the request body and passes it to the consumer
      */
     static void readRequestBody(RestRequest request, Consumer<BytesReference> bodyConsumer) {
         if (request.isFullContent()) {
             bodyConsumer.accept(request.requiredContent());
-        } else {
+        } else if (request.isStreamedContent()) {
             StreamBodyHandler streamBodyHandler = new StreamBodyHandler(bodyConsumer);
             request.contentStream().addTracingHandler(streamBodyHandler);
+        } else {
+            log.error("Unknown request content type");
+            assert false : "Unknown request content type, it's neither full nor stream.";
         }
     }
 
