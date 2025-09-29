@@ -108,6 +108,7 @@ public class ConfigConstants {
     public static final String SEARCHGUARD_AUDIT_THREADPOOL_SIZE = "searchguard.audit.threadpool.size";
     public static final String SEARCHGUARD_AUDIT_THREADPOOL_MAX_QUEUE_LEN = "searchguard.audit.threadpool.max_queue_len";
     public static final String SEARCHGUARD_AUDIT_LOG_REQUEST_BODY = "searchguard.audit.log_request_body";
+    public static final String SEARCHGUARD_AUDIT_IGNORE_REQUEST_BODIES = "searchguard.audit.ignore_request_bodies";
     public static final String SEARCHGUARD_AUDIT_RESOLVE_INDICES = "searchguard.audit.resolve_indices";
     public static final String SEARCHGUARD_AUDIT_ENABLE_REST = "searchguard.audit.enable_rest";
     public static final String SEARCHGUARD_AUDIT_ENABLE_TRANSPORT = "searchguard.audit.enable_transport";
