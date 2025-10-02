@@ -1,3 +1,4 @@
 {
- "allowed_actions": ["READ_UT", "WRITE"]
+ "allowed_actions": ["READ_UT", "WRITE"],
+  "type": "index"
 }
