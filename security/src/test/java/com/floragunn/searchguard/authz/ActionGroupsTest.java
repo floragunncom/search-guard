@@ -79,7 +79,7 @@ public class ActionGroupsTest {
         private Map<String, Object> map = new HashMap<>();
 
         TestActionGroup with(String key, String... actions) {
-            map.put(key, ImmutableMap.of("allowed_actions", Arrays.asList(actions)));
+            map.put(key, ImmutableMap.of("allowed_actions", Arrays.asList(actions), "type", "index"));
             return this;
         }
     }
