@@ -547,7 +547,8 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
     public void testImmutableIndex() throws Exception {
         Settings settings = Settings.builder()
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES, "myindex1")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug")
+                .put("searchguard.ssl.http.enabled", false).build();
         setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
         Client tc = getPrivilegedInternalNodeClient();
