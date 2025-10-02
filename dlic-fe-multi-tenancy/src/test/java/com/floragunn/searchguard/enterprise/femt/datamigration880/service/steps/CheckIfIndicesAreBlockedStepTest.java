@@ -49,6 +49,7 @@ public class CheckIfIndicesAreBlockedStepTest {
     public static EsLogging esLogging = new EsLogging();
 
     static {
+        //required due to issue described here https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/538#note_35169
         IndexMetadata.builder("workaround to avoid problems related to static init of enum APIBlock");
     }
 
