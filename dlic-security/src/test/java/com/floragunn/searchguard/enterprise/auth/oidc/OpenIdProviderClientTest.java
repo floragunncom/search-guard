@@ -16,7 +16,6 @@ package com.floragunn.searchguard.enterprise.auth.oidc;
 
 import java.io.FileNotFoundException;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;

@@ -31,7 +31,6 @@ import static org.hamcrest.Matchers.nullValue;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.index.IndexRequest;
