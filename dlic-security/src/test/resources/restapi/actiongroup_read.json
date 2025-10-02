@@ -1,3 +1,4 @@
 {
- "allowed_actions": ["indices:data/read*"]
+ "allowed_actions": ["indices:data/read*"],
+ "type": "index"
 }

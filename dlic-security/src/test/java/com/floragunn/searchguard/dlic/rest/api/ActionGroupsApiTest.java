@@ -68,7 +68,16 @@ public class ActionGroupsApiTest extends AbstractRestApiUnitTest {
 		// GET_UT, new endpoint which replaces configuration endpoint
 		response = rh.executeGetRequest("/_searchguard/api/actiongroups", new Header[0]);
 		Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
-				
+
+        // GET, invalid action group without type should be returned
+        response = rh.executeGetRequest("/_searchguard/api/actiongroups/GROUP_WITHOUT_TYPE");
+        Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
+        settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
+        permissions = settings.getAsList("GROUP_WITHOUT_TYPE.allowed_actions");
+        Assert.assertNotNull(permissions);
+        Assert.assertEquals(1, permissions.size());
+        Assert.assertTrue(permissions.contains("indices:*"));
+
 		// create index
 		setupStarfleetIndex();
 
@@ -120,6 +129,15 @@ public class ActionGroupsApiTest extends AbstractRestApiUnitTest {
 		Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
 		settings = Settings.builder().loadFromSource(response.getBody(), XContentType.JSON).build();
 		Assert.assertEquals(AbstractConfigurationValidator.ErrorType.PAYLOAD_MANDATORY.getMessage(), settings.get("reason"));
+
+        //put action group without type, must fail
+        response = rh.executePutRequest("/_searchguard/api/actiongroups/SOMEGROUP", """
+                {
+                 "allowed_actions": ["indices:data/read*"]
+                }
+                """);
+        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+        Assert.assertTrue(response.getBody().contains("\\\"type\\\":[{\\\"error\\\":\\\"Required attribute is missing"));
 
 		// put new configuration with invalid payload, must fail
 		response = rh.executePutRequest("/_searchguard/api/actiongroups/SOMEGROUP", FileHelper.loadFile("restapi/actiongroup_not_parseable.json"),
@@ -198,6 +216,12 @@ public class ActionGroupsApiTest extends AbstractRestApiUnitTest {
         response = rh.executePatchRequest("/_searchguard/api/actiongroups/CRUD_UT", "[{ \"op\": \"add\", \"path\": \"/hidden\", \"value\": true }]", new Header[0]);
         Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
         Assert.assertTrue(response.getBody(), response.getBody().matches(".*\"invalid_keys\"\\s*:\\s*\\{\\s*\"keys\"\\s*:\\s*\"hidden\"\\s*\\}.*"));
+
+        // PATCH action group without type, must fail with validation error
+        rh.sendHTTPClientCertificate = true;
+        response = rh.executePatchRequest("/_searchguard/api/actiongroups/GROUP_WITHOUT_TYPE", "[{ \"op\": \"replace\", \"path\": \"/description\", \"value\": \"must fail\" }]", new Header[0]);
+        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+        Assert.assertTrue(response.getBody().contains("'type': Required attribute is missing"));
         
         // PATCH with relative JSON pointer, must fail
         rh.sendHTTPClientCertificate = true;
@@ -229,6 +253,12 @@ public class ActionGroupsApiTest extends AbstractRestApiUnitTest {
         rh.sendHTTPClientCertificate = true;
         response = rh.executePatchRequest("/_searchguard/api/actiongroups", "[{ \"op\": \"add\", \"path\": \"/INTERNAL/a\", \"value\": [ \"foo\", \"bar\" ] }]", new Header[0]);
         Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+
+        // PATCH action group without type, must fail with validation error
+        rh.sendHTTPClientCertificate = true;
+        response = rh.executePatchRequest("/_searchguard/api/actiongroups", "[{ \"op\": \"replace\", \"path\": \"/GROUP_WITHOUT_TYPE/description\", \"value\": \"must fail\" }]", new Header[0]);
+        Assert.assertEquals(HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
+        Assert.assertTrue(response.getBody().contains("'GROUP_WITHOUT_TYPE.type': Required attribute is missing"));
         
         // PATCH delete read only resource, must be forbidden
         rh.sendHTTPClientCertificate = true;
@@ -255,7 +285,7 @@ public class ActionGroupsApiTest extends AbstractRestApiUnitTest {
         
         // add new valid resources
         rh.sendHTTPClientCertificate = true;
-        response = rh.executePatchRequest("/_searchguard/api/actiongroups", "[{ \"op\": \"add\", \"path\": \"/BULKNEW1\", \"value\": {\"allowed_actions\": [\"indices:data/*\", \"cluster:monitor/*\"] } }," + "{ \"op\": \"add\", \"path\": \"/BULKNEW2\", \"value\": {\"allowed_actions\": [\"READ_UT\"] } }]", new Header[0]);
+        response = rh.executePatchRequest("/_searchguard/api/actiongroups", "[{ \"op\": \"add\", \"path\": \"/BULKNEW1\", \"value\": {\"allowed_actions\": [\"indices:data/*\", \"cluster:monitor/*\"], \"type\": \"index\" } }," + "{ \"op\": \"add\", \"path\": \"/BULKNEW2\", \"value\": {\"allowed_actions\": [\"READ_UT\"], \"type\": \"index\" } }]", new Header[0]);
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());
         response = rh.executeGetRequest("/_searchguard/api/actiongroups/BULKNEW1", new Header[0]);
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatusCode());

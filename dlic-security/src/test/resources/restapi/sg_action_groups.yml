@@ -136,3 +136,9 @@ SUGGEST:
   - "indices:data/read/suggest*"
   type: "index"
   description: "Migrated from v6"
+GROUP_WITHOUT_TYPE:
+  reserved: false
+  hidden: false
+  allowed_actions:
+    - "indices:*"
+  description: "Invalid action group without type"
