@@ -20,12 +20,10 @@ package com.floragunn.searchguard.authc.session;
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.http.message.BasicHeader;
 import org.junit.Assert;
 import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.GenericRestClient;
@@ -33,7 +31,6 @@ import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.BearerAuthorization;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-import org.junit.rules.Timeout;
 
 public class SessionIntegrationTest {
 
