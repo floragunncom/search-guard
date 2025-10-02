@@ -127,6 +127,7 @@ public class SSLTest extends SingleClusterTest {
             Assert.assertEquals("TLS_RSA_WITH_AES_256_CBC_SHA256", enabledCiphers[0]);
             
             settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
+                    .put("searchguard.ssl.http.enabled", false)
                     .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                     .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
                     .put("searchguard.ssl.transport.enabled_ciphers","TLS_RSA_WITH_AES_256_CBC_SHA256")
@@ -388,7 +389,7 @@ public class SSLTest extends SingleClusterTest {
     public void testNodeClientSSL() throws Exception {
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                
+                .put("searchguard.ssl.http.enabled", false)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
@@ -527,7 +528,7 @@ public class SSLTest extends SingleClusterTest {
         Assume.assumeTrue(PlatformDependent.javaVersion() >= 11);
 
         final Settings settings = Settings.builder().put("searchguard.ssl.transport.enabled", true)
-                
+                .put("searchguard.ssl.http.enabled", false)
                 .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, "node-0")
                 .put("searchguard.ssl.transport.keystore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
                 .put("searchguard.ssl.transport.truststore_filepath", FileHelper. getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))

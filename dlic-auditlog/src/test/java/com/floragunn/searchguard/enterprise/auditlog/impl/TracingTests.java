@@ -55,6 +55,7 @@ public class TracingTests extends SingleClusterTest {
                 .put("searchguard.audit.resolve_bulk_requests", true)
                 .put("searchguard.audit.config.log4j.logger_name", "sg_action_trace")
                 .put("searchguard.audit.config.log4j.level", "TRACE")
+                .put("searchguard.ssl.http.enabled", false)
                 .build();
 
         setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
@@ -234,6 +235,7 @@ public class TracingTests extends SingleClusterTest {
 
     final Settings settings = Settings.builder()
             .putList(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS+".worf", "knuddel","nonexists")
+            .put("searchguard.ssl.http.enabled", false)
             .build();
     setup(settings);
     final RestHelper rh = nonSslRestHelper();
@@ -289,6 +291,7 @@ public class TracingTests extends SingleClusterTest {
 
     final Settings settings = Settings.builder()
             .putList(ConfigConstants.SEARCHGUARD_AUTHCZ_REST_IMPERSONATION_USERS+".worf", "knuddel","nonexists")
+            .put("searchguard.ssl.http.enabled", false)
             .build();
     setup(settings);
     final RestHelper rh = nonSslRestHelper();
@@ -320,6 +323,7 @@ public class TracingTests extends SingleClusterTest {
         Settings settings = Settings.builder()
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS, "*")
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_WRITE_WATCHED_INDICES, "*")
+                .put("searchguard.ssl.http.enabled", false)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
         setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
@@ -368,7 +372,8 @@ public class TracingTests extends SingleClusterTest {
     public void testImmutableIndex() throws Exception {
         Settings settings = Settings.builder()
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES, "myindex1")
-                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug").build();
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_TYPE_DEFAULT, "debug")
+                .put("searchguard.ssl.http.enabled", false).build();
         setup(Settings.EMPTY, new DynamicSgConfig(), settings, true, ClusterConfiguration.DEFAULT);
 
         Client tc = getPrivilegedInternalNodeClient();
