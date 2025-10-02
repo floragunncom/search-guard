@@ -381,9 +381,6 @@ public class BasicAuditlogTest extends AbstractAuditlogiUnitTest {
         //System.out.println(TestAuditlogImpl.sb.toString());
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("AUTHENTICATED"));
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("cluster:admin/settings/update"));
-        //todo The assertion below gonna fail until we fix/remove request bodies from audit logs.
-        // This assertion fails because currently we append "{\"INFO\":\"Streamable request body cannot be logged\"}"
-        // instead of actual request body. More details in this thread https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/merge_requests/1253#note_35767
         Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("indices.recovery.max_bytes_per_sec"));
 
         //may vary because we log may hit master directly or not
