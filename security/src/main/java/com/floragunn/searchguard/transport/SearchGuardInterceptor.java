@@ -117,11 +117,17 @@ public class SearchGuardInterceptor {
         final String origCCSTransientDls = getThreadContext().getTransient(ConfigConstants.SG_DLS_QUERY_CCS);
         final String origCCSTransientFls = getThreadContext().getTransient(ConfigConstants.SG_FLS_FIELDS_CCS);
         final String origCCSTransientMf = getThreadContext().getTransient(ConfigConstants.SG_MASKED_FIELD_CCS);
+        final List<String> productHeader = getThreadContext().getResponseHeaders().get("X-elastic-product");
         String actionStack = diagnosticContext.getActionStack();
                   
         //stash headers and transient objects
-        try (ThreadContext.StoredContext stashedContext = getThreadContext().stashContext()) {
+        try (ThreadContext.StoredContext stashedContext = getThreadContext().stashContext()) { // TODO we are loosing response headers here
             
+            if (productHeader != null && !productHeader.isEmpty()) {
+                // TODO not sure if this is correct solution
+                String productName = productHeader.get(0);
+                getThreadContext().addResponseHeader("X-elastic-product", productName);
+            }
             final TransportResponseHandler<T> restoringHandler = new RestoringTransportResponseHandler<T>(handler, stashedContext);
             getThreadContext().putHeader("_sg_remotecn", cs.getClusterName().value());
                         
