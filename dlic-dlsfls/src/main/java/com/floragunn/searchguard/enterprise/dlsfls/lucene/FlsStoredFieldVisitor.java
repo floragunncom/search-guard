@@ -195,19 +195,16 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
                     .nextToken()) {
 
                 if (this.queuedFieldName != null) {
-                    boolean startOfObjectOrArray = (token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY);
                     String fullQueuedFieldName = this.fullParentName == null ? this.queuedFieldName : this.fullParentName + "." + this.queuedFieldName;
                     this.queuedFieldName = null;
 
-                    if (META_FIELDS.contains(fullQueuedFieldName)
-                            || flsRule.isAllowedAssumingParentsAreAllowed(fullQueuedFieldName)
-                            || (startOfObjectOrArray && flsRule.isObjectAllowedAssumingParentsAreAllowed(fullQueuedFieldName))) {
+                    if (META_FIELDS.contains(fullQueuedFieldName) || isFieldVisible(fullQueuedFieldName, token)) {
                         generator.writeFieldName(parser.currentName());
                         this.fullCurrentName = fullQueuedFieldName;
                     } else {
                         // If the current field name is disallowed by FLS, we will skip the next token.
                         // If the next token is an object or array start, all the child tokens will be also skipped
-                        if (startOfObjectOrArray) {
+                        if (token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY) {
                             parser.skipChildren();
                         }
                         continue;
@@ -287,6 +284,18 @@ class FlsStoredFieldVisitor extends StoredFieldVisitor {
                 }
 
             }
+        }
+
+        private boolean isFieldVisible(String fullQueuedFieldName, JsonToken token) {
+            boolean startOfObjectOrArray = (token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY);
+
+            if (token != JsonToken.VALUE_STRING && fieldMaskingRule.get(fullQueuedFieldName) != null) {
+                // If we have a non-hashable attribute value, just make it invisible
+                return false;
+            }
+
+            return flsRule.isAllowedAssumingParentsAreAllowed(fullQueuedFieldName)
+                    || (startOfObjectOrArray && flsRule.isObjectAllowedAssumingParentsAreAllowed(fullQueuedFieldName));
         }
     }
 }
