@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.core.CheckedFunction;
 import org.elasticsearch.index.query.BaseTermQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
@@ -45,7 +44,6 @@ import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.DiagnosingMatcher;
 import org.hamcrest.Matcher;
-import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -82,8 +80,7 @@ public class RoleBasedDocumentAuthorizationTest {
 
     @RunWith(Parameterized.class)
     public static class IndicesAndAliases_getRestriction {
-        @ClassRule
-        public static EsLogging esLogging = new EsLogging();
+
         final static Meta BASIC = indices("index_a1", "index_a2", "index_b1", "index_b2")//
                     .alias("alias_a").of("index_a1", "index_a2");
 
@@ -461,8 +458,7 @@ public class RoleBasedDocumentAuthorizationTest {
 
     @RunWith(Parameterized.class)
     public static class IndicesAndAliases_hasRestriction {
-        @ClassRule
-        public static EsLogging esLogging = new EsLogging();
+
         final static Meta BASIC = indices("index_a1", "index_a2", "index_b1", "index_b2")//
                 .alias("alias_a").of("index_a1", "index_a2");
 

@@ -26,11 +26,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.junit.Assert;
-import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -265,9 +263,6 @@ public class RoleBasedActionAuthorizationTests {
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
         }
 
-        @ClassRule
-        public static EsLogging esLogging = new EsLogging();
-
         final static Meta BASIC = indices("index_a11", "index_a12", "index_a21", "index_a22", "index_b1", "index_b2")//
                 .alias("alias_a").of("index_a11", "index_a12", "index_a21", "index_a22") //
                 .alias("alias_a1").of(">index_a11", "index_a12") // index_a11 is the write index of the alias
@@ -332,9 +327,6 @@ public class RoleBasedActionAuthorizationTests {
     }
 
     public static class IndexPermissionsSpecial {
-
-        @ClassRule
-        public static EsLogging esLogging = new EsLogging();
 
         final static Meta BASIC = indices("index_a11", "index_a12", "index_a21", "index_a22", "index_b1", "index_b2")//
                 .alias("alias_a").of("index_a11", "index_a12", "index_a21", "index_a22")//
@@ -565,9 +557,6 @@ public class RoleBasedActionAuthorizationTests {
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
         }
 
-        @ClassRule
-        public static EsLogging esLogging = new EsLogging();
-
         final static Meta BASIC = indices("index_a11", "index_a12", "index_a21", "index_a22", "index_b1", "index_b2")//
                 .alias("alias_a").of("index_a11", "index_a12", "index_a21", "index_a22")//
                 .alias("alias_a1").of("index_a11", "index_a12")//
@@ -626,9 +615,6 @@ public class RoleBasedActionAuthorizationTests {
     }
 
     public static class AliasPermissionsSpecial {
-
-        @ClassRule
-        public static EsLogging esLogging = new EsLogging();
 
         @Test
         public void wellKnown_constantAction_constantAlias_statefulIndices() throws Exception {
@@ -874,9 +860,6 @@ public class RoleBasedActionAuthorizationTests {
                             Action.Scope.INDEX_LIKE);
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
         }
-
-        @ClassRule
-        public static EsLogging esLogging = new EsLogging();
 
         final static Meta BASIC = dataStream("datastream_a1").of(".ds-datastream_a1-xyz-0001", ".ds-datastream_a1-xyz-0002")//
                 .dataStream("datastream_a2").of(".ds-datastream_a2-xyz-0001", ".ds-datastream_a2-xyz-0002")//
