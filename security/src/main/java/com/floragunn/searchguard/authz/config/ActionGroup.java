@@ -54,7 +54,7 @@ public class ActionGroup implements Document<ActionGroup>, Hideable, StaticDefin
         boolean isStatic = vNode.get("static").withDefault(false).asBoolean();
 
         String description = vNode.get("description").asString();
-        String type = vNode.get("type").asString();
+        String type = vNode.get("type").required().asString();
         ImmutableList<String> allowedActions = ImmutableList.of(vNode.get("allowed_actions").required().asListOfStrings());
 
         vNode.checkForUnusedAttributes();
