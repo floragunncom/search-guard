@@ -615,6 +615,7 @@ public class RoleBasedActionAuthorizationTests {
     }
 
     public static class AliasPermissionsSpecial {
+
         @Test
         public void wellKnown_constantAction_constantAlias_statefulIndices() throws Exception {
             Action indexAction = actions.get("indices:data/write/index");

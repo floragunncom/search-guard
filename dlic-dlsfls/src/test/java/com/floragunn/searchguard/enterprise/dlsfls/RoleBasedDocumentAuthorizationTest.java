@@ -80,6 +80,7 @@ public class RoleBasedDocumentAuthorizationTest {
 
     @RunWith(Parameterized.class)
     public static class IndicesAndAliases_getRestriction {
+
         final static Meta BASIC = indices("index_a1", "index_a2", "index_b1", "index_b2")//
                 .alias("alias_a").of("index_a1", "index_a2");
 
@@ -457,6 +458,7 @@ public class RoleBasedDocumentAuthorizationTest {
 
     @RunWith(Parameterized.class)
     public static class IndicesAndAliases_hasRestriction {
+
         final static Meta BASIC = indices("index_a1", "index_a2", "index_b1", "index_b2")//
                 .alias("alias_a").of("index_a1", "index_a2");
 
