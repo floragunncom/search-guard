@@ -24,9 +24,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
+import com.floragunn.codova.documents.Parser;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.codova.validation.ValidationResult;
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -83,6 +84,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
                 new Route(PATCH, "/_searchguard/api/" + resourceName + "/{name}"));
     }
 
+    @SuppressWarnings("unchecked")
     private void handlePatch(RestChannel channel, final RestRequest request, final Client client, final BytesReference content) throws IOException {
         if (request.getXContentType() != XContentType.JSON) {
             badRequestResponse(channel, "PATCH accepts only application/json");
@@ -90,9 +92,9 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
         }
 
         String name = request.param("name");
-        SgDynamicConfiguration<?> existingConfiguration;
+        SgDynamicConfiguration<Object> existingConfiguration;
         try {
-            existingConfiguration = load(getConfigName(), false);
+            existingConfiguration = (SgDynamicConfiguration<Object>) load(getConfigName(), false);
         } catch (ConfigUnavailableException e1) {
             internalErrorResponse(channel, e1.getMessage());
             return;
@@ -120,7 +122,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
     }
 
     private void handleSinglePatch(RestChannel channel, RestRequest request, Client client, String name,
-            SgDynamicConfiguration<?> existingConfiguration, DocPatch jsonPatch) throws IOException, ConfigValidationException {
+            SgDynamicConfiguration<Object> existingConfiguration, DocPatch jsonPatch) throws IOException, ConfigValidationException {
         if (isHidden(existingConfiguration, name)) {
             notFound(channel, getResourceName() + " " + name + " not found.");
             return;
@@ -171,30 +173,28 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
             return;
         }
 
-        Map<String, Object> updated = new LinkedHashMap<>(existingConfiguration.toDocNode().toMap());
-        updated.put(name, patchedResourceAsDocNode.toBasicObject());
-        
-        try (SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(DocNode.wrap(updated), null,
-                existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
-                existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get();) {
+        Parser.ReturningValidationResult<?, ConfigurationRepository.Context> parser = getConfigName().getParser();
 
-            ValidationErrors validationErrors = new ValidationErrors();
-            validationErrors.add(configModificationValidators.validateConfig(mdc));
+        ValidationResult<?> validatedConfig = parser.parse(patchedResourceAsDocNode, cl.getParserContext());
 
-            validationErrors.throwExceptionForPresentErrors();
+        ValidationErrors validationErrors = validatedConfig.getValidationErrors();
+        Object configEntry = validatedConfig.peek();
+        validationErrors.add(configModificationValidators.validateConfigEntry(configEntry));
 
-            saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<DocWriteResponse>(channel) {
+        //validationErrors.throwExceptionForPresentErrors() is not explicitly called, since validatedConfig.get() calls it anyway
+        existingConfiguration = existingConfiguration.with(name, validatedConfig.get());
 
-                @Override
-                public void onResponse(DocWriteResponse response) {
-                    successResponse(channel, "'" + name + "' updated.");
+        saveAnUpdateConfigs(client, request, getConfigName(), existingConfiguration, new OnSucessActionListener<DocWriteResponse>(channel) {
 
-                }
-            });
-        }
+            @Override
+            public void onResponse(DocWriteResponse response) {
+                successResponse(channel, "'" + name + "' updated.");
+
+            }
+        });
     }
 
-    private void handleBulkPatch(RestChannel channel, RestRequest request, Client client, SgDynamicConfiguration<?> existingConfiguration,
+    private void handleBulkPatch(RestChannel channel, RestRequest request, Client client, SgDynamicConfiguration<Object> existingConfiguration,
             DocPatch jsonPatch) throws IOException, ConfigValidationException {
 
         LinkedHashMap<String, Object> patchBase = new LinkedHashMap<>(existingConfiguration.getCEntries().size());
@@ -232,6 +232,7 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
             }
         }
 
+        DocNode onlyPatchedResources = DocNode.wrap(patchedAsDocNode);
         for (String resourceName : patchedAsDocNode.keySet()) {
             DocNode oldResource = DocNode.wrap(patchBase.get(resourceName));
             DocNode patchedResource = DocNode.wrap(patchedAsDocNode.get(resourceName));
@@ -259,17 +260,24 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
                     badRequestResponse(channel, validator);
                     return;
                 }
+            } else {
+                onlyPatchedResources = onlyPatchedResources.without(resourceName);
             }
+        }
+
+        //validate only resources which actually got modified
+        try (SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(onlyPatchedResources, null,
+                existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
+                existingConfiguration.getPrimaryTerm(), cl.getParserContext()).peek()) {
+            ValidationErrors validationErrors = mdc.getValidationErrors();
+            validationErrors.add(configModificationValidators.validateConfig(mdc));
+
+            validationErrors.throwExceptionForPresentErrors();
         }
 
         try (SgDynamicConfiguration<?> mdc = SgDynamicConfiguration.fromDocNode(patchedAsDocNode, null,
                 existingConfiguration.getCType(), existingConfiguration.getDocVersion(), existingConfiguration.getSeqNo(),
-                existingConfiguration.getPrimaryTerm(), cl.getParserContext()).get()) {
-
-            ValidationErrors validationErrors = new ValidationErrors();
-            validationErrors.add(configModificationValidators.validateConfig(mdc));
-
-            validationErrors.throwExceptionForPresentErrors();
+                existingConfiguration.getPrimaryTerm(), cl.getParserContext()).peek()) { //peek - validation of modified resources done already in previous try {}
 
             saveAnUpdateConfigs(client, request, getConfigName(), mdc, new OnSucessActionListener<DocWriteResponse>(channel) {
 
