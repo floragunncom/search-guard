@@ -14,30 +14,9 @@
 
 package com.floragunn.searchguard.enterprise.auth.ldap;
 
-import static com.floragunn.searchguard.test.RestMatchers.isOk;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.*;
-
-import java.net.InetAddress;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Map;
-import java.util.Collections;
-
-import com.floragunn.searchguard.client.RestHighLevelClient;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.internal.Client;
-import org.elasticsearch.xcontent.XContentType;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
-import org.junit.rules.TestRule;
-
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.client.RestHighLevelClient;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
@@ -47,8 +26,39 @@ import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.UserMapping;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchguard.test.helper.log.LogsRule;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.xcontent.XContentType;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.RuleChain;
+import org.junit.rules.TestRule;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
+import java.io.FileInputStream;
+import java.net.InetAddress;
+import java.security.KeyStore;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+
+import static com.floragunn.searchguard.test.RestMatchers.isOk;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 
 public class LdapIntegrationTest {
+
+    @Rule
+    public LogsRule logsRule = new LogsRule("com.floragunn.searchguard.authc.base.RequestAuthenticationProcessor");
 
     static TestCertificates certificatesContext = TestCertificates.builder().build();
 
@@ -122,7 +132,7 @@ public class LdapIntegrationTest {
                             "group_search.filter.raw", "(uniqueMember=${dn})", //
                             "group_search.role_name_attribute", "dn", //
                             "group_search.recursive.enabled", true))
-                    .skipIps("127.0.0.16/30")// 
+                    .skipIps("127.0.0.16/30", "127.0.0.20")//
                     .userMapping(new UserMapping()//
                             .attrsFrom("pattern", "ldap_user_entry.departmentnumber")//
                             .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")), //
@@ -186,6 +196,20 @@ public class LdapIntegrationTest {
                             "group_search.recursive.enabled", true)))
                     .userMapping(new UserMapping()//
                             .attrsFrom("pattern", "ldap_user_entry.departmentnumber")//
+                            .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]")), //
+            new Authc.Domain("basic/ldap")//
+                    .description("should use TLS with default Java settings")//
+                    .backend(DocNode.of(//
+                            "idp.hosts", "#{var:ldapHost}", //
+                            "user_search.filter.by_attribute", "uid", //
+                            "group_search.base_dn", TestLdapDirectory.GROUPS.getDn(), //
+                            "group_search.filter.by_attribute", "uniqueMember", //
+                            "group_search.role_name_attribute", "dn", //
+                            "group_search.recursive.enabled", true))
+                    .acceptIps("127.0.0.20")//
+                    .userMapping(new UserMapping()//
+                            .userNameFromBackend("ldap_user_entry.displayName")//
+                            .attrsFrom("pattern", "ldap_user_entry.departmentnumber")//
                             .attrsFrom("pattern_rec", "ldap_group_entries[*].businessCategory[*]"))
 
     ).debug().userCacheEnabled(false);
@@ -195,7 +219,7 @@ public class LdapIntegrationTest {
             .roleToRoleMapping(TestSgConfig.Role.ALL_ACCESS, ALL_ACCESS_GROUP.getDn())//
             .roleToRoleMapping(INDEX_PATTERN_WITH_ATTR, STD_ACCESS_GROUP.getDn())//
             .roleToRoleMapping(INDEX_PATTERN_WITH_ATTR_FOR_RECURSIVE_GROUPS, RECURSIVE_GROUP_3.getDn())//
-            .authc(AUTHC).users(TILDA_ADDITIONAL_USER_INFORMATION_USER).var("ldapHost", () -> tlsLdapServer.hostAndPort()).embedded().build();
+            .authc(AUTHC).users(TILDA_ADDITIONAL_USER_INFORMATION_USER).var("ldapHost", () -> "ldaps://" + tlsLdapServer.hostAndPort()).embedded().build();
 
     @ClassRule
     public static TestRule serverChain = RuleChain.outerRule(tlsLdapServer).around(cluster);
@@ -368,6 +392,65 @@ public class LdapIntegrationTest {
             assertEquals(response.getBody(), "Kris/X (Special), really", response.getBodyAsDocNode().get("user_name"));
             assertEquals(response.getBody(), Arrays.asList("cn=Special/X (Really)\\, escaped comma,ou=groups,o=TEST"),
                     response.getBodyAsDocNode().get("backend_roles"));
+        }
+    }
+
+    @Test
+    public void name_fromLdapEntry_defaultJavaTlsSettings() throws Exception {
+        //get default SSLContext
+        SSLContext defaultSslContext = SSLContext.getDefault();
+
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient(); GenericRestClient client = cluster.getRestClient(KARLOTTA)) {
+
+            //in order to use domain which uses TLS with default Java settings
+            client.setLocalAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 20 }));
+
+            try {
+
+                GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
+
+                //LDAP certificate is untrusted
+                Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
+                logsRule.assertThatStackTraceContain("unable to find valid certification path to requested target");
+
+                //add test certificate to default SSLContext
+                CertificateFactory cf = CertificateFactory.getInstance("X.509");
+                Certificate cert = cf.generateCertificate(new FileInputStream(certificatesContext.getCaCertFile().getAbsolutePath()));
+
+                KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+                ks.load(null, null);
+                ks.setCertificateEntry("test-cert", cert);
+
+                TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+                tmf.init(ks);
+
+                SSLContext ctx = SSLContext.getInstance("TLS");
+                ctx.init(null, tmf.getTrustManagers(), null);
+                SSLContext.setDefault(ctx);
+
+                //reload configuration to use updated SSLContext
+                response = adminClient.delete("/_searchguard/api/cache");
+                Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+
+                response = client.get("/_searchguard/authinfo");
+
+                //LDAP certificate is trusted, user can authenticate
+                Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+                Assert.assertEquals(response.getBody(), "Karlotta Karl", response.getBodyAsDocNode().get("user_name"));
+
+            } finally {
+                //restore default SSLContext
+                SSLContext.setDefault(defaultSslContext);
+
+                //reload configuration to use restored default SSLContext
+                HttpResponse response = adminClient.delete("/_searchguard/api/cache");
+                Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+
+                response = client.get("/_searchguard/authinfo");
+
+                //LDAP certificate is untrusted again
+                Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
+            }
         }
     }
 
