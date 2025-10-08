@@ -30,6 +30,9 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.XContentParserConfiguration;
 
 public class MockRestRequest extends RestRequest {
+    private Method method = Method.GET;
+    private String uri = "";
+    private ReleasableBytesReference content = null;
 
     public MockRestRequest() {
         //NamedXContentRegistry xContentRegistry, Map<String, String> params, String path,
@@ -104,21 +107,36 @@ public class MockRestRequest extends RestRequest {
 
     @Override
     public Method method() {
-        return Method.GET;
+        return method;
     }
 
     @Override
     public String uri() {
-        return "";
+        return uri;
     }
 
     @Override
     public boolean hasContent() {
-        return false;
+        return content != null;
     }
 
     @Override
     public ReleasableBytesReference content() {
-        return null;
+        return content;
+    }
+
+    public MockRestRequest setMethod(Method method) {
+        this.method = method;
+        return this;
+    }
+
+    public MockRestRequest setUri(String uri) {
+        this.uri = uri;
+        return this;
+    }
+
+    public MockRestRequest setContent(String content) {
+        this.content = ReleasableBytesReference.wrap(new BytesArray(content));
+        return this;
     }
 }
