@@ -69,7 +69,7 @@ public final class RequestResolver {
     public static List<AuditMessage> resolve(final Category category, final Origin origin, final String action, final String privilege,
             final UserInformation effectiveUser, final Boolean sgAdmin, final UserInformation initiatingUser, final TransportAddress remoteAddress,
             final TransportRequest request, final Map<String, String> headers, final Task task, final IndexNameExpressionResolver resolver,
-            final ClusterState clusterState, final Settings settings, final boolean logRequestBody, final Pattern ignoredRequestBodies, final boolean resolveIndices,
+            final ClusterState clusterState, final Settings settings, final boolean logRequestBody, final boolean resolveIndices,
             final boolean resolveBulk, final Pattern searchguardIndex, final boolean excludeSensitiveHeaders, final Throwable exception) {
 
         if (resolveBulk && request instanceof BulkShardRequest) {
@@ -79,7 +79,7 @@ public final class RequestResolver {
             for (BulkItemRequest ar : innerRequests) {
                 final DocWriteRequest<?> innerRequest = ar.request();
                 final AuditMessage msg = resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin,
-                        innerRequest, headers, task, resolver, clusterState, settings, logRequestBody, ignoredRequestBodies, resolveIndices, searchguardIndex,
+                        innerRequest, headers, task, resolver, clusterState, settings, logRequestBody, resolveIndices, searchguardIndex,
                         excludeSensitiveHeaders, exception);
                 msg.addShardId(((BulkShardRequest) request).shardId());
 
@@ -99,13 +99,13 @@ public final class RequestResolver {
 
         return Collections.singletonList(
                 resolveInner(category, effectiveUser, sgAdmin, initiatingUser, remoteAddress, action, privilege, origin, request, headers, task,
-                        resolver, clusterState, settings, logRequestBody, ignoredRequestBodies, resolveIndices, searchguardIndex, excludeSensitiveHeaders, exception));
+                        resolver, clusterState, settings, logRequestBody, resolveIndices, searchguardIndex, excludeSensitiveHeaders, exception));
     }
 
     private static AuditMessage resolveInner(final Category category, final UserInformation effectiveUser, final Boolean sgAdmin,
             final UserInformation initiatingUser, final TransportAddress remoteAddress, final String action, final String priv, final Origin origin,
             final Object request, final Map<String, String> headers, final Task task, final IndexNameExpressionResolver resolver,
-            final ClusterState clusterState, final Settings settings, final boolean logRequestBody, final Pattern ignoredRequestBodies, final boolean resolveIndices,
+            final ClusterState clusterState, final Settings settings, final boolean addSource, final boolean resolveIndices,
             final Pattern searchguardIndex, final boolean excludeSensitiveHeaders, final Throwable exception) {
 
         final ClusterState localClusterState = clusterState;
@@ -135,7 +135,6 @@ public final class RequestResolver {
             }
         }
 
-        boolean addSource = logRequestBody && !(ignoredRequestBodies.matches(action) || (request != null && ignoredRequestBodies.matches(request.getClass().getSimpleName())));
 
         //attempt to resolve indices/types/id/source 
         if (request instanceof MultiGetRequest.Item) {
