@@ -21,9 +21,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import javax.net.SocketFactory;
 
+import org.apache.http.ssl.SSLContexts;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -229,6 +231,12 @@ public final class LDAPConnectionManager implements Closeable, ComponentStatePro
     private ServerSet createServerSet(final Collection<String> ldapStrings, LDAPConnectionOptions opts) throws LDAPException {
         final List<String> ldapHosts = new ArrayList<>();
         final List<Integer> ldapPorts = new ArrayList<>();
+        final String ldapsHostPrefix = "ldaps://";
+        final String ldapHostPrefix = "ldap://";
+
+        boolean anyHostUsesLdaps = ldapStrings.stream().anyMatch(ldapHost -> Optional.of(ldapHost).orElse("").contains(ldapsHostPrefix));
+        boolean anyHostUsesLdap = ldapStrings.stream().anyMatch(ldapHost -> Optional.of(ldapHost).orElse("").contains(ldapHostPrefix));
+        boolean useLdaps = this.tlsConfig != null || anyHostUsesLdaps;
 
         for (String ldapString : ldapStrings) {
 
@@ -236,15 +244,14 @@ public final class LDAPConnectionManager implements Closeable, ComponentStatePro
                 continue;
             }
 
-            int port = this.tlsConfig != null ? 636 : 389;
+            int port = useLdaps ? 636 : 389;
 
-            if (ldapString.startsWith("ldap://")) {
-                ldapString = ldapString.replace("ldap://", "");
+            if (ldapString.startsWith(ldapHostPrefix)) {
+                ldapString = ldapString.replace(ldapHostPrefix, "");
             }
 
-            if (ldapString.startsWith("ldaps://")) {
-                ldapString = ldapString.replace("ldaps://", "");
-                port = 636;
+            if (ldapString.startsWith(ldapsHostPrefix)) {
+                ldapString = ldapString.replace(ldapsHostPrefix, "");
             }
 
             final String[] split = ldapString.split(":");
@@ -257,6 +264,10 @@ public final class LDAPConnectionManager implements Closeable, ComponentStatePro
             ldapPorts.add(port);
         }
 
+        if (anyHostUsesLdaps && anyHostUsesLdap) {
+            log.debug("Some hosts are configured to use ldaps, and some to use ldap. ldaps will be used for all of them.");
+        }
+
         if (tlsConfig != null) {
             if (!tlsConfig.isStartTlsEnabled()) {
                 return newServerSetImpl(ldapHosts.toArray(new String[0]), Ints.toArray(ldapPorts), tlsConfig.getRestrictedSSLSocketFactory(), opts,
@@ -265,6 +276,10 @@ public final class LDAPConnectionManager implements Closeable, ComponentStatePro
                 return newServerSetImpl(ldapHosts.toArray(new String[0]), Ints.toArray(ldapPorts), null, opts, null,
                         new StartTLSPostConnectProcessor(tlsConfig.getRestrictedSSLSocketFactory()));
             }
+        } else if (useLdaps) {
+            log.debug("The hosts are configured to use ldaps, but the TLS configuration has not been provided. TLS with default Java settings will be used.");
+            return newServerSetImpl(ldapHosts.toArray(new String[0]), Ints.toArray(ldapPorts), SSLContexts.createSystemDefault().getSocketFactory(), opts,
+                    null, null);
         }
 
         return newServerSetImpl(ldapHosts.toArray(new String[0]), Ints.toArray(ldapPorts), null, opts, null, null);
