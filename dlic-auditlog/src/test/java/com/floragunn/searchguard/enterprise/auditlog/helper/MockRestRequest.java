@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.enterprise.auditlog.helper;
 
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ public class MockRestRequest extends RestRequest {
     private Method method = Method.GET;
     private String uri = "";
     private ReleasableBytesReference content = null;
+    private Map<String, List<String>> headers = Collections.emptyMap();
 
     public MockRestRequest() {
         //NamedXContentRegistry xContentRegistry, Map<String, String> params, String path,
@@ -105,38 +107,73 @@ public class MockRestRequest extends RestRequest {
         }, null);
     }
 
-    @Override
-    public Method method() {
-        return method;
-    }
+    public MockRestRequest(String uri, String jsonBody) {
+        super(XContentParserConfiguration.EMPTY, Collections.emptyMap(), uri, Collections.emptyMap(), new HttpRequest() {
+            HttpBody body = HttpBody.fromBytesReference(BytesReference.fromByteBuffer(ByteBuffer.wrap(jsonBody.getBytes())));
+            @Override
+            public Method method() {
+                return Method.GET;
+            }
 
-    @Override
-    public String uri() {
-        return uri;
-    }
+            @Override
+            public String uri() {
+                return uri;
+            }
 
-    @Override
-    public boolean hasContent() {
-        return content != null;
-    }
+            @Override
+            public Map<String, List<String>> getHeaders() {
+                return Map.of("Content-Type", List.of("application/json"));
+            }
 
-    @Override
-    public ReleasableBytesReference content() {
-        return content;
-    }
+            @Override
+            public HttpBody body() {
+                return body;
+            }
 
-    public MockRestRequest setMethod(Method method) {
-        this.method = method;
-        return this;
-    }
+            @Override
+            public void setBody(HttpBody body) {
 
-    public MockRestRequest setUri(String uri) {
-        this.uri = uri;
-        return this;
-    }
+            }
 
-    public MockRestRequest setContent(String content) {
-        this.content = ReleasableBytesReference.wrap(new BytesArray(content));
-        return this;
+            @Override
+            public List<String> strictCookies() {
+                return List.of();
+            }
+
+            @Override
+            public HttpVersion protocolVersion() {
+                return null;
+            }
+
+            @Override
+            public HttpRequest removeHeader(String header) {
+                return null;
+            }
+
+            @Override
+            public boolean hasContent() {
+                return true;
+            }
+
+            @Override
+            public HttpResponse createResponse(RestStatus status, BytesReference content) {
+                return null;
+            }
+
+            @Override
+            public HttpResponse createResponse(RestStatus status, ChunkedRestResponseBodyPart firstBodyPart) {
+                return null;
+            }
+
+            @Override
+            public Exception getInboundException() {
+                return null;
+            }
+
+            @Override
+            public void release() {
+
+            }
+        }, null);
     }
 }
