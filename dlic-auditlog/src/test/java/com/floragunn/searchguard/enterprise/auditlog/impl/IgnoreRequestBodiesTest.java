@@ -1,25 +1,33 @@
 package com.floragunn.searchguard.enterprise.auditlog.impl;
 
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.auditlog.helper.MockRestRequest;
 import com.floragunn.searchguard.enterprise.auditlog.integration.TestAuditlogImpl;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.UserInformation;
+import org.elasticsearch.action.bulk.BulkItemRequest;
+import org.elasticsearch.action.bulk.BulkShardRequest;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.telemetry.metric.MeterRegistry;
 import org.elasticsearch.threadpool.DefaultBuiltInExecutorBuilders;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.xcontent.XContentType;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
 
 import static com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.REQUEST_BODY;
+import static com.floragunn.searchguard.support.ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -42,6 +50,25 @@ public class IgnoreRequestBodiesTest {
         when(dn.getHostName()).thenReturn("hostaddress");
         when(cs.localNode()).thenReturn(dn);
         when(cs.getClusterName()).thenReturn(new ClusterName("cname"));
+        when(configurationRepository.getConfiguredSearchguardIndices()).thenReturn(Pattern.blank());
+    }
+
+    @Test
+    public void testIgnoreBulkRequestBodiesDefault() throws Exception {
+        BulkShardRequest bulkShardRequest = new BulkShardRequest(ShardId.fromString("[my_index][0]"), WriteRequest.RefreshPolicy.IMMEDIATE, new BulkItemRequest[] { new BulkItemRequest(0, new IndexRequest("my_index").id("1").source("{\"key\": \"value\"}", XContentType.JSON))});
+        try(AbstractAuditLog al = new AuditLogImpl(settingsBuilder.put(SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true).build(), null, null, newThreadPool(), null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logGrantedPrivileges("indices:data/write/bulk", bulkShardRequest, null);
+            assertEquals(1, TestAuditlogImpl.messages.size());
+            assertTrue(TestAuditlogImpl.messages.get(0).toString(), TestAuditlogImpl.messages.get(0).getAsMap().containsKey(REQUEST_BODY));
+        }
+        Settings settings = settingsBuilder.putList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUEST_BODIES, List.of("BulkRequest", "indices:data/write/bulk")).build();
+        try(AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(), null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logGrantedPrivileges("indices:data/write/bulk", bulkShardRequest, null);
+            assertEquals(1, TestAuditlogImpl.messages.size());
+            assertFalse(TestAuditlogImpl.messages.get(0).getAsMap().containsKey(REQUEST_BODY));
+        }
     }
 
     @Test
@@ -67,7 +94,7 @@ public class IgnoreRequestBodiesTest {
     @Test
     public void testIgnoreRequestBodiesPathPattern() throws Exception {
         UserInformation userInformation = UserInformation.forName("testuser.rest.failedlogin");
-        MockRestRequest request = new MockRestRequest("", "{\"key\":\"value\"}");
+        MockRestRequest request = new MockRestRequest("my/path/test", "{\"key\":\"value\"}");
         try (AbstractAuditLog al = new AuditLogImpl(settingsBuilder.build(), null, null, newThreadPool(), null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
             al.logSucceededLogin(
@@ -79,7 +106,7 @@ public class IgnoreRequestBodiesTest {
             assertTrue(TestAuditlogImpl.messages.get(0).getAsMap().containsKey(REQUEST_BODY));
         }
         Settings settings = settingsBuilder
-                .putList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUEST_BODIES, List.of("*"))
+                .putList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUEST_BODIES, List.of("my/path/*"))
                 .build();
         try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(), null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();

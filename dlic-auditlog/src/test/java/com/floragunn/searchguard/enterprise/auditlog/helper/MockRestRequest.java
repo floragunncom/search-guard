@@ -31,11 +31,6 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.XContentParserConfiguration;
 
 public class MockRestRequest extends RestRequest {
-    private Method method = Method.GET;
-    private String uri = "";
-    private ReleasableBytesReference content = null;
-    private Map<String, List<String>> headers = Collections.emptyMap();
-
     public MockRestRequest() {
         //NamedXContentRegistry xContentRegistry, Map<String, String> params, String path,
         //Map<String, List<String>> headers, HttpRequest httpRequest, HttpChannel httpChannel
@@ -109,7 +104,7 @@ public class MockRestRequest extends RestRequest {
 
     public MockRestRequest(String uri, String jsonBody) {
         super(XContentParserConfiguration.EMPTY, Collections.emptyMap(), uri, Collections.emptyMap(), new HttpRequest() {
-            HttpBody body = HttpBody.fromBytesReference(BytesReference.fromByteBuffer(ByteBuffer.wrap(jsonBody.getBytes())));
+            final HttpBody body = HttpBody.fromBytesReference(BytesReference.fromByteBuffer(ByteBuffer.wrap(jsonBody.getBytes())));
             @Override
             public Method method() {
                 return Method.GET;
@@ -131,11 +126,6 @@ public class MockRestRequest extends RestRequest {
             }
 
             @Override
-            public void setBody(HttpBody body) {
-
-            }
-
-            @Override
             public List<String> strictCookies() {
                 return List.of();
             }
@@ -148,11 +138,6 @@ public class MockRestRequest extends RestRequest {
             @Override
             public HttpRequest removeHeader(String header) {
                 return null;
-            }
-
-            @Override
-            public boolean hasContent() {
-                return true;
             }
 
             @Override
