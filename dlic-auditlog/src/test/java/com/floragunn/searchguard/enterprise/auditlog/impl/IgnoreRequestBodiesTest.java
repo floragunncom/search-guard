@@ -10,7 +10,6 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.telemetry.metric.MeterRegistry;
 import org.elasticsearch.threadpool.DefaultBuiltInExecutorBuilders;
@@ -68,7 +67,7 @@ public class IgnoreRequestBodiesTest {
     @Test
     public void testIgnoreRequestBodiesPathPattern() throws Exception {
         UserInformation userInformation = UserInformation.forName("testuser.rest.failedlogin");
-        RestRequest request = new MockRestRequest().setContent("{\"key\":\"value\"}");
+        MockRestRequest request = new MockRestRequest("", "{\"key\":\"value\"}");
         try (AbstractAuditLog al = new AuditLogImpl(settingsBuilder.build(), null, null, newThreadPool(), null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
             al.logSucceededLogin(
@@ -95,6 +94,6 @@ public class IgnoreRequestBodiesTest {
     }
 
     private static ThreadPool newThreadPool() {
-        return new ThreadPool(Settings.builder().put("node.name",  "mock").build(), MeterRegistry.NOOP, new DefaultBuiltInExecutorBuilders());
+        return new ThreadPool(Settings.builder().put("node.name", "mock").build(), MeterRegistry.NOOP, new DefaultBuiltInExecutorBuilders());
     }
 }
