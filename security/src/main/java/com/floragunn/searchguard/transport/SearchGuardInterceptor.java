@@ -118,10 +118,11 @@ public class SearchGuardInterceptor {
         final String origCCSTransientFls = getThreadContext().getTransient(ConfigConstants.SG_FLS_FIELDS_CCS);
         final String origCCSTransientMf = getThreadContext().getTransient(ConfigConstants.SG_MASKED_FIELD_CCS);
         String actionStack = diagnosticContext.getActionStack();
-                  
+        Map<String, List<String>> responseHeaders = getThreadContext().getResponseHeaders();
+
         //stash headers and transient objects
         try (ThreadContext.StoredContext stashedContext = getThreadContext().stashContext()) {
-            
+            addResponseHeadersToContext(responseHeaders);
             final TransportResponseHandler<T> restoringHandler = new RestoringTransportResponseHandler<T>(handler, stashedContext);
             getThreadContext().putHeader("_sg_remotecn", cs.getClusterName().value());
                         
@@ -198,6 +199,17 @@ public class SearchGuardInterceptor {
             }
 
             sender.sendRequest(connection, action, request, options, restoringHandler);
+        }
+    }
+
+    private void addResponseHeadersToContext(Map<String, List<String>> responseHeaders) {
+        for (Map.Entry<String, List<String>> entry : responseHeaders.entrySet()) {
+            List<String> headerValues = entry.getValue();
+            if (headerValues != null && !headerValues.isEmpty()) {
+                for (String value : headerValues) {
+                    getThreadContext().addResponseHeader(entry.getKey(), value);
+                }
+            }
         }
     }
 
