@@ -815,6 +815,8 @@ public class IndexAuthorizationReadOnlyIntTests {
             HttpResponse httpResponse = restClient.get("/_field_caps?fields=*");
             assertThat(httpResponse, containsExactly(index_a1, index_a2, index_a3, index_b1, index_b2, index_b3, index_c1).at("indices")
                     .but(user.indexMatcher("read")).whenEmpty(200));
+            String product = httpResponse.getHeaderValue("X-elastic-product");
+            assertThat(httpResponse.getBody(), product, containsString("search"));
         }
     }
 
