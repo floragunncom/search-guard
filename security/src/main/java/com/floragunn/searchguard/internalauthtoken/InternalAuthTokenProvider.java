@@ -278,7 +278,9 @@ public class InternalAuthTokenProvider {
     
     private synchronized void updateJwtVerifier() {
         if (this.signingKey != null) {
-            this.jwtVerifier = new JwtVerifier(signingKey, encryptionKey, "");
+            // TODO do we want to support clock skew here?
+            int maxClockSkewSeconds = 0;
+            this.jwtVerifier = new JwtVerifier(signingKey, encryptionKey, "", maxClockSkewSeconds);
         } else if (this.jwtVerifier == null) {
             log.warn("Disabling JWT verifier because no signing key is present");
             this.jwtVerifier = null;

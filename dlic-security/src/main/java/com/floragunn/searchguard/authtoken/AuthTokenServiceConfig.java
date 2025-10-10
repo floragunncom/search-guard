@@ -66,6 +66,7 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
     private FreezePrivileges freezePrivileges = FreezePrivileges.USER_CHOOSES;
     private CacheConfig cacheConfig;
     private DocNode source;
+    private int maxClockSkewSeconds;
 
     public boolean isEnabled() {
         return enabled;
@@ -158,6 +159,7 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
 
             result.jwtAud = vJsonNode.get("jwt_aud_claim").withDefault(DEFAULT_AUDIENCE).asString();
             result.maxValidity = vJsonNode.get("max_validity").asTemporalAmount();
+            result.maxClockSkewSeconds = vJsonNode.get("max_clock_skew_seconds").withDefault(0).asInt();
 
             result.excludeClusterPermissions = vJsonNode.get("exclude_cluster_permissions").asList().withDefault(CreateAuthTokenAction.NAME)
                     .ofStrings();
@@ -285,6 +287,14 @@ public class AuthTokenServiceConfig implements PatchableDocument<AuthTokenServic
 
     public void setMaxTokensPerUser(int maxTokensPerUser) {
         this.maxTokensPerUser = maxTokensPerUser;
+    }
+
+    public int getMaxClockSkew() {
+        return maxClockSkewSeconds;
+    }
+
+    public void setMaxClockSkew(int maxClockSkewSeconds) {
+        this.maxClockSkewSeconds = maxClockSkewSeconds;
     }
 
     public enum FreezePrivileges {

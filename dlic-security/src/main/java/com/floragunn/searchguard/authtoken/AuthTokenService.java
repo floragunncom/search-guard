@@ -153,6 +153,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
     private boolean initialized = false;
     private IndexCleanupAgent indexCleanupAgent;
     private long maxTokensPerUser = 100;
+    private int maxClockSkewSeconds;
 
     public AuthTokenService(PrivilegedConfigClient privilegedConfigClient, AuthorizationService authorizationService,
             PrivilegesEvaluator privilegesEvaluator, ConfigHistoryService configHistoryService, StaticSettings settings, ThreadPool threadPool,
@@ -560,6 +561,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         this.config = config;
         this.jwtAudience = config.getJwtAud();
         this.maxTokensPerUser = config.getMaxTokensPerUser();
+        this.maxClockSkewSeconds = config.getMaxClockSkew();
 
         setKeys(config.getJwtSigningKey(), config.getJwtEncryptionKey());
     }
@@ -713,7 +715,7 @@ public class AuthTokenService implements SpecialPrivilegesEvaluationContextProvi
         try {
             if (signingKey != null) {
                 this.jwsSigner = new DefaultJWSSignerFactory().createJWSSigner(signingKey);
-                this.jwtVerifier = new JwtVerifier(signingKey, encryptionKey, jwtAudience);
+                this.jwtVerifier = new JwtVerifier(signingKey, encryptionKey, jwtAudience, maxClockSkewSeconds);
             } else {
                 this.jwsSigner = null;
                 this.jwtVerifier = null;

@@ -78,11 +78,13 @@ public class JwtVerifier {
     private final JWTClaimsSetVerifier<SecurityContext> jwtClaimsVerifier;
     private final CxfBased cxfBased;
 
-    public JwtVerifier(JWK signingKey, JWK encryptionKey, String requiredAudience) {
+    public JwtVerifier(JWK signingKey, JWK encryptionKey, String requiredAudience, int maxClockSkewSeconds) {
         this.signingKey = signingKey;
         this.encryptionKey = encryptionKey;
-        this.jwtClaimsVerifier = new DefaultJWTClaimsVerifier<>(requiredAudience, null, null);
-        this.cxfBased = new CxfBased(signingKey, encryptionKey, requiredAudience);
+        DefaultJWTClaimsVerifier<SecurityContext> nimbusdsVerifier = new DefaultJWTClaimsVerifier<>(requiredAudience, null, null);
+        nimbusdsVerifier.setMaxClockSkew(maxClockSkewSeconds);
+        this.jwtClaimsVerifier = nimbusdsVerifier;
+        this.cxfBased = new CxfBased(signingKey, encryptionKey, requiredAudience, maxClockSkewSeconds);
     }
 
     public JWT getVerfiedJwt(String encodedJwt) throws ParseException, JOSEException, BadJWTException {
@@ -146,23 +148,26 @@ public class JwtVerifier {
         private final JwsSignatureVerifier jwsSignatureVerifier;
         private final JweDecryptionProvider jweDecryptionProvider;
         private final String requiredJwtAudience;
+        private final int maxClockSkewSeconds;
 
-        CxfBased(JWK signingKey, JWK encryptionKey, String requiredJwtAudience) {
+        CxfBased(JWK signingKey, JWK encryptionKey, String requiredJwtAudience, int maxClockSkewSeconds) {
             this.requiredJwtAudience = requiredJwtAudience;
             this.jwsSignatureVerifier = JwsUtils.getSignatureVerifier(convertToCxf(signingKey));
             this.jweDecryptionProvider = encryptionKey != null
                     ? JweUtils.createJweDecryptionProvider(convertToCxf(encryptionKey), ContentAlgorithm.A256CBC_HS512)
                     : null;
+            this.maxClockSkewSeconds = maxClockSkewSeconds;
         }
 
-        private CxfBased(JwsSignatureVerifier jwsSignatureVerifier, JweDecryptionProvider jweDecryptionProvider, String requiredJwtAudience) {
+        private CxfBased(JwsSignatureVerifier jwsSignatureVerifier, JweDecryptionProvider jweDecryptionProvider, String requiredJwtAudience, int maxClockSkewSeconds) {
             this.jwsSignatureVerifier = jwsSignatureVerifier;
             this.jweDecryptionProvider = jweDecryptionProvider;
             this.requiredJwtAudience = requiredJwtAudience;
+            this.maxClockSkewSeconds = maxClockSkewSeconds;
         }
 
         CxfBased requiredAudience(String requiredAudience) {
-            return new CxfBased(jwsSignatureVerifier, jweDecryptionProvider, requiredAudience);
+            return new CxfBased(jwsSignatureVerifier, jweDecryptionProvider, requiredAudience, maxClockSkewSeconds);
         }
 
         JWT getVerifiedJwt(String encodedJwt) {
@@ -256,8 +261,8 @@ public class JwtVerifier {
                 throw new JwtException("The JWT does not have any claims");
             }
 
-            org.apache.cxf.rs.security.jose.jwt.JwtUtils.validateJwtExpiry(claims, 0, false);
-            org.apache.cxf.rs.security.jose.jwt.JwtUtils.validateJwtNotBefore(claims, 0, false);
+            org.apache.cxf.rs.security.jose.jwt.JwtUtils.validateJwtExpiry(claims, maxClockSkewSeconds, false);
+            org.apache.cxf.rs.security.jose.jwt.JwtUtils.validateJwtNotBefore(claims, maxClockSkewSeconds, false);
 
         }
 
