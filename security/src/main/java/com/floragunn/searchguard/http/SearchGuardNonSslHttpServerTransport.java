@@ -62,8 +62,9 @@ public class SearchGuardNonSslHttpServerTransport extends Netty4HttpServerTransp
 
     @Override
     public void incomingRequest(HttpRequest httpRequest, HttpChannel httpChannel) {
-        SslHandler sslhandler = (SslHandler)((Netty4HttpChannel)httpChannel).getNettyChannel().pipeline().get("ssl_http");
-        super.incomingRequest(AttributedHttpRequest.create(httpRequest, sslhandler), httpChannel);
+        Channel nettyChannel = ((Netty4HttpChannel) httpChannel).getNettyChannel();
+        SslHandler sslhandler = (SslHandler) nettyChannel.pipeline().get("ssl_http");
+        super.incomingRequest(AttributedHttpRequest.create(httpRequest, sslhandler, nettyChannel.eventLoop()), httpChannel);
     }
 
     @Override
