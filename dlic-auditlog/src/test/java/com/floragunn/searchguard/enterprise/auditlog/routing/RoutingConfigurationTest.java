@@ -14,8 +14,10 @@ package com.floragunn.searchguard.enterprise.auditlog.routing;
 
 import java.util.List;
 
+import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.enterprise.auditlog.AbstractAuditlogiUnitTest;
@@ -30,7 +32,9 @@ import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 
 public class RoutingConfigurationTest extends AbstractAuditlogiUnitTest{
 
-    
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
+
 	@Test
 	public void testValidConfiguration() throws Exception {
 		Settings settings = Settings.builder().loadFromPath(FileHelper.getAbsoluteFilePathFromClassPath("auditlog/endpoints/routing/configuration_valid.yml")).build();

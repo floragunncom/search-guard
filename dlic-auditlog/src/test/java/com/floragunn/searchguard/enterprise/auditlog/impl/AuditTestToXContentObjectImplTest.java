@@ -19,6 +19,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+
+import com.floragunn.searchsupport.util.EsLogging;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.elasticsearch.Version;
@@ -28,6 +30,7 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.index.IndexVersion;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -35,6 +38,9 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
 public class AuditTestToXContentObjectImplTest {
+
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
 
     @Mock private ClusterState clusterState;
     @Mock private DiscoveryNode localNode;
