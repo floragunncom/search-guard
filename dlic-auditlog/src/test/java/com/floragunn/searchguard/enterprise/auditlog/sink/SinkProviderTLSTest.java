@@ -22,6 +22,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 
+import com.floragunn.searchsupport.util.EsLogging;
 import org.apache.http.impl.bootstrap.HttpServer;
 import org.apache.http.impl.bootstrap.ServerBootstrap;
 import org.elasticsearch.common.settings.Settings;
@@ -38,8 +39,12 @@ import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage.Category;
 import com.floragunn.searchguard.enterprise.auditlog.sink.SinkProvider;
 import com.floragunn.searchguard.enterprise.auditlog.sink.WebhookSink;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
+import org.junit.ClassRule;
 
 public class SinkProviderTLSTest {
+
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
 
 	protected HttpServer server = null;
 

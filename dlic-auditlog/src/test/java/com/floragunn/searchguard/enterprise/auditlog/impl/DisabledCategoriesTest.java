@@ -26,6 +26,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import com.floragunn.searchsupport.action.StandardRequests;
+import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.metadata.ComposableIndexTemplate;
 import org.elasticsearch.cluster.metadata.IndexTemplateMetadata;
@@ -36,6 +37,7 @@ import org.elasticsearch.common.settings.Settings.Builder;
 import org.elasticsearch.tasks.Task;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
@@ -49,6 +51,9 @@ import com.floragunn.searchguard.user.UserInformation;
 import com.google.common.base.Joiner;
 
 public class DisabledCategoriesTest {
+
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
 
     ClusterService cs = mock(ClusterService.class);
     DiscoveryNode dn = mock(DiscoveryNode.class);

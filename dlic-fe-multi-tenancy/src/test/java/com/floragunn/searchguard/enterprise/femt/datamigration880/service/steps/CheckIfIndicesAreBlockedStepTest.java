@@ -19,10 +19,13 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMi
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationConfig;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
+import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.cluster.block.ClusterBlockException;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -41,6 +44,14 @@ import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class CheckIfIndicesAreBlockedStepTest {
+
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
+
+    static {
+        //required due to issue described here https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/538#note_35169
+        IndexMetadata.builder("workaround to avoid problems related to static init of enum APIBlock");
+    }
 
     private static final ZonedDateTime NOW = ZonedDateTime.of(LocalDateTime.of(1990, 1, 1, 1, 1), UTC);
     private static final Clock CLOCK = Clock.fixed(NOW.toInstant(), UTC);

@@ -21,10 +21,12 @@ import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -43,6 +45,9 @@ import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class FeMultiTenancyEnabledFlagValidatorTest {
+
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
 
     @Mock
     private ConfigurationRepository configurationRepository;
