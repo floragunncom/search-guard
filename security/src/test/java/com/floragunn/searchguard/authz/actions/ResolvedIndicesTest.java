@@ -28,7 +28,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
@@ -37,7 +36,6 @@ import org.elasticsearch.cluster.metadata.ProjectMetadata;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
 import org.hamcrest.Matcher;
-import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.fluent.collections.ImmutableList;
@@ -56,9 +54,6 @@ import java.util.stream.Collectors;
 
 @RunWith(MockitoJUnitRunner.class)
 public class ResolvedIndicesTest {
-
-    @ClassRule
-    public static EsLogging esLogging = new EsLogging();
 
     static final Meta META = indices("index_a11", "index_a12", "index_a21", "index_a22", "index_b1", "index_b2")//
             .dataStream("ds_d11").of(".ds-ds_d11-2024.03.22-000001", ".ds-ds_d11-2024.03.22-000002")//
