@@ -88,7 +88,8 @@
       <dependency>
         <groupId>com.floragunn</groupId>
         <artifactId>codova</artifactId>
-        <version>1.10.0</version>
+        <!-- TODO: when codova is released use the released version -->
+        <version>b-empty-document-exception-20251014.182312-3</version>
       </dependency>
 
       <dependency>
