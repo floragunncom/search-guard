@@ -52,6 +52,7 @@ import java.util.Collections;
 import java.util.Map;
 
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
+import static com.floragunn.searchguard.test.RestMatchers.isUnauthorized;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
@@ -410,7 +411,7 @@ public class LdapIntegrationTest {
                 GenericRestClient.HttpResponse response = client.get("/_searchguard/authinfo");
 
                 //LDAP certificate is untrusted
-                Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
+                assertThat(response, isUnauthorized());
                 logsRule.assertThatStackTraceContain("unable to find valid certification path to requested target");
 
                 //add test certificate to default SSLContext
@@ -430,12 +431,12 @@ public class LdapIntegrationTest {
 
                 //reload configuration to use updated SSLContext
                 response = adminClient.delete("/_searchguard/api/cache");
-                Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+                assertThat(response, isOk());
 
                 response = client.get("/_searchguard/authinfo");
 
                 //LDAP certificate is trusted, user can authenticate
-                Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+                assertThat(response, isOk());
                 Assert.assertEquals(response.getBody(), "Karlotta Karl", response.getBodyAsDocNode().get("user_name"));
 
             } finally {
@@ -444,12 +445,12 @@ public class LdapIntegrationTest {
 
                 //reload configuration to use restored default SSLContext
                 HttpResponse response = adminClient.delete("/_searchguard/api/cache");
-                Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+                assertThat(response, isOk());
 
                 response = client.get("/_searchguard/authinfo");
 
                 //LDAP certificate is untrusted again
-                Assert.assertEquals(response.getBody(), 401, response.getStatusCode());
+                assertThat(response, isUnauthorized());
             }
         }
     }
