@@ -83,11 +83,11 @@ public class ComplianceIndexTemplateActionFilter implements ActionFilter {
     }
 
     private ComposableIndexTemplate getComposableIndexTemplateCurrentState(String indexTemplateName) {
-        return clusterService.state().metadata().templatesV2().get(indexTemplateName);
+        return clusterService.state().metadata().getProject().templatesV2().get(indexTemplateName);
     }
 
     private IndexTemplateMetadata getLegacyIndexTemplateCurrentState(String indexTemplateName) {
-        return clusterService.state().metadata().templates().get(indexTemplateName);
+        return clusterService.state().metadata().getProject().templates().get(indexTemplateName);
     }
 
     private class PutIndexTemplateListenerWrapper<Response> implements ActionListener<Response> {

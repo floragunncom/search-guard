@@ -87,9 +87,8 @@ public final class ComplianceIndexingOperationListenerImpl implements IndexingOp
     
             if (shard.isReadAllowed()) {
                 try {
-    
                     final GetResult getResult = shard.getService().getForUpdate(index.id(),
-                            index.getIfSeqNo(), index.getIfPrimaryTerm());
+                            index.getIfSeqNo(), index.getIfPrimaryTerm(), null);
     
                     if (getResult.isExists()) {
                         threadContext.set(new Context(getResult));

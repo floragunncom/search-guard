@@ -76,11 +76,11 @@ public class SignalsIndicesTest {
         protectedConfigIndexService.onNodeStart();
 
         try {
-            AsyncAssert.awaitAssert("Index updated", () -> clusterService.state().getMetadata().indices().get(".signals_watches").mapping()
+            AsyncAssert.awaitAssert("Index updated", () -> clusterService.state().getMetadata().getProject().indices().get(".signals_watches").mapping()
                     .getSourceAsMap().toString().contains("value_no_map"), Duration.ofSeconds(10));
         } finally {
             System.out
-                    .println("Updated mapping: " + clusterService.state().getMetadata().indices().get(".signals_watches").mapping().getSourceAsMap());
+                    .println("Updated mapping: " + clusterService.state().getMetadata().getProject().indices().get(".signals_watches").mapping().getSourceAsMap());
         }
     }
 

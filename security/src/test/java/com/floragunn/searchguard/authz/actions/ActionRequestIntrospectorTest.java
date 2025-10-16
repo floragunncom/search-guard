@@ -17,6 +17,8 @@
 
 package com.floragunn.searchguard.authz.actions;
 
+import static com.floragunn.searchsupport.Constants.DEFAULT_ACK_TIMEOUT;
+import static com.floragunn.searchsupport.Constants.DEFAULT_MASTER_TIMEOUT;
 import static com.floragunn.searchsupport.meta.Meta.Mock.indices;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -55,7 +57,7 @@ public class ActionRequestIntrospectorTest {
 
     @Test
     public void getAliasesRequest() {
-        GetAliasesRequest request = new GetAliasesRequest(Constants.DEFAULT_MASTER_TIMEOUT, "alias_a1", "alias_a2").indices("index_a11", "index_a12", "index_a21", "index_a22");
+        GetAliasesRequest request = new GetAliasesRequest(DEFAULT_MASTER_TIMEOUT, "alias_a1", "alias_a2").indices("index_a11", "index_a12", "index_a21", "index_a22");
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(GetAliasesAction.NAME), request);
         assertThat(requestInfo, resolved(//
                 main().hasIndices("index_a11", "index_a12", "index_a21", "index_a22").hasNoAliases().hasNoDataStreams(),
@@ -64,7 +66,7 @@ public class ActionRequestIntrospectorTest {
 
     @Test
     public void getAliasesRequest_aliasPattern_noWildcards() {
-        GetAliasesRequest request = new GetAliasesRequest(Constants.DEFAULT_MASTER_TIMEOUT,"alias_a*").indices("index_a1*")
+        GetAliasesRequest request = new GetAliasesRequest(DEFAULT_MASTER_TIMEOUT,"alias_a*").indices("index_a1*")
                 .indicesOptions(IndicesOptions.strictSingleIndexNoExpandForbidClosed());
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(GetAliasesAction.NAME), request);
         assertThat(requestInfo, resolved(//
@@ -74,7 +76,7 @@ public class ActionRequestIntrospectorTest {
 
     @Test
     public void indicesAliasesRequest_add_nonExistingAlias() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest().addAliasAction(AliasActions.add().alias("alias_ax").index("index_a11"));
+        IndicesAliasesRequest request = new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT).addAliasAction(AliasActions.add().alias("alias_ax").index("index_a11"));
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get("indices:admin/aliases"), request);
 
         assertThat(requestInfo, resolved(//
@@ -85,7 +87,7 @@ public class ActionRequestIntrospectorTest {
 
     @Test
     public void indicesAliasesRequest_add_aliasPattern() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest().addAliasAction(AliasActions.add().alias("alias_a*").index("index_a11"));
+        IndicesAliasesRequest request = new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT).addAliasAction(AliasActions.add().alias("alias_a*").index("index_a11"));
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get("indices:admin/aliases"), request);
 
         assertThat(requestInfo, resolved(//
@@ -96,7 +98,7 @@ public class ActionRequestIntrospectorTest {
 
     @Test
     public void indicesAliasesRequest_remove_aliasPattern() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest().addAliasAction(AliasActions.remove().alias("alias_a*").index("index_a11"));
+        IndicesAliasesRequest request = new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT).addAliasAction(AliasActions.remove().alias("alias_a*").index("index_a11"));
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get("indices:admin/aliases"), request);
 
         assertThat(requestInfo, resolved(//
@@ -107,7 +109,7 @@ public class ActionRequestIntrospectorTest {
 
     @Test
     public void indicesAliasesRequest_removeIndex_indexPatternSimple() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest().addAliasAction(AliasActions.removeIndex().index("index_a1*"));
+        IndicesAliasesRequest request = new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT).addAliasAction(AliasActions.removeIndex().index("index_a1*"));
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get("indices:admin/aliases"), request);
 
         assertThat(requestInfo, resolved(//
@@ -117,7 +119,7 @@ public class ActionRequestIntrospectorTest {
 
     @Test
     public void indicesAliasesRequest_removeIndex_indexPatternMulti() {
-        IndicesAliasesRequest request = new IndicesAliasesRequest()//
+        IndicesAliasesRequest request = new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT)//
                 .addAliasAction(AliasActions.removeIndex().index("index_a1*"))
                 .addAliasAction(AliasActions.removeIndex().indices("index_a11", "-index_a1*"));
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get("indices:admin/aliases"), request);

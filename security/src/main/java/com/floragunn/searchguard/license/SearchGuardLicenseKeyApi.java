@@ -17,8 +17,6 @@
 
 package com.floragunn.searchguard.license;
 
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
@@ -39,8 +37,8 @@ public class SearchGuardLicenseKeyApi extends TypeLevelConfigApi {
             .handlesPut("/_searchguard/license/key").with(PutAction.INSTANCE, (params, body) -> new PutAction.Request(body.parseAsMap()))//
             .handlesPatch("/_searchguard/license/key").with(PatchAction.INSTANCE, (params, body) -> new PatchAction.Request(DocPatch.parse(body)))
             .name("/_searchguard/license/key");
-    
-    public static final ImmutableList<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> ACTION_HANDLERS = ImmutableList.of(
+
+    public static final ImmutableList<ActionHandler> ACTION_HANDLERS = ImmutableList.of(
             actionHandler(SearchGuardLicenseKeyApi.GetAction.INSTANCE, SearchGuardLicenseKeyApi.GetAction.Handler.class),
             actionHandler(SearchGuardLicenseKeyApi.PutAction.INSTANCE, SearchGuardLicenseKeyApi.PutAction.Handler.class),
             actionHandler(SearchGuardLicenseKeyApi.PatchAction.INSTANCE, SearchGuardLicenseKeyApi.PatchAction.Handler.class));

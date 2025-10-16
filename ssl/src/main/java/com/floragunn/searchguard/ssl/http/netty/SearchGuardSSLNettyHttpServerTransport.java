@@ -20,7 +20,6 @@ package com.floragunn.searchguard.ssl.http.netty;
 import com.floragunn.searchguard.ssl.http.AttributedHttpRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.bulk.IncrementalBulkService;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
@@ -54,7 +53,6 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
     private final SearchGuardKeyStore sgks;
     private final SslExceptionHandler errorHandler;
     private final BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext;
-    private final IncrementalBulkService.Enabled incrementalBulkServiceEnabled;
 
     public SearchGuardSSLNettyHttpServerTransport(final Settings settings, final NetworkService networkService,
                                                   final ThreadPool threadPool, final SearchGuardKeyStore sgks, final NamedXContentRegistry namedXContentRegistry,
@@ -64,7 +62,6 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
         this.sgks = sgks;
         this.errorHandler = errorHandler;
         this.perRequestThreadContext = perRequestThreadContext;
-        this.incrementalBulkServiceEnabled = new IncrementalBulkService.Enabled(clusterSettings);
 
     }
 
@@ -83,7 +80,7 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
     @Override
     public ChannelHandler configureServerChannelHandler() {
 
-        return new SSLHttpChannelHandler(this, handlingSettings, sgks, incrementalBulkServiceEnabled);
+        return new SSLHttpChannelHandler(this, handlingSettings);
     }
 
     @Override
@@ -106,9 +103,8 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
 
     protected class SSLHttpChannelHandler extends Netty4HttpServerTransport.HttpChannelHandler {
 
-        protected SSLHttpChannelHandler(Netty4HttpServerTransport transport, final HttpHandlingSettings handlingSettings,
-                final SearchGuardKeyStore sgks, IncrementalBulkService.Enabled enabled) {
-            super(transport, handlingSettings, TLSConfig.noTLS(), null, null, enabled);
+        protected SSLHttpChannelHandler(Netty4HttpServerTransport transport, final HttpHandlingSettings handlingSettings) {
+            super(transport, handlingSettings, TLSConfig.noTLS(), null, null);
         }
 
         @Override

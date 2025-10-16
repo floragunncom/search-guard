@@ -75,6 +75,8 @@ import com.icegreen.greenmail.util.GreenMail;
 import com.icegreen.greenmail.util.GreenMailUtil;
 import com.icegreen.greenmail.util.ServerSetup;
 
+import net.jcip.annotations.NotThreadSafe;
+
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.X509ExtendedTrustManager;
 
@@ -88,6 +90,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@NotThreadSafe
 public class ActionTest {
 
     private final static String ROOT_CA_CERT = "-----BEGIN CERTIFICATE-----\n" + "MIIDyDCCArCgAwIBAgIBATANBgkqhkiG9w0BAQsFADB1MRMwEQYKCZImiZPyLGQB\n"
@@ -225,7 +228,6 @@ public class ActionTest {
     @BeforeClass
     public static void setupTestData() throws Throwable {
 
-        // It seems that PowerMockRunner is messing with the rule execution order. Thus, we start the cluster manually here 
         cluster.before();
 
         Client client = cluster.getInternalNodeClient();

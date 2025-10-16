@@ -85,7 +85,6 @@ public class SignalsTenantTest {
     @BeforeClass
     public static void setupTestData() throws Throwable {
 
-        // It seems that PowerMockRunner is messing with the rule execution order. Thus, we start the cluster manually here 
         cluster.before();
 
         PluginAwareNode node = cluster.node();

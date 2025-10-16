@@ -58,6 +58,8 @@ import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.metadata.IndexAbstraction;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.MappingMetadata;
+import org.elasticsearch.cluster.metadata.Metadata;
+import org.elasticsearch.cluster.metadata.ProjectMetadata;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
@@ -70,7 +72,7 @@ import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.elasticsearch.transport.TransportRequest;
+import org.elasticsearch.transport.AbstractTransportRequest;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
@@ -221,8 +223,10 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
             }
 
             IndexAbstraction indexAbstraction;
-            if ((indexAbstraction = clusterState.getMetadata().getIndicesLookup().get(configIndex.getName())) != null) {
-                final IndexMetadata indexMetadata = clusterState.getMetadata().index(indexAbstraction.getWriteIndex());
+            Metadata metadata = clusterState.getMetadata();
+            ProjectMetadata project = metadata.getProject();
+            if ((indexAbstraction = project.getIndicesLookup().get(configIndex.getName())) != null) {
+                final IndexMetadata indexMetadata = project.index(indexAbstraction.getWriteIndex());
                 if (log.isTraceEnabled()) {
                     log.trace(configIndex + " does already exist.");
                 }
@@ -375,7 +379,8 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
     }
 
     private int getMappingVersion(ConfigIndexState configIndex, ClusterState clusterState) {
-        IndexMetadata index = clusterState.getMetadata().index(clusterState.getMetadata().getIndicesLookup().get(configIndex.getName()).getWriteIndex());
+        ProjectMetadata project = clusterState.getMetadata().getProject();
+        IndexMetadata index = project.index(project.getIndicesLookup().get(configIndex.getName()).getWriteIndex());
         MappingMetadata mapping = index.mapping();
 
         if (mapping == null) {
@@ -732,7 +737,7 @@ public class ProtectedConfigIndexService implements ComponentStateProvider {
             }
         }
 
-        public static class NodeRequest extends TransportRequest {
+        public static class NodeRequest extends AbstractTransportRequest {
 
             public NodeRequest(StreamInput in) throws IOException {
                 super(in);

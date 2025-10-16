@@ -50,8 +50,6 @@ import org.apache.lucene.search.Weight;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.TransportVersion;
-import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.search.TransportSearchScrollAction;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.bootstrap.BootstrapCheck;
@@ -454,8 +452,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     }
 
     @Override
-    public List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> getActions() {
-        List<ActionHandler<? extends ActionRequest, ? extends ActionResponse>> actions = new ArrayList<>(1);
+    public List<ActionHandler> getActions() {
+        List<ActionHandler> actions = new ArrayList<>(1);
         if (!disabled && !sslOnly) {
             actions.add(actionHandler(ConfigUpdateAction.INSTANCE, TransportConfigUpdateAction.class));
             actions.add(actionHandler(WhoAmIAction.INSTANCE, TransportWhoAmIAction.class));

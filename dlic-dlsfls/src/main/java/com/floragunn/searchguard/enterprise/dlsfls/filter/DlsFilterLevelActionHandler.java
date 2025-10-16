@@ -358,7 +358,7 @@ public class DlsFilterLevelActionHandler {
             documentFields = Collections.emptyMap();
             metadataFields = Collections.emptyMap();
         } else {
-            IndexMetadata indexMetadata = clusterService.state().getMetadata().indices().get(hit.getIndex());
+            IndexMetadata indexMetadata = clusterService.state().getMetadata().getProject().indices().get(hit.getIndex());
             IndexService indexService = indexMetadata != null ? indicesService.indexService(indexMetadata.getIndex()) : null;
 
             if (indexService != null) {

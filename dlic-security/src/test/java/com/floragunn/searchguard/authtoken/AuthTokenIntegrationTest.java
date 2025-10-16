@@ -40,6 +40,7 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.BasicJsonPathDefaultConfiguration;
@@ -62,6 +63,7 @@ import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.Option;
 
 import co.elastic.clients.elasticsearch._types.ElasticsearchException;
+import org.junit.rules.Timeout;
 
 public class AuthTokenIntegrationTest {
     public static final int MAX_TOKEN_PER_USER = 10;

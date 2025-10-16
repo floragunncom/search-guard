@@ -37,9 +37,8 @@ import com.floragunn.fluent.collections.UnmodifiableCollection;
 
 import org.elasticsearch.cluster.metadata.DataStreamLifecycle;
 import org.elasticsearch.cluster.metadata.DataStreamOptions;
-import org.elasticsearch.cluster.metadata.IndexMetadata;
-import org.elasticsearch.common.collect.ImmutableOpenMap;
-import org.elasticsearch.index.Index;
+import org.elasticsearch.cluster.metadata.ProjectMetadata;
+
 import org.elasticsearch.index.IndexMode;
 
 public abstract class MetaImpl implements Meta {
@@ -546,7 +545,7 @@ public abstract class MetaImpl implements Meta {
 
                 esMetadataBuilder.put(new org.elasticsearch.cluster.metadata.DataStream(dataStream.name(),
                         ImmutableList.of(dataStream.members()).map(i -> new org.elasticsearch.index.Index(i.name(), i.name())), 1L,
-                        ImmutableMap.empty(), false, false, false, false, IndexMode.STANDARD, new DataStreamLifecycle(), DataStreamOptions.FAILURE_STORE_DISABLED, ImmutableList.empty(),
+                        ImmutableMap.empty(), false, false, false, false, IndexMode.STANDARD, DataStreamLifecycle.DEFAULT_DATA_LIFECYCLE, DataStreamOptions.FAILURE_STORE_DISABLED, ImmutableList.empty(),
                         false, null));
             }
 
@@ -554,9 +553,10 @@ public abstract class MetaImpl implements Meta {
         }
 
         public DefaultMetaImpl(org.elasticsearch.cluster.metadata.Metadata esMetadata) {
-            ImmutableSet.Builder<Index> indices = new ImmutableSet.Builder<>(esMetadata.getIndices().size());
-            ImmutableMap.Builder<String, Meta.IndexLikeObject> nameMap = new ImmutableMap.Builder<>(esMetadata.getIndices().size());
-            ImmutableSet.Builder<Index> indicesWithoutParents = new ImmutableSet.Builder<>(esMetadata.getIndices().size());
+            ProjectMetadata project = esMetadata.getProject();
+            ImmutableSet.Builder<Index> indices = new ImmutableSet.Builder<>(project.indices().size());
+            ImmutableMap.Builder<String, Meta.IndexLikeObject> nameMap = new ImmutableMap.Builder<>(project.indices().size());
+            ImmutableSet.Builder<Index> indicesWithoutParents = new ImmutableSet.Builder<>(project.indices().size());
             ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, ImmutableList.Builder<IndexLikeObject>> aliasToIndicesMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, ImmutableList.Builder<IndexLikeObject>>()
                     .defaultValue((k) -> new ImmutableList.Builder<IndexLikeObject>());
             ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, IndexLikeObject> aliasToWriteIndexMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, IndexLikeObject>();
@@ -564,10 +564,10 @@ public abstract class MetaImpl implements Meta {
             ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> dataStreamAliasToIndicesMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>()
                     .defaultValue((k) -> new ArrayList<IndexLikeObject>());
             ImmutableSet.Builder<Alias> aliases = new ImmutableSet.Builder<>(64);
-            ImmutableSet.Builder<DataStream> datastreams = new ImmutableSet.Builder<>(esMetadata.dataStreams().size());
+            ImmutableSet.Builder<DataStream> datastreams = new ImmutableSet.Builder<>(project.dataStreams().size());
             this.esMetadata = esMetadata;
 
-            Map<String, org.elasticsearch.cluster.metadata.DataStreamAlias> dataStreamsAliases = esMetadata.dataStreamAliases();
+            Map<String, org.elasticsearch.cluster.metadata.DataStreamAlias> dataStreamsAliases = project.dataStreamAliases();
             Map<String, ImmutableList.Builder<String>> dataStreamAliasReverseLookup = new HashMap<>();
 
             for (org.elasticsearch.cluster.metadata.DataStreamAlias dataStreamAlias : dataStreamsAliases.values()) {
@@ -576,11 +576,11 @@ public abstract class MetaImpl implements Meta {
                 }
             }
 
-            for (org.elasticsearch.cluster.metadata.DataStream esDataStream : esMetadata.dataStreams().values()) {
+            for (org.elasticsearch.cluster.metadata.DataStream esDataStream : project.dataStreams().values()) {
                 ImmutableList.Builder<IndexLikeObject> memberIndices = new ImmutableList.Builder<>(esDataStream.getIndices().size());
 
                 for (org.elasticsearch.index.Index esIndex : esDataStream.getIndices()) {
-                    org.elasticsearch.cluster.metadata.IndexMetadata esIndexMetadata = esMetadata.index(esIndex.getName());
+                    org.elasticsearch.cluster.metadata.IndexMetadata esIndexMetadata = project.index(esIndex.getName());
 
                     Index index = new IndexImpl(this, esIndex.getName(), ImmutableSet.empty(), esDataStream.getName(), esIndexMetadata.isHidden(),
                             esIndexMetadata.isSystem(), esIndexMetadata.getState());
@@ -601,7 +601,7 @@ public abstract class MetaImpl implements Meta {
                 }
             }
 
-            for (org.elasticsearch.cluster.metadata.IndexMetadata esIndexMetadata : esMetadata.getIndices().values()) {
+            for (org.elasticsearch.cluster.metadata.IndexMetadata esIndexMetadata : project.indices().values()) {
                 String name = esIndexMetadata.getIndex().getName();
 
                 if (nameMap.contains(name)) {

@@ -63,6 +63,7 @@ import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.cluster.metadata.AliasMetadata;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
+import org.elasticsearch.cluster.metadata.ProjectMetadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
@@ -249,10 +250,11 @@ public class ConfigurationRepository implements ComponentStateProvider {
         LOGGER.debug("Check if one of the indices " + configuredSearchguardIndexNew + " or " + configuredSearchguardIndexOld + " does exist ...");
 
         try {
-            if (resolver.hasIndexAbstraction(configuredSearchguardIndexNew, clusterService.state())) {
+            ProjectMetadata projectMetadata = getDefaultProjectMetadata();
+            if (resolver.hasIndexAbstraction(configuredSearchguardIndexNew, projectMetadata)) {
                 LOGGER.info("{} index does exist. Loading configuration.", configuredSearchguardIndexNew);
                 threadPool.generic().submit(() -> loadConfigurationOnStartup(configuredSearchguardIndexNew));
-            } else if (resolver.hasIndexAbstraction(configuredSearchguardIndexOld, clusterService.state())) {
+            } else if (resolver.hasIndexAbstraction(configuredSearchguardIndexOld, projectMetadata)) {
                 LOGGER.info("Legacy {} index does exist. Loading configuration.", configuredSearchguardIndexOld);
                 threadPool.generic().submit(() -> loadConfigurationOnStartup(configuredSearchguardIndexOld));
             } else if (settings.get(ALLOW_DEFAULT_INIT_SGINDEX)) {
@@ -326,10 +328,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
             componentState.setState(State.INITIALIZING, "waiting_for_config_index");
             do {
                 Thread.sleep(500);
-            } while (!resolver.hasIndexAbstraction(this.configuredSearchguardIndexNew, clusterService.state())
-                    && !resolver.hasIndexAbstraction(this.configuredSearchguardIndexOld, clusterService.state()));
+            } while (!resolver.hasIndexAbstraction(this.configuredSearchguardIndexNew, getDefaultProjectMetadata())
+                    && !resolver.hasIndexAbstraction(this.configuredSearchguardIndexOld, getDefaultProjectMetadata()));
 
-            if (resolver.hasIndexAbstraction(this.configuredSearchguardIndexNew, clusterService.state())) {
+            if (resolver.hasIndexAbstraction(this.configuredSearchguardIndexNew, getDefaultProjectMetadata())) {
                 loadConfigurationOnStartup(configuredSearchguardIndexNew);
             } else {
                 loadConfigurationOnStartup(configuredSearchguardIndexOld);
@@ -338,6 +340,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
             LOGGER.error("Error while waiting for the configuration index to be created", e);
             componentState.setFailed(e);
         }
+    }
+
+    private ProjectMetadata getDefaultProjectMetadata() {
+        return clusterService.state().projectState().metadata();
     }
 
     private void loadConfigurationOnStartup(String searchguardIndex) {
@@ -531,9 +537,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
     public String getEffectiveSearchGuardIndex() {
-        if (resolver.hasIndexAbstraction(configuredSearchguardIndexNew, clusterService.state())) {
+        if (resolver.hasIndexAbstraction(configuredSearchguardIndexNew, getDefaultProjectMetadata())) {
             return configuredSearchguardIndexNew;
-        } else if (resolver.hasIndexAbstraction(configuredSearchguardIndexOld, clusterService.state())) {
+        } else if (resolver.hasIndexAbstraction(configuredSearchguardIndexOld, getDefaultProjectMetadata())) {
             return configuredSearchguardIndexOld;
         } else {
             return null;

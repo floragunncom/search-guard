@@ -19,6 +19,7 @@ package com.floragunn.searchguard.configuration;
 
 import java.time.Duration;
 
+import com.floragunn.searchsupport.Constants;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
 import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
@@ -52,7 +53,7 @@ public class ProtectedConfigIndexServiceTest {
 
         service.onNodeStart();
 
-        AsyncAssert.awaitAssert("Index created", () -> clusterService.state().getMetadata().indices().containsKey(".test_mapping_update"),
+        AsyncAssert.awaitAssert("Index created", () -> clusterService.state().getMetadata().getProject().indices().containsKey(".test_mapping_update"),
                 Duration.ofSeconds(10));
 
         service = new ProtectedConfigIndexService(cluster.getInternalNodeClient(), clusterService, cluster.getInjectable(ThreadPool.class),
@@ -67,7 +68,7 @@ public class ProtectedConfigIndexServiceTest {
         service.onNodeStart();
 
         AsyncAssert.awaitAssert(
-                "Index updated", () -> clusterService.state().getMetadata().indices().get(".test_mapping_update").mapping().getSourceAsMap()
+                "Index updated", () -> clusterService.state().getMetadata().getProject().indices().get(".test_mapping_update").mapping().getSourceAsMap()
                         .get("properties").equals(ImmutableMap.of("x", ImmutableMap.of("type", "text"), "y", ImmutableMap.of("type", "text"))),
                 Duration.ofSeconds(10));
 
@@ -88,7 +89,7 @@ public class ProtectedConfigIndexServiceTest {
         Assert.assertTrue(acknowledgedResponse.isAcknowledged());
 
         GetSettingsResponse getSettingsResponse = cluster.getInternalNodeClient().admin().indices()
-                .getSettings(new GetSettingsRequest().indices(indexName)).actionGet();
+                .getSettings(new GetSettingsRequest(Constants.DEFAULT_MASTER_TIMEOUT).indices(indexName)).actionGet();
 
         Assert.assertFalse(IndexMetadata.INDEX_HIDDEN_SETTING.get(getSettingsResponse.getIndexToSettings().get(indexName)));
 
@@ -105,11 +106,11 @@ public class ProtectedConfigIndexServiceTest {
 
         AsyncAssert
                 .awaitAssert("Index updated",
-                        () -> clusterService.state().getMetadata().indices().get(indexName).mapping().getSourceAsMap().get("properties")
+                        () -> clusterService.state().getMetadata().getProject().indices().get(indexName).mapping().getSourceAsMap().get("properties")
                                 .equals(ImmutableMap.of("x", ImmutableMap.of("type", "text"), "y", ImmutableMap.of("type", "text"))),
                         Duration.ofSeconds(30));
 
-        AsyncAssert.awaitAssert("Index hidden", () -> clusterService.state().getMetadata().indices().get(indexName).isHidden(),
+        AsyncAssert.awaitAssert("Index hidden", () -> clusterService.state().getMetadata().getProject().indices().get(indexName).isHidden(),
                 Duration.ofSeconds(10));
     }
 
@@ -126,7 +127,7 @@ public class ProtectedConfigIndexServiceTest {
         Assert.assertTrue(acknowledgedResponse.isAcknowledged());
 
         GetSettingsResponse getSettingsResponse = cluster.getInternalNodeClient().admin().indices()
-                .getSettings(new GetSettingsRequest().indices(indexName)).actionGet();
+                .getSettings(new GetSettingsRequest(Constants.DEFAULT_MASTER_TIMEOUT).indices(indexName)).actionGet();
 
         Assert.assertFalse(IndexMetadata.INDEX_HIDDEN_SETTING.get(getSettingsResponse.getIndexToSettings().get(indexName)));
 
@@ -137,7 +138,7 @@ public class ProtectedConfigIndexServiceTest {
 
         service.onNodeStart();
 
-        AsyncAssert.awaitAssert("Index hidden", () -> clusterService.state().getMetadata().indices().get(indexName).isHidden(),
+        AsyncAssert.awaitAssert("Index hidden", () -> clusterService.state().getMetadata().getProject().indices().get(indexName).isHidden(),
                 Duration.ofSeconds(10));
     }
 

@@ -108,7 +108,7 @@ class FeMultiTenancyEnabledFlagValidator extends ConfigModificationValidator<FeM
         String kibanaIndexNamePrefix = Objects.requireNonNullElse(
                 feMultiTenancyConfigurationProvider.getKibanaIndex(), FeMultiTenancyConfig.DEFAULT.getIndex()
         );
-        return clusterService.state().metadata().getIndicesLookup().keySet()
+        return clusterService.state().metadata().getProject().getIndicesLookup().keySet()
                 .stream().anyMatch(name -> name.startsWith(kibanaIndexNamePrefix));
     }
 

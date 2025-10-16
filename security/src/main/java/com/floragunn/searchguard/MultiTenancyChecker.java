@@ -89,7 +89,7 @@ class MultiTenancyChecker {
         }
 
         public Map<String, IndexMetadata> findIndicesMetadata() {
-            Map<String, IndexMetadata> indicesMetadata = context.metadata().indices();
+            Map<String, IndexMetadata> indicesMetadata = context.metadata().getProject().indices();
             if(log.isInfoEnabled()) {
                 String names = indicesMetadata.entrySet()
                     .stream()

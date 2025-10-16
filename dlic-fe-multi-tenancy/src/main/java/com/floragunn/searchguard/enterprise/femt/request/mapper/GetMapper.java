@@ -62,7 +62,7 @@ public class GetMapper implements Unscoper<GetResponse> {
         if (fields.isEmpty()) {
             return PartitionedFields.empty();
         } else {
-            IndexMetadata indexMetadata = clusterService.state().getMetadata().indices().get(getResponse.getIndex());
+            IndexMetadata indexMetadata = clusterService.state().getMetadata().getProject().indices().get(getResponse.getIndex());
             IndexService indexService = indexMetadata != null ? indicesService.indexService(indexMetadata.getIndex()) : null;
 
             if (indexService != null) {
