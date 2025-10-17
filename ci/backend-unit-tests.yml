@@ -6,7 +6,7 @@ test_security:
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never    
-    - when: always
+    - when: never
   script:
     - ci/run_tests.sh security
   artifacts:
@@ -30,7 +30,7 @@ test_ssl:
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never   
-    - when: always
+    - when: never
   script:
     - ci/run_tests.sh ssl
   artifacts:
@@ -54,7 +54,7 @@ test_signals:
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
-    - when: always
+    - when: never
   script:
     - ci/run_tests.sh signals
   artifacts:
@@ -78,7 +78,7 @@ test_scheduler:
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never      
-    - when: always
+    - when: never
   script:
     - ci/run_tests.sh scheduler
   artifacts:
@@ -102,7 +102,7 @@ test_support:
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never    
-    - when: always
+    - when: never
   script:
     - ci/run_tests.sh support
   artifacts:
@@ -126,7 +126,7 @@ test_dlic_security:
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never      
-    - when: always
+    - when: never
   script:
     - ci/run_tests.sh dlic-security
   artifacts:
@@ -150,7 +150,7 @@ test_dlic_dlsfls:
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
-    - when: always
+    - when: never
   script:
     - ci/run_tests.sh dlic-dlsfls
   artifacts:
@@ -174,7 +174,7 @@ test_dlic_femt:
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
-    - when: always
+    - when: never
   script:
     - ci/run_tests.sh dlic-fe-multi-tenancy
   artifacts:
@@ -198,7 +198,7 @@ test_dlic_auditlog:
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
-    - when: always
+    - when: never
   script:
     - ci/run_tests.sh dlic-auditlog
   artifacts:
@@ -222,7 +222,7 @@ test_dlic_signals:
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never
-    - when: always
+    - when: never
   script:
     - ci/run_tests.sh dlic-signals
   artifacts:
