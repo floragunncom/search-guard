@@ -37,11 +37,13 @@ public class JwtVerifier {
     private final KeyProvider keyProvider;
     private final String requiredAudience;
     private final String requiredIssuer;
+    private final int maxClockSkewSeconds;
 
-    public JwtVerifier(KeyProvider keyProvider, String requiredAudience, String requiredIssuer) {
+    public JwtVerifier(KeyProvider keyProvider, String requiredAudience, String requiredIssuer, int maxClockSkewSeconds) {
         this.keyProvider = keyProvider;
         this.requiredAudience = requiredAudience;
         this.requiredIssuer = requiredIssuer;
+        this.maxClockSkewSeconds = maxClockSkewSeconds;
     }
 
     public JwtToken getVerifiedJwtToken(String encodedJwt) throws BadCredentialsException, AuthenticatorUnavailableException {
@@ -107,10 +109,10 @@ public class JwtVerifier {
         if (claims != null) {
             JwtUtils.validateJwtExpiry(claims, 0, false);
             try {
-                JwtUtils.validateJwtNotBefore(claims, 0, false);
+                JwtUtils.validateJwtNotBefore(claims, maxClockSkewSeconds, false);
             } catch (JwtException jwtException) {
                 String notBefore = DateTimeFormatter.ISO_DATE_TIME.format(Instant.ofEpochSecond(claims.getNotBefore()).atZone(ZoneId.systemDefault()));
-                throw new JwtException(jwtException.getMessage() + ", not before claim is set to: " + notBefore);
+                throw new JwtException(jwtException.getMessage() + ", not before claim is set to: " + notBefore + ", max clock skew is " + maxClockSkewSeconds + " seconds");
             }
         }
     }

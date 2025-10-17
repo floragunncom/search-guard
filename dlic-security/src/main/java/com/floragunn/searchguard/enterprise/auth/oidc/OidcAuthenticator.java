@@ -111,6 +111,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         boolean cacheJwksEndpoint = vNode.get("cache_jwks_endpoint").withDefault(false).asBoolean();
         String requiredAudience = vNode.get("required_audience").asString();
         String requiredIssuer = vNode.get("required_issuer").asString();
+        int maxClockSkewSeconds = vNode.get("max_clock_skew_seconds").withDefault(10).asInt();
 
         vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
@@ -127,8 +128,8 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         selfRefreshingKeySet.setRefreshRateLimitTimeWindowMs(refreshRateLimitTimeWindowMs);
         selfRefreshingKeySet.setRefreshRateLimitCount(refreshRateLimitCount);
 
-        jwtVerifier = new JwtVerifier(selfRefreshingKeySet, requiredAudience, requiredIssuer);
-        userInfoJwtVerifier = new JwtVerifier(selfRefreshingKeySet, null, requiredIssuer);
+        jwtVerifier = new JwtVerifier(selfRefreshingKeySet, requiredAudience, requiredIssuer, maxClockSkewSeconds);
+        userInfoJwtVerifier = new JwtVerifier(selfRefreshingKeySet, null, requiredIssuer, maxClockSkewSeconds);
     }
 
     @Override

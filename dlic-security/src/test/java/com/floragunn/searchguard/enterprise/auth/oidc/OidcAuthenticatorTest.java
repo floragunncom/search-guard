@@ -22,6 +22,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
 import com.floragunn.codova.validation.VariableResolvers;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
@@ -36,7 +37,6 @@ import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.user.AuthCredentials;
-import com.google.common.collect.ImmutableMap;
 import org.apache.cxf.rs.security.jose.jwt.JwtConstants;
 import org.apache.cxf.rs.security.jose.jwt.JwtToken;
 import org.junit.AfterClass;
@@ -66,7 +66,7 @@ public class OidcAuthenticatorTest {
             .extensions(REQUEST_HEADER_ADDING_FILTER));
 
     private static ConfigurationRepository.Context testContext = new ConfigurationRepository.Context(VariableResolvers.ALL, null, null, null, null);
-    private static Map<String, Object> basicAuthenticatorSettings;
+    private static ImmutableMap<String, Object> basicAuthenticatorSettings;
     private static String FRONTEND_BASE_URL = "http://whereever";
     private static final TLSConfig IDP_TLS_CONFIG;
 
@@ -332,6 +332,52 @@ public class OidcAuthenticatorTest {
         authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
 
         Instant future = Instant.now().plusSeconds(30);
+        JwtToken notBeforeInTheFuture = TestJwts.create(TestJwts.MCCOY_SUBJECT, TestJwts.TEST_AUDIENCE, JwtConstants.CLAIM_NOT_BEFORE, future.getEpochSecond());
+        String notBeforeInTheFutureSigned = TestJwts.createSigned(notBeforeInTheFuture, TestJwk.OCT_1);
+
+        String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), notBeforeInTheFutureSigned);
+
+        Map<String, Object> request = ImmutableMap.of("sso_result", ssoResponse, "sso_context", authMethod.getSsoContext(), "frontend_base_url",
+                FRONTEND_BASE_URL);
+
+        try {
+            AuthCredentials authCredentials = authenticator.extractCredentials(request);
+            Assert.fail("Expected exception, got: " + authCredentials);
+        } catch (CredentialsException e) {
+            Assert.assertTrue(e.getMessage(), e.getMessage().contains("not before claim is set to:"));
+            Assert.assertTrue(e.getMessage(), e.getMessage().contains(DateTimeFormatter.ISO_DATE_TIME.format(future.atZone(ZoneId.systemDefault()).truncatedTo(ChronoUnit.SECONDS))));
+        }
+    }
+
+    @Test
+    public void testNotBeforeInTheFuture_withClockSkew() throws Exception {
+        ImmutableMap<String, Object> configuration = basicAuthenticatorSettings.with("max_clock_skew_seconds", 120);
+        OidcAuthenticator authenticator = new OidcAuthenticator(configuration, testContext);
+        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+
+        Instant future = Instant.now().plusSeconds(30);
+        JwtToken notBeforeInTheFuture = TestJwts.create(TestJwts.MCCOY_SUBJECT, TestJwts.TEST_AUDIENCE, JwtConstants.CLAIM_NOT_BEFORE, future.getEpochSecond());
+        String notBeforeInTheFutureSigned = TestJwts.createSigned(notBeforeInTheFuture, TestJwk.OCT_1);
+
+        String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), notBeforeInTheFutureSigned);
+
+        Map<String, Object> request = ImmutableMap.of("sso_result", ssoResponse, "sso_context", authMethod.getSsoContext(), "frontend_base_url",
+                FRONTEND_BASE_URL);
+
+        AuthCredentials authCredentials = authenticator.extractCredentials(request);
+        Assert.assertEquals("Leonard McCoy", authCredentials.getUsername());
+    }
+
+    @Test
+    public void testNotBeforeInTheFuture_withTooLargeClockSkew() throws Exception {
+        int maxClockSkew = 120;
+        ImmutableMap<String, Object> configuration = basicAuthenticatorSettings.with("max_clock_skew_seconds", maxClockSkew);
+        OidcAuthenticator authenticator = new OidcAuthenticator(configuration, testContext);
+        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+
+        Instant future = Instant.now().plusSeconds(maxClockSkew * 2);
         JwtToken notBeforeInTheFuture = TestJwts.create(TestJwts.MCCOY_SUBJECT, TestJwts.TEST_AUDIENCE, JwtConstants.CLAIM_NOT_BEFORE, future.getEpochSecond());
         String notBeforeInTheFutureSigned = TestJwts.createSigned(notBeforeInTheFuture, TestJwk.OCT_1);
 
