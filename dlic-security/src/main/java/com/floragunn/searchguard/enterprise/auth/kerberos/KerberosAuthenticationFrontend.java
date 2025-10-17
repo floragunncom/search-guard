@@ -96,6 +96,7 @@ public class KerberosAuthenticationFrontend implements HttpAuthenticationFronten
         this.acceptorPrincipal = ImmutableSet.of(vNode.get("acceptor_principal").asList().withEmptyListAsDefault()
                 .ofObjectsParsedByString((s) -> PrivilegedCode.execute(() -> new KerberosPrincipal(s))));
         String acceptorKeyTabFile = vNode.get("acceptor_keytab").required().asString();
+        log.info("acceptorKeyTabFile: {}", acceptorKeyTabFile);
         this.acceptorKeyTabFile = resolve(acceptorKeyTabFile, "acceptor_keytab", validationErrors, context);
 
         vNode.checkForUnusedAttributes();
