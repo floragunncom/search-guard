@@ -96,6 +96,7 @@ public class JwtAuthenticator implements HttpAuthenticationFrontend, ApiAuthenti
         this.requiredAudience = vNode.get("required_audience").asString();
         this.requiredIssuer = vNode.get("required_issuer").asString();
         this.challenge = vNode.get("challenge").withDefault(true).asBoolean();
+        int maxClockSkewSeconds = vNode.get("max_clock_skew_seconds").withDefault(10).asInt();
 
         JsonWebKeys jwks = vNode.get("signing.jwks").expected("A JWKS document").by((n) -> JwkUtils.readJwkSet(n.toJsonString()));
         JsonWebKey rsaJwk = vNode.get("signing.rsa").by(JwtAuthenticator::parseRsa);
@@ -166,7 +167,7 @@ public class JwtAuthenticator implements HttpAuthenticationFrontend, ApiAuthenti
         vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
-        this.jwtVerifier = new JwtVerifier(KeyProvider.combined(staticKeySet, openIdKeySet, jwksKeySet), requiredAudience, requiredIssuer);
+        this.jwtVerifier = new JwtVerifier(KeyProvider.combined(staticKeySet, openIdKeySet, jwksKeySet), requiredAudience, requiredIssuer, maxClockSkewSeconds);
     }
 
     @Override
