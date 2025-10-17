@@ -74,6 +74,7 @@ public class KerberosAuthenticationFrontend implements HttpAuthenticationFronten
     private final ComponentState componentState = new ComponentState(0, "authentication_frontend", TYPE, KerberosAuthenticationFrontend.class).requiresEnterpriseLicense();
 
     public KerberosAuthenticationFrontend(DocNode docNode, ConfigurationRepository.Context context) throws ConfigValidationException {
+        log.info("KerberosAuthenticationFrontend docNode: {}", docNode.toPrettyJsonString());
         ValidationErrors validationErrors = new ValidationErrors();
         ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
