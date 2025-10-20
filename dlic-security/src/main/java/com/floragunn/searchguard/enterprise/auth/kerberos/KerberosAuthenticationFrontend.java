@@ -101,9 +101,9 @@ public class KerberosAuthenticationFrontend implements HttpAuthenticationFronten
         log.info("acceptorKeyTabFile: {}", acceptorKeyTabFile);
         this.acceptorKeyTabFile = resolve(acceptorKeyTabFile, "acceptor_keytab", validationErrors, context);
 
-        if (! this.acceptorKeyTabFile.toFile().exists()) {
-            validationErrors.add(new FileDoesNotExist("acceptor_keytab", this.acceptorKeyTabFile.toFile()));
-        }
+//        if (! this.acceptorKeyTabFile.toFile().exists()) {
+//            validationErrors.add(new FileDoesNotExist("acceptor_keytab", this.acceptorKeyTabFile.toFile()));
+//        }
 
         vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
