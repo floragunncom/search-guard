@@ -105,7 +105,7 @@ public final class RequestResolver {
     private static AuditMessage resolveInner(final Category category, final UserInformation effectiveUser, final Boolean sgAdmin,
             final UserInformation initiatingUser, final TransportAddress remoteAddress, final String action, final String priv, final Origin origin,
             final Object request, final Map<String, String> headers, final Task task, final IndexNameExpressionResolver resolver,
-            final ClusterState clusterState, final Settings settings, final boolean logRequestBody, final boolean resolveIndices,
+            final ClusterState clusterState, final Settings settings, final boolean addSource, final boolean resolveIndices,
             final Pattern searchguardIndex, final boolean excludeSensitiveHeaders, final Throwable exception) {
 
         final ClusterState localClusterState = clusterState;
@@ -135,24 +135,25 @@ public final class RequestResolver {
             }
         }
 
+
         //attempt to resolve indices/types/id/source 
         if (request instanceof MultiGetRequest.Item) {
             final MultiGetRequest.Item item = (MultiGetRequest.Item) request;
             final String[] indices = arrayOrEmpty(item.indices());
             final String id = item.id();
             msg.addId(id);
-            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, logRequestBody, false,
+            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, addSource, false,
                     searchguardIndex);
         } else if (request instanceof CreateIndexRequest) {
             final CreateIndexRequest cir = (CreateIndexRequest) request;
             final String[] indices = arrayOrEmpty(cir.indices());
-            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, logRequestBody, false,
+            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, addSource, false,
                     searchguardIndex);
         } else if (request instanceof DeleteIndexRequest) {
             final DeleteIndexRequest dir = (DeleteIndexRequest) request;
             final String[] indices = arrayOrEmpty(dir.indices());
             //dir id alle id's beim schreiben protokolloieren
-            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, logRequestBody, false,
+            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, addSource, false,
                     searchguardIndex);
         } else if (request instanceof IndexRequest) {
             final IndexRequest ir = (IndexRequest) request;
@@ -161,23 +162,23 @@ public final class RequestResolver {
             msg.addShardId(ir.shardId());
             msg.addId(id);
             addIndicesSourceSafe(msg, indices, resolver, localClusterState, ir.getContentType(), ir.source(), settings, resolveIndices,
-                    logRequestBody, true, searchguardIndex);
+                    addSource, true, searchguardIndex);
         } else if (request instanceof DeleteRequest) {
             final DeleteRequest dr = (DeleteRequest) request;
             final String[] indices = arrayOrEmpty(dr.indices());
             final String id = dr.id();
             msg.addShardId(dr.shardId());
             msg.addId(id);
-            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, logRequestBody, false,
+            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, addSource, false,
                     searchguardIndex);
         } else if (request instanceof UpdateRequest) {
             final UpdateRequest ur = (UpdateRequest) request;
             final String[] indices = arrayOrEmpty(ur.indices());
             final String id = ur.id();
             msg.addId(id);
-            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, logRequestBody, false,
+            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, addSource, false,
                     searchguardIndex);
-            if (logRequestBody) {
+            if (addSource) {
 
                 if (ur.doc() != null) {
                     msg.addTupleToRequestBody(ur.doc() == null ? null : convertSource(ur.doc().getContentType(), ur.doc().source()));
@@ -192,17 +193,17 @@ public final class RequestResolver {
             final String[] indices = arrayOrEmpty(gr.indices());
             final String id = gr.id();
             msg.addId(id);
-            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, logRequestBody, false,
+            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, addSource, false,
                     searchguardIndex);
         } else if (request instanceof SearchRequest) {
             final SearchRequest sr = (SearchRequest) request;
             final String[] indices = arrayOrEmpty(sr.indices());
 
             Map<String, Object> sourceAsMap = sr.source() == null ? null : Utils.convertJsonToxToStructuredMap(sr.source());
-            addIndicesSourceSafe(msg, indices, resolver, localClusterState, XContentType.JSON, sourceAsMap, settings, resolveIndices, logRequestBody,
+            addIndicesSourceSafe(msg, indices, resolver, localClusterState, XContentType.JSON, sourceAsMap, settings, resolveIndices, addSource,
                     false, searchguardIndex);
         } else if (request instanceof ClusterUpdateSettingsRequest) {
-            if (logRequestBody) {
+            if (addSource) {
                 final ClusterUpdateSettingsRequest cusr = (ClusterUpdateSettingsRequest) request;
                 final Settings persistentSettings = cusr.persistentSettings();
                 final Settings transientSettings = cusr.transientSettings();
@@ -236,16 +237,16 @@ public final class RequestResolver {
             msg.addShardId(ir.shardId());
             msg.addId(id);
             addIndicesSourceSafe(msg, indices, resolver, localClusterState, ir.getContentType(), ir.source(), settings, resolveIndices,
-                    logRequestBody, true, searchguardIndex);
+                    addSource, true, searchguardIndex);
         } else if (request instanceof DeleteByQueryRequest) {
             final DeleteByQueryRequest ir = (DeleteByQueryRequest) request;
             final String[] indices = arrayOrEmpty(ir.indices());
-            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, logRequestBody, false,
+            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, addSource, false,
                     searchguardIndex);
         } else if (request instanceof UpdateByQueryRequest) {
             final UpdateByQueryRequest ir = (UpdateByQueryRequest) request;
             final String[] indices = arrayOrEmpty(ir.indices());
-            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, logRequestBody, false,
+            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, addSource, false,
                     searchguardIndex);
         } else if (request instanceof PutMappingRequest) {
             final PutMappingRequest pr = (PutMappingRequest) request;
@@ -257,7 +258,7 @@ public final class RequestResolver {
                 indices = new String[] { ci.getName() };
             }
 
-            if (logRequestBody) {
+            if (addSource) {
                 msg.addUnescapedJsonToRequestBody(pr.source());
             }
 
@@ -267,7 +268,7 @@ public final class RequestResolver {
         } else if (request instanceof IndicesRequest) { //less specific
             final IndicesRequest ir = (IndicesRequest) request;
             final String[] indices = arrayOrEmpty(ir.indices());
-            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, logRequestBody, false,
+            addIndicesSourceSafe(msg, indices, resolver, localClusterState, null, null, settings, resolveIndices, addSource, false,
                     searchguardIndex);
         }
 

@@ -14,6 +14,7 @@
 
 package com.floragunn.searchguard.enterprise.auditlog.helper;
 
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +31,6 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.XContentParserConfiguration;
 
 public class MockRestRequest extends RestRequest {
-
     public MockRestRequest() {
         //NamedXContentRegistry xContentRegistry, Map<String, String> params, String path,
         //Map<String, List<String>> headers, HttpRequest httpRequest, HttpChannel httpChannel
@@ -77,7 +77,7 @@ public class MockRestRequest extends RestRequest {
 
             @Override
             public boolean hasContent() {
-                return true;
+                return false;
             }
 
             @Override
@@ -102,23 +102,73 @@ public class MockRestRequest extends RestRequest {
         }, null);
     }
 
-    @Override
-    public Method method() {
-        return Method.GET;
-    }
+    public MockRestRequest(String uri, String jsonBody) {
+        super(XContentParserConfiguration.EMPTY, Collections.emptyMap(), uri, Collections.emptyMap(), new HttpRequest() {
+            final HttpBody body = HttpBody.fromBytesReference(BytesReference.fromByteBuffer(ByteBuffer.wrap(jsonBody.getBytes())));
+            @Override
+            public Method method() {
+                return Method.GET;
+            }
 
-    @Override
-    public String uri() {
-        return "";
-    }
+            @Override
+            public String uri() {
+                return uri;
+            }
 
-    @Override
-    public boolean hasContent() {
-        return false;
-    }
+            @Override
+            public Map<String, List<String>> getHeaders() {
+                return Map.of("Content-Type", List.of("application/json"));
+            }
 
-    @Override
-    public ReleasableBytesReference content() {
-        return null;
+            @Override
+            public HttpBody body() {
+                return body;
+            }
+
+            @Override
+            public void setBody(HttpBody body) {
+
+            }
+
+            @Override
+            public List<String> strictCookies() {
+                return List.of();
+            }
+
+            @Override
+            public HttpVersion protocolVersion() {
+                return null;
+            }
+
+            @Override
+            public HttpRequest removeHeader(String header) {
+                return null;
+            }
+
+            @Override
+            public boolean hasContent() {
+                return !body.isEmpty();
+            }
+
+            @Override
+            public HttpResponse createResponse(RestStatus status, BytesReference content) {
+                return null;
+            }
+
+            @Override
+            public HttpResponse createResponse(RestStatus status, ChunkedRestResponseBodyPart firstBodyPart) {
+                return null;
+            }
+
+            @Override
+            public Exception getInboundException() {
+                return null;
+            }
+
+            @Override
+            public void release() {
+
+            }
+        }, null);
     }
 }
