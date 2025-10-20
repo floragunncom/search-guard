@@ -26,6 +26,7 @@ import javax.security.auth.kerberos.KerberosPrincipal;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 
+import com.floragunn.codova.validation.errors.FileDoesNotExist;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.ietf.jgss.GSSContext;
@@ -99,6 +100,10 @@ public class KerberosAuthenticationFrontend implements HttpAuthenticationFronten
         String acceptorKeyTabFile = vNode.get("acceptor_keytab").required().asString();
         log.info("acceptorKeyTabFile: {}", acceptorKeyTabFile);
         this.acceptorKeyTabFile = resolve(acceptorKeyTabFile, "acceptor_keytab", validationErrors, context);
+
+        if (! this.acceptorKeyTabFile.toFile().exists()) {
+            validationErrors.add(new FileDoesNotExist("acceptor_keytab", this.acceptorKeyTabFile.toFile()));
+        }
 
         vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
