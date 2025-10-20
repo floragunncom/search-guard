@@ -77,7 +77,7 @@ public class MockRestRequest extends RestRequest {
 
             @Override
             public boolean hasContent() {
-                return true;
+                return false;
             }
 
             @Override
@@ -126,6 +126,11 @@ public class MockRestRequest extends RestRequest {
             }
 
             @Override
+            public void setBody(HttpBody body) {
+
+            }
+
+            @Override
             public List<String> strictCookies() {
                 return List.of();
             }
@@ -138,6 +143,11 @@ public class MockRestRequest extends RestRequest {
             @Override
             public HttpRequest removeHeader(String header) {
                 return null;
+            }
+
+            @Override
+            public boolean hasContent() {
+                return !body.isEmpty();
             }
 
             @Override
