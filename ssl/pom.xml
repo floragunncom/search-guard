@@ -61,12 +61,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.elasticsearch.plugin</groupId>
-      <artifactId>rest-root</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-support</artifactId>
       <classifier>tests</classifier>
