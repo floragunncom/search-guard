@@ -790,7 +790,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         InternalAuthTokenProvider internalAuthTokenProvider = new InternalAuthTokenProvider(
                 (user) -> authorizationService.getMappedRoles(user, (TransportAddress) null), evaluator::getActionGroups,
-                evaluator::getAllConfiguredTenantNames, actions, () -> cr.getConfiguration(CType.ROLES));
+                evaluator::getAllConfiguredTenantNames, actions, () -> cr.getConfiguration(CType.ROLES), cr.getParserContext());
         specialPrivilegesEvaluationContextProviderRegistry.add(internalAuthTokenProvider::userAuthFromToken);
 
         diagnosticContext = new DiagnosticContext(settings, services.threadPool().getThreadContext());

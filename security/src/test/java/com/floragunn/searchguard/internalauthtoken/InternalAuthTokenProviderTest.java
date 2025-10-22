@@ -58,7 +58,7 @@ public class InternalAuthTokenProviderTest {
     @Test
     public void getJwt() throws Exception {
         InternalAuthTokenProvider subject = new InternalAuthTokenProvider(roleMapper, emptyActionGroupSupplier, emptyTenantNameSupplier, actions,
-                () -> rolesConfig);        
+                () -> rolesConfig, null);
         subject.setSigningKey(SIGNING_KEY);
 
        String jwt = subject.getJwt(new User("test_user"), "test_audience");
@@ -70,7 +70,7 @@ public class InternalAuthTokenProviderTest {
     @Test
     public void userAuthFromToken_jwtFromNimbus() throws Exception {
         InternalAuthTokenProvider subject = new InternalAuthTokenProvider(roleMapper, emptyActionGroupSupplier, emptyTenantNameSupplier, actions,
-                () -> rolesConfig);        
+                () -> rolesConfig, null);
         subject.setSigningKey(SIGNING_KEY);
         
         AuthFromInternalAuthToken result = subject.userAuthFromToken(JWT_PRODUCED_BY_NIMBUS, "test_audience");
@@ -82,7 +82,7 @@ public class InternalAuthTokenProviderTest {
     @Test
     public void userAuthFromToken_jwtFromCxf() throws Exception {
         InternalAuthTokenProvider subject = new InternalAuthTokenProvider(roleMapper, emptyActionGroupSupplier, emptyTenantNameSupplier, actions,
-                () -> rolesConfig);        
+                () -> rolesConfig, null);
         subject.setSigningKey(SIGNING_KEY);
         
         AuthFromInternalAuthToken result = subject.userAuthFromToken(JWT_PRODUCED_BY_CXF, "test_audience");
