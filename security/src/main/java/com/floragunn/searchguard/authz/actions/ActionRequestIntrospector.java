@@ -52,7 +52,6 @@ import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchContextId;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.rest.root.MainRequest;
 import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
@@ -260,8 +259,6 @@ public class ActionRequestIntrospector {
                 return new ActionRequestInfo(renamedTargetIndices, EXACT, IndicesRequestInfo.Scope.ANY);
             }
         } else if (request instanceof BaseNodesRequest) {
-            return CLUSTER_REQUEST;
-        } else if (request instanceof MainRequest) {
             return CLUSTER_REQUEST;
         } else if (request instanceof ClearScrollRequest) {
             return CLUSTER_REQUEST;

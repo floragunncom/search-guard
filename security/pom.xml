@@ -84,11 +84,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.elasticsearch.plugin</groupId>
-      <artifactId>rest-root</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>com.selectivem.collections</groupId>
       <artifactId>special-collections-complete</artifactId>
     </dependency>
