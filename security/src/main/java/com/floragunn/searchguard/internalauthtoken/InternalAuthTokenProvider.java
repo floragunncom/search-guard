@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.transport.TransportAddress;
@@ -69,6 +70,7 @@ public class InternalAuthTokenProvider {
     private final Supplier<ActionGroup.FlattenedIndex> actionGroupsSupplier;
     private final Supplier<Set<String>> tenantNameSupplier;
     private final Supplier<SgDynamicConfiguration<Role>> rolesSupplier;
+    private final ConfigurationRepository.Context rolesParserContext;
 
     private JWK encryptionKey;
     private JWK signingKey;
@@ -79,12 +81,13 @@ public class InternalAuthTokenProvider {
 
 
 
-    public InternalAuthTokenProvider(Function<User, ImmutableSet<String>> roleMapper, Supplier<ActionGroup.FlattenedIndex> actionGroupsSupplier, Supplier<Set<String>> tenantNameSupplier, Actions actions, Supplier<SgDynamicConfiguration<Role>> rolesSupplier) {
+    public InternalAuthTokenProvider(Function<User, ImmutableSet<String>> roleMapper, Supplier<ActionGroup.FlattenedIndex> actionGroupsSupplier, Supplier<Set<String>> tenantNameSupplier, Actions actions, Supplier<SgDynamicConfiguration<Role>> rolesSupplier, ConfigurationRepository.Context rolesParserContext) {
         this.actionGroupsSupplier = actionGroupsSupplier;
         this.tenantNameSupplier = tenantNameSupplier;
         this.roleMapper = roleMapper;
         this.actions = actions;
         this.rolesSupplier = rolesSupplier;
+        this.rolesParserContext = rolesParserContext;
     }
 
     public String getJwt(User user, String aud) throws IllegalStateException, JOSEException {
@@ -155,9 +158,9 @@ public class InternalAuthTokenProvider {
                 throw new JOSEException("JWT does not contain claim sg_roles");
             }
             
-            log.trace("userAuthFromToken({}, {}); verfiedToken: {} {}", authToken, authTokenAudience, verifiedToken, rolesMap);
-                       
-            SgDynamicConfiguration<Role> rolesConfig = SgDynamicConfiguration.fromMap(rolesMap, CType.ROLES, null).get();
+            log.trace("userAuthFromToken({}, {}); verifiedToken: {} {}", authToken, authTokenAudience, verifiedToken, rolesMap);
+
+            SgDynamicConfiguration<Role> rolesConfig = SgDynamicConfiguration.fromMap(rolesMap, CType.ROLES, rolesParserContext).get();
             ImmutableSet<String> roleNames = ImmutableSet.of(rolesConfig.getCEntries().keySet());
 
             ActionAuthorization actionAuthorization = new RoleBasedActionAuthorization(rolesConfig, this.actionGroupsSupplier.get(), actions,
