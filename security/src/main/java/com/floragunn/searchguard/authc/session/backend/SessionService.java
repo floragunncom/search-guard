@@ -753,9 +753,14 @@ public class SessionService {
 
     public JwtToken getVerifiedJwtToken(String encodedJwt) throws JwtException {
 
-        if (this.jweDecryptionProvider != null) {
-            JweDecryptionOutput decOutput = this.jweDecryptionProvider.decrypt(encodedJwt);
-            encodedJwt = decOutput.getContentText();
+        if (this.jweDecryptionProvider != null) { //this means encrypted JWT is expected
+            if (isJwtEncrypted(encodedJwt)) {
+                JweDecryptionOutput decOutput = this.jweDecryptionProvider.decrypt(encodedJwt);
+                encodedJwt = decOutput.getContentText();
+            } else {
+                return null;
+            }
+
         }
 
         JwsJwtCompactConsumer jwtConsumer = new JwsJwtCompactConsumer(encodedJwt);
@@ -779,6 +784,11 @@ public class SessionService {
         validateClaims(jwt);
 
         return jwt;
+    }
+
+    private boolean isJwtEncrypted(String jwt) {
+        //JWE should have 5 parts
+        return jwt.split("\\.").length == 5;
     }
 
     private void validateClaims(JwtToken jwt) throws JwtException {

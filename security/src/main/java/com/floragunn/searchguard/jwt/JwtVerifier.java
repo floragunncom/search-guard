@@ -95,15 +95,19 @@ public class JwtVerifier {
 
     private JWT getVerfiedJwt(String encodedJwt, JWTClaimsSetVerifier<SecurityContext> jwtClaimsVerifier, CxfBased cxfBased)
             throws ParseException, JOSEException, BadJWTException {
-        if (this.encryptionKey != null) {
-            JWEObject jweObject = JWEObject.parse(encodedJwt);
+        if (this.encryptionKey != null) { //this means encrypted JWT is expected
+            if (isJwtEncrypted(encodedJwt)) {
+                JWEObject jweObject = JWEObject.parse(encodedJwt);
 
-            if (jweObject.getHeader().getCustomParam(PRODUCER_CLAIM) == null) {
-                // This JWT was produced by CXF
-                return cxfBased.getVerifiedJwt(encodedJwt);
+                if (jweObject.getHeader().getCustomParam(PRODUCER_CLAIM) == null) {
+                    // This JWT was produced by CXF
+                    return cxfBased.getVerifiedJwt(encodedJwt);
+                }
+                jweObject.decrypt(decrypter(jweObject));
+                encodedJwt = jweObject.getPayload().toSignedJWT().serialize();
+            } else {
+                return null;
             }
-            jweObject.decrypt(decrypter(jweObject));
-            encodedJwt = jweObject.getPayload().toSignedJWT().serialize();
         }
 
         SignedJWT signedJwt = SignedJWT.parse(encodedJwt);
@@ -117,6 +121,11 @@ public class JwtVerifier {
         jwtClaimsVerifier.verify(signedJwt.getJWTClaimsSet(), null);
 
         return signedJwt;
+    }
+
+    private boolean isJwtEncrypted(String jwt) {
+        //JWE should have 5 parts
+        return jwt.split("\\.").length == 5;
     }
 
     JWEDecrypter decrypter(JWEObject jweObject) throws JOSEException {
