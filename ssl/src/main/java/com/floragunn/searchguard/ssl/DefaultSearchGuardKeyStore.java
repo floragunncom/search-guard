@@ -856,7 +856,8 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
 
         final SslContextBuilder _sslClientContextBuilder = SslContextBuilder.forClient().ciphers(ciphers)
                 .applicationProtocolConfig(ApplicationProtocolConfig.DISABLED).sessionCacheSize(0).sessionTimeout(0)
-                .sslProvider(sslProvider).trustManager(_trustedCerts).keyManager(_key, _cert);
+                .sslProvider(sslProvider).trustManager(_trustedCerts).keyManager(_key, _cert)
+                .endpointIdentificationAlgorithm(null);
 
         return buildSSLContext0(_sslClientContextBuilder);
 
