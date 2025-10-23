@@ -79,7 +79,6 @@ public class SearchGuardInterceptor {
     private final ClusterService cs;
     private final SslExceptionHandler sslExceptionHandler;
     private final ClusterInfoHolder clusterInfoHolder;
-    private final List<Pattern> customAllowedHeaderPatterns;
     private final DiagnosticContext diagnosticContext;
     private final GuiceDependencies guiceDependencies;
     private final AdminDNs adminDns;
@@ -95,7 +94,6 @@ public class SearchGuardInterceptor {
         this.cs = cs;
         this.sslExceptionHandler = sslExceptionHandler;
         this.clusterInfoHolder = clusterInfoHolder;
-        this.customAllowedHeaderPatterns = getCustomAllowedHeaderPatterns(settings);
         this.diagnosticContext = diagnosticContext;
         this.guiceDependencies = guiceDependencies;
         this.adminDns = adminDns;
@@ -109,41 +107,9 @@ public class SearchGuardInterceptor {
 
     public <T extends TransportResponse> void sendRequestDecorate(AsyncSender sender, Connection connection, String action,
             TransportRequest request, TransportRequestOptions options, TransportResponseHandler<T> handler) {
-        
-        final Map<String, String> origHeaders0 = getThreadContext().getHeaders();
-        final User user0 = getThreadContext().getTransient(ConfigConstants.SG_USER);
-        final String origin0 = getThreadContext().getTransient(ConfigConstants.SG_ORIGIN);
-        final TransportAddress remoteAdress0 = getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-        final String origCCSTransientDls = getThreadContext().getTransient(ConfigConstants.SG_DLS_QUERY_CCS);
-        final String origCCSTransientFls = getThreadContext().getTransient(ConfigConstants.SG_FLS_FIELDS_CCS);
-        final String origCCSTransientMf = getThreadContext().getTransient(ConfigConstants.SG_MASKED_FIELD_CCS);
-        String actionStack = diagnosticContext.getActionStack();
-        Map<String, List<String>> responseHeaders = getThreadContext().getResponseHeaders();
 
-        //stash headers and transient objects
-        try (ThreadContext.StoredContext stashedContext = getThreadContext().stashContext()) {
-            addResponseHeadersToContext(responseHeaders);
-            final TransportResponseHandler<T> restoringHandler = new RestoringTransportResponseHandler<T>(handler, stashedContext);
             getThreadContext().putHeader("_sg_remotecn", cs.getClusterName().value());
-                        
-            final Map<String, String> headerMap = new HashMap<>(Maps.filterKeys(origHeaders0, k->k!=null && (
-                    k.equals(ConfigConstants.SG_CONF_REQUEST_HEADER)
-                    || k.equals(ConfigConstants.SG_ORIGIN_HEADER)
-                    || k.equals(ConfigConstants.SG_REMOTE_ADDRESS_HEADER)
-                    || k.equals(ConfigConstants.SG_USER_HEADER)
-                    || k.equals(ConfigConstants.SG_DLS_QUERY_HEADER)
-                    || k.equals(ConfigConstants.SG_FLS_FIELDS_HEADER)
-                    || k.equals(ConfigConstants.SG_MASKED_FIELD_HEADER)
-                    || k.equals(ConfigConstants.SG_DOC_WHITELST_HEADER)
-                    || k.equals(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE)
-                    || k.equals(ConfigConstants.SG_DLS_MODE_HEADER)
-                    || k.equals(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER)
-                    || k.equals(ConfigConstants.SG_AUTHZ_HASH_THREAD_CONTEXT_HEADER)
-                    || (k.equals("_sg_source_field_context") && ! (request instanceof SearchRequest) && !(request instanceof GetRequest))
-                    || k.startsWith("_sg_trace")
-                    || k.startsWith(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER)
-                    || checkCustomAllowedHeader(k)
-                    )));
+
             
             RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
                         
@@ -156,13 +122,6 @@ public class SearchGuardInterceptor {
                 if (log.isDebugEnabled()) {
                     log.debug("remove dls/fls/mf because we sent a ccs request to a remote cluster");
                 }
-                headerMap.remove(ConfigConstants.SG_DLS_QUERY_HEADER);
-                headerMap.remove(ConfigConstants.SG_DLS_MODE_HEADER);
-                headerMap.remove(ConfigConstants.SG_MASKED_FIELD_HEADER);
-                headerMap.remove(ConfigConstants.SG_FLS_FIELDS_HEADER);
-                headerMap.remove(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE);
-                headerMap.remove(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER);
-                headerMap.remove(ConfigConstants.SG_DOC_WHITELST_HEADER);
             }
             
             if (remoteClusterService.isCrossClusterSearchEnabled() 
@@ -174,176 +133,16 @@ public class SearchGuardInterceptor {
                 if (log.isDebugEnabled()) {
                     log.debug("add dls/fls/mf from transient");
                 }
-                
-                if (origCCSTransientDls != null && !origCCSTransientDls.isEmpty()) {
-                    headerMap.put(ConfigConstants.SG_DLS_QUERY_HEADER, origCCSTransientDls);
-                }
-                if (origCCSTransientMf != null && !origCCSTransientMf.isEmpty()) {
-                    headerMap.put(ConfigConstants.SG_MASKED_FIELD_HEADER, origCCSTransientMf);
-                }
-                if (origCCSTransientFls != null && !origCCSTransientFls.isEmpty()) {
-                    headerMap.put(ConfigConstants.SG_FLS_FIELDS_HEADER, origCCSTransientFls);
-                }               
-            }
 
-            if (actionStack != null) {
-                getThreadContext().putHeader(DiagnosticContext.ACTION_STACK_HEADER, actionStack);
-            }
-            
-            getThreadContext().putHeader(headerMap);
-
-            ensureCorrectHeaders(remoteAdress0, user0, origin0);
-
-            if(actionTrace.isTraceEnabled()) {
                 getThreadContext().putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread.currentThread().getName()+" IC -> "+action+" "+getThreadContext().getHeaders().entrySet().stream().filter(p->!p.getKey().startsWith("_sg_trace")).collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue())));
             }
 
-            sender.sendRequest(connection, action, request, options, restoringHandler);
-        }
-    }
+            sender.sendRequest(connection, action, request, options, handler);
 
-    private void addResponseHeadersToContext(Map<String, List<String>> responseHeaders) {
-        for (Map.Entry<String, List<String>> entry : responseHeaders.entrySet()) {
-            List<String> headerValues = entry.getValue();
-            if (headerValues != null && !headerValues.isEmpty()) {
-                for (String value : headerValues) {
-                    getThreadContext().addResponseHeader(entry.getKey(), value);
-                }
-            }
-        }
-    }
-
-    private void ensureCorrectHeaders(final TransportAddress remoteAdr, final User origUser, final String origin) {
-        // keep original address
-
-        if(origin != null && !origin.isEmpty() /*&& !Origin.LOCAL.toString().equalsIgnoreCase(origin)*/ && getThreadContext().getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
-            getThreadContext().putHeader(ConfigConstants.SG_ORIGIN_HEADER, origin);
-        }
-
-        if(origin == null && getThreadContext().getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
-            getThreadContext().putHeader(ConfigConstants.SG_ORIGIN_HEADER, Origin.LOCAL.toString());
-        }
-
-        if (remoteAdr != null) {
-
-            String remoteAddressHeader = getThreadContext().getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER);
-
-            if(remoteAddressHeader == null) {
-                getThreadContext().putHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER, Base64Helper.serializeObject(remoteAdr.address()));
-            }
-        }
-
-        if(origUser != null) {
-            String userHeader = getThreadContext().getHeader(ConfigConstants.SG_USER_HEADER);
-
-            if(userHeader == null) {
-                getThreadContext().putHeader(ConfigConstants.SG_USER_HEADER, Base64Helper.serializeObject(origUser));
-            }
-        }
     }
 
     private ThreadContext getThreadContext() {
         return threadPool.getThreadContext();
-    }
-
-    private boolean checkCustomAllowedHeader(String headerKey) {        
-        if (headerKey.startsWith(ConfigConstants.SG_CONFIG_PREFIX)) {
-            // SG specific headers are sensitive and thus should not be externally manipulated
-            return false;
-        }
-        
-        if (headerKey.equals(Task.X_OPAQUE_ID_HTTP_HEADER)) {
-            // This is included anyway. Including it again would cause an error.
-            return false;
-        }
-        
-        if (customAllowedHeaderPatterns.size() == 0) {
-            return false;
-        }
-        
-        for (Pattern pattern : customAllowedHeaderPatterns) {
-            Matcher matcher = pattern.matcher(headerKey);
-            
-            if (matcher.matches()) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
-    
-    private static List<Pattern> getCustomAllowedHeaderPatterns(Settings settings) {
-        List<String> patternStrings = settings.getAsList(ConfigConstants.SEARCHGUARD_ALLOW_CUSTOM_HEADERS, Collections.emptyList());
-        List<Pattern> result = new ArrayList<>(patternStrings.size());
-
-        for (String patternString : patternStrings) {
-            try {
-                result.add(Pattern.compile(patternString));
-            } catch (PatternSyntaxException e) {
-                log.error("Invalid pattern configured in " + ConfigConstants.SEARCHGUARD_ALLOW_CUSTOM_HEADERS + ": " + patternString, e);
-            }
-        }
-
-        return Collections.unmodifiableList(result);
-    }
-
-     //based on
-    //org.elasticsearch.transport.TransportService.ContextRestoreResponseHandler<T>
-    //which is private scoped
-    private class RestoringTransportResponseHandler<T extends TransportResponse> implements TransportResponseHandler<T> {
-
-        private final ThreadContext.StoredContext contextToRestore;
-        private final TransportResponseHandler<T> innerHandler;
-
-        private RestoringTransportResponseHandler(TransportResponseHandler<T> innerHandler, ThreadContext.StoredContext contextToRestore) {
-            this.contextToRestore = contextToRestore;
-            this.innerHandler = innerHandler;
-        }
-
-        @Override
-        public T read(StreamInput in) throws IOException {
-            return innerHandler.read(in);
-        }
-
-         @Override
-         public Executor executor() {
-             return innerHandler.executor();
-         }
-
-         @Override
-        public void handleResponse(T response) {
-            ThreadContext threadContext = getThreadContext();
-            Map<String, List<String>> responseHeaders = threadContext.getResponseHeaders();
-
-            List<String> flsResponseHeader = responseHeaders.get(ConfigConstants.SG_FLS_FIELDS_HEADER);
-            List<String> dlsResponseHeader = responseHeaders.get(ConfigConstants.SG_DLS_QUERY_HEADER);
-            List<String> maskedFieldsResponseHeader = responseHeaders.get(ConfigConstants.SG_MASKED_FIELD_HEADER);
-
-            contextToRestore.restore();
-
-            if (response instanceof ClusterSearchShardsResponse || response instanceof SearchShardsResponse) {
-                if (flsResponseHeader != null && !flsResponseHeader.isEmpty()) {
-                    threadContext.putTransient(ConfigConstants.SG_FLS_FIELDS_CCS, flsResponseHeader.get(0));
-                }
-
-                if (dlsResponseHeader != null && !dlsResponseHeader.isEmpty()) {
-                    threadContext.putTransient(ConfigConstants.SG_DLS_QUERY_CCS, dlsResponseHeader.get(0));
-                }
-
-                if (maskedFieldsResponseHeader != null && !maskedFieldsResponseHeader.isEmpty()) {
-                    threadContext.putTransient(ConfigConstants.SG_MASKED_FIELD_CCS, maskedFieldsResponseHeader.get(0));
-                }
-            }
-
-            innerHandler.handleResponse(response);
-        }
-
-        @Override
-        public void handleException(TransportException e) {
-            contextToRestore.restore();
-            innerHandler.handleException(e);
-        }
-
     }
 
 }
