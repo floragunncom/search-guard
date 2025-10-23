@@ -20,6 +20,7 @@ package com.floragunn.searchguard.authz.actions;
 import static com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors.objectAttr;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -181,7 +182,15 @@ public class Actions {
 
         cluster("indices:searchguard:async_search/_all_owners");
 
-        cluster("indices:data/read/sql");
+        // indices:data/read/sql
+        // the expiration is not present in ActionResponse, therefore we use default of 5 days
+        // TODO: expiration should be read form request
+        Function<ActionResponse, Instant> expiration = actionResponse -> Instant.now().plus(5, ChronoUnit.DAYS);
+        cluster("indices:data/read/sql") //
+                 // type "async_search" because some operations are shared with async search, e.g. deletion indices:data/read/async_search/delete
+                .createsResource("async_search", objectAttr("asyncExecutionId", "id"), expiration);
+        cluster("indices:data/read/sql/async/get").uses(new Resource("async_search", objectAttr("id")));
+        cluster("cluster:monitor/xpack/sql/async/status").uses(new Resource("async_search", objectAttr("id")));
         cluster("indices:data/read/sql/translate");
         cluster("indices:data/read/sql/close_cursor");
 
