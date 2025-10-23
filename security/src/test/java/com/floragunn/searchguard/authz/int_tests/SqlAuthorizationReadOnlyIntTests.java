@@ -42,6 +42,7 @@ import java.util.regex.Pattern;
 
 import static com.floragunn.searchguard.test.IndexApiMatchers.sqlLimitedTo;
 import static com.floragunn.searchguard.test.RestMatchers.distinctNodesAt;
+import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
@@ -74,7 +75,7 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to index a1")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
+                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete", "cluster:monitor/xpack/sql/async/status")
                             .indexPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("index_a1")
 
             )
@@ -84,7 +85,7 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to index a1, and dls excluding dept_d")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
+                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete", "cluster:monitor/xpack/sql/async/status")
                             .indexPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search")
                             .dls("{ \"bool\": { \"must_not\": { \"match\": { \"dept\": \"dept_d\" }}}}")
                             .on("index_a1")
@@ -96,7 +97,7 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to index a2")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
+                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete", "cluster:monitor/xpack/sql/async/status")
                             .indexPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("index_a2")
 
             )
@@ -106,7 +107,7 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to index b1")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
+                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete", "cluster:monitor/xpack/sql/async/status")
                             .indexPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("index_b1")
 
             )
@@ -116,7 +117,7 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to index b2")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
+                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete", "cluster:monitor/xpack/sql/async/status")
                             .indexPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("index_b2")
 
             )
@@ -126,7 +127,7 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to all indices")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
+                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete", "cluster:monitor/xpack/sql/async/status")
                             .indexPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("index_*")
 
             )
@@ -136,7 +137,7 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to alias a")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
+                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete", "cluster:monitor/xpack/sql/async/status")
                             .aliasPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("alias_a")
 
             )
@@ -146,7 +147,7 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to alias a, and dls excluding dept_d")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
+                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete", "cluster:monitor/xpack/sql/async/status")
                             .aliasPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search")
                             .dls("{ \"bool\": { \"must_not\": { \"match\": { \"dept\": \"dept_d\" }}}}")
                             .on("alias_a")
@@ -162,7 +163,7 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to alias b")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
+                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete", "cluster:monitor/xpack/sql/async/status")
                             .aliasPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("alias_b")
 
             )
@@ -172,7 +173,7 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to data stream a")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
+                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete", "cluster:monitor/xpack/sql/async/status")
                             .dataStreamPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("ds_a")
 
             )
@@ -182,7 +183,7 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to data stream b")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
+                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete", "cluster:monitor/xpack/sql/async/status")
                             .dataStreamPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("ds_b")
 
             )
@@ -192,7 +193,7 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to data stream b, and dls excluding dept_d")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
+                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete", "cluster:monitor/xpack/sql/async/status")
                             .dataStreamPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search")
                             .dls("{ \"bool\": { \"must_not\": { \"match\": { \"dept\": \"dept_d\" }}}}")
                             .on("ds_b")
@@ -204,7 +205,7 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to all data streams")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
+                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete", "cluster:monitor/xpack/sql/async/status")
                             .dataStreamPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("ds_*")
 
             )
@@ -214,7 +215,7 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("unlimited")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete", "cluster:monitor/xpack/sql/async/status")
                             .indexPermissions("*").on("*")
                             .aliasPermissions("*").on("*")
                             .dataStreamPermissions("*").on("*")
@@ -238,7 +239,7 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("unlimited, but has fm on *_ip fields")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete", "cluster:monitor/xpack/sql/async/status")
                             .aliasPermissions("*").maskedFields("*_ip").on("*")
                             .dataStreamPermissions("*").maskedFields("*_ip").on("*")
 
@@ -454,6 +455,146 @@ public class SqlAuthorizationReadOnlyIntTests {
                     //close cursor
                     response = client.postJson("/_sql/close", DocNode.of("cursor", cursor));
                     assertThat(response, isOk());
+                }
+            }
+        }
+
+        @Test
+        public void queryAsyncExecution_success() throws Exception {
+            try (GenericRestClient restClient = cluster.getRestClient(user)) {
+                DocNode body = DocNode.of(
+                        "query", "SELECT * FROM index_a1",
+                        "wait_for_completion_timeout", "0s"
+                );
+
+                // execute async search
+                GenericRestClient.HttpResponse response = restClient.postSql(body);
+
+                assertThat(response, isOk());
+                String asyncSearchId = response.getBodyAsDocNode().getAsString("id");
+                assertThat(asyncSearchId, notNullValue());
+
+                // fetch async search results
+                response = restClient.get("/_sql/async/" + asyncSearchId + "?wait_for_completion_timeout=30s&format=json");
+                assertThat(response, sqlLimitedTo(index_a1).but(user.indexMatcher("read")).whenEmpty(400));
+            }
+        }
+
+        @Test
+        public void queryAsyncExecution_failure() throws Exception {
+            String asyncSearchId = null;
+            try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
+                DocNode body = DocNode.of("query", "SELECT * FROM index_a1", "wait_for_completion_timeout", "0s");
+
+                // execute async search
+                GenericRestClient.HttpResponse response = restClient.postSql(body);
+
+                assertThat(response, isOk());
+                asyncSearchId = response.getBodyAsDocNode().getAsString("id");
+                assertThat(asyncSearchId, notNullValue());
+            }
+
+            try (GenericRestClient restClient = cluster.getRestClient(user)) {
+                // fetch async search results
+                GenericRestClient.HttpResponse response = restClient.get("/_sql/async/" + asyncSearchId + "?wait_for_completion_timeout=30s&format=json");
+                if((user == UNLIMITED_USER) || (user == SUPER_UNLIMITED_USER)) {
+                    assertThat(response, sqlLimitedTo(index_a1).but(user.indexMatcher("read")).whenEmpty(400));
+                } else {
+                    assertThat(response, isForbidden());
+                }
+            }
+        }
+
+        @Test
+        public void queryAsyncStatus_success() throws Exception {
+            try (GenericRestClient restClient = cluster.getRestClient(user)) {
+                DocNode body = DocNode.of(
+                        "query", "SELECT * FROM index_a1",
+                        "wait_for_completion_timeout", "0s"
+                );
+
+                // execute async search
+                GenericRestClient.HttpResponse response = restClient.postSql(body);
+
+                assertThat(response, isOk());
+                String asyncSearchId = response.getBodyAsDocNode().getAsString("id");
+                assertThat(asyncSearchId, notNullValue());
+
+                // search status
+                response = restClient.get("/_sql/async/status/" + asyncSearchId);
+                assertThat(response, isOk());
+            }
+        }
+
+        @Test
+        public void queryAsyncStatus_failure() throws Exception {
+            String asyncSearchId = null;
+            try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
+                DocNode body = DocNode.of("query", "SELECT * FROM index_a1", "wait_for_completion_timeout", "0s");
+
+                // execute async search
+                GenericRestClient.HttpResponse response = restClient.postSql(body);
+
+                assertThat(response, isOk());
+                asyncSearchId = response.getBodyAsDocNode().getAsString("id");
+                assertThat(asyncSearchId, notNullValue());
+            }
+            try (GenericRestClient restClient = cluster.getRestClient(user)) {
+
+                // search status
+                GenericRestClient.HttpResponse response = restClient.get("/_sql/async/status/" + asyncSearchId);
+                if((user == UNLIMITED_USER) || (user == SUPER_UNLIMITED_USER)) {
+                    assertThat(response, isOk());
+                } else {
+                    assertThat(response, isForbidden());
+                }
+            }
+        }
+
+        @Test
+        public void queryAsyncResultDeletion_success() throws Exception {
+            try (GenericRestClient restClient = cluster.getRestClient(user)) {
+                DocNode body = DocNode.of(
+                        "query", "SELECT * FROM index_a1",
+                        "wait_for_completion_timeout", "0s"
+                );
+
+                // execute async search
+                GenericRestClient.HttpResponse response = restClient.postSql(body);
+
+                assertThat(response, isOk());
+                String asyncSearchId = response.getBodyAsDocNode().getAsString("id");
+                assertThat(asyncSearchId, notNullValue());
+
+                // delete async search results
+                response = restClient.delete("/_sql/async/delete/" + asyncSearchId);
+                assertThat(response, isOk());
+            }
+        }
+
+        @Test
+        public void queryAsyncResultDeletion_failure() throws Exception {
+            String asyncSearchId = null;
+            try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
+                DocNode body = DocNode.of("query", "SELECT * FROM index_a1", "wait_for_completion_timeout", "0s");
+
+                // execute async search
+                GenericRestClient.HttpResponse response = restClient.postSql(body);
+
+                assertThat(response, isOk());
+                asyncSearchId = response.getBodyAsDocNode().getAsString("id");
+                assertThat(asyncSearchId, notNullValue());
+            }
+            try (GenericRestClient restClient = cluster.getRestClient(user)) {
+                assertThat(asyncSearchId, notNullValue());
+
+                // delete async search results
+                GenericRestClient.HttpResponse response = restClient.delete("/_sql/async/delete/" + asyncSearchId);
+
+                if((user == UNLIMITED_USER) || (user == SUPER_UNLIMITED_USER)) {
+                    assertThat(response, isOk());
+                } else {
+                    assertThat(response, isForbidden());
                 }
             }
         }
