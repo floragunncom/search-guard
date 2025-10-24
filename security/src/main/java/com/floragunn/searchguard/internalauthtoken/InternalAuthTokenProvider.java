@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
 import org.apache.cxf.rs.security.jose.jwa.ContentAlgorithm;
 import org.apache.cxf.rs.security.jose.jwe.JweDecryptionOutput;
 import org.apache.cxf.rs.security.jose.jwe.JweDecryptionProvider;
@@ -56,6 +57,7 @@ public class InternalAuthTokenProvider {
     private final AuthorizationService authorizationService;
     private final PrivilegesEvaluator privilegesEvaluator;
     private final Actions actions;
+    private final ConfigurationRepository configurationRepository;
 
     private JsonWebKey encryptionKey;
     private JsonWebKey signingKey;
@@ -68,6 +70,7 @@ public class InternalAuthTokenProvider {
         this.privilegesEvaluator = privilegesEvaluator;
         this.authorizationService = authorizationService;
         this.actions = actions;
+        this.configurationRepository = configurationRepository;
 
         configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
 
@@ -117,7 +120,7 @@ public class InternalAuthTokenProvider {
         }
     }
 
-    public AuthFromInternalAuthToken userAuthFromToken(User user, ThreadContext threadContext) {
+    public AuthFromInternalAuthToken userAuthFromToken(User user, ThreadContext threadContext) throws PrivilegesEvaluationException {
         final String authToken = threadContext.getHeader(TOKEN_HEADER);
         final String authTokenAudience = HeaderHelper.getSafeFromHeader(threadContext, AUDIENCE_HEADER);
 
@@ -128,7 +131,7 @@ public class InternalAuthTokenProvider {
         return userAuthFromToken(authToken, authTokenAudience);
     }
 
-    public AuthFromInternalAuthToken userAuthFromToken(String authToken, String authTokenAudience) {
+    public AuthFromInternalAuthToken userAuthFromToken(String authToken, String authTokenAudience) throws PrivilegesEvaluationException {
         try {
             JwtToken verifiedToken = getVerifiedJwtToken(authToken, authTokenAudience);
 
@@ -138,7 +141,7 @@ public class InternalAuthTokenProvider {
                 throw new JwtException("JWT does not contain claim sg_roles");
             }
             
-            SgDynamicConfiguration<Role> rolesConfig = SgDynamicConfiguration.fromMap(rolesMap, CType.ROLES, null).get();
+            SgDynamicConfiguration<Role> rolesConfig = SgDynamicConfiguration.fromMap(rolesMap, CType.ROLES, configurationRepository.getParserContext()).get();
             ImmutableSet<String> roleNames = ImmutableSet.of(rolesConfig.getCEntries().keySet());
 
             ActionAuthorization actionAuthorization = new RoleBasedActionAuthorization(rolesConfig, privilegesEvaluator.getActionGroups(), actions,
@@ -150,8 +153,7 @@ public class InternalAuthTokenProvider {
             return userAuth;
         } catch (Exception e) {
             log.warn("Error while verifying internal auth token: " + authToken + "\n" + authTokenAudience, e);
-
-            return null;
+            throw new PrivilegesEvaluationException("Error while verifying internal auth token", e);
         }
     }
 
