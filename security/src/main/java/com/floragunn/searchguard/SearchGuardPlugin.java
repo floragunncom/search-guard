@@ -932,6 +932,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             final List<String> ignoredRequestBodies = new ArrayList<>();
             ignoredRequestBodies.add("BulkRequest");
             ignoredRequestBodies.add("indices:data/write/bulk");
+            ignoredRequestBodies.add("*/_bulk*");
             settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUEST_BODIES, ignoredRequestBodies, Function.identity(), Property.NodeScope));
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_INDICES, true, Property.NodeScope, Property.Filtered));
             settings.add(Setting.boolSetting(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_REST, true, Property.NodeScope, Property.Filtered));
