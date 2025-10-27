@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.regex.Matcher;
@@ -30,6 +31,7 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsResponse;
@@ -69,6 +71,15 @@ import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.google.common.collect.Maps;
 
 public class SearchGuardInterceptor {
+
+    // TODO check if this is needed
+    private final Set<String> CSS_RELATED_REQUEST_HEADERS_NAME = Set.of(ConfigConstants.SG_DLS_QUERY_HEADER,
+            ConfigConstants.SG_DLS_MODE_HEADER,
+            ConfigConstants.SG_MASKED_FIELD_HEADER,
+            ConfigConstants.SG_FLS_FIELDS_HEADER,
+            ConfigConstants.SG_FILTER_LEVEL_DLS_DONE,
+            ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER,
+            ConfigConstants.SG_DOC_WHITELST_HEADER);
 
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
     protected final static Logger log = LogManager.getLogger(SearchGuardInterceptor.class);
@@ -149,7 +160,7 @@ public class SearchGuardInterceptor {
         // for direct channel. Probably the code is not needed if we decide not to remove these headers above
         List<String> transientHeadersToClear = List.of(ConfigConstants.SG_ACTION_NAME, ConfigConstants.SG_CHANNEL_TYPE, ConfigConstants.SG_ORIGIN, ConfigConstants.SG_REMOTE_ADDRESS, ConfigConstants.SG_USER);
         // ConfigConstants.SG_ORIGIN - SG adds the header in SearchGuardRequestHandler.messageReceivedDecorate
-        List<String> requestHeadersToClear = List.of("_sg_remotecn");
+        List<String> requestHeadersToClear = ImmutableList.of("_sg_remotecn", DiagnosticContext.ACTION_STACK_HEADER).with(CSS_RELATED_REQUEST_HEADERS_NAME);
         try (ThreadContext.StoredContext stashedContext = getThreadContext().newStoredContextPreservingResponseHeaders(transientHeadersToClear,
                 requestHeadersToClear)) {
 //            addResponseHeadersToContext(responseHeaders);
@@ -229,13 +240,16 @@ public class SearchGuardInterceptor {
                 if (log.isDebugEnabled()) {
                     log.debug("remove dls/fls/mf because we sent a ccs request to a remote cluster");
                 }
-                headerMap.remove(ConfigConstants.SG_DLS_QUERY_HEADER);
-                headerMap.remove(ConfigConstants.SG_DLS_MODE_HEADER);
-                headerMap.remove(ConfigConstants.SG_MASKED_FIELD_HEADER);
-                headerMap.remove(ConfigConstants.SG_FLS_FIELDS_HEADER);
-                headerMap.remove(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE);
-                headerMap.remove(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER);
-                headerMap.remove(ConfigConstants.SG_DOC_WHITELST_HEADER);
+//                headerMap.remove(ConfigConstants.SG_DLS_QUERY_HEADER);
+//                headerMap.remove(ConfigConstants.SG_DLS_MODE_HEADER);
+//                headerMap.remove(ConfigConstants.SG_MASKED_FIELD_HEADER);
+//                headerMap.remove(ConfigConstants.SG_FLS_FIELDS_HEADER);
+//                headerMap.remove(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE);
+//                headerMap.remove(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER);
+//                headerMap.remove(ConfigConstants.SG_DOC_WHITELST_HEADER);
+            } else {
+                final Map<String, String> cssRequestHeaderMap = new HashMap<>(Maps.filterKeys(origHeaders0, k-> (k!=null) && CSS_RELATED_REQUEST_HEADERS_NAME.contains(k)));
+                getThreadContext().putHeader(cssRequestHeaderMap);
             }
             
             if (remoteClusterService.isCrossClusterSearchEnabled() 
@@ -249,14 +263,17 @@ public class SearchGuardInterceptor {
                 }
                 
                 if (origCCSTransientDls != null && !origCCSTransientDls.isEmpty()) {
-                    headerMap.put(ConfigConstants.SG_DLS_QUERY_HEADER, origCCSTransientDls);
+//                    headerMap.put(ConfigConstants.SG_DLS_QUERY_HEADER, origCCSTransientDls);
+                    getThreadContext().putHeader(ConfigConstants.SG_DLS_QUERY_HEADER, origCCSTransientDls);
                 }
                 if (origCCSTransientMf != null && !origCCSTransientMf.isEmpty()) {
-                    headerMap.put(ConfigConstants.SG_MASKED_FIELD_HEADER, origCCSTransientMf);
+//                    headerMap.put(ConfigConstants.SG_MASKED_FIELD_HEADER, origCCSTransientMf);
+                    getThreadContext().putHeader(ConfigConstants.SG_MASKED_FIELD_HEADER, origCCSTransientMf);
                 }
                 if (origCCSTransientFls != null && !origCCSTransientFls.isEmpty()) {
-                    headerMap.put(ConfigConstants.SG_FLS_FIELDS_HEADER, origCCSTransientFls);
-                }               
+//                    headerMap.put(ConfigConstants.SG_FLS_FIELDS_HEADER, origCCSTransientFls);
+                    getThreadContext().putHeader(ConfigConstants.SG_FLS_FIELDS_HEADER, origCCSTransientFls);
+                }
             }
 
             if (actionStack != null) {
