@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.core.CheckedFunction;
 import org.elasticsearch.index.query.BaseTermQueryBuilder;
@@ -77,7 +78,7 @@ public class RoleBasedDocumentAuthorizationTest {
     static NamedXContentRegistry xContentRegistry = new NamedXContentRegistry(
             ImmutableList.of(new NamedXContentRegistry.Entry(QueryBuilder.class, new ParseField(TermQueryBuilder.NAME),
                     (CheckedFunction<XContentParser, TermQueryBuilder, IOException>) (p) -> TermQueryBuilder.fromXContent(p))));
-    static ConfigurationRepository.Context parserContext = new ConfigurationRepository.Context(null, null, null, xContentRegistry, null);
+    static ConfigurationRepository.Context parserContext = new ConfigurationRepository.Context(null, null, null, xContentRegistry, null, Actions.forTests());
 
     @RunWith(Parameterized.class)
     public static class IndicesAndAliases_getRestriction {

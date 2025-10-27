@@ -762,9 +762,11 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         configModificationValidators = new ConfigModificationValidators();
         components.add(configModificationValidators);
 
+        this.actions = new Actions(moduleRegistry);
+
         cr = new ConfigurationRepository(staticSettings,
-            services.threadPool(), services.client(), services.clusterService(), configVarService, moduleRegistry, staticSgConfig,
-            services.xContentRegistry(), services.environment(), services.indexNameExpressionResolver(), configModificationValidators);
+                services.threadPool(), services.client(), services.clusterService(), configVarService, moduleRegistry, staticSgConfig,
+                services.xContentRegistry(), services.environment(), services.indexNameExpressionResolver(), configModificationValidators, actions);
         moduleRegistry.addComponentStateProvider(cr);
 
         licenseRepository = new LicenseRepository(settings, services.client(), services.clusterService(), cr);
@@ -775,8 +777,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         licenseRepository.subscribeOnLicenseChange(complianceConfig);
         moduleRegistry.addComponentStateProvider(licenseRepository);
-
-        Actions actions = new Actions(moduleRegistry);
 
         this.authInfoService = new AuthInfoService(services.threadPool(), specialPrivilegesEvaluationContextProviderRegistry, this.adminDns);
         this.authorizationService = new AuthorizationService(cr, staticSettings, authInfoService);
@@ -872,8 +872,6 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         configModificationValidators.register(moduleRegistry.getConfigModificationValidators());
 
         moduleRegistry.addComponentStateProvider(searchGuardRestFilter);
-
-        this.actions = actions;
 
         return components;
 

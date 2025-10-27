@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.PatternSyntaxException;
 
+import com.floragunn.searchguard.authz.actions.Actions;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -89,10 +90,51 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
         String description = vNode.get("description").asString();
 
+        if (context != null && context.getActions() != null) {
+            Actions actions = context.getActions();
+            List<String> indexPermissionsUsedAsClusterPermissions = findIndexPermissions(clusterPermissions, actions);
+            List<String> clusterPermissionUsedAsIndexPermissions = indexPermissions.stream()
+                    .flatMap(indexPermission  -> findClusterPermissions(indexPermission.getAllowedActions(), actions)
+                            .stream()
+            ).toList();
+            List<String> clusterPermissionUsedAsAliasPermissions = aliasPermissions.stream()
+                    .flatMap(aliasPermission  -> findClusterPermissions(aliasPermission.getAllowedActions(), actions)
+                            .stream()
+            ).toList();
+            List<String> clusterPermissionUsedAsDataStreamPermissions = dataStreamPermissions.stream()
+                    .flatMap(dataStreamPermission  -> findClusterPermissions(dataStreamPermission.getAllowedActions(), actions)
+                            .stream()
+            ).toList();
+
+            if (! indexPermissionsUsedAsClusterPermissions.isEmpty()) {
+                log.warn("Following index permissions are assigned as cluster permissions: {}", indexPermissionsUsedAsClusterPermissions);
+            }
+
+            if (! clusterPermissionUsedAsIndexPermissions.isEmpty()) {
+                log.warn("Following cluster permissions are assigned as index permissions: {}", clusterPermissionUsedAsIndexPermissions);
+            }
+
+            if (! clusterPermissionUsedAsAliasPermissions.isEmpty()) {
+                log.warn("Following cluster permissions are assigned as alias permissions: {}", clusterPermissionUsedAsAliasPermissions);
+            }
+
+            if (! clusterPermissionUsedAsDataStreamPermissions.isEmpty()) {
+                log.warn("Following cluster permissions are assigned as data stream permissions: {}", clusterPermissionUsedAsDataStreamPermissions);
+            }
+        }
+
         vNode.checkForUnusedAttributes();
 
         return new ValidationResult<Role>(new Role(docNode, reserved, hidden, isStatic, description, clusterPermissions, indexPermissions,
                 aliasPermissions, dataStreamPermissions, tenantPermissions, excludeClusterPermissions), validationErrors);
+    }
+
+    private static List<String> findIndexPermissions(ImmutableList<String> permissions, Actions actions) {
+        return permissions.stream().filter(permission -> ! "*".equals(permission) && actions.get(permission).isIndexLikePrivilege()).toList();
+    }
+
+    private static List<String> findClusterPermissions(ImmutableList<String> permissions, Actions actions) {
+        return permissions.stream().filter(permission -> ! "*".equals(permission) && actions.get(permission).isClusterPrivilege()).toList();
     }
 
     private final DocNode source;
