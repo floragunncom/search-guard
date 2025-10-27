@@ -142,7 +142,16 @@ public class SearchGuardInterceptor {
 //        Map<String, List<String>> responseHeaders = getThreadContext().getResponseHeaders();
 
         //stash headers and transient objects
-        try (ThreadContext.StoredContext stashedContext = getThreadContext().newStoredContextPreservingResponseHeaders(List.of(ConfigConstants.SG_ACTION_NAME, ConfigConstants.SG_CHANNEL_TYPE, ConfigConstants.SG_ORIGIN), List.of("_sg_remotecn"))) {
+        // 1. SG adds the headers ConfigConstants.SG_ACTION_NAME, ConfigConstants.SG_CHANNEL_TYPE, ConfigConstants.SG_ORIGIN in
+        // SearchGuardRequestHandler.messageReceivedDecorate. Therefore, we need to remove these headers to avoid exceptions during adding them again
+
+        // 2. ConfigConstants.SG_REMOTE_ADDRESS, ConfigConstants.SG_USER added in com.floragunn.searchguard.transport.SearchGuardRequestHandler.messageReceivedDecorate
+        // for direct channel. Probably the code is not needed if we decide not to remove these headers above
+        List<String> transientHeadersToClear = List.of(ConfigConstants.SG_ACTION_NAME, ConfigConstants.SG_CHANNEL_TYPE, ConfigConstants.SG_ORIGIN, ConfigConstants.SG_REMOTE_ADDRESS, ConfigConstants.SG_USER);
+        // ConfigConstants.SG_ORIGIN - SG adds the header in SearchGuardRequestHandler.messageReceivedDecorate
+        List<String> requestHeadersToClear = List.of("_sg_remotecn");
+        try (ThreadContext.StoredContext stashedContext = getThreadContext().newStoredContextPreservingResponseHeaders(transientHeadersToClear,
+                requestHeadersToClear)) {
 //            addResponseHeadersToContext(responseHeaders);
             final TransportResponseHandler<T> restoringHandler = new RestoringTransportResponseHandler<T>(handler, stashedContext);
             getThreadContext().putHeader("_sg_remotecn", cs.getClusterName().value());
