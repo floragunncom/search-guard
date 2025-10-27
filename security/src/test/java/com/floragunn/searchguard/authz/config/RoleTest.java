@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.authz.config;
 
+import com.floragunn.searchguard.authz.actions.Actions;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
@@ -37,7 +38,7 @@ public class RoleTest {
                         "  exclude_index_permissions:\n" + //
                         "  - index_patterns: ['index_a1']\n" + //
                         "    actions: ['indices:data/write/delete']\n" //
-        ), CType.ROLES, new ConfigurationRepository.Context(null, null, null, null, null).withoutLenientValidation()).get();
+        ), CType.ROLES, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests()).withoutLenientValidation()).get();
     }
 
     @Test
@@ -50,7 +51,7 @@ public class RoleTest {
                         "  exclude_index_permissions:\n" + //
                         "  - index_patterns: ['index_a1']\n" + //
                         "    actions: ['indices:data/write/delete']\n" //
-        ), CType.ROLES, new ConfigurationRepository.Context(null, null, null, null, null)).get();
+        ), CType.ROLES, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
     }
 
 }
