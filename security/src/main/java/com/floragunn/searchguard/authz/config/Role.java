@@ -91,8 +91,29 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
         vNode.checkForUnusedAttributes();
 
+        warnWhenDlsOrFlsRuleIsAssignedToWildcardPattern(indexPermissions);
+        warnWhenDlsOrFlsRuleIsAssignedToWildcardPattern(aliasPermissions);
+        warnWhenDlsOrFlsRuleIsAssignedToWildcardPattern(dataStreamPermissions);
+
         return new ValidationResult<Role>(new Role(docNode, reserved, hidden, isStatic, description, clusterPermissions, indexPermissions,
                 aliasPermissions, dataStreamPermissions, tenantPermissions, excludeClusterPermissions), validationErrors);
+    }
+
+    private static <T extends Index> void warnWhenDlsOrFlsRuleIsAssignedToWildcardPattern(ImmutableList<T> permissions) {
+        permissions.forEach(permission -> {
+            if (permission.getIndexPatterns().getPattern().isWildcard()) {
+                if (permission.getDls() != null) {
+                    log.warn("Role assigns a DLS rule '{}' to wildcard (*) {}",
+                            permission.getDls().getSource(), permission.getPatternAttributeName()
+                    );
+                }
+                if (! permission.getFls().isEmpty()) {
+                    log.warn("Role assigns a FLS rule '{}' to wildcard (*) {}",
+                            permission.getFls().stream().map(Index.FlsPattern::getSource).toList(), permission.getPatternAttributeName()
+                    );
+                }
+            }
+        });
     }
 
     private final DocNode source;
