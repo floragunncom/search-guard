@@ -260,13 +260,14 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
 
         if (isInterClusterRequest) {
             if(cs.getClusterName().value().equals(getThreadContext().getHeader("_sg_remotecn"))) {
-
-                if (log.isTraceEnabled() && !action.startsWith("internal:")) {
+                // request in the scope of the same cluster
+                if (log.isTraceEnabled() && !action.startsWith("internal:")) { //
                     log.trace("Is inter cluster request ({}/{}/{})", action, request.getClass(), request.remoteAddress());
                 }
 
                 getThreadContext().putTransient(ConfigConstants.SG_SSL_TRANSPORT_INTERCLUSTER_REQUEST, Boolean.TRUE);
             } else {
+                // request from cross cluster search, request from another cluster?
                 getThreadContext().putTransient(ConfigConstants.SG_SSL_TRANSPORT_TRUSTED_CLUSTER_REQUEST, Boolean.TRUE);
             }
 

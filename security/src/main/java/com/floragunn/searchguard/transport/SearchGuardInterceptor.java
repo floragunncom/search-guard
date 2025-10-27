@@ -101,15 +101,36 @@ public class SearchGuardInterceptor {
         this.adminDns = adminDns;
     }
 
+    private String printThreadContext(ThreadContext threadContext) {
+        StringBuilder stringBuilder = new StringBuilder("Request headers: ");
+        for (Map.Entry<String, String> entry : threadContext.getHeaders().entrySet()) {
+            appendMapEntry(entry, stringBuilder);
+        }
+        stringBuilder.append("\nTransients: ");
+        for (Map.Entry<String, Object> entry: threadContext.getTransientHeaders().entrySet()){
+            appendMapEntry(entry, stringBuilder);
+        }
+        stringBuilder.append("\nResponse headers: ");
+        for (Map.Entry<String, List<String>> entry : threadContext.getResponseHeaders().entrySet()) {
+            appendMapEntry(entry, stringBuilder);
+        }
+        return stringBuilder.toString();
+    }
+
+    private static void appendMapEntry(Map.Entry<String, ?> entry, StringBuilder stringBuilder) {
+        stringBuilder.append(entry.getKey() + " = " + entry.getValue() + ";");
+    }
+
     public <T extends TransportRequest> SearchGuardRequestHandler<T> getHandler(String action,
             TransportRequestHandler<T> actualHandler) {
         return new SearchGuardRequestHandler<T>(action, actualHandler, threadPool, auditLog,
                 principalExtractor, requestEvalProvider, cs, sslExceptionHandler, adminDns);
     }
 
+
     public <T extends TransportResponse> void sendRequestDecorate(AsyncSender sender, Connection connection, String action,
             TransportRequest request, TransportRequestOptions options, TransportResponseHandler<T> handler) {
-        
+//        log.info("Genuine context before sending request '{}': '{}'", action, printThreadContext(getThreadContext()));
         final Map<String, String> origHeaders0 = getThreadContext().getHeaders();
         final User user0 = getThreadContext().getTransient(ConfigConstants.SG_USER);
         final String origin0 = getThreadContext().getTransient(ConfigConstants.SG_ORIGIN);
@@ -118,14 +139,37 @@ public class SearchGuardInterceptor {
         final String origCCSTransientFls = getThreadContext().getTransient(ConfigConstants.SG_FLS_FIELDS_CCS);
         final String origCCSTransientMf = getThreadContext().getTransient(ConfigConstants.SG_MASKED_FIELD_CCS);
         String actionStack = diagnosticContext.getActionStack();
-        Map<String, List<String>> responseHeaders = getThreadContext().getResponseHeaders();
+//        Map<String, List<String>> responseHeaders = getThreadContext().getResponseHeaders();
 
         //stash headers and transient objects
-        try (ThreadContext.StoredContext stashedContext = getThreadContext().stashContext()) {
-            addResponseHeadersToContext(responseHeaders);
+        try (ThreadContext.StoredContext stashedContext = getThreadContext().newStoredContextPreservingResponseHeaders(List.of(ConfigConstants.SG_ACTION_NAME, ConfigConstants.SG_CHANNEL_TYPE, ConfigConstants.SG_ORIGIN), List.of("_sg_remotecn"))) {
+//            addResponseHeadersToContext(responseHeaders);
             final TransportResponseHandler<T> restoringHandler = new RestoringTransportResponseHandler<T>(handler, stashedContext);
             getThreadContext().putHeader("_sg_remotecn", cs.getClusterName().value());
-                        
+            // used in com.floragunn.searchguard.transport.SearchGuardRequestHandler.addAdditionalContextValues
+            // and then to recognize if the request is inter-cluster that is coming from the same or another cluster
+
+
+            // The code below removes the following headers
+//          SG_CHANNEL_TYPE
+//          SG_ORIGIN   - we need to change this?
+//          SG_DLS_FILTER_LEVEL_QUERY_TRANSIENT
+//          SG_DLS_MODE_TRANSIENT
+//          SG_DOC_WHITELST_TRANSIENT
+//          SG_DLS_QUERY_CCS
+//          SG_FLS_FIELDS_CCS
+//          SG_MASKED_FIELD_CCS
+//          SG_REMOTE_ADDRESS
+//          SG_SSL_PEER_CERTIFICATES
+//          SG_SSL_PRINCIPAL
+//          SG_SSL_TRANSPORT_INTERCLUSTER_REQUEST - we need to remove this
+//          SG_SSL_TRANSPORT_TRUSTED_CLUSTER_REQUEST - we need to remove this
+//          SG_SSL_TRANSPORT_PRINCIPAL
+//          SG_USER
+//          SG_USER_NAME
+//          SG_XFF_DONE
+//          SSO_LOGOUT_URL
+//          SG_ACTION_NAME
             final Map<String, String> headerMap = new HashMap<>(Maps.filterKeys(origHeaders0, k->k!=null && (
                     k.equals(ConfigConstants.SG_CONF_REQUEST_HEADER)
                     || k.equals(ConfigConstants.SG_ORIGIN_HEADER)
@@ -139,10 +183,30 @@ public class SearchGuardInterceptor {
                     || k.equals(ConfigConstants.SG_DLS_MODE_HEADER)
                     || k.equals(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER)
                     || k.equals(ConfigConstants.SG_AUTHZ_HASH_THREAD_CONTEXT_HEADER)
-                    || (k.equals("_sg_source_field_context") && ! (request instanceof SearchRequest) && !(request instanceof GetRequest))
+                    || (k.equals("_sg_source_field_context") && ! (request instanceof SearchRequest) && !(request instanceof GetRequest)) // interesting case, used by Compliance features
                     || k.startsWith("_sg_trace")
-                    || k.startsWith(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER)
+                    || k.startsWith(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER) // TODO: why we need this one?
                     || checkCustomAllowedHeader(k)
+                    // --- new ---
+//                    || k.equals(ConfigConstants.SG_CHANNEL_TYPE)
+//                    || k.equals(ConfigConstants.SG_ORIGIN)//   - we need to change this?
+//                    || k.equals(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_TRANSIENT)
+//                    || k.equals(ConfigConstants.SG_DLS_MODE_TRANSIENT)
+//                    || k.equals(ConfigConstants.SG_DOC_WHITELST_TRANSIENT)
+//                    || k.equals(ConfigConstants.SG_DLS_QUERY_CCS)
+//                    || k.equals(ConfigConstants.SG_FLS_FIELDS_CCS)
+//                    || k.equals(ConfigConstants.SG_MASKED_FIELD_CCS)
+//                    || k.equals(ConfigConstants.SG_REMOTE_ADDRESS)
+//                    || k.equals(ConfigConstants.SG_SSL_PEER_CERTIFICATES)
+//                    || k.equals(ConfigConstants.SG_SSL_PRINCIPAL)
+//                    || k.equals(ConfigConstants.SG_SSL_TRANSPORT_INTERCLUSTER_REQUEST)// - we need to remove this
+//                    || k.equals(ConfigConstants.SG_SSL_TRANSPORT_TRUSTED_CLUSTER_REQUEST)// - we need to remove this
+//                    || k.equals(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL)
+//                    || k.equals(ConfigConstants.SG_USER)
+//                    || k.equals(ConfigConstants.SG_USER_NAME)
+//                    || k.equals(ConfigConstants.SG_XFF_DONE)
+//                    || k.equals(ConfigConstants.SSO_LOGOUT_URL)
+//                    || k.equals(ConfigConstants.SG_ACTION_NAME)
                     )));
             
             RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
@@ -189,8 +253,9 @@ public class SearchGuardInterceptor {
             if (actionStack != null) {
                 getThreadContext().putHeader(DiagnosticContext.ACTION_STACK_HEADER, actionStack);
             }
-            
-            getThreadContext().putHeader(headerMap);
+
+            // None of header are added to context
+//            getThreadContext().putHeader(headerMap);
 
             ensureCorrectHeaders(remoteAdress0, user0, origin0);
 
@@ -198,6 +263,7 @@ public class SearchGuardInterceptor {
                 getThreadContext().putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread.currentThread().getName()+" IC -> "+action+" "+getThreadContext().getHeaders().entrySet().stream().filter(p->!p.getKey().startsWith("_sg_trace")).collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue())));
             }
 
+//            log.info("Context prepared to send request '{}' to other node '{}'", action, printThreadContext(getThreadContext()));
             sender.sendRequest(connection, action, request, options, restoringHandler);
         }
     }
@@ -247,7 +313,7 @@ public class SearchGuardInterceptor {
     }
 
     private boolean checkCustomAllowedHeader(String headerKey) {        
-        if (headerKey.startsWith(ConfigConstants.SG_CONFIG_PREFIX)) {
+        if (headerKey.startsWith(ConfigConstants.SG_CONFIG_PREFIX)) { // remove all headers related to SG config
             // SG specific headers are sensitive and thus should not be externally manipulated
             return false;
         }
