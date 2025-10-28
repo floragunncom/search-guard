@@ -32,6 +32,7 @@ import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import com.google.common.base.Predicate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -161,7 +162,8 @@ public class SearchGuardInterceptor {
         // for direct channel. Probably the code is not needed if we decide not to remove these headers above
         List<String> transientHeadersToClear = List.of(ConfigConstants.SG_ACTION_NAME, ConfigConstants.SG_CHANNEL_TYPE, ConfigConstants.SG_ORIGIN, ConfigConstants.SG_REMOTE_ADDRESS, ConfigConstants.SG_USER);
         // ConfigConstants.SG_ORIGIN - SG adds the header in SearchGuardRequestHandler.messageReceivedDecorate
-        List<String> requestHeadersToClear = ImmutableList.of("_sg_remotecn", DiagnosticContext.ACTION_STACK_HEADER).with(CSS_RELATED_REQUEST_HEADERS_NAME);
+        // InternalAuthTokenProvider.AUDIENCE_HEADER - has assigned null value what causes problems during serialization
+        List<String> requestHeadersToClear = ImmutableList.of("_sg_remotecn", DiagnosticContext.ACTION_STACK_HEADER, InternalAuthTokenProvider.AUDIENCE_HEADER).with(CSS_RELATED_REQUEST_HEADERS_NAME);
         try (ThreadContext.StoredContext stashedContext = getThreadContext().newStoredContextPreservingResponseHeaders(transientHeadersToClear,
                 requestHeadersToClear)) {
 //            addResponseHeadersToContext(responseHeaders);
