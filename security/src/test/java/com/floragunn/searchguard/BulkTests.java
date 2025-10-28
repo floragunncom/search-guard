@@ -17,21 +17,22 @@
 
 package com.floragunn.searchguard;
 
-import co.elastic.clients.elasticsearch._types.Refresh;
-import co.elastic.clients.elasticsearch.core.BulkRequest;
-import co.elastic.clients.elasticsearch.core.BulkResponse;
-import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
-import co.elastic.clients.elasticsearch.core.bulk.IndexOperation;
-import com.floragunn.searchguard.client.RestHighLevelClient;
+import com.floragunn.codova.documents.DocNode;
 
-import org.junit.Assert;
+import com.floragunn.searchguard.test.GenericRestClient;
 import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
-import java.util.Map;
+import static com.floragunn.searchguard.test.RestMatchers.isOk;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.docNodeSizeEqualTo;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.not;
+
 
 public class BulkTests {
     
@@ -42,17 +43,27 @@ public class BulkTests {
     @Test
     public void testBulk() throws Exception {
 
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient("bulk_test_user", "secret")) {
+        try (GenericRestClient client = cluster.getRestClient("bulk_test_user", "secret")) {
 
-            BulkRequest.Builder br = new BulkRequest.Builder();
-            br.refresh(Refresh.True);
-            br.operations(new BulkOperation.Builder().index(new IndexOperation.Builder<Map>().document(Map.of("a", "b")).index("test").id("1").build()).build(),
-                          new BulkOperation.Builder().index(new IndexOperation.Builder<Map>().document(Map.of("a", "b")).index("myindex").id("1").build()).build());
-            BulkResponse res = client.getJavaClient().bulk(br.build());
-            Assert.assertTrue(res.errors());
-            Assert.assertEquals(2, res.items().size());
-            Assert.assertTrue(res.items().get(0).error() == null); //ok because we have all perms for test
-            Assert.assertFalse(res.items().get(1).error() == null); //fails because no perms for myindex
+            String bulkBody = """
+                    {"index":{"_id":"1","_index":"test"}}
+                    { "a" : "b" }
+                    {"index":{"_id":"1","_index":"myindex"}}
+                    { "a" : "b" }
+                    """;
+
+            GenericRestClient.HttpResponse res = client.postJson("/_bulk?refresh=true", bulkBody);
+
+            assertThat(res, isOk());
+            assertThat(res.getBodyAsDocNode(), containsValue("$.errors", true));
+            assertThat(res.getBodyAsDocNode(), docNodeSizeEqualTo("$.items", 2));
+
+            DocNode firstItem = res.getBodyAsDocNode().findSingleNodeByJsonPath("items[0].index");
+            DocNode secondItem = res.getBodyAsDocNode().findSingleNodeByJsonPath("items[1].index");
+
+            assertThat(firstItem, not(containsFieldPointedByJsonPath("$", "error")));
+            assertThat(secondItem, containsFieldPointedByJsonPath("$", "error"));
+            assertThat(secondItem, containsValue("$.error.type", "security_exception"));
         }
     }
 }

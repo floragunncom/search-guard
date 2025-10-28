@@ -16,7 +16,6 @@ package com.floragunn.searchguard.enterprise.auth.ldap;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.client.RestHighLevelClient;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
@@ -49,10 +48,10 @@ import java.security.cert.CertificateFactory;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
 
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.isUnauthorized;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
@@ -291,25 +290,26 @@ public class LdapIntegrationTest {
     @Test
     public void attributeIntegrationTest() throws Exception {
 
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(KARLOTTA)) {
-            co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("attr_test_*",0,100);
-            Assert.assertEquals(5L, searchResponse.hits().total().value());
+        try (GenericRestClient client = cluster.getRestClient(KARLOTTA)) {
+            HttpResponse response = client.get("attr_test_*/_search?from=0&size=100");
+            assertThat(response, isOk());
+            assertThat(response.getBodyAsDocNode(), containsValue("$.hits.total.value", 5L));
         }
 
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(THORE)) {
-            co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("attr_test_*",0,100);
-            Assert.assertEquals(2L, searchResponse.hits().total().value());
+        try (GenericRestClient client = cluster.getRestClient(THORE)) {
+            HttpResponse response = client.get("attr_test_*/_search?from=0&size=100");
+            assertThat(response, isOk());
+            assertThat(response.getBodyAsDocNode(), containsValue("$.hits.total.value", 2L));
         }
-
     }
 
     @Test
     public void attributeIntegrationTest_recursiveGroups() throws Exception {
 
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(PAUL)) {
-
-            co.elastic.clients.elasticsearch.core.SearchResponse<Map> searchResponse = client.search("attr_test_*",0,100);
-            Assert.assertEquals(3L, searchResponse.hits().total().value());
+        try (GenericRestClient client = cluster.getRestClient(PAUL)) {
+            HttpResponse response = client.get("attr_test_*/_search?from=0&size=100");
+            assertThat(response, isOk());
+            assertThat(response.getBodyAsDocNode(), containsValue("$.hits.total.value", 3L));
         }
 
     }

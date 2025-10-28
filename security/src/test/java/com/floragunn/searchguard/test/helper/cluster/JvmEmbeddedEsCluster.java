@@ -29,20 +29,12 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
-import com.floragunn.searchguard.client.RestHighLevelClient;
 import org.apache.commons.io.FileUtils;
-import org.apache.http.Header;
-import org.apache.http.HttpHost;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.message.BasicHeader;
-import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchTimeoutException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.internal.AdminClient;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.health.ClusterHealthStatus;
@@ -279,18 +271,6 @@ public class JvmEmbeddedEsCluster extends LocalEsCluster {
         @Override
         public InetSocketAddress getTransportAddress() {
             return transportAddress;
-        }
-
-        public RestHighLevelClient getRestHighLevelClient(BasicHeader basicHeader) {
-            SSLContextProvider sslContextProvider = new TestCertificateBasedSSLContextProvider(testCertificates.getCaCertificate(),
-                    testCertificates.getAnyClientCertificate());
-
-            RestClientBuilder builder = RestClient.builder(new HttpHost(getHttpAddress().getHostString(), getHttpAddress().getPort(), "https"))
-                    .setDefaultHeaders(new Header[] { basicHeader })
-                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(
-                            new SSLIOSessionStrategy(sslContextProvider.getSslContext(false), null, null, NoopHostnameVerifier.INSTANCE)));
-
-            return new RestHighLevelClient(builder);
         }
 
         private Settings getEsSettings() {
