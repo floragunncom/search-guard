@@ -628,6 +628,11 @@ public class SchedulerBuilder<JobType extends JobConfig> {
         }
 
         @Override
+        public List<JobDetail> getJobDetails(GroupMatcher<JobKey> groupMatcher) throws SchedulerException {
+            return List.of();
+        }
+
+        @Override
         public Trigger getTrigger(TriggerKey triggerKey) throws SchedulerException {
             return null;
         }
