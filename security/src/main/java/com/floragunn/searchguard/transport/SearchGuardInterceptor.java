@@ -30,6 +30,7 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.internalauthtoken.InternalAuthTokenProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsResponse;
@@ -66,7 +67,6 @@ import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
-import com.google.common.collect.Maps;
 
 public class SearchGuardInterceptor {
 
@@ -126,25 +126,11 @@ public class SearchGuardInterceptor {
             final TransportResponseHandler<T> restoringHandler = new RestoringTransportResponseHandler<T>(handler, stashedContext);
             getThreadContext().putHeader("_sg_remotecn", cs.getClusterName().value());
                         
-            final Map<String, String> headerMap = new HashMap<>(Maps.filterKeys(origHeaders0, k->k!=null && (
-                    k.equals(ConfigConstants.SG_CONF_REQUEST_HEADER)
-                    || k.equals(ConfigConstants.SG_ORIGIN_HEADER)
-                    || k.equals(ConfigConstants.SG_REMOTE_ADDRESS_HEADER)
-                    || k.equals(ConfigConstants.SG_USER_HEADER)
-                    || k.equals(ConfigConstants.SG_DLS_QUERY_HEADER)
-                    || k.equals(ConfigConstants.SG_FLS_FIELDS_HEADER)
-                    || k.equals(ConfigConstants.SG_MASKED_FIELD_HEADER)
-                    || k.equals(ConfigConstants.SG_DOC_WHITELST_HEADER)
-                    || k.equals(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE)
-                    || k.equals(ConfigConstants.SG_DLS_MODE_HEADER)
-                    || k.equals(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER)
-                    || k.equals(ConfigConstants.SG_AUTHZ_HASH_THREAD_CONTEXT_HEADER)
-                    || (k.equals("_sg_source_field_context") && ! (request instanceof SearchRequest) && !(request instanceof GetRequest))
-                    || k.startsWith("_sg_trace")
-                    || k.startsWith(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER)
-                    || checkCustomAllowedHeader(k)
-                    )));
-            
+            final Map<String, String> headerMap = new HashMap<>(origHeaders0);
+            headerMap.remove(InternalAuthTokenProvider.AUDIENCE_HEADER);
+            headerMap.remove(InternalAuthTokenProvider.TOKEN_HEADER);
+            headerMap.remove("_sg_remotecn");
+
             RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
                         
             if (remoteClusterService.isCrossClusterSearchEnabled() 
