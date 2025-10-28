@@ -32,6 +32,7 @@ import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 import com.floragunn.fluent.collections.ImmutableList;
+import com.google.common.base.Predicate;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsResponse;
@@ -248,7 +249,10 @@ public class SearchGuardInterceptor {
 //                headerMap.remove(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER);
 //                headerMap.remove(ConfigConstants.SG_DOC_WHITELST_HEADER);
             } else {
-                final Map<String, String> cssRequestHeaderMap = new HashMap<>(Maps.filterKeys(origHeaders0, k-> (k!=null) && CSS_RELATED_REQUEST_HEADERS_NAME.contains(k)));
+                Predicate<Map.Entry<String, String>> entryPredicate = entry -> (entry.getKey() != null)
+                        && (entry.getValue() != null)
+                        && CSS_RELATED_REQUEST_HEADERS_NAME.contains(entry.getKey());
+                final Map<String, String> cssRequestHeaderMap = new HashMap<>(Maps.filterEntries(origHeaders0, entryPredicate));
                 getThreadContext().putHeader(cssRequestHeaderMap);
             }
             
