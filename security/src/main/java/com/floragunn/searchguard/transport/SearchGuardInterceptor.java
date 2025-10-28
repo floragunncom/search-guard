@@ -75,13 +75,13 @@ import com.google.common.collect.Maps;
 public class SearchGuardInterceptor {
 
     // TODO check if this is needed
-    private final Set<String> CSS_RELATED_REQUEST_HEADERS_NAME = Set.of(ConfigConstants.SG_DLS_QUERY_HEADER,
-            ConfigConstants.SG_DLS_MODE_HEADER,
-            ConfigConstants.SG_MASKED_FIELD_HEADER,
-            ConfigConstants.SG_FLS_FIELDS_HEADER,
-            ConfigConstants.SG_FILTER_LEVEL_DLS_DONE,
-            ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER,
-            ConfigConstants.SG_DOC_WHITELST_HEADER);
+//    private final Set<String> CSS_RELATED_REQUEST_HEADERS_NAME = Set.of(ConfigConstants.SG_DLS_QUERY_HEADER,
+//            ConfigConstants.SG_DLS_MODE_HEADER,
+//            ConfigConstants.SG_MASKED_FIELD_HEADER,
+//            ConfigConstants.SG_FLS_FIELDS_HEADER,
+//            ConfigConstants.SG_FILTER_LEVEL_DLS_DONE,
+//            ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER,
+//            ConfigConstants.SG_DOC_WHITELST_HEADER);
 
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
     protected final static Logger log = LogManager.getLogger(SearchGuardInterceptor.class);
@@ -165,8 +165,8 @@ public class SearchGuardInterceptor {
         // ConfigConstants.SG_ORIGIN - SG adds the header in SearchGuardRequestHandler.messageReceivedDecorate
         // InternalAuthTokenProvider.AUDIENCE_HEADER - has assigned null value what causes problems during serialization
         List<String> requestHeadersToClear = ImmutableList
-                .of("_sg_remotecn", DiagnosticContext.ACTION_STACK_HEADER, InternalAuthTokenProvider.AUDIENCE_HEADER, InternalAuthTokenProvider.TOKEN_HEADER)
-                .with(CSS_RELATED_REQUEST_HEADERS_NAME);
+                .of("_sg_remotecn", DiagnosticContext.ACTION_STACK_HEADER, InternalAuthTokenProvider.AUDIENCE_HEADER, InternalAuthTokenProvider.TOKEN_HEADER);
+//                .with(CSS_RELATED_REQUEST_HEADERS_NAME);
         try (ThreadContext.StoredContext stashedContext = getThreadContext().newStoredContextPreservingResponseHeaders(transientHeadersToClear,
                 requestHeadersToClear)) {
             final TransportResponseHandler<T> restoringHandler = new RestoringTransportResponseHandler<T>(handler, stashedContext);
@@ -198,22 +198,22 @@ public class SearchGuardInterceptor {
             
             RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
                         
-            if (remoteClusterService.isCrossClusterSearchEnabled() 
-                    && clusterInfoHolder.isInitialized()
-                    && (action.equals(TransportClusterSearchShardsAction.TYPE.name())
-                            || action.equals(TransportSearchAction.NAME)
-)
-                    && !clusterInfoHolder.hasNode(connection.getNode())) {
-                if (log.isDebugEnabled()) {
-                    log.debug("remove dls/fls/mf because we sent a ccs request to a remote cluster");
-                }
-            } else {
-                Predicate<Map.Entry<String, String>> entryPredicate = entry -> (entry.getKey() != null)
-                        && (entry.getValue() != null)
-                        && CSS_RELATED_REQUEST_HEADERS_NAME.contains(entry.getKey());
-                final Map<String, String> cssRequestHeaderMap = new HashMap<>(Maps.filterEntries(origHeaders0, entryPredicate));
-                getThreadContext().putHeader(cssRequestHeaderMap);
-            }
+//            if (remoteClusterService.isCrossClusterSearchEnabled()
+//                    && clusterInfoHolder.isInitialized()
+//                    && (action.equals(TransportClusterSearchShardsAction.TYPE.name())
+//                            || action.equals(TransportSearchAction.NAME)
+//)
+//                    && !clusterInfoHolder.hasNode(connection.getNode())) {
+//                if (log.isDebugEnabled()) {
+//                    log.debug("remove dls/fls/mf because we sent a ccs request to a remote cluster");
+//                }
+//            } else {
+//                Predicate<Map.Entry<String, String>> entryPredicate = entry -> (entry.getKey() != null)
+//                        && (entry.getValue() != null)
+//                        && CSS_RELATED_REQUEST_HEADERS_NAME.contains(entry.getKey());
+//                final Map<String, String> cssRequestHeaderMap = new HashMap<>(Maps.filterEntries(origHeaders0, entryPredicate));
+//                getThreadContext().putHeader(cssRequestHeaderMap);
+//            }
             
             if (remoteClusterService.isCrossClusterSearchEnabled() 
                   && clusterInfoHolder.isInitialized()
