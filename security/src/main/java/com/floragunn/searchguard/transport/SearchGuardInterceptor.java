@@ -297,7 +297,7 @@ public class SearchGuardInterceptor {
                 getThreadContext().putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread.currentThread().getName()+" IC -> "+action+" "+getThreadContext().getHeaders().entrySet().stream().filter(p->!p.getKey().startsWith("_sg_trace")).collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue())));
             }
 
-            log.info("Context prepared to send request '{}' to other node '{}'", action, printThreadContext(getThreadContext()));
+//            log.info("Context prepared to send request '{}' to other node '{}'", action, printThreadContext(getThreadContext()));
             sender.sendRequest(connection, action, request, options, restoringHandler);
         }
     }
