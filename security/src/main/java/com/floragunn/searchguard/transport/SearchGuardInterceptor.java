@@ -161,7 +161,7 @@ public class SearchGuardInterceptor {
 
         // 2. ConfigConstants.SG_REMOTE_ADDRESS, ConfigConstants.SG_USER added in com.floragunn.searchguard.transport.SearchGuardRequestHandler.messageReceivedDecorate
         // for direct channel. Probably the code is not needed if we decide not to remove these headers above
-        List<String> transientHeadersToClear = List.of(ConfigConstants.SG_ACTION_NAME, ConfigConstants.SG_CHANNEL_TYPE, ConfigConstants.SG_ORIGIN, ConfigConstants.SG_REMOTE_ADDRESS, ConfigConstants.SG_USER);
+        List<String> transientHeadersToClear = List.of(ConfigConstants.SG_ACTION_NAME, ConfigConstants.SG_CHANNEL_TYPE, ConfigConstants.SG_ORIGIN, ConfigConstants.SG_REMOTE_ADDRESS, ConfigConstants.SG_USER, ConfigConstants.SG_SSL_TRANSPORT_INTERCLUSTER_REQUEST, ConfigConstants.SG_SSL_TRANSPORT_TRUSTED_CLUSTER_REQUEST);
         // ConfigConstants.SG_ORIGIN - SG adds the header in SearchGuardRequestHandler.messageReceivedDecorate
         // InternalAuthTokenProvider.AUDIENCE_HEADER - has assigned null value what causes problems during serialization
         List<String> requestHeadersToClear = ImmutableList
@@ -198,7 +198,7 @@ public class SearchGuardInterceptor {
             
             RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
                         
-            if (remoteClusterService.isCrossClusterSearchEnabled() 
+            if (remoteClusterService.isCrossClusterSearchEnabled()
                     && clusterInfoHolder.isInitialized()
                     && (action.equals(TransportClusterSearchShardsAction.TYPE.name())
                             || action.equals(TransportSearchAction.NAME)
