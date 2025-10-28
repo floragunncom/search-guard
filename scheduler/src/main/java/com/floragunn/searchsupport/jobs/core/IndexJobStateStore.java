@@ -19,6 +19,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.floragunn.searchsupport.client.RefCountedGuard;
@@ -373,6 +374,11 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
     }
 
     @Override
+    public synchronized List<JobDetail> getJobDetails(GroupMatcher<JobKey> matcher) throws JobPersistenceException {
+        return new ArrayList<>(matchJobs(matcher));
+    }
+
+    @Override
     public synchronized OperableTrigger retrieveTrigger(TriggerKey triggerKey) throws JobPersistenceException {
         return this.keyToTriggerMap.get(triggerKey);
     }
@@ -488,6 +494,18 @@ public class IndexJobStateStore<JobType extends com.floragunn.searchsupport.jobs
         }
 
         return internalJobDetail.triggers.stream().map(s -> s.delegate).collect(Collectors.toList());
+    }
+
+    @Override
+    public synchronized List<OperableTrigger> getTriggersByJobAndTriggerGroup(GroupMatcher<JobKey> jobMatcher, GroupMatcher<TriggerKey> triggerMatcher) throws JobPersistenceException {
+        Set<JobKey> jobKeys = getJobKeys(jobMatcher);
+        Predicate<OperableTrigger> triggerFilter = trigger ->
+                triggerMatcher.getCompareWithOperator().evaluate(trigger.getKey().getGroup(), triggerMatcher.getCompareToValue());
+
+        return jobKeys.stream()
+                .flatMap(jobKey -> getTriggersForJob(jobKey).stream())
+                .filter(triggerFilter)
+                .toList();
     }
 
     @Override
