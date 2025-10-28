@@ -6,6 +6,7 @@ import com.floragunn.searchguard.enterprise.auditlog.helper.MockRestRequest;
 import com.floragunn.searchguard.enterprise.auditlog.integration.TestAuditlogImpl;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.UserInformation;
+import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.action.bulk.BulkItemRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.index.IndexRequest;
@@ -22,6 +23,7 @@ import org.elasticsearch.threadpool.DefaultBuiltInExecutorBuilders;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.List;
@@ -33,6 +35,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class IgnoreRequestBodiesTest {
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
+
     ClusterService cs = mock(ClusterService.class);
     DiscoveryNode dn = mock(DiscoveryNode.class);
     ConfigurationRepository configurationRepository = mock(ConfigurationRepository.class);
@@ -62,10 +67,23 @@ public class IgnoreRequestBodiesTest {
             assertEquals(1, TestAuditlogImpl.messages.size());
             assertTrue(TestAuditlogImpl.messages.get(0).toString(), TestAuditlogImpl.messages.get(0).getAsMap().containsKey(REQUEST_BODY));
         }
-        Settings settings = settingsBuilder.putList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUEST_BODIES, List.of("BulkRequest", "indices:data/write/bulk")).build();
+        Settings settings = settingsBuilder.putList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUEST_BODIES, List.of("BulkRequest", "indices:data/write/bulk", "*/_bulk*")).build();
         try(AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(), null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
             al.logGrantedPrivileges("indices:data/write/bulk", bulkShardRequest, null);
+            assertEquals(1, TestAuditlogImpl.messages.size());
+            assertFalse(TestAuditlogImpl.messages.get(0).getAsMap().containsKey(REQUEST_BODY));
+
+            TestAuditlogImpl.clear();
+            UserInformation userInformation = UserInformation.forName("testuser.rest.login");
+            MockRestRequest request = new MockRestRequest("/_bulk", "{\"key\":\"value\"}");
+            al.logSucceededLogin(userInformation, false, userInformation, request);
+            assertEquals(1, TestAuditlogImpl.messages.size());
+            assertFalse(TestAuditlogImpl.messages.get(0).getAsMap().containsKey(REQUEST_BODY));
+
+            TestAuditlogImpl.clear();
+            request = new MockRestRequest("/my_index/_bulk", "{\"key\":\"value\"}");
+            al.logSucceededLogin(userInformation, false, userInformation, request);
             assertEquals(1, TestAuditlogImpl.messages.size());
             assertFalse(TestAuditlogImpl.messages.get(0).getAsMap().containsKey(REQUEST_BODY));
         }
