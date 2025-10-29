@@ -161,7 +161,7 @@ public class SearchGuardInterceptor {
         // ConfigConstants.SG_ORIGIN - SG adds the header in SearchGuardRequestHandler.messageReceivedDecorate
         // InternalAuthTokenProvider.AUDIENCE_HEADER - has assigned null value what causes problems during serialization
         List<String> requestHeadersToClear = ImmutableList
-                .of("_sg_remotecn", InternalAuthTokenProvider.AUDIENCE_HEADER, InternalAuthTokenProvider.TOKEN_HEADER, ConfigConstants.SG_REMOTE_ADDRESS_HEADER, ConfigConstants.SG_USER_HEADER, ConfigConstants.SG_ORIGIN_HEADER)
+                .of("_sg_remotecn", ConfigConstants.SG_REMOTE_ADDRESS_HEADER, ConfigConstants.SG_USER_HEADER, ConfigConstants.SG_ORIGIN_HEADER)
                 .with(CSS_RELATED_REQUEST_HEADERS_NAME);
         try (ThreadContext.StoredContext stashedContext = getThreadContext().newStoredContextPreservingResponseHeaders(transientHeadersToClear,
                 requestHeadersToClear)) {
