@@ -21,21 +21,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
-import co.elastic.clients.elasticsearch._types.Time;
-import co.elastic.clients.elasticsearch._types.query_dsl.MatchAllQuery;
-import co.elastic.clients.elasticsearch.async_search.DeleteAsyncSearchRequest;
-import co.elastic.clients.elasticsearch.async_search.GetAsyncSearchRequest;
-import co.elastic.clients.elasticsearch.async_search.GetAsyncSearchResponse;
-import co.elastic.clients.elasticsearch.async_search.SubmitRequest;
-import co.elastic.clients.elasticsearch.async_search.SubmitResponse;
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.searchguard.client.RestHighLevelClient;
+import com.floragunn.searchguard.test.GenericRestClient;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
@@ -55,7 +46,6 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
-import org.elasticsearch.common.xcontent.ChunkedToXContent;
 import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
 import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.plugins.ActionPlugin;
@@ -65,14 +55,12 @@ import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.rest.RestHandler.Route;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -81,7 +69,13 @@ import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.searchguard.test.helper.cluster.SimpleRestHandler;
 
+import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
+import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
+import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHandler;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 
 public class ResourceOwnerServiceTests {
 
@@ -103,91 +97,95 @@ public class ResourceOwnerServiceTests {
     @Test
     public void testAsyncSearch() throws Exception {
 
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SULU)) {
-            SubmitRequest request = new SubmitRequest.Builder().index( "test1", "test2")
-                    .query(new MatchAllQuery.Builder().build()._toQuery())
-                    .waitForCompletionTimeout(new Time.Builder().time("1ms").build())
-                    .build();
+        try (GenericRestClient client = cluster.getRestClient(SULU)) {
+            GenericRestClient.HttpResponse response = client.postJson("/test1,test2/_async_search?wait_for_completion_timeout=1ms", """
+                    {
+                      "query": {
+                        "match_all": {}
+                      }
+                    }
+                    """);
+            assertThat(response, isOk());
+            assertThat(response.getBody(), response.getBodyAsDocNode().hasNonNull("id"), equalTo(true));
+            String searchId = response.getBodyAsDocNode().getAsString("id");
 
-            SubmitResponse<Map> response = client.getJavaClient().asyncSearch().submit(request, Map.class);
+            response = client.get("/_async_search/" + searchId);
+            assertThat(response, isOk());
 
-            client.getJavaClient().asyncSearch().get(new GetAsyncSearchRequest.Builder().id(response.id()).build(), Map.class);
-
-            client.getJavaClient().asyncSearch().delete(new DeleteAsyncSearchRequest.Builder().id(response.id()).build());
+            response = client.delete("/_async_search/" + searchId);
+            assertThat(response, isOk());
 
             Thread.sleep(100);
 
-            try {
-                GetAsyncSearchResponse<Map> response2 = client.getJavaClient().asyncSearch().get(new GetAsyncSearchRequest.Builder().id(response.id()).build(), Map.class);
-                Assert.fail(response2.toString());
-            } catch (ElasticsearchException e) {
-                Assert.assertEquals(e.toString(), RestStatus.NOT_FOUND.getStatus(), e.status());
-            }
+            response = client.get("/_async_search/" + searchId);
+            assertThat(response, isNotFound());
         }
     }
 
     @Test
     public void testAsyncSearchUserMismatch() throws Exception {
 
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SULU);
-             RestHighLevelClient client2 = cluster.getRestHighLevelClient(EVIL_SULU)) {
-            SubmitRequest request = new SubmitRequest.Builder().index( "test1", "test2")
-                    .query(new MatchAllQuery.Builder().build()._toQuery())
-                    .waitForCompletionTimeout(new Time.Builder().time("1ms").build())
-                    .build();
+        try (GenericRestClient client = cluster.getRestClient(SULU); GenericRestClient client2 = cluster.getRestClient(EVIL_SULU);) {
+            GenericRestClient.HttpResponse response = client.postJson("/test1,test2/_async_search?wait_for_completion_timeout=1ms", """
+                    {
+                      "query": {
+                        "match_all": {}
+                      }
+                    }
+                    """);
+            assertThat(response, isOk());
+            assertThat(response.getBody(), response.getBodyAsDocNode().hasNonNull("id"), equalTo(true));
+            String searchId = response.getBodyAsDocNode().getAsString("id");
 
-            SubmitResponse<Map> response = client.getJavaClient().asyncSearch().submit(request, Map.class);
-
-            client2.getJavaClient().asyncSearch().get(new GetAsyncSearchRequest.Builder().id(response.id()).build(), Map.class);
-
-            Assert.fail();
-        } catch (ElasticsearchException e) {
-            Assert.assertTrue(e.toString(), e.toString().contains("is not owned by user evil_sulu"));
-            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN.getStatus(), e.status());
+            response = client2.get("/_async_search/" + searchId);
+            assertThat(response, isForbidden());
+            assertThat(response.getBody(), response.getBody(), containsString("is not owned by user evil_sulu"));
         }
     }
 
     @Test
     public void testAsyncSearchUserOverride() throws Exception {
 
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SULU);
-                RestHighLevelClient client2 = cluster.getRestHighLevelClient(ADMIN);) {
+        try (GenericRestClient client = cluster.getRestClient(SULU); GenericRestClient client2 = cluster.getRestClient(ADMIN);) {
+            GenericRestClient.HttpResponse response = client.postJson("/test1,test2/_async_search?wait_for_completion_timeout=1ms", """
+                    {
+                      "query": {
+                        "match_all": {}
+                      }
+                    }
+                    """);
+            assertThat(response, isOk());
+            assertThat(response.getBody(), response.getBodyAsDocNode().hasNonNull("id"), equalTo(true));
+            String searchId = response.getBodyAsDocNode().getAsString("id");
 
-            SubmitRequest request = new SubmitRequest.Builder().index( "test1", "test2")
-                    .query(new MatchAllQuery.Builder().build()._toQuery())
-                    .waitForCompletionTimeout(new Time.Builder().time("1ms").build())
-                    .build();
+            response = client2.get("/_async_search/" + searchId);
+            assertThat(response, isOk());
 
-            SubmitResponse<Map> response = client.getJavaClient().asyncSearch().submit(request, Map.class);
-
-            client2.getJavaClient().asyncSearch().get(new GetAsyncSearchRequest.Builder().id(response.id()).build(), Map.class);
-
-            client2.getJavaClient().asyncSearch().delete(new DeleteAsyncSearchRequest.Builder().id(response.id()).build());
+            response = client2.delete("/_async_search/" + searchId);
+            assertThat(response, isOk());
 
             //TODO this should be ok?
-
         }
     }
 
     @Test
     public void testAsyncSearchUserMismatchForDelete() throws Exception {
 
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(SULU);
-             RestHighLevelClient  client2 = cluster.getRestHighLevelClient(EVIL_SULU)) {
+        try (GenericRestClient client = cluster.getRestClient(SULU); GenericRestClient client2 = cluster.getRestClient(EVIL_SULU);) {
+            GenericRestClient.HttpResponse response = client.postJson("/test1,test2/_async_search?wait_for_completion_timeout=1ms", """
+                    {
+                      "query": {
+                        "match_all": {}
+                      }
+                    }
+                    """);
+            assertThat(response, isOk());
+            assertThat(response.getBody(), response.getBodyAsDocNode().hasNonNull("id"), equalTo(true));
+            String searchId = response.getBodyAsDocNode().getAsString("id");
 
-            SubmitRequest request = new SubmitRequest.Builder().index( "test1", "test2")
-                    .query(new MatchAllQuery.Builder().build()._toQuery())
-                    .waitForCompletionTimeout(new Time.Builder().time("1ms").build())
-                    .build();
-
-            SubmitResponse<Map> response = client.getJavaClient().asyncSearch().submit(request, Map.class);
-
-            client2.getJavaClient().asyncSearch().get(new GetAsyncSearchRequest.Builder().id(response.id()).build(), Map.class);
-
-            Assert.fail();
-        } catch (ElasticsearchException e) {
-            Assert.assertTrue(e.toString(), e.toString().contains("is not owned by user evil_sulu"));
-            Assert.assertEquals(e.toString(), RestStatus.FORBIDDEN.getStatus(), e.status());
+            response = client2.delete("/_async_search/" + searchId);
+            assertThat(response, isForbidden());
+            assertThat(response.getBody(), response.getBody(), containsString("is not owned by user evil_sulu"));
         }
     }
 

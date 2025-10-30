@@ -21,14 +21,12 @@ import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
-import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
-import static com.floragunn.searchsupport.junit.matcher.ExceptionsMatchers.messageContainsMatcher;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 
@@ -47,7 +45,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
-import com.floragunn.searchguard.client.RestHighLevelClient;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
@@ -56,9 +53,6 @@ import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.google.common.collect.ImmutableMap;
-
-import co.elastic.clients.elasticsearch._types.ElasticsearchException;
-import co.elastic.clients.elasticsearch.indices.ShrinkResponse;
 
 public class MiscAuthorizationIntTests {
 
@@ -273,27 +267,28 @@ public class MiscAuthorizationIntTests {
 
         Thread.sleep(300);
 
-        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
-            assertThatThrown(() ->
-                    client.getJavaClient().indices().shrink(r->r.index("whatever").target(targetIndex)),
-                instanceOf(ElasticsearchException.class), messageContainsMatcher("Insufficient permissions"));
+        try (GenericRestClient client = clusterFof.getRestClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
+            HttpResponse response = client.post("/whatever/_shrink/" + targetIndex);
+            assertThat(response, isForbidden());
+            assertThat(response.getBodyAsDocNode(), containsValue("$.error.reason", "Insufficient permissions"));
         }
 
-        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
-            assertThatThrown(() ->
-                    client.getJavaClient().indices().shrink(r->r.index(sourceIndex).target(targetIndex)),
-                instanceOf(ElasticsearchException.class), messageContainsMatcher("Insufficient permissions"));
+        try (GenericRestClient client = clusterFof.getRestClient(RESIZE_USER_WITHOUT_CREATE_INDEX_PRIV)) {
+            HttpResponse response = client.post("/" + sourceIndex + "/_shrink/" + targetIndex);
+            assertThat(response, isForbidden());
+            assertThat(response.getBodyAsDocNode(), containsValue("$.error.reason", "Insufficient permissions"));
         }
 
-        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {
-            assertThatThrown(() ->
-                    client.getJavaClient().indices().shrink(r->r.index("whatever").target(targetIndex)),
-                instanceOf(ElasticsearchException.class), messageContainsMatcher("Insufficient permissions"));
+        try (GenericRestClient client = clusterFof.getRestClient(RESIZE_USER)) {
+            HttpResponse response = client.post("/whatever/_shrink/" + targetIndex);
+            assertThat(response, isForbidden());
+            assertThat(response.getBodyAsDocNode(), containsValue("$.error.reason", "Insufficient permissions"));
         }
 
-        try (RestHighLevelClient client = clusterFof.getRestHighLevelClient(RESIZE_USER)) {
-            ShrinkResponse shrinkResponse = client.getJavaClient().indices().shrink(r->r.index(sourceIndex).target(targetIndex));
-            assertThat(shrinkResponse.toString(), shrinkResponse.acknowledged(), is(true));
+        try (GenericRestClient client = clusterFof.getRestClient(RESIZE_USER)) {
+            HttpResponse response = client.post("/" + sourceIndex + "/_shrink/" + targetIndex);
+            assertThat(response, isOk());
+            assertThat(response.getBodyAsDocNode(), containsValue("$.acknowledged", true));
         }
 
 

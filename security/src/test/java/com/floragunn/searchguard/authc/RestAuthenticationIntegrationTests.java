@@ -20,6 +20,7 @@ package com.floragunn.searchguard.authc;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
+import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
@@ -31,7 +32,6 @@ import java.util.Collection;
 import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
-import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
@@ -42,7 +42,6 @@ import org.junit.Test;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
-import com.floragunn.searchguard.client.RestHighLevelClient;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestSgConfig;
@@ -50,11 +49,6 @@ import com.floragunn.searchguard.test.TestSgConfig.Authc;
 import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.AdditionalUserInformation;
 import com.floragunn.searchguard.test.TestSgConfig.Authc.Domain.UserMapping;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
-
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch.core.SearchResponse;
-import co.elastic.clients.json.jackson.JacksonJsonpMapper;
-import co.elastic.clients.transport.rest_client.RestClientTransport;
 
 public class RestAuthenticationIntegrationTests {
 
@@ -145,19 +139,22 @@ public class RestAuthenticationIntegrationTests {
     @Test
     public void userAttribute_indexPattern_integration() throws Exception {
 
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(ALL_ACCESS)) {
-            SearchResponse searchResponse = client.search("attr_test_*", 0, 100);
-            Assert.assertEquals(5L, searchResponse.hits().total().value());
+        try (GenericRestClient client = cluster.getRestClient(ALL_ACCESS)) {
+            HttpResponse response = client.get("/attr_test_*/_search?from=0&size=100");
+            assertThat(response, isOk());
+            assertThat(response.getBodyAsDocNode(), containsValue("$.hits.total.value", 5L));
         }
 
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(USER_WITH_ATTRIBUTES)) {
-            SearchResponse searchResponse = client.search("attr_test_*", 0, 100);
-            Assert.assertEquals(1L, searchResponse.hits().total().value());
+        try (GenericRestClient client = cluster.getRestClient(USER_WITH_ATTRIBUTES)) {
+            HttpResponse response = client.get("/attr_test_*/_search?from=0&size=100");
+            assertThat(response, isOk());
+            assertThat(response.getBodyAsDocNode(), containsValue("$.hits.total.value", 1L));
         }
 
-        try (RestHighLevelClient client = cluster.getRestHighLevelClient(USER_WITH_ATTRIBUTES2)) {
-            SearchResponse searchResponse = client.search("attr_test_*", 0, 100);
-            Assert.assertEquals(3L, searchResponse.hits().total().value());
+        try (GenericRestClient client = cluster.getRestClient(USER_WITH_ATTRIBUTES2)) {
+            HttpResponse response = client.get("/attr_test_*/_search?from=0&size=100");
+            assertThat(response, isOk());
+            assertThat(response.getBodyAsDocNode(), containsValue("$.hits.total.value", 3L));
         }
     }
 
@@ -331,20 +328,6 @@ public class RestAuthenticationIntegrationTests {
             Assert.assertEquals(response.getHeaders().toString(), "application/json", response.getHeaderValue("Content-Type"));
             Assert.assertEquals(response.getBody(), "Unauthorized", response.getBodyAsDocNode().get("error", "reason"));
             Assert.assertEquals(response.getBody(), 401, response.getBodyAsDocNode().get("status"));
-        }
-    }
-
-    @Test
-    public void jsonResponseEsClientParsing() throws Exception {
-        try (RestClient lowLevelRestClient = cluster.getLowLevelRestClient()) {
-            ElasticsearchClient client = new ElasticsearchClient(new RestClientTransport(lowLevelRestClient, new JacksonJsonpMapper()));
-
-            try {
-                client.cat().indices();
-                Assert.fail();
-            } catch (co.elastic.clients.elasticsearch._types.ElasticsearchException e) {
-                Assert.assertEquals(e.toString(), 401, e.status());
-            }
         }
     }
 

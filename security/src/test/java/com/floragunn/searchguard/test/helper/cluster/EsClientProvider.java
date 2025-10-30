@@ -29,20 +29,9 @@ import java.util.function.Consumer;
 import javax.net.ssl.SSLContext;
 
 import org.apache.http.Header;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpRequestInterceptor;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.message.BasicHeader;
-import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
 
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.searchguard.client.RestHighLevelClient;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificate;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
@@ -125,60 +114,6 @@ public interface EsClientProvider {
     default GenericRestClient getRestClientWithoutTls(List<Header> headers) {
         return new GenericRestClient(getHttpAddress(), headers, null, null,
                 getRequestInfoConsumer());
-    }
-
-    @Deprecated
-    default RestHighLevelClient getRestHighLevelClient(UserCredentialsHolder user) {
-        return getRestHighLevelClient(user.getName(), user.getPassword());
-    }
-
-    @Deprecated
-    default RestHighLevelClient getRestHighLevelClient(String user, String password) {
-        return getRestHighLevelClient(user, password, null);
-    }
-
-    @Deprecated
-    default RestHighLevelClient getRestHighLevelClient(String user, String password, String tenant) {
-        InetSocketAddress httpAddress = getHttpAddress();
-        CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-        credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(user, password));
-
-        RestClientBuilder.HttpClientConfigCallback configCallback = httpClientBuilder -> {
-            httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider).setSSLStrategy(
-                    new SSLIOSessionStrategy(getAnyClientSslContextProvider().getSslContext(false), null, null, NoopHostnameVerifier.INSTANCE));
-
-            if (tenant != null) {
-                httpClientBuilder.addInterceptorLast((HttpRequestInterceptor) (request, context) -> request.setHeader("sgtenant", tenant));
-            }
-
-            return httpClientBuilder;
-        };
-
-        RestClientBuilder builder = RestClient.builder(new HttpHost(httpAddress.getHostString(), httpAddress.getPort(), "https"))
-                .setHttpClientConfigCallback(configCallback);
-
-        return new RestHighLevelClient(builder);
-    }
-
-    @Deprecated
-    default RestHighLevelClient getRestHighLevelClient(Header... headers) {
-        InetSocketAddress httpAddress = getHttpAddress();
-        RestClientBuilder builder = RestClient.builder(new HttpHost(httpAddress.getHostString(), httpAddress.getPort(), "https"))
-                .setDefaultHeaders(headers).setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(
-                        new SSLIOSessionStrategy(getAnyClientSslContextProvider().getSslContext(false), null, null, NoopHostnameVerifier.INSTANCE)));
-
-        return new RestHighLevelClient(builder);
-    }
-
-    default RestClientBuilder getLowLevelRestClientBuilder(Header... headers) {
-        InetSocketAddress httpAddress = getHttpAddress();
-        return RestClient.builder(new HttpHost(httpAddress.getHostString(), httpAddress.getPort(), "https")).setDefaultHeaders(headers)
-                .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder.setSSLStrategy(
-                        new SSLIOSessionStrategy(getAnyClientSslContextProvider().getSslContext(false), null, null, NoopHostnameVerifier.INSTANCE)));
-    }
-
-    default RestClient getLowLevelRestClient(Header... headers) {
-        return getLowLevelRestClientBuilder(headers).build();
     }
 
     default BasicHeader getBasicAuthHeader(String user, String password) {
