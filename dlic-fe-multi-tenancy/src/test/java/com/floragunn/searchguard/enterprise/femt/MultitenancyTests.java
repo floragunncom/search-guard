@@ -14,18 +14,15 @@
 
 package com.floragunn.searchguard.enterprise.femt;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import co.elastic.clients.elasticsearch.core.MgetRequest;
-import co.elastic.clients.elasticsearch.core.MgetResponse;
-import co.elastic.clients.elasticsearch.core.mget.MultiGetResponseItem;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.authz.config.Tenant;
-import com.floragunn.searchguard.client.RestHighLevelClient;
 import com.google.common.collect.ImmutableList;
 import org.apache.http.HttpStatus;
 import org.apache.http.message.BasicHeader;
@@ -52,6 +49,7 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchsupport.Constants.DEFAULT_ACK_TIMEOUT;
 import static com.floragunn.searchsupport.Constants.DEFAULT_MASTER_TIMEOUT;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
@@ -335,32 +333,31 @@ public class MultitenancyTests {
         String indexName = ".kibana";
         String testDoc = "{\"buildNum\": 15460, \"defaultIndex\": \"humanresources\", \"tenant\": \"human_resources\", \"sg_tenant\": \"human_resources\"}";
 
-        try (RestHighLevelClient restClient = cluster.getRestHighLevelClient("hr_employee", "hr_employee", "human_resources")) {
+        try (GenericRestClient restClient = cluster.getRestClient("hr_employee", "hr_employee", new BasicHeader("sgtenant", "human_resources"))) {
             Client client = cluster.getInternalNodeClient();
             Map<String, Object> indexSettings = new HashMap<>();
             indexSettings.put("number_of_shards", 3);
             indexSettings.put("number_of_replicas", 0);
             client.admin().indices().create(new CreateIndexRequest(indexName + "_2").alias(new Alias(indexName)).settings(indexSettings)).actionGet();
 
-            MgetRequest.Builder multiGetRequest = new MgetRequest.Builder();
-            multiGetRequest.index(".kibana");
-
+            List<String> mgetIds = new ArrayList<>(100);
             for (int i = 0; i < 100; i++) {
                 String id = "d" + i;
-                String idInTenantScope = id + "__sg_ten__human_resources";
+                String idInTenantScope = id + "__sg_ten__" + "human_resources".hashCode() + "_humanresources";
                 client.index(new IndexRequest(indexName).id(idInTenantScope).setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(testDoc, XContentType.JSON))
                         .actionGet();
-                multiGetRequest.ids(id);
+                mgetIds.add(id);
             }
 
-            MgetResponse<Map> response = restClient.getJavaClient().mget(multiGetRequest.build(), Map.class);
-            Assert.assertFalse(response.docs().isEmpty());
-
-            for (MultiGetResponseItem<Map> item : response.docs()) {
-                if (item.result() == null || item.isFailure()) {
-                    Assert.fail(item.failure().error().reason() + "\n" + item.failure().error().stackTrace());
-                }
+            GenericRestClient.HttpResponse response = restClient.postJson(".kibana/_mget", DocNode.of("ids", mgetIds));
+            assertThat(response, isOk());
+            List<DocNode> docs = response.getBodyAsDocNode().getAsListOfNodes("docs");
+            Assert.assertEquals(100, docs.size());
+            for(DocNode doc : docs) {
+                assertThat(doc, containsValue("found", true));
+                assertThat(doc, not(containsFieldPointedByJsonPath("$", "error")));
             }
+
         } finally {
             try {
                 Client tc = cluster.getInternalNodeClient();
