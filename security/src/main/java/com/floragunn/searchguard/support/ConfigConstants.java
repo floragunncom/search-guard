@@ -27,8 +27,6 @@ public class ConfigConstants {
     public static final String SG_ORIGIN = SG_CONFIG_PREFIX+"origin";
     public static final String SG_ORIGIN_HEADER = SG_CONFIG_PREFIX+"origin_header";
 
-    public static final String SG_DLS_QUERY_HEADER = SG_CONFIG_PREFIX+"dls_query";
-
     public static final String SG_DLS_FILTER_LEVEL_QUERY_HEADER = SG_CONFIG_PREFIX+"dls_filter_level_query";
     public static final String SG_DLS_FILTER_LEVEL_QUERY_TRANSIENT = SG_CONFIG_PREFIX+"dls_filter_level_query_t";
 
@@ -43,8 +41,6 @@ public class ConfigConstants {
     public static final String SG_DOC_WHITELST_TRANSIENT = SG_CONFIG_PREFIX+"doc_whitelist_t";
 
     public static final String SG_FILTER_LEVEL_DLS_DONE = SG_CONFIG_PREFIX+"filter_level_dls_done";
-
-    public static final String SG_DLS_QUERY_CCS = SG_CONFIG_PREFIX+"dls_query_ccs";
 
     public static final String SG_FLS_FIELDS_CCS = SG_CONFIG_PREFIX+"fls_fields_ccs";
 
