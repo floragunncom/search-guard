@@ -273,25 +273,6 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
-    public void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task) {
-        final String action = null;
-
-        if (!checkTransportFilter(Category.FAILED_LOGIN, action, effectiveUser, request)) {
-            return;
-        }
-        boolean addRequestBody = shouldLogTransportRequestBody(action, request);
-
-        final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.FAILED_LOGIN, getOrigin(), action, null, effectiveUser, sgadmin,
-                initiatingUser, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterState, settings, addRequestBody,
-                resolveIndices, resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
-
-        for (AuditMessage msg : msgs) {
-            save(msg);
-        }
-    }
-
-    @Override
     public void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
 
         if (!checkRestFilter(Category.FAILED_LOGIN, effectiveUser, request)) {
@@ -313,26 +294,6 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addIsAdminDn(sgadmin);
 
         save(msg);
-    }
-
-    @Override
-    public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task) {
-
-        final String action = null;
-
-        if (!checkTransportFilter(Category.BLOCKED_USER, action, effectiveUser, request)) {
-            return;
-        }
-        boolean addRequestBody = shouldLogTransportRequestBody(action, request);
-
-        final TransportAddress remoteAddress = getRemoteAddress();
-        final List<AuditMessage> msgs = RequestResolver.resolve(Category.BLOCKED_USER, getOrigin(), action, null, effectiveUser, sgadmin,
-                initiatingUser, remoteAddress, request, getThreadContextHeaders(), task, resolver, clusterState, settings, addRequestBody,
-                resolveIndices, resolveBulkRequests, searchguardIndexPattern, excludeSensitiveHeaders, null);
-
-        for (AuditMessage msg : msgs) {
-            save(msg);
-        }
     }
 
     @Override

@@ -184,26 +184,6 @@ public class AuditlogTest {
         }
     }
 
-
-    @Test
-    public void testDisablingAuditLogFields_sLogFailedLogin() throws IOException {
-        Settings settings = Settings.builder()
-            .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
-            .putList(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_FIELDS, DISABLED_FIELDS)
-            .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "NONE")
-            .build();
-        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
-            TestAuditlogImpl.clear();
-            al.logFailedLogin(
-                UserInformation.forName("testuser.transport.failedlogin"),
-                false,
-                UserInformation.forName("testuser.transport.failedlogin"),
-                new StandardRequests.EmptyRequest(),
-                null);
-            assertAuditLogDoesNotContainDisabledFields();
-        }
-    }
-
     @Test
     public void testDisablingAuditLogFields_sLogFailedLoginWithoutTask() throws IOException {
         Settings settings = Settings.builder()
