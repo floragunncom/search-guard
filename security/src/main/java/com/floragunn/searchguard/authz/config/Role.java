@@ -93,7 +93,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
         if (context != null && context.getActions() != null) {
             Actions actions = context.getActions();
 
-            warnWhenIndexPermsAreAssignedToToClusterPerms(clusterPermissions, actions);
+            warnWhenIndexPermsAreAssignedToClusterPerms(clusterPermissions, actions);
             warnWhenClusterPermsAreAssignedToIndexLikePerms(indexPermissions, actions, "index");
             warnWhenClusterPermsAreAssignedToIndexLikePerms(aliasPermissions, actions, "alias");
             warnWhenClusterPermsAreAssignedToIndexLikePerms(dataStreamPermissions, actions, "data stream");
@@ -116,7 +116,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
         }
     }
 
-    private static void warnWhenIndexPermsAreAssignedToToClusterPerms(ImmutableList<String> clusterPermissions, Actions actions) {
+    private static void warnWhenIndexPermsAreAssignedToClusterPerms(ImmutableList<String> clusterPermissions, Actions actions) {
         List<String> indexPermissionsUsedAsClusterPermissions = findIndexPermissions(clusterPermissions, actions);
 
         if (! indexPermissionsUsedAsClusterPermissions.isEmpty()) {
