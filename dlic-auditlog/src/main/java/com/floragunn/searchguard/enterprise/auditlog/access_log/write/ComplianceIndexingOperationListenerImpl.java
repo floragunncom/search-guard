@@ -29,6 +29,7 @@ import org.elasticsearch.index.shard.ShardId;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.enterprise.auditlog.AuditLogConfig;
+import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 
 public final class ComplianceIndexingOperationListenerImpl implements IndexingOperationListener {
 
@@ -88,7 +89,7 @@ public final class ComplianceIndexingOperationListenerImpl implements IndexingOp
             if (shard.isReadAllowed()) {
                 try {
                     final GetResult getResult = shard.getService().getForUpdate(index.id(),
-                            index.getIfSeqNo(), index.getIfPrimaryTerm(), null);
+                            index.getIfSeqNo(), index.getIfPrimaryTerm(), FetchSourceContext.FETCH_SOURCE);
     
                     if (getResult.isExists()) {
                         threadContext.set(new Context(getResult));

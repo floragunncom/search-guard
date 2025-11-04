@@ -146,8 +146,12 @@ public class SearchGuardInterceptor {
                     )));
             
             RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
-                        
-            if (remoteClusterService.isCrossClusterSearchEnabled() 
+
+//            boolean crossClusterSearchEnabled = remoteClusterService.isCrossClusterSearchEnabled();
+            // TODO the code which uses crossClusterSearchEnabled should be removed
+            boolean crossClusterSearchEnabled = false;
+
+            if (crossClusterSearchEnabled
                     && clusterInfoHolder.isInitialized()
                     && (action.equals(TransportClusterSearchShardsAction.TYPE.name())
                             || action.equals(TransportSearchAction.NAME)
@@ -165,7 +169,7 @@ public class SearchGuardInterceptor {
                 headerMap.remove(ConfigConstants.SG_DOC_WHITELST_HEADER);
             }
             
-            if (remoteClusterService.isCrossClusterSearchEnabled() 
+            if (crossClusterSearchEnabled
                   && clusterInfoHolder.isInitialized()
                   && !action.startsWith("internal:") 
                   && !action.equals(TransportClusterSearchShardsAction.TYPE.name())
