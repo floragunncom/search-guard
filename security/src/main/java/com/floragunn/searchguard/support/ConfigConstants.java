@@ -35,16 +35,12 @@ public class ConfigConstants {
 
     public static final String SG_FLS_FIELDS_HEADER = SG_CONFIG_PREFIX+"fls_fields";
 
-    public static final String SG_MASKED_FIELD_HEADER = SG_CONFIG_PREFIX+"masked_fields";
-
     public static final String SG_DOC_WHITELST_HEADER = SG_CONFIG_PREFIX+"doc_whitelist";
     public static final String SG_DOC_WHITELST_TRANSIENT = SG_CONFIG_PREFIX+"doc_whitelist_t";
 
     public static final String SG_FILTER_LEVEL_DLS_DONE = SG_CONFIG_PREFIX+"filter_level_dls_done";
 
     public static final String SG_FLS_FIELDS_CCS = SG_CONFIG_PREFIX+"fls_fields_ccs";
-
-    public static final String SG_MASKED_FIELD_CCS = SG_CONFIG_PREFIX+"masked_fields_ccs";
 
     public static final String SG_CONF_REQUEST_HEADER = SG_CONFIG_PREFIX+"conf_request";
 
