@@ -92,41 +92,36 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
         if (context != null && context.getActions() != null) {
             Actions actions = context.getActions();
-            List<String> indexPermissionsUsedAsClusterPermissions = findIndexPermissions(clusterPermissions, actions);
-            List<String> clusterPermissionUsedAsIndexPermissions = indexPermissions.stream()
-                    .flatMap(indexPermission  -> findClusterPermissions(indexPermission.getAllowedActions(), actions)
-                            .stream()
-            ).toList();
-            List<String> clusterPermissionUsedAsAliasPermissions = aliasPermissions.stream()
-                    .flatMap(aliasPermission  -> findClusterPermissions(aliasPermission.getAllowedActions(), actions)
-                            .stream()
-            ).toList();
-            List<String> clusterPermissionUsedAsDataStreamPermissions = dataStreamPermissions.stream()
-                    .flatMap(dataStreamPermission  -> findClusterPermissions(dataStreamPermission.getAllowedActions(), actions)
-                            .stream()
-            ).toList();
 
-            if (! indexPermissionsUsedAsClusterPermissions.isEmpty()) {
-                log.warn("Following index permissions are assigned as cluster permissions: {}", indexPermissionsUsedAsClusterPermissions);
-            }
-
-            if (! clusterPermissionUsedAsIndexPermissions.isEmpty()) {
-                log.warn("Following cluster permissions are assigned as index permissions: {}", clusterPermissionUsedAsIndexPermissions);
-            }
-
-            if (! clusterPermissionUsedAsAliasPermissions.isEmpty()) {
-                log.warn("Following cluster permissions are assigned as alias permissions: {}", clusterPermissionUsedAsAliasPermissions);
-            }
-
-            if (! clusterPermissionUsedAsDataStreamPermissions.isEmpty()) {
-                log.warn("Following cluster permissions are assigned as data stream permissions: {}", clusterPermissionUsedAsDataStreamPermissions);
-            }
+            warnWhenIndexPermsAreAssignedToToClusterPerms(clusterPermissions, actions);
+            warnWhenClusterPermsAreAssignedToIndexLikePerms(indexPermissions, actions, "index");
+            warnWhenClusterPermsAreAssignedToIndexLikePerms(aliasPermissions, actions, "alias");
+            warnWhenClusterPermsAreAssignedToIndexLikePerms(dataStreamPermissions, actions, "data stream");
         }
 
         vNode.checkForUnusedAttributes();
 
         return new ValidationResult<Role>(new Role(docNode, reserved, hidden, isStatic, description, clusterPermissions, indexPermissions,
                 aliasPermissions, dataStreamPermissions, tenantPermissions, excludeClusterPermissions), validationErrors);
+    }
+
+    private static <T extends Index> void warnWhenClusterPermsAreAssignedToIndexLikePerms(ImmutableList<T> permissions, Actions actions, String expectedPermissionType) {
+        List<String> clusterPermissionUsedAsIndexLikePermissions = permissions.stream()
+                .flatMap(indexLikePermission  -> findClusterPermissions(indexLikePermission.getAllowedActions(), actions)
+                        .stream()
+                ).toList();
+
+        if (! clusterPermissionUsedAsIndexLikePermissions.isEmpty()) {
+            log.warn("Following cluster permissions are assigned as {} permissions: {}", expectedPermissionType, clusterPermissionUsedAsIndexLikePermissions);
+        }
+    }
+
+    private static void warnWhenIndexPermsAreAssignedToToClusterPerms(ImmutableList<String> clusterPermissions, Actions actions) {
+        List<String> indexPermissionsUsedAsClusterPermissions = findIndexPermissions(clusterPermissions, actions);
+
+        if (! indexPermissionsUsedAsClusterPermissions.isEmpty()) {
+            log.warn("Following index permissions are assigned as cluster permissions: {}", indexPermissionsUsedAsClusterPermissions);
+        }
     }
 
     private static List<String> findIndexPermissions(ImmutableList<String> permissions, Actions actions) {
