@@ -42,7 +42,7 @@ import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.telemetry.tracing.Tracer;
+import org.elasticsearch.telemetry.TelemetryProvider;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.netty4.SharedGroupFactory;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
@@ -60,8 +60,8 @@ public class SearchGuardHttpServerTransport extends SearchGuardSSLNettyHttpServe
     public SearchGuardHttpServerTransport(final Settings settings, final NetworkService networkService,
                                           final ThreadPool threadPool, final SearchGuardKeyStore sgks, final SslExceptionHandler sslExceptionHandler,
                                           final NamedXContentRegistry namedXContentRegistry, final Dispatcher dispatcher, ClusterSettings clusterSettings,
-                                          SharedGroupFactory sharedGroupFactory, Tracer tracer, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext) {
-        super(settings, networkService, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler, tracer, perRequestThreadContext);
+                                          SharedGroupFactory sharedGroupFactory, TelemetryProvider telemetryProvider, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext) {
+        super(settings, networkService, threadPool, sgks, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, sslExceptionHandler, telemetryProvider, perRequestThreadContext);
     }
 
     @Override

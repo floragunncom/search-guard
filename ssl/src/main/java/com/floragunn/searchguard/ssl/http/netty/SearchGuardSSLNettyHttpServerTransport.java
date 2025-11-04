@@ -31,7 +31,7 @@ import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.netty4.Netty4HttpChannel;
 import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
 import org.elasticsearch.rest.RestRequest;
-import org.elasticsearch.telemetry.tracing.Tracer;
+import org.elasticsearch.telemetry.TelemetryProvider;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.netty4.SharedGroupFactory;
 import org.elasticsearch.transport.netty4.TLSConfig;
@@ -57,8 +57,8 @@ public class SearchGuardSSLNettyHttpServerTransport extends Netty4HttpServerTran
     public SearchGuardSSLNettyHttpServerTransport(final Settings settings, final NetworkService networkService,
                                                   final ThreadPool threadPool, final SearchGuardKeyStore sgks, final NamedXContentRegistry namedXContentRegistry,
                                                   final Dispatcher dispatcher, ClusterSettings clusterSettings, SharedGroupFactory sharedGroupFactory,
-                                                  final SslExceptionHandler errorHandler, Tracer tracer, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext) {
-        super(settings, networkService, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, tracer, TLSConfig.noTLS(), null, null);
+                                                  final SslExceptionHandler errorHandler, TelemetryProvider telemetryProvider, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext) {
+        super(settings, networkService, threadPool, namedXContentRegistry, dispatcher, clusterSettings, sharedGroupFactory, telemetryProvider, TLSConfig.noTLS(), null, null);
         this.sgks = sgks;
         this.errorHandler = errorHandler;
         this.perRequestThreadContext = perRequestThreadContext;

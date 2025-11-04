@@ -61,7 +61,7 @@ import org.elasticsearch.plugins.NetworkPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
-import org.elasticsearch.telemetry.tracing.Tracer;
+import org.elasticsearch.telemetry.TelemetryProvider;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportInterceptor;
@@ -201,7 +201,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     @Override
     public Map<String, Supplier<HttpServerTransport>> getHttpTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays,
             PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedXContentRegistry xContentRegistry,
-            NetworkService networkService, Dispatcher dispatcher, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext, ClusterSettings clusterSettings, Tracer tracer) {
+            NetworkService networkService, Dispatcher dispatcher, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext, ClusterSettings clusterSettings, TelemetryProvider telemetryProvider) {
 
         final Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
         if (httpSSLEnabled) {
@@ -209,7 +209,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
             final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
                     configPath, NOOP_SSL_EXCEPTION_HANDLER);
             final SearchGuardSSLNettyHttpServerTransport sgsnht = new SearchGuardSSLNettyHttpServerTransport(settings, networkService,
-                    threadPool, sgks, xContentRegistry, validatingDispatcher, clusterSettings, sharedGroupFactory, NOOP_SSL_EXCEPTION_HANDLER, tracer, perRequestThreadContext);
+                    threadPool, sgks, xContentRegistry, validatingDispatcher, clusterSettings, sharedGroupFactory, NOOP_SSL_EXCEPTION_HANDLER, telemetryProvider, perRequestThreadContext);
 
             httpTransports.put("com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport", () -> sgsnht);
 
