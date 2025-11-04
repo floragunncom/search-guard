@@ -96,7 +96,7 @@ import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.internal.ReaderContext;
 import org.elasticsearch.search.internal.ScrollContext;
-import org.elasticsearch.telemetry.tracing.Tracer;
+import org.elasticsearch.telemetry.TelemetryProvider;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.Transport.Connection;
@@ -682,12 +682,12 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     @Override
     public Map<String, Supplier<HttpServerTransport>> getHttpTransports(Settings settings, ThreadPool threadPool, BigArrays bigArrays,
                                                                         PageCacheRecycler pageCacheRecycler, CircuitBreakerService circuitBreakerService, NamedXContentRegistry xContentRegistry,
-                                                                        NetworkService networkService, Dispatcher dispatcher, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext, ClusterSettings clusterSettings, Tracer tracer) {
+                                                                        NetworkService networkService, Dispatcher dispatcher, BiConsumer<HttpPreRequest, ThreadContext> perRequestThreadContext, ClusterSettings clusterSettings, TelemetryProvider telemetryProvider) {
 
         if (sslOnly) {
             return super.getHttpTransports(settings, threadPool, bigArrays, pageCacheRecycler, circuitBreakerService, xContentRegistry,
 
-                    networkService, dispatcher, perRequestThreadContext, clusterSettings, tracer);
+                    networkService, dispatcher, perRequestThreadContext, clusterSettings, telemetryProvider);
         }
 
         Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
@@ -699,13 +699,13 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                         configPath, evaluateSslExceptionHandler());
                 //TODO close sghst
                 final SearchGuardHttpServerTransport sghst = new SearchGuardHttpServerTransport(settings, networkService, threadPool, sgks,
-                        evaluateSslExceptionHandler(), xContentRegistry, searchGuardRestFilter.wrap(validatingDispatcher), clusterSettings, sharedGroupFactory, tracer, perRequestThreadContext);
+                        evaluateSslExceptionHandler(), xContentRegistry, searchGuardRestFilter.wrap(validatingDispatcher), clusterSettings, sharedGroupFactory, telemetryProvider, perRequestThreadContext);
 
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport", () -> sghst);
             } else {
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport",
                         () -> new SearchGuardNonSslHttpServerTransport(settings, networkService, threadPool, xContentRegistry, searchGuardRestFilter.wrap(dispatcher),
-                                perRequestThreadContext, clusterSettings, sharedGroupFactory, tracer));
+                                perRequestThreadContext, clusterSettings, sharedGroupFactory, telemetryProvider));
             }
         }
         return httpTransports;
