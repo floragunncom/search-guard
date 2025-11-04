@@ -20,6 +20,10 @@ package com.floragunn.searchguard.authz.config;
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.test.helper.log.LogsRule;
 import com.floragunn.searchsupport.util.EsLogging;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.TermQueryBuilder;
+import org.elasticsearch.xcontent.NamedXContentRegistry;
+import org.elasticsearch.xcontent.ParseField;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -30,6 +34,8 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+
+import java.util.List;
 
 public class RoleTest {
 
@@ -195,5 +201,104 @@ public class RoleTest {
         logsRule.assertThatNotContain("Following cluster permissions are assigned as index permissions:");
         logsRule.assertThatNotContain("Following cluster permissions are assigned as alias permissions:");
         logsRule.assertThatNotContain("Following cluster permissions are assigned as data stream permissions:");
+    }
+
+    @Test
+    public void shouldLogValidationWarnings_dlsAssignedToWildcardPattern() throws Exception {
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    index_permissions:
+                        - index_patterns: ["*", "index1"]
+                          allowed_actions:
+                            - "*"
+                          dls: "{\\"term\\" : {\\"_type\\" : \\"index\\"}}"
+                        - index_patterns: ["*"]
+                          allowed_actions:
+                            - "*"
+                          dls: "{\\"term\\" : {\\"_type\\" : \\"index2\\"}}"
+                    alias_permissions:
+                        - alias_patterns: ["*"]
+                          allowed_actions:
+                            - "*"
+                          dls: "{\\"term\\" : {\\"_type\\" : \\"alias\\"}}"
+                    data_stream_permissions:
+                        - data_stream_patterns: ["*", "ds1"]
+                          allowed_actions:
+                            - "*"
+                          dls: "{\\"term\\" : {\\"_type\\" : \\"ds\\"}}"
+                """
+        ), CType.ROLES, new ConfigurationRepository.Context(null, null, null, xContentRegistry(), null, Actions.forTests())).get();
+
+        logsRule.assertThatContainExactly(String.format("Role assigns a DLS rule '%s' to wildcard (*) index_patterns", "{\"term\" : {\"_type\" : \"index\"}}"));
+        logsRule.assertThatContainExactly(String.format("Role assigns a DLS rule '%s' to wildcard (*) index_patterns", "{\"term\" : {\"_type\" : \"index2\"}}"));
+        logsRule.assertThatContainExactly(String.format("Role assigns a DLS rule '%s' to wildcard (*) alias_patterns", "{\"term\" : {\"_type\" : \"alias\"}}"));
+        logsRule.assertThatContainExactly(String.format("Role assigns a DLS rule '%s' to wildcard (*) data_stream_patterns", "{\"term\" : {\"_type\" : \"ds\"}}"));
+    }
+
+    @Test
+    public void shouldLogValidationWarnings_flsAssignedToWildcardPattern() throws Exception {
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    index_permissions:
+                        - index_patterns: ["*", "index1"]
+                          allowed_actions:
+                            - "*"
+                          fls: ["alias", "ds"]
+                    alias_permissions:
+                        - alias_patterns: ["*"]
+                          allowed_actions:
+                            - "*"
+                          fls: ["index", "ds"]
+                        - alias_patterns: ["*"]
+                          allowed_actions:
+                            - "*"
+                          fls: ["index", "ds2"]
+                    data_stream_permissions:
+                        - data_stream_patterns: ["*", "ds1"]
+                          allowed_actions:
+                            - "*"
+                          fls: ["index", "alias"]
+                """
+        ), CType.ROLES, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
+
+        logsRule.assertThatContainExactly(String.format("Role assigns a FLS rule '[%s]' to wildcard (*) index_patterns", "alias, ds"));
+        logsRule.assertThatContainExactly(String.format("Role assigns a FLS rule '[%s]' to wildcard (*) alias_patterns", "index, ds"));
+        logsRule.assertThatContainExactly(String.format("Role assigns a FLS rule '[%s]' to wildcard (*) alias_patterns", "index, ds2"));
+        logsRule.assertThatContainExactly(String.format("Role assigns a FLS rule '[%s]' to wildcard (*) data_stream_patterns", "index, alias"));
+    }
+
+    @Test
+    public void shouldNotLogValidationWarnings_dlsAndFlsIsNotAssignedToWildcardPattern() throws Exception {
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    index_permissions:
+                        - index_patterns: ["index1"]
+                          allowed_actions:
+                            - "*"
+                          fls: ["alias", "ds"]
+                          dls: "{\\"term\\" : {\\"_type\\" : \\"index\\"}}"
+                    alias_permissions:
+                        - alias_patterns: ["alias*"]
+                          allowed_actions:
+                            - "*"
+                          fls: ["index", "ds"]
+                          dls: "{\\"term\\" : {\\"_type\\" : \\"alias\\"}}"
+                    data_stream_permissions:
+                        - data_stream_patterns: ["*ds"]
+                          allowed_actions:
+                            - "*"
+                          fls: ["index", "alias"]
+                          dls: "{\\"term\\" : {\\"_type\\" : \\"ds\\"}}"
+                """
+        ), CType.ROLES, new ConfigurationRepository.Context(null, null, null, xContentRegistry(), null, Actions.forTests())).get();
+
+        logsRule.assertThatNotContain("Role assigns a DLS rule");
+        logsRule.assertThatNotContain("Role assigns a FLS rule");
+    }
+
+    private NamedXContentRegistry xContentRegistry() {
+        return new NamedXContentRegistry(List.of(
+                new NamedXContentRegistry.Entry(QueryBuilder.class, new ParseField(TermQueryBuilder.NAME), TermQueryBuilder::fromXContent)
+        ));
     }
 }
