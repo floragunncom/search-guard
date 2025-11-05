@@ -81,7 +81,6 @@ signals_2:
 .be_integration_test:
   allow_failure: false
   stage: "Backend Int Tests Core"
-  needs: ["build"]
   tags:
     - test-large
   rules:

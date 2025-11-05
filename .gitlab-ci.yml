@@ -64,7 +64,6 @@ default:
 stages:
   - prepare
   - build
-
   - test
   - "Backend Int Tests Core"
   #- "Frontend Int Tests Core"
