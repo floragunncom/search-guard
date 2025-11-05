@@ -42,7 +42,6 @@ import com.floragunn.searchguard.user.UserInformation;
 public interface AuditLog extends Closeable {
 
     //login
-    void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task);
     void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request);
     void logSucceededLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, String action, Task task);
     void logSucceededLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request);
@@ -50,7 +49,6 @@ public interface AuditLog extends Closeable {
     // blocks
     void logBlockedIp(TransportRequest request, String action, TransportAddress remoteAddress, Task task);
     void logBlockedIp(RestRequest request, InetSocketAddress remoteAddress);
-    void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task);
     void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request);
 
     //privs
