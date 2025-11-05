@@ -85,7 +85,7 @@ build:
   rules:
     - if: '$DOCKER_ONLY'
       when: never
-    - when: always
+    - when: on_success
   script:
     - | 
        set -e

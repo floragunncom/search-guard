@@ -6,7 +6,7 @@
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never    
-    - when: always
+    - when: on_success
   artifacts:
     when: always
     reports:
