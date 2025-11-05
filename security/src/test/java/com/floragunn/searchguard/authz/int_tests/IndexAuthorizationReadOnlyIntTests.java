@@ -1005,6 +1005,7 @@ public class IndexAuthorizationReadOnlyIntTests {
                                 Hence, the later test also returns data from the system index in contrast to the other test.
                              */
                             .setType(SystemIndexDescriptor.Type.EXTERNAL_MANAGED)
+                            .setVersionMetaKey("my_test_version")
                             .setSettings(Settings.builder().build())
                             .setMappings(mappings)//
                             .setPrimaryIndex(index_system.getName())
