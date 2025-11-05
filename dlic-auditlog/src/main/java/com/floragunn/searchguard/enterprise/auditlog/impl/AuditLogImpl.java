@@ -74,23 +74,9 @@ public final class AuditLogImpl extends AbstractAuditLog {
     }
 
     @Override
-    public void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task) {
-        if (enabled) {
-            super.logFailedLogin(effectiveUser, sgadmin, initiatingUser, request, task);
-        }
-    }
-
-    @Override
     public void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
         if (enabled) {
             super.logFailedLogin(effectiveUser, sgadmin, initiatingUser, request);
-        }
-    }
-
-    @Override
-    public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task) {
-        if (enabled) {
-            super.logBlockedUser(effectiveUser, sgadmin, initiatingUser, request, task);
         }
     }
 

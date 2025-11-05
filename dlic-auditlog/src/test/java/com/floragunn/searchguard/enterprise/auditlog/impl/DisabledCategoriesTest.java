@@ -217,7 +217,6 @@ public class DisabledCategoriesTest {
 
 		logTransportSSLException(auditLog);
 		logTransportBadHeaders(auditLog);
-		logTransportFailedLogin(auditLog);
 		logTransportSucceededLogin(auditLog);
 		
 		logBlockedIp(auditLog);
@@ -244,10 +243,6 @@ public class DisabledCategoriesTest {
 
     protected void logRestFailedLogin(AuditLog auditLog) {
     	auditLog.logFailedLogin(UserInformation.forName("testuser.rest.failedlogin"), false, UserInformation.forName("testuser.rest.failedlogin"), new MockRestRequest());
-    }
-
-    protected void logTransportFailedLogin(AuditLog auditLog) {
-    	auditLog.logFailedLogin(UserInformation.forName("testuser.transport.failedlogin"), false, UserInformation.forName("testuser.transport.failedlogin"), new StandardRequests.EmptyRequest(), null);
     }
 
     protected void logMissingPrivileges(AuditLog auditLog) {
@@ -289,7 +284,7 @@ public class DisabledCategoriesTest {
     }
 
 	protected void logComposableIndexTemplatePutted(AuditLog auditLog) {
-		ComposableIndexTemplate indexTemplate = new ComposableIndexTemplate.Builder().build();
+		ComposableIndexTemplate indexTemplate = ComposableIndexTemplate.builder().build();
 		auditLog.logIndexTemplatePutted("putted-composable-template-name", null,
 				indexTemplate, "action.index-template-putted", new StandardRequests.EmptyRequest()
 		);

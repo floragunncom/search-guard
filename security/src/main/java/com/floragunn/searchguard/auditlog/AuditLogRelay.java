@@ -42,10 +42,6 @@ import com.floragunn.searchguard.user.UserInformation;
 public class AuditLogRelay implements AuditLog {
     private AuditLog auditLog = NullAuditLog.INSTANCE;
 
-    public void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task) {
-        auditLog.logFailedLogin(effectiveUser, sgadmin, initiatingUser, request, task);
-    }
-
     public void close() throws IOException {
         auditLog.close();
     }
@@ -69,10 +65,6 @@ public class AuditLogRelay implements AuditLog {
 
     public void logBlockedIp(RestRequest request, InetSocketAddress remoteAddress) {
         auditLog.logBlockedIp(request, remoteAddress);
-    }
-
-    public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task) {
-        auditLog.logBlockedUser(effectiveUser, sgadmin, initiatingUser, request, task);
     }
 
     public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {

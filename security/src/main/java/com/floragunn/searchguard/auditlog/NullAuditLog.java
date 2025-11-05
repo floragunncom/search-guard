@@ -49,11 +49,6 @@ public class NullAuditLog implements AuditLog {
     }
 
     @Override
-    public void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request, Task task) {
-        //noop, intentionally left empty
-    }
-
-    @Override
     public void logFailedLogin(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, RestRequest request) {
         //noop, intentionally left empty
     }
@@ -185,12 +180,6 @@ public class NullAuditLog implements AuditLog {
 
 	@Override
 	public void logBlockedIp(RestRequest request, InetSocketAddress remoteAddress) {
-		//noop, intentionally left empty		
-	}
-
-	@Override
-	public void logBlockedUser(UserInformation effectiveUser, boolean sgadmin, UserInformation initiatingUser, TransportRequest request,
-			Task task) {
 		//noop, intentionally left empty		
 	}
 
