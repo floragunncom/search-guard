@@ -89,11 +89,8 @@ build:
   script:
     - | 
        set -e
-       exit 1
        SNAPSHOT_REVISION="$CI_COMMIT_REF_SLUG-SNAPSHOT"
        mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
-       MVN_EXIT_CODE=$?
-       echo "[Debug] Maven exit code ${MVN_EXIT_CODE}"
        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
        echo "ES_VERSION=$ES_VERSION" >> snapshot.env
        cat snapshot.env
