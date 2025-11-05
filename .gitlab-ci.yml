@@ -99,6 +99,7 @@ build:
     - when: always
   script:
     - | 
+       set -e
        SNAPSHOT_REVISION="$CI_COMMIT_REF_SLUG-SNAPSHOT"
        mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
        MVN_EXIT_CODE=$?
@@ -134,7 +135,7 @@ deploy_release:
   script:
     - ./dev/setup_gpg.sh
     - |
-      
+      set -e
       DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
       echo "Release DEPLOY_VERSION: $DEPLOY_VERSION"
       echo "Release ES_VERSION: $ES_VERSION"
