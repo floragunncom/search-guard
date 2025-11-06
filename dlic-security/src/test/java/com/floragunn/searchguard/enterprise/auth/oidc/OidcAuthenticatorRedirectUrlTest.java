@@ -81,7 +81,7 @@ public class OidcAuthenticatorRedirectUrlTest {
 
     @Before
     public void before() throws ConfigValidationException {
-        Context testContext = new Context(VariableResolvers.ALL, null, null, null, null);
+        Context testContext = new Context(VariableResolvers.ALL, null, null, null, null, null);
         Map<String, Object> basicAuthenticatorSettings = ImmutableMap.of("idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(), "client_id",
             "search-guard-client", "client_secret", "s3cret", "pkce", false);
         this.authenticator = new OidcAuthenticator(basicAuthenticatorSettings, testContext);
