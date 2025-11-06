@@ -45,6 +45,7 @@ import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.authz.actions.Actions;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
@@ -897,7 +898,7 @@ public class TestSgConfig {
         }
 
         public com.floragunn.searchguard.authz.config.Role toActualRole() throws ConfigValidationException {
-            return toActualRole(new ConfigurationRepository.Context(null, null, null, null, null));
+            return toActualRole(new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests()));
         }
 
         public com.floragunn.searchguard.authz.config.Role toActualRole(ConfigurationRepository.Context parserContext)
@@ -931,7 +932,7 @@ public class TestSgConfig {
         }
 
         public static SgDynamicConfiguration<com.floragunn.searchguard.authz.config.Role> toActualRole(TestSgConfig.Role... roles) {
-            return toActualRole(new ConfigurationRepository.Context(null, null, null, null, null), roles);
+            return toActualRole(new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests()), roles);
         }
 
     }

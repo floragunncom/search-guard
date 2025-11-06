@@ -41,9 +41,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.*;
 
 /**
 * The class is a JUnit 4 rule and enables developers to write assertion related to log messages generated in the course of test. To use
@@ -79,7 +77,7 @@ public class LogsRule extends ExternalResource {
     */
     public void assertThatContainExactly(String expectedLogMessage) {
         List<String> messages = LogCapturingAppender.getLogMessagesAsString();
-        String reason = reasonMessage(expectedLogMessage, messages);
+        String reason = reasonMessage(expectedLogMessage, messages, true);
         assertThat(reason, messages, hasItem(expectedLogMessage));
     }
 
@@ -90,8 +88,19 @@ public class LogsRule extends ExternalResource {
     public void assertThatContain(String messageFragment) {
         List<String> messages = LogCapturingAppender.getLogMessagesAsString();
 
-        String reason = reasonMessage(messageFragment, messages);
+        String reason = reasonMessage(messageFragment, messages, true);
         assertThat(reason, messages, hasItem(containsString(messageFragment)));
+    }
+
+    /**
+    * Check if during the tests certain log message was not logged
+    * @param messageFragment expected log message fragment
+    */
+    public void assertThatNotContain(String messageFragment) {
+        List<String> messages = LogCapturingAppender.getLogMessagesAsString();
+
+        String reason = reasonMessage(messageFragment, messages, false);
+        assertThat(reason, messages, not(hasItem(containsString(messageFragment))));
     }
 
     /**
@@ -107,12 +116,22 @@ public class LogsRule extends ExternalResource {
         assertThat(reason, count, greaterThan(0L));
     }
 
-    private static String reasonMessage(String expectedLogMessage, List<String> messages) {
+    private static String reasonMessage(String expectedLogMessage, List<String> messages, boolean shouldBeIncluded) {
         String concatenatedLogMessages = messages.stream().map(message -> String.format("'%s'", message)).collect(Collectors.joining(", "));
+
+        if (shouldBeIncluded) {
+            return String.format(
+                    "Expected message '%s' has not been found in logs. All captured log messages: %s",
+                    expectedLogMessage,
+                    concatenatedLogMessages
+            );
+        }
         return String.format(
-            "Expected message '%s' has not been found in logs. All captured log messages: %s",
-            expectedLogMessage,
-            concatenatedLogMessages
+                "Unexpected message '%s' has been found in logs. All captured log messages: %s",
+                expectedLogMessage,
+                concatenatedLogMessages
         );
+
+
     }
 }

@@ -16,6 +16,7 @@ package com.floragunn.searchguard.enterprise.dlsfls;
 
 import java.io.IOException;
 
+import com.floragunn.searchguard.authz.actions.Actions;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.CheckedFunction;
@@ -46,7 +47,7 @@ public class ThreadContextAuthzHashProviderTest {
     final static NamedXContentRegistry X_CONTENT_REGISTRY = new NamedXContentRegistry(
             ImmutableList.of(new NamedXContentRegistry.Entry(QueryBuilder.class, new ParseField(TermQueryBuilder.NAME),
                     (CheckedFunction<XContentParser, TermQueryBuilder, IOException>) (p) -> TermQueryBuilder.fromXContent(p))));
-    final static ConfigurationRepository.Context PARSER_CONTEXT = new ConfigurationRepository.Context(null, null, null, X_CONTENT_REGISTRY, null);
+    final static ConfigurationRepository.Context PARSER_CONTEXT = new ConfigurationRepository.Context(null, null, null, X_CONTENT_REGISTRY, null, Actions.forTests());
 
     @Test
     public void restrictionsInfo_basic() throws Exception {
