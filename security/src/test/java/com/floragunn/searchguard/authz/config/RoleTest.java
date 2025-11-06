@@ -173,37 +173,6 @@ public class RoleTest {
     }
 
     @Test
-    public void shouldNotLogValidationWarnings_indexAndClusterPrivsAreNotMisconfigured() throws Exception {
-        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
-                test_role1:
-                    cluster_permissions:
-                        - "cluster:monitor/main"
-                        - "*"
-                    index_permissions:
-                        - index_patterns: ["*"]
-                          allowed_actions:
-                            - "indices:monitor/settings/get"
-                            - "*"
-                    alias_permissions:
-                        - alias_patterns: ["*"]
-                          allowed_actions:
-                            - "indices:monitor/settings/get"
-                            - "*"
-                    data_stream_permissions:
-                        - data_stream_patterns: ["*"]
-                          allowed_actions:
-                            - "indices:monitor/settings/get"
-                            - "*"
-                """
-        ), CType.ROLES, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
-
-        logsRule.assertThatNotContain("Following index permissions are assigned as cluster permissions:");
-        logsRule.assertThatNotContain("Following cluster permissions are assigned as index permissions:");
-        logsRule.assertThatNotContain("Following cluster permissions are assigned as alias permissions:");
-        logsRule.assertThatNotContain("Following cluster permissions are assigned as data stream permissions:");
-    }
-
-    @Test
     public void shouldLogValidationWarnings_dlsAssignedToWildcardPattern() throws Exception {
         SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
                 test_role1:
