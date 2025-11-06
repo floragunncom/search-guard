@@ -20,9 +20,7 @@ package com.floragunn.searchguard.privileges.extended_action_handling;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchsupport.cstate.ComponentState;
@@ -44,7 +42,6 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.tasks.Task;
@@ -79,7 +76,6 @@ public class ResourceOwnerService implements ComponentStateProvider, ProtectedCo
             DEFAULT_RESOURCE_LIFETIME, REFRESH_POLICY);
 
     private final static Logger log = LogManager.getLogger(ResourceOwnerService.class);
-    public static final String RESOURCE_OWNER_SERVICE_EXPIRATION_HEADER = "resource_owner_service_expiration";
 
     private final String index = ".searchguard_resource_owner";
     private final PrivilegedConfigClient privilegedConfigClient;
@@ -94,7 +90,6 @@ public class ResourceOwnerService implements ComponentStateProvider, ProtectedCo
     private final ComponentState componentState = new ComponentState(100, null, "resource_owner_service");
 
     private final AtomicBoolean indexReady = new AtomicBoolean();
-    private final ThreadContext threadContext;
 
     public ResourceOwnerService(Client client, ClusterService clusterService, ThreadPool threadPool,
             ProtectedConfigIndexService protectedConfigIndexService, PrivilegesEvaluator privilegesEvaluator, Settings settings) {
@@ -110,7 +105,6 @@ public class ResourceOwnerService implements ComponentStateProvider, ProtectedCo
 
         this.indexCleanupAgent = new IndexCleanupAgent(index, CLEANUP_INTERVAL.get(settings), privilegedConfigClient, clusterService, threadPool);
         componentState.addPart(this.indexCleanupAgent.getComponentState());
-        this.threadContext = threadPool.getThreadContext();
     }
 
     public void storeOwner(String resourceType, Object id, User owner, long expires, ActionListener<DocWriteResponse> actionListener) {
@@ -224,19 +218,6 @@ public class ResourceOwnerService implements ComponentStateProvider, ProtectedCo
 
         ActionFilterChain<Request, Response> extendedChain = chain;
 
-        Function<ActionRequest, Instant> expirationRequestExtractor = Optional.of(actionConfig) //
-                .map(WellKnownAction::getResources) //
-                .map(WellKnownAction.Resources::getCreatesResource) //
-                .map(NewResource::getExpirationFromResponse).orElse(null);
-
-        Instant expirationTime = null;
-        if (expirationRequestExtractor != null) {
-           // we need to read expiration time from a request
-            expirationTime = expirationRequestExtractor.apply(actionRequest);
-        }
-        threadContext.putTransient(RESOURCE_OWNER_SERVICE_EXPIRATION_HEADER, expirationTime);
-
-
         for (Resource usesResource : actionConfig.getResources().getUsesResources()) {
             if (usesResource.getOwnerCheckBypassPermission() != null) {
                 try {
@@ -256,13 +237,13 @@ public class ResourceOwnerService implements ComponentStateProvider, ProtectedCo
         return extendedChain;
     }
 
-    public <R extends ActionResponse> ActionListener<R> applyCreatePostAction(WellKnownAction<?, ?, ?> actionConfig, User currentUser,
-            ActionListener<R> actionListener) {
+    public <Request extends ActionRequest, Response extends ActionResponse> ActionListener<Response> applyCreatePostAction(Request request, WellKnownAction<?, ?, ?> actionConfig, User currentUser,
+            ActionListener<Response> actionListener) {
 
-        return new ActionListener<R>() {
+        return new ActionListener<Response>() {
 
             @Override
-            public void onResponse(R actionResponse) {
+            public void onResponse(Response actionResponse) {
                 NewResource newResource = actionConfig.getResources().getCreatesResource();
                 Object id = newResource.getId().apply(actionResponse);
 
@@ -272,13 +253,12 @@ public class ResourceOwnerService implements ComponentStateProvider, ProtectedCo
 
                 if (id != null) {
 
-                    Object expirationFromHeader = threadContext.getTransient(RESOURCE_OWNER_SERVICE_EXPIRATION_HEADER);
-                    log.info("Transient header contains resource expiration value {}", expirationFromHeader);
                     long expiresMillis = System.currentTimeMillis() + defaultResourceLifetime.millis();
 
                     if (newResource.getExpiresAfter() != null) {
-                        Instant expiresInstant = newResource.getExpiresAfter().apply(actionResponse);
-
+                        Instant expiresInstant = newResource.getExpiresAfter().apply(request, actionResponse);
+                        // TODO change to debug
+                        log.info("Resource expiration time for action '{}' is '{}'", actionConfig.name(), expiresInstant);
                         if (expiresInstant != null) {
                             expiresMillis = expiresInstant.toEpochMilli();
                         }

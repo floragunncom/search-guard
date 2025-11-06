@@ -28,9 +28,12 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
@@ -41,6 +44,7 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasA
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.common.logging.LogConfigurator;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
 import com.floragunn.fluent.collections.ImmutableList;
@@ -73,6 +77,9 @@ import com.floragunn.searchsupport.xcontent.XContentObjectConverter;
 import static com.floragunn.searchguard.authz.actions.Action.AdditionalDimension.*;
 
 public class Actions {
+
+    private static final Logger log = LogManager.getLogger(Actions.class);
+
     private final ImmutableMap<String, Action> actionMap;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActionsPerformanceCritical;
@@ -168,7 +175,7 @@ public class Actions {
         cluster("cluster:admin/nodes/reload_secure_settings");
 
         cluster("indices:data/read/async_search/submit") //
-                .createsResource("async_search", objectAttr("id"), xContentInstantFromMillis("expiration_time_in_millis"));
+                .createsResource("async_search", objectAttr("id"), xContentInstantFromMillisFromResponse("expiration_time_in_millis"));
 
         cluster("indices:data/read/async_search/get") //
                 .uses(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
@@ -182,10 +189,16 @@ public class Actions {
 
         cluster("indices:searchguard:async_search/_all_owners");
 
-        // indices:data/read/sql
-        // the expiration is not present in ActionResponse, therefore we use default of 5 days
-        // TODO: expiration should be read form request
-        Function<ActionResponse, Instant> expiration = actionResponse -> Instant.now().plus(5, ChronoUnit.DAYS);
+        BiFunction<ActionRequest, ActionResponse, Instant> expiration = (actionRequest, actionResponse) -> {
+            Object keepAlive = ReflectiveAttributeAccessors.objectAttr("keepAlive", "keepAlive").apply(actionRequest);
+            Instant instant = null;
+            if (keepAlive instanceof TimeValue timeValue) {
+                instant = Instant.now().plusMillis(timeValue.millis());
+            }
+            // TODO switch to debug
+            log.info("Expiration time of async SQL request is {}", instant);
+            return instant;
+        };
         cluster("indices:data/read/sql") //
                  // type "async_search" because some operations are shared with async search, e.g. deletion indices:data/read/async_search/delete
                 .createsResource("async_search", objectAttr("asyncExecutionId", "id"), expiration);
@@ -655,7 +668,7 @@ public class Actions {
         }
 
         ActionBuilder<RequestType, RequestItem, RequestItemType> createsResource(String type, Function<ActionResponse, Object> id,
-                Function<ActionResponse, Instant> expiresAfter) {
+                BiFunction<ActionRequest, ActionResponse, Instant> expiresAfter) {
             createsResource = new NewResource(type, id, expiresAfter);
             return this;
         }
@@ -711,6 +724,13 @@ public class Actions {
 
     static <O> Function<O, Object> xContentAttr(String name) {
         return (actionResponse) -> AttributeValueFromXContent.get(XContentObjectConverter.convertOrNull(actionResponse), name);
+    }
+
+    static BiFunction<ActionRequest, ActionResponse, Instant> xContentInstantFromMillisFromResponse(String name) {
+        Function<Object, Instant> objectInstantFunction = xContentInstantFromMillis(name);
+        return (actionRequest, actionResponse) -> {
+            return objectInstantFunction.apply(actionResponse);
+        };
     }
 
     static <O> Function<O, Instant> xContentInstantFromMillis(String name) {

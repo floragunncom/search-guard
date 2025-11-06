@@ -394,9 +394,9 @@ public interface Action {
         public static class NewResource {
             private final String type;
             private final Function<ActionResponse, Object> id;
-            private final Function<ActionResponse, Instant> expiresAfter;
+            private final BiFunction<ActionRequest, ActionResponse, Instant> expiresAfter;
 
-            public NewResource(String type, Function<ActionResponse, Object> id, Function<ActionResponse, Instant> expiresAfter) {
+            public NewResource(String type, Function<ActionResponse, Object> id, BiFunction<ActionRequest, ActionResponse, Instant> expiresAfter) {
                 this.type = type;
                 this.id = id;
                 this.expiresAfter = expiresAfter;
@@ -410,23 +410,8 @@ public interface Action {
                 return id;
             }
 
-            public Function<ActionResponse, Instant> getExpiresAfter() {
+            public BiFunction<ActionRequest, ActionResponse, Instant> getExpiresAfter() {
                 return expiresAfter;
-            }
-
-            public Function<ActionRequest, Instant> getExpirationFromResponse() {
-                // TODO correct this quick and dirty implementation. This function should be just a getter
-                if ( "async_search".equals(type) ) {
-                    return request -> {
-                        Object keepAlive = ReflectiveAttributeAccessors.objectAttr("keepAlive", "keepAlive").apply(request);
-                        Instant instant = null;
-                        if (keepAlive instanceof TimeValue timeValue) {
-                            instant = Instant.now().plusMillis(timeValue.millis());
-                        }
-                        return instant;
-                    };
-                }
-                return null;
             }
         }
 
