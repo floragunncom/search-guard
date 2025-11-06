@@ -28,6 +28,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 
@@ -36,6 +37,7 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization.AliasDataStreamHandling;
 import com.floragunn.searchsupport.meta.Meta;
+import org.elasticsearch.core.TimeValue;
 
 public interface Action {
 
@@ -410,6 +412,21 @@ public interface Action {
 
             public Function<ActionResponse, Instant> getExpiresAfter() {
                 return expiresAfter;
+            }
+
+            public Function<ActionRequest, Instant> getExpirationFromResponse() {
+                // TODO correct this quick and dirty implementation. This function should be just a getter
+                if ( "async_search".equals(type) ) {
+                    return request -> {
+                        Object keepAlive = ReflectiveAttributeAccessors.objectAttr("keepAlive", "keepAlive").apply(request);
+                        Instant instant = null;
+                        if (keepAlive instanceof TimeValue timeValue) {
+                            instant = Instant.now().plusMillis(timeValue.millis());
+                        }
+                        return instant;
+                    };
+                }
+                return null;
             }
         }
 
