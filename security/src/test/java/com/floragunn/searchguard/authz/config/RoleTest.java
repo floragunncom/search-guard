@@ -78,7 +78,7 @@ public class RoleTest {
                 """
         ), CType.ROLES, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
 
-        logsRule.assertThatContainExactly(String.format("Following index permissions are assigned as cluster permissions: [%s]", "indices:admin/index_as_cluster_priv, indices:data/*"));
+        logsRule.assertThatContainExactly(String.format("The following index permissions are assigned as cluster permissions: [%s]", "indices:admin/index_as_cluster_priv, indices:data/*"));
     }
 
     @Test
@@ -96,7 +96,7 @@ public class RoleTest {
                 """
         ), CType.ROLES, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
 
-        logsRule.assertThatContainExactly(String.format("Following cluster permissions are assigned as index permissions: [%s]", "indices:data/read/search/template, cluster:admin/*, cluster:monitor/cluster_as_index_priv"));
+        logsRule.assertThatContainExactly(String.format("The following cluster permissions are assigned as index permissions: [%s]", "indices:data/read/search/template, cluster:admin/*, cluster:monitor/cluster_as_index_priv"));
     }
 
     @Test
@@ -114,7 +114,7 @@ public class RoleTest {
                 """
         ), CType.ROLES, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
 
-        logsRule.assertThatContainExactly(String.format("Following cluster permissions are assigned as alias permissions: [%s]", "indices:data/read/search/template, cluster:admin/*, cluster:monitor/cluster_as_index_priv"));
+        logsRule.assertThatContainExactly(String.format("The following cluster permissions are assigned as alias permissions: [%s]", "indices:data/read/search/template, cluster:admin/*, cluster:monitor/cluster_as_index_priv"));
     }
 
     @Test
@@ -132,7 +132,7 @@ public class RoleTest {
                 """
         ), CType.ROLES, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
 
-        logsRule.assertThatContainExactly(String.format("Following cluster permissions are assigned as data stream permissions: [%s]", "indices:data/read/search/template, cluster:admin/*, cluster:monitor/cluster_as_index_priv"));
+        logsRule.assertThatContainExactly(String.format("The following cluster permissions are assigned as data stream permissions: [%s]", "indices:data/read/search/template, cluster:admin/*, cluster:monitor/cluster_as_index_priv"));
     }
 
     @Test
@@ -160,9 +160,9 @@ public class RoleTest {
                 """
         ), CType.ROLES, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
 
-        logsRule.assertThatNotContain("Following index permissions are assigned as cluster permissions:");
-        logsRule.assertThatNotContain("Following cluster permissions are assigned as index permissions:");
-        logsRule.assertThatNotContain("Following cluster permissions are assigned as alias permissions:");
-        logsRule.assertThatNotContain("Following cluster permissions are assigned as data stream permissions:");
+        logsRule.assertThatNotContain("The following index permissions are assigned as cluster permissions:");
+        logsRule.assertThatNotContain("The following cluster permissions are assigned as index permissions:");
+        logsRule.assertThatNotContain("The following cluster permissions are assigned as alias permissions:");
+        logsRule.assertThatNotContain("The following cluster permissions are assigned as data stream permissions:");
     }
 }

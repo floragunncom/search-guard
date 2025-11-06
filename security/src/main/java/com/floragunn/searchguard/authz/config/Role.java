@@ -112,7 +112,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
                 ).toList();
 
         if (! clusterPermissionUsedAsIndexLikePermissions.isEmpty()) {
-            log.warn("Following cluster permissions are assigned as {} permissions: {}", expectedPermissionType, clusterPermissionUsedAsIndexLikePermissions);
+            log.warn("The following cluster permissions are assigned as {} permissions: {}", expectedPermissionType, clusterPermissionUsedAsIndexLikePermissions);
         }
     }
 
@@ -120,7 +120,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
         List<String> indexPermissionsUsedAsClusterPermissions = findIndexPermissions(clusterPermissions, actions);
 
         if (! indexPermissionsUsedAsClusterPermissions.isEmpty()) {
-            log.warn("Following index permissions are assigned as cluster permissions: {}", indexPermissionsUsedAsClusterPermissions);
+            log.warn("The following index permissions are assigned as cluster permissions: {}", indexPermissionsUsedAsClusterPermissions);
         }
     }
 
