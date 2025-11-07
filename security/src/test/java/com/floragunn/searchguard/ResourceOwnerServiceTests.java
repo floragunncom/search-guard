@@ -65,7 +65,6 @@ import org.elasticsearch.transport.TransportService;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
-import org.hamcrest.Matchers;
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -87,7 +86,7 @@ import static org.hamcrest.Matchers.notNullValue;
 public class ResourceOwnerServiceTests {
 
     public static final int DEFAULT_EXPIRATION_YEARS = 10;
-    public static final long DEFAULT_EXPIRATION_MILLS = DEFAULT_EXPIRATION_YEARS*367L*24*60*60*1000;
+    public static final long DEFAULT_EXPIRATION_MILLIS = DEFAULT_EXPIRATION_YEARS*367L*24*60*60*1000;
 
     private static TestSgConfig.Role ROLE_OWN_INDEX = new TestSgConfig.Role("own_index")//
             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO")//
@@ -267,7 +266,7 @@ public class ResourceOwnerServiceTests {
 
         @Override
         protected void doExecute(Task task, MockSubmitActionRequest request, ActionListener<MockActionResponse> listener) {
-            listener.onResponse(new MockActionResponse(UUID.randomUUID().toString(), RestStatus.OK, DEFAULT_EXPIRATION_MILLS));
+            listener.onResponse(new MockActionResponse(UUID.randomUUID().toString(), RestStatus.OK, DEFAULT_EXPIRATION_MILLIS));
         }
     }
 

@@ -257,8 +257,7 @@ public class ResourceOwnerService implements ComponentStateProvider, ProtectedCo
 
                     if (newResource.getExpiresAfter() != null) {
                         Instant expiresInstant = newResource.getExpiresAfter().apply(request, actionResponse);
-                        // TODO change to debug
-                        log.info("Resource expiration time for action '{}' is '{}'", actionConfig.name(), expiresInstant);
+                        log.debug("Resource expiration time for action '{}' is '{}'", actionConfig.name(), expiresInstant);
                         if (expiresInstant != null) {
                             expiresMillis = expiresInstant.toEpochMilli();
                         }

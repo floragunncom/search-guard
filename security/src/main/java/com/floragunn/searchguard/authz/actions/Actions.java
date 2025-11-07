@@ -80,6 +80,8 @@ public class Actions {
 
     private static final Logger log = LogManager.getLogger(Actions.class);
 
+    public static final String ASYNC_SEARCH_RESOURCE_TYPE = "async_search";
+
     private final ImmutableMap<String, Action> actionMap;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActionsPerformanceCritical;
@@ -175,16 +177,16 @@ public class Actions {
         cluster("cluster:admin/nodes/reload_secure_settings");
 
         cluster("indices:data/read/async_search/submit") //
-                .createsResource("async_search", objectAttr("id"), xContentInstantFromMillisFromResponse("expiration_time_in_millis"));
+                .createsResource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id"), xContentInstantFromMillisFromResponse("expiration_time_in_millis"));
 
         cluster("indices:data/read/async_search/get") //
-                .uses(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
+                .uses(new Resource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
 
         cluster("indices:data/read/async_search/delete") //
-                .deletes(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
+                .deletes(new Resource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
 
         cluster("cluster:monitor/async_search/status") //
-                .uses(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
+                .uses(new Resource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
 
 
         cluster("indices:searchguard:async_search/_all_owners");
@@ -195,15 +197,14 @@ public class Actions {
             if (keepAlive instanceof TimeValue timeValue) {
                 instant = Instant.now().plusMillis(timeValue.millis());
             }
-            // TODO switch to debug
-            log.info("Expiration time of async SQL request is {}", instant);
+            log.debug("Expiration time of async SQL request is {}", instant);
             return instant;
         };
         cluster("indices:data/read/sql") //
-                 // type "async_search" because some operations are shared with async search, e.g. deletion indices:data/read/async_search/delete
-                .createsResource("async_search", objectAttr("asyncExecutionId", "id"), expiration);
-        cluster("indices:data/read/sql/async/get").uses(new Resource("async_search", objectAttr("id")));
-        cluster("cluster:monitor/xpack/sql/async/status").uses(new Resource("async_search", objectAttr("id")));
+                 // type ASYNC_SEARCH_RESOURCE_TYPE because some operations are shared with async search, e.g. deletion indices:data/read/async_search/delete
+                .createsResource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("asyncExecutionId", "id"), expiration);
+        cluster("indices:data/read/sql/async/get").uses(new Resource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id")));
+        cluster("cluster:monitor/xpack/sql/async/status").uses(new Resource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id")));
         cluster("indices:data/read/sql/translate");
         cluster("indices:data/read/sql/close_cursor");
 
