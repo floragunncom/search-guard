@@ -368,7 +368,7 @@ public class ProxyApiTest {
             assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
             assertThat(response.getBody(), response.getBodyAsDocNode(), docNodeSizeEqualTo("$.data", 0));
 
-            List<DocNode> proxies = saveRandomProxies(15);
+            List<DocNode> proxies = saveRandomProxies(256);
 
             response = client.get("/_signals/proxies/");
             assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_OK));
