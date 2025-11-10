@@ -39,7 +39,7 @@ public class ExtendedActionHandlingService {
             String action, PrivilegesEvaluationContext context, Request actionRequest, ActionListener<Response> actionListener,
             ActionFilterChain<Request, Response> chain) {
 
-        actionListener = applyPostAction(actionConfig, context, actionRequest, actionListener);
+        actionListener = applyPostAction(actionRequest, actionConfig, context, actionRequest, actionListener);
 
         applyPreAction(actionConfig, task, action, context, actionRequest, actionListener, chain);
     }
@@ -55,13 +55,13 @@ public class ExtendedActionHandlingService {
         extendedChain.proceed(task, action, actionRequest, listener);
     }
 
-    public <Request extends ActionRequest, R extends ActionResponse> ActionListener<R> applyPostAction(WellKnownAction<Request, ?, ?> actionConfig,
+    public <Request extends ActionRequest, R extends ActionResponse> ActionListener<R> applyPostAction(Request request, WellKnownAction<Request, ?, ?> actionConfig,
             PrivilegesEvaluationContext context, Request actionRequest, ActionListener<R> actionListener) {
 
         if (actionConfig.getResources() != null) {
 
             if (actionConfig.getResources().getCreatesResource() != null) {
-                actionListener = resourceOwnerService.applyCreatePostAction(actionConfig, context.getUser(), actionListener);
+                actionListener = resourceOwnerService.applyCreatePostAction(request, actionConfig, context.getUser(), actionListener);
             }
 
             for (Resource resource : actionConfig.getResources().getUsesResources()) {

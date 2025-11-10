@@ -13,6 +13,10 @@ public class ReflectiveAttributeAccessors {
         return new ReflectiveAttributeGetter<O, Object>(name, Object.class);
     }
 
+    public static <O> Function<O, Object> objectAttr(String name, String methodName) {
+        return new ReflectiveAttributeGetter<O, Object>(name, methodName, Object.class);
+    }
+
     public static <O, R> Function<O, R> objectAttr(String name, Class<R> type) {
         return new ReflectiveAttributeGetter<O, R>(name, type);
     }
@@ -31,8 +35,12 @@ public class ReflectiveAttributeAccessors {
         private final Class<R> type;
 
         ReflectiveAttributeGetter(String attribute, Class<R> type) {
+            this(attribute, "get" + attribute.substring(0, 1).toUpperCase() + attribute.substring(1), type);
+        }
+
+        ReflectiveAttributeGetter(String attribute, String methodName, Class<R> type) {
             this.attribute = attribute;
-            this.methodName = "get" + attribute.substring(0, 1).toUpperCase() + attribute.substring(1);
+            this.methodName = methodName;
             this.type = type;
         }
 
