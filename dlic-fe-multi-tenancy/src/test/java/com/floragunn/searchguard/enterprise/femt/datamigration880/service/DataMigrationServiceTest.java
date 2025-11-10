@@ -16,9 +16,11 @@ package com.floragunn.searchguard.enterprise.femt.datamigration880.service;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.steps.StepsFactory;
 import com.floragunn.searchsupport.action.StandardResponse;
+import com.floragunn.searchsupport.util.EsLogging;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -56,6 +58,9 @@ import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class DataMigrationServiceTest {
+
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
 
     private static final Logger log = LogManager.getLogger(DataMigrationServiceTest.class);
 
