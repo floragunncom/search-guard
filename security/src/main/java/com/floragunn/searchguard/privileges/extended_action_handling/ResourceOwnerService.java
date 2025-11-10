@@ -35,7 +35,6 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.client.internal.Client;
@@ -238,13 +237,13 @@ public class ResourceOwnerService implements ComponentStateProvider, ProtectedCo
         return extendedChain;
     }
 
-    public <R extends ActionResponse> ActionListener<R> applyCreatePostAction(WellKnownAction<?, ?, ?> actionConfig, User currentUser,
-            ActionListener<R> actionListener) {
+    public <Request extends ActionRequest, Response extends ActionResponse> ActionListener<Response> applyCreatePostAction(Request request, WellKnownAction<?, ?, ?> actionConfig, User currentUser,
+            ActionListener<Response> actionListener) {
 
-        return new ActionListener<R>() {
+        return new ActionListener<Response>() {
 
             @Override
-            public void onResponse(R actionResponse) {
+            public void onResponse(Response actionResponse) {
                 NewResource newResource = actionConfig.getResources().getCreatesResource();
                 Object id = newResource.getId().apply(actionResponse);
 
@@ -257,8 +256,8 @@ public class ResourceOwnerService implements ComponentStateProvider, ProtectedCo
                     long expiresMillis = System.currentTimeMillis() + defaultResourceLifetime.millis();
 
                     if (newResource.getExpiresAfter() != null) {
-                        Instant expiresInstant = newResource.getExpiresAfter().apply(actionResponse);
-
+                        Instant expiresInstant = newResource.getExpiresAfter().apply(request, actionResponse);
+                        log.debug("Resource expiration time for action '{}' is '{}'", actionConfig.name(), expiresInstant);
                         if (expiresInstant != null) {
                             expiresMillis = expiresInstant.toEpochMilli();
                         }

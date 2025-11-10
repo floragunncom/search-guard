@@ -28,6 +28,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 
@@ -36,6 +37,7 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authz.ActionAuthorization.AliasDataStreamHandling;
 import com.floragunn.searchsupport.meta.Meta;
+import org.elasticsearch.core.TimeValue;
 
 public interface Action {
 
@@ -392,9 +394,9 @@ public interface Action {
         public static class NewResource {
             private final String type;
             private final Function<ActionResponse, Object> id;
-            private final Function<ActionResponse, Instant> expiresAfter;
+            private final BiFunction<ActionRequest, ActionResponse, Instant> expiresAfter;
 
-            public NewResource(String type, Function<ActionResponse, Object> id, Function<ActionResponse, Instant> expiresAfter) {
+            public NewResource(String type, Function<ActionResponse, Object> id, BiFunction<ActionRequest, ActionResponse, Instant> expiresAfter) {
                 this.type = type;
                 this.id = id;
                 this.expiresAfter = expiresAfter;
@@ -408,7 +410,7 @@ public interface Action {
                 return id;
             }
 
-            public Function<ActionResponse, Instant> getExpiresAfter() {
+            public BiFunction<ActionRequest, ActionResponse, Instant> getExpiresAfter() {
                 return expiresAfter;
             }
         }
