@@ -84,6 +84,7 @@ public class SearchScrollerTest {
     public void scroll_lessDocsThanSearchSize_shouldReturnData() throws Exception {
         String testIndex = "index-lessDocsThanSearchSize".toLowerCase(Locale.ROOT);
         int numberOfDocs = 6;
+        int searchSize = 30;
         try (GenericRestClient client = cluster.getAdminCertRestClient().trackResources()) {
 
             GenericRestClient.HttpResponse response = client.put(testIndex);
@@ -93,7 +94,7 @@ public class SearchScrollerTest {
 
             List<DocNode> results = new ArrayList<>();
             SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.searchSource()
-                    .size(numberOfDocs * 4)
+                    .size(searchSize)
                     .sort("number", SortOrder.ASC);
             Function<SearchHit, DocNode> mapper = hit -> DocNode.wrap(hit.getSourceAsMap());
 
@@ -111,6 +112,7 @@ public class SearchScrollerTest {
     public void scroll_moreDocsThanSearchSize_shouldReturnData() throws Exception {
         String testIndex = "index-moreDocsThanSearchSize".toLowerCase(Locale.ROOT);
         int numberOfDocs = 150;
+        int searchSize = 5;
         try (GenericRestClient client = cluster.getAdminCertRestClient().trackResources()) {
 
             GenericRestClient.HttpResponse response = client.put(testIndex);
@@ -120,8 +122,9 @@ public class SearchScrollerTest {
 
             List<DocNode> results = new ArrayList<>();
             SearchSourceBuilder searchSourceBuilder = SearchSourceBuilder.searchSource()
-                    .size(numberOfDocs / 30)
+                    .size(searchSize)
                     .sort("number", SortOrder.ASC);
+            // test that mapper can transform results - removing number field even though it's used for sorting
             Function<SearchHit, DocNode> mapper = hit -> DocNode.wrap(hit.getSourceAsMap()).without("number");
 
             searchScroller.scroll(new SearchRequest(testIndex).source(searchSourceBuilder), TimeValue.ONE_MINUTE, mapper, results::addAll);
