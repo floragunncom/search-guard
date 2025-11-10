@@ -20,6 +20,7 @@ package com.floragunn.searchguard.authz.actions;
 import static com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors.objectAttr;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -27,9 +28,12 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.ActionType;
@@ -40,6 +44,7 @@ import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasA
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.common.logging.LogConfigurator;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.plugins.ActionPlugin.ActionHandler;
 
 import com.floragunn.fluent.collections.ImmutableList;
@@ -72,6 +77,11 @@ import com.floragunn.searchsupport.xcontent.XContentObjectConverter;
 import static com.floragunn.searchguard.authz.actions.Action.AdditionalDimension.*;
 
 public class Actions {
+
+    private static final Logger log = LogManager.getLogger(Actions.class);
+
+    public static final String ASYNC_SEARCH_RESOURCE_TYPE = "async_search";
+
     private final ImmutableMap<String, Action> actionMap;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActionsPerformanceCritical;
@@ -167,21 +177,26 @@ public class Actions {
         cluster("cluster:admin/nodes/reload_secure_settings");
 
         cluster("indices:data/read/async_search/submit") //
-                .createsResource("async_search", objectAttr("id"), xContentInstantFromMillis("expiration_time_in_millis"));
+                .createsResource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id"), xContentInstantFromMillisFromResponse("expiration_time_in_millis"));
 
         cluster("indices:data/read/async_search/get") //
-                .uses(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
+                .uses(new Resource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
 
         cluster("indices:data/read/async_search/delete") //
-                .deletes(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
+                .deletes(new Resource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
 
         cluster("cluster:monitor/async_search/status") //
-                .uses(new Resource("async_search", objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
+                .uses(new Resource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
 
 
         cluster("indices:searchguard:async_search/_all_owners");
 
-        cluster("indices:data/read/sql");
+        cluster("indices:data/read/sql") //
+                 // type ASYNC_SEARCH_RESOURCE_TYPE because some operations are shared with async search, e.g. deletion indices:data/read/async_search/delete
+                .createsResource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("asyncExecutionId", "id"),
+                        xContentInstantFromMillisFromRequest("keepAlive", "keepAlive"));
+        cluster("indices:data/read/sql/async/get").uses(new Resource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id")));
+        cluster("cluster:monitor/xpack/sql/async/status").uses(new Resource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id")));
         cluster("indices:data/read/sql/translate");
         cluster("indices:data/read/sql/close_cursor");
 
@@ -646,7 +661,7 @@ public class Actions {
         }
 
         ActionBuilder<RequestType, RequestItem, RequestItemType> createsResource(String type, Function<ActionResponse, Object> id,
-                Function<ActionResponse, Instant> expiresAfter) {
+                BiFunction<ActionRequest, ActionResponse, Instant> expiresAfter) {
             createsResource = new NewResource(type, id, expiresAfter);
             return this;
         }
@@ -702,6 +717,25 @@ public class Actions {
 
     static <O> Function<O, Object> xContentAttr(String name) {
         return (actionResponse) -> AttributeValueFromXContent.get(XContentObjectConverter.convertOrNull(actionResponse), name);
+    }
+
+    static BiFunction<ActionRequest, ActionResponse, Instant> xContentInstantFromMillisFromResponse(String name) {
+        Function<Object, Instant> objectInstantFunction = xContentInstantFromMillis(name);
+        return (actionRequest, actionResponse) -> {
+            return objectInstantFunction.apply(actionResponse);
+        };
+    }
+
+    static BiFunction<ActionRequest, ActionResponse, Instant> xContentInstantFromMillisFromRequest(String name, String methodName) {
+        return (actionRequest, actionResponse) -> {
+            Object keepAlive = ReflectiveAttributeAccessors.objectAttr(name, methodName).apply(actionRequest);
+            Instant instant = null;
+            if (keepAlive instanceof TimeValue timeValue) {
+                instant = Instant.now().plusMillis(timeValue.millis());
+            }
+            log.debug("Expiration time of async SQL request is {}", instant);
+            return instant;
+        };
     }
 
     static <O> Function<O, Instant> xContentInstantFromMillis(String name) {

@@ -18,6 +18,10 @@
 package com.floragunn.searchguard;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -76,8 +80,13 @@ import static com.floragunn.searchsupport.action.ActionHandlerFactory.actionHand
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.notNullValue;
 
 public class ResourceOwnerServiceTests {
+
+    public static final int DEFAULT_EXPIRATION_YEARS = 10;
+    public static final long DEFAULT_EXPIRATION_MILLIS = DEFAULT_EXPIRATION_YEARS*367L*24*60*60*1000;
 
     private static TestSgConfig.Role ROLE_OWN_INDEX = new TestSgConfig.Role("own_index")//
             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO")//
@@ -119,6 +128,40 @@ public class ResourceOwnerServiceTests {
 
             response = client.get("/_async_search/" + searchId);
             assertThat(response, isNotFound());
+        }
+    }
+
+    @Test
+    public void testAsyncSearchTimeout() throws Exception {
+
+        try (GenericRestClient client = cluster.getRestClient(SULU); GenericRestClient adminClient = cluster.getAdminCertRestClient()) {
+            GenericRestClient.HttpResponse response = client.postJson("/test1,test2/_async_search?wait_for_completion_timeout=1ms", """
+                    {
+                      "query": {
+                        "match_all": {}
+                      }
+                    }
+                    """);
+            assertThat(response, isOk());
+            assertThat(response.getBody(), response.getBodyAsDocNode().hasNonNull("id"), equalTo(true));
+            String searchId = response.getBodyAsDocNode().getAsString("id");
+
+            response = client.get("/_async_search/" + searchId);
+            assertThat(response, isOk());
+
+            String indexId = "async_search_" + searchId;
+            response = adminClient.get("/.searchguard_resource_owner/_doc/" + indexId);
+            assertThat(response, isOk());
+            Number expires = response.getBodyAsDocNode().getAsNode("_source").getNumber("expires");
+            assertThat(expires, notNullValue());
+            Instant instant = Instant.ofEpochMilli(expires.longValue());
+            ZonedDateTime zonedDateTime = instant.atZone(ZoneId.of("UTC"));
+            int year = zonedDateTime.getYear();
+            int currentYear = LocalDate.now().getYear();
+            assertThat(year, greaterThanOrEqualTo(currentYear + DEFAULT_EXPIRATION_YEARS));
+
+            response = client.delete("/_async_search/" + searchId);
+            assertThat(response, isOk());
         }
     }
 
@@ -223,7 +266,7 @@ public class ResourceOwnerServiceTests {
 
         @Override
         protected void doExecute(Task task, MockSubmitActionRequest request, ActionListener<MockActionResponse> listener) {
-            listener.onResponse(new MockActionResponse(UUID.randomUUID().toString(), RestStatus.OK));
+            listener.onResponse(new MockActionResponse(UUID.randomUUID().toString(), RestStatus.OK, DEFAULT_EXPIRATION_MILLIS));
         }
     }
 
@@ -251,7 +294,6 @@ public class ResourceOwnerServiceTests {
         public void setIndex(String index) {
             this.index = index;
         }
-
     }
 
     public static class MockGetTransportAction extends HandledTransportAction<MockGetActionRequest, MockActionResponse> {
@@ -266,7 +308,7 @@ public class ResourceOwnerServiceTests {
 
         @Override
         protected void doExecute(Task task, MockGetActionRequest request, ActionListener<MockActionResponse> listener) {
-            listener.onResponse(new MockActionResponse(UUID.randomUUID().toString(), RestStatus.OK));
+            listener.onResponse(new MockActionResponse(UUID.randomUUID().toString(), RestStatus.OK, 0));
         }
     }
 
@@ -318,10 +360,12 @@ public class ResourceOwnerServiceTests {
 
         private String id;
         private RestStatus restStatus;
+        private long expiration;
 
-        public MockActionResponse(String id, RestStatus restStatus) {
+        public MockActionResponse(String id, RestStatus restStatus, long expiration) {
             this.id = id;
             this.restStatus = restStatus;
+            this.expiration = expiration + Instant.now().toEpochMilli();
         }
 
         public MockActionResponse(StreamInput in) throws IOException {
@@ -341,7 +385,7 @@ public class ResourceOwnerServiceTests {
 
             builder.field("start_time_in_millis", System.currentTimeMillis());
 
-            builder.field("expiration_time_in_millis", System.currentTimeMillis());
+            builder.field("expiration_time_in_millis", expiration);
 
             builder.startObject("response");
             builder.field("took", 0);
@@ -395,6 +439,14 @@ public class ResourceOwnerServiceTests {
         @Override
         public boolean isFragment() {
             return false;
+        }
+
+        public long getExpirationTimeMillis() {
+            return expiration;
+        }
+
+        public void setExpirationTimeMillis(long expirationTimeMillis) {
+            this.expiration = expirationTimeMillis;
         }
     }
 
