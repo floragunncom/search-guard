@@ -191,18 +191,10 @@ public class Actions {
 
         cluster("indices:searchguard:async_search/_all_owners");
 
-        BiFunction<ActionRequest, ActionResponse, Instant> expiration = (actionRequest, actionResponse) -> {
-            Object keepAlive = ReflectiveAttributeAccessors.objectAttr("keepAlive", "keepAlive").apply(actionRequest);
-            Instant instant = null;
-            if (keepAlive instanceof TimeValue timeValue) {
-                instant = Instant.now().plusMillis(timeValue.millis());
-            }
-            log.debug("Expiration time of async SQL request is {}", instant);
-            return instant;
-        };
         cluster("indices:data/read/sql") //
                  // type ASYNC_SEARCH_RESOURCE_TYPE because some operations are shared with async search, e.g. deletion indices:data/read/async_search/delete
-                .createsResource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("asyncExecutionId", "id"), expiration);
+                .createsResource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("asyncExecutionId", "id"),
+                        xContentInstantFromMillisFromRequest("keepAlive", "keepAlive"));
         cluster("indices:data/read/sql/async/get").uses(new Resource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id")));
         cluster("cluster:monitor/xpack/sql/async/status").uses(new Resource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id")));
         cluster("indices:data/read/sql/translate");
@@ -731,6 +723,18 @@ public class Actions {
         Function<Object, Instant> objectInstantFunction = xContentInstantFromMillis(name);
         return (actionRequest, actionResponse) -> {
             return objectInstantFunction.apply(actionResponse);
+        };
+    }
+
+    static BiFunction<ActionRequest, ActionResponse, Instant> xContentInstantFromMillisFromRequest(String name, String methodName) {
+        return (actionRequest, actionResponse) -> {
+            Object keepAlive = ReflectiveAttributeAccessors.objectAttr(name, methodName).apply(actionRequest);
+            Instant instant = null;
+            if (keepAlive instanceof TimeValue timeValue) {
+                instant = Instant.now().plusMillis(timeValue.millis());
+            }
+            log.debug("Expiration time of async SQL request is {}", instant);
+            return instant;
         };
     }
 

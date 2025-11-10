@@ -38,7 +38,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 
-public class AsyncSqIntTests {
+public class AsyncSqlIntTests {
 
     public static final String ASYNC_SEARCH_ID_PREFIX = "async_search_";
     public static final String MORE_THAN_10_YEARS = "3661d";
