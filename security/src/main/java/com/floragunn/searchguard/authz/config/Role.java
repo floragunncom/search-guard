@@ -99,6 +99,10 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
             warnWhenClusterPermsAreAssignedToIndexLikePerms(dataStreamPermissions, actions, "data stream");
         }
 
+        warnWhenDlsOrFlsRuleIsAssignedToWildcardPattern(indexPermissions);
+        warnWhenDlsOrFlsRuleIsAssignedToWildcardPattern(aliasPermissions);
+        warnWhenDlsOrFlsRuleIsAssignedToWildcardPattern(dataStreamPermissions);
+
         vNode.checkForUnusedAttributes();
 
         return new ValidationResult<Role>(new Role(docNode, reserved, hidden, isStatic, description, clusterPermissions, indexPermissions,
@@ -130,6 +134,23 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
     private static List<String> findClusterPermissions(ImmutableList<String> permissions, Actions actions) {
         return permissions.stream().filter(permission -> ! "*".equals(permission) && actions.get(permission).isClusterPrivilege()).toList();
+    }
+
+    private static <T extends Index> void warnWhenDlsOrFlsRuleIsAssignedToWildcardPattern(ImmutableList<T> permissions) {
+        permissions.forEach(permission -> {
+            if (permission.getIndexPatterns().getPattern().isWildcard()) {
+                if (permission.getDls() != null) {
+                    log.warn("Role assigns a DLS rule '{}' to wildcard (*) {}",
+                            permission.getDls().getSource(), permission.getPatternAttributeName()
+                    );
+                }
+                if (! permission.getFls().isEmpty()) {
+                    log.warn("Role assigns a FLS rule '{}' to wildcard (*) {}",
+                            permission.getFls().stream().map(Index.FlsPattern::getSource).toList(), permission.getPatternAttributeName()
+                    );
+                }
+            }
+        });
     }
 
     private final DocNode source;
