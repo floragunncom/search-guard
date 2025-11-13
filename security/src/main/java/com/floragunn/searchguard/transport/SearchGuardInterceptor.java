@@ -70,7 +70,7 @@ public class SearchGuardInterceptor {
 
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
     protected final static Logger log = LogManager.getLogger(SearchGuardInterceptor.class);
-    private AuditLog auditLog;
+    private final AuditLog auditLog;
     private final ThreadPool threadPool;
     private final PrincipalExtractor principalExtractor;
     private final InterClusterRequestEvaluator requestEvalProvider;

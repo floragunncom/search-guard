@@ -27,13 +27,9 @@ public class ConfigConstants {
     public static final String SG_ORIGIN = SG_CONFIG_PREFIX+"origin";
     public static final String SG_ORIGIN_HEADER = SG_CONFIG_PREFIX+"origin_header";
 
-    public static final String SG_DLS_FILTER_LEVEL_QUERY_TRANSIENT = SG_CONFIG_PREFIX+"dls_filter_level_query_t";
-
     public static final String SG_DLS_MODE_HEADER = SG_CONFIG_PREFIX+"dls_mode";
-    public static final String SG_DLS_MODE_TRANSIENT = SG_CONFIG_PREFIX+"dls_mode_t";
 
     public static final String SG_DOC_WHITELST_HEADER = SG_CONFIG_PREFIX+"doc_whitelist";
-    public static final String SG_DOC_WHITELST_TRANSIENT = SG_CONFIG_PREFIX+"doc_whitelist_t";
 
     public static final String SG_FILTER_LEVEL_DLS_DONE = SG_CONFIG_PREFIX+"filter_level_dls_done";
 
@@ -104,7 +100,6 @@ public class ConfigConstants {
     public static final String SEARCHGUARD_AUDIT_IGNORE_USERS = "searchguard.audit.ignore_users";
     public static final String SEARCHGUARD_AUDIT_IGNORE_REQUESTS = "searchguard.audit.ignore_requests";
     public static final String SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS = "searchguard.audit.resolve_bulk_requests";
-    public static final boolean SEARCHGUARD_AUDIT_SSL_VERIFY_HOSTNAMES_DEFAULT = true;
     public static final boolean SEARCHGUARD_AUDIT_SSL_ENABLE_SSL_CLIENT_AUTH_DEFAULT = false;
     public static final String SEARCHGUARD_AUDIT_EXCLUDE_SENSITIVE_HEADERS = "searchguard.audit.exclude_sensitive_headers";
     public static final String SEARCHGUARD_AUDIT_CONFIG_DISABLED_FIELDS = "searchguard.audit.config.disabled_fields";
@@ -174,7 +169,6 @@ public class ConfigConstants {
     public static final String SEARCHGUARD_COMPLIANCE_DISABLE_ANONYMOUS_AUTHENTICATION  = "searchguard.compliance.disable_anonymous_authentication";
     public static final String SEARCHGUARD_COMPLIANCE_IMMUTABLE_INDICES = "searchguard.compliance.immutable_indices";
     public static final String SEARCHGUARD_COMPLIANCE_SALT = "searchguard.compliance.salt";
-    public static final String SEARCHGUARD_COMPLIANCE_SALT_DEFAULT = "e1ukloTsQlOgPquJ";//16 chars
     public static final String SEARCHGUARD_COMPLIANCE_HISTORY_INTERNAL_CONFIG_ENABLED  = "searchguard.compliance.history.internal_config_enabled";
     public static final String SEARCHGUARD_COMPLIANCE_LOCAL_HASHING_ENABLED = "searchguard.compliance.local_hashing_enabled";
     public static final String SEARCHGUARD_COMPLIANCE_MASK_PREFIX = "searchguard.compliance.mask_prefix";
