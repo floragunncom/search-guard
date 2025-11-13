@@ -32,11 +32,9 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsResponse;
 import org.elasticsearch.action.admin.cluster.shards.TransportClusterSearchShardsAction;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchShardsResponse;
 import org.elasticsearch.action.search.TransportSearchAction;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -114,7 +112,6 @@ public class SearchGuardInterceptor {
         final User user0 = getThreadContext().getTransient(ConfigConstants.SG_USER);
         final String origin0 = getThreadContext().getTransient(ConfigConstants.SG_ORIGIN);
         final TransportAddress remoteAdress0 = getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-        final String origCCSTransientFls = getThreadContext().getTransient(ConfigConstants.SG_FLS_FIELDS_CCS);
         String actionStack = diagnosticContext.getActionStack();
         Map<String, List<String>> responseHeaders = getThreadContext().getResponseHeaders();
 
@@ -129,7 +126,6 @@ public class SearchGuardInterceptor {
                     || k.equals(ConfigConstants.SG_ORIGIN_HEADER)
                     || k.equals(ConfigConstants.SG_REMOTE_ADDRESS_HEADER)
                     || k.equals(ConfigConstants.SG_USER_HEADER)
-                    || k.equals(ConfigConstants.SG_FLS_FIELDS_HEADER)
                     || k.equals(ConfigConstants.SG_DOC_WHITELST_HEADER)
                     || k.equals(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE)
                     || k.equals(ConfigConstants.SG_DLS_MODE_HEADER)
@@ -153,7 +149,6 @@ public class SearchGuardInterceptor {
                     log.debug("remove dls/fls/mf because we sent a ccs request to a remote cluster");
                 }
                 headerMap.remove(ConfigConstants.SG_DLS_MODE_HEADER);
-                headerMap.remove(ConfigConstants.SG_FLS_FIELDS_HEADER);
                 headerMap.remove(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE);
                 headerMap.remove(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER);
                 headerMap.remove(ConfigConstants.SG_DOC_WHITELST_HEADER);
@@ -168,10 +163,6 @@ public class SearchGuardInterceptor {
                 if (log.isDebugEnabled()) {
                     log.debug("add dls/fls/mf from transient");
                 }
-
-                if (origCCSTransientFls != null && !origCCSTransientFls.isEmpty()) {
-                    headerMap.put(ConfigConstants.SG_FLS_FIELDS_HEADER, origCCSTransientFls);
-                }               
             }
 
             if (actionStack != null) {
@@ -278,7 +269,7 @@ public class SearchGuardInterceptor {
      //based on
     //org.elasticsearch.transport.TransportService.ContextRestoreResponseHandler<T>
     //which is private scoped
-    private class RestoringTransportResponseHandler<T extends TransportResponse> implements TransportResponseHandler<T> {
+    private static class RestoringTransportResponseHandler<T extends TransportResponse> implements TransportResponseHandler<T> {
 
         private final ThreadContext.StoredContext contextToRestore;
         private final TransportResponseHandler<T> innerHandler;
@@ -300,19 +291,7 @@ public class SearchGuardInterceptor {
 
          @Override
         public void handleResponse(T response) {
-            ThreadContext threadContext = getThreadContext();
-            Map<String, List<String>> responseHeaders = threadContext.getResponseHeaders();
-
-            List<String> flsResponseHeader = responseHeaders.get(ConfigConstants.SG_FLS_FIELDS_HEADER);
-
             contextToRestore.restore();
-
-            if (response instanceof ClusterSearchShardsResponse || response instanceof SearchShardsResponse) {
-                if (flsResponseHeader != null && !flsResponseHeader.isEmpty()) {
-                    threadContext.putTransient(ConfigConstants.SG_FLS_FIELDS_CCS, flsResponseHeader.get(0));
-                }
-            }
-
             innerHandler.handleResponse(response);
         }
 
