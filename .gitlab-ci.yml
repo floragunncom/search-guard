@@ -12,7 +12,7 @@ variables:
   MAVEN_CLI_OPTS: "--batch-mode -s settings.xml -U"
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
-  AIKIDO_BASE_BRANCH: main
+  AIKIDO_BASE_BRANCH: main-es8
 
   GIT_DEPTH: 10
   
