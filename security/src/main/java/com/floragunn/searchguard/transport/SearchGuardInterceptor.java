@@ -129,7 +129,6 @@ public class SearchGuardInterceptor {
                     || k.equals(ConfigConstants.SG_DOC_WHITELST_HEADER)
                     || k.equals(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE)
                     || k.equals(ConfigConstants.SG_DLS_MODE_HEADER)
-                    || k.equals(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER)
                     || k.equals(ConfigConstants.SG_AUTHZ_HASH_THREAD_CONTEXT_HEADER)
                     || (k.equals("_sg_source_field_context") && ! (request instanceof SearchRequest) && !(request instanceof GetRequest))
                     || k.startsWith("_sg_trace")
@@ -150,7 +149,6 @@ public class SearchGuardInterceptor {
                 }
                 headerMap.remove(ConfigConstants.SG_DLS_MODE_HEADER);
                 headerMap.remove(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE);
-                headerMap.remove(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER);
                 headerMap.remove(ConfigConstants.SG_DOC_WHITELST_HEADER);
             }
             
