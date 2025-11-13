@@ -13,6 +13,7 @@
 - `sg-flx-1.?.x-es-7.17.?`
 - `sg-flx-1.?.x-es-8.?.x`
 - `sgctl-1.?.x`
+- `tlstool-1.?.x`
 
 
 ## Scope
@@ -44,6 +45,26 @@
 - [ ] Create new release tag `sgctl-1.?.?` on the release branch. *Replace ?.? by the targeted SG patch version. Creating the tag will automatically trigger the build CI.*
 - [ ] Check CI for failures and possibly re-try failed test jobs.
 
+# tlstool
+
+*We even build a new tlstool release if there are no significant changes. The tlstool release shall have the same version number as the SG release.*
+
+## Check completeness
+
+*This is mainly a verification of pre-conditions. Ideally, these tasks have been already completed before the release was performed.*
+
+- [ ] Verify that all expected fixes have been merged to `master`
+- [ ] Verify that all expected fixes have been associated with the Gitlab milestone (see above). Not necessary all changes since the last minor release need to be associated with the milestone.
+
+
+## Release branches
+
+- [ ] Pick the commits for all expected fixes (i.e., the ones associated with the milestone) to the release branch `tlstool-1.?.x`.
+
+## Tags
+
+- [ ] Create new release tag `1.?.0` on the release branch. *Replace ?.? by the targeted SG patch version. Creating the tag will automatically trigger the build CI.*
+- [ ] Check CI for failures and possibly re-try failed test jobs.
 
 # Elasticsearch plugin and Kibana plugin
 
@@ -71,7 +92,7 @@
 
 ## Initial check for security issues
 
-- [ ] Check snapshot of `search-guard-suite-enterprise` release branches with Veracode
+- [ ] Scan source code of `search-guard-suite-enterprise` with Aikido. Scanning is performed during the release pipeline and can also be invoked via the [Aikido user interface](https://app.aikido.dev/repositories/609666) and the "Scan Branch" button.
 - [ ] Check release branches of `search-guard-kibana-plugin`  with `yarn audit`  
 
 ## Tags
@@ -101,7 +122,7 @@
 
 ## Adapt download links
 
-- [ ] in `_config.yml` adapt `sgv` and `kbv` columns in sections `sgversions` -> `search-guard-flx-8` and `search-guard-flx-7`. Adapt `sgctl` version at the end of the file.
+- [ ] in `_config.yml` adapt `sgv` and `kbv` columns in sections `sgversions` -> `search-guard-flx-8` and `search-guard-flx-7`. Adapt `sgctl` and `tlstool` versions at the end of the file.
 
 ## Final activation
 

@@ -33,6 +33,24 @@
 - [ ] Create new release tag `sgctl-1.?.0` on the release branch. *Replace ? by the targeted SG minor version. Creating the tag will automatically trigger the build CI.*
 - [ ] Check CI for failures and possibly re-try failed test jobs.
 
+# tlstool
+
+*We even build a new tlstool release if there are no significant changes. The tlstool release shall have the same version number as the SG release.*
+
+## Check completeness
+
+*This is mainly a verification of pre-conditions. Ideally, these tasks have been already completed before the release was performed.*
+
+- [ ] Verify that all expected features/enhancements/bugfixes have been merged
+- [ ] Verify that all features/enhancements/bugfixes commits in `master` since the previous release are associated with the Gitlab milestone (see above). Changes that are not relevant to the user such as CI or similar infrastructure do not need to be included in the Gitlab milestone.
+- [ ] Check open merge requests for [unmerged dependabot dependency updates](https://git.floragunn.com/search-guard/search-guard-tlstool/-/merge_requests?scope=all&state=opened&label_name[]=dependencies). Merge if the pipeline is green!
+- [ ] Verify that all security [issues](https://git.floragunn.com/search-guard/search-guard-tlstool/-/issues/?sort=updated_desc&state=opened&label_name%5B%5D=security&first_page_size=20) and [merge requests](https://git.floragunn.com/search-guard/search-guard-tlstool/-/merge_requests?scope=all&state=opened&label_name[]=security) have been addressed
+
+## Tags
+
+- [ ] Create new release branch `tlstool-4.?.x` on the `main` branch. *Replace ? by the targeted SG minor version*
+- [ ] Create new release tag `1.?.0` on the release branch. *Replace ? by the targeted SG minor version. Creating the tag will automatically trigger the build CI.*
+- [ ] Check CI for failures and possibly re-try failed test jobs.
 
 # Elasticsearch plugin and Kibana plugin
 
@@ -55,7 +73,7 @@
 
 ## Initial check for security issues
 
-- [ ] Check snapshot of `search-guard-suite-enterprise` `master` with Veracode
+- [ ] Scan source code of `search-guard-suite-enterprise` with Aikido. Scanning is performed during the release pipeline and can also be invoked via the [Aikido user interface](https://app.aikido.dev/repositories/609666) and the "Scan Branch" button.
 - [ ] Check `search-guard-kibana-plugin`  with `yarn audit`  
 
 ## Reconciling changes
@@ -108,7 +126,7 @@
 
 ## Adapt download links
 
-- [ ] in `_config.yml` adapt `sgv` and `kbv` columns in sections `sgversions` -> `search-guard-flx-8` and `search-guard-flx-7`. Adapt `sgctl` version at the end of the file.
+- [ ] in `_config.yml` adapt `sgv` and `kbv` columns in sections `sgversions` -> `search-guard-flx-8` and `search-guard-flx-7`. Adapt `sgctl` and `tlstool` version at the end of the file.
 
 ## Final activation
 

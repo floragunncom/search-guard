@@ -14,6 +14,8 @@
 
 *As sgctl is independent of Elasticsearch versions, no new versions of sgctl are built.*
 
+*As tlstool is independent of Elasticsearch versions, no new versions of sgctl are built.*
+
 *For patch releases of Elasticsearch, it is in most cases possible to do a compatibility release without code changes. In such cases, it is sufficient to create new tags on the existing release tags and let the CI do its job.*
 
 ## Special notes
@@ -40,6 +42,70 @@
 - [ ] Edit `.gitlab-ci-branch-specific.yml`. Update `ES_VERSION`. Update `SG_ES_PLUGIN` to point to `b-prepare-es-?.?.?-SNAPSHOT`. This is the branch of the snapshot of the Elasticsearch plugin created above. 
 - [ ] Submit a merge request for  `prepare-es-?.?`. Check the CI for errors and fix these.
 - [ ] Review the [Kibana release notes](https://www.elastic.co/guide/en/kibana/current/release-notes.html) for further changes that might be relevant to Search Guard. Make further adaptions to the code if necessary. Note: If such adaptions are necessary, increasing the version number of Search Guard might be indicated.
+
+## Manual test related to MT (multi tenancy)
+### Before tests
+- [ ] Build ES and Kibana plugins from branches `prepare-es-?.?.?` and setup environment using newly built plugins
+- [ ] Clear ES data dir
+- [ ] Enable MT with the command `./sgctl.sh special enable-mt`
+- [ ] Create a test user and admin tenant. This can be achieved by using the script `add_data_for_sg300.sh` from bundle [scripts.tar.gz](/uploads/1329d3853e18128f8c3aa50abbaad9a2/scripts.tar.gz). The script creates a user `lukasz/lukasz`, which can be used during tests.
+- generate some data. This can be achieved by following the guide from the `readme.md` file incorporated in [scripts.tar.gz](/uploads/1329d3853e18128f8c3aa50abbaad9a2/scripts.tar.gz)
+
+### Test plan
+
+Tests should be performed with a user without direct access to the kibana indices (non-admin user, e.g., `lukasz`)
+
+- [ ] select admin tenant
+- [ ] Spaces
+  - [ ] Create space `admin_tenant_space_4`
+  - [ ] Update space `admin_tenant_space_4`
+    - [ ] add description
+  - [ ] Delete `admin_tenant_space_4` space
+- [ ] Data View
+  - [ ] Create data view `admin_space_3_data_view`
+  - [ ] Edit data view `admin_space_3_data_view` (\`Manage this data view\` in the drop-down used for selecting data view)
+    - [ ] set name `admin_space_3_data_view_update`
+  - [ ] Create CSV report
+  - [ ] Download CSV report
+  - [ ] Delete data view `admin_space_3_data_view` ( Menu -> Management (click it) -> Kibana -> Data Views -> `admin_space_3_data_view_update` -> wastebasket icon)
+- [ ] Discovery
+  - [ ] create data view `iot`
+  - [ ] save query `device-id :256` as `admin_space_3_query_device_256`
+  - [ ] update `admin_space_3_query_device_256` add description (press "save" button and add description)
+  - [ ] go to new
+  - [ ] delete query (Menu -> Management (click it) -> Kibana -> Saved Objects -> `admin_space_3_query_device_256` -> select and delete )
+- [ ] Dashboard
+  - [ ] create dashboard
+    - [ ] create line chart
+    - [ ] save chart
+  - [ ] save dashboard `admin_space_3_dashboard_1`
+  - [ ] create new dashboard `admin_space_3_dashboard_2`
+    - [ ] create bar chart
+    - [ ] save bar chart
+  - [ ] save dashboard `admin_space_3_dashboard_2`
+  - [ ] reopen dashboard `admin_space_3_dashboard_1`
+  - [ ] edit dashboard, add new chart (create visualization) `admin_space_3_dashboard_1`
+    - [ ] create chart
+    - [ ] save chart
+  - [ ] save dashboard
+  - [ ] switch tenant
+  - [ ] return to `admin_tenant`
+  - [ ] Open dashboard `admin_space_3_dashboard_2`
+  - [ ] Delete dashboard `admin_space_3_dashboard_1`
+  - [ ] Open dashboard `admin_space_3_dashboard_2`
+  - [ ] Edit dashboard `admin_space_3_dashboard_2`
+    - [ ] add new chart
+    - [ ] save chart
+  - [ ] Save dashboard
+
+**2025-02-06 additional edge case**
+It is worth checking if MT can be enabled before the Kibana installation
+- [ ] Shot down Kibana and ES
+- [ ] Clear ES data dir
+- [ ] Start ES
+- [ ] Enable MT
+- [ ] Start Kibana
+- [ ] Try to use any tenant besides global.
 
 ## Finalize
 
