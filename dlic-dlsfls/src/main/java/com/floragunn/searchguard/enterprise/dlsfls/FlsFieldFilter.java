@@ -125,7 +125,8 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
         @Override
         public long ramBytesUsed() {
             //  TODO: Should we include FLSRule here as well, or is it a shared instance that does not contribute to the object size?
-            return SHALLOW_SIZE; // TODO See https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/379
+//            return SHALLOW_SIZE; // TODO See https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/379
+            throw new IllegalArgumentException("Cannot compute the RAM usage for FlsFieldPredicate");// TODO restore correct implementation
         }
 
         @Override
