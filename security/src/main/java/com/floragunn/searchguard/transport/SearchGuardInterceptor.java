@@ -119,6 +119,8 @@ public class SearchGuardInterceptor {
         final String origCCSTransientMf = getThreadContext().getTransient(ConfigConstants.SG_MASKED_FIELD_CCS);
         String actionStack = diagnosticContext.getActionStack();
         Map<String, List<String>> responseHeaders = getThreadContext().getResponseHeaders();
+        RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
+        boolean crossClusterSearchEnabled = ! remoteClusterService.getRegisteredRemoteClusterNames().isEmpty();
 
         //stash headers and transient objects
         try (ThreadContext.StoredContext stashedContext = getThreadContext().stashContext()) {
@@ -144,12 +146,6 @@ public class SearchGuardInterceptor {
                     || k.startsWith(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER)
                     || checkCustomAllowedHeader(k)
                     )));
-            
-            RemoteClusterService remoteClusterService = guiceDependencies.getTransportService().getRemoteClusterService();
-
-//            boolean crossClusterSearchEnabled = remoteClusterService.isCrossClusterSearchEnabled();
-            // TODO the code which uses crossClusterSearchEnabled should be removed
-            boolean crossClusterSearchEnabled = false;
 
             if (crossClusterSearchEnabled
                     && clusterInfoHolder.isInitialized()
