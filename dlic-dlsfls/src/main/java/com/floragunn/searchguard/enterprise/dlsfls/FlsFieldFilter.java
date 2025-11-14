@@ -17,9 +17,9 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 import org.apache.logging.log4j.LogManager;
@@ -34,6 +34,7 @@ import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import org.apache.lucene.util.RamUsageEstimator;
 import org.elasticsearch.plugins.FieldPredicate;
 import com.floragunn.searchsupport.meta.Meta;
 
@@ -79,7 +80,7 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
 
             FlsRule flsRule = fieldAuthorization.getRestriction(privilegesEvaluationContext, index, meter);
 
-            return createFieldPredicate((field) -> flsRule.isAllowedRecursive(removeSuffix(field)));
+            return createFieldPredicate(flsRule);
         } catch (PrivilegesEvaluationException e) {
             log.error("Error while evaluating FLS for index " + indexName, e);
             componentState.addLastException("filter_fields", e);
@@ -94,23 +95,8 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
     /**
      * Converts a Predicate<String> simplePredicate into a FieldPredicate. For ES versions before 8.14.x, this will just return the original object. This avoids code conflicts.
      */
-    private FieldPredicate createFieldPredicate(Predicate<String> simplePredicate) {
-        return new FieldPredicate() {
-            @Override
-            public long ramBytesUsed() {
-                return 0; // TODO See https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/379
-            }
-
-            @Override
-            public boolean test(String field) {
-                return simplePredicate.test(field);
-            }
-
-            @Override
-            public String modifyHash(String hash) {
-                return hash; // TODO See https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/379
-            }
-        };
+    private FieldPredicate createFieldPredicate(FlsRule flsRule) {
+        return new FlsFieldPredicate(flsRule);
     }
 
     private static String removeSuffix(String field) {
@@ -123,6 +109,34 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
     @Override
     public ComponentState getComponentState() {
         return componentState;
+    }
+
+    private static class FlsFieldPredicate implements FieldPredicate {
+
+        private static final long SHALLOW_SIZE = RamUsageEstimator.shallowSizeOfInstance(FlsFieldPredicate.class);
+
+        private final FlsRule flsRule;
+
+
+        public FlsFieldPredicate(FlsRule flsRule) {
+            this.flsRule = Objects.requireNonNull(flsRule);
+        }
+
+        @Override
+        public long ramBytesUsed() {
+            //  TODO: Should we include FLSRule here as well, or is it a shared instance that does not contribute to the object size?
+            return SHALLOW_SIZE; // TODO See https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/379
+        }
+
+        @Override
+        public boolean test(String field) {
+            return flsRule.isAllowedRecursive(removeSuffix(field));
+        }
+
+        @Override
+        public String modifyHash(String hash) {
+            return "sg-fls-rule:" + hash; // TODO See https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/379
+        }
     }
 
 }
