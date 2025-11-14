@@ -107,6 +107,70 @@ It is worth checking if MT can be enabled before the Kibana installation
 - [ ] Start Kibana
 - [ ] Try to use any tenant besides global.
 
+## MT data migration testing procedure
+
+Test the MT data migration process between ES minor versions that support data migration. Before proceeding, update the list below to reflect the versions that require testing.
+
+Each entry represents two ES versions that need data migration testing:
+- [ ] 8.19.x -> 9.2.0
+- [ ] 9.0.x -> 9.2.0
+- [ ] 9.1.x -> 9.2.0
+
+### Data directory archives
+
+ES data directories from previous versions are shared via Mailbox. File names indicate the ES versions used sequentially to create and migrate the data.
+
+**Example:** `rich_data_8.7.1_8.18.0_9.0.0_9.1.0.tar.gz`
+- Initially created with ES 8.7.1
+- Migrated through versions 8.18.0, 9.0.0, and 9.1.0
+- Can be used to test migration from ES 9.1.0 to newer versions
+
+### Testing procedure
+
+1. Set up Elasticsearch and Kibana in the required version.
+2. Locate the appropriate ES data directory archive from Mailbox containing data in the required version.
+3. Start Elasticsearch and Kibana.
+4. Run the data generator script to populate existing dashboards and data views with data. The script is available in [scripts.tar.gz](/uploads/1329d3853e18128f8c3aa50abbaad9a2/scripts.tar.gz) with instructions.
+5. Verify all saved objects from the `Data migration data sets` list:
+  - All objects are present
+  - **No additional objects** appear (especially from other tenants; each object name includes its tenant name)
+  - Kibana reports no errors related to objects
+6. Stop Kibana and Elasticsearch.
+7. Compress the ES data directory. Append the current ES version to the original archive filename and upload the newly created archive. This file will be needed for testing future ES minor versions.
+
+### Data migration data sets
+- Global tenant
+  - Default space
+    - data view
+      - `global_default_iot_8.7.1`
+        - queries
+          - `global_default_iot_device_256_8.7.1`
+          - `global_default_iot_device_258_8.7.1`
+      - `global_default_logs_8.7.1`
+      - `conflict_complex_dataview`
+  - Dashboard
+    - `global_default_4_lines_8.7.1`
+    - `global_default_splited_lines_and_bars_8.7.1`
+    - `global_default_splited_line_statistic_8.7.1`
+    - `conflict_dashboard` 
+  - Space `default_tenant_empty_8.7.1`
+- Admin tenant
+  - Default space
+    - data view
+      - `conflict_complex_dataview`
+    - Dashboard
+      - `conflict_dashboard`
+  - Space `admin_custom_space_8.7.1`
+    - Data view
+      - `admin_custom_space_iot_8.7.1`
+        - query
+          - `admin_custom_space_query_iot_device_257_8.7.1
+      -  `admin_custom_space_logs_8.7.1`
+    -  Dashboard
+      -  `admin_custom_space_line_bar_8.7.1`
+      -  `admin_custom_space_area_donut_8.7.1`
+      -  `admin_custom_space_table_bar_8.7.1`
+
 ## Finalize
 
 - [ ] Merge the merge requests to `master` or `main-es8` if the CI is green.
