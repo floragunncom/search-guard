@@ -176,7 +176,7 @@ deploy_docker_image:
       echo "Enable qemu-user-static to support docker multiarch builds with buildx"
       docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
   
-      ./build_and_push.sh "floragunncom" "docker.io" "search-guard-flx-elasticsearch" "$ES_VERSION-$SG_VERSION" "--build-arg ES_VERSION="$ES_VERSION" --build-arg SG_VERSION="$SG_VERSION""      
+      ./build_and_push.sh "floragunncom" "docker.io" "search-guard-flx-elasticsearch" "$SG_VERSION-es-$ES_VERSION" "--build-arg ES_VERSION="$ES_VERSION" --build-arg SG_VERSION="$SG_VERSION""      
       
       
       
