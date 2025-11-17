@@ -136,7 +136,8 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
 
         @Override
         public String modifyHash(String hash) {
-            return "sg-fls-rule:" + hash; // TODO See https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/379
+//            return "sg-fls-rule:" + hash; // TODO See https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/379
+            throw new IllegalArgumentException("Cannot modify hash in FlsFieldPredicate: " + hash); // TODO remove this line, only for test purposes
         }
     }
 
