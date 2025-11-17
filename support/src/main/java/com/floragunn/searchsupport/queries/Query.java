@@ -31,6 +31,8 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.errors.ValidationError;
 import com.floragunn.searchsupport.xcontent.XContentParserContext;
 
+import java.util.Objects;
+
 public class Query implements Document<Query> {
     public static final Query MATCH_NONE = new Query(new MatchNoneQueryBuilder());
 
@@ -67,5 +69,10 @@ public class Query implements Document<Query> {
 
     public QueryBuilder getQueryBuilder() {
         return queryBuilder;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(source);
     }
 }

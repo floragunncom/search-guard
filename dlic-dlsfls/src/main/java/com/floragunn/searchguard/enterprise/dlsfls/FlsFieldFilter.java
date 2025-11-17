@@ -116,17 +116,17 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
         private static final long SHALLOW_SIZE = RamUsageEstimator.shallowSizeOfInstance(FlsFieldPredicate.class);
 
         private final FlsRule flsRule;
+        private final int ruleHash;
 
 
         public FlsFieldPredicate(FlsRule flsRule) {
             this.flsRule = Objects.requireNonNull(flsRule);
+            this.ruleHash = this.flsRule.hashCode();
         }
 
         @Override
         public long ramBytesUsed() {
-            //  TODO: Should we include FLSRule here as well, or is it a shared instance that does not contribute to the object size?
-//            return SHALLOW_SIZE; // TODO See https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/379
-            throw new IllegalArgumentException("Cannot compute the RAM usage for FlsFieldPredicate");// TODO restore correct implementation
+            return SHALLOW_SIZE;
         }
 
         @Override
@@ -136,7 +136,7 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
 
         @Override
         public String modifyHash(String hash) {
-            return "sg-fls-rule:" + hash; // TODO See https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/379
+            return "sg_fls_" + ruleHash + ":" + hash;
         }
     }
 
