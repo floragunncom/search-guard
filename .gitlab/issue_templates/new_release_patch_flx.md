@@ -92,7 +92,7 @@
 
 ## Initial check for security issues
 
-- [ ] Scan source code of `search-guard-suite-enterprise` with Aikido. Scanning is performed during the release pipeline and can also be invoked via the [Aikido user interface](https://app.aikido.dev/repositories/609666) and the "Scan Branch" button.
+- [ ] Scan source code of `search-guard-suite-enterprise` with Aikido. Scanning can be invoked via the [Aikido user interface](https://app.aikido.dev/repositories/609666) and the "Scan Branch" button.
 - [ ] Check release branches of `search-guard-kibana-plugin`  with `yarn audit`  
 
 ## Tags
