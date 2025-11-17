@@ -97,29 +97,29 @@ public class MockWebserviceProvider implements Closeable {
     private Header requiredHttpHeader;
     private KeyStore trustStore;
 
-    MockWebserviceProvider(String path) throws IOException {
+    public MockWebserviceProvider(String path) throws IOException {
         this(path, SocketUtils.findAvailableTcpPort());
     }
 
-    MockWebserviceProvider(String path, byte[] body, String contentType) throws IOException {
+    public MockWebserviceProvider(String path, byte[] body, String contentType) throws IOException {
         this(path, SocketUtils.findAvailableTcpPort());
         responseContentType = contentType;
         responseBody = body;
     }
 
-    MockWebserviceProvider(String path, boolean ssl) throws IOException {
+    public MockWebserviceProvider(String path, boolean ssl) throws IOException {
         this(path, SocketUtils.findAvailableTcpPort(), ssl, ssl);
     }
 
-    MockWebserviceProvider(String path, boolean ssl, boolean clientAuth) throws IOException {
+    public MockWebserviceProvider(String path, boolean ssl, boolean clientAuth) throws IOException {
         this(path, SocketUtils.findAvailableTcpPort(), ssl, clientAuth);
     }
 
-    MockWebserviceProvider(String path, int port) throws IOException {
+    public MockWebserviceProvider(String path, int port) throws IOException {
         this(path, port, false, false);
     }
 
-    MockWebserviceProvider(String pathPattern, int port, boolean ssl, boolean clientAuth) throws IOException {
+    public MockWebserviceProvider(String pathPattern, int port, boolean ssl, boolean clientAuth) throws IOException {
         this.port = port;
         this.uri = buildUri(pathPattern, ssl, port);
         this.ssl = ssl;
