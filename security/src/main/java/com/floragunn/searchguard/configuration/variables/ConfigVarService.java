@@ -556,12 +556,8 @@ public class ConfigVarService implements ComponentStateProvider {
         return values;
     }
 
-    public void refresh() {
+    public Map<String, Object> refresh() {
         log.info("Refreshing config variables");
-        threadPool.generic().submit(() -> refreshSync());
-    }
-
-    private synchronized void refreshSync() {
         try {
             componentState.setState(State.INITIALIZING, "refreshing");
             Map<String, Object> newValues = readValues();
@@ -575,18 +571,11 @@ public class ConfigVarService implements ComponentStateProvider {
                 componentState.setState(State.INITIALIZED);
                 log.debug("Config variables did not change");
             }
+            return this.values;
         } catch (Exception e) {
-            log.error("Error while refreshing. Trying again.", e);
+            log.error("Error while refreshing.", e);
             componentState.addLastException("refresh", e);
-
-            threadPool.generic().submit(() -> {
-                try {
-                    Thread.sleep(10000 + new SecureRandom().nextInt(10000));
-                    refreshSync();
-                } catch (InterruptedException e1) {
-
-                }
-            });
+            throw e;
         }
     }
 

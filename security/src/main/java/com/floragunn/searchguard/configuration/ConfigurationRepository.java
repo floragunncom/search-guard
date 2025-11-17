@@ -177,6 +177,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     private final IndexNameExpressionResolver resolver;
     private final ConfigModificationValidators configModificationValidators;
+    private final ConfigVarService configVarService;
 
     public ConfigurationRepository(StaticSettings settings, ThreadPool threadPool, Client client, ClusterService clusterService,
                                    ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
@@ -202,7 +203,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.parserContext = new Context(variableResolvers, modulesRegistry, settings, xContentRegistry, pipeFunctions, actions);
         this.threadPool = threadPool;
 
-        configVarService.addChangeListener(() -> {
+
+
+        this.resolver = resolver;
+        this.configModificationValidators = configModificationValidators;
+        this.configVarService = configVarService;
+        this.configVarService.addChangeListener(() -> {
             if (currentConfig != null) {
                 try {
                     reloadConfiguration(CType.all(), "Config variable update");
@@ -211,9 +217,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 }
             }
         });
-
-        this.resolver = resolver;
-        this.configModificationValidators = configModificationValidators;
     }
 
     public void initOnNodeStart() {
@@ -435,6 +438,15 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 }
 
                 attempts++;
+            }
+
+            componentState.setState(State.INITIALIZING, "waiting_for_config_var_service");
+            while (! configVarService.getComponentState().isInitialized()) {
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e1) {
+                    //ignore
+                }
             }
 
             componentState.setState(State.INITIALIZING, "loading");
