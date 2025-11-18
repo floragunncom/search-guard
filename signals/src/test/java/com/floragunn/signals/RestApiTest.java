@@ -1204,6 +1204,41 @@ public class RestApiTest {
     }
 
     @Test
+    public void testExecuteAnonymousWatch() throws Exception {
+
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
+
+            Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("testsource").query("{\"match_all\" : {} }")
+                    .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").name("testsink").build();
+
+            HttpResponse response = restClient.postJson("/_signals/watch/_main/_execute", "{\"watch\": " + watch.toJson() + "}");
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+        }
+    }
+
+    @Test
+    public void testExecuteWatchById() throws Exception {
+        String tenant = "_main";
+        String watchId = "execution_test";
+        String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
+
+        try (GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
+
+            Watch watch = new WatchBuilder(watchId).cronTrigger("0 0 */1 * * ?").search("testsource").query("{\"match_all\" : {} }").as("testsearch")
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink").name("testsink").build();
+            HttpResponse response = restClient.putJson(watchPath, watch.toJson());
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
+
+            response = restClient.postJson(watchPath + "/_execute", "{}");
+
+            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+        }
+    }
+
+    @Test
     public void testActivateWatchAuth() throws Exception {
         String tenant = "_main";
         String watchId = "activate_auth_test";
