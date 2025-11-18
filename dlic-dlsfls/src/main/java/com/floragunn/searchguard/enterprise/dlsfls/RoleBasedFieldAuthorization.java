@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -328,6 +329,11 @@ public class RoleBasedFieldAuthorization
                 // If there are already explicit exclusions on certain object-only inclusions, we can remove these again
                 return objectOnlyPatterns.build().without(patterns);
             }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(sourceIndex, patterns, objectOnlyPatterns, allowAll);
+            }
         }
 
         static class MultiRole extends FlsRule {
@@ -427,6 +433,11 @@ public class RoleBasedFieldAuthorization
                 } else {
                     return "FLS:" + entries.map((e) -> e.patterns);
                 }
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(entries, allowAll);
             }
 
         }
