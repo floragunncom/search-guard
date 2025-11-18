@@ -74,8 +74,8 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to index a1")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
-                            .indexPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("index_a1")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .indexPermissions("SGS_SQL_READ_INDEX").on("index_a1")
 
             )
             .indexMatcher("read", sqlLimitedTo(index_a1));
@@ -84,8 +84,8 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to index a1, and dls excluding dept_d")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
-                            .indexPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .indexPermissions("SGS_SQL_READ_INDEX")
                             .dls("{ \"bool\": { \"must_not\": { \"match\": { \"dept\": \"dept_d\" }}}}")
                             .on("index_a1")
 
@@ -96,8 +96,8 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to index a2")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
-                            .indexPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("index_a2")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .indexPermissions("SGS_SQL_READ_INDEX").on("index_a2")
 
             )
             .indexMatcher("read", sqlLimitedTo(index_a2));
@@ -106,8 +106,8 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to index b1")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
-                            .indexPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("index_b1")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .indexPermissions("SGS_SQL_READ_INDEX").on("index_b1")
 
             )
             .indexMatcher("read", sqlLimitedTo(index_b1));
@@ -116,8 +116,8 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to index b2")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
-                            .indexPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("index_b2")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .indexPermissions("SGS_SQL_READ_INDEX").on("index_b2")
 
             )
             .indexMatcher("read", sqlLimitedTo(index_b2));
@@ -126,8 +126,8 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to all indices")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
-                            .indexPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("index_*")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .indexPermissions("SGS_SQL_READ_INDEX").on("index_*")
 
             )
             .indexMatcher("read", sqlLimitedTo(index_a1, index_a2, index_b1, index_b2));
@@ -136,8 +136,8 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to alias a")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
-                            .aliasPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("alias_a")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .aliasPermissions("SGS_SQL_READ_INDEX").on("alias_a")
 
             )
             .indexMatcher("read", sqlLimitedTo(index_a1, index_a2, alias_a));
@@ -146,8 +146,8 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to alias a, and dls excluding dept_d")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
-                            .aliasPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .aliasPermissions("SGS_SQL_READ_INDEX")
                             .dls("{ \"bool\": { \"must_not\": { \"match\": { \"dept\": \"dept_d\" }}}}")
                             .on("alias_a")
 
@@ -162,8 +162,8 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to alias b")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
-                            .aliasPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("alias_b")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .aliasPermissions("SGS_SQL_READ_INDEX").on("alias_b")
 
             )
             .indexMatcher("read", sqlLimitedTo(index_b1, index_b2, alias_b));
@@ -172,8 +172,8 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to data stream a")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
-                            .dataStreamPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("ds_a")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .dataStreamPermissions("SGS_SQL_READ_INDEX").on("ds_a")
 
             )
             .indexMatcher("read", sqlLimitedTo(ds_a));
@@ -182,8 +182,8 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to data stream b")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
-                            .dataStreamPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("ds_b")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .dataStreamPermissions("SGS_SQL_READ_INDEX").on("ds_b")
 
             )
             .indexMatcher("read", sqlLimitedTo(ds_b));
@@ -192,8 +192,8 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to data stream b, and dls excluding dept_d")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
-                            .dataStreamPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .dataStreamPermissions("SGS_SQL_READ_INDEX")
                             .dls("{ \"bool\": { \"must_not\": { \"match\": { \"dept\": \"dept_d\" }}}}")
                             .on("ds_b")
 
@@ -204,8 +204,8 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("user with access to all data streams")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor", "indices:data/read/close_point_in_time")
-                            .dataStreamPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search").on("ds_*")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .dataStreamPermissions("SGS_SQL_READ_INDEX").on("ds_*")
 
             )
             .indexMatcher("read", sqlLimitedTo(ds_a, ds_b));
@@ -214,10 +214,10 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("unlimited")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")
-                            .indexPermissions("*").on("*")
-                            .aliasPermissions("*").on("*")
-                            .dataStreamPermissions("*").on("*")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .indexPermissions("SGS_SQL_READ_INDEX").on("*")
+                            .aliasPermissions("SGS_SQL_READ_INDEX").on("*")
+                            .dataStreamPermissions("SGS_SQL_READ_INDEX").on("*")
 
             )
             .indexMatcher("read", sqlLimitedTo(index_a1, index_a2, index_b1, index_b2, alias_a, alias_b, ds_a, ds_b));
@@ -226,9 +226,9 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("unlimited, but has FLS on *_loc fields")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")
-                            .aliasPermissions("*").fls("~*_loc").on("*")
-                            .dataStreamPermissions("*").fls("~*_loc").on("*")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .aliasPermissions("SGS_SQL_READ_INDEX").fls("~*_loc").on("*")
+                            .dataStreamPermissions("SGS_SQL_READ_INDEX").fls("~*_loc").on("*")
 
             )
             .addFieldValueMatcher("$.columns[*].name", false, everyItem(not(endsWith("_loc"))))
@@ -238,9 +238,9 @@ public class SqlAuthorizationReadOnlyIntTests {
             .description("unlimited, but has fm on *_ip fields")
             .roles(
                     new TestSgConfig.Role("r1")
-                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")
-                            .aliasPermissions("*").maskedFields("*_ip").on("*")
-                            .dataStreamPermissions("*").maskedFields("*_ip").on("*")
+                            .clusterPermissions("SGS_SQL_READ_CLUSTER")
+                            .aliasPermissions("SGS_SQL_READ_INDEX").maskedFields("*_ip").on("*")
+                            .dataStreamPermissions("SGS_SQL_READ_INDEX").maskedFields("*_ip").on("*")
 
             )
             .addFieldValueMatcher("$.columns[*].name", false, hasItem(endsWith("_loc")))
