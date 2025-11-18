@@ -111,7 +111,7 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
         return componentState;
     }
 
-    private static class FlsFieldPredicate implements FieldPredicate {
+    static class FlsFieldPredicate implements FieldPredicate {
 
         private static final long SHALLOW_SIZE = RamUsageEstimator.shallowSizeOfInstance(FlsFieldPredicate.class);
 
