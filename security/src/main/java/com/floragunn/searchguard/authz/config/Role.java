@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.PatternSyntaxException;
 
 import com.floragunn.searchguard.authz.actions.Actions;
@@ -281,6 +282,11 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
             return !this.indexPatterns.getPatternTemplates().isEmpty() || (this.dls != null && !this.dls.isConstant());
         }
 
+        @Override
+        public int hashCode() {
+            return Objects.hash(indexPatterns, dls, fls, maskedFields, allowedActions, legacyIndexPatterns);
+        }
+
         public static class FlsPattern {
             public static final FlsPattern INCLUDE_ALL = new FlsPattern(Pattern.wildcard(), false, "*");
             public static final FlsPattern EXCLUDE_ALL = new FlsPattern(Pattern.wildcard(), true, "~*");
@@ -398,6 +404,11 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
                 this.source = source;
                 this.algo = null;
                 this.regexReplacements = null;
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hashCode(source);
             }
 
             public static class RegexReplacement {
@@ -569,6 +580,11 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
             this.asString = asString.toString();
             this.source = source;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(asString);
         }
 
         public Pattern getPattern() {
