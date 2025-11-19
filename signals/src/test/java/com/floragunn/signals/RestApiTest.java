@@ -645,7 +645,7 @@ public class RestApiTest {
         String watchId = "put_watch_with_body_from_runtime_data_default_content_type_header";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").build();
              GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
 
             try {
@@ -720,7 +720,7 @@ public class RestApiTest {
         String watchId = "http_whitelist";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").build();
                 GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             Client client = cluster.getInternalNodeClient();
             try {
@@ -764,7 +764,7 @@ public class RestApiTest {
         String watchId = "webhook-with-truststore";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false);
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(false).build();
             GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             webhookProvider.uploadMockServerCertificateAsTruststore(cluster, USER_CERTIFICATE, UPLOADED_TRUSTSTORE_ID);
             Watch watch = new WatchBuilder("tls-webhook-test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
@@ -788,7 +788,7 @@ public class RestApiTest {
         String watchId = "webhook-missing-truststore-configuration";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false);
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(false).build();
             GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             Client client = cluster.getInternalNodeClient();
             client.admin().indices().create(new CreateIndexRequest("testsink-" + watchId)).actionGet();
@@ -816,7 +816,7 @@ public class RestApiTest {
         String watchId = "webhook-incorrect-truststore-id";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false);
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(false).build();
             GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             Client client = cluster.getInternalNodeClient();
             client.admin().indices().create(new CreateIndexRequest("testsink-" + watchId)).actionGet();
@@ -839,11 +839,10 @@ public class RestApiTest {
         String watchId = "http_default_proxy";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook")
+                .requiredHttpHeader(REQUEST_HEADER_ADDING_FILTER.getHeader()).build();
                 GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             try {
-
-                webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
                 Watch watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                         .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri()).throttledFor("0")
@@ -886,11 +885,10 @@ public class RestApiTest {
         String watchId = "http_explicit_proxy";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook")
+                .requiredHttpHeader(REQUEST_HEADER_ADDING_FILTER.getHeader()).build();
                 GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             try {
-                webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
-
                 Watch watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
                         .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().postWebhook(webhookProvider.getUri()).throttledFor("0")
                         .name("testhook").build();
@@ -926,7 +924,7 @@ public class RestApiTest {
         String watchId = "http_explicit_no_proxy";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").build();
                 GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA)) {
             try {
                 HttpResponse response = restClient.putJson("/_signals/settings/http.proxy", "\"http://127.0.0.8:" + wireMockProxy.port() + "\"");
@@ -961,9 +959,9 @@ public class RestApiTest {
         String proxyId = "proxy-1";
         String proxyPath = "/_signals/proxies/" + proxyId;
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook")
+                .requiredHttpHeader(REQUEST_HEADER_ADDING_FILTER.getHeader()).build();
                 GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
-            webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
             HttpResponse response = restClient.putJson(proxyPath, DocNode.of("name", "proxy", "uri", "http://127.0.0.8:" + wireMockProxy.port()));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
@@ -999,7 +997,7 @@ public class RestApiTest {
         String watchId = "http_proxy_loaded_from_config";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").build();
                 GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
 
             Watch watch = new WatchBuilder("put_test").atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
@@ -1024,7 +1022,7 @@ public class RestApiTest {
         String watchId = "put_watch_with_credentials";
         String watchPath = "/_signals/watch/" + tenant + "/" + watchId;
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook");
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").build();
                 GenericRestClient restClient = cluster.getRestClient(USERNAME_UHURA, USERNAME_UHURA).trackResources()) {
             Client client = cluster.getInternalNodeClient();
 
@@ -2123,7 +2121,7 @@ public class RestApiTest {
 
             try {
 
-                try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+                try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").build()) {
 
                     HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webhookProvider.getUri()),
                             "/{{data.teststatic.path}}", null, "{{data.teststatic.body}}", null, null, null, null);

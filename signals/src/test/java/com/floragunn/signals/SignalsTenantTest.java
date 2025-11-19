@@ -290,7 +290,7 @@ public class SignalsTenantTest {
         String tenantName = "test_tenant";
         String watchId = "tls_execution_test";
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/tls_endpoint", true, false)) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/tls_endpoint").ssl(true).clientAuth(false).build()) {
             Client client = cluster.getInternalNodeClient();
             webhookProvider.uploadMockServerCertificateAsTruststore(cluster, USER_CERTIFICATE, UPLOADED_TRUSTSTORE_ID);
 

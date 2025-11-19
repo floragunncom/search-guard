@@ -224,7 +224,7 @@ public class TransportExecuteWatchActionTest {
 
     @Test
     public void testExecuteAnonymousWatchWhichUsesStoredTruststore() throws Exception {
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(false).build()) {
             X509ExtendedTrustManager trustManager = trustManagerFromPem(webhookProvider.trustedCertificatePem("root-ca"));
             when(trustManagerRegistry.findTrustManager(eq(STORED_TRUSTSTORE_ID))).thenReturn(Optional.ofNullable(trustManager));
             Watch watch = new WatchBuilder("tls-webhook-execute-test").atMsInterval(100)
@@ -357,7 +357,7 @@ public class TransportExecuteWatchActionTest {
 
     @Test
     public void testExecuteWatchByIdWhichUsesUploadedTruststore() throws Exception {
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(false).build()) {
             X509ExtendedTrustManager trustManager = trustManagerFromPem(webhookProvider.trustedCertificatePem("root-ca"));
             when(trustManagerRegistry.findTrustManager(eq(STORED_TRUSTSTORE_ID))).thenReturn(Optional.ofNullable(trustManager));
             when(signalsTenant.getConfigIndexName()).thenReturn(".signals-watch");
@@ -452,9 +452,9 @@ public class TransportExecuteWatchActionTest {
 
     @Test
     public void testExecuteWatchByIdWhichUsesStoredProxyConfig() throws Exception {
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook")
+                .requiredHttpHeader(REQUEST_HEADER_ADDING_FILTER.getHeader()).build()) {
 
-            webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
             when(httpProxyHostRegistry.findHttpProxyHost(STORED_PROXY_ID)).thenReturn(Optional.of(new HttpHost("127.0.0.8", wireMockProxy.port(), "http")));
             when(signalsTenant.getConfigIndexName()).thenReturn(".signals-watch");
             when(signalsTenant.getWatchIdForConfigIndex("execute-by-id-use-stored-proxy")).thenReturn("execute-by-id-use-stored-proxy");
