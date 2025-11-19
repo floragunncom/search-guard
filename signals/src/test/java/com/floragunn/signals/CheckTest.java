@@ -299,9 +299,8 @@ public class CheckTest {
 
     @Test
     public void httpInputTest() throws Exception {
-        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
-            webserviceProvider.setResponseBody("{\"foo\": \"bar\", \"x\": 55}");
-            webserviceProvider.setResponseContentType("text/json");
+        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider.Builder("/service")
+                .responseBody("{\"foo\": \"bar\", \"x\": 55}").responseContentType("text/json").build()) {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
@@ -326,7 +325,8 @@ public class CheckTest {
 
     @Test
     public void httpInputShouldSupportTrustStoreTest() throws Exception {
-        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/tls_service", true, false)) {
+        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider.Builder("/tls_service")
+                .ssl(true).clientAuth(false).build()) {
             //trustManager never throws exception that is each certificate is considered trusted
             Mockito.when(trustManagerRegistry.findTrustManager(TRUSTSTORE_ID)).thenReturn(Optional.of(trustManager));
 
@@ -354,9 +354,8 @@ public class CheckTest {
 
     @Test
     public void httpInputTestContentTypeHasCharset() throws Exception {
-        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
-            webserviceProvider.setResponseBody("{\"foo\": \"bar\", \"x\": 55}");
-            webserviceProvider.setResponseContentType("text/json; charset=utf-8");
+        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider.Builder("/service")
+                .responseBody("{\"foo\": \"bar\", \"x\": 55}").responseContentType("text/json; charset=utf-8").build()) {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
@@ -380,11 +379,9 @@ public class CheckTest {
 
     @Test
     public void httpInputTextTest() throws Exception {
-        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
-            String text = "{\"foo\": \"bar\", \"x\": 55}";
-
-            webserviceProvider.setResponseBody(text);
-            webserviceProvider.setResponseContentType("text/plain");
+        String text = "{\"foo\": \"bar\", \"x\": 55}";
+        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider.Builder("/service")
+                .responseBody(text).responseContentType("text/plain").build()) {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
@@ -405,11 +402,9 @@ public class CheckTest {
 
     @Test
     public void httpInputProxyTest() throws Exception {
-        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
-            webserviceProvider.setResponseBody("{\"foo\": \"bar\", \"x\": 55}");
-            webserviceProvider.setResponseContentType("text/json");
-
-            webserviceProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
+        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider.Builder("/service")
+                .responseBody("{\"foo\": \"bar\", \"x\": 55}").responseContentType("text/json")
+                .requiredHttpHeader(REQUEST_HEADER_ADDING_FILTER.getHeader()).build()) {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
@@ -452,13 +447,10 @@ public class CheckTest {
 
     @Test
     public void httpInput_proxyConfigLoadedFromConfigurationTest() throws Exception {
-        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
+        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider.Builder("/service")
+                .responseBody("{\"foo\": \"bar\", \"x\": 55}").responseContentType("text/json")
+                .requiredHttpHeader(REQUEST_HEADER_ADDING_FILTER.getHeader()).build()) {
             String uploadedProxyId = "my-proxy-1";
-
-            webserviceProvider.setResponseBody("{\"foo\": \"bar\", \"x\": 55}");
-            webserviceProvider.setResponseContentType("text/json");
-
-            webserviceProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
@@ -503,11 +495,9 @@ public class CheckTest {
 
     @Test(expected = CheckExecutionException.class)
     public void httpWrongContentTypeTest() throws Exception {
-        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
-            String text = "{\"foo\": \"bar\", \"x\": 55}";
-
-            webserviceProvider.setResponseBody(text);
-            webserviceProvider.setResponseContentType("application/vnd.floragunnmegapearls");
+        String text = "{\"foo\": \"bar\", \"x\": 55}";
+        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider.Builder("/service")
+                .responseBody(text).responseContentType("application/vnd.floragunnmegapearls").build()) {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, "application/x-yaml");
@@ -526,11 +516,8 @@ public class CheckTest {
 
     @Test
     public void httpInputTimeoutTest() throws Exception {
-        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider("/service")) {
-
-            webserviceProvider.setResponseBody("{\"foo\": \"bar\", \"x\": 55}");
-            webserviceProvider.setResponseContentType("text/json");
-            webserviceProvider.setResponseDelayMs(3330);
+        try (MockWebserviceProvider webserviceProvider = new MockWebserviceProvider.Builder("/service")
+                .responseBody("{\"foo\": \"bar\", \"x\": 55}").responseContentType("text/json").responseDelayMs(3330).build()) {
 
             HttpRequestConfig httpRequestConfig = new HttpRequestConfig(HttpRequestConfig.Method.POST, new URI(webserviceProvider.getUri()), null,
                     null, null, null, null, null, null);
