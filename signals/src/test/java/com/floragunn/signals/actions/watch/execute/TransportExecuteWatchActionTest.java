@@ -18,6 +18,7 @@
 package com.floragunn.signals.actions.watch.execute;
 
 import com.floragunn.codova.documents.DocNode;
+import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
@@ -238,16 +239,7 @@ public class TransportExecuteWatchActionTest {
                     .atMost(Duration.ofSeconds(2))
                     .until(() -> webhookProvider.getRequestCount() > 0);
 
-            verify(listener, never()).onFailure(any());
-            verify(listener).onResponse(executeResponseCaptor.capture());
-            ExecuteWatchResponse response = executeResponseCaptor.getValue();
-            assertThat(response.getStatus(), equalTo(ExecuteWatchResponse.Status.EXECUTED));
-            DocNode result = DocNode.parse(Format.JSON).from(response.getResult().utf8ToString());
-            assertThat(result.toJsonString(), result, containsValue("$.status.code", "ACTION_EXECUTED"));
-            assertThat(result.toJsonString(), result, containsValue("$.status.detail", "All actions have been executed"));
-            assertThat(result.toJsonString(), result, docNodeSizeEqualTo("$.actions", 1));
-            assertThat(result.toJsonString(), result, containsValue("$.actions[0].name", "testhook"));
-            assertThat(result.toJsonString(), result, containsValue("$.actions[0].status.code", "ACTION_EXECUTED"));
+            verifyActionExecutedResponse("testhook");
         }
     }
 
@@ -283,16 +275,7 @@ public class TransportExecuteWatchActionTest {
         assertThat(indexRequestSource.toString(), indexRequestSource, containsValue("$.testsearch.hits.hits[0]._source.a", "b"));
         assertThat(indexRequestSource.toString(), indexRequestSource, containsValue("$.teststatic.bla.blub", "42"));
 
-        verify(listener, never()).onFailure(any());
-        verify(listener).onResponse(executeResponseCaptor.capture());
-        ExecuteWatchResponse response = executeResponseCaptor.getValue();
-        assertThat(response.getStatus(), equalTo(ExecuteWatchResponse.Status.EXECUTED));
-        DocNode result = DocNode.parse(Format.JSON).from(response.getResult().utf8ToString());
-        assertThat(result.toJsonString(), result, containsValue("$.status.code", "ACTION_EXECUTED"));
-        assertThat(result.toJsonString(), result, containsValue("$.status.detail", "All actions have been executed"));
-        assertThat(result.toJsonString(), result, docNodeSizeEqualTo("$.actions", 1));
-        assertThat(result.toJsonString(), result, containsValue("$.actions[0].name", "testsink"));
-        assertThat(result.toJsonString(), result, containsValue("$.actions[0].status.code", "ACTION_EXECUTED"));
+        verifyActionExecutedResponse("testsink");
     }
 
     @Test
@@ -343,16 +326,7 @@ public class TransportExecuteWatchActionTest {
         assertThat(indexRequestSource.toString(), indexRequestSource, containsValue("$.testsearch.hits.hits[0]._source.a", "b"));
         assertThat(indexRequestSource.toString(), indexRequestSource, containsValue("$.teststatic.bla.blub", "42"));
 
-        verify(listener, never()).onFailure(any());
-        verify(listener).onResponse(executeResponseCaptor.capture());
-        ExecuteWatchResponse response = executeResponseCaptor.getValue();
-        assertThat(response.getStatus(), equalTo(ExecuteWatchResponse.Status.EXECUTED));
-        DocNode result = DocNode.parse(Format.JSON).from(response.getResult().utf8ToString());
-        assertThat(result.toJsonString(), result, containsValue("$.status.code", "ACTION_EXECUTED"));
-        assertThat(result.toJsonString(), result, containsValue("$.status.detail", "All actions have been executed"));
-        assertThat(result.toJsonString(), result, docNodeSizeEqualTo("$.actions", 1));
-        assertThat(result.toJsonString(), result, containsValue("$.actions[0].name", "testsink"));
-        assertThat(result.toJsonString(), result, containsValue("$.actions[0].status.code", "ACTION_EXECUTED"));
+        verifyActionExecutedResponse("testsink");
     }
 
     @Test
@@ -401,16 +375,7 @@ public class TransportExecuteWatchActionTest {
                     .atMost(Duration.ofSeconds(2))
                     .until(() -> webhookProvider.getRequestCount() > 0);
 
-            verify(listener, never()).onFailure(any());
-            verify(listener).onResponse(executeResponseCaptor.capture());
-            ExecuteWatchResponse response = executeResponseCaptor.getValue();
-            assertThat(response.getStatus(), equalTo(ExecuteWatchResponse.Status.EXECUTED));
-            DocNode result = DocNode.parse(Format.JSON).from(response.getResult().utf8ToString());
-            assertThat(result.toJsonString(), result, containsValue("$.status.code", "ACTION_EXECUTED"));
-            assertThat(result.toJsonString(), result, containsValue("$.status.detail", "All actions have been executed"));
-            assertThat(result.toJsonString(), result, docNodeSizeEqualTo("$.actions", 1));
-            assertThat(result.toJsonString(), result, containsValue("$.actions[0].name", "send-http-request"));
-            assertThat(result.toJsonString(), result, containsValue("$.actions[0].status.code", "ACTION_EXECUTED"));
+            verifyActionExecutedResponse("send-http-request");
         }
     }
 
@@ -438,16 +403,7 @@ public class TransportExecuteWatchActionTest {
         assertThat(indexRequestSource.toString(), indexRequestSource, containsValue("$.teststatic.bla.blub", "42"));
         assertThat(indexRequestSource.toString(), indexRequestSource, containsValue("$.teststatic.x", "1"));
 
-        verify(listener, never()).onFailure(any());
-        verify(listener).onResponse(executeResponseCaptor.capture());
-        ExecuteWatchResponse response = executeResponseCaptor.getValue();
-        assertThat(response.getStatus(), equalTo(ExecuteWatchResponse.Status.EXECUTED));
-        DocNode result = DocNode.parse(Format.JSON).from(response.getResult().utf8ToString());
-        assertThat(result.toJsonString(), result, containsValue("$.status.code", "ACTION_EXECUTED"));
-        assertThat(result.toJsonString(), result, containsValue("$.status.detail", "All actions have been executed"));
-        assertThat(result.toJsonString(), result, docNodeSizeEqualTo("$.actions", 1));
-        assertThat(result.toJsonString(), result, containsValue("$.actions[0].name", "testsink"));
-        assertThat(result.toJsonString(), result, containsValue("$.actions[0].status.code", "ACTION_EXECUTED"));
+        verifyActionExecutedResponse("testsink");
     }
 
     @Test
@@ -484,16 +440,7 @@ public class TransportExecuteWatchActionTest {
             verify(getRequestBuilder).setId(eq("execute-by-id-use-stored-proxy"));
             verify(getRequestBuilder).setIndex(eq(".signals-watch"));
 
-            verify(listener, never()).onFailure(any());
-            verify(listener).onResponse(executeResponseCaptor.capture());
-            ExecuteWatchResponse response = executeResponseCaptor.getValue();
-            assertThat(response.getStatus(), equalTo(ExecuteWatchResponse.Status.EXECUTED));
-            DocNode result = DocNode.parse(Format.JSON).from(response.getResult().utf8ToString());
-            assertThat(result.toJsonString(), result, containsValue("$.status.code", "ACTION_EXECUTED"));
-            assertThat(result.toJsonString(), result, containsValue("$.status.detail", "All actions have been executed"));
-            assertThat(result.toJsonString(), result, docNodeSizeEqualTo("$.actions", 1));
-            assertThat(result.toJsonString(), result, containsValue("$.actions[0].name", "webhook"));
-            assertThat(result.toJsonString(), result, containsValue("$.actions[0].status.code", "ACTION_EXECUTED"));
+            verifyActionExecutedResponse("webhook");
         }
     }
 
@@ -520,16 +467,7 @@ public class TransportExecuteWatchActionTest {
         assertThat(indexRequestSource.toString(), indexRequestSource, containsOnlyFields("$", "ext_input"));
         assertThat(indexRequestSource.toString(), indexRequestSource, containsValue("$.ext_input", "a"));
 
-        verify(listener, never()).onFailure(any());
-        verify(listener).onResponse(executeResponseCaptor.capture());
-        ExecuteWatchResponse response = executeResponseCaptor.getValue();
-        assertThat(response.getStatus(), equalTo(ExecuteWatchResponse.Status.EXECUTED));
-        DocNode result = DocNode.parse(Format.JSON).from(response.getResult().utf8ToString());
-        assertThat(result.toJsonString(), result, containsValue("$.status.code", "ACTION_EXECUTED"));
-        assertThat(result.toJsonString(), result, containsValue("$.status.detail", "All actions have been executed"));
-        assertThat(result.toJsonString(), result, docNodeSizeEqualTo("$.actions", 1));
-        assertThat(result.toJsonString(), result, containsValue("$.actions[0].name", "testsink"));
-        assertThat(result.toJsonString(), result, containsValue("$.actions[0].status.code", "ACTION_EXECUTED"));
+        verifyActionExecutedResponse("testsink");
     }
 
     @Test
@@ -574,17 +512,10 @@ public class TransportExecuteWatchActionTest {
         assertThat(indexRequestSource.toString(), indexRequestSource, containsValue("$.testsearch.hits.hits[0]._source.a", "b"));
         assertThat(indexRequestSource.toString(), indexRequestSource, containsValue("$.teststatic.bla.blub", "42"));
 
-        verify(listener, never()).onFailure(any());
-        verify(listener).onResponse(executeResponseCaptor.capture());
+
+        verifyActionExecutedResponse("testsink");
         ExecuteWatchResponse response = executeResponseCaptor.getValue();
-        assertThat(response.getStatus(), equalTo(ExecuteWatchResponse.Status.EXECUTED));
         DocNode result = DocNode.parse(Format.JSON).from(response.getResult().utf8ToString());
-        assertThat(result.toJsonString(), result, containsValue("$.status.code", "ACTION_EXECUTED"));
-        assertThat(result.toJsonString(), result, containsValue("$.status.detail", "All actions have been executed"));
-        assertThat(result.toJsonString(), result, containsValue("$.status.severity", "error"));
-        assertThat(result.toJsonString(), result, docNodeSizeEqualTo("$.actions", 1));
-        assertThat(result.toJsonString(), result, containsValue("$.actions[0].name", "testsink"));
-        assertThat(result.toJsonString(), result, containsValue("$.actions[0].status.code", "ACTION_EXECUTED"));
         assertThat(result.toJsonString(), result, containsValue("$.runtime_attributes.severity.level", "error"));
         assertThat(result.toJsonString(), result, containsFieldPointedByJsonPath("$.runtime_attributes", "trigger"));
         assertThat(result.toJsonString(), result, containsNullValue("$.runtime_attributes.trigger.triggered_time"));
@@ -627,16 +558,9 @@ public class TransportExecuteWatchActionTest {
         );
         executeWatchAction.doExecute(task, executeWatchRequest, listener);
 
-        verify(listener, never()).onFailure(any());
-        verify(listener).onResponse(executeResponseCaptor.capture());
+        verifyActionExecutedResponse("testaction", "SIMULATED_ACTION_EXECUTED");
         ExecuteWatchResponse response = executeResponseCaptor.getValue();
-        assertThat(response.getStatus(), equalTo(ExecuteWatchResponse.Status.EXECUTED));
         DocNode result = DocNode.parse(Format.JSON).from(response.getResult().utf8ToString());
-        assertThat(result.toJsonString(), result, containsValue("$.status.code", "ACTION_EXECUTED"));
-        assertThat(result.toJsonString(), result, containsValue("$.status.detail", "All actions have been executed"));
-        assertThat(result.toJsonString(), result, docNodeSizeEqualTo("$.actions", 1));
-        assertThat(result.toJsonString(), result, containsValue("$.actions[0].name", "testaction"));
-        assertThat(result.toJsonString(), result, containsValue("$.actions[0].status.code", "SIMULATED_ACTION_EXECUTED"));
 
         String mail = result.findSingleNodeByJsonPath("$.actions[0].request").toString();
         Matcher mailMatcher = Pattern.compile("Watch Link: (\\S+)\nAction Link: (\\S+)", Pattern.MULTILINE).matcher(mail);
@@ -704,5 +628,22 @@ public class TransportExecuteWatchActionTest {
         }
         return (X509ExtendedTrustManager) x509TrustManagers.get(0);
         }
+
+    private void verifyActionExecutedResponse(String expectedActionName) throws DocumentParseException {
+        verifyActionExecutedResponse(expectedActionName, "ACTION_EXECUTED");
+    }
+
+    private void verifyActionExecutedResponse(String expectedActionName, String expectedStatusCode) throws DocumentParseException {
+        verify(listener, never()).onFailure(any());
+        verify(listener).onResponse(executeResponseCaptor.capture());
+        ExecuteWatchResponse response = executeResponseCaptor.getValue();
+        assertThat(response.getStatus(), equalTo(ExecuteWatchResponse.Status.EXECUTED));
+        DocNode result = DocNode.parse(Format.JSON).from(response.getResult().utf8ToString());
+        assertThat(result.toJsonString(), result, containsValue("$.status.code", "ACTION_EXECUTED"));
+        assertThat(result.toJsonString(), result, containsValue("$.status.detail", "All actions have been executed"));
+        assertThat(result.toJsonString(), result, docNodeSizeEqualTo("$.actions", 1));
+        assertThat(result.toJsonString(), result, containsValue("$.actions[0].name", expectedActionName));
+        assertThat(result.toJsonString(), result, containsValue("$.actions[0].status.code", expectedStatusCode));
+    }
 
 }
