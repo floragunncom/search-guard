@@ -107,7 +107,7 @@ public class ActionTest {
     @Test
     public void testPagerDutyAction() throws Exception {
 
-		try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockerduty")){
+		try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/mockerduty").build()){
 			PagerDutyAccount account = new PagerDutyAccount("bla");
 			account.setUri(webhookProvider.getUri());
 
@@ -145,7 +145,7 @@ public class ActionTest {
 	@Test
 	public void testPagerDutyActionWithTLS() throws Exception {
 
-		try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockerduty")) {
+		try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/mockerduty").build()) {
 
 			PagerDutyAccount account = new PagerDutyAccount("bla");
 			account.setUri(webhookProvider.getUri());
@@ -190,9 +190,8 @@ public class ActionTest {
 	@Test
 	public void testPagerDutyActionWithStoredProxyConfig() throws Exception {
 
-		try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockerduty")) {
-
-			webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
+		try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/mockerduty")
+                .requiredHttpHeader(REQUEST_HEADER_ADDING_FILTER.getHeader()).build()) {
 
 			String proxyId = "test-proxy";
 			PagerDutyAccount account = new PagerDutyAccount("bla");
@@ -236,7 +235,7 @@ public class ActionTest {
     @Test
     public void testJiraAction() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockra/*")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/mockra/*").build()) {
 
 			JiraAccount account = new JiraAccount(new URI(webhookProvider.getUri()), "x", "y");
 
@@ -269,7 +268,7 @@ public class ActionTest {
 	@Test
 	public void testJiraActionWithTLS() throws Exception {
 
-		try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockra/*")) {
+		try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/mockra/*").build()) {
 
 			JiraAccount account = new JiraAccount(new URI(webhookProvider.getUri()), "x", "y");
 
@@ -308,9 +307,8 @@ public class ActionTest {
 	@Test
 	public void testJiraActionWithStoredProxyConfig() throws Exception {
 
-		try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/mockra/*")) {
-
-			webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
+		try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/mockra/*")
+                .requiredHttpHeader(REQUEST_HEADER_ADDING_FILTER.getHeader()).build()) {
 
 			String proxyId = "test-proxy";
 

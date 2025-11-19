@@ -86,43 +86,28 @@ public class MockWebserviceProvider implements Closeable {
     private final int port;
     private final String uri;
     private final boolean ssl;
-    private int responseStatusCode = 200;
-    private byte[] responseBody = "Mockery".getBytes();
-    private String responseContentType = "text/plain";
+    private int responseStatusCode;
+    private byte[] responseBody;
+    private String responseContentType;
     private String lastRequestBody;
     private List<Header> lastRequestHeaders;
     private InetAddress lastRequestClientAddress;
     private final AtomicInteger requestCount = new AtomicInteger();
-    private long responseDelayMs = 0;
+    private long responseDelayMs;
     private Header requiredHttpHeader;
     private KeyStore trustStore;
 
-    MockWebserviceProvider(String path) throws IOException {
-        this(path, SocketUtils.findAvailableTcpPort());
-    }
-
-    MockWebserviceProvider(String path, byte[] body, String contentType) throws IOException {
-        this(path, SocketUtils.findAvailableTcpPort());
-        responseContentType = contentType;
-        responseBody = body;
-    }
-
-    MockWebserviceProvider(String path, boolean ssl) throws IOException {
-        this(path, SocketUtils.findAvailableTcpPort(), ssl, ssl);
-    }
-
-    MockWebserviceProvider(String path, boolean ssl, boolean clientAuth) throws IOException {
-        this(path, SocketUtils.findAvailableTcpPort(), ssl, clientAuth);
-    }
-
-    MockWebserviceProvider(String path, int port) throws IOException {
-        this(path, port, false, false);
-    }
-
-    MockWebserviceProvider(String pathPattern, int port, boolean ssl, boolean clientAuth) throws IOException {
-        this.port = port;
+    MockWebserviceProvider(
+            String pathPattern, boolean ssl, boolean clientAuth, byte[] responseBody, String responseContentType,
+            long responseDelayMs, int responseStatusCode, Header requiredHttpHeader) throws IOException {
+        this.port = SocketUtils.findAvailableTcpPort();
         this.uri = buildUri(pathPattern, ssl, port);
         this.ssl = ssl;
+        this.responseBody = responseBody;
+        this.responseContentType = responseContentType;
+        this.responseDelayMs = responseDelayMs;
+        this.responseStatusCode = responseStatusCode;
+        this.requiredHttpHeader = requiredHttpHeader;
 
         ServerBootstrap serverBootstrap = ServerBootstrap.bootstrap().setListenerPort(port).registerHandler(pathPattern, new HttpRequestHandler() {
 
@@ -382,6 +367,65 @@ public class MockWebserviceProvider implements Closeable {
         String pemCertificate = this.trustedCertificatePem("root-ca");
         try(GenericRestClient genericRestClient = cluster.getRestClient(user)) {
             storeTruststoreInPemFormat(genericRestClient, truststoreId, "name", pemCertificate);
+        }
+    }
+
+    public static class Builder {
+        private String path;
+        private boolean ssl;
+        private boolean clientAuth;
+        private byte[] responseBody = "Mockery".getBytes();
+        private String responseContentType = "text/plain";
+        private long responseDelayMs = 0;
+        private int responseStatusCode = 200;
+        private Header requiredHttpHeader;
+
+        public Builder(String path) {
+            this.path = path;
+        }
+
+        public Builder ssl(boolean ssl) {
+            this.ssl = ssl;
+            return this;
+        }
+
+        public Builder clientAuth(boolean clientAuth) {
+            this.clientAuth = clientAuth;
+            return this;
+        }
+
+        public Builder responseBody(byte[] responseBody) {
+            this.responseBody = responseBody;
+            return this;
+        }
+
+        public Builder responseBody(String responseBody) {
+            this.responseBody = responseBody.getBytes();
+            return this;
+        }
+
+        public Builder responseContentType(String responseContentType) {
+            this.responseContentType = responseContentType;
+            return this;
+        }
+
+        public Builder responseDelayMs(long responseDelayMs) {
+            this.responseDelayMs = responseDelayMs;
+            return this;
+        }
+
+        public Builder responseStatusCode(int responseStatusCode) {
+            this.responseStatusCode = responseStatusCode;
+            return this;
+        }
+
+        public Builder requiredHttpHeader(Header requiredHttpHeader) {
+            this.requiredHttpHeader = requiredHttpHeader;
+            return this;
+        }
+
+        public MockWebserviceProvider build() throws IOException {
+            return new MockWebserviceProvider(path, ssl, clientAuth, responseBody, responseContentType, responseDelayMs, responseStatusCode, requiredHttpHeader);
         }
     }
 }

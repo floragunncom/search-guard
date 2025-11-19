@@ -253,7 +253,7 @@ public class ActionTest {
     @Test
     public void testWebhookAction() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").build()) {
             Client client = cluster.getInternalNodeClient();
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -286,7 +286,7 @@ public class ActionTest {
     @Test
     public void testWebhookAction_withJsonBodyFromRuntimeDataPath() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").build()) {
             Client client = cluster.getInternalNodeClient();
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -312,7 +312,7 @@ public class ActionTest {
     @Test
     public void testWebhookAction_withJsonBodyFromRuntimeDataPath_givenPathDoesNotExists() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").build()) {
             Client client = cluster.getInternalNodeClient();
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -340,7 +340,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsCustomTrustStore() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(false).build()) {
             Client client = cluster.getInternalNodeClient();
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -372,7 +372,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsCustomTrustStoreFailure() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(false).build()) {
             Client client = cluster.getInternalNodeClient();
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -400,7 +400,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithUploadedTruststore() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(false).build()) {
             Client client = cluster.getInternalNodeClient();
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -433,7 +433,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithUploadedTruststoreFailure() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(false).build()) {
             Client client = cluster.getInternalNodeClient();
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -465,7 +465,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithUploadedTruststoreFailureRecovery() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(false).build()) {
             Client client = cluster.getInternalNodeClient();
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -513,7 +513,7 @@ public class ActionTest {
     public void testWebhookActionWithUploadedTruststoreShouldUseTrustManagerEachTimeWhenHttpRequestIsSendToExternalServer()
         throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(false).build()) {
             Client client = cluster.getInternalNodeClient();
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -560,7 +560,7 @@ public class ActionTest {
     public void testWebhookActionWithUploadedTruststoreShouldUseTrustManagerOnlyOnceToCreateTlsContextAndThenUsesCachedTlsSession()
         throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(false).build()) {
             Client client = cluster.getInternalNodeClient();
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -607,7 +607,7 @@ public class ActionTest {
     public void testWebhookActionWithUploadedTruststoreShouldDetectThatCertificateIsNotLongerTrusted()
         throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(false).build()) {
             Client client = cluster.getInternalNodeClient();
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -650,7 +650,7 @@ public class ActionTest {
     public void testWebhookActionWithUploadedTruststoreShouldDetectThatTruststoreWasRemoved()
         throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, false)) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(false).build()) {
             Client client = cluster.getInternalNodeClient();
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -691,11 +691,10 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithUploadedProxy() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook")
+                .requiredHttpHeader(REQUEST_HEADER_ADDING_FILTER.getHeader()).build()) {
 
             Client client = cluster.getInternalNodeClient();
-
-            webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -726,11 +725,10 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithUploadedProxy_shouldDetectProxyChange() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook")
+                .requiredHttpHeader(REQUEST_HEADER_ADDING_FILTER.getHeader()).build()) {
 
             Client client = cluster.getInternalNodeClient();
-
-            webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -770,11 +768,10 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithUploadedProxy_shouldDetectProxyRemoval() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook")
+                .requiredHttpHeader(REQUEST_HEADER_ADDING_FILTER.getHeader()).build()) {
 
             Client client = cluster.getInternalNodeClient();
-
-            webhookProvider.acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader());
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -817,7 +814,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsClientAuth() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, true)) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(true).build()) {
             Client client = cluster.getInternalNodeClient();
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -856,7 +853,7 @@ public class ActionTest {
     @Test
     public void testWebhookActionWithTlsClientAuthFailure() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", true, true)) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").ssl(true).clientAuth(true).build()) {
             Client client = cluster.getInternalNodeClient();
 
             NestedValueMap runtimeData = new NestedValueMap();
@@ -890,9 +887,8 @@ public class ActionTest {
     @Test
     public void testWebhookActionTimeout() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").responseDelayMs(3330).build()) {
             Client client = cluster.getInternalNodeClient();
-            webhookProvider.setResponseDelayMs(3330);
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -1038,7 +1034,7 @@ public class ActionTest {
     @Test
     public void testSlackAction() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/slack").build()) {
             Client client = cluster.getInternalNodeClient();
 
             SlackAccount slackDestination = new SlackAccount();
@@ -1071,7 +1067,7 @@ public class ActionTest {
     @Test
     public void testSlackActionWithBlocks() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/slack").build()) {
             Client client = cluster.getInternalNodeClient();
 
             SlackAccount slackDestination = new SlackAccount();
@@ -1118,7 +1114,7 @@ public class ActionTest {
     @Test
     public void testSlackActionWithBlocksAndQuotesInMustacheTemplate() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/slack").build()) {
             Client client = cluster.getInternalNodeClient();
 
             SlackAccount slackDestination = new SlackAccount();
@@ -1166,7 +1162,7 @@ public class ActionTest {
     @Test
     public void testSlackActionWithBlocksAndText() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/slack").build()) {
             Client client = cluster.getInternalNodeClient();
 
             SlackAccount slackDestination = new SlackAccount();
@@ -1230,7 +1226,7 @@ public class ActionTest {
     @Test
     public void testSlackActionWithAttachments() throws Exception {
 
-        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/slack")) {
+        try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/slack").build()) {
             Client client = cluster.getInternalNodeClient();
 
             SlackAccount slackDestination = new SlackAccount();
@@ -1578,7 +1574,7 @@ public class ActionTest {
         try {
             Client client = cluster.getInternalNodeClient();
 
-            try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook")) {
+            try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook").build()) {
 
                 NestedValueMap runtimeData = new NestedValueMap();
                 runtimeData.put("path", "hook");
@@ -1653,7 +1649,8 @@ public class ActionTest {
 
             byte[] pdf = IOUtils.toByteArray(FileHelper.getAbsoluteFilePathFromClassPath("blank_email_attachment.pdf").toUri());
 
-            try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", pdf, "application/pdf")) {
+            try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook")
+                    .responseBody(pdf).responseContentType("application/pdf").build()) {
 
                 NestedValueMap runtimeData = new NestedValueMap();
                 runtimeData.put("path", "hook");
@@ -1726,7 +1723,8 @@ public class ActionTest {
 
             String helloWorld = "{\n" + "   \"hello\":\"world\"\n" + "}";
 
-            try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider("/hook", helloWorld.getBytes(), "application/json")) {
+            try (MockWebserviceProvider webhookProvider = new MockWebserviceProvider.Builder("/hook")
+                    .responseBody(helloWorld.getBytes()).responseContentType("application/json").build()) {
 
                 NestedValueMap runtimeData = new NestedValueMap();
                 runtimeData.put("path", "hook");
