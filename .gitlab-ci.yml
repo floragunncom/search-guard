@@ -6,6 +6,7 @@ workflow:
 
 variables:
   SG_BUILD_IMAGE: "maven:3.9.9-amazoncorretto-21-debian"
+  DOCKER_DIND_IMAGE: "floragunncom/alpine-dind:20251120"
   DOCKER_VERSION: "20.10.17"
   
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
@@ -139,7 +140,7 @@ deploy_release:
 
 deploy_docker_image:
   stage: "Deploy Docker Image"
-  image: docker:${DOCKER_VERSION}
+  image: ${DOCKER_DIND_IMAGE}
   services:
     - docker:${DOCKER_VERSION}-dind
   rules:
@@ -152,7 +153,7 @@ deploy_docker_image:
   script:
     - |
       cd docker
-      apk update && apk add bash curl
+      # apk update && apk add bash curl
       
       SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
       ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-.*-es-\(.*\)$/\1/p')
