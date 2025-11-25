@@ -21,10 +21,10 @@ import static com.floragunn.searchsupport.Constants.DEFAULT_ACK_TIMEOUT;
 import static com.floragunn.searchsupport.Constants.DEFAULT_MASTER_TIMEOUT;
 import static com.floragunn.searchsupport.meta.Meta.Mock.indices;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.floragunn.searchsupport.Constants;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -152,6 +152,23 @@ public class ActionRequestIntrospectorTest {
         assertTrue(requestInfo.toString(), requestInfo.isUnknown());
         assertTrue(requestInfo.toString(), requestInfo.getMainResolvedIndices().isLocalAll());
         assertEquals(META.indexLikeObjects().keySet(), requestInfo.getMainResolvedIndices().getLocal().getDeepUnion());
+    }
+
+    @Test
+    public void testPredicate() {
+        assertThat(ActionRequestIntrospector.isRemoteIndex("local_index"), is(false));
+        assertThat(ActionRequestIntrospector.isRemoteIndex("server:remote_index"), is(true));
+        assertThat(ActionRequestIntrospector.isRemoteIndex("myRemote:anotherIndex"), is(true));
+        assertThat(ActionRequestIntrospector.isRemoteIndex("other:*"), is(true));
+        assertThat(ActionRequestIntrospector.isRemoteIndex("not::remote"), is(false));
+        assertThat(ActionRequestIntrospector.isRemoteIndex("not_remote::"), is(false));
+        assertThat(ActionRequestIntrospector.isRemoteIndex("::not_remote"), is(false));
+        assertThat(ActionRequestIntrospector.isRemoteIndex(":remote"), is(true));
+        assertThat(ActionRequestIntrospector.isRemoteIndex("remote:"), is(true));
+        assertThat(ActionRequestIntrospector.isRemoteIndex("r:"), is(true));
+        assertThat(ActionRequestIntrospector.isRemoteIndex(""), is(false));
+        assertThat(ActionRequestIntrospector.isRemoteIndex("not:::remote"), is(false));
+        assertThat(ActionRequestIntrospector.isRemoteIndex("not:remote:index"), is(false));
     }
     
     static ActionRequestIntrospector simple() {

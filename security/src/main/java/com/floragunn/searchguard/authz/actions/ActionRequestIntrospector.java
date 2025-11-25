@@ -26,6 +26,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
@@ -77,6 +78,8 @@ import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.Indices
 import com.floragunn.searchsupport.meta.Meta;
 
 public class ActionRequestIntrospector {
+
+    public static final char REMOTE_CLUSTER_INDEX_SEPARATOR = ':';
 
     private static final IndicesOptions EXACT = IndicesOptionsSupport.EXACT;
 
@@ -728,8 +731,8 @@ public class ActionRequestIntrospector {
             this.role = role;
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
-            this.localIndices = this.indices.matching((i) -> !i.contains(":"));
-            this.remoteIndices = ImmutableSet.of(this.indices.matching((i) -> i.contains(":")));
+            this.localIndices = this.indices.matching(Predicate.not(ActionRequestIntrospector::isRemoteIndex));
+            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex));
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, indicesRequest);
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(this.indices) : false;
             this.writeRequest = indicesRequest instanceof DocWriteRequest;
@@ -1071,5 +1074,13 @@ public class ActionRequestIntrospector {
                 && (a instanceof Replaceable ? ((Replaceable) a).allowsRemoteIndices()
                         : false) == (b instanceof Replaceable ? ((Replaceable) b).allowsRemoteIndices() : false)
                 && a.includeDataStreams() == b.includeDataStreams();
+    }
+
+    static boolean isRemoteIndex(String indexName) {
+        int firstIndex = indexName.indexOf(REMOTE_CLUSTER_INDEX_SEPARATOR);
+        int lastIndex = indexName.lastIndexOf(REMOTE_CLUSTER_INDEX_SEPARATOR);
+
+        // If both are same and not -1, there's exactly one colon
+        return (firstIndex != -1) && (firstIndex == lastIndex);
     }
 }
