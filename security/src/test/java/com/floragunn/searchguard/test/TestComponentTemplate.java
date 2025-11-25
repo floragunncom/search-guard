@@ -50,7 +50,7 @@ public class TestComponentTemplate implements Document<TestComponentTemplate> {
 
     @Override
     public Object toBasicObject() {
-        return ImmutableMap.of("template", ImmutableMap.of("mappings", this.mapping.toBasicObject()));
+        return ImmutableMap.of("template", ImmutableMap.of("mappings", this.mapping.toBasicObject(), "data_stream_options", ImmutableMap.of("failure_store", ImmutableMap.of("enabled", true))));
     }
 
 }
