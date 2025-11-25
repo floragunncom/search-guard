@@ -281,6 +281,18 @@ public class DataStreamAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void search_staticIndicies_exceptFailureStore_noIgnoreUnavailable() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a1::data,ds_a2::data,ds_b1::data/_search?size=1000");
+            if((user == UNLIMITED_USER) || (user == SUPER_UNLIMITED_USER) ) {
+                assertThat(httpResponse, isOk());
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
+        }
+    }
+
+    @Test
     public void search_staticIndicies_ignoreUnavailable() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1/_search?size=1000&ignore_unavailable=true");
