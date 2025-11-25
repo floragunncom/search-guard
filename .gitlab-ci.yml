@@ -37,6 +37,8 @@ default:
           # apt-get update &> /dev/null
           # apt-get install xmlstarlet gnupg -y > /dev/null 2>&1
           # Above not needed, already instaled in custom image
+          # TODO whole block should be removed
+          echo "Tools already installed" 
         elif command -v apk &>/dev/null; then
           # For Alpine based images, mainly used during bash/docker integration tests
           apk update &> /dev/null
