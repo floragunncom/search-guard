@@ -5,7 +5,7 @@ workflow:
     - when: always
 
 variables:
-  SG_BUILD_IMAGE: "floragunncom/ubuntu-openjdk25:251125"
+  SG_BUILD_IMAGE: "floragunncom/ubuntu-openjdk25:251126"
   SG_DIND_IMAGE: "floragunncom/alpine-dind:251120"
   DOCKER_VERSION: "20.10.17"
   
