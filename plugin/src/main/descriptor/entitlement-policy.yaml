@@ -2,6 +2,7 @@ ALL-UNNAMED:
   - manage_threads
   - inbound_network
   - outbound_network
+  - load_native_libraries
   - files:
       - path: "/etc/os-release"
         mode: "read"
