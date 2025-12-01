@@ -444,8 +444,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
             while (! configVarService.getComponentState().isInitialized()) {
                 try {
                     Thread.sleep(500);
-                } catch (InterruptedException e1) {
-                    //ignore
+                } catch (InterruptedException interruptedException) {
+                    throw new RuntimeException(interruptedException);
                 }
             }
 
