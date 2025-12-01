@@ -50,19 +50,15 @@ public class AsyncSqlIntTests {
             .build();
 
     static User USER_1 = new User("user_1")
-            .roles(new TestSgConfig.Role("user_1_role").clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor",
-                            "indices:data/read/close_point_in_time", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete",
-                            "cluster:monitor/xpack/sql/async/status")
-                    .indexPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search")
+            .roles(new TestSgConfig.Role("user_1_role").clusterPermissions("SGS_CLUSTER_SQL_READ")
+                    .indexPermissions("SGS_SQL_READ")
                     .on("test_index")
 
             );
 
     static User USER_2 = new User("user_2")
-            .roles(new TestSgConfig.Role("user_2_role").clusterPermissions("indices:data/read/sql", "indices:data/read/sql/close_cursor",
-                            "indices:data/read/close_point_in_time", "indices:data/read/sql/async/get", "indices:data/read/async_search/delete",
-                            "cluster:monitor/xpack/sql/async/status")
-                    .indexPermissions("indices:data/read/field_caps", "indices:data/read/open_point_in_time", "indices:data/read/search")
+            .roles(new TestSgConfig.Role("user_2_role").clusterPermissions("SGS_CLUSTER_SQL_READ")
+                    .indexPermissions("SGS_SQL_READ")
                     .on("test_index")
 
             );

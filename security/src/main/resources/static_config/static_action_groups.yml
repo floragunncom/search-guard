@@ -474,3 +474,25 @@ SGS_SIGNALS_TRUSTSTORE_CONFIG_WRITE:
   type: "signals"
   description: "Grants permissions to write Signals Truststores"
 
+SGS_CLUSTER_SQL_READ:
+  reserved: true
+  hidden: false
+  static: true
+  type: "cluster"
+  allowed_actions:
+    - "indices:data/read/sql"
+    - "indices:data/read/sql/close_cursor"
+    - "indices:data/read/close_point_in_time"
+    - "indices:data/read/sql/async/get"
+    - "indices:data/read/async_search/delete"
+    - "cluster:monitor/xpack/sql/async/status"
+
+SGS_SQL_READ:
+  reserved: true
+  hidden: false
+  static: true
+  type: "index"
+  allowed_actions:
+    - "indices:data/read/field_caps"
+    - "indices:data/read/open_point_in_time"
+    - "indices:data/read/search"
