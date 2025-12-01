@@ -556,7 +556,7 @@ public class ConfigVarService implements ComponentStateProvider {
         return values;
     }
 
-    public Map<String, Object> refresh() {
+    public void refresh() {
         log.info("Refreshing config variables");
         try {
             componentState.setState(State.INITIALIZING, "refreshing");
@@ -571,7 +571,6 @@ public class ConfigVarService implements ComponentStateProvider {
                 componentState.setState(State.INITIALIZED);
                 log.debug("Config variables did not change");
             }
-            return this.values;
         } catch (Exception e) {
             log.error("Error while refreshing.", e);
             componentState.addLastException("refresh", e);

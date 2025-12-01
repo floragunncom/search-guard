@@ -138,7 +138,7 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
             DiscoveryNode localNode = clusterService.localNode();
 
             try {
-                Map<String, Object> configVars = configVarService.refresh();
+                configVarService.refresh();
 
                 return new NodeResponse(localNode, NodeResponse.Status.SUCCESS, "");
             } catch (Exception e) {
