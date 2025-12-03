@@ -19,6 +19,7 @@ package com.floragunn.searchguard.configuration.variables;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -141,8 +142,8 @@ public class ConfigVarRefreshAction extends ActionType<ConfigVarRefreshAction.Re
 
                 return new NodeResponse(localNode, NodeResponse.Status.SUCCESS, "");
             } catch (Exception e) {
-                log.error("Error while updating settings", e);
-                return new NodeResponse(localNode, NodeResponse.Status.EXCEPTION, e.toString());
+                log.error("Error while updating config vars", e);
+                throw e;
             }
         }
 
