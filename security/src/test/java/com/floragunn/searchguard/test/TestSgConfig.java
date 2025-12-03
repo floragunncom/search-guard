@@ -375,6 +375,11 @@ public class TestSgConfig {
             writeConfigVars(client, variableSuppliers);
         }
 
+        ConfigVarRefreshAction.Response configVarRefreshResponse = client.execute(ConfigVarRefreshAction.INSTANCE, new ConfigVarRefreshAction.Request()).actionGet();
+        if (configVarRefreshResponse.hasFailures()) {
+            throw new RuntimeException("ConfigVarRefreshAction.Response produced failures: " + configVarRefreshResponse.failures());
+        }
+
         ConfigUpdateResponse configUpdateResponse = client
                 .execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]))).actionGet();
 
@@ -552,20 +557,6 @@ public class TestSgConfig {
         }
 
         client.bulk(bulkRequest).actionGet();
-
-        ConfigVarRefreshAction.send(client, new ActionListener<Response>() {
-
-            @Override
-            public void onResponse(Response response) {
-
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-                log.error("Error while refreshing secrets");
-            }
-
-        });
     }
 
     private InputStream openFile(String file) throws IOException {
