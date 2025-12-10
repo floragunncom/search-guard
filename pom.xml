@@ -63,7 +63,7 @@
     <http.commons.version>4.5.14</http.commons.version>
     <opensaml.version>4.3.0</opensaml.version>
     <opensaml.patch.version>4.3.0-1.0.3</opensaml.patch.version>
-    <mockito.version>5.20.0</mockito.version>
+    <mockito.version>5.21.0</mockito.version>
 
     <!-- For mvn license:aggregate-add-third-party -->
     <license.excludedArtifacts>.*search-guard.*</license.excludedArtifacts>
