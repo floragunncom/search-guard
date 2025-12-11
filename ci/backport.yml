@@ -1,17 +1,15 @@
 backport_automation:
-  image: python:3.11-slim 
+  image: python:3.11-slim
   stage: post_merge
-  
   rules:
     - if: >
         $CI_PIPELINE_SOURCE == "merge_request_event" &&
         $CI_MERGE_REQUEST_STATE == "merged"
-    # $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" 
-    when: always 
-
+      #  $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+      when: always
   script:
+    - apt-get update -qq && apt-get install -y git
     - pip install -r ci/backport/requirements.txt
     - python ci/backport/backport_script.py $CI_MERGE_REQUEST_IID
-    
   variables:
-    GITLAB_RIVATE_TOKEN: $GITLAB_TOKEN
+    GITLAB_PRIVATE_TOKEN: $GITLAB_TOKEN
