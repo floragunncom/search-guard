@@ -73,6 +73,7 @@ stages:
   - "Aikido Scan"  
   - release
   - "Deploy Docker Image"
+  - post_merge
 
 
 include:
@@ -80,6 +81,7 @@ include:
   - local: 'ci/backend-unit-tests.yml'
   - local: 'ci/backend-int-tests.yml'
   - local: 'ci/aikido.yml'
+  - local: 'ci/backport.yml'
 
 
 build:
