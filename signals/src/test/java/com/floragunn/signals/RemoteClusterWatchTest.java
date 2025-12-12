@@ -107,7 +107,7 @@ public class RemoteClusterWatchTest {
     }
 
     @Before
-    public void setUp() throws Exception {
+    public void setRemoteClusterSettings() throws Exception {
         try (GenericRestClient adminClient = cluster.getAdminCertRestClient()) {
             InetSocketAddress remoteNodeAddress = remoteCluster.getNodeByName("single").getTransportAddress();
             GenericRestClient.HttpResponse response = adminClient.putJson("_cluster/settings", """
@@ -144,7 +144,7 @@ public class RemoteClusterWatchTest {
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
 
-            //index action - allowed local index
+            // index action - allowed local index
             Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("sourcecoord").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("outputcoord").refreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).name("output").build();
 
@@ -153,11 +153,12 @@ public class RemoteClusterWatchTest {
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.status.detail", "All actions have been executed"));
 
+            // index action should be triggered only once, so we expect only one doc in the output index
             assertNumberOfHitsInIndex(cluster, "outputcoord", 1);
             assertTestsearchInputHitsClusterFieldValueInIndex(cluster, "outputcoord", "coord");
             removeDocsFromIndex(cluster, "outputcoord");
 
-            //index action - not allowed local index
+            // index action - not allowed local index
             watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("sourcecoord").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("notallowed").refreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).name("output").build();
 
@@ -173,11 +174,11 @@ public class RemoteClusterWatchTest {
     }
 
     @Test
-    public void searchRemote_indexToLocal() throws Exception {
+    public void searchRemote_indexToLocal_withAllowedIndices() throws Exception {
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
 
-            //search input - allowed remote index, index action - allowed local index
+            // search input - allowed remote index, index action - allowed local index
             Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("my_remote:sourceremote").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("outputcoord").refreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).name("output").build();
 
@@ -186,15 +187,23 @@ public class RemoteClusterWatchTest {
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.status.detail", "All actions have been executed"));
 
+            // index action should be triggered only once, so we expect only one doc in the output index
             assertNumberOfHitsInIndex(cluster, "outputcoord", 1);
             assertTestsearchInputHitsClusterFieldValueInIndex(cluster, "outputcoord", "remote");
             removeDocsFromIndex(cluster, "outputcoord");
+        }
+    }
 
-            //search input - allowed remote index, index action - not allowed local index
-            watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("my_remote:sourceremote").query("{\"match_all\" : {} }")
+    @Test
+    public void searchRemote_indexToLocal_withForbiddenOutputIndex() throws Exception {
+
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
+
+            // search input - allowed remote index, index action - not allowed local index
+            Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("my_remote:sourceremote").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("notallowed").refreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).name("output").build();
 
-            response = restClient.postJson("/_signals/watch/_main/_execute", "{\"watch\": " + watch.toJson() + "}");
+            GenericRestClient.HttpResponse response = restClient.postJson("/_signals/watch/_main/_execute", "{\"watch\": " + watch.toJson() + "}");
 
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.status.detail", "All actions failed"));
@@ -202,17 +211,26 @@ public class RemoteClusterWatchTest {
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.actions[0].name", "output"));
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.actions[0].error.detail.missing_permissions", "notallowed: indices:data/write/index"));
             assertIndexDoesNotExist(cluster, "notallowed");
+        }
+    }
 
-            //search - not allowed remote index, index action - allowed local index
-            watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("my_remote:another-sourceremote").query("{\"match_all\" : {} }")
+    @Test
+    public void searchRemote_indexToLocal_withForbiddenRemoteIndex() throws Exception {
+
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
+
+            // search - not allowed remote index, index action - allowed local index
+            Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("my_remote:another-sourceremote").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("outputcoord").refreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).name("output").build();
 
-            response = restClient.postJson("/_signals/watch/_main/_execute", "{\"watch\": " + watch.toJson() + "}");
+            GenericRestClient.HttpResponse response = restClient.postJson("/_signals/watch/_main/_execute", "{\"watch\": " + watch.toJson() + "}");
 
             if (remoteClusterSkipUnavailable) {
-                //index action executed, but testsearch returned 0 hits, remote search failed because of missing permissions
+                // index action executed, but testsearch returned 0 hits, remote search failed because of missing permissions
                 assertThat(response, isOk());
                 assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.status.detail", "All actions have been executed"));
+
+                // index action should be triggered only once, so we expect only one doc in the output index
                 assertNumberOfHitsInIndex(cluster, "outputcoord", 1);
                 try (GenericRestClient adminClient = cluster.getAdminCertRestClient()) {
                     GenericRestClient.HttpResponse searchResponse = adminClient.get("outputcoord" + "/_search");
@@ -223,10 +241,12 @@ public class RemoteClusterWatchTest {
                 }
                 removeDocsFromIndex(cluster, "outputcoord");
             } else {
-                //index action not executed, testsearch failed
+                // index action not executed, testsearch failed
                 assertThat(response.getBody(), response.getStatusCode(), equalTo(422));
                 assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.status.detail", "Error while executing SearchInput testsearch: Insufficient permissions"));
                 assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.error.detail.missing_permissions", "another-sourceremote: indices:data/read/search"));
+
+                // index action should not be triggered, so we expect no docs in the output index
                 assertNumberOfHitsInIndex(cluster, "outputcoord", 0);
             }
         }
@@ -234,10 +254,10 @@ public class RemoteClusterWatchTest {
 
     @Test
     public void searchLocal_indexToRemote() throws Exception {
-
+        // such operation should fail, one cannot simply add doc to `remote_name:index_name`
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
-            //todo it fails, we cannot simply add doc to `my_remote:outputremote`
-            //index action - allowed remote index
+
+            // index action - allowed remote index
             Watch watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("sourcecoord").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("my_remote:outputremote").refreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).name("output").build();
 
@@ -251,8 +271,7 @@ public class RemoteClusterWatchTest {
 
             assertIndexDoesNotExist(remoteCluster, "outputremote");
 
-            //todo it fails, we cannot simply add doc to `my_remote:notallowed`
-            //index action - not allowed remote index
+            // index action - not allowed remote index
             watch = new WatchBuilder("execution_test_anon").cronTrigger("*/2 * * * * ?").search("sourcecoord").query("{\"match_all\" : {} }")
                     .as("testsearch").put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("my_remote:notallowed").refreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE).name("output").build();
 
@@ -304,6 +323,7 @@ public class RemoteClusterWatchTest {
             GenericRestClient.HttpResponse flushResponse = adminClient.post(index + "/_flush");
             assertThat(flushResponse, isOk());
 
+            // all docs got removed, index should be empty
             assertNumberOfHitsInIndex(cluster, index, 0);
 
         }
