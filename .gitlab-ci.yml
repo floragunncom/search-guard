@@ -99,6 +99,8 @@ frontend_int_tests:
   # needs: ["build"]
   trigger:
     strategy: depend
+    variables:
+      SG_ES_PLUGIN: "testpc1234"
     include:
       - project: search-guard/search-guard-kibana-plugin 
         ref: pc-kibana
