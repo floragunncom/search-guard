@@ -92,7 +92,7 @@ include:
 #     strategy: depend
 
 
-frontend_int_tests:
+kibana:
   stage: "Frontend Int Tests"
   # when: manual
   trigger:
