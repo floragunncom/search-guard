@@ -67,7 +67,7 @@ default:
 
 stages:
   - prepare
-  # - build
+  - build
   - "Frontend Int Tests"
   # - "Backend Unit Tests"
   # - "Backend Int Tests Core"
@@ -93,7 +93,7 @@ include:
 
 
 kibana:
-  # stage: "Frontend Int Tests"
+  stage: "build"
   # when: manual
   trigger:
     include:
