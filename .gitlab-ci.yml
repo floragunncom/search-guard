@@ -96,11 +96,10 @@ frontend_int_tests:
   stage: "Frontend Int Tests"
   # when: manual
   trigger:
-    project: search-guard/search-guard-kibana-plugin 
-    branch: pc-kibana
-    file: "ci/frontend-int-tests.yml"
-    strategy: depend
-
+    include:
+      - project: search-guard/search-guard-kibana-plugin 
+        ref: pc-kibana
+        file: "ci/frontend-int-tests.yml"
 # build:
 #   image: "$SG_BUILD_IMAGE"
 #   allow_failure: false
