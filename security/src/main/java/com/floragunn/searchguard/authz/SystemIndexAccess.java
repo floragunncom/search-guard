@@ -41,7 +41,7 @@ public class SystemIndexAccess {
     }
 
     public boolean isAllowed(Meta.IndexLikeObject index) {
-        return indexNamePredicate.test(index.name());
+        return indexNamePredicate.test(index.nameForIndexPatternMatching());
     }
 
     public boolean isAllowed(String index) {
