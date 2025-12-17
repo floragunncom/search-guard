@@ -82,8 +82,9 @@ include:
   # - local: 'ci/aikido.yml'
 
 
-trigger_job:
+kibana_test:
   stage: prepare
+  when: manual
   trigger:
     project: search-guard/search-guard-kibana-plugin
 
