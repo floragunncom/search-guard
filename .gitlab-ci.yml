@@ -83,12 +83,22 @@ include:
   # - local: 'ci/aikido.yml'
 
 
+# frontend_int_tests:
+#   stage: "Frontend Int Tests"
+#   # when: manual
+#   trigger:
+#     project: search-guard/search-guard-kibana-plugin 
+#     branch: pc-kibana
+#     strategy: depend
+
+
 frontend_int_tests:
   stage: "Frontend Int Tests"
   # when: manual
   trigger:
     project: search-guard/search-guard-kibana-plugin 
     branch: pc-kibana
+    file: "ci/frontend-int-tests.yml"
     strategy: depend
 
 # build:
