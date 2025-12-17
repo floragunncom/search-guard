@@ -95,8 +95,8 @@ include:
 
 frontend_int_tests:
   stage: "Frontend Int Tests"
-  when: manual
-  needs: ["build"]
+  # when: manual
+  # needs: ["build"]
   trigger:
     strategy: depend
     include:
