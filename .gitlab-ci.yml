@@ -87,6 +87,7 @@ kibana_test:
   when: manual
   trigger:
     project: search-guard/search-guard-kibana-plugin
+    ref: pctest
 
 # build:
 #   image: "$SG_BUILD_IMAGE"
