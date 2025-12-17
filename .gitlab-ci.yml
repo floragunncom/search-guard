@@ -103,7 +103,6 @@ frontend_int_tests:
       - project: search-guard/search-guard-kibana-plugin 
         ref: pc-kibana
         file: "ci/frontend-int-tests.yml"
-        strategy: depend
 
 build:
   image: "$SG_BUILD_IMAGE"
