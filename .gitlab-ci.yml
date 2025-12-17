@@ -97,10 +97,11 @@ frontend_int_tests:
   stage: "Frontend Int Tests"
   # when: manual
   # needs: ["build"]
+  variables:
+      SG_ES_PLUGIN: "testpc1234"
   trigger:
     strategy: depend
-    variables:
-      SG_ES_PLUGIN: "testpc1234"
+
     include:
       - project: search-guard/search-guard-kibana-plugin 
         ref: pc-kibana
