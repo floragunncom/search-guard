@@ -70,6 +70,7 @@ stages:
   - build
   - "Backend Unit Tests"
   - "Backend Int Tests Core"
+  - "Frontend Int Tests"  
   - "Aikido Scan"  
   - release
   - "Deploy Docker Image"
@@ -79,6 +80,7 @@ include:
   - local: '.gitlab-ci-branch-specific.yml'
   - local: 'ci/backend-unit-tests.yml'
   - local: 'ci/backend-int-tests.yml'
+  - local: 'ci/frontend-int-tests.yml'  
   - local: 'ci/aikido.yml'
 
 
