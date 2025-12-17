@@ -95,6 +95,7 @@ public interface Meta extends Document<Meta> {
 
     interface IndexLikeObject extends Document<IndexLikeObject> {
         String name();
+        String nameWithComponent();
 
         ImmutableSet<IndexOrNonExistent> resolveDeep(Alias.ResolutionMode resolutionMode);
 
@@ -123,6 +124,8 @@ public interface Meta extends Document<Meta> {
         boolean isHidden();
 
         boolean exists();
+
+        Component component();
 
         static ImmutableSet<Index> resolveDeep(ImmutableSet<? extends Meta.IndexLikeObject> objects) {
             return resolveDeep(objects, Alias.ResolutionMode.NORMAL);
