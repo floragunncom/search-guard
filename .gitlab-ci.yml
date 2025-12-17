@@ -102,7 +102,12 @@ frontend_int_tests:
     include:
       - project: search-guard/search-guard-kibana-plugin 
         ref: pc-kibana
+        file: ".gitlab-ci-branch-specific.yml"
+      - project: search-guard/search-guard-kibana-plugin 
+        ref: pc-kibana
         file: "ci/frontend-int-tests.yml"
+
+
 
 # build:
 #   image: "$SG_BUILD_IMAGE"
