@@ -93,12 +93,13 @@ include:
 #     strategy: depend
 
 
+
 frontend_int_tests:
   stage: "Frontend Int Tests"
   # when: manual
   # needs: ["build"]
   variables:
-      SG_ES_PLUGIN: "testpc1234"
+      SG_ES_PLUGIN: ${SNAPSHOT_URL}
   trigger:
     strategy: depend
 
@@ -112,37 +113,38 @@ frontend_int_tests:
 
 
 
-# build:
-#   image: "$SG_BUILD_IMAGE"
-#   allow_failure: false
-#   stage: build
-#   rules:
-#     - if: '$DOCKER_ONLY'
-#       when: never
-#     - when: on_success
-#   script:
-#     - | 
-#        set -e
+build:
+  image: "$SG_BUILD_IMAGE"
+  allow_failure: false
+  stage: build
+  rules:
+    - if: '$DOCKER_ONLY'
+      when: never
+    - when: on_success
+  script:
+    - | 
+       set -e
 
-#        SNAPSHOT_REVISION="$CI_COMMIT_REF_SLUG-SNAPSHOT"
-#        mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
-#        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
-#        echo "ES_VERSION=$ES_VERSION" >> snapshot.env
-#        cat snapshot.env
-#        echo "Size of .m2/repository $(du -sm $CI_PROJECT_DIR/.m2/repository | awk '{print $1}') MB"
-#   artifacts:
-#     when: on_success
-#     paths:
-#       - "plugin/target/releases/"
-#       - "snapshot.env"
-#     expire_in: 1 week
-#     reports:
-#       dotenv: snapshot.env
-#   cache:
-#     key: mavenrepo-main-es8
-#     paths:
-#       - .m2/repository
-#     policy: push
+       SNAPSHOT_REVISION="$CI_COMMIT_REF_SLUG-SNAPSHOT"
+       mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
+       echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
+       echo "ES_VERSION=$ES_VERSION" >> snapshot.env
+       cat snapshot.env
+       echo "Size of .m2/repository $(du -sm $CI_PROJECT_DIR/.m2/repository | awk '{print $1}') MB"
+       SNAPSHOT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin ${$CI_COMMIT_REF_NAME}-SNAPSHOT .zip)
+  artifacts:
+    when: on_success
+    paths:
+      - "plugin/target/releases/"
+      - "snapshot.env"
+    expire_in: 1 week
+    reports:
+      dotenv: snapshot.env
+  cache:
+    key: mavenrepo-main-es8
+    paths:
+      - .m2/repository
+    policy: push
 
 
 # deploy_release:
