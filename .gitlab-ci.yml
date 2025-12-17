@@ -67,7 +67,7 @@ default:
 
 stages:
   - prepare
-  # - build
+  - build
   # - "Backend Unit Tests"
   # - "Backend Int Tests Core"
   # - "Aikido Scan"  
@@ -83,7 +83,7 @@ include:
 
 
 kibana_test:
-  stage: prepare
+  stage: build
   when: manual
   trigger:
     project: search-guard/search-guard-kibana-plugin 
