@@ -20,7 +20,6 @@ package com.floragunn.searchguard.authz.actions;
 import static com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors.objectAttr;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -81,6 +80,7 @@ public class Actions {
     private static final Logger log = LogManager.getLogger(Actions.class);
 
     public static final String ASYNC_SEARCH_RESOURCE_TYPE = "async_search";
+    public static final String FAILURE_STORE_PERMISSION = "special:failure_store";
 
     private final ImmutableMap<String, Action> actionMap;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActions;
@@ -93,6 +93,9 @@ public class Actions {
     private Builder builder = new Builder();
 
     public Actions(SearchGuardModulesRegistry modulesRegistry) {
+
+
+        indexLike(FAILURE_STORE_PERMISSION);
         // We define here "well-known" actions. 
         //
         // Having well-known actions allows us to pre-cache a hash table of allowed actions for roles,

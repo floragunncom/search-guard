@@ -48,6 +48,16 @@ public class TestIndex implements TestIndexLike {
         return testData.getFieldsMappings();
     }
 
+    @Override
+    public boolean isFailureStoreOnly() {
+        return false;
+    }
+
+    @Override
+    public TestIndexLike enableFailureStore() {
+        throw new UnsupportedOperationException("Index " + this.name + " is does not contain failure store");
+    }
+
     public void create(Client client) {
         ThreadContext threadContext = client.threadPool().getThreadContext();
 
@@ -75,6 +85,11 @@ public class TestIndex implements TestIndexLike {
 
     public String getName() {
         return name;
+    }
+
+    @Override
+    public TestIndexLike dataOnly() {
+        return this;
     }
 
     @Override
