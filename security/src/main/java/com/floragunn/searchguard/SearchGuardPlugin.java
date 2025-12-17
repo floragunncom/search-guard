@@ -732,6 +732,15 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         GuiceDependencies guiceDependencies = new GuiceDependencies();
         components.add(guiceDependencies);
 
+        this.clusterService.addListener(event -> {
+            if (event.state().getMetadata().getProject().dataStreams().keySet().containsAll(Arrays.asList("ds_a1", "ds_a2", "ds_a3", "ds_b1", "ds_b2", "ds_b3", "ds_hidden"))
+                    && event.state().getMetadata().getProject().hasAlias("alias_ab1") && event.state().getMetadata().getProject().hasAlias("alias_c1")
+                    && event.state().getMetadata().getProject().indices().keySet().stream().anyMatch(name -> name.startsWith(".fs"))) {
+                Meta m = Meta.from(event.state().metadata());
+                int i = 1;
+            }
+        });
+
         final ClusterInfoHolder cih = new ClusterInfoHolder();
         this.clusterService.addListener(cih);
 
