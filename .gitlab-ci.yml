@@ -86,8 +86,9 @@ kibana_test:
   stage: prepare
   when: manual
   trigger:
-    project: search-guard/search-guard-kibana-plugin
-    ref: pctest
+    project: search-guard/search-guard-kibana-plugin 
+    branch: pc-kibana
+    strategy: depend
 
 # build:
 #   image: "$SG_BUILD_IMAGE"
