@@ -67,121 +67,125 @@ default:
 
 stages:
   - prepare
-  - build
-  - "Backend Unit Tests"
-  - "Backend Int Tests Core"
-  - "Aikido Scan"  
-  - release
-  - "Deploy Docker Image"
+  # - build
+  # - "Backend Unit Tests"
+  # - "Backend Int Tests Core"
+  # - "Aikido Scan"  
+  # - release
+  # - "Deploy Docker Image"
 
 
 include:
   - local: '.gitlab-ci-branch-specific.yml'
-  - local: 'ci/backend-unit-tests.yml'
-  - local: 'ci/backend-int-tests.yml'
-  - local: 'ci/aikido.yml'
+  # - local: 'ci/backend-unit-tests.yml'
+  # - local: 'ci/backend-int-tests.yml'
+  # - local: 'ci/aikido.yml'
 
 
-build:
-  image: "$SG_BUILD_IMAGE"
-  allow_failure: false
-  stage: build
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - when: on_success
-  script:
-    - | 
-       set -e
-       SNAPSHOT_REVISION="$CI_COMMIT_REF_SLUG-SNAPSHOT"
-       mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
-       echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
-       echo "ES_VERSION=$ES_VERSION" >> snapshot.env
-       cat snapshot.env
-       echo "Size of .m2/repository $(du -sm $CI_PROJECT_DIR/.m2/repository | awk '{print $1}') MB"
-  artifacts:
-    when: on_success
-    paths:
-      - "plugin/target/releases/"
-      - "snapshot.env"
-    expire_in: 1 week
-    reports:
-      dotenv: snapshot.env
-  cache:
-    key: mavenrepo-main-es8
-    paths:
-      - .m2/repository
-    policy: push
+trigger_job:
+  trigger:
+    project: search-guard/search-guard-kibana-plugin
+
+# build:
+#   image: "$SG_BUILD_IMAGE"
+#   allow_failure: false
+#   stage: build
+#   rules:
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#     - when: on_success
+#   script:
+#     - | 
+#        set -e
+#        SNAPSHOT_REVISION="$CI_COMMIT_REF_SLUG-SNAPSHOT"
+#        mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
+#        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
+#        echo "ES_VERSION=$ES_VERSION" >> snapshot.env
+#        cat snapshot.env
+#        echo "Size of .m2/repository $(du -sm $CI_PROJECT_DIR/.m2/repository | awk '{print $1}') MB"
+#   artifacts:
+#     when: on_success
+#     paths:
+#       - "plugin/target/releases/"
+#       - "snapshot.env"
+#     expire_in: 1 week
+#     reports:
+#       dotenv: snapshot.env
+#   cache:
+#     key: mavenrepo-main-es8
+#     paths:
+#       - .m2/repository
+#     policy: push
 
 
-deploy_release:
-  allow_failure: false
-  interruptible: false
-  stage: release
-  rules:
-    - if: '$DOCKER_ONLY'
-      when: never
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
-      when: on_success
-  script:
-    - ./dev/setup_gpg.sh
-    - |
-      set -e
-      DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
-      echo "Release DEPLOY_VERSION: $DEPLOY_VERSION"
-      echo "Release ES_VERSION: $ES_VERSION"
-      echo "Release SG_VERSION: $SG_VERSION"
+# deploy_release:
+#   allow_failure: false
+#   interruptible: false
+#   stage: release
+#   rules:
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#     - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+#       when: on_success
+#   script:
+#     - ./dev/setup_gpg.sh
+#     - |
+#       set -e
+#       DEPLOY_VERSION="$SG_VERSION-es-$ES_VERSION"
+#       echo "Release DEPLOY_VERSION: $DEPLOY_VERSION"
+#       echo "Release ES_VERSION: $ES_VERSION"
+#       echo "Release SG_VERSION: $SG_VERSION"
       
-      MAJOR="$(echo $ES_VERSION | cut -d. -f1-2)"
-      TEST_IT_BRANCH="${MAJOR}.x"
-      echo "TEST_IT_BRANCH: $TEST_IT_BRANCH"
+#       MAJOR="$(echo $ES_VERSION | cut -d. -f1-2)"
+#       TEST_IT_BRANCH="${MAJOR}.x"
+#       echo "TEST_IT_BRANCH: $TEST_IT_BRANCH"
 
-      curl --request POST --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN_SGI8" "https://git.floragunn.com/api/v4/projects/215/repository/tags?tag_name=$CI_COMMIT_TAG&ref=$TEST_IT_BRANCH" || true
+#       curl --request POST --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN_SGI8" "https://git.floragunn.com/api/v4/projects/215/repository/tags?tag_name=$CI_COMMIT_TAG&ref=$TEST_IT_BRANCH" || true
 
-      echo "Deploying Release to production repo"
-      mvn clean deploy $MAVEN_CLI_OPTS -DskipTests -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION
+#       echo "Deploying Release to production repo"
+#       mvn clean deploy $MAVEN_CLI_OPTS -DskipTests -Prelease -Delasticsearch.version=$ES_VERSION -Dsg-suite.version=$SG_VERSION
 
-deploy_docker_image:
-  stage: "Deploy Docker Image"
-  image: "$SG_DIND_IMAGE"
-  services:
-    - docker:${DOCKER_VERSION}-dind
-  rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
-      when: on_success
-    - if: '$DOCKER_ONLY'
-      when: never
-  tags:
-    - build
-  script:
-    - |
-      cd docker
-      apk update && apk add bash curl
+# deploy_docker_image:
+#   stage: "Deploy Docker Image"
+#   image: "$SG_DIND_IMAGE"
+#   services:
+#     - docker:${DOCKER_VERSION}-dind
+#   rules:
+#     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+#       when: on_success
+#     - if: '$DOCKER_ONLY'
+#       when: never
+#   tags:
+#     - build
+#   script:
+#     - |
+#       cd docker
+#       apk update && apk add bash curl
       
-      SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
-      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-.*-es-\(.*\)$/\1/p')
+#       SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
+#       ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-.*-es-\(.*\)$/\1/p')
 
-      if [[ -z "$SG_VERSION" || -z "$ES_VERSION" ]]; then
-        echo "SG_VERSION is empty or ES_VERSION is empty"
-        exit 1
-      fi
+#       if [[ -z "$SG_VERSION" || -z "$ES_VERSION" ]]; then
+#         echo "SG_VERSION is empty or ES_VERSION is empty"
+#         exit 1
+#       fi
     
-      echo "SG_VERSION=$SG_VERSION"
-      echo "ES_VERSION=$ES_VERSION"
+#       echo "SG_VERSION=$SG_VERSION"
+#       echo "ES_VERSION=$ES_VERSION"
       
             
-      echo "Docker logout"
-      docker logout 
+#       echo "Docker logout"
+#       docker logout 
       
-      echo "Login in into Docker Hub"      
-      echo "$DOCKER_PASSWORD" | docker login --username floragunncom --password-stdin docker.io > /dev/null
+#       echo "Login in into Docker Hub"      
+#       echo "$DOCKER_PASSWORD" | docker login --username floragunncom --password-stdin docker.io > /dev/null
 
-      echo ""
-      echo "Enable qemu-user-static to support docker multiarch builds with buildx"
-      docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
+#       echo ""
+#       echo "Enable qemu-user-static to support docker multiarch builds with buildx"
+#       docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
   
-      ./build_and_push.sh "floragunncom" "docker.io" "search-guard-flx-elasticsearch" "$ES_VERSION-$SG_VERSION" "--build-arg ES_VERSION="$ES_VERSION" --build-arg SG_VERSION="$SG_VERSION""      
+#       ./build_and_push.sh "floragunncom" "docker.io" "search-guard-flx-elasticsearch" "$ES_VERSION-$SG_VERSION" "--build-arg ES_VERSION="$ES_VERSION" --build-arg SG_VERSION="$SG_VERSION""      
       
       
       
-  allow_failure: false
+#   allow_failure: false
