@@ -83,6 +83,7 @@ include:
 
 
 trigger_job:
+  stage: prepare
   trigger:
     project: search-guard/search-guard-kibana-plugin
 
