@@ -6,6 +6,7 @@ downstream_frontend_int_tests:
       artifacts: true
   variables:
       SG_ES_PLUGIN: ${PLUGIN_ARIFACT_URL}
+      SG_KI_PLUGIN: ${KI_ARIFACT_URL}
   trigger:
     strategy: depend
     include:

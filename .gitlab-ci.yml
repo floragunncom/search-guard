@@ -108,7 +108,6 @@ build:
   script:
     - | 
        set -e
-
        SNAPSHOT_REVISION="$CI_COMMIT_REF_SLUG-SNAPSHOT"
        # mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
        #echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
@@ -118,6 +117,10 @@ build:
        PLUGIN_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin "${CI_COMMIT_REF_NAME}-SNAPSHOT" .zip)
        echo $PLUGIN_ARIFACT_URL
        echo "PLUGIN_ARIFACT_URL=$PLUGIN_ARIFACT_URL" >> snapshot.env
+       KI_ARIFACT_URL=${ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin "b-pc-kibana-SNAPSHOT" .zip}
+       echo $KI_ARIFACT_URL
+       echo "KI_ARIFACT_URL=$KI_ARIFACT_URL" >> snapshot.env
+
   artifacts:
     when: on_success
     paths:
