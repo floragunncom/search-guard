@@ -578,8 +578,10 @@ public abstract class MetaImpl implements Meta {
                     .defaultValue((k) -> new ImmutableList.Builder<IndexLikeObject>());
             ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, IndexLikeObject> aliasToWriteIndexMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, IndexLikeObject>();
 
-            ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> dataStreamAliasToIndicesMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>()
-                    .defaultValue((k) -> new ArrayList<IndexLikeObject>());
+            ImmutableMap.Builder<Component, ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>> componentDataStreamAliasToIndicesMap = //
+                    new ImmutableMap.Builder<Component, ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>>()
+                            .defaultValue((k) -> new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>()
+                                    .defaultValue((k2) -> new ArrayList<IndexLikeObject>()));
             ImmutableSet.Builder<Alias> aliases = new ImmutableSet.Builder<>(64);
             ImmutableSet.Builder<DataStream> datastreams = new ImmutableSet.Builder<>(project.dataStreams().size());
             this.esMetadata = esMetadata;
@@ -595,13 +597,11 @@ public abstract class MetaImpl implements Meta {
 
             for (org.elasticsearch.cluster.metadata.DataStream esDataStream : project.dataStreams().values()) {
                 for (Component component : Component.values()) {
-                    List<org.elasticsearch.index.Index> esDataStreamIndices;
                     //get data stream indices based on component type
-                    switch (component) {
-                        case NONE -> esDataStreamIndices = esDataStream.getIndices();
-                        case FAILURES -> esDataStreamIndices = esDataStream.getFailureIndices(); //todo check if failurestore is enabled
-                        default -> throw new IllegalStateException("Unknown component type");
-                    }
+                    List<org.elasticsearch.index.Index> esDataStreamIndices = switch (component) {
+                        case NONE -> esDataStream.getIndices();
+                        case FAILURES -> esDataStream.getFailureIndices();
+                    };
                     ImmutableList.Builder<IndexLikeObject> memberIndices = new ImmutableList.Builder<>(esDataStreamIndices.size());
                     String dataStreamNameWithComponent = component.indexLikeNameWithComponentSuffix(esDataStream.getName());
 
@@ -626,7 +626,7 @@ public abstract class MetaImpl implements Meta {
                     nameMap.put(dataStream.nameWithComponent(), dataStream);
 
                     for (String parentAlias : parentAliasNames) {
-                        dataStreamAliasToIndicesMap.get(dataStreamsAliases.get(parentAlias)).add(dataStream);
+                        componentDataStreamAliasToIndicesMap.get(component).get(dataStreamsAliases.get(parentAlias)).add(dataStream);
                     }
                 }
             }
@@ -634,7 +634,7 @@ public abstract class MetaImpl implements Meta {
             for (org.elasticsearch.cluster.metadata.IndexMetadata esIndexMetadata : project.indices().values()) {
                 String name = esIndexMetadata.getIndex().getName();
 
-                if (nameMap.contains(name)) {
+                if (nameMap.contains(Component.NONE.indexLikeNameWithComponentSuffix(name))) {
                     // Index has been already created via a DataStream
                     continue;
                 }
@@ -644,7 +644,7 @@ public abstract class MetaImpl implements Meta {
                 Index index = new IndexImpl(this, name, parentAliases, null, esIndexMetadata.isHidden(),
                         esIndexMetadata.isSystem(), esIndexMetadata.getState());
                 indices.add(index);
-                nameMap.put(name, index);
+                nameMap.put(index.nameWithComponent(), index);
 
                 if (esIndexMetadata.getAliases().isEmpty()) {
                     indicesWithoutParents.add(index);
@@ -658,20 +658,23 @@ public abstract class MetaImpl implements Meta {
                 }
             }
 
+            //todo do we need this loop? shouldn't we just create aliases for indices above?
+            // it looks like ES does not allow to add the same alias to both indices and data streams
             for (Map.Entry<org.elasticsearch.cluster.metadata.AliasMetadata, ImmutableList.Builder<IndexLikeObject>> entry : aliasToIndicesMap.build()
                     .entrySet()) {
                 for (Component component : Component.values()) {
                     org.elasticsearch.cluster.metadata.DataStreamAlias dataStreamAlias = dataStreamsAliases.get(entry.getKey().alias());
-                    List<IndexLikeObject> dataStreams = dataStreamAlias != null && dataStreamAliasToIndicesMap.contains(dataStreamAlias)
-                            ? dataStreamAliasToIndicesMap.get(dataStreamAlias).stream().filter(dataStream -> component == dataStream.component()).toList()
+                    List<IndexLikeObject> dataStreams = dataStreamAlias != null && componentDataStreamAliasToIndicesMap.get(component).contains(dataStreamAlias)
+                            ? componentDataStreamAliasToIndicesMap.get(component).get(dataStreamAlias)
                             : ImmutableList.empty();
-                    ImmutableList<IndexLikeObject> members;
-                    if (component.includesData()) {
-                        members = entry.getValue().build().with(dataStreams);
-                    } else if (component.includesFailures()) {
-                        members = ImmutableList.of(dataStreams);
-                    } else {
-                        throw new IllegalStateException("Unknown component type");
+                    ImmutableList<IndexLikeObject> members = switch (component) {
+                        case NONE -> entry.getValue().build().with(dataStreams);
+                        case FAILURES -> ImmutableList.of(dataStreams);
+                    };
+
+                    //todo this can happen in the case of Component.FAILURES, when we try to find data streams that belong to an alias to which indices are assigned
+                    if (members.isEmpty()) {
+                        continue;
                     }
 
                     IndexLikeObject writeTarget = aliasToWriteIndexMap.get(entry.getKey());
@@ -687,10 +690,11 @@ public abstract class MetaImpl implements Meta {
                 }
             }
 
-            for (Map.Entry<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> entry : dataStreamAliasToIndicesMap.build()
-                    .entrySet()) {
-                for(Component component : Component.values()) {
+            for (Component component : Component.values()) {
+                for (Map.Entry<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> entry : componentDataStreamAliasToIndicesMap.get(component).build()
+                        .entrySet()) {
                     if (nameMap.contains(component.indexLikeNameWithComponentSuffix(entry.getKey().getName()))) {
+                        //todo it should not happen since alias cannot point to indices and data streams as mentioned in the TODO above
                         // Already created above
                         continue;
                     }
@@ -698,8 +702,7 @@ public abstract class MetaImpl implements Meta {
                     IndexLikeObject writeTarget = entry.getKey().getWriteDataStream() != null ?
                             nameMap.get(component.indexLikeNameWithComponentSuffix(entry.getKey().getWriteDataStream())) : null;
 
-                    List<IndexLikeObject> members = entry.getValue().stream().filter(ds -> component == ds.component()).toList();
-                    Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(members), false, writeTarget, component);
+                    Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false, writeTarget, component);
                     aliases.add(alias);
                     nameMap.put(alias.nameWithComponent(), alias);
                 }
