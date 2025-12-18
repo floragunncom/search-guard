@@ -79,6 +79,7 @@ stages:
 
 include:
   - local: '.gitlab-ci-branch-specific.yml'
+  - local: 'downstream-frontend-int-tests.yml'  
   # - local: 'ci/backend-unit-tests.yml'
   # - local: 'ci/backend-int-tests.yml'
   # - local: 'ci/aikido.yml'
@@ -93,25 +94,6 @@ include:
 #     strategy: depend
 
 
-
-frontend_int_tests:
-  stage: "Frontend Int Tests"
-  # when: manual
-  needs:
-    - job: build
-      artifacts: true
-  variables:
-      SG_ES_PLUGIN: ${PLUGIN_SNAPSHOT_URL}
-  trigger:
-    strategy: depend
-
-    include:
-      - project: search-guard/search-guard-kibana-plugin 
-        ref: pc-kibana
-        file: ".gitlab-ci-branch-specific.yml"
-      - project: search-guard/search-guard-kibana-plugin 
-        ref: pc-kibana
-        file: "ci/frontend-int-tests.yml"
 
 
 
@@ -133,9 +115,9 @@ build:
        echo "ES_VERSION=$ES_VERSION" >> snapshot.env
        cat snapshot.env
        #echo "Size of .m2/repository $(du -sm $CI_PROJECT_DIR/.m2/repository | awk '{print $1}') MB"
-       PLUGIN_SNAPSHOT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin "${CI_COMMIT_REF_NAME}-SNAPSHOT" .zip)
-       echo $PLUGIN_SNAPSHOT_URL
-       echo "PLUGIN_SNAPSHOT_URL=$PLUGIN_SNAPSHOT_URL" >> snapshot.env
+       PLUGIN_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin "${CI_COMMIT_REF_NAME}-SNAPSHOT" .zip)
+       echo $PLUGIN_ARIFACT_URL
+       echo "PLUGIN_ARIFACT_URL=$PLUGIN_ARIFACT_URL" >> snapshot.env
   artifacts:
     when: on_success
     paths:
@@ -149,6 +131,7 @@ build:
     paths:
       - .m2/repository
     policy: push
+
 
 
 # deploy_release:
