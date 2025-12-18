@@ -79,7 +79,7 @@ stages:
 
 include:
   - local: '.gitlab-ci-branch-specific.yml'
-  - local: 'downstream-frontend-int-tests.yml'  
+  - local: 'ci/downstream-frontend-int-tests.yml'  
   # - local: 'ci/backend-unit-tests.yml'
   # - local: 'ci/backend-int-tests.yml'
   # - local: 'ci/aikido.yml'
