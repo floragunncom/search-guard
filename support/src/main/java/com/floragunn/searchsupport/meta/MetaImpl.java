@@ -53,7 +53,7 @@ public abstract class MetaImpl implements Meta {
 
         public IndexImpl(DefaultMetaImpl root, String name, Collection<String> parentAliasNames, String parentDataStreamName, boolean hidden,
                 boolean system, org.elasticsearch.cluster.metadata.IndexMetadata.State state) {
-            super(root, name, parentAliasNames, parentDataStreamName, hidden, Component.NONE); //todo is it ok to hardcode NONE here?
+            super(root, name, parentAliasNames, parentDataStreamName, hidden, Component.NONE);
             this.open = state == org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN;
             this.system = system;
         }
@@ -384,7 +384,9 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public int hashCode() {
-            return name.hashCode();
+            int result = name.hashCode();
+            result = 31 * result + component.hashCode();
+            return result;
         }
 
         @Override
@@ -595,13 +597,10 @@ public abstract class MetaImpl implements Meta {
                 for (Component component : Component.values()) {
                     List<org.elasticsearch.index.Index> esDataStreamIndices;
                     //get data stream indices based on component type
-                    if (component.includesData()) {
-                        esDataStreamIndices = esDataStream.getIndices();
-                    } else if (component.includesFailures()) {
-                        //todo check if failurestore is enabled
-                        esDataStreamIndices = esDataStream.getFailureIndices();
-                    } else {
-                        throw new IllegalStateException("Unknown component type");
+                    switch (component) {
+                        case NONE -> esDataStreamIndices = esDataStream.getIndices();
+                        case FAILURES -> esDataStreamIndices = esDataStream.getFailureIndices(); //todo check if failurestore is enabled
+                        default -> throw new IllegalStateException("Unknown component type");
                     }
                     ImmutableList.Builder<IndexLikeObject> memberIndices = new ImmutableList.Builder<>(esDataStreamIndices.size());
                     String dataStreamNameWithComponent = component.indexLikeNameWithComponentSuffix(esDataStream.getName());
@@ -1039,12 +1038,12 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public Component component() {
-            return Component.NONE; //todo is it ok to hardcode NONE here?
+            return Component.NONE;
         }
 
         @Override
         public String nameWithComponent() {
-            return name; //todo is it ok to just return name here?
+            return name;
         }
 
         @Override
