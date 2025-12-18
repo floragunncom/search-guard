@@ -102,19 +102,18 @@ build:
     - | 
        set -e
        SNAPSHOT_REVISION="$CI_COMMIT_REF_SLUG-SNAPSHOT"
-       # mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
-       #echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
+       mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
+       echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
        echo "ES_VERSION=$ES_VERSION" >> snapshot.env
-       cat snapshot.env
-       #echo "Size of .m2/repository $(du -sm $CI_PROJECT_DIR/.m2/repository | awk '{print $1}') MB"
+      
+       echo "Size of .m2/repository $(du -sm $CI_PROJECT_DIR/.m2/repository | awk '{print $1}') MB"
        PLUGIN_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin "${CI_COMMIT_REF_NAME}-SNAPSHOT" .zip)
-       echo "PLUGIN_ARIFACT_URL=$PLUGIN_ARIFACT_URL"
        
        KIBANA_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin "b-pc-kibana-SNAPSHOT" .zip)
-       
-       echo "KIBANA_ARIFACT_URL=$KIBANA_ARIFACT_URL"
        echo "KIBANA_ARIFACT_URL=$KIBANA_ARIFACT_URL" >> snapshot.env
        echo "PLUGIN_ARIFACT_URL=$PLUGIN_ARIFACT_URL" >> snapshot.env
+       
+       cat snapshot.env
 
   artifacts:
     when: on_success
