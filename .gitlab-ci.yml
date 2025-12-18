@@ -97,9 +97,11 @@ include:
 frontend_int_tests:
   stage: "Frontend Int Tests"
   # when: manual
-  # needs: ["build"]
+  needs:
+    - job: build
+      artifacts: true
   variables:
-      SG_ES_PLUGIN: ${SNAPSHOT_URL}
+      SG_ES_PLUGIN: ${PLUGIN_SNAPSHOT_URL}
   trigger:
     strategy: depend
 
@@ -131,8 +133,9 @@ build:
        echo "ES_VERSION=$ES_VERSION" >> snapshot.env
        cat snapshot.env
        #echo "Size of .m2/repository $(du -sm $CI_PROJECT_DIR/.m2/repository | awk '{print $1}') MB"
-       SNAPSHOT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin "${CI_COMMIT_REF_NAME}-SNAPSHOT" .zip)
-       echo $SNAPSHOT_URL
+       PLUGIN_SNAPSHOT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin "${CI_COMMIT_REF_NAME}-SNAPSHOT" .zip)
+       echo $PLUGIN_SNAPSHOT_URL
+       echo "PLUGIN_SNAPSHOT_URL=$PLUGIN_SNAPSHOT_URL" >> snapshot.env
   artifacts:
     when: on_success
     paths:
