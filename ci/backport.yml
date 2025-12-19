@@ -1,15 +1,23 @@
+variables:
+  # GITLAB_TOKEN: ${GITLAB_TOKEN}
+
 backport_automation:
-  image: python:3.11-slim
+  image: floragunncom/python-toolbox:251218
   stage: post_merge
   rules:
     - if: >
-        $CI_PIPELINE_SOURCE == "merge_request_event" &&
-        $CI_MERGE_REQUEST_STATE == "merged"
-      #  $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"
+        $CI_PIPELINE_SOURCE == "push" &&
+        $CI_COMMIT_TITLE =~ /^Merge branch.*/
+      # && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" # Uncomment this if want backport only from main branch
       when: always
+  before_script:
+    - |
+      if [ -z "${GITLAB_TOKEN}" ]; then
+        echo "ERROR: GITLAB_TOKEN is not set!"
+        exit 1
+      fi
   script:
-    - apt-get update -qq && apt-get install -y git
     - pip install -r ci/backport/requirements.txt
-    - python ci/backport/backport_script.py $CI_MERGE_REQUEST_IID
-  variables:
-    GITLAB_PRIVATE_TOKEN: $GITLAB_TOKEN
+    - python ci/backport/backport.py 
+
+
