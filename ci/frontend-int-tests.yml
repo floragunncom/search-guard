@@ -51,8 +51,7 @@ frontend_int_tests:
   allow_failure: false
   stage: "Frontend Int Tests"
   rules:
-      when: never
-    - when: on_success  
+      when: on_success
   needs:
     - job: check_frontend_prerequisites
       artifacts: true
