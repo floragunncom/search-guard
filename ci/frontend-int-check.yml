@@ -2,9 +2,13 @@ stages:
   - "Frontend Int Tests"
 
 frontend_int_pre:
-  stage: "Frontend Int Tests"
+  allow_failure: false
   tags:
-    - test  
+    - test
+  stage: "Frontend Int Tests"
+  image: "$SG_BUILD_IMAGE"         
+  script:
+    - |
   script:
     - |
       echo "!!!!! test pc !!!!"
@@ -17,4 +21,3 @@ frontend_int_pre:
         echo "ERROR: check_frontend_prerequisites finished with errors, check job log for more details"
         exit 1
       fi
-      
