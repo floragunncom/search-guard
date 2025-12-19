@@ -74,7 +74,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected AbstractIndexLike<IndexImpl> withAlias(String alias) {
-            return new IndexImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(alias), parentDataStreamName(), isHidden(), system,
+            return new IndexImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(component().indexLikeNameWithComponentSuffix(alias)), parentDataStreamName(), isHidden(), system,
                     this.open ? org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN
                             : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE);
         }
@@ -124,7 +124,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public Object toBasicObject() {
-            return DocNode.of("name", this.name(), "open", open, "system", isSystem(), "hidden", isHidden());
+            return DocNode.of("name", this.nameWithComponent(), "open", open, "system", isSystem(), "hidden", isHidden());
         }
 
         @Override
@@ -178,7 +178,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public Object toBasicObject() {
-            return DocNode.of("name", this.name(), "members", members(), "hidden", isHidden());
+            return DocNode.of("name", this.nameWithComponent(), "members", members(), "hidden", isHidden());
         }
 
         @Override
@@ -266,7 +266,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public Object toBasicObject() {
-            return DocNode.of("name", this.name(), "members", members(), "hidden", isHidden());
+            return DocNode.of("name", this.nameWithComponent(), "members", members(), "hidden", isHidden());
         }
     }
 
@@ -658,8 +658,7 @@ public abstract class MetaImpl implements Meta {
                 }
             }
 
-            //todo do we need this loop? shouldn't we just create aliases for indices above?
-            // it looks like ES does not allow to add the same alias to both indices and data streams
+            //todo do we need to consider data streams in this loop? it looks like ES does not allow to add the same alias to both indices and data streams
             for (Map.Entry<org.elasticsearch.cluster.metadata.AliasMetadata, ImmutableList.Builder<IndexLikeObject>> entry : aliasToIndicesMap.build()
                     .entrySet()) {
                 for (Component component : Component.values()) {
@@ -672,7 +671,7 @@ public abstract class MetaImpl implements Meta {
                         case FAILURES -> ImmutableList.of(dataStreams);
                     };
 
-                    //todo this can happen in the case of Component.FAILURES, when we try to find data streams that belong to an alias to which indices are assigned
+                    //todo this can happen in the case of Component.FAILURES, when we try to find data streams that belong to an alias to which indices are assigned?
                     if (members.isEmpty()) {
                         continue;
                     }
@@ -699,6 +698,7 @@ public abstract class MetaImpl implements Meta {
                         continue;
                     }
 
+                    //todo what about writeDataStream for ::failures? it should be null by default?
                     IndexLikeObject writeTarget = entry.getKey().getWriteDataStream() != null ?
                             nameMap.get(component.indexLikeNameWithComponentSuffix(entry.getKey().getWriteDataStream())) : null;
 
@@ -790,14 +790,14 @@ public abstract class MetaImpl implements Meta {
         @Override
         public Iterable<String> namesOfIndices() {
             // TODO optimize or remove
-            return indices.map(e -> e.name());
+            return indices.map(e -> e.nameWithComponent());
         }
 
         @Override
         public Iterable<String> namesOfIndexCollections() {
             // TODO optimize or remove
 
-            return indexCollections.map(e -> e.name());
+            return indexCollections.map(e -> e.nameWithComponent());
         }
 
         @Override
@@ -1054,7 +1054,7 @@ public abstract class MetaImpl implements Meta {
             if (this == other) {
                 return true;
             } else if (other instanceof Meta.IndexLikeObject) {
-                return ((Meta.IndexLikeObject) other).nameWithComponent().equals(this.nameWithComponent()) && !((Meta.IndexLikeObject) other).exists();
+                return ((Meta.IndexLikeObject) other).name().equals(this.name()) && !((Meta.IndexLikeObject) other).exists(); //todo name is enough?
             } else {
                 return false;
             }
@@ -1062,12 +1062,12 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public String toString() {
-            return this.nameWithComponent();
-        }
+            return this.name();
+        } //todo name is enough?
 
         @Override
         public Object toBasicObject() {
-            return DocNode.of("name", this.name(), "exists", false);
+            return DocNode.of("name", this.name(), "exists", false); //todo name is enough?
         }
     }
 
