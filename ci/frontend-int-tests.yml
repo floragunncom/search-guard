@@ -10,7 +10,7 @@ check_frontend_prerequisites:
     reports:
       dotenv: frontend-int-test.env      
   rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/ || $CI_COMMIT_TAG =~ /^sg-flx-.*/'
       when: never    
     - when: manual      
   script:
@@ -26,8 +26,7 @@ check_frontend_prerequisites:
       fi
 
       PLUGIN_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin "${CI_COMMIT_REF_NAME}-SNAPSHOT" .zip)
-      KIBANA_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshotXXX search-guard-flx-kibana-plugin "b-${SG_KI_BRANCH}-SNAPSHOT" .zip)
-
+      KIBANA_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin "b-${SG_KI_BRANCH}-SNAPSHOT" .zip)
 
       PLUGIN_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "${PLUGIN_ARIFACT_URL}")
 
@@ -36,11 +35,10 @@ check_frontend_prerequisites:
         exit 1
       fi
 
-
       KIBANA_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "${KIBANA_ARIFACT_URL}")
 
       if [ "${KIBANA_HTTP_CODE}" != "200" ]; then
-        echo "ERROR: Kibana Artifact ${KIBANA_ARIFACT_URL} not exist (HTTP ${KIBANA_HTTP_CODE}), check whether the artifact has expired and rebuild it from the Kibana repository"
+        echo "ERROR: Kibana Artifact URL=${KIBANA_ARIFACT_URL} not exist (HTTP ${KIBANA_HTTP_CODE}), check whether the artifact has expired and rebuild it from the Kibana repository"
         exit 1
       fi
       echo "KIBANA_ARIFACT_URL=$KIBANA_ARIFACT_URL" >> frontend-int-test.env  
@@ -52,7 +50,7 @@ frontend_int_tests:
   allow_failure: false
   stage: "Frontend Int Tests"
   rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/ || $CI_COMMIT_TAG =~ /^sg-flx-.*/'
       when: never    
     - when: on_success
   needs:
@@ -73,5 +71,3 @@ frontend_int_tests:
       - project: search-guard/search-guard-kibana-plugin
         ref: ${SG_KI_BRANCH}
         file: "ci/frontend-int-tests.yml"
-
-      
