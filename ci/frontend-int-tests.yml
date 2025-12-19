@@ -40,7 +40,7 @@ check_frontend_prerequisites:
       KIBANA_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "${KIBANA_ARIFACT_URL}")
 
       if [ "${KIBANA_HTTP_CODE}" != "200" ]; then
-        echo "ERROR: Kibana Artifact ${KIBANA_ARIFACT_URL} not exist (HTTP ${KIBANA_HTTP_CODE}) "
+        echo "ERROR: Kibana Artifact ${KIBANA_ARIFACT_URL} not exist (HTTP ${KIBANA_HTTP_CODE}), check whether the artifact has expired and rebuild it from the Kibana repository"
         exit 1
       fi
       echo "KIBANA_ARIFACT_URL=$KIBANA_ARIFACT_URL" >> frontend-int-test.env  
