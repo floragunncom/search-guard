@@ -1,7 +1,7 @@
 check_frontend_prerequisites:
   allow_failure: true
   tags:
-    - build
+    - test
   stage: "Frontend Int Tests"
   image: "$SG_BUILD_IMAGE"
   needs:
@@ -53,6 +53,8 @@ check_frontend_prerequisites:
 frontend_int_tests:
   allow_failure: false
   stage: "Frontend Int Tests"
+  tags:
+    - test  
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never    
@@ -70,7 +72,7 @@ frontend_int_tests:
       - project: search-guard/search-guard-kibana-plugin
         ref: ${SG_KI_BRANCH}
         file: ".gitlab-ci-branch-specific.yml"
-      - project: search-guard/search-guard-kibana-plugin
-        ref: ${SG_KI_BRANCH}
-        file: "ci/frontend-int-tests.yml"
+      # - project: search-guard/search-guard-kibana-plugin
+      #   ref: ${SG_KI_BRANCH}
+      #   file: "ci/frontend-int-tests.yml"
       
