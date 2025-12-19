@@ -1,9 +1,11 @@
-check_prerequisites:
+check_frontend_prerequisites:
   stage: "Frontend Int Tests"
   image: "$SG_BUILD_IMAGE"
   needs:
     - job: build
-      artifacts: true  
+  artifacts:
+    reports:
+      dotenv: frontend-int-test.env      
   script:
     - |
       set -e
@@ -36,13 +38,14 @@ check_prerequisites:
         echo "ERROR: KIBANA_ARIFACT_URL=${KIBANA_ARIFACT_URL} not accessible (HTTP ${KIBANA_HTTP_CODE})"
         exit 1
       fi
+      echo "ES_VERSION=$ES_VERSION" >> kibana.env
+      echo "ES_VERSION=$ES_VERSION" >> kibana.env
 
 frontend_int_tests:
   stage: "Frontend Int Tests"
   needs:
-    - job: build
+    - job: check_frontend_prerequisites
       artifacts: true
-    - job: check_prerequisites
   variables:
     SG_ES_PLUGIN: ${PLUGIN_ARIFACT_URL}
     SG_KI_PLUGIN: ${KIBANA_ARIFACT_URL}
