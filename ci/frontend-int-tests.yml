@@ -1,0 +1,57 @@
+check_frontend_int_tests_prerequisites:
+  stage: "Frontend Int Tests"
+  image: "$SG_BUILD_IMAGE"
+  needs:
+    - job: build
+      artifacts: true  
+  script:
+    - |
+      set -e
+
+      BRANCH_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+        --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+        "https://gitlab.com/api/v4/projects/search-guard/search-guard-kibana-plugin/repository/branches/${SG_KI_BRANCH}")
+
+      if [ "${BRANCH_HTTP_CODE}" != "200" ]; then
+        echo "ERROR: Branch '${SG_KI_BRANCH}' does NOT exist in search-guard-kibana-plugin"
+        exit 1
+      fi
+
+      PLUGIN_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin "${CI_COMMIT_REF_NAME}-SNAPSHOT" .zip)
+
+      echo "Checking PLUGIN_ARIFACT_URL=${PLUGIN_ARIFACT_URL}"
+      PLUGIN_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "${PLUGIN_ARIFACT_URL}")
+
+      if [ "${PLUGIN_HTTP_CODE}" != "200" ]; then
+        echo "ERROR: PLUGIN_ARIFACT_URL=${PLUGIN_ARIFACT_URL} not accessible (HTTP ${PLUGIN_HTTP_CODE})"
+        exit 1
+      fi
+
+      KIBANA_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin "b-${SG_KI_BRANCH}-SNAPSHOT" .zip)
+      
+      echo "Checking KIBANA_ARIFACT_URL=${KIBANA_ARIFACT_URL}"
+      KIBANA_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "${KIBANA_ARIFACT_URL}")
+
+      if [ "${KIBANA_HTTP_CODE}" != "200" ]; then
+        echo "ERROR: KIBANA_ARIFACT_URL=${KIBANA_ARIFACT_URL} not accessible (HTTP ${KIBANA_HTTP_CODE})"
+        exit 1
+      fi
+
+frontend_int_tests:
+  stage: "Frontend Int Tests"
+  needs:
+    - job: build
+      artifacts: true
+    - job: check_frontend_int_tests_prerequisites
+  variables:
+    SG_ES_PLUGIN: ${PLUGIN_ARIFACT_URL}
+    SG_KI_PLUGIN: ${KIBANA_ARIFACT_URL}
+  trigger:
+    strategy: depend
+    include:
+      - project: search-guard/search-guard-kibana-plugin
+        ref: ${SG_KI_BRANCH}
+        file: ".gitlab-ci-branch-specific.yml"
+      - project: search-guard/search-guard-kibana-plugin
+        ref: ${SG_KI_BRANCH}
+        file: "ci/frontend-int-tests.yml"
