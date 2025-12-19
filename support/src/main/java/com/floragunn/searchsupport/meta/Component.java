@@ -12,14 +12,6 @@ public enum Component {
         this.componentSuffix = componentSuffix;
     }
 
-    public boolean includesData() {
-        return this == NONE;
-    }
-
-    public boolean includesFailures() {
-        return this == FAILURES;
-    }
-
     public String indexLikeNameWithComponentSuffix(String indexLikeName) {
         if (this.componentSuffix.isEmpty()) {
             return indexLikeName;
