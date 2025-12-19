@@ -56,7 +56,8 @@ failed_frontend_prerequisites:
   stage: "Frontend Int Tests"
   image: "$SG_BUILD_IMAGE"
   needs:
-    - job: build
+    - job: check_frontend_prerequisites
+      artifacts: true
   rules:
     - if: '$CHECK_FRONTEND_PREREQUISITES != "1"'
       when: always       
