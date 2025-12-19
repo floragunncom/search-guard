@@ -1,4 +1,5 @@
 check_frontend_prerequisites:
+  allow_failure: true
   stage: "Frontend Int Tests"
   image: "$SG_BUILD_IMAGE"
   needs:
@@ -13,7 +14,6 @@ check_frontend_prerequisites:
   script:
     - |
       set -e
-
       BRANCH_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
         --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
         "https://git.floragunn.com/api/v4/projects/14/repository/branches/${SG_KI_BRANCH}")
@@ -46,7 +46,12 @@ check_frontend_prerequisites:
       echo "PLUGIN_ARIFACT_URL=$PLUGIN_ARIFACT_URL" >> frontend-int-test.env  
 
 frontend_int_tests:
+  allow_failure: false
   stage: "Frontend Int Tests"
+  rules:
+    - if: '$CI_JOB_STATUS != "success"'
+      when: never
+    - when: on_success
   needs:
     - job: check_frontend_prerequisites
       artifacts: true
@@ -62,3 +67,4 @@ frontend_int_tests:
       - project: search-guard/search-guard-kibana-plugin
         ref: ${SG_KI_BRANCH}
         file: "ci/frontend-int-tests.yml"
+       
