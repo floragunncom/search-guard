@@ -1,5 +1,4 @@
 frontend_int_pre:
-  stage: "Frontend Int Tests"   
   script:
     - |
       if [ "${CHECK_FRONTEND_PREREQUISITES}" != "1" ]; then
