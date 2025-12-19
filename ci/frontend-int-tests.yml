@@ -43,9 +43,10 @@ check_frontend_prerequisites:
         exit 1
       fi
       echo "KIBANA_ARIFACT_URL=$KIBANA_ARIFACT_URL" >> frontend-int-test.env  
-      echo "PLUGIN_ARIFACT_URL=$PLUGIN_ARIFACT_URL" >> frontend-int-test.env  
+      echo "PLUGIN_ARIFACT_URL=$PLUGIN_ARIFACT_URL" >> frontend-int-test.env
+      echo "CHECK_FRONTEND_PREREQUISITES=1" >> frontend-int-test.env  
 
-      exit 1
+      
 
 frontend_int_tests:
   allow_failure: false
@@ -63,6 +64,7 @@ frontend_int_tests:
   trigger:
     strategy: depend
     include:
+      - local: ci/frontend-int-check.yml
       - project: search-guard/search-guard-kibana-plugin
         ref: ${SG_KI_BRANCH}
         file: ".gitlab-ci-branch-specific.yml"
