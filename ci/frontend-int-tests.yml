@@ -10,7 +10,7 @@ check_frontend_int_tests_prerequisites:
 
       BRANCH_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
         --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-        "https://git.floragunn.com/api/v4/projects/search-guard/search-guard-kibana-plugin/repository/branches/${SG_KI_BRANCH}")
+        "https://git.floragunn.com/api/v4/projects/14/repository/branches/${SG_KI_BRANCH}")
 
       if [ "${BRANCH_HTTP_CODE}" != "200" ]; then
         echo "ERROR: Branch '${SG_KI_BRANCH}' does NOT exist in search-guard-kibana-plugin"
