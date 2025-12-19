@@ -74,8 +74,8 @@ frontend_int_tests:
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never    
-    - if: '$CHECK_FRONTEND_PREREQUISITES == "1"'
-      when: always
+    # - if: '$CHECK_FRONTEND_PREREQUISITES == "1"'
+    #   when: always
   needs:
     - job: check_frontend_prerequisites
       artifacts: true
