@@ -42,7 +42,7 @@ frontend_int_tests:
   needs:
     - job: build
       artifacts: true
-    - job: check_frontend_int_tests_prerequisites
+    - job: check_prerequisites
   variables:
     SG_ES_PLUGIN: ${PLUGIN_ARIFACT_URL}
     SG_KI_PLUGIN: ${KIBANA_ARIFACT_URL}
