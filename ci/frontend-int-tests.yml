@@ -50,7 +50,10 @@ check_frontend_prerequisites:
 frontend_int_tests:
   allow_failure: false
   stage: "Frontend Int Tests"
-  when: on_success
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never    
+    - when: on_success     
   needs:
     - job: check_frontend_prerequisites
       artifacts: true
