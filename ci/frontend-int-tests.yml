@@ -6,6 +6,10 @@ check_frontend_prerequisites:
   artifacts:
     reports:
       dotenv: frontend-int-test.env      
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never    
+    - when: manual      
   script:
     - |
       set -e
