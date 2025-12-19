@@ -4,7 +4,7 @@
   tags:
     - test
   rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/ || $CI_COMMIT_TAG =~ /^sg-flx-.*/'
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never    
     - when: on_success
   artifacts:
