@@ -75,6 +75,7 @@ frontend_int_tests:
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never    
+    - when: on_success
   needs:
     - job: build
     - job: check_frontend_prerequisites
