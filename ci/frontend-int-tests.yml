@@ -39,7 +39,7 @@ check_frontend_prerequisites:
         exit 1
       fi
       echo "KIBANA_ARIFACT_URL=$KIBANA_ARIFACT_URL" >> frontend-int-test.env  
-      echo "ES_VERSIPLUGIN_ARIFACT_URLON=$PLUGIN_ARIFACT_URL" >> frontend-int-test.env  
+      echo "PLUGIN_ARIFACT_URL=$PLUGIN_ARIFACT_URL" >> frontend-int-test.env  
 
 frontend_int_tests:
   stage: "Frontend Int Tests"
