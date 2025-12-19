@@ -1,6 +1,13 @@
 frontend_int_pre:
+  stage: "Frontend Int Tests"
   script:
     - |
+      echo "!!!!! test pc !!!!"
+      echo "!!!!! test pc !!!!"
+      echo "!!!!! test pc !!!!"
+      echo "!!!!! test pc !!!!"
+      echo "!!!!! test pc !!!!"
+
       if [ "${CHECK_FRONTEND_PREREQUISITES}" != "1" ]; then
         echo "ERROR: check_frontend_prerequisites finished with errors, check job log for more details"
         exit 1
