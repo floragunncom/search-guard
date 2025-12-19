@@ -38,8 +38,8 @@ check_frontend_prerequisites:
         echo "ERROR: KIBANA_ARIFACT_URL=${KIBANA_ARIFACT_URL} not accessible (HTTP ${KIBANA_HTTP_CODE})"
         exit 1
       fi
-      echo "ES_VERSION=$ES_VERSION" >> kibana.env
-      echo "ES_VERSION=$ES_VERSION" >> kibana.env
+      echo "KIBANA_ARIFACT_URL=$KIBANA_ARIFACT_URL" >> kibana.env
+      echo "ES_VERSIPLUGIN_ARIFACT_URLON=$PLUGIN_ARIFACT_URL" >> kibana.env
 
 frontend_int_tests:
   stage: "Frontend Int Tests"
