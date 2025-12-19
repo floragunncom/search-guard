@@ -49,33 +49,34 @@ check_frontend_prerequisites:
       echo "CHECK_FRONTEND_PREREQUISITES=1" >> frontend-int-test.env  
 
 
-# failed_frontend_prerequisites:
-#   allow_failure: true
-#   tags:
-#     - test
-#   stage: "Frontend Int Tests"
-#   image: "$SG_BUILD_IMAGE"
-#   needs:
-#     - job: check_frontend_prerequisites
-#       artifacts: true
-#   rules:
-#     - if: '$CHECK_FRONTEND_PREREQUISITES != "1"'
-#       when: always       
-#   script:
-#     - |
-#   script:
-#     - |
-#       echo "ERROR: check_frontend_prerequisites finished with errors, check job log for more details"
-#       exit 1
+failed_frontend_prerequisites:
+  allow_failure: true
+  tags:
+    - test
+  stage: "Frontend Int Tests"
+  image: "$SG_BUILD_IMAGE"
+  needs:
+    - job: build
+    - job: check_frontend_prerequisites
+      artifacts: true
+  rules:
+    - if: '$CHECK_FRONTEND_PREREQUISITES != "1"'
+      when: always       
+  script:
+    - |
+  script:
+    - |
+      echo "ERROR: check_frontend_prerequisites finished with errors, check job log for more details"
+      exit 1
 
 frontend_int_tests:
   allow_failure: false
   stage: "Frontend Int Tests"
-  # rules:
-  #   - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-  #     when: never    
-    # - if: '$CHECK_FRONTEND_PREREQUISITES == "1"'
-    #   when: always
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never    
+    - if: '$CHECK_FRONTEND_PREREQUISITES == "1"'
+      when: always
   needs:
     - job: build
     - job: check_frontend_prerequisites
