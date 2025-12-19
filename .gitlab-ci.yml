@@ -117,8 +117,6 @@ build:
       - .m2/repository
     policy: push
 
-
-
 deploy_release:
   allow_failure: false
   interruptible: false
