@@ -50,8 +50,7 @@ check_frontend_prerequisites:
 frontend_int_tests:
   allow_failure: false
   stage: "Frontend Int Tests"
-  rules:
-      when: on_success
+  when: on_success
   needs:
     - job: check_frontend_prerequisites
       artifacts: true
@@ -67,4 +66,4 @@ frontend_int_tests:
       - project: search-guard/search-guard-kibana-plugin
         ref: ${SG_KI_BRANCH}
         file: "ci/frontend-int-tests.yml"
-       
+      
