@@ -1,9 +1,6 @@
 frontend_int_pre:
   allow_failure: false
   stage: "Frontend Int Tests"   
-  needs:
-    - job: check_frontend_prerequisites
-      artifacts: true  
   script:
     - |
       if [ "${CHECK_FRONTEND_PREREQUISITES}" != "1" ]; then
