@@ -15,7 +15,6 @@ check_frontend_prerequisites:
     - when: manual      
   script:
     - |
-      set -e
       BRANCH_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
         --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
         "https://git.floragunn.com/api/v4/projects/14/repository/branches/${SG_KI_BRANCH}")
@@ -26,6 +25,9 @@ check_frontend_prerequisites:
       fi
 
       PLUGIN_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin "${CI_COMMIT_REF_NAME}-SNAPSHOT" .zip)
+      KIBANA_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin "b-${SG_KI_BRANCH}-SNAPSHOT" .zip)
+
+
       PLUGIN_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "${PLUGIN_ARIFACT_URL}")
 
       if [ "${PLUGIN_HTTP_CODE}" != "200" ]; then
@@ -33,7 +35,7 @@ check_frontend_prerequisites:
         exit 1
       fi
 
-      KIBANA_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin "b-${SG_KI_BRANCH}-SNAPSHOT" .zip)
+
       KIBANA_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "${KIBANA_ARIFACT_URL}")
 
       if [ "${KIBANA_HTTP_CODE}" != "200" ]; then
