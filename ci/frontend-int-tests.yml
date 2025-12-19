@@ -26,8 +26,6 @@ check_frontend_prerequisites:
       fi
 
       PLUGIN_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin "${CI_COMMIT_REF_NAME}-SNAPSHOT" .zip)
-
-      echo "Checking PLUGIN_ARIFACT_URL=${PLUGIN_ARIFACT_URL}"
       PLUGIN_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "${PLUGIN_ARIFACT_URL}")
 
       if [ "${PLUGIN_HTTP_CODE}" != "200" ]; then
@@ -36,38 +34,16 @@ check_frontend_prerequisites:
       fi
 
       KIBANA_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshota search-guard-flx-kibana-plugin "b-${SG_KI_BRANCH}-SNAPSHOT" .zip)
-      
-      echo "Checking KIBANA_ARIFACT_URL=${KIBANA_ARIFACT_URL}"
       KIBANA_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "${KIBANA_ARIFACT_URL}")
 
       if [ "${KIBANA_HTTP_CODE}" != "200" ]; then
-        echo "ERROR: Kibana Artifact ${KIBANA_ARIFACT_URL} not exist (HTTP ${KIBANA_HTTP_CODE}), "
+        echo "ERROR: Kibana Artifact ${KIBANA_ARIFACT_URL} not exist (HTTP ${KIBANA_HTTP_CODE}) "
         exit 1
       fi
       echo "KIBANA_ARIFACT_URL=$KIBANA_ARIFACT_URL" >> frontend-int-test.env  
       echo "PLUGIN_ARIFACT_URL=$PLUGIN_ARIFACT_URL" >> frontend-int-test.env
       echo "CHECK_FRONTEND_PREREQUISITES=1" >> frontend-int-test.env  
 
-
-# failed_frontend_prerequisites:
-#   allow_failure: true
-#   tags:
-#     - test
-#   stage: "Frontend Int Tests"
-#   image: "$SG_BUILD_IMAGE"
-#   needs:
-#     - job: build
-#     - job: check_frontend_prerequisites
-#       artifacts: true
-#   rules:
-#     - if: '$CHECK_FRONTEND_PREREQUISITES != "1"'
-#       when: always       
-#   script:
-#     - |
-#   script:
-#     - |
-#       echo "ERROR: check_frontend_prerequisites finished with errors, check job log for more details"
-#       exit 1
 
 frontend_int_tests:
   allow_failure: false
