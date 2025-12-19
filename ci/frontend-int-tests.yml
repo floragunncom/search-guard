@@ -35,7 +35,7 @@ check_frontend_prerequisites:
         exit 1
       fi
 
-      KIBANA_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin "b-${SG_KI_BRANCH}-SNAPSHOT" .zip)
+      KIBANA_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshota search-guard-flx-kibana-plugin "b-${SG_KI_BRANCH}-SNAPSHOT" .zip)
       
       echo "Checking KIBANA_ARIFACT_URL=${KIBANA_ARIFACT_URL}"
       KIBANA_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "${KIBANA_ARIFACT_URL}")

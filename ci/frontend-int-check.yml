@@ -1,5 +1,4 @@
 frontend_int_pre:
-  allow_failure: false
   stage: "Frontend Int Tests"   
   script:
     - |
