@@ -1,4 +1,4 @@
-check_frontend_int_tests_prerequisites:
+check_prerequisites:
   stage: "Frontend Int Tests"
   image: "$SG_BUILD_IMAGE"
   needs:
