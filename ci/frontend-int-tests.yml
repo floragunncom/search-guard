@@ -1,5 +1,7 @@
 check_frontend_prerequisites:
   allow_failure: true
+  tags:
+    - build
   stage: "Frontend Int Tests"
   image: "$SG_BUILD_IMAGE"
   needs:

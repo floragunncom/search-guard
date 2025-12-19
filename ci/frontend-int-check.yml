@@ -7,10 +7,7 @@ frontend_int_pre:
   script:
     - |
       if [ "${CHECK_FRONTEND_PREREQUISITES}" != "1" ]; then
-        echo "ERROR: CHECK_FRONTEND_PREREQUISITES is not set to 1"
-        echo "Current value: '${CHECK_FRONTEND_PREREQUISITES}'"
+        echo "ERROR: check_frontend_prerequisites finished with errors, check job log for more details"
         exit 1
       fi
-
-      echo "CHECK_FRONTEND_PREREQUISITES=1 -> OK"
       
