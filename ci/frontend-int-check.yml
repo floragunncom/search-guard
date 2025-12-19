@@ -1,5 +1,7 @@
 frontend_int_pre:
   stage: "Frontend Int Tests"
+  tags:
+    - test    
   script:
     - |
       echo "!!!!! test pc !!!!"

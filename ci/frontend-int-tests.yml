@@ -53,8 +53,6 @@ check_frontend_prerequisites:
 frontend_int_tests:
   allow_failure: false
   stage: "Frontend Int Tests"
-  tags:
-    - test  
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never    
