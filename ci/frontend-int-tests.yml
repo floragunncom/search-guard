@@ -71,12 +71,13 @@ check_frontend_prerequisites:
 frontend_int_tests:
   allow_failure: false
   stage: "Frontend Int Tests"
-  rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never    
+  # rules:
+  #   - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+  #     when: never    
     # - if: '$CHECK_FRONTEND_PREREQUISITES == "1"'
     #   when: always
   needs:
+    - job: build
     - job: check_frontend_prerequisites
       artifacts: true
   variables:
