@@ -173,7 +173,6 @@ class GitlabBackport:
         """Attempts to perform a cherry-pick and creates a new branch."""
 
         print(f"--> Preparing backport for branch: {target_branch}")
-        assert self.repository is not None
         # 1. Check if the target branch exists and fetch changes
         try:
             self.repository.git.fetch("origin", target_branch)
@@ -243,7 +242,6 @@ class GitlabBackport:
     def scan_repository(self):
         mr_iid = self.get_mr_iid()
         print("DEBUG Scan repository")
-        assert self.current_project is not None
         try:
             mr = self.current_project.mergerequests.get(mr_iid)
             # 2. Validate labels and target branches
