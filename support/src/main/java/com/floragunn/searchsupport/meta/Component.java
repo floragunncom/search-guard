@@ -28,6 +28,7 @@ public enum Component {
             Index writeFailureIndex = project.getIndicesLookup().get(dataStreamAlias.getAlias()).getWriteFailureIndex(project);
             return Optional.ofNullable(writeFailureIndex)
                     .map(Index::getName)
+                    .map(this::indexLikeNameWithComponentSuffix)
                     .map(nameMap::get);
         }
     };
