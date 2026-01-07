@@ -661,7 +661,7 @@ public abstract class MetaImpl implements Meta {
             //todo do we need to consider data streams in this loop? it looks like ES does not allow to add the same alias to both indices and data streams
             for (Map.Entry<org.elasticsearch.cluster.metadata.AliasMetadata, ImmutableList.Builder<IndexLikeObject>> entry : aliasToIndicesMap.build()
                     .entrySet()) {
-                for (Component component : Component.values()) {
+                for (Component component : Component.values()) { // related to data stream and aliases for index and ds
                     org.elasticsearch.cluster.metadata.DataStreamAlias dataStreamAlias = dataStreamsAliases.get(entry.getKey().alias());
                     List<IndexLikeObject> dataStreams = dataStreamAlias != null && componentDataStreamAliasToIndicesMap.get(component).contains(dataStreamAlias)
                             ? componentDataStreamAliasToIndicesMap.get(component).get(dataStreamAlias)
@@ -698,11 +698,8 @@ public abstract class MetaImpl implements Meta {
                         continue;
                     }
 
-                    //todo what about writeDataStream for ::failures? it should be null by default?
-                    IndexLikeObject writeTarget = entry.getKey().getWriteDataStream() != null ?
-                            nameMap.get(component.indexLikeNameWithComponentSuffix(entry.getKey().getWriteDataStream())) : null;
-
-                    Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false, writeTarget, component);
+                    Optional<IndexLikeObject> writeTarget = component.extractWriteTargetForDataStreamAlias(project, entry.getKey(), nameMap);
+                    Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false, writeTarget.orElse(null), component);
                     aliases.add(alias);
                     nameMap.put(alias.nameWithComponent(), alias);
                 }
