@@ -28,7 +28,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
+import com.floragunn.searchsupport.meta.Component;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -73,6 +75,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     static final StaticSettings.Attribute<ByteSizeValue> PRECOMPUTED_PRIVILEGES_MAX_HEAP_SIZE = //
             StaticSettings.Attribute.define("searchguard.privileges_evaluation.precomputed_privileges.max_heap_size")
                     .withDefault(ByteSizeValue.of(10, ByteSizeUnit.MB)).asByteSizeValue();
+
+    private static final Predicate<Meta.IndexLikeObject> NO_SELECTOR_PREDICATE = indexLikeObject -> Component.NONE.equals(indexLikeObject.component());
 
     private static final Logger log = LogManager.getLogger(RoleBasedActionAuthorization.class);
 
@@ -296,8 +300,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             StatefulPermissions stateful = this.stateful;
 
             if (stateful != null) {
-                PrivilegesEvaluationResult resultFromStatefulAlias = stateful.alias.hasPermission(user, mappedRoles, actions, resolved, context,
-                        shallowCheckTable);
+                PrivilegesEvaluationResult resultFromStatefulAlias = stateful.alias.hasPermission(user, mappedRoles, actions,
+                        resolved.getLocalFiltered(NO_SELECTOR_PREDICATE), context, shallowCheckTable);
 
                 if (resultFromStatefulAlias != null) {
                     if (log.isTraceEnabled()) {
@@ -309,8 +313,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 // Note: statefulAlias.hasPermission() modifies as a side effect the checkTable. 
                 // We can carry on using this as an intermediate result and further complete checkTable below.
 
-                PrivilegesEvaluationResult resultFromStatefulDataStream = stateful.dataStream.hasPermission(user, mappedRoles, actions, resolved,
-                        context, shallowCheckTable);
+                PrivilegesEvaluationResult resultFromStatefulDataStream = stateful.dataStream.hasPermission(user, mappedRoles, actions,
+                        resolved.getLocalFiltered(NO_SELECTOR_PREDICATE), context, shallowCheckTable);
 
                 if (resultFromStatefulDataStream != null) {
                     if (log.isTraceEnabled()) {
@@ -322,7 +326,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 // Note: stateful.dataStream.hasPermission() modifies as a side effect the checkTable. 
                 // We can carry on using this as an intermediate result and further complete checkTable below.
 
-                PrivilegesEvaluationResult resultFromStatefulIndex = stateful.index.hasPermission(user, mappedRoles, actions, resolved, context,
+                PrivilegesEvaluationResult resultFromStatefulIndex = stateful.index.hasPermission(user, mappedRoles, actions, context,
                         shallowCheckTable, resolved.getLocal().getPureIndices());
 
                 if (resultFromStatefulIndex != null) {
@@ -439,7 +443,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                     semiDeepCheckTable.checkFrom(shallowCheckTable);
 
                     if (stateful != null) {
-                        stateful.dataStream.hasPermission(user, mappedRoles, actions, resolved, context, semiDeepCheckTable);
+                        stateful.dataStream.hasPermission(user, mappedRoles, actions, resolved.getLocal(), context, semiDeepCheckTable);
 
                         if (semiDeepCheckTable.isComplete()) {
                             indexActionCheckResults_partially.increment();
@@ -492,7 +496,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 deepCheckTable.checkFrom(prevCheckTable);
 
                 if (stateful != null) {
-                    stateful.index.hasPermission(user, mappedRoles, actions, resolved, context, deepCheckTable.with(shallowCheckTable),
+                    stateful.index.hasPermission(user, mappedRoles, actions, context, deepCheckTable.with(shallowCheckTable),
                             incompleteDeepResolved);
 
                     if (deepCheckTable.isComplete()) {
@@ -1576,7 +1580,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             }
 
             PrivilegesEvaluationResult hasPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,
-                    ResolvedIndices resolvedIndices, PrivilegesEvaluationContext context, CheckTable<Meta.IndexLikeObject, Action> checkTable,
+                    PrivilegesEvaluationContext context, CheckTable<Meta.IndexLikeObject, Action> checkTable,
                     Collection<Meta.Index> indices) throws PrivilegesEvaluationException {
                 if (indices.isEmpty()) {
                     return null;
@@ -1736,9 +1740,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             }
 
             PrivilegesEvaluationResult hasPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,
-                    ResolvedIndices resolvedIndices, PrivilegesEvaluationContext context, CheckTable<Meta.IndexLikeObject, Action> checkTable)
+                    ResolvedIndices.Local resolvedIndices, PrivilegesEvaluationContext context, CheckTable<Meta.IndexLikeObject, Action> checkTable)
                     throws PrivilegesEvaluationException {
-                Collection<Meta.Alias> aliases = resolvedIndices.getLocal().getAliases();
+                Collection<Meta.Alias> aliases = resolvedIndices.getAliases();
                 if (aliases.isEmpty()) {
                     return null;
                 }
@@ -1950,9 +1954,9 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             }
 
             PrivilegesEvaluationResult hasPermission(User user, ImmutableSet<String> mappedRoles, ImmutableSet<Action> actions,
-                    ResolvedIndices resolvedIndices, PrivilegesEvaluationContext context, CheckTable<Meta.IndexLikeObject, Action> checkTable)
+                    ResolvedIndices.Local resolvedIndices, PrivilegesEvaluationContext context, CheckTable<Meta.IndexLikeObject, Action> checkTable)
                     throws PrivilegesEvaluationException {
-                Collection<Meta.DataStream> dataStreams = resolvedIndices.getLocal().getDataStreams();
+                Collection<Meta.DataStream> dataStreams = resolvedIndices.getDataStreams();
                 if (dataStreams.isEmpty()) {
                     return null;
                 }
