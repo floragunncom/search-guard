@@ -18,6 +18,8 @@
 package com.floragunn.searchsupport.meta;
 
 import java.util.Collection;
+import java.util.Objects;
+import java.util.function.Predicate;
 
 import com.floragunn.codova.documents.Document;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -37,9 +39,24 @@ public interface Meta extends Document<Meta> {
 
     ImmutableSet<Index> indices();
 
+    default ImmutableSet<Index> indices(Predicate<Index> predicate) {
+        Objects.requireNonNull(predicate, "Index predicate must not be null");
+        return indices().matching(predicate);
+    }
+
     ImmutableSet<Alias> aliases();
 
+    default ImmutableSet<Alias> aliases(Predicate<Alias> predicate) {
+        Objects.requireNonNull(predicate, "Alias predicate must not be null");
+        return aliases().matching(predicate);
+    }
+
     ImmutableSet<DataStream> dataStreams();
+
+    default ImmutableSet<DataStream> dataStreams(Predicate<DataStream> predicate) {
+        Objects.requireNonNull(predicate, "Data stream predicate must not be null");
+        return dataStreams().matching(predicate);
+    }
 
     /**
      * Returns both aliases and dataStreams
