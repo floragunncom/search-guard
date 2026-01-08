@@ -20,7 +20,6 @@ package com.floragunn.searchguard.authz.actions;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.function.Predicate;
@@ -43,15 +42,15 @@ import com.floragunn.searchsupport.queries.WildcardExpressionResolver;
 
 public class ResolvedIndices {
 
-    final static ResolvedIndices EMPTY = new ResolvedIndices(false, ResolvedIndices.LocalResolution.EMPTY, ImmutableSet.empty(), ImmutableSet.empty());
+    final static ResolvedIndices EMPTY = new ResolvedIndices(false, ResolvedIndices.Local.EMPTY, ImmutableSet.empty(), ImmutableSet.empty());
 
     private final static Logger log = LogManager.getLogger(ResolvedIndices.class);
     private final boolean localAll;
     private ImmutableSet<IndicesRequestInfo> deferredRequests;
-    private ResolvedIndices.LocalResolution localShallow;
+    private ResolvedIndices.Local localShallow;
     protected final ImmutableSet<String> remoteIndices;
 
-    ResolvedIndices(boolean localAll, ResolvedIndices.LocalResolution localShallow, ImmutableSet<String> remoteIndices,
+    ResolvedIndices(boolean localAll, ResolvedIndices.Local localShallow, ImmutableSet<String> remoteIndices,
             ImmutableSet<IndicesRequestInfo> deferredRequests) {
         this.localAll = localAll;
         this.localShallow = localShallow;
@@ -95,10 +94,10 @@ public class ResolvedIndices {
     }
 
     private void resolveDeferredRequests() {
-        ResolvedIndices.LocalResolution localShallow = this.localShallow;
+        ResolvedIndices.Local localShallow = this.localShallow;
 
         for (IndicesRequestInfo info : this.deferredRequests) {
-            localShallow = localShallow.with(LocalResolution.resolve(info, info.indexMetadata));
+            localShallow = localShallow.with(Local.resolve(info, info.indexMetadata));
         }
 
         this.deferredRequests = ImmutableSet.empty();
@@ -106,16 +105,12 @@ public class ResolvedIndices {
         this.localShallow = localShallow;
     }
 
-    public ResolvedIndices.LocalResolution getLocal() {
+    public ResolvedIndices.Local getLocal() {
         if (!deferredRequests.isEmpty()) {
             resolveDeferredRequests();
         }
 
         return localShallow;
-    }
-
-    public ResolvedIndices.Local getLocalFiltered(Predicate<Meta.IndexLikeObject> predicate) {
-        return new FilteredLocal(getLocal(), predicate);
     }
 
     public ImmutableSet<String> getRemoteIndices() {
@@ -164,13 +159,13 @@ public class ResolvedIndices {
      * Only for testing!
      */
     public static ResolvedIndices of(Meta indexMetadata, String... indices) {
-        return new ResolvedIndices(false, LocalResolution.resolve(indexMetadata, indices), ImmutableSet.empty(), ImmutableSet.empty());
+        return new ResolvedIndices(false, Local.resolve(indexMetadata, indices), ImmutableSet.empty(), ImmutableSet.empty());
     }
 
     /**
      * Only for testing!
      */
-    public ResolvedIndices local(ResolvedIndices.LocalResolution local) {
+    public ResolvedIndices local(ResolvedIndices.Local local) {
         return new ResolvedIndices(false, local, remoteIndices, ImmutableSet.empty());
     }
 
@@ -178,70 +173,7 @@ public class ResolvedIndices {
         return EMPTY;
     }
 
-    public interface Local {
-
-        boolean isEmpty();
-
-        int size();
-
-        ImmutableSet<Meta.Index> getPureIndices();
-
-        ImmutableSet<Meta.Alias> getAliases();
-
-        ImmutableSet<Meta.DataStream> getDataStreams();
-
-        ImmutableSet<Meta.NonExistent> getNonExistingIndices();
-
-        ImmutableSet<Meta.IndexLikeObject> getUnion();
-    }
-
-    static class FilteredLocal implements Local {
-
-        private final Local local;
-        private final Predicate<Meta.IndexLikeObject> predicate;
-
-        FilteredLocal(Local local, Predicate<Meta.IndexLikeObject> predicate) {
-            this.local = Objects.requireNonNull(local, "Local index like object resolution is required");
-            this.predicate = Objects.requireNonNull(predicate, "Predicate is required");
-        }
-
-        @Override
-        public boolean isEmpty() {
-            return getUnion().isEmpty();
-        }
-
-        @Override
-        public int size() {
-            return getUnion().size();
-        }
-
-        @Override
-        public ImmutableSet<Meta.Index> getPureIndices() {
-            return local.getPureIndices().stream().filter(predicate).collect(ImmutableSet.collector());
-        }
-
-        @Override
-        public ImmutableSet<Meta.Alias> getAliases() {
-            return local.getAliases().stream().filter(predicate).collect(ImmutableSet.collector());
-        }
-
-        @Override
-        public ImmutableSet<Meta.DataStream> getDataStreams() {
-            return local.getDataStreams().stream().filter(predicate).collect(ImmutableSet.collector());
-        }
-
-        @Override
-        public ImmutableSet<Meta.NonExistent> getNonExistingIndices() {
-            return local.getNonExistingIndices().stream().filter(predicate).collect(ImmutableSet.collector());
-        }
-
-        @Override
-        public ImmutableSet<Meta.IndexLikeObject> getUnion() {
-            return local.getUnion().matching(predicate);
-        }
-    }
-
-    public static class LocalResolution implements Local {
+    public static class Local {
         private final ImmutableSet<Meta.Index> pureIndices;
         private final ImmutableSet<Meta.Alias> aliases;
         private final ImmutableSet<Meta.DataStream> dataStreams;
@@ -252,7 +184,7 @@ public class ResolvedIndices {
         private ImmutableSet<String> deepUnion;
         private Boolean containsAliasOrDataStreamMembers;
 
-        LocalResolution(ImmutableSet<Meta.Index> pureIndices, ImmutableSet<Meta.Alias> aliases, ImmutableSet<Meta.DataStream> dataStreams,
+        Local(ImmutableSet<Meta.Index> pureIndices, ImmutableSet<Meta.Alias> aliases, ImmutableSet<Meta.DataStream> dataStreams,
                 ImmutableSet<Meta.NonExistent> nonExistingIndices) {
             this.pureIndices = pureIndices;
             this.aliases = aliases;
@@ -262,7 +194,7 @@ public class ResolvedIndices {
             this.union = ImmutableSet.<Meta.IndexLikeObject>of(pureIndices).with(aliases).with(dataStreams).with(this.nonExistingIndices);
         }
 
-        private LocalResolution(ImmutableSet<Meta.Index> pureIndices, ImmutableSet<Meta.Alias> aliases, ImmutableSet<Meta.DataStream> dataStreams,
+        private Local(ImmutableSet<Meta.Index> pureIndices, ImmutableSet<Meta.Alias> aliases, ImmutableSet<Meta.DataStream> dataStreams,
                 ImmutableSet<Meta.NonExistent> nonExistingIndices, ImmutableSet<String> unionOfAliasesAndDataStreams,
                 ImmutableSet<Meta.IndexLikeObject> union) {
             this.pureIndices = pureIndices;
@@ -273,18 +205,17 @@ public class ResolvedIndices {
             this.union = union;
         }
 
-        @Override
-        public boolean isEmpty() {
+        boolean isEmpty() {
             return union.isEmpty();
         }
 
-        ResolvedIndices.LocalResolution with(ResolvedIndices.LocalResolution other) {
+        ResolvedIndices.Local with(ResolvedIndices.Local other) {
             if (this.union.equals(other.union)) {
                 return this;
             }
 
             if (this.unionOfAliasesAndDataStreams.equals(other.unionOfAliasesAndDataStreams)) {
-                return new LocalResolution(this.pureIndices.with(other.pureIndices), this.aliases, this.dataStreams,
+                return new Local(this.pureIndices.with(other.pureIndices), this.aliases, this.dataStreams,
                         this.nonExistingIndices.with(other.nonExistingIndices), this.unionOfAliasesAndDataStreams, this.union.with(other.union));
             } else {
                 // Remove entries from pureIndices which are contained in the other object's aliases or data streams (and vice versa)
@@ -316,27 +247,23 @@ public class ResolvedIndices {
                     mergedPureIndices.add(index);
                 }
 
-                return new LocalResolution(mergedPureIndices.build(), this.aliases.with(other.aliases), this.dataStreams.with(other.dataStreams),
+                return new Local(mergedPureIndices.build(), this.aliases.with(other.aliases), this.dataStreams.with(other.dataStreams),
                         this.nonExistingIndices.with(other.nonExistingIndices));
             }
         }
 
-        @Override
         public int size() {
             return this.union.size();
         }
 
-        @Override
         public ImmutableSet<Meta.Index> getPureIndices() {
             return pureIndices;
         }
 
-        @Override
         public ImmutableSet<Meta.Alias> getAliases() {
             return aliases;
         }
 
-        @Override
         public ImmutableSet<Meta.DataStream> getDataStreams() {
             return dataStreams;
         }
@@ -345,12 +272,10 @@ public class ResolvedIndices {
             return ImmutableSet.<Meta.IndexCollection>of(aliases).with(dataStreams);
         }
 
-        @Override
         public ImmutableSet<Meta.NonExistent> getNonExistingIndices() {
             return nonExistingIndices;
         }
 
-        @Override
         public ImmutableSet<Meta.IndexLikeObject> getUnion() {
             return union;
         }
@@ -396,7 +321,7 @@ public class ResolvedIndices {
             return result;
         }
 
-        public boolean hasAliasesOrDataStreams() {
+        boolean hasAliasesOrDataStreams() {
             return !aliases.isEmpty() || !dataStreams.isEmpty();
         }
 
@@ -455,11 +380,11 @@ public class ResolvedIndices {
             return result;
         }
 
-        static ResolvedIndices.LocalResolution resolve(IndicesRequestInfo request, Meta indexMetadata) {
+        static ResolvedIndices.Local resolve(IndicesRequestInfo request, Meta indexMetadata) {
             try {
                 if (request.scope == IndicesRequestInfo.Scope.DATA_STREAM) {
                     if (request.isAll) {
-                        return new LocalResolution(ImmutableSet.empty(), ImmutableSet.empty(), //
+                        return new Local(ImmutableSet.empty(), ImmutableSet.empty(), //
                                 request.indicesOptions().expandWildcardsHidden() //
                                         ? indexMetadata.dataStreams()//
                                         : indexMetadata.nonHiddenDataStreams(), //
@@ -467,7 +392,7 @@ public class ResolvedIndices {
                     } else if (request.expandWildcards) {
                         return resolveWithPatterns(request, indexMetadata);
                     } else if (request.createIndexRequest) {
-                        return new LocalResolution(ImmutableSet.empty(), ImmutableSet.empty(),
+                        return new Local(ImmutableSet.empty(), ImmutableSet.empty(),
                                 ImmutableSet.of(resolveDateMathExpressions(request.localIndices).map(Meta.DataStream::nonExistent)),
                                 ImmutableSet.empty());
                     } else {
@@ -475,11 +400,11 @@ public class ResolvedIndices {
                     }
                 } else if (request.scope == IndicesRequestInfo.Scope.ALIAS) {
                     if (request.isAll) {
-                        return new LocalResolution(ImmutableSet.empty(), indexMetadata.aliases(), ImmutableSet.empty(), ImmutableSet.empty());
+                        return new Local(ImmutableSet.empty(), indexMetadata.aliases(), ImmutableSet.empty(), ImmutableSet.empty());
                     } else if (request.expandWildcards) {
                         return resolveWithPatterns(request, indexMetadata);
                     } else if (request.createIndexRequest) {
-                        return new LocalResolution(ImmutableSet.empty(),
+                        return new Local(ImmutableSet.empty(),
                                 ImmutableSet.of(resolveDateMathExpressions(request.localIndices).map(Meta.Alias::nonExistent)), ImmutableSet.empty(),
                                 ImmutableSet.empty());
                     } else {
@@ -506,12 +431,12 @@ public class ResolvedIndices {
         /**
          * Only for testing!
          */
-        public static ResolvedIndices.LocalResolution resolve(Meta indexMetadata, String... indices) {
+        public static ResolvedIndices.Local resolve(Meta indexMetadata, String... indices) {
             return resolveWithoutPatterns(new IndicesRequestInfo(null, ImmutableList.ofArray(indices), IndicesOptionsSupport.EXACT,
                     IndicesRequestInfo.Scope.ANY, SystemIndexAccess.DISALLOWED, indexMetadata), indexMetadata);
         }
 
-        static ResolvedIndices.LocalResolution resolveWithPatterns(IndicesRequestInfo request, Meta indexMetadata) {
+        static ResolvedIndices.Local resolveWithPatterns(IndicesRequestInfo request, Meta indexMetadata) {
             Metadata metadata = indexMetadata.esMetadata();
             IndicesRequestInfo.Scope scope = request.scope;
             boolean includeDataStreams = request.includeDataStreams && scope.includeDataStreams;
@@ -669,10 +594,10 @@ public class ResolvedIndices {
                 });
             }
 
-            return new LocalResolution(pureIndices, aliases.build(), dataStreams.build(), nonExistingIndices.build());
+            return new Local(pureIndices, aliases.build(), dataStreams.build(), nonExistingIndices.build());
         }
 
-        static ResolvedIndices.LocalResolution resolveIsAll(IndicesRequestInfo request, Meta indexMetadata) {
+        static ResolvedIndices.Local resolveIsAll(IndicesRequestInfo request, Meta indexMetadata) {
             IndicesRequestInfo.Scope scope = request.scope;
 
             boolean includeHidden = request.indicesOptions().expandWildcardsHidden();
@@ -732,10 +657,10 @@ public class ResolvedIndices {
 
             pureIndices = pureIndices.matching(index -> !index.isSystem() || request.systemIndexAccess.isAllowed(index));
 
-            return new LocalResolution(pureIndices, aliases, dataStreams, nonExistingIndices);
+            return new Local(pureIndices, aliases, dataStreams, nonExistingIndices);
         }
 
-        static ResolvedIndices.LocalResolution resolveWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
+        static ResolvedIndices.Local resolveWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
             IndicesRequestInfo.Scope scope = request.scope;
 
             ImmutableSet.Builder<Meta.Index> indices = new ImmutableSet.Builder<>();
@@ -812,10 +737,10 @@ public class ResolvedIndices {
                 });
             }
 
-            return new LocalResolution(pureIndices, aliases.build(), dataStreams.build(), nonExistingIndices.build());
+            return new Local(pureIndices, aliases.build(), dataStreams.build(), nonExistingIndices.build());
         }
 
-        static ResolvedIndices.LocalResolution resolveDataStreamsWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
+        static ResolvedIndices.Local resolveDataStreamsWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
             ImmutableSet.Builder<Meta.DataStream> dataStreams = new ImmutableSet.Builder<>();
 
             for (String index : request.localIndices) {
@@ -834,10 +759,10 @@ public class ResolvedIndices {
                 }
             }
 
-            return new LocalResolution(ImmutableSet.empty(), ImmutableSet.empty(), dataStreams.build(), ImmutableSet.empty());
+            return new Local(ImmutableSet.empty(), ImmutableSet.empty(), dataStreams.build(), ImmutableSet.empty());
         }
 
-        static ResolvedIndices.LocalResolution resolveAliasesWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
+        static ResolvedIndices.Local resolveAliasesWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
             ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
 
             for (String index : request.localIndices) {
@@ -856,10 +781,10 @@ public class ResolvedIndices {
                 }
             }
 
-            return new LocalResolution(ImmutableSet.empty(), aliases.build(), ImmutableSet.empty(), ImmutableSet.empty());
+            return new Local(ImmutableSet.empty(), aliases.build(), ImmutableSet.empty(), ImmutableSet.empty());
         }
 
-        static final ResolvedIndices.LocalResolution EMPTY = new LocalResolution(ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty());
+        static final ResolvedIndices.Local EMPTY = new Local(ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty());
 
         private static ImmutableSet<String> resolveDateMathExpressions(Collection<String> indices) {
             ImmutableSet<String> result = ImmutableSet.empty();
@@ -884,8 +809,8 @@ public class ResolvedIndices {
         public boolean equals(Object obj) {
             if (this == obj) {
                 return true;
-            } else if (obj instanceof ResolvedIndices.LocalResolution) {
-                return this.union.equals(((ResolvedIndices.LocalResolution) obj).union);
+            } else if (obj instanceof ResolvedIndices.Local) {
+                return this.union.equals(((ResolvedIndices.Local) obj).union);
             } else {
                 return false;
             }

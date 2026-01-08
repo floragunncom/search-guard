@@ -180,7 +180,7 @@ public class ResolvedIndicesTest {
     }
 
     private static ResolvedIndices.Local getLocalResolver(IndicesRequestInfo indicesRequestInfo) {
-        ResolvedIndices resolvedIndices = new ResolvedIndices(true, ResolvedIndices.LocalResolution.EMPTY, ImmutableSet.empty(), ImmutableSet.of(
+        ResolvedIndices resolvedIndices = new ResolvedIndices(true, ResolvedIndices.Local.EMPTY, ImmutableSet.empty(), ImmutableSet.of(
             indicesRequestInfo));
 
         ResolvedIndices.Local local = resolvedIndices.getLocal();

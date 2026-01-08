@@ -895,16 +895,16 @@ public class ActionRequestIntrospector {
 
         ResolvedIndices resolveIndices() {
             if (isAll()) {
-                return new ResolvedIndices(true, ResolvedIndices.LocalResolution.EMPTY, remoteIndices, ImmutableSet.of(this));
+                return new ResolvedIndices(true, ResolvedIndices.Local.EMPTY, remoteIndices, ImmutableSet.of(this));
             }
 
             if (localIndices.isEmpty()) {
-                return new ResolvedIndices(false, ResolvedIndices.LocalResolution.EMPTY, remoteIndices, ImmutableSet.empty());
+                return new ResolvedIndices(false, ResolvedIndices.Local.EMPTY, remoteIndices, ImmutableSet.empty());
             } else if (isExpandWildcards() && localIndices.size() == 1 && (localIndices.contains(Metadata.ALL) || localIndices.contains("*"))) {
                 // In case of * wildcards, we defer resolution of indices. Chances are that we do not need to resolve the wildcard at all in this case.
-                return new ResolvedIndices(true, ResolvedIndices.LocalResolution.EMPTY, remoteIndices, ImmutableSet.of(this));
+                return new ResolvedIndices(true, ResolvedIndices.Local.EMPTY, remoteIndices, ImmutableSet.of(this));
             } else {
-                return new ResolvedIndices(false, ResolvedIndices.LocalResolution.resolve(this, indexMetadata), remoteIndices, ImmutableSet.empty());
+                return new ResolvedIndices(false, ResolvedIndices.Local.resolve(this, indexMetadata), remoteIndices, ImmutableSet.empty());
             }
         }
 
@@ -1017,7 +1017,7 @@ public class ActionRequestIntrospector {
     }
 
     private ResolvedIndices localAll() {
-        return new ResolvedIndices(true, ResolvedIndices.LocalResolution.EMPTY, ImmutableSet.empty(), ImmutableSet.of(localAllIndicesRequestInfo()));
+        return new ResolvedIndices(true, ResolvedIndices.Local.EMPTY, ImmutableSet.empty(), ImmutableSet.of(localAllIndicesRequestInfo()));
     }
 
     private IndicesRequestInfo localAllIndicesRequestInfo() {
