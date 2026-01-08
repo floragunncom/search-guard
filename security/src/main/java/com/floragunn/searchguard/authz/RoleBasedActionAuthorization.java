@@ -346,6 +346,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             // If all actions are well-known and performance critical, the index.rolesToActionToIndexPattern data structure that was evaluated above,
             // would have contained all the actions if privileges are provided. If there are non-well-known actions among the
             // actions, we also have to evaluate action patterns to check the authorization
+
+            // TODO component selectors
             boolean coveredByStateful = stateful != null && actions.forAllApplies((a) -> a instanceof WellKnownAction && ((WellKnownAction<?,?,?>) a).isPerformanceCritical()) && stateful.covers(resolved.getLocal().getUnion());
 
             if (!shallowCheckTable.isComplete() && !coveredByStateful) {
@@ -1399,6 +1401,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         }
 
         boolean covers(Set<Meta.IndexLikeObject> indexLikeObjects) {
+            // TODO index-like objects with component selectors are not covered
             for (Meta.IndexLikeObject indexLike : indexLikeObjects) {
                 if (!indexLike.exists()) {
                     return false;
@@ -1655,7 +1658,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         Role role = roles.getCEntry(roleName);
                         roleSetBuilder.next(roleName);
 
-                        for (Role.Alias aliasPermissions : role.getAliasPermissions()) {
+                        for (Role.Alias aliasPermissions : role.getAliasPermissions()) { // TODO
                             ImmutableSet<String> permissions = actionGroups.resolve(aliasPermissions.getAllowedActions());
                             Pattern indexPattern = aliasPermissions.getIndexPatterns().getPattern();
 
@@ -1675,6 +1678,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     Action action = actions.get(permission);
 
                                     if (action instanceof WellKnownAction) {
+                                        // TODO exclude component selector here
                                         for (Meta.Alias alias : indexPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::name)) {
                                             actionToAliasToRoles.get((WellKnownAction<?, ?, ?>) action).get(alias.name()).add(roleName);
                                         }
