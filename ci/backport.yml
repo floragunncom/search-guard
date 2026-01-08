@@ -5,11 +5,9 @@ backport_automation:
   image: floragunncom/python-toolbox:251218
   stage: post_merge
   rules:
-    - if: >
-        $CI_PIPELINE_SOURCE == "push" &&
-        $CI_COMMIT_TITLE =~ /^Merge branch.*/
-      # && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main" # Uncomment this if want backport only from main branch
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "test-backport-source"'
       when: always
+      # &&  $CI_COMMIT_TITLE =~ /^Merge branch.*/dd
   before_script:
     - |
       if [ -z "${GITLAB_TOKEN}" ]; then
