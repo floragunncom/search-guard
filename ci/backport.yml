@@ -8,7 +8,7 @@ backport_automation:
     - if: >
         $CI_PIPELINE_SOURCE == "push"
       # &&  $CI_COMMIT_TITLE =~ /^Merge branch.*/
-      && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "test-backport-source" # Uncomment this if want backport only from main branch
+        && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "test-backport-source" # Uncomment this if want backport only from main branch
       when: always
   before_script:
     - |
