@@ -1,15 +1,17 @@
 package com.floragunn.searchsupport.meta;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import org.elasticsearch.cluster.metadata.DataStreamAlias;
 import org.elasticsearch.cluster.metadata.ProjectMetadata;
 import org.elasticsearch.index.Index;
 
+import java.util.Arrays;
 import java.util.Optional;
 
 public enum Component {
 
-    NONE("") {
+    NONE("", ImmutableList.of("", "data")) {
         @Override
         public Optional<Meta.IndexLikeObject> extractWriteTargetForDataStreamAlias
                 (ProjectMetadata project,
@@ -19,7 +21,7 @@ public enum Component {
                     .map(this::indexLikeNameWithComponentSuffix)
                     .map(nameMap::get);
         }
-    }, FAILURES("failures") {
+    }, FAILURES("failures", ImmutableList.of("failures")) {
         @Override
         public Optional<Meta.IndexLikeObject> extractWriteTargetForDataStreamAlias(
                 ProjectMetadata project,
@@ -36,13 +38,22 @@ public enum Component {
     public static final String COMPONENT_SEPARATOR = "::";
 
     private final String componentSuffix;
+    private final ImmutableList<String> coveredSuffixes;
 
-    Component(String componentSuffix) {
+    Component(String componentSuffix, ImmutableList<String> coveredSuffixes) {
         this.componentSuffix = componentSuffix;
+        this.coveredSuffixes = coveredSuffixes;
+    }
+
+    public static Component getBySuffix(String componentSuffix) {
+        return Arrays.stream(values())
+                .filter(component -> component.coveredSuffixes.contains(componentSuffix))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Unknown component suffix: " + componentSuffix));
     }
 
     public String indexLikeNameWithComponentSuffix(String indexLikeName) {
-        if (this.componentSuffix.isEmpty()) {
+        if (indexLikeName == null || this.componentSuffix.isEmpty()) {
             return indexLikeName;
         } else {
             if (indexLikeName.endsWith(COMPONENT_SEPARATOR.concat(componentSuffix))) {

@@ -69,7 +69,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected ImmutableSet<String> resolveDeepToNamesImpl(Alias.ResolutionMode resolutionMode) {
-            return ImmutableSet.of(this.name());
+            return ImmutableSet.of(this.nameWithComponent());
         }
 
         @Override
@@ -220,7 +220,7 @@ public abstract class MetaImpl implements Meta {
                 if (writeTarget == null) {
                     return ImmutableSet.empty();
                 } else if (writeTarget instanceof Meta.Index) {
-                    return ImmutableSet.of(writeTarget.name());
+                    return ImmutableSet.of(writeTarget.nameWithComponent());
                 } else if (writeTarget instanceof Meta.DataStream) {
                     return writeTarget.resolveDeepToNames(resolutionMode);
                 } else {
@@ -481,7 +481,7 @@ public abstract class MetaImpl implements Meta {
 
             for (IndexLikeObject member : this.members) {
                 if (member instanceof Meta.Index) {
-                    result.add(member.name());
+                    result.add(member.nameWithComponent());
                 } else {
                     result.addAll(member.resolveDeepToNames(resolutionMode));
                 }

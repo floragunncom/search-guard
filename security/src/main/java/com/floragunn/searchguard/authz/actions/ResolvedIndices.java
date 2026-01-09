@@ -25,6 +25,7 @@ import java.util.SortedMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchsupport.meta.Component;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.metadata.DataStream;
@@ -385,27 +386,27 @@ public class ResolvedIndices {
                 if (request.scope == IndicesRequestInfo.Scope.DATA_STREAM) {
                     if (request.isAll) {
                         return new Local(ImmutableSet.empty(), ImmutableSet.empty(), //
-                                request.indicesOptions().expandWildcardsHidden() //
+                                (request.indicesOptions().expandWildcardsHidden() //
                                         ? indexMetadata.dataStreams()//
-                                        : indexMetadata.nonHiddenDataStreams(), //
+                                        : indexMetadata.nonHiddenDataStreams()).matching(dataStream -> dataStream.component() == request.allIncidesComponent), //
                                 ImmutableSet.empty());
                     } else if (request.expandWildcards) {
                         return resolveWithPatterns(request, indexMetadata);
                     } else if (request.createIndexRequest) {
                         return new Local(ImmutableSet.empty(), ImmutableSet.empty(),
-                                ImmutableSet.of(resolveDateMathExpressions(request.localIndices).map(Meta.DataStream::nonExistent)),
+                                ImmutableSet.of(resolveDateMathExpressions(request.localIndices).map(Meta.DataStream::nonExistent)), //todo DataStream::nonExistent - do we need component here?
                                 ImmutableSet.empty());
                     } else {
                         return resolveDataStreamsWithoutPatterns(request, indexMetadata);
                     }
                 } else if (request.scope == IndicesRequestInfo.Scope.ALIAS) {
                     if (request.isAll) {
-                        return new Local(ImmutableSet.empty(), indexMetadata.aliases(), ImmutableSet.empty(), ImmutableSet.empty());
+                        return new Local(ImmutableSet.empty(), indexMetadata.aliases().matching(alias -> alias.component() == request.allIncidesComponent), ImmutableSet.empty(), ImmutableSet.empty());
                     } else if (request.expandWildcards) {
                         return resolveWithPatterns(request, indexMetadata);
                     } else if (request.createIndexRequest) {
                         return new Local(ImmutableSet.empty(),
-                                ImmutableSet.of(resolveDateMathExpressions(request.localIndices).map(Meta.Alias::nonExistent)), ImmutableSet.empty(),
+                                ImmutableSet.of(resolveDateMathExpressions(request.localIndices).map(Meta.Alias::nonExistent)), ImmutableSet.empty(), //todo Alias::nonExistent - do we need component here?
                                 ImmutableSet.empty());
                     } else {
                         return resolveAliasesWithoutPatterns(request, indexMetadata);
@@ -454,7 +455,9 @@ public class ResolvedIndices {
 
             // Note: We are going backwards through the list of indices in order to get negated patterns before the patterns they apply to
             for (int i = request.localIndices.size() - 1; i >= 0; i--) {
-                String index = request.localIndices.get(i);
+                IndexWithComponent indexWithComponent = request.localIndices.get(i);
+                String index = indexWithComponent.indexName();
+                Component component = indexWithComponent.component();
 
                 if (index.startsWith("-")) {
                     index = index.substring(1);
@@ -465,10 +468,10 @@ public class ResolvedIndices {
                                 request.indicesOptions(), includeDataStreams);
 
                         for (String resolvedIndex : matchedAbstractions.keySet()) {
-                            resolveNegationUpAndDown(resolvedIndex, excludeNames, partiallyExcludedObjects, request, indexMetadata);
+                            resolveNegationUpAndDown(resolvedIndex, component, excludeNames, partiallyExcludedObjects, request, indexMetadata);
                         }
                     } else {
-                        resolveNegationUpAndDown(index, excludeNames, partiallyExcludedObjects, request, indexMetadata);
+                        resolveNegationUpAndDown(index, component, excludeNames, partiallyExcludedObjects, request, indexMetadata);
                     }
                 } else {
                     index = DateMathExpressionResolver.resolveExpression(index);
@@ -479,28 +482,29 @@ public class ResolvedIndices {
                                 request.indicesOptions(), includeDataStreams);
 
                         for (Map.Entry<String, IndexAbstraction> entry : matchedAbstractions.entrySet()) {
-                            if (excludeNames.contains(entry.getKey())) {
+                            String matchedAbstractionWithComponent = component.indexLikeNameWithComponentSuffix(entry.getKey());
+                            if (excludeNames.contains(matchedAbstractionWithComponent)) {
                                 continue;
                             }
 
-                            if (!partiallyExcludedObjects.contains(entry.getKey()) || scope == IndicesRequestInfo.Scope.ALIAS
+                            if (!partiallyExcludedObjects.contains(matchedAbstractionWithComponent) || scope == IndicesRequestInfo.Scope.ALIAS
                                     || scope == IndicesRequestInfo.Scope.DATA_STREAM || scope == IndicesRequestInfo.Scope.INDICES_DATA_STREAMS) {
                                 // This is the happy case, just include the object
                                 IndexAbstraction indexAbstraction = entry.getValue();
 
                                 if (indexAbstraction instanceof DataStream) {
                                     if (includeDataStreams) {
-                                        dataStreams.add((Meta.DataStream) indexMetadata.getIndexOrLike(entry.getKey()));
+                                        dataStreams.add((Meta.DataStream) indexMetadata.getIndexOrLike(matchedAbstractionWithComponent));
                                     }
                                 } else if (indexAbstraction instanceof IndexAbstraction.Alias) {
                                     if (includeAliases) {
-                                        aliases.add((Meta.Alias) indexMetadata.getIndexOrLike(entry.getKey()));
+                                        aliases.add((Meta.Alias) indexMetadata.getIndexOrLike(matchedAbstractionWithComponent));
                                     }
                                 } else {
                                     if (includeIndices) {
-                                        Meta.Index indexMeta = (Meta.Index) indexMetadata.getIndexOrLike(entry.getKey());
+                                        Meta.Index indexMeta = (Meta.Index) indexMetadata.getIndexOrLike(matchedAbstractionWithComponent);
 
-                                        if (!indexMeta.isSystem() || request.systemIndexAccess.isAllowed(entry.getKey())) {
+                                        if (!indexMeta.isSystem() || request.systemIndexAccess.isAllowed(indexMeta.name())) {
                                             indices.add(indexMeta);
                                         }
                                     }
@@ -508,24 +512,24 @@ public class ResolvedIndices {
                             } else {
                                 // Oh dear, one of the negated elements is a member of this. Now we have to resolve this to perform the exclusion
 
-                                Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(entry.getKey());
+                                Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(matchedAbstractionWithComponent);
 
                                 if (indexLike instanceof Meta.IndexCollection) {
                                     for (Meta.IndexLikeObject member : ((Meta.IndexCollection) indexLike).members()) {
-                                        if (!excludeNames.contains(member.name())) {
+                                        if (!excludeNames.contains(member.nameWithComponent())) {
                                             if (member instanceof Meta.Index) {
                                                 if (includeIndices) {
                                                     Meta.Index indexMeta = (Meta.Index) member;
-                                                    if (!indexMeta.isSystem() || request.systemIndexAccess.isAllowed(entry.getKey())) {
+                                                    if (!indexMeta.isSystem() || request.systemIndexAccess.isAllowed(indexMeta.name())) {
                                                         indices.add(indexMeta);
                                                     }
                                                 }
                                             } else if (member instanceof Meta.DataStream) {
                                                 if (includeDataStreams) {
                                                     Meta.DataStream dataStream = (Meta.DataStream) member;
-                                                    if (dataStream.members().stream().anyMatch(dsMember -> excludeNames.contains(dsMember.name()))) {
+                                                    if (dataStream.members().stream().anyMatch(dsMember -> excludeNames.contains(dsMember.nameWithComponent()))) {
                                                         for (Meta.IndexLikeObject dsMember : dataStream.members()) {
-                                                            if (!excludeNames.contains(dsMember.name())) {
+                                                            if (!excludeNames.contains(dsMember.nameWithComponent())) {
                                                                 indices.add((Meta.Index) dsMember);
                                                             }
                                                         }
@@ -543,19 +547,19 @@ public class ResolvedIndices {
                             }
                         }
                     } else {
-                        if (excludeNames.contains(index)) {
+                        if (excludeNames.contains(indexWithComponent.indexNameWithComponent())) {
                             continue;
                         }
 
-                        Meta.IndexLikeObject indexLikeObject = indexMetadata.getIndexOrLike(index);
+                        Meta.IndexLikeObject indexLikeObject = indexMetadata.getIndexOrLike(indexWithComponent.indexNameWithComponent());
 
                         if (indexLikeObject == null) {
                             if (scope == IndicesRequestInfo.Scope.DATA_STREAM) {
-                                dataStreams.add(Meta.DataStream.nonExistent(index));
+                                dataStreams.add(Meta.DataStream.nonExistent(index)); //todo DataStream::nonExistent - do we need component here?
                             } else if (scope == IndicesRequestInfo.Scope.ALIAS) {
-                                aliases.add(Meta.Alias.nonExistent(index));
+                                aliases.add(Meta.Alias.nonExistent(index)); //todo Alias::nonExistent - do we need component here?
                             } else {
-                                nonExistingIndices.add(Meta.NonExistent.of(index));
+                                nonExistingIndices.add(Meta.NonExistent.of(index)); //todo NonExistent.of - do we need component here?
                             }
                         } else if (indexLikeObject instanceof Meta.Alias) {
                             if (includeAliases) {
@@ -569,7 +573,7 @@ public class ResolvedIndices {
                             if (includeIndices) {
                                 Meta.Index indexMeta = (Meta.Index) indexLikeObject;
 
-                                if (!indexMeta.isSystem() || request.systemIndexAccess.isAllowed(indexMeta)) {
+                                if (!indexMeta.isSystem() || request.systemIndexAccess.isAllowed(indexMeta.name())) {
                                     indices.add((Meta.Index) indexLikeObject);
                                 }
                             }
@@ -655,7 +659,11 @@ public class ResolvedIndices {
                 pureIndices = pureIndices.matching(e -> !excludeStatePredicate.test(e.isOpen()));
             }
 
-            pureIndices = pureIndices.matching(index -> !index.isSystem() || request.systemIndexAccess.isAllowed(index));
+            pureIndices = pureIndices.matching(index -> !index.isSystem() || request.systemIndexAccess.isAllowed(index.name()));
+
+            pureIndices = pureIndices.matching(index -> index.component() == request.allIncidesComponent);
+            aliases = aliases.matching(alias -> alias.component() == request.allIncidesComponent);
+            dataStreams = dataStreams.matching(dataStream -> dataStream.component() == request.allIncidesComponent);
 
             return new Local(pureIndices, aliases, dataStreams, nonExistingIndices);
         }
@@ -668,53 +676,54 @@ public class ResolvedIndices {
             ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
             ImmutableSet.Builder<Meta.DataStream> dataStreams = new ImmutableSet.Builder<>();
 
-            for (String index : request.localIndices) {
-                String resolved = DateMathExpressionResolver.resolveExpression(index);
+            for (IndexWithComponent indexWithComponent : request.localIndices) {
+                String resolved = DateMathExpressionResolver.resolveExpression(indexWithComponent.indexName());
 
                 if (ActionRequestIntrospector.containsWildcard(resolved)) {
                     continue;
                 }
 
-                Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolved);
+                String resolvedWithComponent = indexWithComponent.component().indexLikeNameWithComponentSuffix(resolved);
+                Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolvedWithComponent);
 
                 if (scope == IndicesRequestInfo.Scope.INDEX) {
                     if (indexLike instanceof Meta.Index) {
                         indices.add((Meta.Index) indexLike);
                     } else {
-                        indices.add(Meta.Index.nonExistent(resolved));
+                        indices.add(Meta.Index.nonExistent(resolved)); //todo Index::nonExistent - do we need component here?
                     }
                 } else if (scope == IndicesRequestInfo.Scope.ALIAS) {
                     if (indexLike instanceof Meta.Alias) {
                         aliases.add((Meta.Alias) indexLike);
                     } else {
-                        aliases.add(Meta.Alias.nonExistent(resolved));
+                        aliases.add(Meta.Alias.nonExistent(resolved)); //todo Alias::nonExistent - do we need component here?
                     }
                 } else if (scope == IndicesRequestInfo.Scope.DATA_STREAM) {
                     if (indexLike instanceof Meta.DataStream) {
                         dataStreams.add((Meta.DataStream) indexLike);
                     } else {
-                        dataStreams.add(Meta.DataStream.nonExistent(resolved));
+                        dataStreams.add(Meta.DataStream.nonExistent(resolved)); //todo DataStream::nonExistent - do we need component here?
                     }
                 } else {
                     if (indexLike == null) {
-                        nonExistingIndices.add(Meta.NonExistent.of(resolved));
+                        nonExistingIndices.add(Meta.NonExistent.of(resolved)); //todo NonExistent.of - do we need component here?
                     } else if (indexLike instanceof Meta.Alias) {
                         if (scope.includeAliases) {
                             aliases.add((Meta.Alias) indexLike);
                         } else {
-                            nonExistingIndices.add(Meta.NonExistent.of(resolved));
+                            nonExistingIndices.add(Meta.NonExistent.of(resolved)); //todo NonExistent.of - do we need component here?
                         }
                     } else if (indexLike instanceof Meta.DataStream) {
                         if (scope.includeDataStreams) {
                             dataStreams.add((Meta.DataStream) indexLike);
                         } else {
-                            nonExistingIndices.add(Meta.NonExistent.of(resolved));
+                            nonExistingIndices.add(Meta.NonExistent.of(resolved)); //todo NonExistent.of - do we need component here?
                         }
                     } else {
                         if (scope.includeIndices) {
                             indices.add((Meta.Index) indexLike);
                         } else {
-                            nonExistingIndices.add(Meta.NonExistent.of(resolved));
+                            nonExistingIndices.add(Meta.NonExistent.of(resolved)); //todo NonExistent.of - do we need component here?
                         }
                     }
                 }
@@ -743,17 +752,18 @@ public class ResolvedIndices {
         static ResolvedIndices.Local resolveDataStreamsWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
             ImmutableSet.Builder<Meta.DataStream> dataStreams = new ImmutableSet.Builder<>();
 
-            for (String index : request.localIndices) {
-                String resolved = DateMathExpressionResolver.resolveExpression(index);
+            for (IndexWithComponent indexWithComponent : request.localIndices) {
+                String resolved = DateMathExpressionResolver.resolveExpression(indexWithComponent.indexName());
 
                 if (ActionRequestIntrospector.containsWildcard(resolved)) {
                     continue;
                 }
 
-                Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolved);
+                String resolvedWithComponent = indexWithComponent.component().indexLikeNameWithComponentSuffix(resolved);
+                Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolvedWithComponent);
 
                 if (indexLike == null) {
-                    dataStreams.add(Meta.DataStream.nonExistent(resolved));
+                    dataStreams.add(Meta.DataStream.nonExistent(resolved)); //todo DataStream::nonExistent - do we need component here?
                 } else if (indexLike instanceof Meta.DataStream) {
                     dataStreams.add((Meta.DataStream) indexLike);
                 }
@@ -765,17 +775,18 @@ public class ResolvedIndices {
         static ResolvedIndices.Local resolveAliasesWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
             ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
 
-            for (String index : request.localIndices) {
-                String resolved = DateMathExpressionResolver.resolveExpression(index);
+            for (IndexWithComponent indexWithComponent : request.localIndices) {
+                String resolved = DateMathExpressionResolver.resolveExpression(indexWithComponent.indexName());
 
                 if (ActionRequestIntrospector.containsWildcard(resolved)) {
                     continue;
                 }
 
-                Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolved);
+                String resolvedWithComponent = indexWithComponent.component().indexLikeNameWithComponentSuffix(resolved);
+                Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolvedWithComponent);
 
                 if (indexLike == null) {
-                    aliases.add(Meta.Alias.nonExistent(resolved));
+                    aliases.add(Meta.Alias.nonExistent(resolved)); //todo Alias::nonExistent - do we need component here?
                 } else if (indexLike instanceof Meta.Alias) {
                     aliases.add((Meta.Alias) indexLike);
                 }
@@ -786,11 +797,11 @@ public class ResolvedIndices {
 
         static final ResolvedIndices.Local EMPTY = new Local(ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty());
 
-        private static ImmutableSet<String> resolveDateMathExpressions(Collection<String> indices) {
+        private static ImmutableSet<String> resolveDateMathExpressions(Collection<IndexWithComponent> indices) {
             ImmutableSet<String> result = ImmutableSet.empty();
 
-            for (String index : indices) {
-                result = result.with(DateMathExpressionResolver.resolveExpression(index));
+            for (IndexWithComponent indexWithComponent : indices) {
+                result = result.with(DateMathExpressionResolver.resolveExpression(indexWithComponent.indexName()));
             }
 
             return result;
@@ -816,9 +827,10 @@ public class ResolvedIndices {
             }
         }
 
-        private static void resolveNegationUpAndDown(String index, Set<String> excludeNames, Set<String> partiallyExcludedObjects,
+        private static void resolveNegationUpAndDown(String index, Component component, Set<String> excludeNames, Set<String> partiallyExcludedObjects,
                 IndicesRequestInfo request, Meta indexMetadata) {
-            Meta.IndexLikeObject indexLikeObject = indexMetadata.getIndexOrLike(index);
+            String indexWithComponent = component.indexLikeNameWithComponentSuffix(index);
+            Meta.IndexLikeObject indexLikeObject = indexMetadata.getIndexOrLike(indexWithComponent);
 
             if (request.isNegationOnlyEffectiveForIndices() && !(indexLikeObject instanceof Meta.Index)) {
                 // Negation is implemented in ES inconsistently:
@@ -827,7 +839,7 @@ public class ResolvedIndices {
                 return;
             }
 
-            excludeNames.add(index);
+            excludeNames.add(indexWithComponent);
 
             if (indexLikeObject != null) {
                 if (indexLikeObject.parentDataStreamName() != null) {
@@ -838,7 +850,7 @@ public class ResolvedIndices {
                     excludeNames.addAll(((Meta.IndexCollection) indexLikeObject).resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL));
                     if (indexLikeObject instanceof Meta.Alias) {
                         excludeNames.addAll(
-                                ((Meta.Alias) indexLikeObject).members().stream().map(Meta.IndexLikeObject::name).collect(Collectors.toList()));
+                                ((Meta.Alias) indexLikeObject).members().stream().map(Meta.IndexLikeObject::nameWithComponent).collect(Collectors.toList()));
                     }
                 }
             }
