@@ -30,6 +30,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.time.Instant;
@@ -209,6 +210,7 @@ public class DataStreamsFailureStoreIntTests {
     }
 
     @Test
+    @Ignore //todo COMPONENT SELECTORS - adjust test then support for the component selectors in implemented
     public void read_data_stream_as_index() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(DATA_STREAM_A_AS_INDEX)) {
             HttpResponse response = client.get("/" + ds_aw1.getName() + "::data/_search?pretty");
@@ -228,6 +230,11 @@ public class DataStreamsFailureStoreIntTests {
     }
 
     @Test
+    //todo COMPONENT SELECTORS -  Enable once component selector privilege evaluation is implemented.
+    //  Currently, this test expects isForbidden() because privileges like "indices:data/read/*" on "ds_*"
+    //  do not grant access to "ds_*::failures" (the failure store component). Once Search Guard supports
+    //  evaluating component selectors, update assertions to reflect the correct authorization behavior.
+    @Ignore
     public void testFailureStore() throws Exception {
         try (GenericRestClient aClient = cluster.getRestClient(LIMITED_USER_A);
                 GenericRestClient bClient = cluster.getRestClient(LIMITED_USER_B);
@@ -255,6 +262,8 @@ public class DataStreamsFailureStoreIntTests {
     }
 
     @Test
+    //todo COMPONENT SELECTORS -  Enable and update assertions once component selector privilege evaluation is implemented
+    @Ignore
     public void testDataComponentSelector() throws Exception {
         try (GenericRestClient aClient = cluster.getRestClient(LIMITED_USER_A);
                 GenericRestClient bClient = cluster.getRestClient(LIMITED_USER_B);

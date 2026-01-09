@@ -45,6 +45,8 @@ import com.floragunn.searchguard.authz.SystemIndexAccess;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchsupport.meta.Meta;
 
+import java.util.Random;
+
 public class ActionRequestIntrospectorTest {
 
     static final Actions ACTIONS = new Actions(null);
@@ -157,21 +159,25 @@ public class ActionRequestIntrospectorTest {
 
     @Test
     public void testPredicate() {
-        assertThat(ActionRequestIntrospector.isRemoteIndex("local_index"), is(false));
-        assertThat(ActionRequestIntrospector.isRemoteIndex("server:remote_index"), is(true));
-        assertThat(ActionRequestIntrospector.isRemoteIndex("myRemote:anotherIndex"), is(true));
-        assertThat(ActionRequestIntrospector.isRemoteIndex("other:*"), is(true));
-        assertThat(ActionRequestIntrospector.isRemoteIndex("not::remote"), is(false));
-        assertThat(ActionRequestIntrospector.isRemoteIndex("not_remote::"), is(false));
-        assertThat(ActionRequestIntrospector.isRemoteIndex("::not_remote"), is(false));
-        assertThat(ActionRequestIntrospector.isRemoteIndex(":remote"), is(true));
-        assertThat(ActionRequestIntrospector.isRemoteIndex("remote:"), is(true));
-        assertThat(ActionRequestIntrospector.isRemoteIndex("r:"), is(true));
-        assertThat(ActionRequestIntrospector.isRemoteIndex(""), is(false));
-        assertThat(ActionRequestIntrospector.isRemoteIndex("not:::remote"), is(false));
-        assertThat(ActionRequestIntrospector.isRemoteIndex("not:remote:index"), is(false));
+        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("local_index")), is(false));
+        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("server:remote_index")), is(true));
+        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("myRemote:anotherIndex")), is(true));
+        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("other:*")), is(true));
+        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("not_remote")), is(false));
+        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent(":remote")), is(true));
+        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("remote:")), is(true));
+        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("r:")), is(true));
+        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("")), is(false));
+        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("not:remote:index")), is(false));
+        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent(null)), is(false));
     }
-    
+
+    private ParsedIndexReference indexWithRandomComponent(String index) {
+        boolean failureStore = new Random(1L).nextBoolean();
+        String indexNameExpression = failureStore ? index + Meta.FAILURES_SUFFIX : index;
+        return ParsedIndexReference.of(indexNameExpression);
+    }
+
     static ActionRequestIntrospector simple() {
         return new ActionRequestIntrospector(() -> META, () -> SystemIndexAccess.DISALLOWED, () -> false, null);
     }

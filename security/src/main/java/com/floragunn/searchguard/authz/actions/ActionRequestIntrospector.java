@@ -703,7 +703,7 @@ public class ActionRequestIntrospector {
 
     static class IndicesRequestInfo {
 
-        private final ImmutableList<String> indices;
+        private final ImmutableList<ParsedIndexReference> indices;
         private final String[] indicesArray;
         private final IndicesOptions indicesOptions;
         private final boolean allowsRemoteIndices;
@@ -711,19 +711,21 @@ public class ActionRequestIntrospector {
         private final Action.AdditionalDimension role;
         final boolean expandWildcards;
         final boolean isAll;
+        /** set only when isAll is true, null otherwise */
+        final Boolean allIndicesFailureStore;
         private final boolean containsWildcards;
         private final boolean writeRequest;
         final boolean createIndexRequest;
         final SystemIndexAccess systemIndexAccess;
         final Meta indexMetadata;
         private final ImmutableSet<String> remoteIndices;
-        final ImmutableList<String> localIndices;
+        final ImmutableList<ParsedIndexReference> localIndices;
         final Scope scope;
         private final boolean negationOnlyEffectiveForIndices;
 
         IndicesRequestInfo(Action.AdditionalDimension role, IndicesRequest indicesRequest, Scope scope, SystemIndexAccess systemIndexAccess,
                 Meta indexMetadata) {
-            this.indices = indicesRequest.indices() != null ? ImmutableList.ofArray(indicesRequest.indices()) : ImmutableList.empty();
+            this.indices = this.splitIndexAndComponent(ImmutableList.ofArray(indicesRequest.indices()));
             this.indicesArray = indicesRequest.indices();
             this.indicesOptions = indicesRequest.indicesOptions();
             this.allowsRemoteIndices = indicesRequest instanceof Replaceable ? ((Replaceable) indicesRequest).allowsRemoteIndices() : false;
@@ -732,8 +734,9 @@ public class ActionRequestIntrospector {
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
             this.localIndices = this.indices.matching(Predicate.not(ActionRequestIntrospector::isRemoteIndex));
-            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex));
+            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(ParsedIndexReference::metaName);
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, indicesRequest);
+            this.allIndicesFailureStore = determineIfAllIndicesTargetFailureStore();
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(this.indices) : false;
             this.writeRequest = indicesRequest instanceof DocWriteRequest;
             this.createIndexRequest = indicesRequest instanceof IndexRequest
@@ -746,7 +749,7 @@ public class ActionRequestIntrospector {
 
         IndicesRequestInfo(Action.AdditionalDimension role, String index, IndicesOptions indicesOptions, Scope scope,
                 SystemIndexAccess systemIndexAccess, Meta indexMetadata) {
-            this.indices = ImmutableList.of(index);
+            this.indices = this.splitIndexAndComponent(ImmutableList.of(index));
             this.indicesArray = new String[] { index };
             this.indicesOptions = indicesOptions;
             this.allowsRemoteIndices = true;
@@ -754,9 +757,10 @@ public class ActionRequestIntrospector {
             this.role = role;
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
-            this.localIndices = this.indices.matching((i) -> !i.contains(":"));
-            this.remoteIndices = ImmutableSet.of(this.indices.matching((i) -> i.contains(":")));
+            this.localIndices = this.indices.matching(Predicate.not(ActionRequestIntrospector::isRemoteIndex));
+            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(ParsedIndexReference::metaName);
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, null);
+            this.allIndicesFailureStore = determineIfAllIndicesTargetFailureStore();
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(index) : false;
             this.writeRequest = false;
             this.createIndexRequest = false;
@@ -769,7 +773,7 @@ public class ActionRequestIntrospector {
 
         IndicesRequestInfo(Action.AdditionalDimension role, List<String> indices, IndicesOptions indicesOptions, Scope scope,
                 SystemIndexAccess systemIndexAccess, Meta indexMetadata) {
-            this.indices = ImmutableList.of(indices);
+            this.indices = this.splitIndexAndComponent(indices);
             this.indicesArray = indices.toArray(new String[indices.size()]);
             this.indicesOptions = indicesOptions;
             this.allowsRemoteIndices = true;
@@ -777,9 +781,10 @@ public class ActionRequestIntrospector {
             this.role = role;
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
-            this.localIndices = this.indices.matching((i) -> !i.contains(":"));
-            this.remoteIndices = ImmutableSet.of(this.indices.matching((i) -> i.contains(":")));
+            this.localIndices = this.indices.matching(Predicate.not(ActionRequestIntrospector::isRemoteIndex));
+            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(ParsedIndexReference::metaName);
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, null);
+            this.allIndicesFailureStore = determineIfAllIndicesTargetFailureStore();
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(this.indices) : false;
             this.writeRequest = false;
             this.createIndexRequest = false;
@@ -872,7 +877,7 @@ public class ActionRequestIntrospector {
             return this.isAll;
         }
 
-        private boolean isAll(List<String> localIndices, ImmutableSet<String> remoteIndices, IndicesRequest indicesRequest) {
+        private boolean isAll(List<ParsedIndexReference> localIndices, ImmutableSet<String> remoteIndices, IndicesRequest indicesRequest) {
             if (localIndices.isEmpty() && !remoteIndices.isEmpty()) {
                 return false;
             }
@@ -889,8 +894,26 @@ public class ActionRequestIntrospector {
                 }
             }
 
-            return IndexNameExpressionResolver.isAllIndices(localIndices)
-                    || (localIndices.size() == 1 && (localIndices.get(0) == null || localIndices.get(0).equals("*")));
+            return IndexNameExpressionResolver.isAllIndices(localIndices, parsedIndexReference -> parsedIndexReference == null? null : parsedIndexReference.baseName())
+                    || (localIndices.size() == 1 && (localIndices.get(0).baseName() == null || localIndices.get(0).baseName().equals("*")));
+        }
+
+        private Boolean determineIfAllIndicesTargetFailureStore() {
+            if (! this.isAll) {
+                return null;
+            } else if (this.localIndices.isEmpty()) {
+                return false;
+            } else {
+                return this.localIndices.first().failureStore();
+            }
+        }
+
+        private ImmutableList<ParsedIndexReference> splitIndexAndComponent(List<String> indices) {
+            if (indices == null) {
+                return ImmutableList.empty();
+            }
+            List<ParsedIndexReference> parsedIndexReferences = indices.stream().map(ParsedIndexReference::of).toList();
+            return ImmutableList.of(parsedIndexReferences);
         }
 
         ResolvedIndices resolveIndices() {
@@ -930,7 +953,7 @@ public class ActionRequestIntrospector {
                     if (remoteIndices.isEmpty()) {
                         return indicesArray;
                     } else {
-                        return localIndices.toArray(new String[localIndices.size()]);
+                        return localIndices.map(ParsedIndexReference::metaName).toArray(String[]::new);
                     }
                 }
 
@@ -1061,8 +1084,11 @@ public class ActionRequestIntrospector {
         }
     }
 
-    static boolean containsWildcard(Collection<String> indices) {
-        return indices == null || indices.stream().anyMatch((i) -> i != null && (i.contains("*") || i.equals("_all")));
+    static boolean containsWildcard(Collection<ParsedIndexReference> indices) {
+        return indices == null || indices.stream()
+                .filter(i -> i != null && i.baseName() != null)
+                .map(ParsedIndexReference::baseName)
+                .anyMatch(name -> name.contains("*") || name.equals("_all"));
     }
 
     static boolean containsWildcard(String index) {
@@ -1076,9 +1102,12 @@ public class ActionRequestIntrospector {
                 && a.includeDataStreams() == b.includeDataStreams();
     }
 
-    static boolean isRemoteIndex(String indexName) {
-        int firstIndex = indexName.indexOf(REMOTE_CLUSTER_INDEX_SEPARATOR);
-        int lastIndex = indexName.lastIndexOf(REMOTE_CLUSTER_INDEX_SEPARATOR);
+    static boolean isRemoteIndex(ParsedIndexReference parsedIndexReference) {
+        if (parsedIndexReference == null || parsedIndexReference.baseName() == null) {
+            return false;
+        }
+        int firstIndex = parsedIndexReference.baseName().indexOf(REMOTE_CLUSTER_INDEX_SEPARATOR);
+        int lastIndex = parsedIndexReference.baseName().lastIndexOf(REMOTE_CLUSTER_INDEX_SEPARATOR);
 
         // If both are same and not -1, there's exactly one colon
         return (firstIndex != -1) && (firstIndex == lastIndex);
