@@ -349,7 +349,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             // would have contained all the actions if privileges are provided. If there are non-well-known actions among the
             // actions, we also have to evaluate action patterns to check the authorization
 
-            // TODO component selectors
             boolean coveredByStateful = stateful != null && actions.forAllApplies((a) -> a instanceof WellKnownAction && ((WellKnownAction<?,?,?>) a).isPerformanceCritical()) && stateful.covers(resolved.getLocal().getUnion());
 
             if (!shallowCheckTable.isComplete() && !coveredByStateful) {
@@ -1403,7 +1402,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         }
 
         boolean covers(Set<Meta.IndexLikeObject> indexLikeObjects) {
-            // TODO index-like objects with component selectors are not covered
             for (Meta.IndexLikeObject indexLike : indexLikeObjects) {
                 if (!indexLike.exists()) {
                     return false;

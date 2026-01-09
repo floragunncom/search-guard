@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.authz.config;
 
+import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.test.helper.log.LogsRule;
 import com.floragunn.searchsupport.util.EsLogging;
