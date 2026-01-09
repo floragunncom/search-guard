@@ -1,10 +1,16 @@
 package com.floragunn.searchsupport.meta;
 
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import org.elasticsearch.cluster.metadata.DataStreamAlias;
 import org.elasticsearch.cluster.metadata.ProjectMetadata;
 import org.elasticsearch.index.Index;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public enum Component {
@@ -33,12 +39,38 @@ public enum Component {
         }
     };
 
+
+
     public static final String COMPONENT_SEPARATOR = "::";
+
+    private static final ImmutableMap<String, Component> SUFFIX_TO_COMPONENT = createSuffixToComponentMap();
+
+    private static ImmutableMap<String, Component> createSuffixToComponentMap() {
+        ImmutableMap.Builder<String, Component> mapBuilder = new ImmutableMap.Builder<>();
+        for (Component c : ImmutableList.ofArray(Component.values()).without(Collections.singleton(NONE))) {
+            mapBuilder.put(c.getComponentSuffixWithSeparator(), c);
+        }
+        return mapBuilder.build();
+    }
 
     private final String componentSuffix;
 
     Component(String componentSuffix) {
         this.componentSuffix = componentSuffix;
+    }
+
+    public String getComponentSuffixWithSeparator() {
+        return componentSuffix.isEmpty() ? "" : COMPONENT_SEPARATOR + componentSuffix;
+    }
+
+    public static Component extractComponent(String expression) {
+        // Currently the map SUFFIX_TO_COMPONENT contains only one element, but this future-proof the code e.g. when new enum constant is added
+        for(Map.Entry<String, Component> entry : SUFFIX_TO_COMPONENT.entrySet()) {
+            if (expression.endsWith(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+        return NONE;
     }
 
     public String indexLikeNameWithComponentSuffix(String indexLikeName) {
@@ -51,7 +83,6 @@ public enum Component {
             return indexLikeName.concat(COMPONENT_SEPARATOR).concat(componentSuffix);
         }
     }
-
     public abstract Optional<Meta.IndexLikeObject> extractWriteTargetForDataStreamAlias(ProjectMetadata project, DataStreamAlias dataStreamAlias,
             ImmutableMap.Builder<String, Meta.IndexLikeObject> nameMap);
 }

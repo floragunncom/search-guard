@@ -31,6 +31,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import com.floragunn.searchsupport.meta.Component;
+import com.floragunn.searchsupport.util.ComponentSuffixPatternMatcher;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -1462,7 +1463,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                         for (Role.Index indexPermissions : role.getIndexPermissions()) {
                             ImmutableSet<String> permissions = actionGroups.resolve(indexPermissions.getAllowedActions());
-                            Pattern indexPattern = indexPermissions.getIndexPatterns().getPattern();
+                            ComponentSuffixPatternMatcher indexPattern = indexPermissions.getIndexPatterns().getPattern();
 
                             if (indexPattern.isWildcard()) {
                                 // Wildcard index patterns are handled in the static IndexPermissions object.
@@ -2196,7 +2197,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         }
 
         static class Builder {
-            private List<Pattern> constantPatterns = new ArrayList<>();
+            private List<ComponentSuffixPatternMatcher> constantPatterns = new ArrayList<>();
             private List<Role.IndexPatterns.IndexPatternTemplate> patternTemplates = new ArrayList<>();
             private List<Role.IndexPatterns.DateMathExpression> dateMathExpressions = new ArrayList<>();
 
@@ -2207,7 +2208,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             }
 
             IndexPattern build() {
-                return new IndexPattern(Pattern.join(constantPatterns), ImmutableList.of(patternTemplates), ImmutableList.of(dateMathExpressions));
+                return new IndexPattern(ComponentSuffixPatternMatcher.join(constantPatterns), ImmutableList.of(patternTemplates), ImmutableList.of(dateMathExpressions));
             }
         }
 

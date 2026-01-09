@@ -32,6 +32,7 @@ import java.util.Objects;
 import java.util.regex.PatternSyntaxException;
 
 import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchsupport.util.ComponentSuffixPatternMatcher;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -543,13 +544,13 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
     public static class IndexPatterns {
 
-        private final Pattern pattern;
+        private final ComponentSuffixPatternMatcher pattern;
         private final ImmutableList<IndexPatternTemplate> patternTemplates;
         private final ImmutableList<DateMathExpression> dateMathExpressions;
         private final String asString;
         private final ImmutableList<Template<String>> source;
 
-        IndexPatterns(Pattern pattern, ImmutableList<IndexPatternTemplate> patternTemplates, ImmutableList<DateMathExpression> dateMathExpressions, ImmutableList<Template<String>> source) {
+        IndexPatterns(ComponentSuffixPatternMatcher pattern, ImmutableList<IndexPatternTemplate> patternTemplates, ImmutableList<DateMathExpression> dateMathExpressions, ImmutableList<Template<String>> source) {
             this.pattern = pattern;
             this.patternTemplates = patternTemplates;
             this.dateMathExpressions = dateMathExpressions;
@@ -587,7 +588,7 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
             return Objects.hashCode(asString);
         }
 
-        public Pattern getPattern() {
+        public ComponentSuffixPatternMatcher getPattern() {
             return pattern;
         }
 
