@@ -240,7 +240,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected AbstractIndexLike<DataStreamImpl> withAlias(String alias) {
-            return new DataStreamImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(alias), members(), isHidden(), component());
+            return new DataStreamImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(component().indexLikeNameWithComponentSuffix(alias)), members(), isHidden(), component());
         }
 
         @Override
