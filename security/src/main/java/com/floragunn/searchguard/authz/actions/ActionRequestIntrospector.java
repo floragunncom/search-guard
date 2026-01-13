@@ -713,7 +713,7 @@ public class ActionRequestIntrospector {
         final boolean expandWildcards;
         final boolean isAll;
         /** set only when isAll is true, null otherwise */
-        final Component allIncidesComponent;
+        final Component allIndicesComponent;
         private final boolean containsWildcards;
         private final boolean writeRequest;
         final boolean createIndexRequest;
@@ -737,7 +737,7 @@ public class ActionRequestIntrospector {
             this.localIndices = this.indices.matching(Predicate.not(ActionRequestIntrospector::isRemoteIndex));
             this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(IndexWithComponent::indexNameWithComponent);
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, indicesRequest);
-            this.allIncidesComponent = determineAllIndicesComponent();
+            this.allIndicesComponent = determineAllIndicesComponent();
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(this.indices) : false;
             this.writeRequest = indicesRequest instanceof DocWriteRequest;
             this.createIndexRequest = indicesRequest instanceof IndexRequest
@@ -759,9 +759,9 @@ public class ActionRequestIntrospector {
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
             this.localIndices = this.indices.matching(Predicate.not(ActionRequestIntrospector::isRemoteIndex));
-            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(IndexWithComponent::indexNameWithComponent);;
+            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(IndexWithComponent::indexNameWithComponent);
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, null);
-            this.allIncidesComponent = determineAllIndicesComponent();
+            this.allIndicesComponent = determineAllIndicesComponent();
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(index) : false;
             this.writeRequest = false;
             this.createIndexRequest = false;
@@ -783,9 +783,9 @@ public class ActionRequestIntrospector {
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
             this.localIndices = this.indices.matching(Predicate.not(ActionRequestIntrospector::isRemoteIndex));
-            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(IndexWithComponent::indexNameWithComponent);;
+            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(IndexWithComponent::indexNameWithComponent);
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, null);
-            this.allIncidesComponent = determineAllIndicesComponent();
+            this.allIndicesComponent = determineAllIndicesComponent();
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(this.indices) : false;
             this.writeRequest = false;
             this.createIndexRequest = false;
@@ -876,10 +876,6 @@ public class ActionRequestIntrospector {
 
         public boolean isAll() {
             return this.isAll;
-        }
-
-        public Component allIncidesComponent() {
-            return allIncidesComponent;
         }
 
         private boolean isAll(List<IndexWithComponent> localIndices, ImmutableSet<String> remoteIndices, IndicesRequest indicesRequest) {

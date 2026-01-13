@@ -176,7 +176,7 @@ public class ActionRequestIntrospectorTest {
     }
 
     private IndexWithComponent indexWithRandomComponent(String index) {
-        return new IndexWithComponent(index, Component.values()[new Random().nextInt(Component.values().length)]);
+        return new IndexWithComponent(index, Component.values()[new Random(1L).nextInt(Component.values().length)]);
     }
 
     static ActionRequestIntrospector simple() {

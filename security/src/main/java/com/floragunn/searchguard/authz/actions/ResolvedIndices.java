@@ -388,7 +388,7 @@ public class ResolvedIndices {
                         return new Local(ImmutableSet.empty(), ImmutableSet.empty(), //
                                 (request.indicesOptions().expandWildcardsHidden() //
                                         ? indexMetadata.dataStreams()//
-                                        : indexMetadata.nonHiddenDataStreams()).matching(dataStream -> dataStream.component() == request.allIncidesComponent), //
+                                        : indexMetadata.nonHiddenDataStreams()).matching(dataStream -> dataStream.component() == request.allIndicesComponent), //
                                 ImmutableSet.empty());
                     } else if (request.expandWildcards) {
                         return resolveWithPatterns(request, indexMetadata);
@@ -401,7 +401,7 @@ public class ResolvedIndices {
                     }
                 } else if (request.scope == IndicesRequestInfo.Scope.ALIAS) {
                     if (request.isAll) {
-                        return new Local(ImmutableSet.empty(), indexMetadata.aliases().matching(alias -> alias.component() == request.allIncidesComponent), ImmutableSet.empty(), ImmutableSet.empty());
+                        return new Local(ImmutableSet.empty(), indexMetadata.aliases().matching(alias -> alias.component() == request.allIndicesComponent), ImmutableSet.empty(), ImmutableSet.empty());
                     } else if (request.expandWildcards) {
                         return resolveWithPatterns(request, indexMetadata);
                     } else if (request.createIndexRequest) {
@@ -661,9 +661,9 @@ public class ResolvedIndices {
 
             pureIndices = pureIndices.matching(index -> !index.isSystem() || request.systemIndexAccess.isAllowed(index.name()));
 
-            pureIndices = pureIndices.matching(index -> index.component() == request.allIncidesComponent);
-            aliases = aliases.matching(alias -> alias.component() == request.allIncidesComponent);
-            dataStreams = dataStreams.matching(dataStream -> dataStream.component() == request.allIncidesComponent);
+            pureIndices = pureIndices.matching(index -> index.component() == request.allIndicesComponent);
+            aliases = aliases.matching(alias -> alias.component() == request.allIndicesComponent);
+            dataStreams = dataStreams.matching(dataStream -> dataStream.component() == request.allIndicesComponent);
 
             return new Local(pureIndices, aliases, dataStreams, nonExistingIndices);
         }
