@@ -37,7 +37,6 @@ public interface Meta extends Document<Meta> {
 
     String COMPONENT_SEPARATOR = "::";
     String FAILURES_SUFFIX = COMPONENT_SEPARATOR + "failures";
-    String DATA_SUFFIX = COMPONENT_SEPARATOR + "data";
 
     static String indexLikeNameWithFailuresSuffix(String indexLikeName) {
         if (indexLikeName == null) {

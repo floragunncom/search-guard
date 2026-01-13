@@ -175,8 +175,8 @@ public class ActionRequestIntrospectorTest {
         assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent(null)), is(false));
     }
 
-    private IndexWithComponent indexWithRandomComponent(String index) {
-        return new IndexWithComponent(index, new Random().nextBoolean());
+    private ParsedIndexReference indexWithRandomComponent(String index) {
+        return new ParsedIndexReference(index, new Random(1L).nextBoolean());
     }
 
     static ActionRequestIntrospector simple() {
