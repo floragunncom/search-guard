@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 
 import com.floragunn.codova.config.templates.PipeExpression;
 import com.floragunn.searchguard.authz.actions.Actions;
+import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
 import com.floragunn.searchsupport.Constants;
 import org.apache.logging.log4j.LogManager;
@@ -1197,6 +1198,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         private final boolean lenientValidationEnabled;
         private final ImmutableMap<String, PipeExpression.PipeFunction> pipeFunctionsMap;
         private final Actions actions;
+        private final SgDynamicConfiguration<ActionGroup> actionGroups;
 
         public Context(VariableResolvers variableResolvers, SearchGuardModulesRegistry searchGuardModulesRegistry, StaticSettings staticSettings,
                 NamedXContentRegistry xContentRegistry, ImmutableMap<String, PipeExpression.PipeFunction> pipeFunctionsMap, Actions actions) {
@@ -1208,11 +1210,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
             this.lenientValidationEnabled = true;
             this.pipeFunctionsMap = pipeFunctionsMap == null ? ImmutableMap.empty() : pipeFunctionsMap;
             this.actions = actions;
+            this.actionGroups = null;
         }
-        
+
         private Context(VariableResolvers variableResolvers, SearchGuardModulesRegistry searchGuardModulesRegistry, StaticSettings staticSettings,
                 NamedXContentRegistry xContentRegistry, boolean externalResourceCreationEnabled, boolean lenientValidationEnabled,
-            ImmutableMap<String, PipeExpression.PipeFunction> pipeFunctionsMap, Actions actions) {
+            ImmutableMap<String, PipeExpression.PipeFunction> pipeFunctionsMap, Actions actions, SgDynamicConfiguration<ActionGroup> actionGroups) {
             this.variableResolvers = variableResolvers;
             this.searchGuardModulesRegistry = searchGuardModulesRegistry;
             this.staticSettings = staticSettings;
@@ -1221,6 +1224,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             this.lenientValidationEnabled = lenientValidationEnabled;
             this.pipeFunctionsMap = pipeFunctionsMap == null ? ImmutableMap.empty() : pipeFunctionsMap;
             this.actions = actions;
+            this.actionGroups = actionGroups;
         }
 
 
@@ -1246,6 +1250,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
             return actions;
         }
 
+        public SgDynamicConfiguration<ActionGroup> getActionGroups() {
+            return actionGroups;
+        }
+
         @Override
         public boolean isExternalResourceCreationEnabled() {
             return externalResourceCreationEnabled;
@@ -1256,15 +1264,21 @@ public class ConfigurationRepository implements ComponentStateProvider {
             return lenientValidationEnabled;
         }
 
+        public Context withActionGroups(SgDynamicConfiguration<ActionGroup> actionGroups) {
+            return new Context(this.variableResolvers, this.searchGuardModulesRegistry, this.staticSettings,
+                    this.xContentRegistry, this.externalResourceCreationEnabled, this.lenientValidationEnabled,
+                    this.pipeFunctionsMap, this.actions, actionGroups);
+        }
+
         public Context withExternalResources() {
             return new Context(this.variableResolvers, this.searchGuardModulesRegistry, this.staticSettings,
-                    this.xContentRegistry, true, this.lenientValidationEnabled, this.pipeFunctionsMap, this.actions
+                    this.xContentRegistry, true, this.lenientValidationEnabled, this.pipeFunctionsMap, this.actions, this.actionGroups
             );
         }
 
         public Context withoutLenientValidation() {
             return new Context(this.variableResolvers, this.searchGuardModulesRegistry, this.staticSettings,
-                    this.xContentRegistry, this.externalResourceCreationEnabled, false, this.pipeFunctionsMap, this.actions
+                    this.xContentRegistry, this.externalResourceCreationEnabled, false, this.pipeFunctionsMap, this.actions, this.actionGroups
             );
         }
 

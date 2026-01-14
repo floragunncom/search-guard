@@ -94,10 +94,10 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
         if (context != null && context.getActions() != null) {
             Actions actions = context.getActions();
 
-            warnWhenIndexPermsAreAssignedToClusterPerms(clusterPermissions, actions);
-            warnWhenClusterPermsAreAssignedToIndexLikePerms(indexPermissions, actions, "index");
-            warnWhenClusterPermsAreAssignedToIndexLikePerms(aliasPermissions, actions, "alias");
-            warnWhenClusterPermsAreAssignedToIndexLikePerms(dataStreamPermissions, actions, "data stream");
+            warnWhenIndexPermsAreAssignedToClusterPerms(clusterPermissions, actions, context);
+            warnWhenClusterPermsAreAssignedToIndexLikePerms(indexPermissions, actions, context, "index");
+            warnWhenClusterPermsAreAssignedToIndexLikePerms(aliasPermissions, actions, context, "alias");
+            warnWhenClusterPermsAreAssignedToIndexLikePerms(dataStreamPermissions, actions, context, "data stream");
         }
 
         warnWhenDlsOrFlsRuleIsAssignedToWildcardPattern(indexPermissions);
@@ -110,9 +110,10 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
                 aliasPermissions, dataStreamPermissions, tenantPermissions, excludeClusterPermissions), validationErrors);
     }
 
-    private static <T extends Index> void warnWhenClusterPermsAreAssignedToIndexLikePerms(ImmutableList<T> permissions, Actions actions, String expectedPermissionType) {
+    private static <T extends Index> void warnWhenClusterPermsAreAssignedToIndexLikePerms(ImmutableList<T> permissions, Actions actions,
+            ConfigurationRepository.Context context, String expectedPermissionType) {
         List<String> clusterPermissionUsedAsIndexLikePermissions = permissions.stream()
-                .flatMap(indexLikePermission  -> findClusterPermissions(indexLikePermission.getAllowedActions(), actions)
+                .flatMap(indexLikePermission  -> findClusterPermissions(indexLikePermission.getAllowedActions(), actions, context)
                         .stream()
                 ).toList();
 
@@ -121,20 +122,55 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
         }
     }
 
-    private static void warnWhenIndexPermsAreAssignedToClusterPerms(ImmutableList<String> clusterPermissions, Actions actions) {
-        List<String> indexPermissionsUsedAsClusterPermissions = findIndexPermissions(clusterPermissions, actions);
+    private static void warnWhenIndexPermsAreAssignedToClusterPerms(ImmutableList<String> clusterPermissions, Actions actions,
+            ConfigurationRepository.Context context) {
+        List<String> indexPermissionsUsedAsClusterPermissions = findIndexPermissions(clusterPermissions, actions, context);
 
         if (! indexPermissionsUsedAsClusterPermissions.isEmpty()) {
             log.warn("The following index permissions are assigned as cluster permissions: {}", indexPermissionsUsedAsClusterPermissions);
         }
     }
 
-    private static List<String> findIndexPermissions(ImmutableList<String> permissions, Actions actions) {
-        return permissions.stream().filter(permission -> ! "*".equals(permission) && actions.get(permission).isIndexLikePrivilege()).toList();
+    private static List<String> findIndexPermissions(ImmutableList<String> permissions, Actions actions, ConfigurationRepository.Context context) {
+        return permissions.stream().filter(permission -> {
+            if ("*".equals(permission)) {
+                return false;
+            }
+
+            // Check if this is an action group and use its type metadata if available
+            if (context != null && context.getActionGroups() != null) {
+                ActionGroup actionGroup = context.getActionGroups().getCEntry(permission);
+                if (actionGroup != null) {
+                    String type = actionGroup.getType();
+                    // Action groups with type "index" are index-like permissions
+                    return "index".equals(type);
+                }
+            }
+
+            // Fall back to checking the action itself
+            return actions.get(permission).isIndexLikePrivilege();
+        }).toList();
     }
 
-    private static List<String> findClusterPermissions(ImmutableList<String> permissions, Actions actions) {
-        return permissions.stream().filter(permission -> ! "*".equals(permission) && actions.get(permission).isClusterPrivilege()).toList();
+    private static List<String> findClusterPermissions(ImmutableList<String> permissions, Actions actions, ConfigurationRepository.Context context) {
+        return permissions.stream().filter(permission -> {
+            if ("*".equals(permission)) {
+                return false;
+            }
+
+            // Check if this is an action group and use its type metadata if available
+            if (context != null && context.getActionGroups() != null) {
+                ActionGroup actionGroup = context.getActionGroups().getCEntry(permission);
+                if (actionGroup != null) {
+                    String type = actionGroup.getType();
+                    // Action groups with type "cluster" are cluster permissions
+                    return "cluster".equals(type);
+                }
+            }
+
+            // Fall back to checking the action itself
+            return actions.get(permission).isClusterPrivilege();
+        }).toList();
     }
 
     private static <T extends Index> void warnWhenDlsOrFlsRuleIsAssignedToWildcardPattern(ImmutableList<T> permissions) {

@@ -265,6 +265,187 @@ public class RoleTest {
         logsRule.assertThatNotContain("Role assigns a FLS rule");
     }
 
+    @Test
+    public void shouldLogValidationWarnings_clusterTypeActionGroupAssignedAsIndexPriv() throws Exception {
+        SgDynamicConfiguration<ActionGroup> actionGroups = SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                CLUSTER_ACTION_GROUP:
+                    type: "cluster"
+                    allowed_actions:
+                        - "cluster:monitor/main"
+                        - "cluster:admin/settings/update"
+                """
+        ), CType.ACTIONGROUPS, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
+
+        ConfigurationRepository.Context contextWithActionGroups = new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())
+                .withActionGroups(actionGroups);
+
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    index_permissions:
+                        - index_patterns: ["*"]
+                          allowed_actions:
+                            - "CLUSTER_ACTION_GROUP"
+                            - "indices:data/read/*"
+                """
+        ), CType.ROLES, contextWithActionGroups).get();
+
+        logsRule.assertThatContainExactly("The following cluster permissions are assigned as index permissions: [CLUSTER_ACTION_GROUP]");
+    }
+
+    @Test
+    public void shouldLogValidationWarnings_indexTypeActionGroupAssignedAsClusterPriv() throws Exception {
+        SgDynamicConfiguration<ActionGroup> actionGroups = SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                INDEX_ACTION_GROUP:
+                    type: "index"
+                    allowed_actions:
+                        - "indices:data/read/*"
+                        - "indices:data/write/*"
+                """
+        ), CType.ACTIONGROUPS, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
+
+        ConfigurationRepository.Context contextWithActionGroups = new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())
+                .withActionGroups(actionGroups);
+
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    cluster_permissions:
+                        - "INDEX_ACTION_GROUP"
+                        - "cluster:monitor/main"
+                """
+        ), CType.ROLES, contextWithActionGroups).get();
+
+        logsRule.assertThatContainExactly("The following index permissions are assigned as cluster permissions: [INDEX_ACTION_GROUP]");
+    }
+
+    @Test
+    public void shouldLogValidationWarnings_clusterTypeActionGroupAssignedAsAliasPriv() throws Exception {
+        SgDynamicConfiguration<ActionGroup> actionGroups = SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                CLUSTER_ACTION_GROUP:
+                    type: "cluster"
+                    allowed_actions:
+                        - "cluster:monitor/main"
+                """
+        ), CType.ACTIONGROUPS, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
+
+        ConfigurationRepository.Context contextWithActionGroups = new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())
+                .withActionGroups(actionGroups);
+
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    alias_permissions:
+                        - alias_patterns: ["*"]
+                          allowed_actions:
+                            - "CLUSTER_ACTION_GROUP"
+                """
+        ), CType.ROLES, contextWithActionGroups).get();
+
+        logsRule.assertThatContainExactly("The following cluster permissions are assigned as alias permissions: [CLUSTER_ACTION_GROUP]");
+    }
+
+    @Test
+    public void shouldLogValidationWarnings_clusterTypeActionGroupAssignedAsDataStreamPriv() throws Exception {
+        SgDynamicConfiguration<ActionGroup> actionGroups = SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                CLUSTER_ACTION_GROUP:
+                    type: "cluster"
+                    allowed_actions:
+                        - "cluster:monitor/main"
+                """
+        ), CType.ACTIONGROUPS, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
+
+        ConfigurationRepository.Context contextWithActionGroups = new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())
+                .withActionGroups(actionGroups);
+
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    data_stream_permissions:
+                        - data_stream_patterns: ["*"]
+                          allowed_actions:
+                            - "CLUSTER_ACTION_GROUP"
+                """
+        ), CType.ROLES, contextWithActionGroups).get();
+
+        logsRule.assertThatContainExactly("The following cluster permissions are assigned as data stream permissions: [CLUSTER_ACTION_GROUP]");
+    }
+
+    @Test
+    public void shouldNotLogValidationWarnings_actionGroupsUsedCorrectly() throws Exception {
+        SgDynamicConfiguration<ActionGroup> actionGroups = SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                CLUSTER_ACTION_GROUP:
+                    type: "cluster"
+                    allowed_actions:
+                        - "cluster:monitor/main"
+                INDEX_ACTION_GROUP:
+                    type: "index"
+                    allowed_actions:
+                        - "indices:data/read/*"
+                """
+        ), CType.ACTIONGROUPS, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
+
+        ConfigurationRepository.Context contextWithActionGroups = new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())
+                .withActionGroups(actionGroups);
+
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    cluster_permissions:
+                        - "CLUSTER_ACTION_GROUP"
+                    index_permissions:
+                        - index_patterns: ["*"]
+                          allowed_actions:
+                            - "INDEX_ACTION_GROUP"
+                    alias_permissions:
+                        - alias_patterns: ["*"]
+                          allowed_actions:
+                            - "indices:admin/aliases/*"
+                    data_stream_permissions:
+                        - data_stream_patterns: ["*"]
+                          allowed_actions:
+                            - "indices:admin/data_stream/*"
+                """
+        ), CType.ROLES, contextWithActionGroups).get();
+
+        logsRule.assertThatNotContain("The following index permissions are assigned as cluster permissions:");
+        logsRule.assertThatNotContain("The following cluster permissions are assigned as index permissions:");
+        logsRule.assertThatNotContain("The following cluster permissions are assigned as alias permissions:");
+        logsRule.assertThatNotContain("The following cluster permissions are assigned as data stream permissions:");
+    }
+
+    @Test
+    public void shouldLogValidationWarnings_multipleActionGroupsMisconfigured() throws Exception {
+        SgDynamicConfiguration<ActionGroup> actionGroups = SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                CLUSTER_GROUP_1:
+                    type: "cluster"
+                    allowed_actions:
+                        - "cluster:monitor/main"
+                CLUSTER_GROUP_2:
+                    type: "cluster"
+                    allowed_actions:
+                        - "cluster:admin/*"
+                INDEX_GROUP_1:
+                    type: "index"
+                    allowed_actions:
+                        - "indices:data/read/*"
+                """
+        ), CType.ACTIONGROUPS, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
+
+        ConfigurationRepository.Context contextWithActionGroups = new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())
+                .withActionGroups(actionGroups);
+
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    cluster_permissions:
+                        - "INDEX_GROUP_1"
+                    index_permissions:
+                        - index_patterns: ["*"]
+                          allowed_actions:
+                            - "CLUSTER_GROUP_1"
+                            - "CLUSTER_GROUP_2"
+                """
+        ), CType.ROLES, contextWithActionGroups).get();
+
+        logsRule.assertThatContainExactly("The following index permissions are assigned as cluster permissions: [INDEX_GROUP_1]");
+        logsRule.assertThatContainExactly("The following cluster permissions are assigned as index permissions: [CLUSTER_GROUP_1, CLUSTER_GROUP_2]");
+    }
+
     private NamedXContentRegistry xContentRegistry() {
         return new NamedXContentRegistry(List.of(
                 new NamedXContentRegistry.Entry(QueryBuilder.class, new ParseField(TermQueryBuilder.NAME), TermQueryBuilder::fromXContent)

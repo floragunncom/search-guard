@@ -48,6 +48,7 @@ import org.elasticsearch.xcontent.XContentParser;
 import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.validation.ConfigValidationException;
+import com.floragunn.searchguard.authz.config.ActionGroup;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
@@ -179,6 +180,26 @@ public class ConfigurationLoader {
                     List<Failure> failures = new ArrayList<>();
                     ConfigMap.Builder configMapBuilder = new ConfigMap.Builder(searchguardIndex);
 
+                    // First pass: parse ActionGroups if present, so we can use them when parsing Roles
+                    SgDynamicConfiguration<ActionGroup> actionGroupsConfig = null;
+                    ConfigurationRepository.Context contextWithActionGroups = context;
+
+                    for (MultiGetItemResponse item : response.getResponses()) {
+                        CType<?> type = item.getId() != null ? CType.fromString(item.getId()) : null;
+
+                        if (!item.isFailed() && CType.ACTIONGROUPS.equals(type)) {
+                            try {
+                                actionGroupsConfig = (SgDynamicConfiguration<ActionGroup>) toConfig(type, item.getResponse(), context);
+                                contextWithActionGroups = context.withActionGroups(actionGroupsConfig);
+                            } catch (Exception e) {
+                                log.debug("Failed to parse action groups in first pass. " +
+                                        "Action group types will not be available for role validation. Error: {}", e.getMessage());
+                            }
+                            break;
+                        }
+                    }
+
+                    // Second pass: parse all configurations with the updated context
                     for (MultiGetItemResponse item : response.getResponses()) {
                         CType<?> type = item.getId() != null ? CType.fromString(item.getId()) : null;
 
@@ -189,7 +210,7 @@ public class ConfigurationLoader {
                         }
 
                         try {
-                            SgDynamicConfiguration<?> config = toConfig(type, item.getResponse(), context);
+                            SgDynamicConfiguration<?> config = toConfig(type, item.getResponse(), contextWithActionGroups);
 
                             if (staticSgConfig != null) {
                                 config = staticSgConfig.addTo(config);
