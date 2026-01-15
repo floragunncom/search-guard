@@ -71,7 +71,7 @@ public class InternalAuthTokenProviderTest {
         NamedXContentRegistry xContentRegistry = new NamedXContentRegistry(List.of(
                 new NamedXContentRegistry.Entry(QueryBuilder.class, new ParseField(MatchAllQueryBuilder.NAME), MatchAllQueryBuilder::fromXContent)
         ));
-        return new ConfigurationRepository.Context(null, null, null, xContentRegistry, null, Actions.forTests());
+        return new ConfigurationRepository.Context(null, null, null, xContentRegistry, null);
     }
 
     @Test

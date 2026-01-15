@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.regex.PatternSyntaxException;
 
-import com.floragunn.searchguard.authz.actions.Actions;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -91,15 +90,6 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
         String description = vNode.get("description").asString();
 
-        if (context != null && context.getActions() != null) {
-            Actions actions = context.getActions();
-
-            warnWhenIndexPermsAreAssignedToClusterPerms(clusterPermissions, actions);
-            warnWhenClusterPermsAreAssignedToIndexLikePerms(indexPermissions, actions, "index");
-            warnWhenClusterPermsAreAssignedToIndexLikePerms(aliasPermissions, actions, "alias");
-            warnWhenClusterPermsAreAssignedToIndexLikePerms(dataStreamPermissions, actions, "data stream");
-        }
-
         warnWhenDlsOrFlsRuleIsAssignedToWildcardPattern(indexPermissions);
         warnWhenDlsOrFlsRuleIsAssignedToWildcardPattern(aliasPermissions);
         warnWhenDlsOrFlsRuleIsAssignedToWildcardPattern(dataStreamPermissions);
@@ -108,33 +98,6 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
 
         return new ValidationResult<Role>(new Role(docNode, reserved, hidden, isStatic, description, clusterPermissions, indexPermissions,
                 aliasPermissions, dataStreamPermissions, tenantPermissions, excludeClusterPermissions), validationErrors);
-    }
-
-    private static <T extends Index> void warnWhenClusterPermsAreAssignedToIndexLikePerms(ImmutableList<T> permissions, Actions actions, String expectedPermissionType) {
-        List<String> clusterPermissionUsedAsIndexLikePermissions = permissions.stream()
-                .flatMap(indexLikePermission  -> findClusterPermissions(indexLikePermission.getAllowedActions(), actions)
-                        .stream()
-                ).toList();
-
-        if (! clusterPermissionUsedAsIndexLikePermissions.isEmpty()) {
-            log.warn("The following cluster permissions are assigned as {} permissions: {}", expectedPermissionType, clusterPermissionUsedAsIndexLikePermissions);
-        }
-    }
-
-    private static void warnWhenIndexPermsAreAssignedToClusterPerms(ImmutableList<String> clusterPermissions, Actions actions) {
-        List<String> indexPermissionsUsedAsClusterPermissions = findIndexPermissions(clusterPermissions, actions);
-
-        if (! indexPermissionsUsedAsClusterPermissions.isEmpty()) {
-            log.warn("The following index permissions are assigned as cluster permissions: {}", indexPermissionsUsedAsClusterPermissions);
-        }
-    }
-
-    private static List<String> findIndexPermissions(ImmutableList<String> permissions, Actions actions) {
-        return permissions.stream().filter(permission -> ! "*".equals(permission) && actions.get(permission).isIndexLikePrivilege()).toList();
-    }
-
-    private static List<String> findClusterPermissions(ImmutableList<String> permissions, Actions actions) {
-        return permissions.stream().filter(permission -> ! "*".equals(permission) && actions.get(permission).isClusterPrivilege()).toList();
     }
 
     private static <T extends Index> void warnWhenDlsOrFlsRuleIsAssignedToWildcardPattern(ImmutableList<T> permissions) {
