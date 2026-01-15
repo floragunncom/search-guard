@@ -147,8 +147,14 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
                 }
             }
 
-            // Fall back to checking the action itself
-            return actions.get(permission).isIndexLikePrivilege();
+            // Fall back to checking the action itself, but only if it looks like an actual ES action (contains ':')
+            // Action group names don't contain ':' and should have been resolved above
+            if (permission.contains(":")) {
+                return actions.get(permission).isIndexLikePrivilege();
+            }
+
+            // Unresolved action group name - don't treat as index permission
+            return false;
         }).toList();
     }
 
@@ -168,8 +174,14 @@ public class Role implements Document<Role>, Hideable, StaticDefinable {
                 }
             }
 
-            // Fall back to checking the action itself
-            return actions.get(permission).isClusterPrivilege();
+            // Fall back to checking the action itself, but only if it looks like an actual ES action (contains ':')
+            // Action group names don't contain ':' and should have been resolved above
+            if (permission.contains(":")) {
+                return actions.get(permission).isClusterPrivilege();
+            }
+
+            // Unresolved action group name - don't treat as cluster permission
+            return false;
         }).toList();
     }
 

@@ -196,7 +196,7 @@ public class ConfigurationLoader {
                                 }
                                 contextWithActionGroups = context.withActionGroups(actionGroupsConfig);
                             } catch (Exception e) {
-                                log.debug("Failed to parse action groups in first pass. " +
+                                log.warn("Failed to parse action groups in first pass. " +
                                         "Action group types will not be available for role validation. Error: {}", e.getMessage());
                             }
                             break;

@@ -643,4 +643,31 @@ public class RoleTest {
         logsRule.assertThatContainExactly("The following index permissions are assigned as cluster permissions: [SGS_CRUD, CUSTOM_INDEX_GROUP]");
         logsRule.assertThatContainExactly("The following cluster permissions are assigned as index permissions: [SGS_CLUSTER_MONITOR, CUSTOM_CLUSTER_GROUP]");
     }
+
+    @Test
+    public void shouldNotLogValidationWarnings_unknownActionGroupNames_withoutActionGroupsInContext() throws Exception {
+        // When action groups are NOT available in context, action group names (which don't contain ':')
+        // should NOT trigger false warnings. This tests the fallback behavior.
+        ConfigurationRepository.Context contextWithoutActionGroups =
+                new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests());
+        // Note: not calling .withActionGroups()
+
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    cluster_permissions:
+                        - "UNKNOWN_ACTION_GROUP"
+                        - "cluster:monitor/main"
+                    index_permissions:
+                        - index_patterns: ["*"]
+                          allowed_actions:
+                            - "ANOTHER_UNKNOWN_GROUP"
+                            - "indices:data/read/*"
+                """
+        ), CType.ROLES, contextWithoutActionGroups).get();
+
+        // Unknown action group names should NOT be flagged as index/cluster permissions
+        // since we can't determine their type without the action groups config
+        logsRule.assertThatNotContain("The following index permissions are assigned as cluster permissions: [UNKNOWN_ACTION_GROUP]");
+        logsRule.assertThatNotContain("The following cluster permissions are assigned as index permissions: [ANOTHER_UNKNOWN_GROUP]");
+    }
 }
