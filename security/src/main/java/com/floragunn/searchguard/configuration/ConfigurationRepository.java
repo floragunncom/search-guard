@@ -34,7 +34,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 import com.floragunn.codova.config.templates.PipeExpression;
-import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
 import com.floragunn.searchsupport.Constants;
 import org.apache.logging.log4j.LogManager;
@@ -181,8 +180,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     public ConfigurationRepository(StaticSettings settings, ThreadPool threadPool, Client client, ClusterService clusterService,
                                    ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
-                                   NamedXContentRegistry xContentRegistry, Environment environment, IndexNameExpressionResolver resolver,
-                                   ConfigModificationValidators configModificationValidators, Actions actions) {
+                                   NamedXContentRegistry xContentRegistry, Environment environment, IndexNameExpressionResolver resolver, ConfigModificationValidators configModificationValidators) {
         this.configuredSearchguardIndexOld = settings.get(OLD_INDEX_NAME);
         this.configuredSearchguardIndexNew = settings.get(NEW_INDEX_NAME);
         this.configuredSearchguardIndices = Pattern.createUnchecked(this.configuredSearchguardIndexNew, this.configuredSearchguardIndexOld);
@@ -200,7 +198,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 .with("json_file", (file) -> VariableResolvers.JSON_FILE_PRIVILEGED.apply(environment.configDir().resolve(file).toAbsolutePath().toString()));
         ImmutableMap<String, PipeExpression.PipeFunction> pipeFunctions = PipeExpression.PipeFunction.all() //
             .with(BcryptPipeFunction.NAME, new BcryptPipeFunction());
-        this.parserContext = new Context(variableResolvers, modulesRegistry, settings, xContentRegistry, pipeFunctions, actions);
+        this.parserContext = new Context(variableResolvers, modulesRegistry, settings, xContentRegistry, pipeFunctions);
         this.threadPool = threadPool;
 
 
@@ -1196,10 +1194,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
         private final boolean externalResourceCreationEnabled;
         private final boolean lenientValidationEnabled;
         private final ImmutableMap<String, PipeExpression.PipeFunction> pipeFunctionsMap;
-        private final Actions actions;
 
         public Context(VariableResolvers variableResolvers, SearchGuardModulesRegistry searchGuardModulesRegistry, StaticSettings staticSettings,
-                NamedXContentRegistry xContentRegistry, ImmutableMap<String, PipeExpression.PipeFunction> pipeFunctionsMap, Actions actions) {
+                NamedXContentRegistry xContentRegistry, ImmutableMap<String, PipeExpression.PipeFunction> pipeFunctionsMap) {
             this.variableResolvers = variableResolvers;
             this.searchGuardModulesRegistry = searchGuardModulesRegistry;
             this.staticSettings = staticSettings;
@@ -1207,12 +1204,11 @@ public class ConfigurationRepository implements ComponentStateProvider {
             this.externalResourceCreationEnabled = false;
             this.lenientValidationEnabled = true;
             this.pipeFunctionsMap = pipeFunctionsMap == null ? ImmutableMap.empty() : pipeFunctionsMap;
-            this.actions = actions;
         }
         
         private Context(VariableResolvers variableResolvers, SearchGuardModulesRegistry searchGuardModulesRegistry, StaticSettings staticSettings,
                 NamedXContentRegistry xContentRegistry, boolean externalResourceCreationEnabled, boolean lenientValidationEnabled,
-            ImmutableMap<String, PipeExpression.PipeFunction> pipeFunctionsMap, Actions actions) {
+            ImmutableMap<String, PipeExpression.PipeFunction> pipeFunctionsMap) {
             this.variableResolvers = variableResolvers;
             this.searchGuardModulesRegistry = searchGuardModulesRegistry;
             this.staticSettings = staticSettings;
@@ -1220,7 +1216,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
             this.externalResourceCreationEnabled = externalResourceCreationEnabled;
             this.lenientValidationEnabled = lenientValidationEnabled;
             this.pipeFunctionsMap = pipeFunctionsMap == null ? ImmutableMap.empty() : pipeFunctionsMap;
-            this.actions = actions;
         }
 
 
@@ -1241,11 +1236,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         public NamedXContentRegistry xContentRegistry() {
             return xContentRegistry;
         }
-
-        public Actions getActions() {
-            return actions;
-        }
-
+        
         @Override
         public boolean isExternalResourceCreationEnabled() {
             return externalResourceCreationEnabled;
@@ -1258,13 +1249,13 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
         public Context withExternalResources() {
             return new Context(this.variableResolvers, this.searchGuardModulesRegistry, this.staticSettings,
-                    this.xContentRegistry, true, this.lenientValidationEnabled, this.pipeFunctionsMap, this.actions
+                    this.xContentRegistry, true, this.lenientValidationEnabled, this.pipeFunctionsMap
             );
         }
 
         public Context withoutLenientValidation() {
             return new Context(this.variableResolvers, this.searchGuardModulesRegistry, this.staticSettings,
-                    this.xContentRegistry, this.externalResourceCreationEnabled, false, this.pipeFunctionsMap, this.actions
+                    this.xContentRegistry, this.externalResourceCreationEnabled, false, this.pipeFunctionsMap
             );
         }
 
