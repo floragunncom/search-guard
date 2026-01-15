@@ -190,6 +190,10 @@ public class ConfigurationLoader {
                         if (!item.isFailed() && CType.ACTIONGROUPS.equals(type)) {
                             try {
                                 actionGroupsConfig = (SgDynamicConfiguration<ActionGroup>) toConfig(type, item.getResponse(), context);
+                                // Add static action groups so they're available for type validation
+                                if (staticSgConfig != null) {
+                                    actionGroupsConfig = staticSgConfig.addTo(actionGroupsConfig);
+                                }
                                 contextWithActionGroups = context.withActionGroups(actionGroupsConfig);
                             } catch (Exception e) {
                                 log.debug("Failed to parse action groups in first pass. " +

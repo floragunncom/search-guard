@@ -34,6 +34,8 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
+import com.floragunn.searchguard.configuration.StaticSgConfig;
+import org.elasticsearch.common.settings.Settings;
 
 import java.util.List;
 
@@ -450,5 +452,195 @@ public class RoleTest {
         return new NamedXContentRegistry(List.of(
                 new NamedXContentRegistry.Entry(QueryBuilder.class, new ParseField(TermQueryBuilder.NAME), TermQueryBuilder::fromXContent)
         ));
+    }
+
+    // Tests for static action groups (loaded from static_action_groups.yml)
+
+    @Test
+    public void shouldNotLogValidationWarnings_staticClusterActionGroupUsedInClusterPermissions() throws Exception {
+        // SGS_CLUSTER_COMPOSITE_OPS is a static action group with type: "cluster"
+        // When used in cluster_permissions, it should NOT trigger a warning
+        StaticSgConfig staticSgConfig = new StaticSgConfig(Settings.EMPTY);
+        SgDynamicConfiguration<ActionGroup> staticActionGroups = staticSgConfig.addTo(
+                SgDynamicConfiguration.empty(CType.ACTIONGROUPS)
+        );
+
+        ConfigurationRepository.Context contextWithStaticActionGroups =
+                new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())
+                        .withActionGroups(staticActionGroups);
+
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    cluster_permissions:
+                        - "SGS_CLUSTER_COMPOSITE_OPS"
+                        - "SGS_CLUSTER_COMPOSITE_OPS_RO"
+                        - "SGS_CLUSTER_MONITOR"
+                        - "cluster:monitor/main"
+                """
+        ), CType.ROLES, contextWithStaticActionGroups).get();
+
+        logsRule.assertThatNotContain("The following index permissions are assigned as cluster permissions:");
+    }
+
+    @Test
+    public void shouldNotLogValidationWarnings_staticIndexActionGroupUsedInIndexPermissions() throws Exception {
+        // SGS_CRUD is a static action group with type: "index"
+        // When used in index_permissions, it should NOT trigger a warning
+        StaticSgConfig staticSgConfig = new StaticSgConfig(Settings.EMPTY);
+        SgDynamicConfiguration<ActionGroup> staticActionGroups = staticSgConfig.addTo(
+                SgDynamicConfiguration.empty(CType.ACTIONGROUPS)
+        );
+
+        ConfigurationRepository.Context contextWithStaticActionGroups =
+                new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())
+                        .withActionGroups(staticActionGroups);
+
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    index_permissions:
+                        - index_patterns: ["*"]
+                          allowed_actions:
+                            - "SGS_CRUD"
+                            - "SGS_READ"
+                            - "SGS_WRITE"
+                            - "SGS_SEARCH"
+                """
+        ), CType.ROLES, contextWithStaticActionGroups).get();
+
+        logsRule.assertThatNotContain("The following cluster permissions are assigned as index permissions:");
+    }
+
+    @Test
+    public void shouldLogValidationWarnings_staticIndexActionGroupUsedInClusterPermissions() throws Exception {
+        // SGS_CRUD is a static action group with type: "index"
+        // When used in cluster_permissions, it SHOULD trigger a warning
+        StaticSgConfig staticSgConfig = new StaticSgConfig(Settings.EMPTY);
+        SgDynamicConfiguration<ActionGroup> staticActionGroups = staticSgConfig.addTo(
+                SgDynamicConfiguration.empty(CType.ACTIONGROUPS)
+        );
+
+        ConfigurationRepository.Context contextWithStaticActionGroups =
+                new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())
+                        .withActionGroups(staticActionGroups);
+
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    cluster_permissions:
+                        - "SGS_CRUD"
+                        - "cluster:monitor/main"
+                """
+        ), CType.ROLES, contextWithStaticActionGroups).get();
+
+        logsRule.assertThatContainExactly("The following index permissions are assigned as cluster permissions: [SGS_CRUD]");
+    }
+
+    @Test
+    public void shouldLogValidationWarnings_staticClusterActionGroupUsedInIndexPermissions() throws Exception {
+        // SGS_CLUSTER_MONITOR is a static action group with type: "cluster"
+        // When used in index_permissions, it SHOULD trigger a warning
+        StaticSgConfig staticSgConfig = new StaticSgConfig(Settings.EMPTY);
+        SgDynamicConfiguration<ActionGroup> staticActionGroups = staticSgConfig.addTo(
+                SgDynamicConfiguration.empty(CType.ACTIONGROUPS)
+        );
+
+        ConfigurationRepository.Context contextWithStaticActionGroups =
+                new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())
+                        .withActionGroups(staticActionGroups);
+
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    index_permissions:
+                        - index_patterns: ["*"]
+                          allowed_actions:
+                            - "SGS_CLUSTER_MONITOR"
+                            - "indices:data/read/*"
+                """
+        ), CType.ROLES, contextWithStaticActionGroups).get();
+
+        logsRule.assertThatContainExactly("The following cluster permissions are assigned as index permissions: [SGS_CLUSTER_MONITOR]");
+    }
+
+    @Test
+    public void shouldNotLogValidationWarnings_mixedStaticAndCustomActionGroupsUsedCorrectly() throws Exception {
+        // Test combining static action groups with custom action groups, all used correctly
+        StaticSgConfig staticSgConfig = new StaticSgConfig(Settings.EMPTY);
+
+        // First, create custom action groups
+        SgDynamicConfiguration<ActionGroup> customActionGroups = SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                CUSTOM_CLUSTER_GROUP:
+                    type: "cluster"
+                    allowed_actions:
+                        - "cluster:admin/settings/update"
+                CUSTOM_INDEX_GROUP:
+                    type: "index"
+                    allowed_actions:
+                        - "indices:data/read/get"
+                """
+        ), CType.ACTIONGROUPS, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
+
+        // Merge with static action groups
+        SgDynamicConfiguration<ActionGroup> allActionGroups = staticSgConfig.addTo(customActionGroups);
+
+        ConfigurationRepository.Context contextWithAllActionGroups =
+                new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())
+                        .withActionGroups(allActionGroups);
+
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    cluster_permissions:
+                        - "SGS_CLUSTER_COMPOSITE_OPS"
+                        - "CUSTOM_CLUSTER_GROUP"
+                    index_permissions:
+                        - index_patterns: ["*"]
+                          allowed_actions:
+                            - "SGS_CRUD"
+                            - "CUSTOM_INDEX_GROUP"
+                """
+        ), CType.ROLES, contextWithAllActionGroups).get();
+
+        logsRule.assertThatNotContain("The following index permissions are assigned as cluster permissions:");
+        logsRule.assertThatNotContain("The following cluster permissions are assigned as index permissions:");
+    }
+
+    @Test
+    public void shouldLogValidationWarnings_mixedStaticAndCustomActionGroupsUsedIncorrectly() throws Exception {
+        // Test combining static action groups with custom action groups, with some incorrect usage
+        StaticSgConfig staticSgConfig = new StaticSgConfig(Settings.EMPTY);
+
+        // First, create custom action groups
+        SgDynamicConfiguration<ActionGroup> customActionGroups = SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                CUSTOM_CLUSTER_GROUP:
+                    type: "cluster"
+                    allowed_actions:
+                        - "cluster:admin/settings/update"
+                CUSTOM_INDEX_GROUP:
+                    type: "index"
+                    allowed_actions:
+                        - "indices:data/read/get"
+                """
+        ), CType.ACTIONGROUPS, new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())).get();
+
+        // Merge with static action groups
+        SgDynamicConfiguration<ActionGroup> allActionGroups = staticSgConfig.addTo(customActionGroups);
+
+        ConfigurationRepository.Context contextWithAllActionGroups =
+                new ConfigurationRepository.Context(null, null, null, null, null, Actions.forTests())
+                        .withActionGroups(allActionGroups);
+
+        SgDynamicConfiguration.fromMap(DocNode.parse(Format.YAML).from("""
+                test_role1:
+                    cluster_permissions:
+                        - "SGS_CRUD"
+                        - "CUSTOM_INDEX_GROUP"
+                    index_permissions:
+                        - index_patterns: ["*"]
+                          allowed_actions:
+                            - "SGS_CLUSTER_MONITOR"
+                            - "CUSTOM_CLUSTER_GROUP"
+                """
+        ), CType.ROLES, contextWithAllActionGroups).get();
+
+        logsRule.assertThatContainExactly("The following index permissions are assigned as cluster permissions: [SGS_CRUD, CUSTOM_INDEX_GROUP]");
+        logsRule.assertThatContainExactly("The following cluster permissions are assigned as index permissions: [SGS_CLUSTER_MONITOR, CUSTOM_CLUSTER_GROUP]");
     }
 }
