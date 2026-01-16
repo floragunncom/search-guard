@@ -415,6 +415,8 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             }
         }
 
+        // TODO: CS additional check related to special:failure_store
+
         if (log.isTraceEnabled()) {
             log.trace("Result from privileges evaluation: " + privilegesEvaluationResult.getStatus() + "\n" + privilegesEvaluationResult);
         }
