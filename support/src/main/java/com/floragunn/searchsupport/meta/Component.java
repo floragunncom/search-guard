@@ -20,7 +20,7 @@ public enum Component {
     }
 
     public String indexLikeNameWithComponentSuffix(String indexLikeName) {
-        // TODO CS: this method should be removed
+        // TODO CS: this method should be removed?
         if (this.componentSuffix.isEmpty()) {
             return indexLikeName;
         } else {

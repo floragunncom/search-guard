@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -626,12 +627,11 @@ public abstract class MetaImpl implements Meta {
                     };
                     ImmutableSet.Builder<Index> memberIndices = new ImmutableSet.Builder<>(esDataStreamIndices.size());
                     membersByComponent.put(component, memberIndices);
-                    String dataStreamNameWithComponent = component.indexLikeNameWithComponentSuffix(esDataStream.getName());
 
                     for (org.elasticsearch.index.Index esIndex : esDataStreamIndices) {
                         org.elasticsearch.cluster.metadata.IndexMetadata esIndexMetadata = project.index(esIndex.getName());
 
-                        Index index = new IndexImpl(this, esIndex.getName(), ImmutableSet.empty(), dataStreamNameWithComponent, esIndexMetadata.isHidden(),
+                        Index index = new IndexImpl(this, esIndex.getName(), ImmutableSet.empty(), esDataStream.getName(), esIndexMetadata.isHidden(),
                                 esIndexMetadata.isSystem(), esIndexMetadata.getState(), component);
                         indices.add(index);
                         nameMap.put(index.name(), index);
@@ -649,13 +649,12 @@ public abstract class MetaImpl implements Meta {
             for (org.elasticsearch.cluster.metadata.IndexMetadata esIndexMetadata : project.indices().values()) {
                 String name = esIndexMetadata.getIndex().getName();
 
-                if (nameMap.contains(Component.NONE.indexLikeNameWithComponentSuffix(name))) {
+                if (nameMap.contains(name)) {
                     // Index has been already created via a DataStream
                     continue;
                 }
 
-                Set<String> parentAliases = esIndexMetadata.getAliases().keySet().stream().map(Component.NONE::indexLikeNameWithComponentSuffix)
-                        .collect(Collectors.toSet());
+                Set<String> parentAliases = ImmutableSet.of(esIndexMetadata.getAliases().keySet());
                 Index index = new IndexImpl(this, name, parentAliases, null, esIndexMetadata.isHidden(),
                         esIndexMetadata.isSystem(), esIndexMetadata.getState(), Component.NONE);
                 indices.add(index);
