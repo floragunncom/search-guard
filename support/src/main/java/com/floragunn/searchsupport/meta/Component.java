@@ -9,29 +9,7 @@ import java.util.Optional;
 
 public enum Component {
 
-    NONE("") {
-        @Override
-        public Optional<Meta.IndexLikeObject> extractWriteTargetForDataStreamAlias
-                (ProjectMetadata project,
-                DataStreamAlias dataStreamAlias,
-                ImmutableMap.Builder<String, Meta.IndexLikeObject> nameMap) {
-            return Optional.ofNullable(dataStreamAlias.getWriteDataStream())
-                    .map(this::indexLikeNameWithComponentSuffix)
-                    .map(nameMap::get);
-        }
-    }, FAILURES("failures") {
-        @Override
-        public Optional<Meta.IndexLikeObject> extractWriteTargetForDataStreamAlias(
-                ProjectMetadata project,
-                DataStreamAlias dataStreamAlias,
-                ImmutableMap.Builder<String, Meta.IndexLikeObject> nameMap) {
-            Index writeFailureIndex = project.getIndicesLookup().get(dataStreamAlias.getAlias()).getWriteFailureIndex(project);
-            return Optional.ofNullable(writeFailureIndex)
-                    .map(Index::getName)
-                    .map(this::indexLikeNameWithComponentSuffix)
-                    .map(nameMap::get);
-        }
-    };
+    NONE("") , FAILURES("failures");
 
     public static final String COMPONENT_SEPARATOR = "::";
 
@@ -42,6 +20,7 @@ public enum Component {
     }
 
     public String indexLikeNameWithComponentSuffix(String indexLikeName) {
+        // TODO CS: this method should be removed
         if (this.componentSuffix.isEmpty()) {
             return indexLikeName;
         } else {
@@ -51,7 +30,4 @@ public enum Component {
             return indexLikeName.concat(COMPONENT_SEPARATOR).concat(componentSuffix);
         }
     }
-
-    public abstract Optional<Meta.IndexLikeObject> extractWriteTargetForDataStreamAlias(ProjectMetadata project, DataStreamAlias dataStreamAlias,
-            ImmutableMap.Builder<String, Meta.IndexLikeObject> nameMap);
 }
