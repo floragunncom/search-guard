@@ -95,7 +95,6 @@ public interface Meta extends Document<Meta> {
 
     interface IndexLikeObject extends Document<IndexLikeObject> {
         String name();
-        String nameWithComponent();
 
         ImmutableSet<IndexOrNonExistent> resolveDeep(Alias.ResolutionMode resolutionMode);
 
