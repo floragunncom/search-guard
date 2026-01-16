@@ -135,7 +135,7 @@ public abstract class MetaImpl implements Meta {
 
     }
 
-    public static class AliasImpl extends AbstractIndexCollection<AliasImpl> implements Meta.Alias {
+    public static class AliasImpl extends AbstractIndexCollection<AliasImpl, IndexLikeObject> implements Meta.Alias {
         private final IndexLikeObject writeTarget;
         private final ImmutableSet<IndexLikeObject> writeTargetAsSet;
 
@@ -239,28 +239,16 @@ public abstract class MetaImpl implements Meta {
         }
     }
 
-    public static class DataStreamImpl extends AbstractIndexCollection<DataStreamImpl> implements Meta.DataStream {
-        private final UnmodifiableCollection<Index> dataMember;
-        private final UnmodifiableCollection<Index> failureMember;
+    public static class DataStreamImpl extends AbstractIndexCollection<DataStreamImpl, Index> implements Meta.DataStream {
+        private final ImmutableSet<Index> dataMember;
+        private final ImmutableSet<Index> failureMember;
+
         public DataStreamImpl(DefaultMetaImpl root, String name, Collection<String> parentAliasNames,
-                UnmodifiableCollection<Index> dataMember, UnmodifiableCollection<Index> failureMember,
+                ImmutableSet<Index> dataMember, ImmutableSet<Index> failureMember,
                 boolean hidden) {
-            super(root, name, parentAliasNames, null, mergeMembers(dataMember, failureMember), hidden, determineComponent(dataMember, failureMember));
+            super(root, name, parentAliasNames, null, dataMember.with(failureMember), hidden, determineComponent(dataMember, failureMember));
             this.dataMember = dataMember;
             this.failureMember = failureMember;
-        }
-
-        private static UnmodifiableCollection<IndexLikeObject> mergeMembers(UnmodifiableCollection<Index> dataMember,
-                UnmodifiableCollection<Index> failureMember) {
-            // TODO CS change return type to Index, this requires adding type parameter to AbstractIndexCollection
-            ImmutableList.Builder<IndexLikeObject> allMembers = new ImmutableList.Builder<>(dataMember.size() + failureMember.size());
-            for (Index index: dataMember) {
-                allMembers.add(index);
-            }
-            for (Index index: failureMember) {
-                allMembers.add(index);
-            }
-            return allMembers.build();
         }
 
         private static Component determineComponent(UnmodifiableCollection<Index> dataMember, UnmodifiableCollection<Index> failureMember) {
@@ -453,19 +441,19 @@ public abstract class MetaImpl implements Meta {
     }
 
     // TODO CS: introduce type parameter for memebers
-    static abstract class AbstractIndexCollection<T> extends AbstractIndexLike<T> implements IndexCollection {
-        private final UnmodifiableCollection<IndexLikeObject> members;
+    static abstract class AbstractIndexCollection<T, Member extends IndexLikeObject> extends AbstractIndexLike<T> implements IndexCollection<Member> {
+        private final UnmodifiableCollection<Member> members;
         private ImmutableSet<Meta.Index> cachedResolveDeepAsIndex;
         private ImmutableSet<Meta.Index> cachedResolveDeepAsIndexWrite;
 
         public AbstractIndexCollection(DefaultMetaImpl root, String name, Collection<String> parentAliasNames, String parentDataStreamName,
-                UnmodifiableCollection<IndexLikeObject> members, boolean hidden, Component component) {
+                UnmodifiableCollection<Member> members, boolean hidden, Component component) {
             super(root, name, parentAliasNames, parentDataStreamName, hidden, component);
             this.members = members;
         }
 
         @Override
-        public UnmodifiableCollection<IndexLikeObject> members() {
+        public UnmodifiableCollection<Member> members() {
             return members;
         }
 
@@ -628,7 +616,7 @@ public abstract class MetaImpl implements Meta {
                         .map(ImmutableList.Builder::build)
                         .orElse(ImmutableList.empty());
 
-                Map<Component, ImmutableList.Builder<Index>> membersByComponent = new HashMap<>(2);
+                Map<Component, ImmutableSet.Builder<Index>> membersByComponent = new HashMap<>(2);
 
                 for (Component component : Component.values()) {
                     //get data stream indices based on component type
@@ -636,7 +624,7 @@ public abstract class MetaImpl implements Meta {
                         case NONE -> esDataStream.getIndices();
                         case FAILURES -> esDataStream.getFailureIndices();
                     };
-                    ImmutableList.Builder<Index> memberIndices = new ImmutableList.Builder<>(esDataStreamIndices.size());
+                    ImmutableSet.Builder<Index> memberIndices = new ImmutableSet.Builder<>(esDataStreamIndices.size());
                     membersByComponent.put(component, memberIndices);
                     String dataStreamNameWithComponent = component.indexLikeNameWithComponentSuffix(esDataStream.getName());
 
@@ -915,9 +903,10 @@ public abstract class MetaImpl implements Meta {
                     }
 
                     ImmutableSet<Index> indices = newIndices.build();
+                    UnmodifiableCollection<Index> dataMembers = dataStreamMembersBuilder.build().values();
                     ImmutableSet<DataStream> dataStreams = ImmutableSet
                             .<DataStream>of(DefaultMetaImpl.this.dataStreams.map(i -> ((DataStreamImpl) i).copy()))
-                            .with(new DataStreamImpl(null, dataStreamName, ImmutableSet.empty(), dataStreamMembersBuilder.build().values(), ImmutableList.empty(), false)); //todo add parameter for component?
+                            .with(new DataStreamImpl(null, dataStreamName, ImmutableSet.empty(), ImmutableSet.of(dataMembers), ImmutableSet.empty(), false)); //todo add parameter for component?
 
                     return new DefaultMetaImpl(indices, DefaultMetaImpl.this.aliases, dataStreams, DefaultMetaImpl.this.indicesWithoutParents);
                 }
@@ -1184,7 +1173,7 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        public UnmodifiableCollection<IndexLikeObject> members() {
+        public UnmodifiableCollection<Index> members() {
             return ImmutableList.empty();
         }
 

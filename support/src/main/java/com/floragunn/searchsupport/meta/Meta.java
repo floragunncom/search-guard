@@ -199,8 +199,8 @@ public interface Meta extends Document<Meta> {
         }
     }
 
-    interface IndexCollection extends IndexLikeObject {
-        UnmodifiableCollection<IndexLikeObject> members();
+    interface IndexCollection<T extends IndexLikeObject> extends IndexLikeObject {
+        UnmodifiableCollection<T> members();
 
         ImmutableSet<Index> resolveDeepAsIndex(Alias.ResolutionMode resolutionMode);
 
@@ -224,7 +224,7 @@ public interface Meta extends Document<Meta> {
         }
     }
 
-    interface Alias extends IndexCollection {
+    interface Alias extends IndexCollection<IndexLikeObject> {
         IndexLikeObject writeTarget();
 
         UnmodifiableCollection<IndexLikeObject> resolve(ResolutionMode resolutionMode);
@@ -238,7 +238,7 @@ public interface Meta extends Document<Meta> {
         }
     }
 
-    interface DataStream extends IndexCollection {
+    interface DataStream extends IndexCollection<Index> {
         static DataStream nonExistent(String name) {
             return new MetaImpl.NonExistentDataStreamImpl(name);
         }

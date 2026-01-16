@@ -511,7 +511,7 @@ public class ResolvedIndices {
                                 Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(entry.getKey());
 
                                 if (indexLike instanceof Meta.IndexCollection) {
-                                    for (Meta.IndexLikeObject member : ((Meta.IndexCollection) indexLike).members()) {
+                                    for (Meta.IndexLikeObject member : ((Meta.IndexCollection<Meta.IndexLikeObject>) indexLike).members()) {
                                         if (!excludeNames.contains(member.name())) {
                                             if (member instanceof Meta.Index) {
                                                 if (includeIndices) {
