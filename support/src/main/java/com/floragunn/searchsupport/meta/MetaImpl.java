@@ -607,10 +607,8 @@ public abstract class MetaImpl implements Meta {
                     .defaultValue((k) -> new ImmutableList.Builder<IndexLikeObject>());
             ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, IndexLikeObject> aliasToWriteIndexMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, IndexLikeObject>();
 
-            ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> componentDataStreamAliasToIndicesMap = //
-                    new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>()
-                                    .defaultValue((k2) -> new ArrayList<IndexLikeObject>());
-
+            ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> dataStreamAliasToIndicesMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>()
+                    .defaultValue((k) -> new ArrayList<IndexLikeObject>());
             ImmutableSet.Builder<Alias> aliases = new ImmutableSet.Builder<>(64);
             ImmutableSet.Builder<DataStream> datastreams = new ImmutableSet.Builder<>(project.dataStreams().size());
             this.esMetadata = esMetadata;
@@ -654,7 +652,7 @@ public abstract class MetaImpl implements Meta {
                 }
                 DataStream dataStream = new DataStreamImpl(this, esDataStream.getName(), parentAliasNames, membersByComponent.get(Component.NONE).build(), membersByComponent.get(Component.FAILURES).build(), esDataStream.isHidden());  //TODO the CS : two data streams are created here for each component. One should be created instead
                 for (String parentAlias : parentAliasNames) {
-                    componentDataStreamAliasToIndicesMap.get(dataStreamsAliases.get(parentAlias)).add(dataStream);
+                    dataStreamAliasToIndicesMap.get(dataStreamsAliases.get(parentAlias)).add(dataStream);
                 }
                 datastreams.add(dataStream);
                 nameMap.put(dataStream.name(), dataStream);
@@ -691,26 +689,27 @@ public abstract class MetaImpl implements Meta {
             for (Map.Entry<org.elasticsearch.cluster.metadata.AliasMetadata, ImmutableList.Builder<IndexLikeObject>> entry : aliasToIndicesMap.build()
                     .entrySet()) {
                 org.elasticsearch.cluster.metadata.DataStreamAlias dataStreamAlias = dataStreamsAliases.get(entry.getKey().alias());
-                List<IndexLikeObject> dataStreams = dataStreamAlias != null && componentDataStreamAliasToIndicesMap.contains(dataStreamAlias)
-                        ? componentDataStreamAliasToIndicesMap.get(dataStreamAlias)
+                List<IndexLikeObject> dataStreams = dataStreamAlias != null && dataStreamAliasToIndicesMap.contains(dataStreamAlias)
+                        ? dataStreamAliasToIndicesMap.get(dataStreamAlias)
                         : ImmutableList.empty();
+
                 ImmutableList<IndexLikeObject> members = entry.getValue().build().with(dataStreams);
+
                 IndexLikeObject writeTarget = aliasToWriteIndexMap.get(entry.getKey());
-                if (writeTarget == null && members.size() == 1 ) {
-                    // TODO CS do we need to check that the only member is related to data component?
+                if (writeTarget == null && members.size() == 1) {
                     // By ES semantics, if an alias has only one member, this automatically becomes the write index
                     writeTarget = members.only();
                 }
+
                 Alias alias = new AliasImpl(this, entry.getKey().alias(), members,
                         entry.getKey().isHidden() != null ? entry.getKey().isHidden() : false, writeTarget);
                 aliases.add(alias);
                 nameMap.put(alias.name(), alias);
             }
 
-            for (Map.Entry<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> entry : componentDataStreamAliasToIndicesMap.build()
+            for (Map.Entry<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> entry : dataStreamAliasToIndicesMap.build()
                     .entrySet()) {
                 if (nameMap.contains(entry.getKey().getName())) {
-                    //todo it should not happen since alias cannot point to indices and data streams as mentioned in the TODO above
                     // Already created above
                     continue;
                 }
@@ -718,8 +717,10 @@ public abstract class MetaImpl implements Meta {
                 // TODO CS: aliases can have two write targets:
                 // - for data component
                 // - for failure store
-                Optional<IndexLikeObject> writeTarget = Component.NONE.extractWriteTargetForDataStreamAlias(project, entry.getKey(), nameMap);
-                Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false, writeTarget.orElse(null));
+                // not sure if we need this at the moment
+                IndexLikeObject writeTarget = entry.getKey().getWriteDataStream() != null ? nameMap.get(entry.getKey().getWriteDataStream()) : null;
+
+                Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false, writeTarget);
                 aliases.add(alias);
                 nameMap.put(alias.name(), alias);
             }
