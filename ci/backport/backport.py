@@ -47,9 +47,7 @@ class GitlabBackport:
             self.gitlab_connection.enable_debug()
         print("CWD:", os.getcwd())    
         self.repository = Repo(self.repo_path)
-        self.repository.git.execute(
-             ["git", "-C", self.repo_path, "config", "user.email", "ci-bot@eliatra.com"]     
-        )
+        self.repository.git.config("user.email", "ci-bot@eliatra.com")
         self.repository.git.config("user.name", "GitLab CI Bot")
         # self.repository.remotes.origin.set_url(self.repository.remotes.origin.url.replace("https://oauth2:.*@", "https://")) # extra cleaning
         original_url = self.repository.remotes.origin.url
