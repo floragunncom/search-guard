@@ -14,9 +14,12 @@ backport_automation:
         echo "ERROR: GITLAB_TOKEN is not set!"
         exit 1
       fi
-  script:
-    - pip install -r ci/backport/requirements.txt
-    - python ci/backport/backport.py 
+  script: 
+    - |
+      pip install -r ci/backport/requirements.txt
+      git config --global --add safe.directory '*'
+      python ci/backport/backport.py 
+
 
 
 
