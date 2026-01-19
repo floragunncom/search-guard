@@ -21,14 +21,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -78,7 +76,7 @@ public abstract class MetaImpl implements Meta {
             // TODO CS: do we need support for parent component selector here? Probably not
             return new IndexImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(alias), parentDataStreamName(), isHidden(), system,
                     this.open ? org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN
-                            : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE, component());
+                            : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE, components().toArray(Component[]::new)[0]); // index should have only one component assigned
         }
 
         @Override
@@ -106,7 +104,7 @@ public abstract class MetaImpl implements Meta {
         protected IndexImpl copy() {
             return new IndexImpl(null, name(), parentAliasNames(), parentDataStreamName(), isHidden(), system,
                     open ? org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN
-                            : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE, component());
+                            : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE, components().toArray(Component[]::new)[0]);
         }
 
         @Override
@@ -149,7 +147,7 @@ public abstract class MetaImpl implements Meta {
 
         private static Component determineAliasComponent( UnmodifiableCollection<IndexLikeObject> members) {
             boolean failureStoreEnabled = members.stream() //
-                    .anyMatch(indexLike -> Component.FAILURES.equals(indexLike.component()));
+                    .anyMatch(indexLike -> Component.FAILURES.equals(indexLike.components()));
             return failureStoreEnabled ? Component.FAILURES : Component.NONE;
         }
 
@@ -299,7 +297,7 @@ public abstract class MetaImpl implements Meta {
         private final Collection<String> parentAliasNames;
         private final String parentDataStreamName;
         private final boolean hidden;
-        private final Component component;
+        private final ImmutableSet<Component> components;
         private DefaultMetaImpl root;
         private ImmutableSet<Meta.IndexOrNonExistent> cachedResolveDeep;
         private ImmutableSet<Meta.IndexOrNonExistent> cachedResolveDeepWrite;
@@ -308,13 +306,13 @@ public abstract class MetaImpl implements Meta {
         private ImmutableSet<Meta.Alias> cachedParentAliases;
 
         public AbstractIndexLike(DefaultMetaImpl root, String name, Collection<String> parentAliasNames, String parentDataStreamName,
-                boolean hidden, Component component) {
+                boolean hidden, Component... components) {
             this.name = Objects.requireNonNull(name);
             this.parentAliasNames = parentAliasNames != null ? parentAliasNames : ImmutableSet.empty();
             this.parentDataStreamName = parentDataStreamName;
             this.hidden = hidden;
             this.root = root;
-            this.component = component;
+            this.components = ImmutableSet.ofArray(components);
         }
 
         @Override
@@ -363,8 +361,8 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        public Component component() {
-            return this.component;
+        public ImmutableSet<Component> components() {
+            return this.components;
         }
 
         @Override
@@ -1045,8 +1043,8 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        public Component component() {
-            return Component.NONE;
+        public ImmutableSet<Component> components() {
+            return ImmutableSet.of(Component.NONE);
         }
 
         @Override
