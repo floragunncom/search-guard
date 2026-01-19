@@ -224,7 +224,7 @@ public abstract class MetaImpl implements Meta {
                             .flatMap(indexLike -> {
                         if (indexLike instanceof Meta.Index index) {
                             return Stream.of(index);
-                        } else if (indexLike instanceof Meta.DataStream dataStream ) {
+                        } else if (indexLike instanceof Meta.DataStream dataStream) {
                             return dataStream.resolveDeepAsIndex(resolutionMode).stream();
                         } else {
                             // This probably will never be executed. Alias can point to indices or data streams
@@ -238,19 +238,20 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected ImmutableSet<String> resolveDeepToNamesImpl(Alias.ResolutionMode resolutionMode) {
-            // TODO CS: add support for component selectors
             if (resolutionMode == Alias.ResolutionMode.TO_WRITE_TARGET) {
-                if (writeTargetData == null) {
-                    return ImmutableSet.empty();
-                } else if (writeTargetData instanceof Meta.Index) {
-                    return ImmutableSet.of(writeTargetData.name());
-                } else if (writeTargetData instanceof Meta.DataStream) {
-                    return writeTargetData.resolveDeepToNames(resolutionMode);
-                } else {
-                    return super.resolveDeepToNamesImpl(resolutionMode);
-                }
+                return resolve(resolutionMode).stream() //
+                        .flatMap(indexLike -> {
+                            if (indexLike instanceof Meta.Index index) {
+                                return Stream.of(index.name());
+                            } else if (indexLike instanceof Meta.DataStream dataStream) {
+                                return dataStream.resolveDeepToNames(resolutionMode).stream();
+                            } else {
+                                // This probably will never be executed. Alias can point to indices or data streams
+                                return super.resolveDeepToNames(resolutionMode).stream();
+                            }
+                        }).collect(ImmutableSet.collector());
             } else {
-                return super.resolveDeepToNamesImpl(resolutionMode);
+                return super.resolveDeepToNames(resolutionMode);
             }
         }
     }
