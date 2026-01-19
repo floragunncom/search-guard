@@ -38,6 +38,7 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.fluent.collections.UnmodifiableCollection;
 
+import org.elasticsearch.cluster.metadata.DataStreamAlias;
 import org.elasticsearch.cluster.metadata.DataStreamLifecycle;
 import org.elasticsearch.cluster.metadata.DataStreamOptions;
 import org.elasticsearch.cluster.metadata.ProjectMetadata;
@@ -136,14 +137,16 @@ public abstract class MetaImpl implements Meta {
     }
 
     public static class AliasImpl extends AbstractIndexCollection<AliasImpl, IndexLikeObject> implements Meta.Alias {
-        private final IndexLikeObject writeTarget;
+        private final IndexLikeObject writeTargetData;
+        private final IndexLikeObject writeTargetFailures;
         private final ImmutableSet<IndexLikeObject> writeTargetAsSet;
 
         public AliasImpl(DefaultMetaImpl root, String name, UnmodifiableCollection<IndexLikeObject> members, boolean hidden,
-                IndexLikeObject writeTarget) {
+                IndexLikeObject writeTargetData, IndexLikeObject writeTargetFailures) {
             super(root, name, ImmutableSet.empty(), null, members, hidden, determineAliasComponent(members));
-            this.writeTarget = writeTarget;
-            this.writeTargetAsSet = writeTarget != null ? ImmutableSet.of(writeTarget) : ImmutableSet.empty();
+            this.writeTargetData = writeTargetData;
+            this.writeTargetAsSet = writeTargetData != null ? ImmutableSet.of(writeTargetData) : ImmutableSet.empty();
+            this.writeTargetFailures = writeTargetFailures;
         }
 
         private static Component[] determineAliasComponent(UnmodifiableCollection<IndexLikeObject> members) {
@@ -171,7 +174,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected AliasImpl copy() {
-            return new AliasImpl(null, name(), members(), isHidden(), writeTarget);
+            return new AliasImpl(null, name(), members(), isHidden(), writeTargetData, writeTargetFailures);
         }
 
         @Override
@@ -190,12 +193,16 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        public IndexLikeObject writeTarget() {
-            return writeTarget;
+        public IndexLikeObject writeTarget(Component component) {
+            return switch (component) {
+                case NONE ->  writeTargetData;
+                case FAILURES -> writeTargetFailures;
+            };
         }
 
         @Override
         public UnmodifiableCollection<IndexLikeObject> resolve(ResolutionMode resolutionMode) {
+            // TODO CS: add support for component selectors
             if (resolutionMode == ResolutionMode.TO_WRITE_TARGET) {
                 return writeTargetAsSet;
             } else {
@@ -205,15 +212,16 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public ImmutableSet<Meta.Index> resolveDeepAsIndex(Alias.ResolutionMode resolutionMode) {
+            // TODO CS: add support for component selectors
             if (resolutionMode == Alias.ResolutionMode.TO_WRITE_TARGET) {
-                if (writeTarget == null) {
+                if (writeTargetData == null) {
                     return ImmutableSet.empty();
-                } else if (writeTarget instanceof Meta.Index) {
+                } else if (writeTargetData instanceof Meta.Index) {
                     @SuppressWarnings({ "unchecked", "rawtypes" }) // TODO
                     ImmutableSet<Index> result = (ImmutableSet<Index>) (ImmutableSet) writeTargetAsSet;
                     return result;
-                } else if (writeTarget instanceof Meta.DataStream) {
-                    return ((Meta.DataStream) writeTarget).resolveDeepAsIndex(resolutionMode);
+                } else if (writeTargetData instanceof Meta.DataStream) {
+                    return ((Meta.DataStream) writeTargetData).resolveDeepAsIndex(resolutionMode);
                 } else {
                     return super.resolveDeepAsIndex(resolutionMode);
                 }
@@ -224,13 +232,14 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected ImmutableSet<String> resolveDeepToNamesImpl(Alias.ResolutionMode resolutionMode) {
+            // TODO CS: add support for component selectors
             if (resolutionMode == Alias.ResolutionMode.TO_WRITE_TARGET) {
-                if (writeTarget == null) {
+                if (writeTargetData == null) {
                     return ImmutableSet.empty();
-                } else if (writeTarget instanceof Meta.Index) {
-                    return ImmutableSet.of(writeTarget.name());
-                } else if (writeTarget instanceof Meta.DataStream) {
-                    return writeTarget.resolveDeepToNames(resolutionMode);
+                } else if (writeTargetData instanceof Meta.Index) {
+                    return ImmutableSet.of(writeTargetData.name());
+                } else if (writeTargetData instanceof Meta.DataStream) {
+                    return writeTargetData.resolveDeepToNames(resolutionMode);
                 } else {
                     return super.resolveDeepToNamesImpl(resolutionMode);
                 }
@@ -688,7 +697,7 @@ public abstract class MetaImpl implements Meta {
                 }
 
                 Alias alias = new AliasImpl(this, entry.getKey().alias(), members,
-                        entry.getKey().isHidden() != null ? entry.getKey().isHidden() : false, writeTarget);
+                        entry.getKey().isHidden() != null ? entry.getKey().isHidden() : false, writeTarget, null);
                 aliases.add(alias);
                 nameMap.put(alias.name(), alias);
             }
@@ -700,13 +709,12 @@ public abstract class MetaImpl implements Meta {
                     continue;
                 }
 
-                // TODO CS: aliases can have two write targets:
-                // - for data component
-                // - for failure store
-                // not sure if we need this at the moment
-                IndexLikeObject writeTarget = entry.getKey().getWriteDataStream() != null ? nameMap.get(entry.getKey().getWriteDataStream()) : null;
+                // write targets
+                String writeTargetName = entry.getKey().getWriteDataStream();
+                IndexLikeObject writeTargetData = writeTargetName != null ? nameMap.get(writeTargetName) : null;
+                IndexLikeObject writeTargetFailure = extractWriteTargetForDataStreamAlias(project, entry.getKey(), nameMap).orElse(null);
 
-                Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false, writeTarget);
+                Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false, writeTargetData, writeTargetFailure);
                 aliases.add(alias);
                 nameMap.put(alias.name(), alias);
             }
@@ -725,6 +733,17 @@ public abstract class MetaImpl implements Meta {
             this.nonHiddenDataStreams = this.dataStreams.matching(e -> !e.isHidden());
             this.nameMap = nameMap.build();
         }
+
+        public static Optional<Meta.IndexLikeObject> extractWriteTargetForDataStreamAlias(
+                ProjectMetadata project,
+                DataStreamAlias dataStreamAlias,
+                ImmutableMap.Builder<String, Meta.IndexLikeObject> nameMap) {
+            return Optional.ofNullable(project.getIndicesLookup().get(dataStreamAlias.getAlias())) //
+                    .map(esAlias -> esAlias.getWriteFailureIndex(project)) //
+                    .map(org.elasticsearch.index.Index::getName) //
+                    .map(nameMap::get);
+        }
+
 
         @Override
         public IndexLikeObject getIndexOrLike(String name) {
@@ -864,7 +883,7 @@ public abstract class MetaImpl implements Meta {
                     }
 
                     ImmutableSet<Alias> aliases = ImmutableSet.<Alias>of(DefaultMetaImpl.this.aliases.map(i -> ((AliasImpl) i).copy()))
-                            .with(new AliasImpl(null, aliasName, members, false, writeTarget)); //todo add parameter for component?
+                            .with(new AliasImpl(null, aliasName, members, false, writeTarget, null));
 
                     return new DefaultMetaImpl(newIndices.build(), aliases, newDataStreams.build(), DefaultMetaImpl.this.indicesWithoutParents);
                 }
@@ -973,7 +992,7 @@ public abstract class MetaImpl implements Meta {
             ImmutableSet<String> aliasSet = ImmutableSet.of(name);
             ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames), (k) -> new IndexImpl(null, k, aliasSet, null, Component.NONE));
             ImmutableSet<Alias> aliases = ImmutableSet
-                    .of(new AliasImpl(null, name, ImmutableSet.<IndexLikeObject>of(indices), false, indices.size() == 1 ? indices.only() : null)); //todo add parameter for component?
+                    .of(new AliasImpl(null, name, ImmutableSet.<IndexLikeObject>of(indices), false, indices.size() == 1 ? indices.only() : null, null));
 
             return new DefaultMetaImpl(indices, aliases, ImmutableSet.empty(), ImmutableSet.empty());
         }
@@ -990,7 +1009,7 @@ public abstract class MetaImpl implements Meta {
         public Meta of(String... indexNames) {
             ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames), k -> new IndexImpl(null, k, null, name, Component.NONE));
             ImmutableSet<DataStream> dataStreams = ImmutableSet
-                    .of(new DataStreamImpl(null, name, ImmutableSet.empty(), ImmutableSet.of(indices), ImmutableSet.empty(), false)); //todo add parameter for component?
+                    .of(new DataStreamImpl(null, name, ImmutableSet.empty(), ImmutableSet.of(indices), ImmutableSet.empty(), false));
 
             return new DefaultMetaImpl(indices, ImmutableSet.empty(), dataStreams, ImmutableSet.empty());
         }
@@ -1144,7 +1163,7 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        public IndexLikeObject writeTarget() {
+        public IndexLikeObject writeTarget(Component component) {
             return null;
         }
 

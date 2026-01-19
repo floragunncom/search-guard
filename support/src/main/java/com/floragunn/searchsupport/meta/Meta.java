@@ -231,7 +231,7 @@ public interface Meta extends Document<Meta> {
     }
 
     interface Alias extends IndexCollection<IndexLikeObject> {
-        IndexLikeObject writeTarget();
+        IndexLikeObject writeTarget(Component component);
 
         UnmodifiableCollection<IndexLikeObject> resolve(ResolutionMode resolutionMode);
 
