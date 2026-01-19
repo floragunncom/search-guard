@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -218,19 +219,18 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public ImmutableSet<Meta.Index> resolveDeepAsIndex(Alias.ResolutionMode resolutionMode) {
-            // TODO CS: add support for component selectors
             if (resolutionMode == Alias.ResolutionMode.TO_WRITE_TARGET) {
-                if (writeTargetData == null) {
-                    return ImmutableSet.empty();
-                } else if (writeTargetData instanceof Meta.Index) {
-                    @SuppressWarnings({ "unchecked", "rawtypes" }) // TODO
-                    ImmutableSet<Index> result = (ImmutableSet<Index>) (ImmutableSet) writeTargetAsSet;
-                    return result;
-                } else if (writeTargetData instanceof Meta.DataStream) {
-                    return ((Meta.DataStream) writeTargetData).resolveDeepAsIndex(resolutionMode);
-                } else {
-                    return super.resolveDeepAsIndex(resolutionMode);
-                }
+                    return resolve(resolutionMode).stream() //
+                            .flatMap(indexLike -> {
+                        if (indexLike instanceof Meta.Index index) {
+                            return Stream.of(index);
+                        } else if (indexLike instanceof Meta.DataStream dataStream ) {
+                            return dataStream.resolveDeepAsIndex(resolutionMode).stream();
+                        } else {
+                            // This probably will never be executed. Alias can point to indices or data streams
+                            return super.resolveDeepAsIndex(resolutionMode).stream();
+                        }
+                    }).collect(ImmutableSet.collector());
             } else {
                 return super.resolveDeepAsIndex(resolutionMode);
             }
