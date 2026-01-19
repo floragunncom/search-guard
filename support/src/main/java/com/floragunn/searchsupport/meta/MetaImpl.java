@@ -202,9 +202,15 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public UnmodifiableCollection<IndexLikeObject> resolve(ResolutionMode resolutionMode) {
-            // TODO CS: add support for component selectors
             if (resolutionMode == ResolutionMode.TO_WRITE_TARGET) {
-                return writeTargetAsSet;
+                ImmutableSet.Builder<IndexLikeObject> resultBuilder = new ImmutableSet.Builder<>();
+                for(Component component : components()) {
+                    IndexLikeObject target = writeTarget(component);
+                    if (target != null) {
+                        resultBuilder.add(target);
+                    }
+                }
+                return resultBuilder.build();
             } else {
                 return members();
             }
