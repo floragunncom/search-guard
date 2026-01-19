@@ -144,21 +144,12 @@ public abstract class MetaImpl implements Meta {
     public static class AliasImpl extends AbstractIndexCollection<AliasImpl, IndexLikeObject> implements Meta.Alias {
         private final IndexLikeObject writeTargetData;
         private final IndexLikeObject writeTargetFailures;
-        private final ImmutableSet<IndexLikeObject> writeTargetAsSet;
 
         public AliasImpl(DefaultMetaImpl root, String name, UnmodifiableCollection<IndexLikeObject> members, boolean hidden,
                 IndexLikeObject writeTargetData, IndexLikeObject writeTargetFailures) {
-            super(root, name, ImmutableSet.empty(), null, members, hidden, determineAliasComponent(members));
+            super(root, name, ImmutableSet.empty(), null, members, hidden, Component.NONE, Component.FAILURES);
             this.writeTargetData = writeTargetData;
-            this.writeTargetAsSet = writeTargetData != null ? ImmutableSet.of(writeTargetData) : ImmutableSet.empty();
             this.writeTargetFailures = writeTargetFailures;
-        }
-
-        private static Component[] determineAliasComponent(UnmodifiableCollection<IndexLikeObject> members) {
-            return members.stream()
-                    .flatMap(indexLike -> indexLike.components().stream()) //
-                    .collect(Collectors.toSet()) //
-                    .toArray(Component[]::new);
         }
 
         @Override
@@ -267,17 +258,9 @@ public abstract class MetaImpl implements Meta {
         public DataStreamImpl(DefaultMetaImpl root, String name, Collection<String> parentAliasNames,
                 ImmutableSet<Index> dataMember, ImmutableSet<Index> failureMember,
                 boolean hidden) {
-            super(root, name, parentAliasNames, null, dataMember.with(failureMember), hidden, determineComponent(failureMember));
+            super(root, name, parentAliasNames, null, dataMember.with(failureMember), hidden, Component.NONE, Component.FAILURES);
             this.dataMember = dataMember;
             this.failureMember = failureMember;
-        }
-
-        private static Component[] determineComponent(UnmodifiableCollection<Index> failureMember) {
-            ImmutableSet<Component> components = ImmutableSet.of(Component.NONE);
-            if(failureMember.isEmpty()) {
-                return components.toArray(Component[]::new);
-            }
-            return components.with(Component.FAILURES).toArray(Component[]::new);
         }
 
         @Override
