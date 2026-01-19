@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -145,10 +146,11 @@ public abstract class MetaImpl implements Meta {
             this.writeTargetAsSet = writeTarget != null ? ImmutableSet.of(writeTarget) : ImmutableSet.empty();
         }
 
-        private static Component determineAliasComponent( UnmodifiableCollection<IndexLikeObject> members) {
-            boolean failureStoreEnabled = members.stream() //
-                    .anyMatch(indexLike -> Component.FAILURES.equals(indexLike.components()));
-            return failureStoreEnabled ? Component.FAILURES : Component.NONE;
+        private static Component[] determineAliasComponent(UnmodifiableCollection<IndexLikeObject> members) {
+            return members.stream()
+                    .flatMap(indexLike -> indexLike.components().stream()) //
+                    .collect(Collectors.toSet()) //
+                    .toArray(Component[]::new);
         }
 
         @Override
@@ -245,18 +247,17 @@ public abstract class MetaImpl implements Meta {
         public DataStreamImpl(DefaultMetaImpl root, String name, Collection<String> parentAliasNames,
                 ImmutableSet<Index> dataMember, ImmutableSet<Index> failureMember,
                 boolean hidden) {
-            super(root, name, parentAliasNames, null, dataMember.with(failureMember), hidden, determineComponent(dataMember, failureMember));
+            super(root, name, parentAliasNames, null, dataMember.with(failureMember), hidden, determineComponent(failureMember));
             this.dataMember = dataMember;
             this.failureMember = failureMember;
         }
 
-        private static Component determineComponent(UnmodifiableCollection<Index> dataMember, UnmodifiableCollection<Index> failureMember) {
-            if (failureMember.isEmpty()) {
-                return Component.NONE;
-            } else {
-                //TODO CS here we should return component Both
-                return Component.FAILURES;
+        private static Component[] determineComponent(UnmodifiableCollection<Index> failureMember) {
+            ImmutableSet<Component> components = ImmutableSet.of(Component.NONE);
+            if(failureMember.isEmpty()) {
+                return components.toArray(Component[]::new);
             }
+            return components.with(Component.FAILURES).toArray(Component[]::new);
         }
 
         @Override
@@ -446,7 +447,7 @@ public abstract class MetaImpl implements Meta {
         private ImmutableSet<Meta.Index> cachedResolveDeepAsIndexWrite;
 
         public AbstractIndexCollection(DefaultMetaImpl root, String name, Collection<String> parentAliasNames, String parentDataStreamName,
-                UnmodifiableCollection<Member> members, boolean hidden, Component component) {
+                UnmodifiableCollection<Member> members, boolean hidden, Component... component) {
             super(root, name, parentAliasNames, parentDataStreamName, hidden, component);
             this.members = members;
         }
