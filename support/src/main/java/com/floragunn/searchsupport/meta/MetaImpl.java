@@ -247,11 +247,11 @@ public abstract class MetaImpl implements Meta {
                                 return dataStream.resolveDeepToNames(resolutionMode).stream();
                             } else {
                                 // This probably will never be executed. Alias can point to indices or data streams
-                                return super.resolveDeepToNames(resolutionMode).stream();
+                                return super.resolveDeepToNamesImpl(resolutionMode).stream();
                             }
                         }).collect(ImmutableSet.collector());
             } else {
-                return super.resolveDeepToNames(resolutionMode);
+                return super.resolveDeepToNamesImpl(resolutionMode);
             }
         }
     }
