@@ -443,7 +443,6 @@ public abstract class MetaImpl implements Meta {
 
     }
 
-    // TODO CS: introduce type parameter for memebers
     static abstract class AbstractIndexCollection<T, Member extends IndexLikeObject> extends AbstractIndexLike<T> implements IndexCollection<Member> {
         private final UnmodifiableCollection<Member> members;
         private ImmutableSet<Meta.Index> cachedResolveDeepAsIndex;
@@ -589,7 +588,7 @@ public abstract class MetaImpl implements Meta {
             this.esMetadata = esMetadataBuilder.build();
         }
 
-        public DefaultMetaImpl(org.elasticsearch.cluster.metadata.Metadata esMetadata) { // TODO CS building meta
+        public DefaultMetaImpl(org.elasticsearch.cluster.metadata.Metadata esMetadata) {
             ProjectMetadata project = esMetadata.getProject();
             ImmutableSet.Builder<Index> indices = new ImmutableSet.Builder<>(project.indices().size());
             ImmutableMap.Builder<String, Meta.IndexLikeObject> nameMap = new ImmutableMap.Builder<>(project.indices().size());
