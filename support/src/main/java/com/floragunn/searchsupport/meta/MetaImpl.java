@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.google.common.base.Preconditions;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -76,10 +77,13 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected AbstractIndexLike<IndexImpl> withAlias(String alias) {
-            // TODO CS: do we need support for parent component selector here? Probably not
             return new IndexImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(alias), parentDataStreamName(), isHidden(), system,
                     this.open ? org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN
-                            : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE, components().toArray(Component[]::new)[0]); // index should have only one component assigned
+                            : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE, singleComponent()); // index should have exactly one component assigned
+        }
+
+        private Component singleComponent() {
+            return components().iterator().next();
         }
 
         @Override
@@ -107,7 +111,7 @@ public abstract class MetaImpl implements Meta {
         protected IndexImpl copy() {
             return new IndexImpl(null, name(), parentAliasNames(), parentDataStreamName(), isHidden(), system,
                     open ? org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN
-                            : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE, components().toArray(Component[]::new)[0]);
+                            : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE, singleComponent());
         }
 
         @Override
@@ -278,7 +282,6 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected AbstractIndexLike<DataStreamImpl> withAlias(String alias) {
-            // TODO: CS do we need information about component selector in parent alias? Probably we don't
             return new DataStreamImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(alias), dataMember, failureMember, isHidden());
         }
 
@@ -329,6 +332,7 @@ public abstract class MetaImpl implements Meta {
             this.parentDataStreamName = parentDataStreamName;
             this.hidden = hidden;
             this.root = root;
+            Preconditions.checkArgument(components.length > 0, "components must not be empty");
             this.components = ImmutableSet.ofArray(components);
         }
 
@@ -653,7 +657,7 @@ public abstract class MetaImpl implements Meta {
                         memberIndices.add(index);
                     }
                 }
-                DataStream dataStream = new DataStreamImpl(this, esDataStream.getName(), parentAliasNames, membersByComponent.get(Component.NONE).build(), membersByComponent.get(Component.FAILURES).build(), esDataStream.isHidden());  //TODO the CS : two data streams are created here for each component. One should be created instead
+                DataStream dataStream = new DataStreamImpl(this, esDataStream.getName(), parentAliasNames, membersByComponent.get(Component.NONE).build(), membersByComponent.get(Component.FAILURES).build(), esDataStream.isHidden());
                 for (String parentAlias : parentAliasNames) {
                     dataStreamAliasToIndicesMap.get(dataStreamsAliases.get(parentAlias)).add(dataStream);
                 }
@@ -930,7 +934,7 @@ public abstract class MetaImpl implements Meta {
                     UnmodifiableCollection<Index> dataMembers = dataStreamMembersBuilder.build().values();
                     ImmutableSet<DataStream> dataStreams = ImmutableSet
                             .<DataStream>of(DefaultMetaImpl.this.dataStreams.map(i -> ((DataStreamImpl) i).copy()))
-                            .with(new DataStreamImpl(null, dataStreamName, ImmutableSet.empty(), ImmutableSet.of(dataMembers), ImmutableSet.empty(), false)); //todo add parameter for component?
+                            .with(new DataStreamImpl(null, dataStreamName, ImmutableSet.empty(), ImmutableSet.of(dataMembers), ImmutableSet.empty(), false));
 
                     return new DefaultMetaImpl(indices, DefaultMetaImpl.this.aliases, dataStreams, DefaultMetaImpl.this.indicesWithoutParents);
                 }
@@ -1079,7 +1083,7 @@ public abstract class MetaImpl implements Meta {
             if (this == other) {
                 return true;
             } else if (other instanceof Meta.IndexLikeObject) {
-                return ((Meta.IndexLikeObject) other).name().equals(this.name()) && !((Meta.IndexLikeObject) other).exists(); //todo name is enough?
+                return ((Meta.IndexLikeObject) other).name().equals(this.name()) && !((Meta.IndexLikeObject) other).exists();
             } else {
                 return false;
             }
@@ -1088,11 +1092,11 @@ public abstract class MetaImpl implements Meta {
         @Override
         public String toString() {
             return this.name();
-        } //todo name is enough?
+        }
 
         @Override
         public Object toBasicObject() {
-            return DocNode.of("name", this.name(), "exists", false); //todo name is enough?
+            return DocNode.of("name", this.name(), "exists", false);
         }
     }
 

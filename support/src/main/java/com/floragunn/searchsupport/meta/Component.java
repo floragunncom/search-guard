@@ -1,33 +1,23 @@
+/*
+ * Copyright 2026 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.floragunn.searchsupport.meta;
-
-import com.floragunn.fluent.collections.ImmutableMap;
-import org.elasticsearch.cluster.metadata.DataStreamAlias;
-import org.elasticsearch.cluster.metadata.ProjectMetadata;
-import org.elasticsearch.index.Index;
-
-import java.util.Optional;
 
 public enum Component {
 
-    NONE("") , FAILURES("failures");
+    NONE, FAILURES;
 
-    public static final String COMPONENT_SEPARATOR = "::";
-
-    private final String componentSuffix;
-
-    Component(String componentSuffix) {
-        this.componentSuffix = componentSuffix;
-    }
-
-    public String indexLikeNameWithComponentSuffix(String indexLikeName) {
-        // TODO CS: this method should be removed?
-        if (this.componentSuffix.isEmpty()) {
-            return indexLikeName;
-        } else {
-            if (indexLikeName.endsWith(COMPONENT_SEPARATOR.concat(componentSuffix))) {
-                return indexLikeName;
-            }
-            return indexLikeName.concat(COMPONENT_SEPARATOR).concat(componentSuffix);
-        }
-    }
 }

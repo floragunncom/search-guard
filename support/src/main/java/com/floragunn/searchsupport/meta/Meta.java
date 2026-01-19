@@ -18,7 +18,6 @@
 package com.floragunn.searchsupport.meta;
 
 import java.util.Collection;
-import java.util.Objects;
 
 import com.floragunn.codova.documents.Document;
 import com.floragunn.fluent.collections.ImmutableMap;
@@ -126,11 +125,6 @@ public interface Meta extends Document<Meta> {
         boolean exists();
 
         ImmutableSet<Component> components();
-
-        default boolean hasComponent(Component component) {
-            Objects.requireNonNull(component, "Component cannot be null");
-            return components().contains(component);
-        }
 
         static ImmutableSet<Index> resolveDeep(ImmutableSet<? extends Meta.IndexLikeObject> objects) {
             return resolveDeep(objects, Alias.ResolutionMode.NORMAL);
