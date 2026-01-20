@@ -16,6 +16,7 @@ backport_automation:
       fi
   script:
     - pip install -r ci/backport/requirements.txt
+    - git config --global --add safe.directory '*'
     - python ci/backport/backport.py 
 
 
