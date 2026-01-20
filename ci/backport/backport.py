@@ -73,7 +73,7 @@ class GitlabBackport:
 
             if not mrs:
                 print(f"Cannot find Merge Request for commit {commit_sha}")
-                sys.exit(1)
+                sys.exit(0)
 
             return mrs[0]["iid"]
 

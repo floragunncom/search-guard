@@ -67,13 +67,14 @@ default:
 
 stages:
   - prepare
+  - post_merge
   - build
   - "Backend Unit Tests"
   - "Backend Int Tests Core"
   - "Aikido Scan"  
   - release
   - "Deploy Docker Image"
-  - post_merge
+
 
 
 include:
@@ -187,3 +188,4 @@ deploy_docker_image:
       
       
   allow_failure: false
+
