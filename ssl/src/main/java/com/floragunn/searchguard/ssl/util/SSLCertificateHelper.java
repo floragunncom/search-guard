@@ -17,28 +17,115 @@
 
 package com.floragunn.searchguard.ssl.util;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.nio.file.Path;
 import java.security.Key;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.CRL;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.env.Environment;
 
 public class SSLCertificateHelper {
 
     private static final Logger log = LogManager.getLogger(SSLCertificateHelper.class);
     private static boolean stripRootFromChain = true; //TODO check
+
+    public static boolean validate(X509Certificate[] x509Certs, final Settings settings, final Path configPath) {
+
+        final boolean validateCrl = settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_VALIDATE, false);
+
+        if(log.isTraceEnabled()) {
+            log.trace("validateCrl: "+validateCrl);
+        }
+
+        if(!validateCrl) {
+            return true;
+        }
+
+        final Environment env = new Environment(settings, configPath);
+
+        try {
+
+            Collection<? extends CRL> crls = null;
+            final String crlFile = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_FILE);
+
+            if(crlFile != null) {
+                final File crl = env.configDir().resolve(crlFile).toAbsolutePath().toFile();
+                try(FileInputStream crlin = new FileInputStream(crl)) {
+                    crls = CertificateFactory.getInstance("X.509").generateCRLs(crlin);
+                }
+
+                if(log.isTraceEnabled()) {
+                    log.trace("crls from file: "+crls.size());
+                }
+            } else {
+                if(log.isTraceEnabled()) {
+                    log.trace("no crl file configured");
+                }
+            }
+
+            final String truststore = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH);
+            CertificateValidator validator = null;
+
+            if(truststore != null) {
+                final String truststoreType = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_TYPE, "JKS");
+                final String truststorePassword = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_PASSWORD, "changeit");
+                //final String truststoreAlias = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_ALIAS, null);
+
+                final KeyStore ts = KeyStore.getInstance(truststoreType);
+                try(FileInputStream fin = new FileInputStream(new File(env.configDir().resolve(truststore).toAbsolutePath().toString()))) {
+                    ts.load(fin, (truststorePassword == null || truststorePassword.isEmpty()) ?null:truststorePassword.toCharArray());
+                }
+                validator = new CertificateValidator(ts, crls);
+            } else {
+                final File trustedCas = env.configDir().resolve(settings.get(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMTRUSTEDCAS_FILEPATH, "")).toAbsolutePath().toFile();
+                try(FileInputStream trin = new FileInputStream(trustedCas)) {
+                    Collection<? extends Certificate> cert =  (Collection<? extends Certificate>) CertificateFactory.getInstance("X.509").generateCertificates(trin);
+                    validator = new CertificateValidator(cert.toArray(new X509Certificate[0]), crls);
+                }
+            }
+
+            validator.setEnableCRLDP(!settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_DISABLE_CRLDP, false));
+            validator.setCheckOnlyEndEntities(settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_CHECK_ONLY_END_ENTITIES, true));
+            validator.setPreferCrl(settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_PREFER_CRLFILE_OVER_OCSP, false));
+            Long dateTimestamp = settings.getAsLong(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_VALIDATION_DATE, null);
+            if(dateTimestamp != null && dateTimestamp < 0) {
+                dateTimestamp = null;
+            }
+            validator.setDate(dateTimestamp==null?null:new Date(dateTimestamp));
+            validator.validate(x509Certs);
+
+            return true;
+
+        } catch (Exception e) {
+            if(log.isDebugEnabled()) {
+                log.debug("Unable to validate CRL: "+ ExceptionsHelper.stackTrace(e));
+            }
+            log.warn("Unable to validate CRL: "+ExceptionUtils.getRootCause(e));
+        }
+
+        return false;
+    }
     
     public static X509Certificate[] exportRootCertificates(final KeyStore ks, final String alias) throws KeyStoreException {
         logKeyStore(ks);

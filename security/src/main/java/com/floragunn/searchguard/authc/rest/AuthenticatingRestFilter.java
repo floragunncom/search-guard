@@ -1,10 +1,10 @@
 /*
  * Copyright 2015-2022 floragunn GmbH
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
@@ -12,19 +12,32 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * 
+ *
  */
 
 package com.floragunn.searchguard.authc.rest;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Optional;
 
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLSession;
 
+import com.floragunn.searchguard.ssl.http.AttributedHttpRequest;
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
+import io.netty.handler.ssl.SslHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -52,8 +65,6 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
-import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
-import com.floragunn.searchguard.ssl.util.SSLRequestHelper.SSLInfo;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
@@ -63,6 +74,8 @@ import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
+
+import static com.floragunn.searchguard.ssl.util.SSLCertificateHelper.validate;
 
 public class AuthenticatingRestFilter implements ComponentStateProvider {
 
@@ -123,7 +136,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     public HttpServerTransport.Dispatcher wrap(HttpServerTransport.Dispatcher original) {
         return new AuthenticatingRestHandler(new ExecuteInNettyEventLoopDispatcher(original, threadPool));
     }
-    
+
     public RestAuthenticationProcessor getAuthenticationProcessor() {
         return authenticationProcessor;
     }
@@ -154,7 +167,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             }
 
             if (isAuthcRequired(request)) {
-                String sslPrincipal = threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL);
+                String sslPrincipal = threadContext.getTransient(SSLConfigConstants.SG_SSL_PRINCIPAL);
 
                 // Admin Cert authentication works also without a valid configuration; that's why it is not done inside of AuthenticationProcessor
                 if (adminDns.isAdminDN(sslPrincipal)) {
@@ -232,7 +245,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
             threadContext.putTransient(ConfigConstants.SG_ORIGIN, Origin.REST.toString());
 
-            if (containsBadHeader(request)) {
+            if (containsBadHeader(request, threadContext)) {
                 final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
                 log.error(exception);
                 auditLog.logBadHeaders(request);
@@ -245,44 +258,57 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 return false;
             }
 
-            if (SSLRequestHelper.containsBadHeader(threadContext, ConfigConstants.SG_CONFIG_PREFIX)) {
-                final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
-                log.error(exception);
-                auditLog.logBadHeaders(request);
-                try {
-                    channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, exception));
-                } catch (IOException e) {
-                    log.error(e,e);
-                    channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
-                }
-                return false;
-            }
-
-            final SSLInfo sslInfo;
-            try {
-                if ((sslInfo = SSLRequestHelper.getSSLInfo(settings, configPath, request, principalExtractor)) != null) {
-                    if (sslInfo.getPrincipal() != null) {
-                        threadContext.putTransient("_sg_ssl_principal", sslInfo.getPrincipal());
+            final SslHandler sslhandler = Optional.ofNullable(request.getHttpRequest())
+                    .filter(AttributedHttpRequest.class::isInstance)
+                    .map(AttributedHttpRequest.class::cast)
+                    .flatMap(attributedRequest -> Optional.ofNullable(attributedRequest.getSslHandler()))
+                    .orElse(null);
+            if (sslhandler != null) {
+                final SSLEngine engine = sslhandler.engine();
+                final SSLSession session = engine.getSession();
+                if (engine.getNeedClientAuth() || engine.getWantClientAuth()) {
+                    boolean validationFailure = false;
+                    try {
+                        final Certificate[] certs = session.getPeerCertificates();
+                        if (certs != null && certs.length > 0 && certs[0] instanceof X509Certificate) {
+                            final X509Certificate[] x509Certs = Arrays.copyOf(certs, certs.length, X509Certificate[].class);
+                            final SecurityManager securityManager = System.getSecurityManager();
+                            if (securityManager != null) {
+                                securityManager.checkPermission(new SpecialPermission());
+                            }
+                            validationFailure = AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> !validate(x509Certs, settings, configPath));
+                            if(validationFailure) {
+                                throw new SSLPeerUnverifiedException("Unable to validate certificate (CRL)");
+                            }
+                            String principal = principalExtractor == null ? null : principalExtractor.extractPrincipal(x509Certs[0], PrincipalExtractor.Type.HTTP);
+                            if (principal != null) {
+                                threadContext.putTransient(SSLConfigConstants.SG_SSL_PRINCIPAL, principal);
+                            }
+                            Certificate[] localCerts = session.getLocalCertificates();
+                            if (localCerts != null) {
+                                threadContext.putTransient(SSLConfigConstants.SG_SSL_LOCAL_CERTIFICATES, Arrays.copyOf(localCerts, localCerts.length, X509Certificate[].class));
+                            }
+                            threadContext.putTransient(SSLConfigConstants.SG_SSL_PEER_CERTIFICATES, x509Certs.clone());
+                            threadContext.putTransient(SSLConfigConstants.SG_SSL_PROTOCOL, session.getProtocol());
+                            threadContext.putTransient(SSLConfigConstants.SG_SSL_CIPHER, session.getCipherSuite());
+                        } else if (engine.getNeedClientAuth()) {
+                            throw new ElasticsearchException("No client certificates found but such are needed (SG 9).");
+                        }
+                    } catch (SSLPeerUnverifiedException e) {
+                        if (engine.getNeedClientAuth() || validationFailure) {
+                            log.error("No ssl info", e);
+                            auditLog.logSSLException(request, e);
+                            try {
+                                channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, e));
+                            } catch (IOException ex) {
+                                log.error(e,e);
+                                channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
+                            }
+                            return false;
+                        }
                     }
-
-                    if (sslInfo.getX509Certs() != null) {
-                        threadContext.putTransient("_sg_ssl_peer_certificates", sslInfo.getX509Certs());
-                    }
-                    threadContext.putTransient("_sg_ssl_protocol", sslInfo.getProtocol());
-                    threadContext.putTransient("_sg_ssl_cipher", sslInfo.getCipher());
                 }
-            } catch (SSLPeerUnverifiedException e) {
-                log.error("No ssl info", e);
-                auditLog.logSSLException(request, e);
-                try {
-                    channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, e));
-                } catch (IOException ex) {
-                    log.error(e,e);
-                    channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
-                }
-                return false;
             }
-
             return true;
         }
 
@@ -293,8 +319,6 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             }
             channel.sendResponse(response);
         }
-
-
     }
 
     public static RestResponse createUnauthorizedResponse(RestRequest request) {
@@ -337,13 +361,17 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
     }
 
-    private static boolean containsBadHeader(RestRequest request) {
+    private static boolean containsBadHeader(RestRequest request, ThreadContext threadContext) {
         for (String key : request.getHeaders().keySet()) {
-            if (key != null && key.trim().toLowerCase().startsWith(ConfigConstants.SG_CONFIG_PREFIX.toLowerCase())) {
+            if (key != null && key.trim().toLowerCase().startsWith(ConfigConstants.SG_CONFIG_PREFIX)) {
                 return true;
             }
         }
-
+        for (final Map.Entry<String, String> header : threadContext.getHeaders().entrySet()) {
+            if (header != null && header.getKey() != null && header.getKey().trim().toLowerCase().startsWith(ConfigConstants.SG_CONFIG_PREFIX)) {
+                return true;
+            }
+        }
         return false;
     }
 }

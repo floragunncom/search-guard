@@ -17,12 +17,11 @@
 
 package com.floragunn.searchguard.action.whoami;
 
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.injection.guice.Inject;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
@@ -40,9 +39,7 @@ HandledTransportAction<WhoAmIRequest, WhoAmIResponse> {
     private final ThreadPool threadPool;
 
     @Inject
-    public TransportWhoAmIAction(final Settings settings,
-            final ThreadPool threadPool, final ClusterService clusterService, final TransportService transportService,
-            final AdminDNs adminDNs, final ActionFilters actionFilters) {
+    public TransportWhoAmIAction(final ThreadPool threadPool, final TransportService transportService, final AdminDNs adminDNs, final ActionFilters actionFilters) {
 
         super(WhoAmIAction.NAME, transportService, actionFilters, WhoAmIRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
 
@@ -54,7 +51,7 @@ HandledTransportAction<WhoAmIRequest, WhoAmIResponse> {
     @Override
     protected void doExecute(Task task, WhoAmIRequest request, ActionListener<WhoAmIResponse> listener) {
         final User user = threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
-        final String dn = user==null?threadPool.getThreadContext().getTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL):user.getName();
+        final String dn = user==null?threadPool.getThreadContext().getTransient(SSLConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL):user.getName();
         final boolean isAdmin = adminDNs.isAdminDN(dn);
         final boolean isAuthenticated = isAdmin?true: user != null;
         final boolean isNodeCertificateRequest = HeaderHelper.isInterClusterRequest(threadPool.getThreadContext()) || 

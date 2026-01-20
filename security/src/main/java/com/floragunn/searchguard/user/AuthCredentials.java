@@ -396,7 +396,7 @@ public final class AuthCredentials implements UserInformation {
         }
 
         public Builder searchGuardRoles(Collection<String> searchGuardRoles) {
-            if (backendRoles == null) {
+            if (searchGuardRoles == null) {
                 return this;
             }
 

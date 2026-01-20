@@ -89,6 +89,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     protected final StaticSettings staticSettings;
     protected final SearchGuardKeyStore sgks;
     protected PrincipalExtractor principalExtractor;
+    protected ThreadPool threadPool;
     protected final Path configPath;
     private final static SslExceptionHandler NOOP_SSL_EXCEPTION_HANDLER=new SslExceptionHandler(){};
     protected final SharedGroupFactory sharedGroupFactory;
@@ -206,8 +207,8 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         final Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
         if (httpSSLEnabled) {
 
-            final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
-                    configPath, NOOP_SSL_EXCEPTION_HANDLER);
+            final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher,
+                    NOOP_SSL_EXCEPTION_HANDLER);
             final SearchGuardSSLNettyHttpServerTransport sgsnht = new SearchGuardSSLNettyHttpServerTransport(settings, networkService,
                     threadPool, sgks, xContentRegistry, validatingDispatcher, clusterSettings, sharedGroupFactory, NOOP_SSL_EXCEPTION_HANDLER, tracer, perRequestThreadContext);
 
@@ -225,7 +226,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
         final List<RestHandler> handlers = new ArrayList<RestHandler>(1);
 
-        handlers.add(new SearchGuardSSLInfoAction(settings, configPath, restController, sgks, Objects.requireNonNull(principalExtractor)));
+        handlers.add(new SearchGuardSSLInfoAction(threadPool, sgks, Objects.requireNonNull(principalExtractor)));
 
         return handlers;
     }
@@ -259,6 +260,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     @Override
     public Collection<?> createComponents(PluginServices services) {
         final List<Object> components = new ArrayList<>(1);
+        threadPool = services.threadPool();
 
         final String principalExtractorClass = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PRINCIPAL_EXTRACTOR_CLASS, null);
 

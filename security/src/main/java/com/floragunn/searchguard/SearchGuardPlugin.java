@@ -440,8 +440,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(MigrateConfigIndexApi.REST_API);
                 handlers.add(new AuthenticatingRestFilter.DebugApi());
 
-                handlers.add(new SearchGuardWhoAmIAction(settings, adminDns, configPath, principalExtractor));
-                handlers.add(new SearchGuardConfigUpdateAction(settings, threadPool, adminDns, configPath, principalExtractor));
+                handlers.add(new SearchGuardWhoAmIAction(settings, threadPool, adminDns));
+                handlers.add(new SearchGuardConfigUpdateAction(threadPool, adminDns));
             }
 
             handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
@@ -695,8 +695,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         if (!disabled) {
             if (httpSSLEnabled) {
 
-                final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
-                        configPath, evaluateSslExceptionHandler());
+                final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher,
+                        evaluateSslExceptionHandler());
                 //TODO close sghst
                 final SearchGuardHttpServerTransport sghst = new SearchGuardHttpServerTransport(settings, networkService, threadPool, sgks,
                         evaluateSslExceptionHandler(), xContentRegistry, searchGuardRestFilter.wrap(validatingDispatcher), clusterSettings, sharedGroupFactory, tracer, perRequestThreadContext);

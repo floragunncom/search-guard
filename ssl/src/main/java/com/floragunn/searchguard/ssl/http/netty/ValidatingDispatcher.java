@@ -17,16 +17,13 @@
 
 package com.floragunn.searchguard.ssl.http.netty;
 
-import java.nio.file.Path;
+import java.util.Map;
 
-import javax.net.ssl.SSLPeerUnverifiedException;
-
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.ExceptionsHelper;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpServerTransport.Dispatcher;
 import org.elasticsearch.rest.RestChannel;
@@ -35,7 +32,6 @@ import org.elasticsearch.rest.RestStatus;
 
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
-import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
 
 public class ValidatingDispatcher implements Dispatcher {
 
@@ -44,16 +40,11 @@ public class ValidatingDispatcher implements Dispatcher {
     private final ThreadContext threadContext;
     private final Dispatcher originalDispatcher;
     private final SslExceptionHandler errorHandler;
-    private final Settings settings;
-    private final Path configPath;
 
-    public ValidatingDispatcher(final ThreadContext threadContext, final Dispatcher originalDispatcher, 
-            final Settings settings, final Path configPath, final SslExceptionHandler errorHandler) {
+    public ValidatingDispatcher(final ThreadContext threadContext, final Dispatcher originalDispatcher, final SslExceptionHandler errorHandler) {
         super();
         this.threadContext = threadContext;
         this.originalDispatcher = originalDispatcher;
-        this.settings = settings;
-        this.configPath = configPath;
         this.errorHandler = errorHandler;
     }
 
@@ -70,22 +61,17 @@ public class ValidatingDispatcher implements Dispatcher {
     }
     
     protected void checkRequest(final RestRequest request, final RestChannel channel) {
-        
-        if(SSLRequestHelper.containsBadHeader(threadContext, "_sg_ssl_")) {
-            final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
-            errorHandler.logError(exception, request, 1);
-            throw exception;
-        }
-        
-        try {
-            if(SSLRequestHelper.getSSLInfo(settings, configPath, request, null) == null) {
-                logger.error("Not an SSL request");
-                throw new ElasticsearchSecurityException("Not an SSL request", RestStatus.INTERNAL_SERVER_ERROR);
+        for (final Map.Entry<String, String> header : threadContext.getHeaders().entrySet()) {
+            if (header != null && header.getKey() != null && header.getKey().trim().toLowerCase().startsWith(SSLConfigConstants.SG_SSL_PREFIX)) {
+                final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
+                errorHandler.logError(exception, request, 1);
+                throw exception;
             }
-        } catch (SSLPeerUnverifiedException e) {
-            logger.error("No client certificates found but such are needed (SG 8).");
-            errorHandler.logError(e, request, 0);
-            throw ExceptionsHelper.convertToElastic(e);
+        }
+
+        if (threadContext.getTransient(SSLConfigConstants.SG_SSL_PEER_CERTIFICATES) == null) {
+            logger.error("Not an SSL request");
+            throw new ElasticsearchSecurityException("Not an SSL request", RestStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }

@@ -20,7 +20,6 @@ package com.floragunn.searchguard.ssl.rest;
 import static org.elasticsearch.rest.RestRequest.Method.GET;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
@@ -28,40 +27,36 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.internal.node.NodeClient;
-import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.searchguard.ssl.SearchGuardKeyStore;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
-import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
-import com.floragunn.searchguard.ssl.util.SSLRequestHelper.SSLInfo;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 public class SearchGuardSSLInfoAction extends BaseRestHandler {
 
     private final Logger log = LogManager.getLogger(this.getClass());
+    private final ThreadPool threadPool;
     private final SearchGuardKeyStore sgks;
     final PrincipalExtractor principalExtractor;
-    private final Path configPath;
-    private final Settings settings;
 
-    public SearchGuardSSLInfoAction(final Settings settings, final Path configPath, final RestController controller,
-            final SearchGuardKeyStore sgks, final PrincipalExtractor principalExtractor) {
+    public SearchGuardSSLInfoAction(ThreadPool threadPool, final SearchGuardKeyStore sgks, final PrincipalExtractor principalExtractor) {
         super();
-        this.settings = settings;
+        this.threadPool = threadPool;
         this.sgks = sgks;
         this.principalExtractor = principalExtractor;
-        this.configPath = configPath;
     }
     
     @Override
@@ -80,63 +75,58 @@ public class SearchGuardSSLInfoAction extends BaseRestHandler {
             @Override
             public void accept(RestChannel channel) throws Exception {
                 XContentBuilder builder = channel.newBuilder();
-                RestResponse response = null;
 
-                try {
-                    
-                    SSLInfo sslInfo = SSLRequestHelper.getSSLInfo(settings, configPath, request, principalExtractor);
-                    X509Certificate[] certs = sslInfo == null?null:sslInfo.getX509Certs();
-                    X509Certificate[] localCerts = sslInfo == null?null:sslInfo.getLocalCertificates();
+                final ThreadContext threadContext = threadPool.getThreadContext();
 
-                    builder.startObject();
+                X509Certificate[] certs = threadContext.getTransient(SSLConfigConstants.SG_SSL_PEER_CERTIFICATES);
+                if (certs != null) {
+                    certs = certs.clone();
+                }
+                X509Certificate[] localCerts = threadContext.getTransient(SSLConfigConstants.SG_SSL_LOCAL_CERTIFICATES);
+                if (localCerts != null) {
+                    localCerts = localCerts.clone();
+                }
+                String principal = threadContext.getTransient(SSLConfigConstants.SG_SSL_PRINCIPAL);
+                String protocol = threadContext.getTransient(SSLConfigConstants.SG_SSL_PROTOCOL);
+                String cipher = threadContext.getTransient(SSLConfigConstants.SG_SSL_CIPHER);
 
-                    builder.field("principal", sslInfo == null?null:sslInfo.getPrincipal());
-                    builder.field("peer_certificates", certs != null && certs.length > 0 ? certs.length + "" : "0");
+                builder.startObject();
 
-                    if(showDn == Boolean.TRUE) {
-                        builder.field("peer_certificates_list", certs == null?null:Arrays.stream(certs).map(c->c.getSubjectDN().getName()).collect(Collectors.toList()));
-                        builder.field("local_certificates_list", localCerts == null?null:Arrays.stream(localCerts).map(c->c.getSubjectDN().getName()).collect(Collectors.toList()));
-                    }
+                builder.field("principal", principal);
+                builder.field("peer_certificates", certs != null && certs.length > 0 ? certs.length + "" : "0");
 
-                    builder.field("ssl_protocol", sslInfo == null?null:sslInfo.getProtocol());
-                    builder.field("ssl_cipher", sslInfo == null?null:sslInfo.getCipher());
-                                      
-                    builder.field("ssl_openssl_available", false);
-                    builder.field("ssl_openssl_version", -1);
-                    builder.field("ssl_openssl_version_string", (String) null);
-                    builder.field("ssl_openssl_non_available_cause", "Not supported any longer");
-                    builder.field("ssl_openssl_supports_key_manager_factory", false);
-                    builder.field("ssl_openssl_supports_hostname_validation", false);
+                if(showDn == Boolean.TRUE) {
+                    builder.field("peer_certificates_list", certs == null?null:Arrays.stream(certs).map(c->c.getSubjectDN().getName()).collect(Collectors.toList()));
+                    builder.field("local_certificates_list", localCerts == null?null:Arrays.stream(localCerts).map(c->c.getSubjectDN().getName()).collect(Collectors.toList()));
+                }
 
-                    if (showServerCerts == Boolean.TRUE || showFullServerCerts == Boolean.TRUE) {
-                        if (sgks != null) {
-                            builder.field("http_certificates_list", generateCertDetailList(sgks.getHttpCerts(), showFullServerCerts));
-                            builder.field("transport_certificates_list", generateCertDetailList(sgks.getTransportCerts(), showFullServerCerts));
-                        } else {
-                            builder.field("message", "keystore is not initialized");
-                        }
-                    }
+                builder.field("ssl_protocol", protocol);
+                builder.field("ssl_cipher", cipher);
 
-                    builder.field("ssl_provider_http", sgks.getHTTPProviderName());
-                    builder.field("ssl_provider_transport_server", sgks.getTransportServerProviderName());
-                    builder.field("ssl_provider_transport_client", sgks.getTransportClientProviderName());
-                    builder.endObject();
+                builder.field("ssl_openssl_available", false);
+                builder.field("ssl_openssl_version", -1);
+                builder.field("ssl_openssl_version_string", (String) null);
+                builder.field("ssl_openssl_non_available_cause", "Not supported any longer");
+                builder.field("ssl_openssl_supports_key_manager_factory", false);
+                builder.field("ssl_openssl_supports_hostname_validation", false);
 
-                    response = new RestResponse(RestStatus.OK, builder);
-                } catch (final Exception e1) {
-                    log.error("Error handle request "+e1, e1);
-                    builder = channel.newBuilder();
-                    builder.startObject();
-                    builder.field("error", e1.toString());
-                    builder.endObject();
-                    response = new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
-                } finally {
-                    if(builder != null) {
-                        builder.close();
+                if (showServerCerts == Boolean.TRUE || showFullServerCerts == Boolean.TRUE) {
+                    if (sgks != null) {
+                        builder.field("http_certificates_list", generateCertDetailList(sgks.getHttpCerts(), showFullServerCerts));
+                        builder.field("transport_certificates_list", generateCertDetailList(sgks.getTransportCerts(), showFullServerCerts));
+                    } else {
+                        builder.field("message", "keystore is not initialized");
                     }
                 }
-                
-                channel.sendResponse(response);
+
+                builder.field("ssl_provider_http", sgks.getHTTPProviderName());
+                builder.field("ssl_provider_transport_server", sgks.getTransportServerProviderName());
+                builder.field("ssl_provider_transport_client", sgks.getTransportClientProviderName());
+                builder.endObject();
+
+                builder.close();
+
+                channel.sendResponse(new RestResponse(RestStatus.OK, builder));
             }
         };
     }

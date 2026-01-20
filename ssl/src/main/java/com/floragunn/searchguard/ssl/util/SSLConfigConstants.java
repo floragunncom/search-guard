@@ -82,7 +82,33 @@ public final class SSLConfigConstants {
     public static final String DEFAULT_STORE_PASSWORD = "changeit"; //#16
     
     public static final String JDK_TLS_REJECT_CLIENT_INITIATED_RENEGOTIATION = "jdk.tls.rejectClientInitiatedRenegotiation";
-    
+    public static final String SG_SSL_PREFIX = "_sg_ssl_";
+    public static final String SG_SSL_TRANSPORT_CIPHER = SG_SSL_PREFIX + "transport_cipher";
+    public static final String SG_SSL_TRANSPORT_PROTOCOL = SG_SSL_PREFIX + "transport_protocol";
+    public static final String SG_SSL_TRANSPORT_LOCAL_CERTIFICATES = SG_SSL_PREFIX + "transport_local_certificates";
+    public static final String SG_SSL_TRANSPORT_PEER_CERTIFICATES = SG_SSL_PREFIX + "transport_peer_certificates";
+    /**
+     * Set by the SSL plugin, this is the peer node certificate on the transport layer
+     */
+    public static final String SG_SSL_TRANSPORT_PRINCIPAL = SG_SSL_PREFIX + "transport_principal";
+    public static final String SG_SSL_TRANSPORT_TRUSTED_CLUSTER_REQUEST = SG_SSL_PREFIX + "transport_trustedcluster_request";
+    /**
+     * If this is set to TRUE then the request comes from a Server Node (fully trust)
+     * Its expected that there is a _sg_user attached as header
+     */
+    public static final String SG_SSL_TRANSPORT_INTERCLUSTER_REQUEST = SG_SSL_PREFIX + "transport_intercluster_request";
+    public static final String SG_SSL_CIPHER = SG_SSL_PREFIX + "cipher";
+    public static final String SG_SSL_PROTOCOL = SG_SSL_PREFIX + "protocol";
+    /**
+     * Set by SSL plugin for https requests only
+     */
+    public static final String SG_SSL_PRINCIPAL = SG_SSL_PREFIX + "principal";
+    public static final String SG_SSL_LOCAL_CERTIFICATES = SG_SSL_PREFIX + "local_certificates";
+    /**
+     * Set by SSL plugin for https requests only
+     */
+    public static final String SG_SSL_PEER_CERTIFICATES = SG_SSL_PREFIX + "peer_certificates";
+
     private static final String[] _SECURE_SSL_PROTOCOLS = {"TLSv1.3", "TLSv1.2"};
 
     public static final String[] getSecureSSLProtocols(Settings settings, boolean http)
