@@ -32,6 +32,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import com.floragunn.searchguard.ssl.http.netty.SSLInfoPopulatingDispatcher;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -205,11 +206,9 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
         final Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
         if (httpSSLEnabled) {
-
-            final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
-                    configPath, NOOP_SSL_EXCEPTION_HANDLER);
+            final SSLInfoPopulatingDispatcher sslInfoPopulatingDispatcher = new SSLInfoPopulatingDispatcher(dispatcher, NOOP_SSL_EXCEPTION_HANDLER, principalExtractor, settings, configPath);
             final SearchGuardSSLNettyHttpServerTransport sgsnht = new SearchGuardSSLNettyHttpServerTransport(settings, networkService,
-                    threadPool, sgks, xContentRegistry, validatingDispatcher, clusterSettings, sharedGroupFactory, NOOP_SSL_EXCEPTION_HANDLER, telemetryProvider, perRequestThreadContext);
+                    threadPool, sgks, xContentRegistry, sslInfoPopulatingDispatcher, clusterSettings, sharedGroupFactory, NOOP_SSL_EXCEPTION_HANDLER, telemetryProvider, perRequestThreadContext);
 
             httpTransports.put("com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport", () -> sgsnht);
 

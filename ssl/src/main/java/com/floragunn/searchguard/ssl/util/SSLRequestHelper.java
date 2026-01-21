@@ -178,7 +178,7 @@ public class SSLRequestHelper {
         return false;
     }
     
-    private static boolean validate(X509Certificate[] x509Certs, final Settings settings, final Path configPath) {
+    public static boolean validate(X509Certificate[] x509Certs, final Settings settings, final Path configPath) {
         
         final boolean validateCrl = settings.getAsBoolean(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_CRL_VALIDATE, false);
         
