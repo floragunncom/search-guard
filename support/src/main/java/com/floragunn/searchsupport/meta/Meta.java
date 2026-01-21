@@ -178,6 +178,16 @@ public interface Meta extends Document<Meta> {
 
         boolean exists();
 
+        default boolean isFailureStoreRelated() {
+            //todo COMPONENT SELECTORS - the method version from the MR related to Meta extension should be used
+            return name().endsWith("::failures") || name().startsWith(".fs");
+        }
+
+        default boolean isDataRelated() {
+            //todo COMPONENT SELECTORS - the method version from the MR related to Meta extension should be used
+            return ! isFailureStoreRelated();
+        }
+
         static ImmutableSet<Index> resolveDeep(ImmutableSet<? extends Meta.IndexLikeObject> objects) {
             return resolveDeep(objects, Alias.ResolutionMode.NORMAL);
         }

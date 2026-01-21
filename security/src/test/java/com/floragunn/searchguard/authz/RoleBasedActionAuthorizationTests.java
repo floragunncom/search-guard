@@ -54,7 +54,8 @@ import com.floragunn.searchsupport.meta.Meta;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({ RoleBasedActionAuthorizationTests.ClusterPermissions.class, RoleBasedActionAuthorizationTests.IndexPermissions.class,
         RoleBasedActionAuthorizationTests.IndexPermissionsSpecial.class, RoleBasedActionAuthorizationTests.AliasPermissions.class,
-        RoleBasedActionAuthorizationTests.AliasPermissionsSpecial.class, RoleBasedActionAuthorizationTests.DataStreamPermissions.class })
+        RoleBasedActionAuthorizationTests.AliasPermissionsSpecial.class, RoleBasedActionAuthorizationTests.DataStreamPermissions.class,
+        RoleBasedActionAuthorizationTests.FailureStoreDataStreamPermissionsTest.class })
 public class RoleBasedActionAuthorizationTests {
 
     private static final Actions actions = new Actions(null);
@@ -919,6 +920,221 @@ public class RoleBasedActionAuthorizationTests {
         }
 
     }
+
+    @RunWith(Parameterized.class)
+    public static class FailureStoreDataStreamPermissionsTest {
+
+        final ActionSpec actionSpec;
+        final IndexSpec indexSpec;
+        final SgDynamicConfiguration<Role> roles;
+        final Action primaryAction;
+        final ImmutableSet<Action> requiredActions;
+        final ImmutableSet<Action> otherActions;
+        final RoleBasedActionAuthorization subject;
+        final User user = User.forUser("test").attribute("dept_no", "a1").build();
+
+
+        /**
+         * Tests access to a data stream that contains a failure store component.
+         * Failure store access requires:
+         * 1. The special:failure_store privilege (checked via actionSpec)
+         * 2. Assignment to the index like object matching the target dataStreamInUserRequest (checked via indexSpec)
+         */
+        @Test
+        public void failure_store_access() throws Exception {
+            final String dataStreamInUserRequest = "data_stream_with_failure_store";
+
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), primaryAction, requiredActions, ResolvedIndices.of(BASIC,
+                            dataStreamInUserRequest),
+                    Action.Scope.INDEX_LIKE);
+
+            if ((this.actionSpec.givenPrivs.contains("special:failure_store") || this.actionSpec.givenPrivs.contains("special:failure*"))
+                    && (this.actionSpec.givenPrivs.contains("indices:data/read/search") ||(this.actionSpec.givenPrivs.contains("indices:data/read/*")))) {
+                // User has the special:failure_store privilege which allow access to failure store in scope determined
+                // by other permissions (e.g. indices:data/read/search)
+                // - now check if permission is assigned to appropriate data stream or index
+
+                boolean permissionAssignedViaDataStreamPattern = this.indexSpec.givenDataStreamPrivs.contains(dataStreamInUserRequest)
+                        || this.indexSpec.givenDataStreamPrivs.contains("*")
+                        || this.indexSpec.givenDataStreamPrivs.contains("datastream_a*");
+
+                boolean permissionAssignedViaIndexPattern = this.indexSpec.givenIndexPrivs.contains("*")
+                        || this.indexSpec.givenIndexPrivs.contains(".ds-data_stream_with_failure_store*");
+
+                if (permissionAssignedViaDataStreamPattern) {
+                    // Permission granted via data stream pattern (exact match, wildcard, or prefix) - full access
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK, result.getStatus());
+                } else if (permissionAssignedViaIndexPattern) {
+                    // Permission granted via index pattern matching backing indices - requires resolution
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of(".ds-data_stream_with_failure_store-xyz-0001"), result.getAvailableIndices());
+                } else {
+                    // Permission not assigned to dataStreamInUserRequest - access denied
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
+                }
+            } else {
+                // Missing special:failure_store privilege - access denied
+                Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
+            }
+        }
+
+        @Test
+        public void data_and_failure_store_access() throws Exception {
+            final String[] dataStreams = new String[]{"data_stream_with_failure_store", "datastream_a1"};
+
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), primaryAction, requiredActions, ResolvedIndices.of(BASIC, dataStreams),
+                    Action.Scope.INDEX_LIKE);
+
+            if ((this.actionSpec.givenPrivs.contains("special:failure_store") || this.actionSpec.givenPrivs.contains("special:failure*"))
+                    && (this.actionSpec.givenPrivs.contains("indices:data/read/search") ||(this.actionSpec.givenPrivs.contains("indices:data/read/*")))) {
+
+
+                if (this.indexSpec.givenDataStreamPrivs.contains("*")) {
+                    // Permission granted via data stream pattern
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of("datastream_a1", "data_stream_with_failure_store"), result.getAvailableIndices());
+                } else if (this.indexSpec.givenDataStreamPrivs.contains("data_stream_with_failure_store")) {
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.PARTIALLY_OK, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of("data_stream_with_failure_store"), result.getAvailableIndices());
+                } else if ( this.indexSpec.givenIndexPrivs.contains("*")) {
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of(".ds-data_stream_with_failure_store-xyz-0001", ".ds-datastream_a1-xyz-0001", ".ds-datastream_a1-xyz-0002"), result.getAvailableIndices());
+                } else if ( this.indexSpec.givenIndexPrivs.contains(".ds-data_stream_with_failure_store*")) {
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.PARTIALLY_OK, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of(".ds-data_stream_with_failure_store-xyz-0001"), result.getAvailableIndices());
+                } else {
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
+                }
+            } else if ((this.actionSpec.givenPrivs.contains("indices:data/read/search") || (this.actionSpec.givenPrivs.contains("indices:data/read/*")))
+                && (this.indexSpec.givenDataStreamPrivs.contains("datastream_a1") || this.indexSpec.givenDataStreamPrivs.contains("*")  || this.indexSpec.givenIndexPrivs.contains("*"))) {
+                Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.PARTIALLY_OK, result.getStatus());
+            } else {
+                // Missing special:failure_store privilege - access denied
+                Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
+            }
+        }
+
+        @Test
+        public void data_and_failure_store_access_via_alias() throws Exception {
+
+            PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), primaryAction, requiredActions, ResolvedIndices.of(BASIC,
+                            "alias_failure_and_data"),
+                    Action.Scope.INDEX_LIKE);
+
+            if ((this.actionSpec.givenPrivs.contains("special:failure_store") || this.actionSpec.givenPrivs.contains("special:failure*"))
+                    && (this.actionSpec.givenPrivs.contains("indices:data/read/search") ||(this.actionSpec.givenPrivs.contains("indices:data/read/*")))) {
+
+
+                if (this.indexSpec.givenDataStreamPrivs.contains("*")) {
+                    // Permission granted via data stream pattern
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of("datastream_a1", "data_stream_with_failure_store"), result.getAvailableIndices());
+                } else if (this.indexSpec.givenDataStreamPrivs.contains("data_stream_with_failure_store")) {
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.PARTIALLY_OK, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of("data_stream_with_failure_store"), result.getAvailableIndices());
+                } else if ( this.indexSpec.givenIndexPrivs.contains("*")) {
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of(".ds-data_stream_with_failure_store-xyz-0001", ".ds-datastream_a1-xyz-0001", ".ds-datastream_a1-xyz-0002"), result.getAvailableIndices());
+                } else if ( this.indexSpec.givenIndexPrivs.contains(".ds-data_stream_with_failure_store*")) {
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.PARTIALLY_OK, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of(".ds-data_stream_with_failure_store-xyz-0001"), result.getAvailableIndices());
+                } else {
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
+                }
+            } else if ((this.actionSpec.givenPrivs.contains("indices:data/read/search") || (this.actionSpec.givenPrivs.contains("indices:data/read/*")))
+                    && (this.indexSpec.givenDataStreamPrivs.contains("datastream_a1") || this.indexSpec.givenDataStreamPrivs.contains("*")  || this.indexSpec.givenIndexPrivs.contains("*"))) {
+                Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.PARTIALLY_OK, result.getStatus());
+            } else {
+                // Missing special:failure_store privilege - access denied
+                Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
+            }
+        }
+
+        @Test
+        public void alias_failure_store_access() throws Exception {
+            final String dataStreamInUserRequest = "alias_fs_only";
+
+            PrivilegesEvaluationResult result//
+                    = subject.hasIndexPermission(ctx(user, "test_role"), primaryAction, requiredActions, ResolvedIndices.of(BASIC,
+                            dataStreamInUserRequest),
+                    Action.Scope.INDEX_LIKE);
+
+            if ((this.actionSpec.givenPrivs.contains("special:failure_store") || this.actionSpec.givenPrivs.contains("special:failure*"))
+                    && (this.actionSpec.givenPrivs.contains("indices:data/read/search") ||(this.actionSpec.givenPrivs.contains("indices:data/read/*")))) {
+
+                boolean permissionAssignedViaDataStreamPattern = this.indexSpec.givenDataStreamPrivs.contains("data_stream_with_failure_store")
+                        || this.indexSpec.givenDataStreamPrivs.contains("*")
+                        || this.indexSpec.givenDataStreamPrivs.contains("datastream_a*");
+
+                boolean permissionAssignedViaIndexPattern = this.indexSpec.givenIndexPrivs.contains("*")
+                        || this.indexSpec.givenIndexPrivs.contains(".ds-data_stream_with_failure_store*");
+
+                if (permissionAssignedViaDataStreamPattern) {
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of("data_stream_with_failure_store"), result.getAvailableIndices());
+                } else if (permissionAssignedViaIndexPattern) {
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of(".ds-data_stream_with_failure_store-xyz-0001"), result.getAvailableIndices());
+                } else {
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
+                }
+            } else {
+                Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
+            }
+        }
+
+        final static Meta BASIC = dataStream("datastream_a1").of(".ds-datastream_a1-xyz-0001", ".ds-datastream_a1-xyz-0002")//
+                .dataStream("data_stream_with_failure_store")/*.withDataComponent(false)*/.of(".ds-data_stream_with_failure_store-xyz-0001")
+                .alias("alias_fs_only").of( "data_stream_with_failure_store")
+                .alias("alias_failure_and_data").of("data_stream_with_failure_store", "datastream_a1");
+
+        @Parameters(name = "{0};  actions: {1};  {2}")
+        public static Collection<Object[]> params() {
+            List<Object[]> result = new ArrayList<>();
+
+            for (IndexSpec indexSpec : Arrays.asList(//
+                    new IndexSpec().givenIndexPrivs("*"), //
+                    new IndexSpec().givenDataStreamPrivs("*"), //
+                    new IndexSpec().givenDataStreamPrivs("data_stream_with_failure_store"), //
+                    new IndexSpec().givenAliasPrivs("datastream_a"), //
+                    new IndexSpec().givenIndexPrivs(".ds-data_stream_with_failure_store*"))) {
+                for (ActionSpec actionSpec : Arrays.asList(//
+                        new ActionSpec("search on data")//
+                                .givenPrivs("indices:data/read/search").requiredPrivs("indices:data/read/search"), //
+                        new ActionSpec("search data and failure store")//
+                                .givenPrivs("indices:data/read/search", "special:failure_store").requiredPrivs("indices:data/read/search"), //
+                        new ActionSpec("only special, no access")//
+                                .givenPrivs("special:failure_store").requiredPrivs("indices:data/read/search"), //
+                        new ActionSpec("pattern, data search")//
+                                .givenPrivs("indices:data/read/*").requiredPrivs("indices:data/read/search"), //
+                new ActionSpec("pattern, data and failure store")//
+                        .givenPrivs("indices:data/read/*", "special:failure*").requiredPrivs("indices:data/read/search") //
+                )) {
+                    for (Statefulness statefulness : Statefulness.values()) {
+                        result.add(new Object[] { indexSpec, actionSpec, statefulness });
+                    }
+                }
+            }
+            return result;
+        }
+
+        public FailureStoreDataStreamPermissionsTest(IndexSpec indexSpec, ActionSpec actionSpec, Statefulness statefulness) throws Exception {
+            this.indexSpec = indexSpec;
+            this.actionSpec = actionSpec;
+            this.roles = indexSpec.toRolesConfig(actionSpec);
+
+            this.primaryAction = actionSpec.primaryAction;
+            this.requiredActions = actionSpec.requiredPrivs;
+            this.otherActions = actionSpec.wellKnownActions ? ImmutableSet.of(actions.get("indices:data/write/update"))
+                    : ImmutableSet.of(actions.get("indices:foobar/unknown"));
+
+            this.subject = new RoleBasedActionAuthorization(roles, ActionGroup.FlattenedIndex.EMPTY, actions,
+                    statefulness == Statefulness.STATEFUL ? BASIC : null, ImmutableSet.empty(), STATEFUL_SIZE);
+        }
+
+    } // end FailureStoreDataStreamPermissions
 
     private static PrivilegesEvaluationContext ctx(User user, String... roles) {
         return new PrivilegesEvaluationContext(user, false, ImmutableSet.ofArray(roles), null, roles, true, null, null);
