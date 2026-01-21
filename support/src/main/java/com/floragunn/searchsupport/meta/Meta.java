@@ -96,6 +96,11 @@ public interface Meta extends Document<Meta> {
     interface IndexLikeObject extends Document<IndexLikeObject> {
         String name();
 
+        default boolean isAssociatedWithDataComponent() {
+            // TODO CS: the method (or method with a similar name) should be implemented in the scope of another MR
+            return true;
+        }
+
         ImmutableSet<IndexOrNonExistent> resolveDeep(Alias.ResolutionMode resolutionMode);
 
         ImmutableSet<String> resolveDeepToNames(Alias.ResolutionMode resolutionMode);
