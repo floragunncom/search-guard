@@ -18,15 +18,11 @@
 package com.floragunn.searchguard.authc.rest;
 
 import java.io.IOException;
-import java.nio.file.Path;
-
-import javax.net.ssl.SSLPeerUnverifiedException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.bytes.BytesArray;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.http.HttpServerTransport;
 import org.elasticsearch.rest.RestChannel;
@@ -50,10 +46,8 @@ import com.floragunn.searchguard.configuration.ConfigMap;
 import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
-import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
-import com.floragunn.searchguard.ssl.util.SSLRequestHelper.SSLInfo;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
@@ -70,9 +64,6 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
     private final AuditLog auditLog;
     private final ThreadContext threadContext;
-    private final PrincipalExtractor principalExtractor;
-    private final Settings settings;
-    private final Path configPath;
     private final DiagnosticContext diagnosticContext;
     private final AdminDNs adminDns;
     private final ComponentState componentState = new ComponentState(1, "authc", "rest_filter");
@@ -81,16 +72,13 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
     private volatile RestAuthenticationProcessor authenticationProcessor;
 
     public AuthenticatingRestFilter(ConfigurationRepository configurationRepository, SearchGuardModulesRegistry modulesRegistry, AdminDNs adminDns,
-            BlockedIpRegistry blockedIpRegistry, BlockedUserRegistry blockedUserRegistry, AuditLog auditLog, ThreadPool threadPool,
-            PrincipalExtractor principalExtractor, PrivilegesEvaluator privilegesEvaluator, Settings settings, Path configPath,
-            DiagnosticContext diagnosticContext) {
+                                    BlockedIpRegistry blockedIpRegistry, BlockedUserRegistry blockedUserRegistry, AuditLog auditLog, ThreadPool threadPool,
+                                    PrivilegesEvaluator privilegesEvaluator,
+                                    DiagnosticContext diagnosticContext) {
         this.adminDns = adminDns;
         this.auditLog = auditLog;
         this.threadPool = threadPool;
         this.threadContext = threadPool.getThreadContext();
-        this.principalExtractor = principalExtractor;
-        this.settings = settings;
-        this.configPath = configPath;
         this.diagnosticContext = diagnosticContext;
 
         configurationRepository.subscribeOnChange(new ConfigurationChangeListener() {
@@ -252,31 +240,6 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 try {
                     channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, exception));
                 } catch (IOException e) {
-                    log.error(e,e);
-                    channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
-                }
-                return false;
-            }
-
-            final SSLInfo sslInfo;
-            try {
-                if ((sslInfo = SSLRequestHelper.getSSLInfo(settings, configPath, request, principalExtractor)) != null) {
-                    if (sslInfo.getPrincipal() != null) {
-                        threadContext.putTransient("_sg_ssl_principal", sslInfo.getPrincipal());
-                    }
-
-                    if (sslInfo.getX509Certs() != null) {
-                        threadContext.putTransient("_sg_ssl_peer_certificates", sslInfo.getX509Certs());
-                    }
-                    threadContext.putTransient("_sg_ssl_protocol", sslInfo.getProtocol());
-                    threadContext.putTransient("_sg_ssl_cipher", sslInfo.getCipher());
-                }
-            } catch (SSLPeerUnverifiedException e) {
-                log.error("No ssl info", e);
-                auditLog.logSSLException(request, e);
-                try {
-                    channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, e));
-                } catch (IOException ex) {
                     log.error(e,e);
                     channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
                 }

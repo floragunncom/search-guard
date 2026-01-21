@@ -44,6 +44,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.floragunn.searchguard.ssl.http.netty.SSLInfoPopulatingDispatcher;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
 import org.apache.lucene.search.Weight;
@@ -91,11 +92,13 @@ import org.elasticsearch.plugins.MapperPlugin;
 import org.elasticsearch.plugins.ScriptPlugin;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
+import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.internal.ReaderContext;
 import org.elasticsearch.search.internal.ScrollContext;
+import org.elasticsearch.tasks.Task;
 import org.elasticsearch.telemetry.TelemetryProvider;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.Transport;
@@ -177,7 +180,6 @@ import com.floragunn.searchguard.rest.SearchGuardInfoAction;
 import com.floragunn.searchguard.rest.SearchGuardWhoAmIAction;
 import com.floragunn.searchguard.ssl.SearchGuardSSLPlugin;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
-import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
 import com.floragunn.searchguard.ssl.transport.SearchGuardSSLNettyTransport;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -693,18 +695,35 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
         Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
 
         if (!disabled) {
-            if (httpSSLEnabled) {
+            final SslExceptionHandler sslExceptionHandler = new SslExceptionHandler() {
+                @Override
+                public void logError(Throwable t, RestRequest request, int type) {
+                    if (type == 0) {
+                        auditLog.logSSLException(request, t);
+                    }
+                    evaluateSslExceptionHandler().logError(t, request, type);
+                }
 
-                final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
-                        configPath, evaluateSslExceptionHandler());
+                @Override
+                public void logError(Throwable t, boolean isRest) {
+                    evaluateSslExceptionHandler().logError(t, isRest);
+                }
+
+                @Override
+                public void logError(Throwable t, TransportRequest request, String action, Task task, int type) {
+                    evaluateSslExceptionHandler().logError(t, request, action, task, type);
+                }
+            };
+            final SSLInfoPopulatingDispatcher sslInfoPopulatingDispatcher = new SSLInfoPopulatingDispatcher(searchGuardRestFilter.wrap(dispatcher), sslExceptionHandler, principalExtractor, settings, configPath);
+            if (httpSSLEnabled) {
                 //TODO close sghst
                 final SearchGuardHttpServerTransport sghst = new SearchGuardHttpServerTransport(settings, networkService, threadPool, sgks,
-                        evaluateSslExceptionHandler(), xContentRegistry, searchGuardRestFilter.wrap(validatingDispatcher), clusterSettings, sharedGroupFactory, telemetryProvider, perRequestThreadContext);
+                        evaluateSslExceptionHandler(), xContentRegistry, sslInfoPopulatingDispatcher, clusterSettings, sharedGroupFactory, telemetryProvider, perRequestThreadContext);
 
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport", () -> sghst);
             } else {
                 httpTransports.put("com.floragunn.searchguard.http.SearchGuardHttpServerTransport",
-                        () -> new SearchGuardNonSslHttpServerTransport(settings, networkService, threadPool, xContentRegistry, searchGuardRestFilter.wrap(dispatcher),
+                        () -> new SearchGuardNonSslHttpServerTransport(settings, networkService, threadPool, xContentRegistry, sslInfoPopulatingDispatcher,
                                 perRequestThreadContext, clusterSettings, sharedGroupFactory, telemetryProvider));
             }
         }
@@ -863,7 +882,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         searchGuardRestFilter = new AuthenticatingRestFilter(cr, moduleRegistry, adminDns, blockedIpRegistry, blockedUserRegistry, auditLog,
             services.threadPool(),
-                principalExtractor, evaluator, settings, configPath, diagnosticContext);
+                evaluator, diagnosticContext);
         components.add(searchGuardRestFilter);
 
         evaluator.setMultiTenancyConfigurationProvider(moduleRegistry.getMultiTenancyConfigurationProvider());
