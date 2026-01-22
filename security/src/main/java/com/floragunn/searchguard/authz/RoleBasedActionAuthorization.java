@@ -237,8 +237,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         // Pre-mark data component cells as checked so that only failure store components require this privilege.
         checkTable.checkIf(Meta.IndexLikeObject::isAssociatedWithDataComponent, specialFailureStoreAction);
 
-        // TODO CS: change to trace
-        log.error("Check table after extension with {} is {}", Actions.SPECIAL_FAILURE_STORE_NAME, checkTable);
+        log.trace("Check table after extension with {} is {}", Actions.SPECIAL_FAILURE_STORE_NAME, checkTable);
 
         return checkTable;
     }

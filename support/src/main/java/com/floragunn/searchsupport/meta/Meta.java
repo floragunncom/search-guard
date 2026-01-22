@@ -304,6 +304,9 @@ public interface Meta extends Document<Meta> {
          * For testing and mocking purposes
          */
         static interface DataStreamBuilder {
+
+            DataStreamBuilder withDataComponent(boolean dataComponent);
+
             Meta of(String... indexNames);
         }
     }
