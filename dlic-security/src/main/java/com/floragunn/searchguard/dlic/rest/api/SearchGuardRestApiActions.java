@@ -13,15 +13,18 @@
  */
 package com.floragunn.searchguard.dlic.rest.api;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
+import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -34,8 +37,8 @@ import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextPr
 
 public class SearchGuardRestApiActions {
 
-    public static Collection<RestHandler> getHandler(Settings settings, Client client, AdminDNs adminDns,
-                                                     ConfigurationRepository cr, StaticSgConfig staticSgConfig, ClusterService cs,
+    public static Collection<RestHandler> getHandler(Settings settings, Path configPath, RestController controller, Client client, AdminDNs adminDns,
+                                                     ConfigurationRepository cr, StaticSgConfig staticSgConfig, ClusterService cs, PrincipalExtractor principalExtractor,
                                                      AuthorizationService authorizationService,
                                                      SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
                                                      AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
