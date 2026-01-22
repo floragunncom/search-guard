@@ -442,8 +442,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(MigrateConfigIndexApi.REST_API);
                 handlers.add(new AuthenticatingRestFilter.DebugApi());
 
-                handlers.add(new SearchGuardWhoAmIAction(settings, adminDns, configPath, principalExtractor));
-                handlers.add(new SearchGuardConfigUpdateAction(settings, threadPool, adminDns, configPath, principalExtractor));
+                handlers.add(new SearchGuardWhoAmIAction(settings, adminDns, threadPool));
+                handlers.add(new SearchGuardConfigUpdateAction(threadPool, adminDns));
             }
 
             handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,

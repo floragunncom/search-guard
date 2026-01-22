@@ -33,7 +33,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.floragunn.searchguard.ssl.util.SSLRequestHelper.validate;
+import static com.floragunn.searchguard.ssl.util.SSLCertificateHelper.validate;
 
 public class SSLInfoPopulatingDispatcher implements HttpServerTransport.Dispatcher {
     private static final Logger log = LogManager.getLogger(SSLInfoPopulatingDispatcher.class);

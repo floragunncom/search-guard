@@ -26,7 +26,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -223,7 +222,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
         final List<RestHandler> handlers = new ArrayList<RestHandler>(1);
 
-        handlers.add(new SearchGuardSSLInfoAction(settings, configPath, restController, sgks, Objects.requireNonNull(principalExtractor)));
+        handlers.add(new SearchGuardSSLInfoAction(sgks));
 
         return handlers;
     }

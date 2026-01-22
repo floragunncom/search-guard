@@ -20,9 +20,11 @@ package com.floragunn.searchguard.ssl.transport;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.Map;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -41,7 +43,6 @@ import org.elasticsearch.transport.netty4.Netty4TcpChannel;
 
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
-import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
 
 import io.netty.handler.ssl.SslHandler;
 
@@ -76,11 +77,13 @@ implements TransportRequestHandler<T> {
     @Override
     public final void messageReceived(T request, TransportChannel channel, Task task) throws Exception {
         ThreadContext threadContext = getThreadContext() ;
-              
-        if(SSLRequestHelper.containsBadHeader(threadContext, "_sg_ssl_")) {
-            final Exception exception = ExceptionUtils.createBadHeaderException();
-            channel.sendResponse(exception);
-            throw exception;
+
+        for (final Map.Entry<String, String> header : threadContext.getHeaders().entrySet()) {
+            if (header != null && header.getKey() != null && header.getKey().trim().toLowerCase().startsWith(SSLConfigConstants.SG_SSL_PREFIX)) {
+                final Exception exception = ExceptionUtils.createBadHeaderException();
+                channel.sendResponse(exception);
+                throw exception;
+            }
         }
  
         if (isDirectChannelDeep(channel)) { //netty4

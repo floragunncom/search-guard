@@ -18,6 +18,7 @@
 package com.floragunn.searchguard.authc.rest;
 
 import java.io.IOException;
+import java.util.Map;
 
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import org.apache.logging.log4j.LogManager;
@@ -48,7 +49,6 @@ import com.floragunn.searchguard.configuration.ConfigurationChangeListener;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
-import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
@@ -218,10 +218,9 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
         }
 
         private boolean checkRequest(RestRequest request, RestChannel channel) {
-
             threadContext.putTransient(ConfigConstants.SG_ORIGIN, Origin.REST.toString());
 
-            if (containsBadHeader(request)) {
+            if (containsBadHeader(request, threadContext)) {
                 final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
                 log.error(exception);
                 auditLog.logBadHeaders(request);
@@ -233,20 +232,6 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 }
                 return false;
             }
-
-            if (SSLRequestHelper.containsBadHeader(threadContext, ConfigConstants.SG_CONFIG_PREFIX)) {
-                final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
-                log.error(exception);
-                auditLog.logBadHeaders(request);
-                try {
-                    channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, exception));
-                } catch (IOException e) {
-                    log.error(e,e);
-                    channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
-                }
-                return false;
-            }
-
             return true;
         }
 
@@ -301,13 +286,17 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
     }
 
-    private static boolean containsBadHeader(RestRequest request) {
+    private static boolean containsBadHeader(RestRequest request, ThreadContext threadContext) {
         for (String key : request.getHeaders().keySet()) {
             if (key != null && key.trim().toLowerCase().startsWith(ConfigConstants.SG_CONFIG_PREFIX.toLowerCase())) {
                 return true;
             }
         }
-
+        for (final Map.Entry<String, String> header : threadContext.getHeaders().entrySet()) {
+            if (header != null && header.getKey() != null && header.getKey().trim().toLowerCase().startsWith(ConfigConstants.SG_CONFIG_PREFIX)) {
+                return true;
+            }
+        }
         return false;
     }
 }

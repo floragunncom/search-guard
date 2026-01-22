@@ -15,7 +15,6 @@
 package com.floragunn.searchguard.dlic.rest.api;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +50,6 @@ import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
@@ -73,7 +71,6 @@ import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator.ErrorType;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
-import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.google.common.collect.ImmutableMap;
@@ -93,11 +90,11 @@ public abstract class AbstractApiAction extends BaseRestHandler {
     protected final ConfigurationLoader configLoader;
 	protected final ConfigModificationValidators configModificationValidators;
 
-    protected AbstractApiAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
-            final AdminDNs adminDNs, final ConfigurationRepository configRepository, StaticSgConfig staticSgConfig, final ClusterService cs,
-            final PrincipalExtractor principalExtractor, AuthorizationService authorizationService,
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
-            AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
+    protected AbstractApiAction(final Settings settings, final Client client,
+								final AdminDNs adminDNs, final ConfigurationRepository configRepository, StaticSgConfig staticSgConfig, final ClusterService cs,
+								AuthorizationService authorizationService,
+								SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
+								AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
 		super();
 		this.settings = settings;
 		this.acceptInvalidLicense = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_UNSUPPORTED_RESTAPI_ACCEPT_INVALID_LICENSE, Boolean.FALSE);
@@ -106,7 +103,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 		this.cs = cs;
 		this.threadPool = threadPool;
         this.restApiPrivilegesEvaluator = new RestApiPrivilegesEvaluator(settings, adminDNs, authorizationService,
-                specialPrivilegesEvaluationContextProviderRegistry, principalExtractor, configPath, threadPool);
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool);
 		this.auditLog = auditLog;
 		this.staticSgConfig = staticSgConfig;
         this.configLoader = new ConfigurationLoader(client, configRepository);

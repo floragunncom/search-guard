@@ -21,18 +21,13 @@ import com.floragunn.searchguard.action.configupdate.ConfigUpdateAction;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateRequest;
 import com.floragunn.searchguard.action.configupdate.ConfigUpdateResponse;
 import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
-import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
-import com.floragunn.searchguard.ssl.util.SSLRequestHelper.SSLInfo;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.google.common.collect.ImmutableList;
 import org.elasticsearch.client.internal.node.NodeClient;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestResponse;
-import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
@@ -40,25 +35,17 @@ import org.elasticsearch.rest.action.RestActions.NodesResponseRestListener;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.List;
 
 public class SearchGuardConfigUpdateAction extends BaseRestHandler {
 
     private final ThreadContext threadContext;
     private final AdminDNs adminDns;
-    private final Settings settings;
-    private final Path configPath;
-    private final PrincipalExtractor principalExtractor;
-	
-    public SearchGuardConfigUpdateAction(final Settings settings, final ThreadPool threadPool,
-                                         final AdminDNs adminDns, Path configPath, PrincipalExtractor principalExtractor) {
+
+    public SearchGuardConfigUpdateAction(final ThreadPool threadPool, final AdminDNs adminDns) {
         super();
         this.threadContext = threadPool.getThreadContext();
         this.adminDns = adminDns;
-        this.settings = settings;
-        this.configPath = configPath;
-        this.principalExtractor = principalExtractor;
     }
     
     @Override
@@ -69,13 +56,7 @@ public class SearchGuardConfigUpdateAction extends BaseRestHandler {
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
     	String[] configTypes = request.paramAsStringArrayOrEmptyIfAll("config_types");
-    	
-    	SSLInfo sslInfo = SSLRequestHelper.getSSLInfo(settings, configPath, request, principalExtractor);
-    			
-		if(sslInfo  == null) {
-            return channel -> channel.sendResponse(new RestResponse(RestStatus.FORBIDDEN, ""));
-        }
-    	
+
         final User user = (User) threadContext.getTransient(ConfigConstants.SG_USER);
 
         //only allowed for admins
