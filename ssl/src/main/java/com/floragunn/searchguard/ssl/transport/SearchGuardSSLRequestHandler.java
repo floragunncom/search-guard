@@ -78,11 +78,13 @@ implements TransportRequestHandler<T> {
     public final void messageReceived(T request, TransportChannel channel, Task task) throws Exception {
         ThreadContext threadContext = getThreadContext() ;
 
-        for (final Map.Entry<String, String> header : threadContext.getHeaders().entrySet()) {
-            if (header != null && header.getKey() != null && header.getKey().trim().toLowerCase().startsWith(SSLConfigConstants.SG_SSL_PREFIX)) {
-                final Exception exception = ExceptionUtils.createBadHeaderException();
-                channel.sendResponse(exception);
-                throw exception;
+        if (threadContext != null) {
+            for (final Map.Entry<String, String> header : threadContext.getHeaders().entrySet()) {
+                if (header != null && header.getKey() != null && header.getKey().trim().toLowerCase().startsWith(SSLConfigConstants.SG_SSL_PREFIX)) {
+                    final Exception exception = ExceptionUtils.createBadHeaderException();
+                    channel.sendResponse(exception);
+                    throw exception;
+                }
             }
         }
  
