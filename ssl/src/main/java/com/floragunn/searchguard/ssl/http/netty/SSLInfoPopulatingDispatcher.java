@@ -76,7 +76,7 @@ public class SSLInfoPopulatingDispatcher implements HttpServerTransport.Dispatch
             return true;
         }
         for (final Map.Entry<String, String> header : context.getHeaders().entrySet()) {
-            if (header != null && header.getKey() != null && header.getKey().trim().toLowerCase().startsWith("_sg_ssl_")) {
+            if (header != null && header.getKey() != null && header.getKey().trim().toLowerCase().startsWith(SSLConfigConstants.SG_SSL_PREFIX)) {
                 final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
                 log.error(exception);
                 errorHandler.logError(exception, request, 1);
@@ -157,16 +157,16 @@ public class SSLInfoPopulatingDispatcher implements HttpServerTransport.Dispatch
         }
 
         if (principal != null) {
-            threadContext.putTransient("_sg_ssl_principal", principal);
+            threadContext.putTransient(SSLConfigConstants.SG_SSL_PRINCIPAL, principal);
         }
         if (x509Certs != null) {
-            threadContext.putTransient("_sg_ssl_peer_certificates", x509Certs);
+            threadContext.putTransient(SSLConfigConstants.SG_SSL_PEER_CERTIFICATES, x509Certs);
         }
         if (localCerts != null) {
-            threadContext.putTransient("_sg_ssl_local_certificates", localCerts);
+            threadContext.putTransient(SSLConfigConstants.SG_SSL_LOCAL_CERTIFICATES, localCerts);
         }
-        threadContext.putTransient("_sg_ssl_protocol", protocol);
-        threadContext.putTransient("_sg_ssl_cipher", cipher);
+        threadContext.putTransient(SSLConfigConstants.SG_SSL_PROTOCOL, protocol);
+        threadContext.putTransient(SSLConfigConstants.SG_SSL_CIPHER, cipher);
         return true;
     }
 }

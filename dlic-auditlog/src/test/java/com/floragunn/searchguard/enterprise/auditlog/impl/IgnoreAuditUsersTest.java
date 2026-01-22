@@ -19,6 +19,7 @@ import static org.mockito.Mockito.when;
 
 import java.net.InetSocketAddress;
 
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -34,8 +35,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
-import com.floragunn.searchguard.enterprise.auditlog.impl.AbstractAuditLog;
-import com.floragunn.searchguard.enterprise.auditlog.impl.AuditLogImpl;
 import com.floragunn.searchguard.enterprise.auditlog.integration.TestAuditlogImpl;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
@@ -142,7 +141,7 @@ public class IgnoreAuditUsersTest {
         @SuppressWarnings("resource")
         AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
                                                                              ConfigConstants.SG_USER, new User("John Doe", null),
-                                                                             ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
+                                                                             SSLConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
                                                                               ), null, cs, configurationRepository);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", sr, null);
@@ -157,7 +156,7 @@ public class IgnoreAuditUsersTest {
                 .build();
         al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
                 ConfigConstants.SG_USER, new User("John Doe", null),
-                ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
+                SSLConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
                  ), null, cs, configurationRepository);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", sr, null);
@@ -172,7 +171,7 @@ public class IgnoreAuditUsersTest {
                 .build();
         al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
                 ConfigConstants.SG_USER, new User("John Doe", null),
-                ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
+                SSLConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
                  ), null, cs, configurationRepository);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", sr, null);
@@ -189,7 +188,7 @@ public class IgnoreAuditUsersTest {
                 .build();
         al = new AuditLogImpl(settings, null, null, newThreadPool(ConfigConstants.SG_REMOTE_ADDRESS, ta,
                 ConfigConstants.SG_USER, new User("John Doe", null),
-                ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
+                SSLConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL, "CN=kirk,OU=client,O=client,L=test,C=DE"
                  ), null, cs, configurationRepository);
         TestAuditlogImpl.clear();
         al.logGrantedPrivileges("indices:data/read/search", sr, null);

@@ -19,6 +19,7 @@ package com.floragunn.searchguard.authc.rest;
 
 import java.io.IOException;
 
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -142,7 +143,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
             }
 
             if (isAuthcRequired(request)) {
-                String sslPrincipal = threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL);
+                String sslPrincipal = threadContext.getTransient(SSLConfigConstants.SG_SSL_PRINCIPAL);
 
                 // Admin Cert authentication works also without a valid configuration; that's why it is not done inside of AuthenticationProcessor
                 if (adminDns.isAdminDN(sslPrincipal)) {
