@@ -1,4 +1,4 @@
 variables:
   # IT_BRANCH: "remove-legacy"
-  SG_KI_BRANCH: "main"
+  SG_KI_BRANCH: "655-mt-data-migration-test-improve"
   # KI_VERSION: "7.16.3" 

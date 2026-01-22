@@ -71,6 +71,7 @@ stages:
   - "Backend Unit Tests"
   - "Backend Int Tests Core"
   - "Frontend Int Tests"  
+  - "Frontend MT Data Migration Tests"
   - "Aikido Scan"  
   - release
   - "Deploy Docker Image"
@@ -81,6 +82,7 @@ include:
   - local: 'ci/backend-unit-tests.yml'
   - local: 'ci/backend-int-tests.yml'
   - local: 'ci/frontend-int-tests.yml'  
+  - local: 'ci/mt-data-migration-tests.yml'  
   - local: 'ci/aikido.yml'
 
 
