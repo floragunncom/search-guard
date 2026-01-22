@@ -33,6 +33,16 @@ import org.elasticsearch.logging.internal.spi.LoggerFactory;
  * Provides unified, controlled and uncluttered interfaces to the ES metadata.
  */
 public interface Meta extends Document<Meta> {
+
+    String FAILURES_SUFFIX = "::failures";
+
+    static String indexLikeNameWithFailuresSuffix(String indexLikeName) {
+        if (indexLikeName == null) {
+            return null;
+        }
+        return indexLikeName.concat(FAILURES_SUFFIX);
+    }
+
     ImmutableMap<String, IndexLikeObject> indexLikeObjects();
 
     ImmutableSet<Index> indices();
@@ -94,8 +104,17 @@ public interface Meta extends Document<Meta> {
     long version();
 
     interface IndexLikeObject extends Document<IndexLikeObject> {
+        /**
+         * Returns just the name when {@link #isFailureStoreRelated()} is false;
+         * otherwise, the name suffixed with the {@link Meta#FAILURES_SUFFIX}.
+         */
         String name();
-        String nameWithComponent();
+
+        /**
+         * Returns just the name no matter whether {@link #isFailureStoreRelated()} is true or false.
+         */
+        String nameWithoutComponentSuffix();
+        boolean isFailureStoreRelated();
 
         ImmutableSet<IndexOrNonExistent> resolveDeep(Alias.ResolutionMode resolutionMode);
 
@@ -124,8 +143,6 @@ public interface Meta extends Document<Meta> {
         boolean isHidden();
 
         boolean exists();
-
-        Component component();
 
         static ImmutableSet<Index> resolveDeep(ImmutableSet<? extends Meta.IndexLikeObject> objects) {
             return resolveDeep(objects, Alias.ResolutionMode.NORMAL);
