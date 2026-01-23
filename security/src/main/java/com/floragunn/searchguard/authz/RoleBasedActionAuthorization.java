@@ -225,21 +225,26 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
      * The table automatically includes {@code specialFailureStoreAction} to verify failure store access privileges.
      * Data component cells are pre-marked as checked for this action since it only applies to failure store components.
      *
-     * @param indexLike  the set of index-like objects (indices, aliases, data streams) to check permissions for
-     * @param actionList the set of actions to evaluate
+     * @param indexLikes  the set of index-like objects (indices, aliases, data streams) to check permissions for
+     * @param actions the set of actions to evaluate
      * @return a configured check table ready for privilege evaluation
      */
-    private CheckTable<Meta.IndexLikeObject, Action> createCheckTable(ImmutableSet<Meta.IndexLikeObject> indexLike, ImmutableSet<Action> actionList) {
-        // Include specialFailureStoreAction to verify failure store access privileges
-        CheckTable<Meta.IndexLikeObject, Action> checkTable = CheckTable.create(indexLike, actionList.with(specialFailureStoreAction));
+    private CheckTable<Meta.IndexLikeObject, Action> createCheckTable(ImmutableSet<Meta.IndexLikeObject> indexLikes, ImmutableSet<Action> actions) {
+        boolean containFailureStore = indexLikes.stream().anyMatch(i -> ! i.isAssociatedWithDataComponent());
+        if (containFailureStore) {
+            // Include specialFailureStoreAction to verify failure store access privileges
+            CheckTable<Meta.IndexLikeObject, Action> checkTable = CheckTable.create(indexLikes, actions.with(specialFailureStoreAction));
 
-        // The specialFailureStoreAction privilege only applies to failure store components.
-        // Pre-mark data component cells as checked so that only failure store components require this privilege.
-        checkTable.checkIf(Meta.IndexLikeObject::isAssociatedWithDataComponent, specialFailureStoreAction);
+            // The specialFailureStoreAction privilege only applies to failure store components.
+            // Pre-mark data component cells as checked so that only failure store components require this privilege.
+            checkTable.checkIf(Meta.IndexLikeObject::isAssociatedWithDataComponent, specialFailureStoreAction);
 
-        log.trace("Check table after extension with {} is {}", Actions.SPECIAL_FAILURE_STORE_NAME, checkTable);
-
-        return checkTable;
+            log.trace("Check table after extension with {} is {}", Actions.SPECIAL_FAILURE_STORE_NAME, checkTable);
+            return checkTable;
+        } else {
+            // usual checkable without any extensions
+            return CheckTable.create(indexLikes, actions);
+        }
     }
 
     @Override

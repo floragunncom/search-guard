@@ -95,7 +95,7 @@ public class Actions {
     public Actions(SearchGuardModulesRegistry modulesRegistry) {
 
 
-        indexLike(SPECIAL_FAILURE_STORE_NAME).performanceCritical();
+        indexLike(SPECIAL_FAILURE_STORE_NAME);
         // We define here "well-known" actions. 
         //
         // Having well-known actions allows us to pre-cache a hash table of allowed actions for roles,

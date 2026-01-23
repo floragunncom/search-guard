@@ -964,19 +964,18 @@ public class RoleBasedActionAuthorizationTests {
 
                 if (permissionAssignedViaDataStreamPattern) {
                     // Permission granted via data stream pattern (exact match, wildcard, or prefix) - full access
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK, result.getStatus());
                 } else if (permissionAssignedViaIndexPattern) {
                     // Permission granted via index pattern matching backing indices - requires resolution
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED);
-                    Assert.assertTrue(result.getAvailableIndices().size() == 1);
-                    Assert.assertTrue(result.getAvailableIndices().contains(".ds-data_stream_with_failure_store-xyz-0001"));
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of(".ds-data_stream_with_failure_store-xyz-0001"), result.getAvailableIndices());
                 } else {
                     // Permission not assigned to dataStreamInUserRequest - access denied
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
                 }
             } else {
                 // Missing special:failure_store privilege - access denied
-                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+                Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
             }
         }
 
@@ -994,33 +993,26 @@ public class RoleBasedActionAuthorizationTests {
 
                 if (this.indexSpec.givenDataStreamPrivs.contains("*")) {
                     // Permission granted via data stream pattern
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().size() == 2);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().contains("datastream_a1"));
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().contains("data_stream_with_failure_store"));
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of("datastream_a1", "data_stream_with_failure_store"), result.getAvailableIndices());
                 } else if (this.indexSpec.givenDataStreamPrivs.contains("data_stream_with_failure_store")) {
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().size() == 1);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().contains("data_stream_with_failure_store"));
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.PARTIALLY_OK, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of("data_stream_with_failure_store"), result.getAvailableIndices());
                 } else if ( this.indexSpec.givenIndexPrivs.contains("*")) {
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().size() == 3);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().contains(".ds-data_stream_with_failure_store-xyz-0001"));
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().contains(".ds-datastream_a1-xyz-0001"));
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().contains(".ds-datastream_a1-xyz-0002"));
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of(".ds-data_stream_with_failure_store-xyz-0001", ".ds-datastream_a1-xyz-0001", ".ds-datastream_a1-xyz-0002"), result.getAvailableIndices());
                 } else if ( this.indexSpec.givenIndexPrivs.contains(".ds-data_stream_with_failure_store*")) {
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().size() == 1);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().contains(".ds-data_stream_with_failure_store-xyz-0001"));
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.PARTIALLY_OK, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of(".ds-data_stream_with_failure_store-xyz-0001"), result.getAvailableIndices());
                 } else {
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
                 }
             } else if ((this.actionSpec.givenPrivs.contains("indices:data/read/search") || (this.actionSpec.givenPrivs.contains("indices:data/read/*")))
                 && (this.indexSpec.givenDataStreamPrivs.contains("datastream_a1") || this.indexSpec.givenDataStreamPrivs.contains("*")  || this.indexSpec.givenIndexPrivs.contains("*"))) {
-                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.PARTIALLY_OK, result.getStatus());
             } else {
                 // Missing special:failure_store privilege - access denied
-                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+                Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
             }
         }
 
@@ -1037,33 +1029,26 @@ public class RoleBasedActionAuthorizationTests {
 
                 if (this.indexSpec.givenDataStreamPrivs.contains("*")) {
                     // Permission granted via data stream pattern
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().size() == 2);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().contains("datastream_a1"));
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().contains("data_stream_with_failure_store"));
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of("datastream_a1", "data_stream_with_failure_store"), result.getAvailableIndices());
                 } else if (this.indexSpec.givenDataStreamPrivs.contains("data_stream_with_failure_store")) {
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().size() == 1);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().contains("data_stream_with_failure_store"));
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.PARTIALLY_OK, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of("data_stream_with_failure_store"), result.getAvailableIndices());
                 } else if ( this.indexSpec.givenIndexPrivs.contains("*")) {
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().size() == 3);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().contains(".ds-data_stream_with_failure_store-xyz-0001"));
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().contains(".ds-datastream_a1-xyz-0001"));
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().contains(".ds-datastream_a1-xyz-0002"));
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of(".ds-data_stream_with_failure_store-xyz-0001", ".ds-datastream_a1-xyz-0001", ".ds-datastream_a1-xyz-0002"), result.getAvailableIndices());
                 } else if ( this.indexSpec.givenIndexPrivs.contains(".ds-data_stream_with_failure_store*")) {
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().size() == 1);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().contains(".ds-data_stream_with_failure_store-xyz-0001"));
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.PARTIALLY_OK, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of(".ds-data_stream_with_failure_store-xyz-0001"), result.getAvailableIndices());
                 } else {
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
                 }
             } else if ((this.actionSpec.givenPrivs.contains("indices:data/read/search") || (this.actionSpec.givenPrivs.contains("indices:data/read/*")))
                     && (this.indexSpec.givenDataStreamPrivs.contains("datastream_a1") || this.indexSpec.givenDataStreamPrivs.contains("*")  || this.indexSpec.givenIndexPrivs.contains("*"))) {
-                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.PARTIALLY_OK);
+                Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.PARTIALLY_OK, result.getStatus());
             } else {
                 // Missing special:failure_store privilege - access denied
-                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+                Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
             }
         }
 
@@ -1087,18 +1072,16 @@ public class RoleBasedActionAuthorizationTests {
                         || this.indexSpec.givenIndexPrivs.contains(".ds-data_stream_with_failure_store*");
 
                 if (permissionAssignedViaDataStreamPattern) {
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().size() == 1);
-                    Assert.assertTrue(result.toString(), result.getAvailableIndices().contains("data_stream_with_failure_store"));
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of("data_stream_with_failure_store"), result.getAvailableIndices());
                 } else if (permissionAssignedViaIndexPattern) {
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED);
-                    Assert.assertTrue(result.getAvailableIndices().size() == 1);
-                    Assert.assertTrue(result.getAvailableIndices().contains(".ds-data_stream_with_failure_store-xyz-0001"));
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.OK_WHEN_RESOLVED, result.getStatus());
+                    Assert.assertEquals(ImmutableSet.of(".ds-data_stream_with_failure_store-xyz-0001"), result.getAvailableIndices());
                 } else {
-                    Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+                    Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
                 }
             } else {
-                Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.INSUFFICIENT);
+                Assert.assertEquals(result.toString(), PrivilegesEvaluationResult.Status.INSUFFICIENT, result.getStatus());
             }
         }
 
