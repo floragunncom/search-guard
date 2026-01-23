@@ -431,10 +431,10 @@ public class RestApiPrivilegesEvaluator {
 			return "No client TLS certificate found in request";
 		}
 
-		String principle = threadPool.getThreadContext().getTransient(SSLConfigConstants.SG_SSL_PRINCIPAL);
-		if (!adminDNs.isAdminDN(principle)) {
-			logger.warn("SG admin permissions required but {} is not an admin", principle);
-			return "SG admin permissions required but " + principle + " is not an admin";
+		String principal = threadPool.getThreadContext().getTransient(SSLConfigConstants.SG_SSL_PRINCIPAL);
+		if (!adminDNs.isAdminDN(principal)) {
+			logger.warn("SG admin permissions required but {} is not an admin", principal);
+			return "SG admin permissions required but " + principal + " is not an admin";
 		}
 		return null;
 	}

@@ -1,3 +1,20 @@
+/*
+ * Copyright 2026 floragunn GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.floragunn.searchguard.ssl.http.netty;
 
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
@@ -80,7 +97,6 @@ public class SSLInfoPopulatingDispatcher implements HttpServerTransport.Dispatch
                 final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
                 log.error(exception);
                 errorHandler.logError(exception, request, 1);
-                //auditLog.logBadHeaders(request);
                 try {
                     channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, exception));
                 } catch (IOException e) {
@@ -145,13 +161,13 @@ public class SSLInfoPopulatingDispatcher implements HttpServerTransport.Dispatch
                 if (engine.getNeedClientAuth() || validationFailure) {
                     log.error("No ssl info", e);
                     errorHandler.logError(e, request, 0);
-                    //auditLog.logSSLException(request, e);
                     try {
                         channel.sendResponse(new RestResponse(channel, RestStatus.FORBIDDEN, e));
                     } catch (IOException ex) {
                         log.error(e,e);
                         channel.sendResponse(new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, RestResponse.TEXT_CONTENT_TYPE, BytesArray.EMPTY));
                     }
+                    return false;
                 }
             }
         }
