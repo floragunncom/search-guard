@@ -573,10 +573,10 @@ public abstract class MetaImpl implements Meta {
                     .defaultValue((k) -> new ImmutableList.Builder<IndexLikeObject>());
             ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, IndexLikeObject> aliasToWriteIndexMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, IndexLikeObject>();
 
-            ImmutableMap.Builder<Boolean, ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>> failureOrNonFailureDataStreamAliasToIndicesMap = //
-                    new ImmutableMap.Builder<Boolean, ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>>()
-                            .defaultValue((k) -> new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>()
-                                    .defaultValue((k2) -> new ArrayList<IndexLikeObject>()));
+            ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> dataStreamDataComponentAliasToIndicesMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>()
+                    .defaultValue((k) -> new ArrayList<IndexLikeObject>());
+            ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> dataStreamFailureComponentAliasToIndicesMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>()
+                    .defaultValue((k) -> new ArrayList<IndexLikeObject>());
             ImmutableSet.Builder<Alias> aliases = new ImmutableSet.Builder<>(64);
             ImmutableSet.Builder<DataStream> datastreams = new ImmutableSet.Builder<>(project.dataStreams().size());
             this.esMetadata = esMetadata;
@@ -591,32 +591,50 @@ public abstract class MetaImpl implements Meta {
             }
 
             for (org.elasticsearch.cluster.metadata.DataStream esDataStream : project.dataStreams().values()) {
-                for (Boolean failureStoreRelated : List.of(false, true)) {
-                    //get data stream indices: backing or failure store
-                    List<org.elasticsearch.index.Index> esDataStreamIndices = failureStoreRelated? esDataStream.getFailureIndices() : esDataStream.getIndices();
+                ImmutableList<String> parentAliasNames = dataStreamAliasReverseLookup.get(esDataStream.getName()) == null?
+                        ImmutableList.empty() : dataStreamAliasReverseLookup.get(esDataStream.getName()).build();
 
-                    ImmutableList.Builder<IndexLikeObject> memberIndices = new ImmutableList.Builder<>(esDataStreamIndices.size());
+                // backing (data) indices
+                List<org.elasticsearch.index.Index> esDataStreamDataIndices = esDataStream.getIndices();
+                ImmutableList.Builder<IndexLikeObject> dataMemberIndices = new ImmutableList.Builder<>(esDataStreamDataIndices.size());
 
-                    for (org.elasticsearch.index.Index esIndex : esDataStreamIndices) {
-                        org.elasticsearch.cluster.metadata.IndexMetadata esIndexMetadata = project.index(esIndex.getName());
+                for (org.elasticsearch.index.Index esIndex : esDataStreamDataIndices) {
+                    org.elasticsearch.cluster.metadata.IndexMetadata esIndexMetadata = project.index(esIndex.getName());
 
-                        Index index = new IndexImpl(this, esIndex.getName(), ImmutableSet.empty(), esDataStream.getName(), esIndexMetadata.isHidden(),
-                                esIndexMetadata.isSystem(), esIndexMetadata.getState(), failureStoreRelated);
-                        indices.add(index);
-                        nameMap.put(index.name(), index);
-                        memberIndices.add(index);
-                    }
+                    Index index = new IndexImpl(this, esIndex.getName(), ImmutableSet.empty(), esDataStream.getName(), esIndexMetadata.isHidden(),
+                            esIndexMetadata.isSystem(), esIndexMetadata.getState(), false);
+                    indices.add(index);
+                    nameMap.put(index.name(), index);
+                    dataMemberIndices.add(index);
+                }
 
-                    ImmutableList.Builder<String> parentAliasNames = dataStreamAliasReverseLookup.get(esDataStream.getName());
+                DataStream dataStreamWithDataIndices = new DataStreamImpl(this, esDataStream.getName(),
+                        parentAliasNames, dataMemberIndices.build(), esDataStream.isHidden(), false);
+                datastreams.add(dataStreamWithDataIndices);
+                nameMap.put(dataStreamWithDataIndices.name(), dataStreamWithDataIndices);
 
-                    DataStream dataStream = new DataStreamImpl(this, esDataStream.getName(),
-                            parentAliasNames != null ? parentAliasNames.build() : ImmutableList.empty(), memberIndices.build(), esDataStream.isHidden(), failureStoreRelated);
-                    datastreams.add(dataStream);
-                    nameMap.put(dataStream.name(), dataStream);
+                // failure store indices
+                List<org.elasticsearch.index.Index> esDataStreamFailureStoreIndices = esDataStream.getFailureIndices();
+                ImmutableList.Builder<IndexLikeObject> failureStoreMemberIndices = new ImmutableList.Builder<>(esDataStreamFailureStoreIndices.size());
 
-                    for (String parentAlias : dataStream.parentAliasNames()) {
-                        failureOrNonFailureDataStreamAliasToIndicesMap.get(failureStoreRelated).get(dataStreamsAliases.get(parentAlias)).add(dataStream);
-                    }
+                for (org.elasticsearch.index.Index esIndex : esDataStreamFailureStoreIndices) {
+                    org.elasticsearch.cluster.metadata.IndexMetadata esIndexMetadata = project.index(esIndex.getName());
+
+                    Index index = new IndexImpl(this, esIndex.getName(), ImmutableSet.empty(), esDataStream.getName(), esIndexMetadata.isHidden(),
+                            esIndexMetadata.isSystem(), esIndexMetadata.getState(), true);
+                    indices.add(index);
+                    nameMap.put(index.name(), index);
+                    failureStoreMemberIndices.add(index);
+                }
+
+                DataStream dataStreamWithFailureStoreIndices = new DataStreamImpl(this, esDataStream.getName(),
+                        parentAliasNames, dataMemberIndices.build(), esDataStream.isHidden(), true);
+                datastreams.add(dataStreamWithFailureStoreIndices);
+                nameMap.put(dataStreamWithFailureStoreIndices.name(), dataStreamWithFailureStoreIndices);
+
+                for (String parentAlias : parentAliasNames) {
+                    dataStreamDataComponentAliasToIndicesMap.get(dataStreamsAliases.get(parentAlias)).add(dataStreamWithDataIndices);
+                    dataStreamFailureComponentAliasToIndicesMap.get(dataStreamsAliases.get(parentAlias)).add(dataStreamWithFailureStoreIndices);
                 }
             }
 
@@ -646,54 +664,45 @@ public abstract class MetaImpl implements Meta {
                 }
             }
 
-            //todo COMPONENT SELECTORS - do we need to consider data streams in this loop? it looks like ES does not allow to add the same alias to both indices and data streams
+            // aliases to indices (by ES semantics alias cannot point to both data streams and indices)
             for (Map.Entry<org.elasticsearch.cluster.metadata.AliasMetadata, ImmutableList.Builder<IndexLikeObject>> entry : aliasToIndicesMap.build()
                     .entrySet()) {
-                for (Boolean failureStoreRelated : List.of(false, true)) { // related to data stream and aliases for index and ds
-                    org.elasticsearch.cluster.metadata.DataStreamAlias dataStreamAlias = dataStreamsAliases.get(entry.getKey().alias());
-                    List<IndexLikeObject> dataStreams = dataStreamAlias != null && failureOrNonFailureDataStreamAliasToIndicesMap.get(failureStoreRelated).contains(dataStreamAlias)
-                            ? failureOrNonFailureDataStreamAliasToIndicesMap.get(failureStoreRelated).get(dataStreamAlias)
-                            : ImmutableList.empty();
-                    ImmutableList<IndexLikeObject> members = failureStoreRelated? ImmutableList.of(dataStreams) : entry.getValue().build().with(dataStreams);
+                ImmutableList<IndexLikeObject> members = entry.getValue().build();
 
-                    //todo COMPONENT SELECTORS - this can happen in the case of Component.FAILURES, when we try to find data streams that belong to an alias to which indices are assigned?
-                    if (members.isEmpty()) {
-                        continue;
-                    }
-
-                    IndexLikeObject writeTarget = aliasToWriteIndexMap.get(entry.getKey());
-                    if (writeTarget == null && members.size() == 1) {
-                        // By ES semantics, if an alias has only one member, this automatically becomes the write index
-                        writeTarget = members.only();
-                    }
-
-                    Alias alias = new AliasImpl(this, entry.getKey().alias(), members,
-                            entry.getKey().isHidden() != null ? entry.getKey().isHidden() : false, writeTarget, failureStoreRelated);
-                    aliases.add(alias);
-                    nameMap.put(alias.name(), alias);
+                IndexLikeObject writeTarget = aliasToWriteIndexMap.get(entry.getKey());
+                if (writeTarget == null && members.size() == 1) {
+                    // By ES semantics, if an alias has only one member, this automatically becomes the write index
+                    writeTarget = members.only();
                 }
+
+                Alias alias = new AliasImpl(this, entry.getKey().alias(), members,
+                        entry.getKey().isHidden() != null ? entry.getKey().isHidden() : false, writeTarget, false);
+                aliases.add(alias);
+                nameMap.put(alias.name(), alias);
             }
 
-            for (Boolean failureStoreRelated : List.of(false, true)) {
-                for (Map.Entry<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> entry : failureOrNonFailureDataStreamAliasToIndicesMap.get(failureStoreRelated).build()
-                        .entrySet()) {
-                    String nameWithOptionalComponent = failureStoreRelated? Meta.indexLikeNameWithFailuresSuffix(entry.getKey().getName()) : entry.getKey().getName();
-                    if (nameMap.contains(nameWithOptionalComponent)) {
-                        //todo COMPONENT SELECTORS - it should not happen since alias cannot point to indices and data streams as mentioned in the TODO above
-                        // Already created above
-                        continue;
-                    }
+            // aliases to data stream with data component (with backing indices)
+            for (Map.Entry<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> entry : dataStreamDataComponentAliasToIndicesMap.build()
+                    .entrySet()) {
 
-                    IndexLikeObject writeTarget = null;
-                    if (! failureStoreRelated && entry.getKey().getWriteDataStream() != null) {
-                        writeTarget = nameMap.get(entry.getKey().getWriteDataStream());
-                    } else {
-                        // it's not clear whether we need to know failure store write target or not, so currently we do not resolve it
-                    }
-                    Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false, writeTarget, failureStoreRelated);
-                    aliases.add(alias);
-                    nameMap.put(alias.name(), alias);
+                IndexLikeObject writeTarget = null;
+                if (entry.getKey().getWriteDataStream() != null) {
+                    writeTarget = nameMap.get(entry.getKey().getWriteDataStream());
                 }
+                Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false, writeTarget, false);
+                aliases.add(alias);
+                nameMap.put(alias.name(), alias);
+            }
+
+            // aliases to data stream with failures component (with failure store indices)
+            for (Map.Entry<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> entry : dataStreamFailureComponentAliasToIndicesMap.build()
+                    .entrySet()) {
+
+                IndexLikeObject writeTarget = null; // it's not clear whether we need to know failure store write target or not, so currently we do not resolve it
+
+                Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false, writeTarget, true);
+                aliases.add(alias);
+                nameMap.put(alias.name(), alias);
             }
 
             this.indices = indices.build();
