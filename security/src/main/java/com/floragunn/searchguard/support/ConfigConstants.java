@@ -62,30 +62,6 @@ public class ConfigConstants {
 
     public static final String SG_AUTHZ_HASH_THREAD_CONTEXT_HEADER = "_sg_dls_fls_authz";
 
-    /**
-     * Set by SSL plugin for https requests only
-     */
-    public static final String SG_SSL_PEER_CERTIFICATES = SG_CONFIG_PREFIX+"ssl_peer_certificates";
-
-    /**
-     * Set by SSL plugin for https requests only
-     */
-    public static final String SG_SSL_PRINCIPAL = SG_CONFIG_PREFIX+"ssl_principal";
-
-    /**
-     * If this is set to TRUE then the request comes from a Server Node (fully trust)
-     * Its expected that there is a _sg_user attached as header
-     */
-    public static final String SG_SSL_TRANSPORT_INTERCLUSTER_REQUEST = SG_CONFIG_PREFIX+"ssl_transport_intercluster_request";
-
-    public static final String SG_SSL_TRANSPORT_TRUSTED_CLUSTER_REQUEST = SG_CONFIG_PREFIX+"ssl_transport_trustedcluster_request";
-
-
-    /**
-     * Set by the SSL plugin, this is the peer node certificate on the transport layer
-     */
-    public static final String SG_SSL_TRANSPORT_PRINCIPAL = SG_CONFIG_PREFIX+"ssl_transport_principal";
-
     public static final String SG_USER = SG_CONFIG_PREFIX+"user";
     public static final String SG_USER_HEADER = SG_CONFIG_PREFIX+"user_header";
     public static final String SG_USER_NAME = SG_CONFIG_PREFIX+"user_name";

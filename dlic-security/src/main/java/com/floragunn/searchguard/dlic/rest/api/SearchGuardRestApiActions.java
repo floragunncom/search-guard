@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
+import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
@@ -33,7 +34,6 @@ import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
-import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 
 public class SearchGuardRestApiActions {
 
@@ -43,23 +43,23 @@ public class SearchGuardRestApiActions {
                                                      SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
                                                      AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
         final List<RestHandler> handlers = new ArrayList<>();
-        handlers.add(new InternalUsersApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor,
+        handlers.add(new InternalUsersApiAction(settings, client, adminDns, cr, staticSgConfig, cs,
                 authorizationService, specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators));
-        handlers.add(new RolesMappingApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor,
+        handlers.add(new RolesMappingApiAction(settings, client, adminDns, cr, staticSgConfig, cs,
                 authorizationService, specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators));
-        handlers.add(new RolesApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, authorizationService,
+        handlers.add(new RolesApiAction(settings, client, adminDns, cr, staticSgConfig, cs, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators));
-        handlers.add(new ActionGroupsApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor,
+        handlers.add(new ActionGroupsApiAction(settings, client, adminDns, cr, staticSgConfig, cs,
                 authorizationService, specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators));
-        handlers.add(new FlushCacheApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor,
+        handlers.add(new FlushCacheApiAction(settings, client, adminDns, cr, staticSgConfig, cs,
                 authorizationService, specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators));
-        handlers.add(new LicenseApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, authorizationService,
+        handlers.add(new LicenseApiAction(settings, client, adminDns, cr, staticSgConfig, cs, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators));
-        handlers.add(new PermissionsInfoAction(settings, configPath, controller, client, adminDns, cr, cs, principalExtractor, authorizationService,
-                specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog));
-        handlers.add(new TenantsApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, authorizationService,
+        handlers.add(new PermissionsInfoAction(settings, adminDns, authorizationService,
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool));
+        handlers.add(new TenantsApiAction(settings, client, adminDns, cr, staticSgConfig, cs, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators));
-        handlers.add(new BlocksApiAction(settings, configPath, controller, client, adminDns, cr, staticSgConfig, cs, principalExtractor, authorizationService,
+        handlers.add(new BlocksApiAction(settings, client, adminDns, cr, staticSgConfig, cs, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators));
 
         return Collections.unmodifiableCollection(handlers);

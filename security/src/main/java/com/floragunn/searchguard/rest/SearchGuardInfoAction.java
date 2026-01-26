@@ -29,6 +29,7 @@ import java.util.Set;
 
 import com.floragunn.searchguard.authz.TenantAccessMapper;
 import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.RamUsageEstimator;
@@ -91,7 +92,7 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     
                     final boolean verbose = request.paramAsBoolean("verbose", false);
                     
-                    final X509Certificate[] certs = threadContext.getTransient(ConfigConstants.SG_SSL_PEER_CERTIFICATES);
+                    final X509Certificate[] certs = threadContext.getTransient(SSLConfigConstants.SG_SSL_PEER_CERTIFICATES);
                     final User user = (User)threadContext.getTransient(ConfigConstants.SG_USER);
                     final TransportAddress remoteAddress = (TransportAddress) threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
                     
@@ -118,7 +119,7 @@ public class SearchGuardInfoAction extends BaseRestHandler {
                     builder.field("attribute_names", user==null?null:user.getStructuredAttributes().keySet());
                     builder.field("sg_roles", sgRoles);
                     builder.field("sg_tenants", user==null?null:tenantAccessMapper.mapTenantsAccess(user, adminUser, sgRoles));
-                    builder.field("principal", (String)threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL));
+                    builder.field("principal", (String)threadContext.getTransient(SSLConfigConstants.SG_SSL_PRINCIPAL));
                     builder.field("peer_certificates", certs != null && certs.length > 0 ? certs.length + "" : "0");
                     
                     // TODO Legacy: Remove when legacy auth support has been removed

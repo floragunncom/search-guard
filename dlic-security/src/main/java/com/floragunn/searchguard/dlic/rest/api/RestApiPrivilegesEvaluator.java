@@ -15,7 +15,6 @@
 package com.floragunn.searchguard.dlic.rest.api;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Collection;
@@ -28,6 +27,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ExceptionsHelper;
@@ -42,13 +42,9 @@ import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.searchguard.authz.AuthorizationService;
-import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
-import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
-import com.floragunn.searchguard.ssl.util.SSLRequestHelper;
-import com.floragunn.searchguard.ssl.util.SSLRequestHelper.SSLInfo;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 
@@ -59,12 +55,9 @@ public class RestApiPrivilegesEvaluator {
 	private final AdminDNs adminDNs;
 	private final AuthorizationService authorizationService;
 	private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
-	private final PrincipalExtractor principalExtractor;
-	private final Path configPath;
-	private final ThreadPool threadPool;
-	private final Settings settings;
+    private final ThreadPool threadPool;
 
-	private final Set<String> allowedRoles = new HashSet<>();
+    private final Set<String> allowedRoles = new HashSet<>();
 
 	// endpoints per role, read and cached from settings. Changes here require a
 	// node restart, so it's save to cache.
@@ -83,16 +76,12 @@ public class RestApiPrivilegesEvaluator {
 	private final Boolean roleBasedAccessEnabled;
 
     public RestApiPrivilegesEvaluator(Settings settings, AdminDNs adminDNs, AuthorizationService authorizationService, 
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
-            PrincipalExtractor principalExtractor, Path configPath, ThreadPool threadPool) {
+            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool) {
 
 		this.adminDNs = adminDNs;
 		this.authorizationService = authorizationService;
-		this.principalExtractor = principalExtractor;
-		this.configPath = configPath;
-		this.threadPool = threadPool;
-		this.settings = settings;
-		this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
+        this.threadPool = threadPool;
+        this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
 		
 		// set up
 		
@@ -431,30 +420,21 @@ public class RestApiPrivilegesEvaluator {
 		return "Role based access not enabled.";
 	}
 
-	private String checkAdminCertBasedAccessPermissions(RestRequest request) throws IOException {
+	private String checkAdminCertBasedAccessPermissions(RestRequest request) {
 		if (logger.isTraceEnabled()) {
 			logger.trace("Checking certificate based admin access for path {} and method {}", request.path(), request.method().name());
 		}
-		
-		// Certificate based access, Check if we have an admin TLS certificate
-		SSLInfo sslInfo = SSLRequestHelper.getSSLInfo(settings, configPath, request, principalExtractor);
 
-		if (sslInfo == null) {
-			// here we log on error level, since authentication finally failed
-			logger.warn("No ssl info found in request.");
-			return "No ssl info found in request.";
-		}
-
-		X509Certificate[] certs = sslInfo.getX509Certs();
-
+		X509Certificate[] certs = threadPool.getThreadContext().getTransient(SSLConfigConstants.SG_SSL_PEER_CERTIFICATES);
 		if (certs == null || certs.length == 0) {
 			logger.warn("No client TLS certificate found in request");
 			return "No client TLS certificate found in request";
 		}
 
-		if (!adminDNs.isAdminDN(sslInfo.getPrincipal())) {
-			logger.warn("SG admin permissions required but {} is not an admin", sslInfo.getPrincipal());
-			return "SG admin permissions required but " + sslInfo.getPrincipal() + " is not an admin";
+		String principal = threadPool.getThreadContext().getTransient(SSLConfigConstants.SG_SSL_PRINCIPAL);
+		if (!adminDNs.isAdminDN(principal)) {
+			logger.warn("SG admin permissions required but {} is not an admin", principal);
+			return "SG admin permissions required but " + principal + " is not an admin";
 		}
 		return null;
 	}

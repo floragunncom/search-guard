@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchStatusException;
@@ -130,7 +131,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
                 Consumer<Exception> onFailure) {
             Meter meter = Meter.basic(authcConfig.getMetricsLevel(), authenticateMetrics);
 
-            String sslPrincipal = threadContext.getTransient(ConfigConstants.SG_SSL_PRINCIPAL);
+            String sslPrincipal = threadContext.getTransient(SSLConfigConstants.SG_SSL_PRINCIPAL);
 
             ClientIpInfo clientInfo = null;
             try {
