@@ -21,7 +21,6 @@ import static org.elasticsearch.rest.RestRequest.Method.PUT;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -39,7 +38,6 @@ import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -61,7 +59,6 @@ import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
-import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchsupport.action.StandardResponse;
 import com.google.common.collect.ImmutableList;
 
@@ -69,11 +66,11 @@ public abstract class PatchableResourceApiAction extends AbstractApiAction {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
 
-    public PatchableResourceApiAction(Settings settings, Path configPath, RestController controller, Client client, AdminDNs adminDNs,
-            ConfigurationRepository cl, StaticSgConfig staticSgConfig, ClusterService cs, PrincipalExtractor principalExtractor,
-            AuthorizationService authorizationService, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
-            ThreadPool threadPool, AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
-        super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, authorizationService,
+    public PatchableResourceApiAction(Settings settings, Client client, AdminDNs adminDNs,
+                                      ConfigurationRepository cl, StaticSgConfig staticSgConfig, ClusterService cs,
+                                      AuthorizationService authorizationService, SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
+                                      ThreadPool threadPool, AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
+        super(settings, client, adminDNs, cl, staticSgConfig, cs, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators);
     }
 

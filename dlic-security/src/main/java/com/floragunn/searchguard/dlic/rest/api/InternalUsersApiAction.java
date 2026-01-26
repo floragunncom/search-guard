@@ -15,7 +15,6 @@
 package com.floragunn.searchguard.dlic.rest.api;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -32,7 +31,6 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -53,17 +51,16 @@ import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValid
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator.ErrorType;
 import com.floragunn.searchguard.dlic.rest.validation.InternalUsersValidator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
-import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 
 public class InternalUsersApiAction extends PatchableResourceApiAction {
 
     @Inject
-    public InternalUsersApiAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
-            final AdminDNs adminDNs, final ConfigurationRepository cl, StaticSgConfig staticSgConfig, final ClusterService cs,
-            final PrincipalExtractor principalExtractor, AuthorizationService authorizationService,
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
-            AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
-        super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, authorizationService,
+    public InternalUsersApiAction(final Settings settings, final Client client,
+                                  final AdminDNs adminDNs, final ConfigurationRepository cl, StaticSgConfig staticSgConfig, final ClusterService cs,
+                                  AuthorizationService authorizationService,
+                                  SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
+                                  AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
+        super(settings, client, adminDNs, cl, staticSgConfig, cs, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators);
     }
     

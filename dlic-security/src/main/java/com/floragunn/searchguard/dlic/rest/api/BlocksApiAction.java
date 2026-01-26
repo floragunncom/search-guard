@@ -14,7 +14,6 @@
 
 package com.floragunn.searchguard.dlic.rest.api;
 
-import java.nio.file.Path;
 import java.util.List;
 
 import com.floragunn.searchguard.configuration.validation.ConfigModificationValidators;
@@ -23,14 +22,12 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authc.blocking.Blocks;
 import com.floragunn.searchguard.authz.AuthorizationService;
-import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.CType;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
@@ -38,17 +35,16 @@ import com.floragunn.searchguard.configuration.StaticSgConfig;
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator;
 import com.floragunn.searchguard.dlic.rest.validation.BlocksValidator;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
-import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 
 public class BlocksApiAction extends PatchableResourceApiAction {
 
     @Inject
-    public BlocksApiAction(Settings settings, final Path configPath, RestController controller, Client client, AdminDNs adminDNs,
-                           ConfigurationRepository cl, StaticSgConfig staticSgConfig, ClusterService cs, final PrincipalExtractor principalExtractor,
+    public BlocksApiAction(Settings settings, Client client, AdminDNs adminDNs,
+                           ConfigurationRepository cl, StaticSgConfig staticSgConfig, ClusterService cs,
                            AuthorizationService authorizationService,
                            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
                            AuditLog auditLog, ConfigModificationValidators configModificationValidators) {
-        super(settings, configPath, controller, client, adminDNs, cl, staticSgConfig, cs, principalExtractor, authorizationService,
+        super(settings, client, adminDNs, cl, staticSgConfig, cs, authorizationService,
                 specialPrivilegesEvaluationContextProviderRegistry, threadPool, auditLog, configModificationValidators);
     }
 

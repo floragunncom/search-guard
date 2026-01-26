@@ -20,6 +20,7 @@ package com.floragunn.searchguard.support;
 import java.io.Serializable;
 import java.util.Map;
 
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
 import com.google.common.base.Strings;
@@ -27,7 +28,7 @@ import com.google.common.base.Strings;
 public class HeaderHelper {
 
     public static boolean isInterClusterRequest(final ThreadContext context) {
-        return context.getTransient(ConfigConstants.SG_SSL_TRANSPORT_INTERCLUSTER_REQUEST) == Boolean.TRUE;
+        return context.getTransient(SSLConfigConstants.SG_SSL_TRANSPORT_INTERCLUSTER_REQUEST) == Boolean.TRUE;
     }
 
     public static boolean isDirectRequest(final ThreadContext context) {
@@ -69,6 +70,6 @@ public class HeaderHelper {
     }
     
     public static boolean isTrustedClusterRequest(final ThreadContext context) {
-        return context.getTransient(ConfigConstants.SG_SSL_TRANSPORT_TRUSTED_CLUSTER_REQUEST) == Boolean.TRUE;
+        return context.getTransient(SSLConfigConstants.SG_SSL_TRANSPORT_TRUSTED_CLUSTER_REQUEST) == Boolean.TRUE;
     }
 }

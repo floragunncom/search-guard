@@ -26,12 +26,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import com.floragunn.searchguard.ssl.http.netty.SSLInfoPopulatingDispatcher;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
@@ -69,7 +69,6 @@ import org.elasticsearch.transport.netty4.SharedGroupFactory;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport;
-import com.floragunn.searchguard.ssl.http.netty.ValidatingDispatcher;
 import com.floragunn.searchguard.ssl.rest.SearchGuardSSLInfoAction;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.ssl.transport.SearchGuardSSLNettyTransport;
@@ -205,11 +204,9 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
         final Map<String, Supplier<HttpServerTransport>> httpTransports = new HashMap<String, Supplier<HttpServerTransport>>(1);
         if (httpSSLEnabled) {
-
-            final ValidatingDispatcher validatingDispatcher = new ValidatingDispatcher(threadPool.getThreadContext(), dispatcher, settings,
-                    configPath, NOOP_SSL_EXCEPTION_HANDLER);
+            final SSLInfoPopulatingDispatcher sslInfoPopulatingDispatcher = new SSLInfoPopulatingDispatcher(dispatcher, NOOP_SSL_EXCEPTION_HANDLER, principalExtractor, settings, configPath);
             final SearchGuardSSLNettyHttpServerTransport sgsnht = new SearchGuardSSLNettyHttpServerTransport(settings, networkService,
-                    threadPool, sgks, xContentRegistry, validatingDispatcher, clusterSettings, sharedGroupFactory, NOOP_SSL_EXCEPTION_HANDLER, telemetryProvider, perRequestThreadContext);
+                    threadPool, sgks, xContentRegistry, sslInfoPopulatingDispatcher, clusterSettings, sharedGroupFactory, NOOP_SSL_EXCEPTION_HANDLER, telemetryProvider, perRequestThreadContext);
 
             httpTransports.put("com.floragunn.searchguard.ssl.http.netty.SearchGuardSSLNettyHttpServerTransport", () -> sgsnht);
 
@@ -225,7 +222,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
 
         final List<RestHandler> handlers = new ArrayList<RestHandler>(1);
 
-        handlers.add(new SearchGuardSSLInfoAction(settings, configPath, restController, sgks, Objects.requireNonNull(principalExtractor)));
+        handlers.add(new SearchGuardSSLInfoAction(sgks));
 
         return handlers;
     }
