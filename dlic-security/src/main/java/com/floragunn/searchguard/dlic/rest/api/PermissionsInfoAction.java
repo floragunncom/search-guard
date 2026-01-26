@@ -15,7 +15,6 @@
 package com.floragunn.searchguard.dlic.rest.api;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -23,28 +22,22 @@ import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.client.internal.node.NodeClient;
-import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestChannel;
-import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestRequest.Method;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.xcontent.XContentBuilder;
 
-import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authz.AuthorizationService;
 import com.floragunn.searchguard.configuration.AdminDNs;
-import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
-import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.google.common.collect.ImmutableList;
@@ -61,16 +54,13 @@ public class PermissionsInfoAction extends BaseRestHandler {
     private final AuthorizationService authorizationService;
     private final SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry;
 
-    protected PermissionsInfoAction(final Settings settings, final Path configPath, final RestController controller, final Client client,
-            final AdminDNs adminDNs, final ConfigurationRepository cl, final ClusterService cs, final PrincipalExtractor principalExtractor,
-            AuthorizationService authorizationService,
-            SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool,
-            AuditLog auditLog) {
+    protected PermissionsInfoAction(final Settings settings, final AdminDNs adminDNs, AuthorizationService authorizationService,
+                                    SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry, ThreadPool threadPool) {
         super();
         this.threadPool = threadPool;
         this.authorizationService = authorizationService;
         this.restApiPrivilegesEvaluator = new RestApiPrivilegesEvaluator(settings, adminDNs, authorizationService,
-                specialPrivilegesEvaluationContextProviderRegistry, principalExtractor, configPath, threadPool);
+                specialPrivilegesEvaluationContextProviderRegistry, threadPool);
         this.specialPrivilegesEvaluationContextProviderRegistry = specialPrivilegesEvaluationContextProviderRegistry;
     }
 

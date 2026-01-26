@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
@@ -49,12 +50,9 @@ import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.google.common.base.Strings;
-import org.elasticsearch.transport.TaskTransportChannel;
-import org.elasticsearch.transport.TcpTransportChannel;
 import org.elasticsearch.transport.TransportChannel;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestHandler;
-import org.elasticsearch.transport.TransportService;
 
 public class SearchGuardRequestHandler<T extends TransportRequest> extends SearchGuardSSLRequestHandler<T> {
 
@@ -163,7 +161,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
 
             String principal = null;
 
-            if ((principal = getThreadContext().getTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL)) == null) {
+            if ((principal = getThreadContext().getTransient(SSLConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL)) == null) {
                 Exception ex = new ElasticsearchSecurityException(
                         "No SSL client certificates found for transport type "+transportChannel+". Search Guard needs the Search Guard SSL plugin to be installed");
                 auditLog.logSSLException(request, ex, task.getAction(), task);
@@ -265,9 +263,9 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                     log.trace("Is inter cluster request ({}/{}/{})", action, request.getClass(), request.remoteAddress());
                 }
 
-                getThreadContext().putTransient(ConfigConstants.SG_SSL_TRANSPORT_INTERCLUSTER_REQUEST, Boolean.TRUE);
+                getThreadContext().putTransient(SSLConfigConstants.SG_SSL_TRANSPORT_INTERCLUSTER_REQUEST, Boolean.TRUE);
             } else {
-                getThreadContext().putTransient(ConfigConstants.SG_SSL_TRANSPORT_TRUSTED_CLUSTER_REQUEST, Boolean.TRUE);
+                getThreadContext().putTransient(SSLConfigConstants.SG_SSL_TRANSPORT_TRUSTED_CLUSTER_REQUEST, Boolean.TRUE);
             }
 
         } else {

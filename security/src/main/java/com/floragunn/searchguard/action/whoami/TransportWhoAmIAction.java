@@ -17,6 +17,7 @@
 
 package com.floragunn.searchguard.action.whoami;
 
+import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.HandledTransportAction;
@@ -54,7 +55,7 @@ HandledTransportAction<WhoAmIRequest, WhoAmIResponse> {
     @Override
     protected void doExecute(Task task, WhoAmIRequest request, ActionListener<WhoAmIResponse> listener) {
         final User user = threadPool.getThreadContext().getTransient(ConfigConstants.SG_USER);
-        final String dn = user==null?threadPool.getThreadContext().getTransient(ConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL):user.getName();
+        final String dn = user==null?threadPool.getThreadContext().getTransient(SSLConfigConstants.SG_SSL_TRANSPORT_PRINCIPAL):user.getName();
         final boolean isAdmin = adminDNs.isAdminDN(dn);
         final boolean isAuthenticated = isAdmin?true: user != null;
         final boolean isNodeCertificateRequest = HeaderHelper.isInterClusterRequest(threadPool.getThreadContext()) || 
