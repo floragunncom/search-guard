@@ -1,0 +1,89 @@
+Please set DATA_DIR_ARCHIVE_NAME:
+  allow_failure: true
+  tags:
+    - test
+  stage: "Frontend MT Data Migration Tests"
+  image: "$SG_BUILD_IMAGE"
+  needs:
+    - job: build
+  artifacts:
+    reports:
+      dotenv: mt-data-migration-test.env    
+  rules:
+    - when: manual      
+  script:
+    - |
+      BRANCH_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+        --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+        "https://git.floragunn.com/api/v4/projects/14/repository/branches/${SG_KI_BRANCH}")
+
+      if [ "${BRANCH_HTTP_CODE}" != "200" ]; then
+        echo "ERROR: Branch '${SG_KI_BRANCH}' does NOT exist in search-guard-kibana-plugin"
+        exit 1
+      fi
+
+      PLUGIN_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin "${CI_COMMIT_REF_NAME}-SNAPSHOT" .zip)
+      KIBANA_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin "b-${SG_KI_BRANCH}-SNAPSHOT" .zip)
+
+      PLUGIN_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "${PLUGIN_ARIFACT_URL}")
+
+      if [ "${PLUGIN_HTTP_CODE}" != "200" ]; then
+        echo "ERROR: PLUGIN_ARIFACT_URL=${PLUGIN_ARIFACT_URL} not accessible (HTTP ${PLUGIN_HTTP_CODE})"
+        exit 1
+      fi
+
+      KIBANA_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "${KIBANA_ARIFACT_URL}")
+
+      if [ "${KIBANA_HTTP_CODE}" != "200" ]; then
+        echo "ERROR: Kibana Artifact URL=${KIBANA_ARIFACT_URL} not exist (HTTP ${KIBANA_HTTP_CODE}), check whether the artifact has expired and rebuild it from the Kibana repository"
+        exit 1
+      fi
+      echo "KIBANA_ARIFACT_URL=$KIBANA_ARIFACT_URL" >> mt-data-migration-test.env  
+      echo "PLUGIN_ARIFACT_URL=$PLUGIN_ARIFACT_URL" >> mt-data-migration-test.env  
+
+
+
+      if [[ -z "${DATA_DIR_ARCHIVE_NAME:-}" ]]; then
+        echo "[ ERROR ]: DATA_DIR_ARCHIVE_NAME variable is not set or is empty,example value mt-test-data-9.0.1.tar.gz"
+        exit 1
+      fi
+      
+      MT_DATA_URL="https://maven.search-guard.com/test-data/com/floragunn/mt-test-data/${DATA_DIR_ARCHIVE_NAME}"
+
+      echo "Checking if MT test data archive exists: ${MT_DATA_URL}"
+      if ! curl -u "$ARTIFACTORY_USER:$ARTIFACTORY_PASSWORD" -sfI "${MT_DATA_URL}" > /dev/null; then
+        echo "[ ERROR ]: MT test data archive does not exist or is not accessible: ${MT_DATA_URL}"
+        exit 1
+      fi  
+      echo "ES_VERSION=$ES_VERSION" >> mt-data-migration-test.env
+      echo "KIBANA_DATA_DIR_ARCHIVE_NAME=$DATA_DIR_ARCHIVE_NAME" >> mt-data-migration-test.env
+      echo "CHECK_FRONTEND_PREREQUISITES=1" >> mt-data-migration-test.env
+
+
+mt_data_migration_tests:
+  allow_failure: false
+  stage: "Frontend MT Data Migration Tests"
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/ || $CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: never    
+    - when: on_success
+  needs:
+    - job: build
+    - job: Please set DATA_DIR_ARCHIVE_NAME
+      artifacts: true
+  variables:
+    SG_ES_PLUGIN: ${PLUGIN_ARIFACT_URL}
+    SG_KI_PLUGIN: ${KIBANA_ARIFACT_URL}
+    SF_VERSION: ${ES_VERSION}
+    KIBANA_DATA_DIR_ARCHIVE_NAME: ${KIBANA_DATA_DIR_ARCHIVE_NAME}
+    CHECK_JOB_NAME: "Please set DATA_DIR_ARCHIVE_NAME"
+    PARENT_PIPELINE_PREREQUISITES: ${CHECK_FRONTEND_PREREQUISITES}
+  trigger:
+    strategy: depend
+    include:
+      - project: search-guard/search-guard-kibana-plugin
+        ref: ${SG_KI_BRANCH}
+        file: ".gitlab-ci-branch-specific.yml"
+      - project: search-guard/search-guard-kibana-plugin
+        ref: ${SG_KI_BRANCH}
+        file: "ci/mt_data_migration_tests.yml"
