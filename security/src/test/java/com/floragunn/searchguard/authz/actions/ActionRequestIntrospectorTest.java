@@ -25,7 +25,6 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.floragunn.searchsupport.meta.Component;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -177,7 +176,7 @@ public class ActionRequestIntrospectorTest {
     }
 
     private IndexWithComponent indexWithRandomComponent(String index) {
-        return new IndexWithComponent(index, Component.values()[new Random().nextInt(Component.values().length)]);
+        return new IndexWithComponent(index, new Random().nextBoolean());
     }
 
     static ActionRequestIntrospector simple() {

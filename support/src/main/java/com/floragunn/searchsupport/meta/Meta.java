@@ -35,7 +35,9 @@ import org.elasticsearch.logging.internal.spi.LoggerFactory;
  */
 public interface Meta extends Document<Meta> {
 
-    String FAILURES_SUFFIX = "::failures";
+    String COMPONENT_SEPARATOR = "::";
+    String FAILURES_SUFFIX = COMPONENT_SEPARATOR + "failures";
+    String DATA_SUFFIX = COMPONENT_SEPARATOR + "data";
 
     static String indexLikeNameWithFailuresSuffix(String indexLikeName) {
         if (indexLikeName == null) {
@@ -177,6 +179,14 @@ public interface Meta extends Document<Meta> {
         boolean isHidden();
 
         boolean exists();
+
+        default boolean isFailureStoreRelated() {
+            return name().endsWith("::failures") || name().startsWith(".fs");
+        }
+
+        default boolean isDataRelated() {
+            return ! isFailureStoreRelated();
+        }
 
         static ImmutableSet<Index> resolveDeep(ImmutableSet<? extends Meta.IndexLikeObject> objects) {
             return resolveDeep(objects, Alias.ResolutionMode.NORMAL);

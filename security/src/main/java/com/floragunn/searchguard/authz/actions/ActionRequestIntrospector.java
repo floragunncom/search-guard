@@ -32,7 +32,6 @@ import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 import com.floragunn.fluent.collections.ImmutableList;
-import com.floragunn.searchsupport.meta.Component;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.AliasesRequest;
@@ -713,7 +712,8 @@ public class ActionRequestIntrospector {
         final boolean expandWildcards;
         final boolean isAll;
         /** set only when isAll is true, null otherwise */
-        final Component allIncidesComponent;
+        //todo COMPONENT SELECTORS - rename e.g allForFailures
+        final Boolean allIncidesComponent; // all indices related to failure store
         private final boolean containsWildcards;
         private final boolean writeRequest;
         final boolean createIndexRequest;
@@ -735,7 +735,7 @@ public class ActionRequestIntrospector {
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
             this.localIndices = this.indices.matching(Predicate.not(ActionRequestIntrospector::isRemoteIndex));
-            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(IndexWithComponent::indexNameWithComponent);
+            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(IndexWithComponent::indexNamePossiblyWithComponent);
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, indicesRequest);
             this.allIncidesComponent = determineAllIndicesComponent();
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(this.indices) : false;
@@ -759,7 +759,7 @@ public class ActionRequestIntrospector {
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
             this.localIndices = this.indices.matching(Predicate.not(ActionRequestIntrospector::isRemoteIndex));
-            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(IndexWithComponent::indexNameWithComponent);;
+            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(IndexWithComponent::indexNamePossiblyWithComponent);
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, null);
             this.allIncidesComponent = determineAllIndicesComponent();
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(index) : false;
@@ -783,7 +783,7 @@ public class ActionRequestIntrospector {
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
             this.localIndices = this.indices.matching(Predicate.not(ActionRequestIntrospector::isRemoteIndex));
-            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(IndexWithComponent::indexNameWithComponent);;
+            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(IndexWithComponent::indexNamePossiblyWithComponent);
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, null);
             this.allIncidesComponent = determineAllIndicesComponent();
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(this.indices) : false;
@@ -878,10 +878,6 @@ public class ActionRequestIntrospector {
             return this.isAll;
         }
 
-        public Component allIncidesComponent() {
-            return allIncidesComponent;
-        }
-
         private boolean isAll(List<IndexWithComponent> localIndices, ImmutableSet<String> remoteIndices, IndicesRequest indicesRequest) {
             if (localIndices.isEmpty() && !remoteIndices.isEmpty()) {
                 return false;
@@ -899,17 +895,17 @@ public class ActionRequestIntrospector {
                 }
             }
 
-            return IndexNameExpressionResolver.isAllIndices(localIndices, indexWithComponent -> indexWithComponent == null? null : indexWithComponent.indexName())
-                    || (localIndices.size() == 1 && (localIndices.get(0).indexName() == null || localIndices.get(0).indexName().equals("*")));
+            return IndexNameExpressionResolver.isAllIndices(localIndices, indexWithComponent -> indexWithComponent == null? null : indexWithComponent.indexNameWithoutComponent())
+                    || (localIndices.size() == 1 && (localIndices.get(0).indexNameWithoutComponent() == null || localIndices.get(0).indexNameWithoutComponent().equals("*")));
         }
 
-        private Component determineAllIndicesComponent() {
+        private Boolean determineAllIndicesComponent() {
             if (! this.isAll) {
                 return null;
             } else if (this.localIndices.isEmpty()) {
-                return Component.NONE;
+                return false;
             } else {
-                return this.localIndices.first().component();
+                return this.localIndices.first().failureStore();
             }
         }
 
@@ -920,15 +916,16 @@ public class ActionRequestIntrospector {
             List<IndexWithComponent> indexWithComponents = indices.stream()
                     .map(index -> {
                         if (index == null) {
-                            return new IndexWithComponent(null, Component.getBySuffix(""));
+                            return new IndexWithComponent(null, false);
                         }
-                        int lastIndexOfComponentSeparator = index.lastIndexOf(Component.COMPONENT_SEPARATOR);
+                        int lastIndexOfComponentSeparator = index.lastIndexOf(Meta.COMPONENT_SEPARATOR);
                         if (lastIndexOfComponentSeparator == -1) {
-                            return new IndexWithComponent(index, Component.getBySuffix(""));
+                            return new IndexWithComponent(index, false);
                         } else {
                             String indexName = index.substring(0, lastIndexOfComponentSeparator);
-                            String componentSuffix = index.substring(lastIndexOfComponentSeparator + Component.COMPONENT_SEPARATOR.length());
-                            return new IndexWithComponent(indexName, Component.getBySuffix(componentSuffix));
+                            String componentSuffix = index.substring(lastIndexOfComponentSeparator);
+                            //todo COMPONENT SELECTORS - check if failure store component is determined correctly
+                            return new IndexWithComponent(indexName, Meta.FAILURES_SUFFIX.equals(componentSuffix));
                         }
                     }).toList();
             return ImmutableList.of(indexWithComponents);
@@ -971,7 +968,7 @@ public class ActionRequestIntrospector {
                     if (remoteIndices.isEmpty()) {
                         return indicesArray;
                     } else {
-                        return localIndices.map(IndexWithComponent::indexNameWithComponent).toArray(String[]::new);
+                        return localIndices.map(IndexWithComponent::indexNamePossiblyWithComponent).toArray(String[]::new);
                     }
                 }
 
@@ -1104,8 +1101,8 @@ public class ActionRequestIntrospector {
 
     static boolean containsWildcard(Collection<IndexWithComponent> indices) {
         return indices == null || indices.stream()
-                .filter(i -> i != null && i.indexName() != null)
-                .map(IndexWithComponent::indexName)
+                .filter(i -> i != null && i.indexNameWithoutComponent() != null)
+                .map(IndexWithComponent::indexNameWithoutComponent)
                 .anyMatch(name -> name.contains("*") || name.equals("_all"));
     }
 
@@ -1121,11 +1118,11 @@ public class ActionRequestIntrospector {
     }
 
     static boolean isRemoteIndex(IndexWithComponent indexWithComponent) {
-        if (indexWithComponent == null || indexWithComponent.indexName() == null) {
+        if (indexWithComponent == null || indexWithComponent.indexNameWithoutComponent() == null) {
             return false;
         }
-        int firstIndex = indexWithComponent.indexName().indexOf(REMOTE_CLUSTER_INDEX_SEPARATOR);
-        int lastIndex = indexWithComponent.indexName().lastIndexOf(REMOTE_CLUSTER_INDEX_SEPARATOR);
+        int firstIndex = indexWithComponent.indexNameWithoutComponent().indexOf(REMOTE_CLUSTER_INDEX_SEPARATOR);
+        int lastIndex = indexWithComponent.indexNameWithoutComponent().lastIndexOf(REMOTE_CLUSTER_INDEX_SEPARATOR);
 
         // If both are same and not -1, there's exactly one colon
         return (firstIndex != -1) && (firstIndex == lastIndex);
