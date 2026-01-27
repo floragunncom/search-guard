@@ -230,14 +230,14 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
      * @return a configured check table ready for privilege evaluation
      */
     private CheckTable<Meta.IndexLikeObject, Action> createCheckTable(ImmutableSet<Meta.IndexLikeObject> indexLikes, ImmutableSet<Action> actions) {
-        boolean containFailureStore = indexLikes.stream().anyMatch(i -> ! i.isAssociatedWithDataComponent());
+        boolean containFailureStore = indexLikes.stream().anyMatch(Meta.IndexLikeObject::isFailureStoreRelated);
         if (containFailureStore) {
             // Include specialFailureStoreAction to verify failure store access privileges
             CheckTable<Meta.IndexLikeObject, Action> checkTable = CheckTable.create(indexLikes, actions.with(specialFailureStoreAction));
 
             // The specialFailureStoreAction privilege only applies to failure store components.
             // Pre-mark data component cells as checked so that only failure store components require this privilege.
-            checkTable.checkIf(Meta.IndexLikeObject::isAssociatedWithDataComponent, specialFailureStoreAction);
+            checkTable.checkIf(Meta.IndexLikeObject::isDataRelated, specialFailureStoreAction);
 
             log.trace("Check table after extension with {} is {}", Actions.SPECIAL_FAILURE_STORE_NAME, checkTable);
             return checkTable;

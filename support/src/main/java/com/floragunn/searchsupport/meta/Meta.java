@@ -96,11 +96,6 @@ public interface Meta extends Document<Meta> {
     interface IndexLikeObject extends Document<IndexLikeObject> {
         String name();
 
-        default boolean isAssociatedWithDataComponent() {
-            // TODO CS: the method (or method with a similar name) should be implemented in the scope of another MR
-            return true;
-        }
-
         ImmutableSet<IndexOrNonExistent> resolveDeep(Alias.ResolutionMode resolutionMode);
 
         ImmutableSet<String> resolveDeepToNames(Alias.ResolutionMode resolutionMode);
@@ -128,6 +123,16 @@ public interface Meta extends Document<Meta> {
         boolean isHidden();
 
         boolean exists();
+
+        default boolean isFailureStoreRelated() {
+            //todo COMPONENT SELECTORS - the method version from the MR related to Meta extension should be used
+            return name().endsWith("::failures") || name().startsWith(".fs");
+        }
+
+        default boolean isDataRelated() {
+            //todo COMPONENT SELECTORS - the method version from the MR related to Meta extension should be used
+            return ! isFailureStoreRelated();
+        }
 
         static ImmutableSet<Index> resolveDeep(ImmutableSet<? extends Meta.IndexLikeObject> objects) {
             return resolveDeep(objects, Alias.ResolutionMode.NORMAL);
@@ -305,6 +310,7 @@ public interface Meta extends Document<Meta> {
          */
         static interface DataStreamBuilder {
 
+            //todo COMPONENT SELECTORS - The method should be removed when changes related to the Meta class are ready
             DataStreamBuilder withDataComponent(boolean dataComponent);
 
             Meta of(String... indexNames);

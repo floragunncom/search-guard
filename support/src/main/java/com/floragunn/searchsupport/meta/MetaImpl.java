@@ -63,8 +63,15 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        public boolean isAssociatedWithDataComponent() {
+        public boolean isDataRelated() {
+            //todo COMPONENT SELECTORS - the method version from the MR related to Meta extension should be used
             return dataComponent;
+        }
+
+        @Override
+        public boolean isFailureStoreRelated() {
+            //todo COMPONENT SELECTORS - the method version from the MR related to Meta extension should be used
+            return ! dataComponent;
         }
 
         @Override
@@ -248,10 +255,16 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        public boolean isAssociatedWithDataComponent() {
+        public boolean isDataRelated() {
+            //todo COMPONENT SELECTORS - the method version from the MR related to Meta extension should be used
             return dataComponent;
         }
 
+        @Override
+        public boolean isFailureStoreRelated() {
+            //todo COMPONENT SELECTORS - the method version from the MR related to Meta extension should be used
+            return ! dataComponent;
+        }
         @Override
         protected AbstractIndexLike<DataStreamImpl> withAlias(String alias) {
             return new DataStreamImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(alias), members(), isHidden(), dataComponent);
@@ -846,6 +859,7 @@ public abstract class MetaImpl implements Meta {
 
                 @Override
                 public Mock.DataStreamBuilder withDataComponent(boolean dataComponent) {
+                    //todo COMPONENT SELECTORS - The method should be removed when changes related to the Meta class are ready
                     this.dataComponent = dataComponent;
                     return this;
                 }
@@ -963,6 +977,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public Mock.DataStreamBuilder withDataComponent(boolean dataComponent) {
+            //todo COMPONENT SELECTORS - The method should be removed when changes related to the Meta class are ready
             this.dataComponent = dataComponent;
             return this;
         }
