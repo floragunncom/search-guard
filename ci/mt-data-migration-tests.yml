@@ -64,8 +64,8 @@ mt_data_migration_tests:
   allow_failure: false
   stage: "Frontend MT Data Migration Tests"
   rules:
-    # - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/ || $CI_COMMIT_TAG =~ /^sg-flx-.*/'
-    #   when: never    
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/ || $CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: never    
     - when: on_success
   needs:
     - job: build
