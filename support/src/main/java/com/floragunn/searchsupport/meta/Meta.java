@@ -105,16 +105,22 @@ public interface Meta extends Document<Meta> {
 
     interface IndexLikeObject extends Document<IndexLikeObject> {
         /**
-         * Returns just the name when {@link #isFailureStoreRelated()} is false;
-         * otherwise, the name suffixed with the {@link Meta#FAILURES_SUFFIX}.
+         * Returns just the name for all indices as well as aliases and data streams representing the data component.
+         * For aliases and data streams representing the failure component, it returns the name suffixed with the {@link Meta#FAILURES_SUFFIX}.
          */
         String name();
 
         /**
-         * Returns just the name no matter whether {@link #isFailureStoreRelated()} is true or false.
+         * Returns just the name, which is needed during index pattern matching.
          */
-        String nameWithoutComponentSuffix();
-        boolean isFailureStoreRelated();
+        default String nameForIndexPatternMatching() {
+            String name = name();
+            if (name.endsWith(FAILURES_SUFFIX)) {
+                return name.substring(0, name.indexOf(FAILURES_SUFFIX));
+            } else {
+                return name;
+            }
+        }
 
         ImmutableSet<IndexOrNonExistent> resolveDeep(Alias.ResolutionMode resolutionMode);
 
