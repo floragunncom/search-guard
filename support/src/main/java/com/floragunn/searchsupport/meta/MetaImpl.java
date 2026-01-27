@@ -49,14 +49,14 @@ public abstract class MetaImpl implements Meta {
         private final boolean system;
 
         public IndexImpl(DefaultMetaImpl root, String name, Collection<String> parentAliasNames, String parentDataStreamName, boolean hidden,
-                boolean system, org.elasticsearch.cluster.metadata.IndexMetadata.State state, boolean failureStoreRelated) {
-            super(root, name, parentAliasNames, parentDataStreamName, hidden, failureStoreRelated);
+                boolean system, org.elasticsearch.cluster.metadata.IndexMetadata.State state) {
+            super(root, name, parentAliasNames, parentDataStreamName, hidden);
             this.open = state == org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN;
             this.system = system;
         }
 
-        IndexImpl(DefaultMetaImpl root, String name, Collection<String> parentAliasNames, String parentDataStreamName, boolean failureStoreRelated) {
-            this(root, name, parentAliasNames, parentDataStreamName, false, false, org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN, failureStoreRelated);
+        IndexImpl(DefaultMetaImpl root, String name, Collection<String> parentAliasNames, String parentDataStreamName) {
+            this(root, name, parentAliasNames, parentDataStreamName, false, false, org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN);
         }
 
         @Override
@@ -73,7 +73,7 @@ public abstract class MetaImpl implements Meta {
         protected AbstractIndexLike<IndexImpl> withAlias(String alias) {
             return new IndexImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(alias), parentDataStreamName(), isHidden(), system,
                     this.open ? org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN
-                            : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE, isFailureStoreRelated());
+                            : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE);
         }
 
         @Override
@@ -101,7 +101,7 @@ public abstract class MetaImpl implements Meta {
         protected IndexImpl copy() {
             return new IndexImpl(null, name(), parentAliasNames(), parentDataStreamName(), isHidden(), system,
                     open ? org.elasticsearch.cluster.metadata.IndexMetadata.State.OPEN
-                            : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE, isFailureStoreRelated());
+                            : org.elasticsearch.cluster.metadata.IndexMetadata.State.CLOSE);
         }
 
         @Override
@@ -136,8 +136,8 @@ public abstract class MetaImpl implements Meta {
         private final ImmutableSet<IndexLikeObject> writeTargetAsSet;
 
         public AliasImpl(DefaultMetaImpl root, String name, UnmodifiableCollection<IndexLikeObject> members, boolean hidden,
-                IndexLikeObject writeTarget, boolean failureStoreRelated) {
-            super(root, name, ImmutableSet.empty(), null, members, hidden, failureStoreRelated);
+                IndexLikeObject writeTarget) {
+            super(root, name, ImmutableSet.empty(), null, members, hidden);
             this.writeTarget = writeTarget;
             this.writeTargetAsSet = writeTarget != null ? ImmutableSet.of(writeTarget) : ImmutableSet.empty();
         }
@@ -160,7 +160,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected AliasImpl copy() {
-            return new AliasImpl(null, name(), members(), isHidden(), writeTarget, isFailureStoreRelated());
+            return new AliasImpl(null, name(), members(), isHidden(), writeTarget);
         }
 
         @Override
@@ -231,13 +231,13 @@ public abstract class MetaImpl implements Meta {
 
     public static class DataStreamImpl extends AbstractIndexCollection<DataStreamImpl> implements Meta.DataStream {
         public DataStreamImpl(DefaultMetaImpl root, String name, Collection<String> parentAliasNames, UnmodifiableCollection<IndexLikeObject> members,
-                boolean hidden, boolean failureStoreRelated) {
-            super(root, name, parentAliasNames, null, members, hidden, failureStoreRelated);
+                boolean hidden) {
+            super(root, name, parentAliasNames, null, members, hidden);
         }
 
         @Override
         protected AbstractIndexLike<DataStreamImpl> withAlias(String alias) {
-            return new DataStreamImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(alias), members(), isHidden(), isFailureStoreRelated());
+            return new DataStreamImpl(null, name(), ImmutableSet.of(this.parentAliasNames()).with(alias), members(), isHidden());
         }
 
         @Override
@@ -253,7 +253,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         protected DataStreamImpl copy() {
-            return new DataStreamImpl(null, name(), parentAliasNames(), members(), isHidden(), isFailureStoreRelated());
+            return new DataStreamImpl(null, name(), parentAliasNames(), members(), isHidden());
         }
 
         @Override
@@ -272,7 +272,6 @@ public abstract class MetaImpl implements Meta {
         private final Collection<String> parentAliasNames;
         private final String parentDataStreamName;
         private final boolean hidden;
-        private final boolean failureStoreRelated;
         private DefaultMetaImpl root;
         private ImmutableSet<Meta.IndexOrNonExistent> cachedResolveDeep;
         private ImmutableSet<Meta.IndexOrNonExistent> cachedResolveDeepWrite;
@@ -281,28 +280,17 @@ public abstract class MetaImpl implements Meta {
         private ImmutableSet<Meta.Alias> cachedParentAliases;
 
         public AbstractIndexLike(DefaultMetaImpl root, String name, Collection<String> parentAliasNames, String parentDataStreamName,
-                boolean hidden, boolean failureStoreRelated) {
+                boolean hidden) {
             this.name = Objects.requireNonNull(name);
             this.parentAliasNames = parentAliasNames != null ? parentAliasNames : ImmutableSet.empty();
             this.parentDataStreamName = parentDataStreamName;
             this.hidden = hidden;
-            this.failureStoreRelated = failureStoreRelated;
             this.root = root;
         }
 
         @Override
         public String name() {
-            return isFailureStoreRelated()? Meta.indexLikeNameWithFailuresSuffix(name) : name;
-        }
-
-        @Override
-        public String nameWithoutComponentSuffix() {
             return name;
-        }
-
-        @Override
-        public boolean isFailureStoreRelated() {
-            return this.failureStoreRelated;
         }
 
         @Override
@@ -425,8 +413,8 @@ public abstract class MetaImpl implements Meta {
         private ImmutableSet<Meta.Index> cachedResolveDeepAsIndexWrite;
 
         public AbstractIndexCollection(DefaultMetaImpl root, String name, Collection<String> parentAliasNames, String parentDataStreamName,
-                UnmodifiableCollection<IndexLikeObject> members, boolean hidden, boolean failureStoreRelated) {
-            super(root, name, parentAliasNames, parentDataStreamName, hidden, failureStoreRelated);
+                UnmodifiableCollection<IndexLikeObject> members, boolean hidden) {
+            super(root, name, parentAliasNames, parentDataStreamName, hidden);
             this.members = members;
         }
 
@@ -602,14 +590,14 @@ public abstract class MetaImpl implements Meta {
                     org.elasticsearch.cluster.metadata.IndexMetadata esIndexMetadata = project.index(esIndex.getName());
 
                     Index index = new IndexImpl(this, esIndex.getName(), ImmutableSet.empty(), esDataStream.getName(), esIndexMetadata.isHidden(),
-                            esIndexMetadata.isSystem(), esIndexMetadata.getState(), false);
+                            esIndexMetadata.isSystem(), esIndexMetadata.getState());
                     indices.add(index);
                     nameMap.put(index.name(), index);
                     dataMemberIndices.add(index);
                 }
 
                 DataStream dataStreamWithDataIndices = new DataStreamImpl(this, esDataStream.getName(),
-                        parentAliasNames, dataMemberIndices.build(), esDataStream.isHidden(), false);
+                        parentAliasNames, dataMemberIndices.build(), esDataStream.isHidden());
                 datastreams.add(dataStreamWithDataIndices);
                 nameMap.put(dataStreamWithDataIndices.name(), dataStreamWithDataIndices);
 
@@ -617,18 +605,22 @@ public abstract class MetaImpl implements Meta {
                 List<org.elasticsearch.index.Index> esDataStreamFailureStoreIndices = esDataStream.getFailureIndices();
                 ImmutableList.Builder<IndexLikeObject> failureStoreMemberIndices = new ImmutableList.Builder<>(esDataStreamFailureStoreIndices.size());
 
+                String dataStreamNameWithFailuresSuffix = Meta.indexLikeNameWithFailuresSuffix(esDataStream.getName());
+
                 for (org.elasticsearch.index.Index esIndex : esDataStreamFailureStoreIndices) {
                     org.elasticsearch.cluster.metadata.IndexMetadata esIndexMetadata = project.index(esIndex.getName());
 
-                    Index index = new IndexImpl(this, esIndex.getName(), ImmutableSet.empty(), esDataStream.getName(), esIndexMetadata.isHidden(),
-                            esIndexMetadata.isSystem(), esIndexMetadata.getState(), true);
+                    Index index = new IndexImpl(this, esIndex.getName(), ImmutableSet.empty(), dataStreamNameWithFailuresSuffix, esIndexMetadata.isHidden(),
+                            esIndexMetadata.isSystem(), esIndexMetadata.getState());
                     indices.add(index);
                     nameMap.put(index.name(), index);
                     failureStoreMemberIndices.add(index);
                 }
 
-                DataStream dataStreamWithFailureStoreIndices = new DataStreamImpl(this, esDataStream.getName(),
-                        parentAliasNames, dataMemberIndices.build(), esDataStream.isHidden(), true);
+                ImmutableList<String> parentAliasNamesWithFailuresSuffix = parentAliasNames.map(Meta::indexLikeNameWithFailuresSuffix);
+
+                DataStream dataStreamWithFailureStoreIndices = new DataStreamImpl(this, dataStreamNameWithFailuresSuffix,
+                        parentAliasNamesWithFailuresSuffix, failureStoreMemberIndices.build(), esDataStream.isHidden());
                 datastreams.add(dataStreamWithFailureStoreIndices);
                 nameMap.put(dataStreamWithFailureStoreIndices.name(), dataStreamWithFailureStoreIndices);
 
@@ -641,14 +633,13 @@ public abstract class MetaImpl implements Meta {
             for (org.elasticsearch.cluster.metadata.IndexMetadata esIndexMetadata : project.indices().values()) {
                 String name = esIndexMetadata.getIndex().getName();
 
-                if (nameMap.contains(name) || nameMap.contains(Meta.indexLikeNameWithFailuresSuffix(name))) {
+                if (nameMap.contains(name)) {
                     // Index has been already created via a DataStream - it's a backing or a failure store index
                     continue;
                 }
 
-                // an index is not failureStoreRelated if it doesn't belong to a DataStream
                 Index index = new IndexImpl(this, name, esIndexMetadata.getAliases().keySet(), null, esIndexMetadata.isHidden(),
-                        esIndexMetadata.isSystem(), esIndexMetadata.getState(), false);
+                        esIndexMetadata.isSystem(), esIndexMetadata.getState());
                 indices.add(index);
                 nameMap.put(index.name(), index);
 
@@ -676,7 +667,7 @@ public abstract class MetaImpl implements Meta {
                 }
 
                 Alias alias = new AliasImpl(this, entry.getKey().alias(), members,
-                        entry.getKey().isHidden() != null ? entry.getKey().isHidden() : false, writeTarget, false);
+                        entry.getKey().isHidden() != null ? entry.getKey().isHidden() : false, writeTarget);
                 aliases.add(alias);
                 nameMap.put(alias.name(), alias);
             }
@@ -689,7 +680,7 @@ public abstract class MetaImpl implements Meta {
                 if (entry.getKey().getWriteDataStream() != null) {
                     writeTarget = nameMap.get(entry.getKey().getWriteDataStream());
                 }
-                Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false, writeTarget, false);
+                Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false, writeTarget);
                 aliases.add(alias);
                 nameMap.put(alias.name(), alias);
             }
@@ -700,7 +691,8 @@ public abstract class MetaImpl implements Meta {
 
                 IndexLikeObject writeTarget = null; // it's not clear whether we need to know failure store write target or not, so currently we do not resolve it
 
-                Alias alias = new AliasImpl(this, entry.getKey().getName(), ImmutableList.of(entry.getValue()), false, writeTarget, true);
+                String aliasNameWithFailuresSuffix = Meta.indexLikeNameWithFailuresSuffix(entry.getKey().getName());
+                Alias alias = new AliasImpl(this, aliasNameWithFailuresSuffix, ImmutableList.of(entry.getValue()), false, writeTarget);
                 aliases.add(alias);
                 nameMap.put(alias.name(), alias);
             }
@@ -822,7 +814,7 @@ public abstract class MetaImpl implements Meta {
                         if (indexLikeObject != null) {
                             indexLikeObject = indexLikeObject.withAlias(aliasName);
                         } else {
-                            indexLikeObject = new IndexImpl(null, indexName, singleAliasSet, null, false); //todo COMPONENT SELECTORS - add param for failureStoreRelated?
+                            indexLikeObject = new IndexImpl(null, indexName, singleAliasSet, null);
                         }
 
                         if (setWriteTarget) {
@@ -857,7 +849,7 @@ public abstract class MetaImpl implements Meta {
                     }
 
                     ImmutableSet<Alias> aliases = ImmutableSet.<Alias>of(DefaultMetaImpl.this.aliases.map(i -> ((AliasImpl) i).copy()))
-                            .with(new AliasImpl(null, aliasName, members, false, writeTarget, false)); //todo COMPONENT SELECTORS - add param for failureStoreRelated?
+                            .with(new AliasImpl(null, aliasName, members, false, writeTarget));
 
                     return new DefaultMetaImpl(newIndices.build(), aliases, newDataStreams.build(), DefaultMetaImpl.this.indicesWithoutParents);
                 }
@@ -880,7 +872,7 @@ public abstract class MetaImpl implements Meta {
                         if (indexLikeObject != null) {
                             throw new RuntimeException("Cannot reuse datastream backing index");
                         } else {
-                            indexLikeObject = new IndexImpl(null, indexName, ImmutableSet.empty(), dataStreamName, false); //todo COMPONENT SELECTORS - add param for failureStoreRelated?
+                            indexLikeObject = new IndexImpl(null, indexName, ImmutableSet.empty(), dataStreamName);
                         }
 
                         newIndices.add((Index) indexLikeObject);
@@ -897,7 +889,7 @@ public abstract class MetaImpl implements Meta {
                     ImmutableSet<Index> indices = newIndices.build();
                     ImmutableSet<DataStream> dataStreams = ImmutableSet
                             .<DataStream>of(DefaultMetaImpl.this.dataStreams.map(i -> ((DataStreamImpl) i).copy()))
-                            .with(new DataStreamImpl(null, dataStreamName, ImmutableSet.empty(), dataStreamMembersBuilder.build().values(), false, false)); //todo COMPONENT SELECTORS - add param for failureStoreRelated?
+                            .with(new DataStreamImpl(null, dataStreamName, ImmutableSet.empty(), dataStreamMembersBuilder.build().values(), false));
 
                     return new DefaultMetaImpl(indices, DefaultMetaImpl.this.aliases, dataStreams, DefaultMetaImpl.this.indicesWithoutParents);
                 }
@@ -929,7 +921,7 @@ public abstract class MetaImpl implements Meta {
          * For testing and mocking purposes
          */
         static Meta indices(String... indexNames) {
-            ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames), (k) -> new IndexImpl(null, k, ImmutableSet.empty(), null, false)); //todo COMPONENT SELECTORS - add param for failureStoreRelated?
+            ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames), (k) -> new IndexImpl(null, k, ImmutableSet.empty(), null));
 
             return new DefaultMetaImpl(indices, ImmutableSet.empty(), ImmutableSet.empty(), indices);
         }
@@ -964,9 +956,9 @@ public abstract class MetaImpl implements Meta {
         @Override
         public Meta of(String... indexNames) {
             ImmutableSet<String> aliasSet = ImmutableSet.of(name);
-            ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames), (k) -> new IndexImpl(null, k, aliasSet, null, false)); //todo COMPONENT SELECTORS - add param for failureStoreRelated?
+            ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames), (k) -> new IndexImpl(null, k, aliasSet, null));
             ImmutableSet<Alias> aliases = ImmutableSet
-                    .of(new AliasImpl(null, name, ImmutableSet.<IndexLikeObject>of(indices), false, indices.size() == 1 ? indices.only() : null, false)); //todo COMPONENT SELECTORS - add param for failureStoreRelated?
+                    .of(new AliasImpl(null, name, ImmutableSet.<IndexLikeObject>of(indices), false, indices.size() == 1 ? indices.only() : null));
 
             return new DefaultMetaImpl(indices, aliases, ImmutableSet.empty(), ImmutableSet.empty());
         }
@@ -981,9 +973,9 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public Meta of(String... indexNames) {
-            ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames), k -> new IndexImpl(null, k, null, name, false)); //todo COMPONENT SELECTORS - add param for failureStoreRelated?
+            ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames), k -> new IndexImpl(null, k, null, name));
             ImmutableSet<DataStream> dataStreams = ImmutableSet
-                    .of(new DataStreamImpl(null, name, ImmutableSet.empty(), ImmutableSet.<IndexLikeObject>of(indices), false, false)); //todo COMPONENT SELECTORS - add param for failureStoreRelated?
+                    .of(new DataStreamImpl(null, name, ImmutableSet.empty(), ImmutableSet.<IndexLikeObject>of(indices), false));
 
             return new DefaultMetaImpl(indices, ImmutableSet.empty(), dataStreams, ImmutableSet.empty());
         }
@@ -999,16 +991,6 @@ public abstract class MetaImpl implements Meta {
         @Override
         public String name() {
             return name;
-        }
-
-        @Override
-        public String nameWithoutComponentSuffix() {
-            return name;
-        }
-
-        @Override
-        public boolean isFailureStoreRelated() {
-            return false; //todo COMPONENT SELECTORS it can be always false or we need a new constructor param?
         }
 
         @Override
