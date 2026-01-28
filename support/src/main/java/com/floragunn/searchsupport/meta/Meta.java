@@ -325,9 +325,9 @@ public interface Meta extends Document<Meta> {
                 if (aliasWithDataComponent) {
                     if (Arrays.stream(indexNames).anyMatch(index -> index.endsWith(FAILURES_SUFFIX))) {
                         throw new RuntimeException("An alias representing the data component cannot have members whose names end with: " + FAILURES_SUFFIX);
-                    } else if (Arrays.stream(indexNames).anyMatch(index -> ! index.endsWith(FAILURES_SUFFIX))) {
-                        throw new RuntimeException("An alias representing the failure component must have members whose names end with: " + FAILURES_SUFFIX);
                     }
+                } else if (Arrays.stream(indexNames).anyMatch(index -> ! index.endsWith(FAILURES_SUFFIX))) {
+                    throw new RuntimeException("An alias representing the failure component must have members whose names end with: " + FAILURES_SUFFIX);
                 }
             }
         }
