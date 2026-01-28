@@ -35,6 +35,7 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.fluent.collections.UnmodifiableCollection;
 
+import org.elasticsearch.cluster.metadata.DataStreamAlias;
 import org.elasticsearch.cluster.metadata.DataStreamLifecycle;
 import org.elasticsearch.cluster.metadata.DataStreamOptions;
 import org.elasticsearch.cluster.metadata.ProjectMetadata;
@@ -518,34 +519,43 @@ public abstract class MetaImpl implements Meta {
 
             Map<String, org.elasticsearch.cluster.metadata.AliasMetadata> esAliasMetadata = new HashMap<>();
 
-            for (Alias alias : aliases) {
-                esAliasMetadata.put(alias.name(), org.elasticsearch.cluster.metadata.AliasMetadata.builder(alias.name()).build());
+            for (String alias : aliases.map(Alias::nameForIndexPatternMatching)) {
+                esAliasMetadata.put(alias, org.elasticsearch.cluster.metadata.AliasMetadata.builder(alias).build());
             }
 
             for (Index index : indices) {
                 org.elasticsearch.cluster.metadata.IndexMetadata.Builder esIndex = org.elasticsearch.cluster.metadata.IndexMetadata
-                        .builder(index.name())
+                        .builder(index.nameForIndexPatternMatching())
                         .settings(org.elasticsearch.common.settings.Settings.builder().put(
                                 org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_INDEX_VERSION_CREATED.getKey(),
                                 org.elasticsearch.Version.CURRENT))
                         .numberOfShards(1).numberOfReplicas(1);
 
-                for (String alias : index.parentAliasNames()) {
+                for (String alias : index.parentAliasNames().stream().map(Meta::indexLikeNameWithoutFailuresSuffix).toList()) {
                     esIndex.putAlias(esAliasMetadata.get(alias));
                 }
 
                 esMetadataBuilder.put(esIndex);
             }
 
-            for (DataStream dataStream : datastreams) {
+            for (String dataStreamNameWithoutComponent : datastreams.map(DataStream::nameForIndexPatternMatching)) {
                 // Pre ES 8.14 version:
                 // esMetadataBuilder.put(new org.elasticsearch.cluster.metadata.DataStream(dataStream.name(),
                 //         ImmutableList.of(dataStream.members()).map(i -> new org.elasticsearch.index.Index(i.name(), i.name())), 1L,
                 //              ImmutableMap.empty(), false, false, false, false, IndexMode.STANDARD));
 
-                esMetadataBuilder.put(new org.elasticsearch.cluster.metadata.DataStream(dataStream.name(),
-                        ImmutableList.of(dataStream.members()).map(i -> new org.elasticsearch.index.Index(i.name(), i.name())), 1L,
-                        ImmutableMap.empty(), false, false, false, false, IndexMode.STANDARD, DataStreamLifecycle.DEFAULT_DATA_LIFECYCLE, DataStreamOptions.FAILURE_STORE_DISABLED, ImmutableList.empty(),
+                ImmutableSet<DataStream> dataAndFailureDataStreams = dataStreams.matching(ds -> ds.nameForIndexPatternMatching().equals(dataStreamNameWithoutComponent));
+                DataStream dataStreamWithDataIndices = dataAndFailureDataStreams.stream().filter(ds -> !ds.name().endsWith(FAILURES_SUFFIX)).findFirst().orElse(null);
+                DataStream dataStreamWithFailureIndices = dataAndFailureDataStreams.stream().filter(ds -> ds.name().endsWith(FAILURES_SUFFIX)).findFirst().orElse(null);
+
+                ImmutableList<IndexLikeObject> dataIndices = dataStreamWithDataIndices != null? ImmutableList.of(dataStreamWithDataIndices.members()) : ImmutableList.empty();
+                ImmutableList<IndexLikeObject> failureIndices = dataStreamWithFailureIndices != null? ImmutableList.of(dataStreamWithFailureIndices.members()) : ImmutableList.empty();
+                DataStreamOptions dataStreamOptions = failureIndices.isEmpty()?  DataStreamOptions.FAILURE_STORE_DISABLED : DataStreamOptions.FAILURE_STORE_ENABLED;
+
+                esMetadataBuilder.put(new org.elasticsearch.cluster.metadata.DataStream(dataStreamNameWithoutComponent,
+                        dataIndices.map(i -> new org.elasticsearch.index.Index(i.nameForIndexPatternMatching(), i.nameForIndexPatternMatching())), 1L,
+                        ImmutableMap.empty(), false, false, false, false, IndexMode.STANDARD, DataStreamLifecycle.DEFAULT_DATA_LIFECYCLE, dataStreamOptions,
+                        failureIndices.map(i -> new org.elasticsearch.index.Index(i.nameForIndexPatternMatching(), i.nameForIndexPatternMatching())),
                         false, null));
             }
 
@@ -777,24 +787,13 @@ public abstract class MetaImpl implements Meta {
         }
 
         @Override
-        public Iterable<String> namesOfIndices() {
-            // TODO optimize or remove
-            return indices.map(e -> e.name());
-        }
-
-        @Override
-        public Iterable<String> namesOfIndexCollections() {
-            // TODO optimize or remove
-
-            return indexCollections.map(e -> e.name());
-        }
-
-        @Override
         public Meta.Mock.AliasBuilder alias(String aliasName) {
             return new Meta.Mock.AliasBuilder() {
 
                 @Override
                 public Meta of(String... indexNames) {
+                    validateIndexNames(aliasName, indexNames);
+
                     ImmutableSet<String> singleAliasSet = ImmutableSet.of(aliasName);
                     ImmutableMap.Builder<String, IndexLikeObject> aliasMembersBuilder = new ImmutableMap.Builder<>(indexNames.length);
                     ImmutableSet.Builder<Index> newIndices = new ImmutableSet.Builder<>(indexNames.length);
@@ -863,6 +862,8 @@ public abstract class MetaImpl implements Meta {
 
                 @Override
                 public Meta of(String... indexNames) {
+                    validateIndexNames(dataStreamName, indexNames);
+
                     ImmutableMap.Builder<String, IndexLikeObject> dataStreamMembersBuilder = new ImmutableMap.Builder<>(indexNames.length);
                     ImmutableSet.Builder<Index> newIndices = new ImmutableSet.Builder<>(indexNames.length);
 
@@ -870,7 +871,7 @@ public abstract class MetaImpl implements Meta {
                         AbstractIndexLike<?> indexLikeObject = (AbstractIndexLike<?>) getIndexOrLike(indexName);
 
                         if (indexLikeObject != null) {
-                            throw new RuntimeException("Cannot reuse datastream backing index");
+                            throw new RuntimeException("Cannot reuse datastream backing or failure index");
                         } else {
                             indexLikeObject = new IndexImpl(null, indexName, ImmutableSet.empty(), dataStreamName);
                         }
@@ -921,6 +922,9 @@ public abstract class MetaImpl implements Meta {
          * For testing and mocking purposes
          */
         static Meta indices(String... indexNames) {
+            if (Arrays.stream(indexNames).anyMatch(index -> index.endsWith(FAILURES_SUFFIX))) {
+                throw new RuntimeException("Index names must not end with: " + FAILURES_SUFFIX);
+            }
             ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames), (k) -> new IndexImpl(null, k, ImmutableSet.empty(), null));
 
             return new DefaultMetaImpl(indices, ImmutableSet.empty(), ImmutableSet.empty(), indices);
@@ -955,6 +959,8 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public Meta of(String... indexNames) {
+            validateIndexNames(name, indexNames);
+
             ImmutableSet<String> aliasSet = ImmutableSet.of(name);
             ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames), (k) -> new IndexImpl(null, k, aliasSet, null));
             ImmutableSet<Alias> aliases = ImmutableSet
@@ -973,6 +979,8 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public Meta of(String... indexNames) {
+            validateIndexNames(name, indexNames);
+
             ImmutableSet<Index> indices = ImmutableSet.map(Arrays.asList(indexNames), k -> new IndexImpl(null, k, null, name));
             ImmutableSet<DataStream> dataStreams = ImmutableSet
                     .of(new DataStreamImpl(null, name, ImmutableSet.empty(), ImmutableSet.<IndexLikeObject>of(indices), false));

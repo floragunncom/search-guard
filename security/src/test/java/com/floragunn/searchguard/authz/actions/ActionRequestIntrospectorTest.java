@@ -151,7 +151,8 @@ public class ActionRequestIntrospectorTest {
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get("indices:unknown"), request);
         assertTrue(requestInfo.toString(), requestInfo.isUnknown());
         assertTrue(requestInfo.toString(), requestInfo.getMainResolvedIndices().isLocalAll());
-        assertEquals(META.indexLikeObjects().keySet(), requestInfo.getMainResolvedIndices().getLocal().getDeepUnion());
+        assertEquals(META.indexLikeObjects().keySet(), requestInfo.getMainResolvedIndices().getLocal().getDeepUnion()
+                .map(Meta.IndexLikeObject::nameForIndexPatternMatching));
     }
 
     @Test

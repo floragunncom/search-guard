@@ -17,6 +17,7 @@
 
 package com.floragunn.searchsupport.meta;
 
+import java.util.Arrays;
 import java.util.Collection;
 
 import com.floragunn.codova.documents.Document;
@@ -41,6 +42,17 @@ public interface Meta extends Document<Meta> {
             return null;
         }
         return indexLikeName.concat(FAILURES_SUFFIX);
+    }
+
+    static String indexLikeNameWithoutFailuresSuffix(String indexLikeName) {
+        if (indexLikeName == null) {
+            return null;
+        }
+        if (indexLikeName.endsWith(FAILURES_SUFFIX)) {
+            return indexLikeName.substring(0, indexLikeName.indexOf(FAILURES_SUFFIX));
+        } else {
+            return indexLikeName;
+        }
     }
 
     ImmutableMap<String, IndexLikeObject> indexLikeObjects();
@@ -85,10 +97,6 @@ public interface Meta extends Document<Meta> {
      */
     ImmutableSet<Index> nonSystemIndicesWithoutParents();
 
-    Iterable<String> namesOfIndices();
-
-    Iterable<String> namesOfIndexCollections();
-
     IndexLikeObject getIndexOrLike(String name);
 
     boolean equals(Object other);
@@ -111,36 +119,56 @@ public interface Meta extends Document<Meta> {
         String name();
 
         /**
-         * Returns just the name, which is needed during index pattern matching.
+         * Returns just the name, always without the {@link Meta#FAILURES_SUFFIX}) suffix.
          */
         default String nameForIndexPatternMatching() {
-            String name = name();
-            if (name.endsWith(FAILURES_SUFFIX)) {
-                return name.substring(0, name.indexOf(FAILURES_SUFFIX));
-            } else {
-                return name;
-            }
+            return indexLikeNameWithoutFailuresSuffix(name());
         }
 
         ImmutableSet<IndexOrNonExistent> resolveDeep(Alias.ResolutionMode resolutionMode);
 
         ImmutableSet<String> resolveDeepToNames(Alias.ResolutionMode resolutionMode);
 
+        /**
+         * Like {@link #resolveDeepToNames(Alias.ResolutionMode)}, but it always returns all names without the {@link Meta#FAILURES_SUFFIX} suffix.
+         */
+        default ImmutableSet<String> resolveDeepToNamesForIndexPatternMatching(Alias.ResolutionMode resolutionMode) {
+            return resolveDeepToNames(resolutionMode).map(Meta::indexLikeNameWithoutFailuresSuffix);
+        }
+
         ImmutableSet<Alias> parentAliases();
 
         DataStream parentDataStream();
 
+        /**
+         * Returns the name of the parent data stream, which may include the {@link Meta#FAILURES_SUFFIX} suffix if the data stream represents the failure component.
+         */
         String parentDataStreamName();
 
         /**
-         * Returns the names of the aliases containing this index. 
+         * Like {@link #parentDataStreamName()}}, but it always returns the name without the {@link Meta#FAILURES_SUFFIX} suffix.
+         */
+        default String parentDataStreamNameForIndexPatternMatching() {
+            return indexLikeNameWithoutFailuresSuffix(parentDataStreamName());
+        }
+
+        /**
+         * Returns the names of the aliases containing this index. The names may include the {@link Meta#FAILURES_SUFFIX} suffix if the alias represents the failure component.
          */
         Collection<String> parentAliasNames();
 
         /**
-         * Returns the names of the aliases containing this index. Additionally, if this is a data stream backing index, this also returns any aliases containing the data stream.
+         * Returns the names of the aliases containing this index. Additionally, if this is a data stream backing or failure index, this also returns any aliases containing the data stream.
+         * The names may include the {@link Meta#FAILURES_SUFFIX} suffix if the alias points to the data stream that represent the failure component.
          */
         Collection<String> ancestorAliasNames();
+
+        /**
+         * Like {@link #ancestorAliasNames()}}, but it always returns the names without the {@link Meta#FAILURES_SUFFIX} suffix.
+         */
+        default Collection<String> ancestorAliasNamesForIndexPatternMatching() {
+            return ancestorAliasNames().stream().map(Meta::indexLikeNameWithoutFailuresSuffix).toList();
+        }
 
         boolean equals(Object other);
 
@@ -176,34 +204,6 @@ public interface Meta extends Document<Meta> {
                     result.add((Meta.Index) object);
                 } else if (object instanceof Meta.IndexCollection) {
                     result.addAll(((Meta.IndexCollection) object).resolveDeepAsIndex(resolutionMode));
-                }
-            }
-
-            return result.build();
-        }
-        
-        static ImmutableSet<String> resolveDeepToNames(ImmutableSet<? extends Meta.IndexLikeObject> objects, Alias.ResolutionMode resolutionMode) {
-            if (objects.size() == 0) {
-                return ImmutableSet.empty();
-            }
-
-            if (objects.size() == 1) {
-                Meta.IndexLikeObject object = objects.only();
-
-                if (object instanceof Meta.Index) {
-                    return ImmutableSet.of(object.name());
-                } else if (object instanceof Meta.IndexCollection) {
-                    return ((Meta.IndexCollection) object).resolveDeepToNames(resolutionMode);
-                }
-            }
-
-            ImmutableSet.Builder<String> result = new ImmutableSet.Builder<>(objects.size() * 20);
-
-            for (Meta.IndexLikeObject object : objects) {
-                if (object instanceof Meta.Index) {
-                    result.add(object.name());
-                } else if (object instanceof Meta.IndexCollection) {
-                    result.addAll(((Meta.IndexCollection) object).resolveDeepToNames(resolutionMode));
                 }
             }
 
@@ -319,6 +319,17 @@ public interface Meta extends Document<Meta> {
          */
         static interface AliasBuilder {
             Meta of(String... indexNames);
+
+            default void validateIndexNames(String aliasName, String... indexNames) {
+                boolean aliasWithDataComponent = ! aliasName.endsWith(FAILURES_SUFFIX);
+                if (aliasWithDataComponent) {
+                    if (Arrays.stream(indexNames).anyMatch(index -> index.endsWith(FAILURES_SUFFIX))) {
+                        throw new RuntimeException("An alias representing the data component cannot have members whose names end with: " + FAILURES_SUFFIX);
+                    } else if (Arrays.stream(indexNames).anyMatch(index -> ! index.endsWith(FAILURES_SUFFIX))) {
+                        throw new RuntimeException("An alias representing the failure component must have members whose names end with: " + FAILURES_SUFFIX);
+                    }
+                }
+            }
         }
 
         /**
@@ -326,6 +337,17 @@ public interface Meta extends Document<Meta> {
          */
         static interface DataStreamBuilder {
             Meta of(String... indexNames);
+
+            default void validateIndexNames(String dataStreamName, String... indexNames) {
+                boolean dataStreamWithDataComponent = ! dataStreamName.endsWith(FAILURES_SUFFIX);
+                if (dataStreamWithDataComponent) {
+                    if (Arrays.stream(indexNames).anyMatch(index -> ! index.startsWith(".ds"))) {
+                        throw new RuntimeException("A data stream representing the data component must have indices whose names start with '.ds'");
+                    }
+                } else if (Arrays.stream(indexNames).anyMatch(index -> ! index.startsWith(".fs"))) {
+                    throw new RuntimeException("A data stream representing the failure component must have indices whose names start with '.fs'");
+                }
+            }
         }
     }
 }
