@@ -361,7 +361,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 log.trace("Permissions before exclusions:\n" + shallowCheckTable);
             }
 
-            shallowCheckTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL)));
+            shallowCheckTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i.resolveDeepToNamesForIndexPatternMatching(Meta.Alias.ResolutionMode.NORMAL)));
 
             if (log.isTraceEnabled()) {
                 log.trace("Permissions after universallyDeniedIndices exclusions:\n" + shallowCheckTable);
@@ -462,7 +462,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                         checkNonWellKnownActions(context, localContext, semiDeepCheckTable, false, true, meter);
                     }
 
-                    semiDeepCheckTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL)));
+                    semiDeepCheckTable.uncheckRowIf((i) -> universallyDeniedIndices.matches(i.resolveDeepToNamesForIndexPatternMatching(Meta.Alias.ResolutionMode.NORMAL)));
 
                     if (semiDeepCheckTable.isComplete()) {
                         indexActionCheckResults_partially.increment();
@@ -700,7 +700,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                                 if (indexPattern != null) {
                                     try {
-                                        if (indexPattern.matches(index.parentDataStreamName(), user, context, subMeter)
+                                        if (indexPattern.matches(index.parentDataStreamNameForIndexPatternMatching(), user, context, subMeter)
                                                 && checkTable.check(index, action)) {
                                             break top;
                                         }
@@ -713,7 +713,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 }
                             }
 
-                            Collection<String> ancestorAliasNames = index.ancestorAliasNames();
+                            Collection<String> ancestorAliasNames = index.ancestorAliasNamesForIndexPatternMatching();
                             if (!ancestorAliasNames.isEmpty() && actionToAliasPattern != null) {
                                 IndexPattern indexPattern = actionToAliasPattern.get(action);
 
@@ -864,7 +864,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     if (actionPattern.matches(action.name())) {
                                         try {
                                             if (index.parentDataStreamName() != null
-                                                    && indexPattern.matches(index.parentDataStreamName(), user, context, subMeter)
+                                                    && indexPattern.matches(index.parentDataStreamNameForIndexPatternMatching(), user, context, subMeter)
                                                     && checkTable.check(index, action)) {
                                                 break top;
                                             }
@@ -878,7 +878,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                 }
                             }
 
-                            Collection<String> ancestorAliasNames = index.ancestorAliasNames();
+                            Collection<String> ancestorAliasNames = index.ancestorAliasNamesForIndexPatternMatching();
                             if (!ancestorAliasNames.isEmpty() && actionToAliasPattern != null) {
                                 for (Map.Entry<Pattern, IndexPattern> entry : actionToAliasPattern.entrySet()) {
                                     Pattern actionPattern = entry.getKey();
@@ -1444,7 +1444,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                         .defaultValue((k) -> new ImmutableList.Builder<Exception>());
 
-                Iterable<String> indexNames = indexMetadata.namesOfIndices();
+                Iterable<String> indexNames = indexMetadata.indices().map(Meta.Index::nameForIndexPatternMatching);
 
                 top: for (String roleName : roleNames) {
                     try {
@@ -1508,8 +1508,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     Action action = actions.get(permission);
 
                                     if (action instanceof WellKnownAction) {
-                                        for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::name)) {
-                                            alias.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL).forEach((index) -> {
+                                        for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::nameForIndexPatternMatching)) {
+                                            alias.resolveDeepToNamesForIndexPatternMatching(Meta.Alias.ResolutionMode.NORMAL).forEach((index) -> {
                                                 actionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
                                             });
                                         }
@@ -1520,8 +1520,8 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActionsPerformanceCritical()
                                             .matching((a) -> pattern.matches(a.name()));
 
-                                    for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.IndexCollection::name)) {
-                                        alias.resolveDeepToNames(Meta.Alias.ResolutionMode.NORMAL).forEach((index) -> {
+                                    for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.IndexCollection::nameForIndexPatternMatching)) {
+                                        alias.resolveDeepToNamesForIndexPatternMatching(Meta.Alias.ResolutionMode.NORMAL).forEach((index) -> {
                                             for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
                                                 actionToIndexToRoles.get((WellKnownAction<?, ?, ?>) action).get(index).add(roleName);
                                             }
@@ -1592,10 +1592,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                     if (indexToRoles != null) {
                         for (Meta.Index index : indices) {
-                            ImmutableCompactSubSet<String> rolesWithPrivileges = indexToRoles.get(index.name());
+                            ImmutableCompactSubSet<String> rolesWithPrivileges = indexToRoles.get(index.nameForIndexPatternMatching());
 
                             if (rolesWithPrivileges != null && rolesWithPrivileges.containsAny(mappedRoles)
-                                    && !isExcluded(action, index.name(), user, mappedRoles, context)) {
+                                    && !isExcluded(action, index.nameForIndexPatternMatching(), user, mappedRoles, context)) {
 
                                 if (checkTable.check(index, action)) {
                                     break top;
@@ -1676,7 +1676,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                                     if (action instanceof WellKnownAction) {
                                         for (Meta.Alias alias : indexPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::nameForIndexPatternMatching)) {
-                                            actionToAliasToRoles.get((WellKnownAction<?, ?, ?>) action).get(alias.name()).add(roleName);
+                                            actionToAliasToRoles.get((WellKnownAction<?, ?, ?>) action).get(alias.nameForIndexPatternMatching()).add(roleName);
                                         }
                                     }
                                 } else {
@@ -1687,7 +1687,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                                     for (Meta.Alias alias : indexPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::nameForIndexPatternMatching)) {
                                         for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
-                                            actionToAliasToRoles.get(action).get(alias.name()).add(roleName);
+                                            actionToAliasToRoles.get(action).get(alias.nameForIndexPatternMatching()).add(roleName);
                                         }
                                     }
                                 }
@@ -1752,7 +1752,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                     if (aliasToRoles != null) {
                         for (Meta.Alias alias : aliases) {
-                            ImmutableCompactSubSet<String> rolesWithPrivileges = aliasToRoles.get(alias.name());
+                            ImmutableCompactSubSet<String> rolesWithPrivileges = aliasToRoles.get(alias.nameForIndexPatternMatching());
 
                             if (rolesWithPrivileges != null && rolesWithPrivileges.containsAny(mappedRoles)
                                     && !isExcluded(action, alias.nameForIndexPatternMatching(), user, mappedRoles, context)) {
@@ -1815,7 +1815,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 ImmutableMap.Builder<String, ImmutableList.Builder<Exception>> rolesToInitializationErrors = new ImmutableMap.Builder<String, ImmutableList.Builder<Exception>>()
                         .defaultValue((k) -> new ImmutableList.Builder<Exception>());
 
-                Set<String> dataStreamNames = indexMetadata.dataStreams().map(Meta.DataStream::name);
+                Set<String> dataStreamNames = indexMetadata.dataStreams().map(Meta.DataStream::nameForIndexPatternMatching);
 
                 top: for (String roleName : roleNames) {
                     try {
@@ -1879,10 +1879,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     Action action = actions.get(permission);
 
                                     if (action instanceof WellKnownAction) {
-                                        for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::name)) {
+                                        for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::nameForIndexPatternMatching)) {
                                             alias.members().forEach((indexLikeObject) -> {
                                                 if (indexLikeObject instanceof DataStream) {
-                                                    actionToDataStreamToRoles.get((WellKnownAction<?, ?, ?>) action).get(indexLikeObject.name())
+                                                    actionToDataStreamToRoles.get((WellKnownAction<?, ?, ?>) action).get(indexLikeObject.nameForIndexPatternMatching())
                                                             .add(roleName);
                                                 }
                                             });
@@ -1894,11 +1894,11 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                                     ImmutableSet<WellKnownAction<?, ?, ?>> providedPrivileges = actions.indexLikeActionsPerformanceCritical()
                                             .matching((a) -> pattern.matches(a.name()));
 
-                                    for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.IndexCollection::name)) {
+                                    for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.IndexCollection::nameForIndexPatternMatching)) {
                                         alias.members().forEach((indexLikeObject) -> {
                                             if (indexLikeObject instanceof DataStream) {
                                                 for (WellKnownAction<?, ?, ?> action : providedPrivileges) {
-                                                    actionToDataStreamToRoles.get((WellKnownAction<?, ?, ?>) action).get(indexLikeObject.name())
+                                                    actionToDataStreamToRoles.get((WellKnownAction<?, ?, ?>) action).get(indexLikeObject.nameForIndexPatternMatching())
                                                             .add(roleName);
                                                 }
                                             }
@@ -1967,10 +1967,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
 
                     if (aliasToRoles != null) {
                         for (Meta.DataStream dataStream : dataStreams) {
-                            ImmutableCompactSubSet<String> rolesWithPrivileges = aliasToRoles.get(dataStream.name());
+                            ImmutableCompactSubSet<String> rolesWithPrivileges = aliasToRoles.get(dataStream.nameForIndexPatternMatching());
 
                             if (rolesWithPrivileges != null && rolesWithPrivileges.containsAny(mappedRoles)
-                                    && !isExcluded(action, dataStream.name(), user, mappedRoles, context)) {
+                                    && !isExcluded(action, dataStream.nameForIndexPatternMatching(), user, mappedRoles, context)) {
 
                                 if (checkTable.check(dataStream, action)) {
                                     break top;

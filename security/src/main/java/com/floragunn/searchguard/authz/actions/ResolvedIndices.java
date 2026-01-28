@@ -117,18 +117,8 @@ public class ResolvedIndices {
         return remoteIndices;
     }
 
-    public ImmutableSet<String> getLocalAndRemoteIndices() {
-        return getLocal().getUnion().map(Meta.IndexLikeObject::name).with(getRemoteIndices());
-    }
-
-    public ImmutableSet<String> getLocalSubset(Set<String> superSet) {
-        return getLocal().getUnion().map(Meta.IndexLikeObject::name).intersection(superSet).with(remoteIndices);
-    }
-
-    public String[] getLocalSubsetAsArray(Set<String> superSet) {
-        ImmutableSet<String> result = getLocalSubset(superSet);
-
-        return result.toArray(new String[result.size()]);
+    public int getNumberOfLocalAndRemoteIndices() {
+        return getLocal().getUnion().size() + getRemoteIndices().size();
     }
 
     @Override
@@ -178,10 +168,9 @@ public class ResolvedIndices {
         private final ImmutableSet<Meta.Alias> aliases;
         private final ImmutableSet<Meta.DataStream> dataStreams;
         private final ImmutableSet<Meta.NonExistent> nonExistingIndices;
-        private final ImmutableSet<String> unionOfAliasesAndDataStreams;
         private final ImmutableSet<Meta.IndexLikeObject> union;
         private String asString;
-        private ImmutableSet<String> deepUnion;
+        private ImmutableSet<Meta.IndexLikeObject> deepUnion;
         private Boolean containsAliasOrDataStreamMembers;
 
         Local(ImmutableSet<Meta.Index> pureIndices, ImmutableSet<Meta.Alias> aliases, ImmutableSet<Meta.DataStream> dataStreams,
@@ -190,7 +179,6 @@ public class ResolvedIndices {
             this.aliases = aliases;
             this.dataStreams = dataStreams;
             this.nonExistingIndices = nonExistingIndices;
-            this.unionOfAliasesAndDataStreams = aliases.map(Meta.Alias::name).with(dataStreams.map(Meta.DataStream::name));
             this.union = ImmutableSet.<Meta.IndexLikeObject>of(pureIndices).with(aliases).with(dataStreams).with(this.nonExistingIndices);
         }
 
@@ -201,7 +189,6 @@ public class ResolvedIndices {
             this.aliases = aliases;
             this.dataStreams = dataStreams;
             this.nonExistingIndices = nonExistingIndices;
-            this.unionOfAliasesAndDataStreams = unionOfAliasesAndDataStreams;
             this.union = union;
         }
 
@@ -214,42 +201,37 @@ public class ResolvedIndices {
                 return this;
             }
 
-            if (this.unionOfAliasesAndDataStreams.equals(other.unionOfAliasesAndDataStreams)) {
-                return new Local(this.pureIndices.with(other.pureIndices), this.aliases, this.dataStreams,
-                        this.nonExistingIndices.with(other.nonExistingIndices), this.unionOfAliasesAndDataStreams, this.union.with(other.union));
-            } else {
-                // Remove entries from pureIndices which are contained in the other object's aliases or data streams (and vice versa)
-                // This ensures the contract that pureIndices only contains indices which are not already indirectly contained in aliases or dataStreams
+            // Remove entries from pureIndices which are contained in the other object's aliases or data streams (and vice versa)
+            // This ensures the contract that pureIndices only contains indices which are not already indirectly contained in aliases or dataStreams
 
-                ImmutableSet.Builder<Meta.Index> mergedPureIndices = new ImmutableSet.Builder<>(this.pureIndices.size() + other.pureIndices.size());
+            ImmutableSet.Builder<Meta.Index> mergedPureIndices = new ImmutableSet.Builder<>(this.pureIndices.size() + other.pureIndices.size());
 
-                for (Meta.Index index : this.pureIndices) {
-                    if (index.parentDataStreamName() != null && other.dataStreams.contains(index.parentDataStream())) {
-                        continue;
-                    }
-
-                    if (other.aliases.containsAny(index.parentAliases())) {
-                        continue;
-                    }
-
-                    mergedPureIndices.add(index);
+            for (Meta.Index index : this.pureIndices) {
+                if (index.parentDataStreamName() != null && other.dataStreams.contains(index.parentDataStream())) {
+                    continue;
                 }
 
-                for (Meta.Index index : other.pureIndices) {
-                    if (index.parentDataStreamName() != null && this.dataStreams.contains(index.parentDataStream())) {
-                        continue;
-                    }
-
-                    if (this.aliases.containsAny(index.parentAliases())) {
-                        continue;
-                    }
-
-                    mergedPureIndices.add(index);
+                if (other.aliases.containsAny(index.parentAliases())) {
+                    continue;
                 }
 
-                return new Local(mergedPureIndices.build(), this.aliases.with(other.aliases), this.dataStreams.with(other.dataStreams),
-                        this.nonExistingIndices.with(other.nonExistingIndices));
+                mergedPureIndices.add(index);
             }
+
+            for (Meta.Index index : other.pureIndices) {
+                if (index.parentDataStreamName() != null && this.dataStreams.contains(index.parentDataStream())) {
+                    continue;
+                }
+
+                if (this.aliases.containsAny(index.parentAliases())) {
+                    continue;
+                }
+
+                mergedPureIndices.add(index);
+            }
+
+            return new Local(mergedPureIndices.build(), this.aliases.with(other.aliases), this.dataStreams.with(other.dataStreams),
+                    this.nonExistingIndices.with(other.nonExistingIndices));
         }
 
         public int size() {
@@ -280,13 +262,12 @@ public class ResolvedIndices {
             return union;
         }
 
-        public ImmutableSet<String> getDeepUnion() {
-            ImmutableSet<String> result = this.deepUnion;
+        public ImmutableSet<Meta.IndexLikeObject> getDeepUnion() {
+            ImmutableSet<Meta.IndexLikeObject> result = this.deepUnion;
 
             if (result == null) {
-                result = Meta.IndexLikeObject.resolveDeepToNames(aliases, Meta.Alias.ResolutionMode.NORMAL)
-                        .with(Meta.IndexLikeObject.resolveDeepToNames(dataStreams, Meta.Alias.ResolutionMode.NORMAL))
-                        .with(this.union.map(Meta.IndexLikeObject::name));
+                result = this.union.with(Meta.IndexLikeObject.resolveDeep(aliases, Meta.Alias.ResolutionMode.NORMAL))
+                        .with(Meta.IndexLikeObject.resolveDeep(dataStreams, Meta.Alias.ResolutionMode.NORMAL));
                 this.deepUnion = result;
             }
 
@@ -794,10 +775,6 @@ public class ResolvedIndices {
             }
 
             return result;
-        }
-
-        public ImmutableSet<String> getUnionOfAliasesAndDataStreams() {
-            return unionOfAliasesAndDataStreams;
         }
 
         @Override
