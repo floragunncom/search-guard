@@ -20,7 +20,7 @@ variables:
 default:
   image: "$SG_BUILD_IMAGE"
   tags:
-    - build
+    - sysbox
   interruptible: true
   timeout: 90m
   before_script:
@@ -156,7 +156,7 @@ deploy_docker_image:
     - if: '$DOCKER_ONLY'
       when: never
   tags:
-    - build
+    - sysbox
   script:
     - |
       cd docker

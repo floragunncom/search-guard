@@ -2,7 +2,7 @@
   allow_failure: false
   stage: "Backend Unit Tests"
   tags:
-    - test
+    - sysbox
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never    

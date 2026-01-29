@@ -1,7 +1,7 @@
 Please set DATA_DIR_ARCHIVE_NAME:
   allow_failure: true
   tags:
-    - test
+    - sysbox
   stage: "Frontend MT Data Migration Tests"
   image: "$SG_BUILD_IMAGE"
   needs:
