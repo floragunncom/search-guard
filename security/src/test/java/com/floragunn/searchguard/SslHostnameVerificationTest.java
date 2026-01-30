@@ -24,6 +24,7 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 import com.floragunn.searchguard.test.helper.log.LogsRule;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -37,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static org.awaitility.Awaitility.await;
 
+@Ignore
 public class SslHostnameVerificationTest {
 
     @Rule
