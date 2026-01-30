@@ -168,6 +168,7 @@ public class ResolvedIndices {
         private final ImmutableSet<Meta.Alias> aliases;
         private final ImmutableSet<Meta.DataStream> dataStreams;
         private final ImmutableSet<Meta.NonExistent> nonExistingIndices;
+        private final ImmutableSet<String> unionOfAliasesAndDataStreams;
         private final ImmutableSet<Meta.IndexLikeObject> union;
         private String asString;
         private ImmutableSet<Meta.IndexLikeObject> deepUnion;
@@ -179,6 +180,7 @@ public class ResolvedIndices {
             this.aliases = aliases;
             this.dataStreams = dataStreams;
             this.nonExistingIndices = nonExistingIndices;
+            this.unionOfAliasesAndDataStreams = aliases.map(Meta.Alias::name).with(dataStreams.map(Meta.DataStream::name));
             this.union = ImmutableSet.<Meta.IndexLikeObject>of(pureIndices).with(aliases).with(dataStreams).with(this.nonExistingIndices);
         }
 
@@ -189,6 +191,7 @@ public class ResolvedIndices {
             this.aliases = aliases;
             this.dataStreams = dataStreams;
             this.nonExistingIndices = nonExistingIndices;
+            this.unionOfAliasesAndDataStreams = unionOfAliasesAndDataStreams;
             this.union = union;
         }
 
@@ -201,37 +204,42 @@ public class ResolvedIndices {
                 return this;
             }
 
-            // Remove entries from pureIndices which are contained in the other object's aliases or data streams (and vice versa)
-            // This ensures the contract that pureIndices only contains indices which are not already indirectly contained in aliases or dataStreams
+            if (this.unionOfAliasesAndDataStreams.equals(other.unionOfAliasesAndDataStreams)) {
+                return new Local(this.pureIndices.with(other.pureIndices), this.aliases, this.dataStreams,
+                        this.nonExistingIndices.with(other.nonExistingIndices), this.unionOfAliasesAndDataStreams, this.union.with(other.union));
+            } else {
+                // Remove entries from pureIndices which are contained in the other object's aliases or data streams (and vice versa)
+                // This ensures the contract that pureIndices only contains indices which are not already indirectly contained in aliases or dataStreams
 
-            ImmutableSet.Builder<Meta.Index> mergedPureIndices = new ImmutableSet.Builder<>(this.pureIndices.size() + other.pureIndices.size());
+                ImmutableSet.Builder<Meta.Index> mergedPureIndices = new ImmutableSet.Builder<>(this.pureIndices.size() + other.pureIndices.size());
 
-            for (Meta.Index index : this.pureIndices) {
-                if (index.parentDataStreamName() != null && other.dataStreams.contains(index.parentDataStream())) {
-                    continue;
+                for (Meta.Index index : this.pureIndices) {
+                    if (index.parentDataStreamName() != null && other.dataStreams.contains(index.parentDataStream())) {
+                        continue;
+                    }
+
+                    if (other.aliases.containsAny(index.parentAliases())) {
+                        continue;
+                    }
+
+                    mergedPureIndices.add(index);
                 }
 
-                if (other.aliases.containsAny(index.parentAliases())) {
-                    continue;
+                for (Meta.Index index : other.pureIndices) {
+                    if (index.parentDataStreamName() != null && this.dataStreams.contains(index.parentDataStream())) {
+                        continue;
+                    }
+
+                    if (this.aliases.containsAny(index.parentAliases())) {
+                        continue;
+                    }
+
+                    mergedPureIndices.add(index);
                 }
 
-                mergedPureIndices.add(index);
+                return new Local(mergedPureIndices.build(), this.aliases.with(other.aliases), this.dataStreams.with(other.dataStreams),
+                        this.nonExistingIndices.with(other.nonExistingIndices));
             }
-
-            for (Meta.Index index : other.pureIndices) {
-                if (index.parentDataStreamName() != null && this.dataStreams.contains(index.parentDataStream())) {
-                    continue;
-                }
-
-                if (this.aliases.containsAny(index.parentAliases())) {
-                    continue;
-                }
-
-                mergedPureIndices.add(index);
-            }
-
-            return new Local(mergedPureIndices.build(), this.aliases.with(other.aliases), this.dataStreams.with(other.dataStreams),
-                    this.nonExistingIndices.with(other.nonExistingIndices));
         }
 
         public int size() {
