@@ -6,7 +6,7 @@
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never    
-    - when: on_success
+    - when: never
   artifacts:
     when: always
     reports:
@@ -21,10 +21,24 @@
     policy: pull    
 
 test_security:
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: on_success
   extends:
     - .be_unit_test
   script:
-    - ci/run_tests.sh security
+    - ci/run_tests.sh security -Dtest=!SslHostnameVerificationTest
+
+test_security_sslHostnameVerification:
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never
+    - when: on_success
+  extends:
+    - .be_unit_test
+  script:
+    - ci/run_tests.sh security -Dtest=SslHostnameVerificationTest
 
 test_ssl:
   extends:
