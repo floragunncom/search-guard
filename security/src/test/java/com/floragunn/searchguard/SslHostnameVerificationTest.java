@@ -29,13 +29,20 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+
+import static java.util.concurrent.Executors.newSingleThreadExecutor;
+import static org.awaitility.Awaitility.await;
 
 public class SslHostnameVerificationTest {
 
     @Rule
     public LogsRule logsRule = new LogsRule("com.floragunn.searchguard.ssl.transport.SearchGuardSSLNettyTransport");
 
-    LocalCluster.Builder.Embedded clusterBuilder = new LocalCluster.Builder().embedded().clusterConfiguration(ClusterConfiguration.THREE_MASTERS);
+    LocalCluster.Builder.Embedded clusterBuilder = new LocalCluster.Builder().embedded().clusterConfiguration(ClusterConfiguration.DEFAULT);
 
     @Test
     public void shouldStartCluster_invalidSanIpInvalidSanDns_wholeVerificationDisabled() {
@@ -85,11 +92,17 @@ public class SslHostnameVerificationTest {
     public void shouldNotStartCluster_invalidSanIpValidSanDns_hostnameResolvingDisabled() {
         TestCertificates testCertificates = buildTestCertificates("localhost", "127.0.0.2");
 
+        ExecutorService executorService = newSingleThreadExecutor();
+        Future<Void> clusterFuture = null;
         try (LocalCluster cluster = clusterBuilder.sslEnabled(testCertificates).nodeSettings(nodeSettings(true, false)).build()) {
-            cluster.before();
-            Assert.fail("Cluster should not start, invalid certs");
-        } catch (Throwable e) {
-            logsRule.assertThatContain("No subject alternative names matching IP address 127.0.0.1 found");
+            clusterFuture = executorService.submit(startCluster(cluster));
+            await("expect hostname verification error")
+                    .pollDelay(10, TimeUnit.MILLISECONDS)
+                    .untilAsserted(() -> logsRule.assertThatContain("No subject alternative names matching IP address 127.0.0.1 found"));
+        } finally {
+            Assert.assertNotNull("clusterFeature is not null", clusterFuture);
+            clusterFuture.cancel(true);
+            executorService.shutdown();
         }
     }
 
@@ -108,11 +121,17 @@ public class SslHostnameVerificationTest {
     public void shouldNotStartCluster_validSanIpInvalidSanDns_hostnameResolvingEnabled() {
         TestCertificates testCertificates = buildTestCertificates("fake", "127.0.0.1");
 
+        ExecutorService executorService = newSingleThreadExecutor();
+        Future<Void> clusterFuture = null;
         try (LocalCluster cluster = clusterBuilder.sslEnabled(testCertificates).nodeSettings(nodeSettings(true, true)).build()) {
-            cluster.before();
-            Assert.fail("Cluster should not start");
-        } catch (Throwable e) {
-            logsRule.assertThatContain("No subject alternative DNS name matching localhost found");
+            clusterFuture = executorService.submit(startCluster(cluster));
+            await("expect hostname verification error")
+                    .pollDelay(10, TimeUnit.MILLISECONDS)
+                    .untilAsserted(() -> logsRule.assertThatContain("No subject alternative names matching IP address 127.0.0.1 found"));
+        } finally {
+            Assert.assertNotNull("clusterFeature is not null", clusterFuture);
+            clusterFuture.cancel(true);
+            executorService.shutdown();
         }
     }
 
@@ -120,11 +139,17 @@ public class SslHostnameVerificationTest {
     public void shouldNotStartCluster_invalidSanIpValidSanDns_hostnameResolvingEnabled() {
         TestCertificates testCertificates = buildTestCertificates("localhost", "127.0.0.2");
 
+        ExecutorService executorService = newSingleThreadExecutor();
+        Future<Void> clusterFuture = null;
         try (LocalCluster cluster = clusterBuilder.sslEnabled(testCertificates).nodeSettings(nodeSettings(true, true)).build()) {
-            cluster.before();
-            Assert.fail("Cluster should not start");
-        } catch (Throwable e) {
-            logsRule.assertThatContain("No subject alternative names matching IP address 127.0.0.1 found");
+            clusterFuture = executorService.submit(startCluster(cluster));
+            await("expect hostname verification error")
+                    .pollDelay(10, TimeUnit.MILLISECONDS)
+                    .untilAsserted(() -> logsRule.assertThatContain("No subject alternative names matching IP address 127.0.0.1 found"));
+        } finally {
+            Assert.assertNotNull("clusterFeature is not null", clusterFuture);
+            clusterFuture.cancel(true);
+            executorService.shutdown();
         }
     }
 
@@ -136,7 +161,7 @@ public class SslHostnameVerificationTest {
         List<String> dnsList = Collections.singletonList(dns);
         List<String> ipList = Collections.singletonList(ip);
 
-        for (int node = 0; node < ClusterConfiguration.THREE_MASTERS.getNodes(); node++) {
+        for (int node = 0; node < ClusterConfiguration.DEFAULT.getNodes(); node++) {
             List<String> dn = Collections.singletonList(String.format("CN=node-%d.example.com,OU=Organizational Unit,O=Organization", node));
             testCertificatesBuilder.addNodes(
                     dn, 10, "1.2.3.4.5.5", dnsList, ipList,
@@ -151,6 +176,17 @@ public class SslHostnameVerificationTest {
         return new Object[] {
                 "searchguard.ssl.transport.enforce_hostname_verification", hostnameVerification,
                 "searchguard.ssl.transport.resolve_hostname", resolveHostname
+        };
+    }
+
+    private Callable<Void> startCluster(LocalCluster cluster) {
+        return () -> {
+            try {
+                cluster.before();
+            } catch (Throwable e) {
+                throw new RuntimeException(e);
+            }
+            return null;
         };
     }
 }
