@@ -1090,10 +1090,8 @@ public class RoleBasedActionAuthorizationTests {
             ResolvedIndices resolved = resolvedIndicesMock(ImmutableSet.of(index), ImmutableSet.empty(), ImmutableSet.empty());
 
 
-            // when
             PrivilegesEvaluationResult result = subject.hasIndexPermission(ctx(user, "test_role"), searchAction, requiredActions, resolved, Action.Scope.INDEX_LIKE);
 
-            // then
             Assert.assertTrue(result.toString(), result.getStatus() == PrivilegesEvaluationResult.Status.OK);
         }
 

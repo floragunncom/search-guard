@@ -130,7 +130,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
         this.roles = roles;
         this.actionGroups = actionGroups;
         this.actions = actions;
-        this.specialFailureStoreAction = Objects.requireNonNull(actions.get(Actions.SPECIAL_FAILURE_STORE_NAME));
+        this.specialFailureStoreAction = Objects.requireNonNull(actions.get(Actions.FAILURE_STORE_PERMISSION));
         this.metricsLevel = metricsLevel;
         this.statefulIndexMaxHeapSize = statefulIndexMaxHeapSize;
         this.tenantManager = new TenantManager(tenants, multiTenancyConfigurationProvider);
@@ -239,7 +239,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
             // Pre-mark data component cells as checked so that only failure store components require this privilege.
             checkTable.checkIf(Meta.IndexLikeObject::isDataRelated, specialFailureStoreAction);
 
-            log.trace("Check table after extension with {} is {}", Actions.SPECIAL_FAILURE_STORE_NAME, checkTable);
+            log.trace("Check table after extension with {} is {}", Actions.FAILURE_STORE_PERMISSION, checkTable);
             return checkTable;
         } else {
             // usual checkable without any extensions
@@ -281,7 +281,7 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 final Meta.IndexLikeObject rowKey = Meta.NonExistent.STAR;
 
                 try (Meter subMeter = meter.basic("local_all")) {
-                    CheckTable<Meta.IndexLikeObject, Action> checkTable = createCheckTable(ImmutableSet.of(rowKey), actions);
+                    CheckTable<Meta.IndexLikeObject, Action> checkTable = CheckTable.create(rowKey, actions);
 
                     top: for (Action action : actions) {
                         ImmutableSet<String> rolesWithWildcardIndexPrivileges = index.actionToRolesWithWildcardIndexPrivileges.get(action);
