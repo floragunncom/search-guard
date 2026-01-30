@@ -370,7 +370,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public int hashCode() {
-            return name().hashCode();
+            return name.hashCode();
         }
 
         @Override
@@ -378,7 +378,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public String toString() {
-            return this.name();
+            return this.name;
         }
 
         protected abstract AbstractIndexLike<T> withAlias(String alias);
@@ -1049,7 +1049,7 @@ public abstract class MetaImpl implements Meta {
 
         @Override
         public String toString() {
-            return this.name();
+            return this.name;
         }
 
         @Override

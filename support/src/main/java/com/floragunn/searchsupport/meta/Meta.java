@@ -49,7 +49,7 @@ public interface Meta extends Document<Meta> {
             return null;
         }
         if (indexLikeName.endsWith(FAILURES_SUFFIX)) {
-            return indexLikeName.substring(0, indexLikeName.indexOf(FAILURES_SUFFIX));
+            return indexLikeName.substring(0, indexLikeName.length() - FAILURES_SUFFIX.length());
         } else {
             return indexLikeName;
         }
