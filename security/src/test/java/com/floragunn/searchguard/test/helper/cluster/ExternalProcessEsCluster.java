@@ -99,6 +99,7 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
 
         this.esInstallation.appendConfig("jvm.options", "-Xms1g");
         this.esInstallation.appendConfig("jvm.options", "-Xmx1g");
+        // TODO debug option
 
         this.esInstallation.appendConfig("elasticsearch.yml", "" //
                 + "cluster.routing.allocation.disk.threshold_enabled: false\n" //

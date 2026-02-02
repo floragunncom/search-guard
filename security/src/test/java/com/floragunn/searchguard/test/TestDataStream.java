@@ -26,10 +26,14 @@ public class TestDataStream implements TestIndexLike {
 
     private final String name;
     private final TestData testData;
+    private final boolean failureStoreEnabled;
+    private final int failureDocumentCount;
 
-    public TestDataStream(String name, TestData testData) {
+    public TestDataStream(String name, TestData testData, boolean failureStoreEnabled, int failureDocumentCount) {
         this.name = name;
         this.testData = testData;
+        this.failureStoreEnabled = failureStoreEnabled;
+        this.failureDocumentCount = failureDocumentCount;
     }
 
     @Override
@@ -47,6 +51,15 @@ public class TestDataStream implements TestIndexLike {
         if (response.getStatusCode() != 200 && response.getStatusCode() != 201) {
             throw new RuntimeException("Error while creating data stream " + name + "\n" + response);
         }
+
+        if (failureStoreEnabled) {
+            DocNode failureStoreOptions = DocNode.of("failure_store", DocNode.of("enabled", true));
+            GenericRestClient.HttpResponse optionsResponse = client.putJson("/_data_stream/" + name + "/_options", failureStoreOptions);
+            if (optionsResponse.getStatusCode() != 200) {
+                throw new RuntimeException(
+                        "Cannot enable failure store for data stream '" + name + "' response code '" + optionsResponse.getStatusCode() + "' and body '" + optionsResponse.getBody() + "'");
+            }
+        }
         DocNode mappings = testData.getFieldMappingsWithoutTimestamp();
         if (! mappings.isEmpty()) {
             DocNode mappingRequestBody = DocNode.of("properties", mappings);
@@ -58,6 +71,31 @@ public class TestDataStream implements TestIndexLike {
         }
 
         testData.putDocuments(client, name);
+
+        putFailureDocuments(client);
+    }
+
+    private void putFailureDocuments(GenericRestClient client) throws Exception {
+        for (int i = 0; i < failureDocumentCount; i++) {
+            // Create document without @timestamp - this will cause it to be redirected to the failure store
+            DocNode document = DocNode.of(
+                "source_ip", "100.100.100." + i,
+                "dest_ip", "100.100.101." + i,
+                "source_loc", "FailureLocation" + i,
+                "dest_loc", "FailureDestination" + i,
+                "dept", "dept_failure"
+            );
+
+            GenericRestClient.HttpResponse response = client.postJson(name + "/_doc", document);
+
+            if (response.getStatusCode() != 201) {
+                throw new RuntimeException("Error while creating failure document " + i + " in " + name + "\n" + response);
+            }
+        }
+
+        if (failureDocumentCount > 0) {
+            client.post(name + "/_refresh");
+        }
     }
 
     public String getName() {
@@ -66,6 +104,10 @@ public class TestDataStream implements TestIndexLike {
 
     public TestData getTestData() {
         return testData;
+    }
+
+    public int getFailureDocumentCount() {
+        return failureDocumentCount;
     }
 
     public static Builder name(String name) {
@@ -81,6 +123,8 @@ public class TestDataStream implements TestIndexLike {
         private String name;
         private TestData.Builder testDataBuilder = new TestData.Builder().timestampColumnName("@timestamp").deletedDocumentFraction(0);
         private TestData testData;
+        private boolean failureStoreEnabled = false;
+        private int failureDocumentCount = 0;
 
         public Builder name(String name) {
             this.name = name;
@@ -122,12 +166,22 @@ public class TestDataStream implements TestIndexLike {
             return this;
         }
 
+        public Builder failureStoreEnabled(boolean failureStoreEnabled) {
+            this.failureStoreEnabled = failureStoreEnabled;
+            return this;
+        }
+
+        public Builder failureDocumentCount(int failureDocumentCount) {
+            this.failureDocumentCount = failureDocumentCount;
+            return this;
+        }
+
         public TestDataStream build() {
             if (testData == null) {
                 testData = testDataBuilder.get();
             }
 
-            return new TestDataStream(name, testData);
+            return new TestDataStream(name, testData, failureStoreEnabled, failureDocumentCount);
         }
     }
 
