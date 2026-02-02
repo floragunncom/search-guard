@@ -17,11 +17,10 @@
 
 package com.floragunn.searchguard.authz.actions;
 
+import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
 import org.junit.Test;
@@ -317,5 +316,27 @@ public class ParsedIndexReferenceTest {
         assertThat(modified.baseName(), is("my-index"));
         assertThat(modified.failureStore(), is(false));
         assertThat(modified.metaName(), is("my-index"));
+    }
+
+    @Test
+    public void testPredicate() {
+        assertThat(ParsedIndexReference.of("local_index").isRemoteIndex(), is(false));
+        assertThat(ParsedIndexReference.of("server:remote_index").isRemoteIndex(), is(true));
+        assertThat(ParsedIndexReference.of("myRemote:anotherIndex").isRemoteIndex(), is(true));
+        assertThat(ParsedIndexReference.of("other:*").isRemoteIndex(), is(true));
+
+        assertThat(ParsedIndexReference.of(":remote").isRemoteIndex(), is(true));
+        assertThat(ParsedIndexReference.of("remote:").isRemoteIndex(), is(true));
+        assertThat(ParsedIndexReference.of("r:").isRemoteIndex(), is(true));
+        assertThat(ParsedIndexReference.of("").isRemoteIndex(), is(false));
+
+        assertThatThrown(() -> ParsedIndexReference.of("not:::remote").isRemoteIndex(), instanceOf(IllegalArgumentException.class));
+        assertThatThrown(() -> ParsedIndexReference.of("not:::remote").isRemoteIndex(), instanceOf(IllegalArgumentException.class));
+        assertThatThrown(() -> ParsedIndexReference.of("not::remote").isRemoteIndex(), instanceOf(IllegalArgumentException.class));
+        assertThatThrown(() -> ParsedIndexReference.of("not_remote::").isRemoteIndex(), instanceOf(IllegalArgumentException.class));
+        assertThatThrown(() -> ParsedIndexReference.of("::not_remote").isRemoteIndex(), instanceOf(IllegalArgumentException.class));
+
+
+        //        assertThat(ParsedIndexReference.of("not:remote:index").isRemoteIndex(), is(false));
     }
 }

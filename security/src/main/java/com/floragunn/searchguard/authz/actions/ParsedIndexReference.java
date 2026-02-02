@@ -28,7 +28,9 @@ import com.floragunn.searchsupport.meta.Meta;
  *  "my-index::failures" → ParsedIndexReference("my-index", true)
  *  "my-*::failures"     → ParsedIndexReference("my-*", true)
  */
-public class ParsedIndexReference {
+class ParsedIndexReference {
+
+    public static final String REMOTE_CLUSTER_INDEX_SEPARATOR = ":";
 
     /**
      * The base index name without the component suffix (e.g., "my-index" or "my-*")
@@ -111,5 +113,12 @@ public class ParsedIndexReference {
     @Override
     public String toString() {
         return "ParsedIndexReference[baseName=" + baseName + ", failureStore=" + failureStore + "]";
+    }
+
+    public boolean isRemoteIndex() {
+        if (baseName == null) {
+            return false;
+        }
+        return baseName.contains(REMOTE_CLUSTER_INDEX_SEPARATOR);
     }
 }
