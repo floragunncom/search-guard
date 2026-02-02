@@ -79,8 +79,6 @@ import com.floragunn.searchsupport.meta.Meta;
 
 public class ActionRequestIntrospector {
 
-    public static final char REMOTE_CLUSTER_INDEX_SEPARATOR = ':';
-
     private static final IndicesOptions EXACT = IndicesOptionsSupport.EXACT;
 
     private static final Set<String> NAME_BASED_SHORTCUTS_FOR_CLUSTER_ACTIONS = ImmutableSet.of("indices:data/read/msearch/template",
@@ -733,8 +731,8 @@ public class ActionRequestIntrospector {
             this.role = role;
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
-            this.localIndices = this.indices.matching(Predicate.not(ActionRequestIntrospector::isRemoteIndex));
-            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(ParsedIndexReference::metaName);
+            this.localIndices = this.indices.matching(Predicate.not(ParsedIndexReference::isRemoteIndex));
+            this.remoteIndices = ImmutableSet.of(this.indices.matching(ParsedIndexReference::isRemoteIndex)).map(ParsedIndexReference::metaName);
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, indicesRequest);
             this.allIndicesFailureStore = determineIfAllIndicesTargetFailureStore();
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(this.indices) : false;
@@ -757,8 +755,8 @@ public class ActionRequestIntrospector {
             this.role = role;
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
-            this.localIndices = this.indices.matching(Predicate.not(ActionRequestIntrospector::isRemoteIndex));
-            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(ParsedIndexReference::metaName);
+            this.localIndices = this.indices.matching(Predicate.not(ParsedIndexReference::isRemoteIndex));
+            this.remoteIndices = ImmutableSet.of(this.indices.matching(ParsedIndexReference::isRemoteIndex)).map(ParsedIndexReference::metaName);
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, null);
             this.allIndicesFailureStore = determineIfAllIndicesTargetFailureStore();
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(index) : false;
@@ -781,8 +779,8 @@ public class ActionRequestIntrospector {
             this.role = role;
             this.expandWildcards = indicesOptions.expandWildcardsOpen() || indicesOptions.expandWildcardsHidden()
                     || indicesOptions.expandWildcardsClosed();
-            this.localIndices = this.indices.matching(Predicate.not(ActionRequestIntrospector::isRemoteIndex));
-            this.remoteIndices = ImmutableSet.of(this.indices.matching(ActionRequestIntrospector::isRemoteIndex)).map(ParsedIndexReference::metaName);
+            this.localIndices = this.indices.matching(Predicate.not(ParsedIndexReference::isRemoteIndex));
+            this.remoteIndices = ImmutableSet.of(this.indices.matching(ParsedIndexReference::isRemoteIndex)).map(ParsedIndexReference::metaName);
             this.isAll = this.expandWildcards && this.isAll(localIndices, remoteIndices, null);
             this.allIndicesFailureStore = determineIfAllIndicesTargetFailureStore();
             this.containsWildcards = this.expandWildcards ? this.isAll || containsWildcard(this.indices) : false;
@@ -1100,16 +1098,5 @@ public class ActionRequestIntrospector {
                 && (a instanceof Replaceable ? ((Replaceable) a).allowsRemoteIndices()
                         : false) == (b instanceof Replaceable ? ((Replaceable) b).allowsRemoteIndices() : false)
                 && a.includeDataStreams() == b.includeDataStreams();
-    }
-
-    static boolean isRemoteIndex(ParsedIndexReference parsedIndexReference) {
-        if (parsedIndexReference == null || parsedIndexReference.baseName() == null) {
-            return false;
-        }
-        int firstIndex = parsedIndexReference.baseName().indexOf(REMOTE_CLUSTER_INDEX_SEPARATOR);
-        int lastIndex = parsedIndexReference.baseName().lastIndexOf(REMOTE_CLUSTER_INDEX_SEPARATOR);
-
-        // If both are same and not -1, there's exactly one colon
-        return (firstIndex != -1) && (firstIndex == lastIndex);
     }
 }

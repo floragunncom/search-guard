@@ -157,27 +157,6 @@ public class ActionRequestIntrospectorTest {
                 .map(Meta.IndexLikeObject::nameForIndexPatternMatching));
     }
 
-    @Test
-    public void testPredicate() {
-        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("local_index")), is(false));
-        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("server:remote_index")), is(true));
-        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("myRemote:anotherIndex")), is(true));
-        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("other:*")), is(true));
-        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("not_remote")), is(false));
-        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent(":remote")), is(true));
-        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("remote:")), is(true));
-        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("r:")), is(true));
-        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("")), is(false));
-        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent("not:remote:index")), is(false));
-        assertThat(ActionRequestIntrospector.isRemoteIndex(indexWithRandomComponent(null)), is(false));
-    }
-
-    private ParsedIndexReference indexWithRandomComponent(String index) {
-        boolean failureStore = new Random(1L).nextBoolean();
-        String indexNameExpression = failureStore ? index + Meta.FAILURES_SUFFIX : index;
-        return ParsedIndexReference.of(indexNameExpression);
-    }
-
     static ActionRequestIntrospector simple() {
         return new ActionRequestIntrospector(() -> META, () -> SystemIndexAccess.DISALLOWED, () -> false, null);
     }
