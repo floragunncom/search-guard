@@ -1,11 +1,19 @@
 #!/bin/bash
-
 set -e
 
 MODULE=$1
-MAVEN_CLI_OPTS="--batch-mode -s settings.xml"
-RUN_TESTS_COMMAND="mvn $MAVEN_CLI_OPTS -pl $MODULE test -Dsg.tests.es_download_cache.dir=$(pwd) -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) -Drevision=$SNAPSHOT_REVISION -Delasticsearch.version=$ES_VERSION"
+TEST_FILTER=$2
 
+MAVEN_CLI_OPTS="--batch-mode -s settings.xml"
+RUN_TESTS_COMMAND="mvn $MAVEN_CLI_OPTS -pl $MODULE test \
+  -Dsg.tests.es_download_cache.dir=$(pwd) \
+  -Dsg.tests.sg_plugin.file=$(realpath ./plugin/target/releases/search-guard-flx-elasticsearch-plugin-*SNAPSHOT*.zip) \
+  -Drevision=$SNAPSHOT_REVISION \
+  -Delasticsearch.version=$ES_VERSION"
+
+if [ -n "$TEST_FILTER" ]; then
+  RUN_TESTS_COMMAND="$RUN_TESTS_COMMAND -Dtest=$TEST_FILTER"
+fi
 useradd -m es_test
 
 chown -R es_test .
