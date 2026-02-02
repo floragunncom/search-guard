@@ -28,7 +28,7 @@ test_security:
   extends:
     - .be_unit_test
   script:
-    - ci/run_tests.sh "security" "\!SslHostnameVerificationTest,SearchGuard*"
+    - ci/run_tests.sh "security" "\!SslHostnameVerificationTest"
 
 test_ssl:
   extends:
