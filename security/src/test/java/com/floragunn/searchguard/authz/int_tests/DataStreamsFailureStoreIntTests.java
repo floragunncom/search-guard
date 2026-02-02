@@ -175,7 +175,7 @@ public class DataStreamsFailureStoreIntTests {
             response = client.get("/.fs-ds_two_documents*/_search?pretty");
             log.info("search ds failure store status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
-            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",0)); // missing special:failure_store
         }
     }
 
@@ -204,8 +204,7 @@ public class DataStreamsFailureStoreIntTests {
 
             response = client.get("/" + ds_two_documents.getName() + "::failures/_search?pretty");
             log.info("search ds failure store status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
-            assertThat(response, isOk());
-            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            assertThat(response, isForbidden());
         }
     }
 
@@ -315,7 +314,8 @@ public class DataStreamsFailureStoreIntTests {
             HttpResponse response = client.get("/.fs-ds_aw1*/_search?pretty&size=1000");
             assertThat(response, isOk());
             log.info("Response body status code {} and body '{}'", response.getStatusCode(), response.getBody());
-            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            // lacking permission special:failure_store
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",0));
 
             response = client.get("/.fs-ds_bw1*/_search?pretty&size=1000");
             log.info("Response body status code {} and body '{}'", response.getStatusCode(), response.getBody());
