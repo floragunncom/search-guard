@@ -274,43 +274,6 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
                 log.trace("hasIndexPermission()\nuser: " + user + "\nactions: " + actions + "\nresolved: " + resolved);
             }
 
-            // TODO this isBlank() creates a performance penalty, because we always skip the following block
-            if (resolved.isLocalAll() && universallyDeniedIndices.isBlank()) {
-                // If we have a query on all indices, first check for roles which give privileges for *. Thus, we avoid costly index resolutions
-
-                final Meta.IndexLikeObject rowKey = Meta.NonExistent.STAR;
-
-                try (Meter subMeter = meter.basic("local_all")) {
-                    CheckTable<Meta.IndexLikeObject, Action> checkTable = CheckTable.create(rowKey, actions);
-
-                    top: for (Action action : actions) {
-                        ImmutableSet<String> rolesWithWildcardIndexPrivileges = index.actionToRolesWithWildcardIndexPrivileges.get(action);
-
-                        if (rolesWithWildcardIndexPrivileges != null && rolesWithWildcardIndexPrivileges.containsAny(mappedRoles)) {
-                            if (checkTable.check(rowKey, action)) {
-                                break top;
-                            }
-                        }
-                    }
-
-                    if (checkTable.isComplete()) {
-                        log.trace("Granting request on local_all");
-                        indexActionCheckResults_ok.increment();
-                        return PrivilegesEvaluationResult.OK;
-                    }
-
-                    if (!context.isResolveLocalAll()) {
-                        indexActionCheckResults_insufficient.increment();
-
-                        if (!checkTable.isComplete()) {
-                            return PrivilegesEvaluationResult.INSUFFICIENT.reason("Insufficient privileges").with(checkTable);
-                        } else {
-                            return PrivilegesEvaluationResult.INSUFFICIENT.reason("Privileges excluded").with(checkTable);
-                        }
-                    }
-                }
-            }
-
             if (resolved.getLocal().getUnion().isEmpty()) {
                 log.debug("No local indices; grant the request");
                 indexActionCheckResults_ok.increment();
