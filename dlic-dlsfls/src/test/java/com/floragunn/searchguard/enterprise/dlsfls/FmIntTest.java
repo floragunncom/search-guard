@@ -80,7 +80,7 @@ public class FmIntTest {
     static final String INDEX = "index_logs";
     static final TestIndex TEST_INDEX = new TestIndex(INDEX, Settings.builder().put("index.number_of_shards", 5).build(), TEST_DATA);
     static final TestAlias TEST_ALIAS = new TestAlias("alias_logs", TEST_INDEX);
-    static final TestDataStream TEST_DATA_STREAM = new TestDataStream("web_data_stream_logs", TEST_DATA);
+    static final TestDataStream TEST_DATA_STREAM = new TestDataStream("web_data_stream_logs", TEST_DATA, false, 0);
 
     static final Pattern HEX_HASH_PATTERN = Pattern.compile("anonymized_[0-9a-f]{64}");
     static final Pattern IP_ADDRESS_PATTERN = Pattern.compile("[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+");
