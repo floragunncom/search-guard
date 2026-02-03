@@ -17,7 +17,6 @@
 
 package com.floragunn.searchsupport.meta;
 
-import java.util.Arrays;
 import java.util.Collection;
 
 import com.floragunn.codova.documents.Document;
@@ -329,17 +328,6 @@ public interface Meta extends Document<Meta> {
          */
         static interface AliasBuilder {
             Meta of(String... indexNames);
-
-            default void validateIndexNames(String aliasName, String... indexNames) {
-                boolean aliasWithDataComponent = ! aliasName.endsWith(FAILURES_SUFFIX);
-                if (aliasWithDataComponent) {
-                    if (Arrays.stream(indexNames).anyMatch(index -> index.endsWith(FAILURES_SUFFIX))) {
-                        throw new RuntimeException("An alias representing the data component cannot have members whose names end with: " + FAILURES_SUFFIX);
-                    }
-                } else if (Arrays.stream(indexNames).anyMatch(index -> ! index.endsWith(FAILURES_SUFFIX))) {
-                    throw new RuntimeException("An alias representing the failure component must have members whose names end with: " + FAILURES_SUFFIX);
-                }
-            }
         }
 
         /**
@@ -347,17 +335,6 @@ public interface Meta extends Document<Meta> {
          */
         static interface DataStreamBuilder {
             Meta of(String... indexNames);
-
-            default void validateIndexNames(String dataStreamName, String... indexNames) {
-                boolean dataStreamWithDataComponent = ! dataStreamName.endsWith(FAILURES_SUFFIX);
-                if (dataStreamWithDataComponent) {
-                    if (Arrays.stream(indexNames).anyMatch(index -> ! index.startsWith(".ds"))) {
-                        throw new RuntimeException("A data stream representing the data component must have indices whose names start with '.ds'");
-                    }
-                } else if (Arrays.stream(indexNames).anyMatch(index -> ! index.startsWith(".fs"))) {
-                    throw new RuntimeException("A data stream representing the failure component must have indices whose names start with '.fs'");
-                }
-            }
         }
     }
 }
