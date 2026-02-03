@@ -444,7 +444,7 @@ public class ResolvedIndices {
 
             // Note: We are going backwards through the list of indices in order to get negated patterns before the patterns they apply to
             for (int i = request.localIndices.size() - 1; i >= 0; i--) {
-                ParsedIndexReference index = request.localIndices.get(i);
+                IndexExpression index = request.localIndices.get(i);
 
                 if (index.isExclusion()) {
                     index = index.dropExclusion();
@@ -455,8 +455,8 @@ public class ResolvedIndices {
                                 request.indicesOptions(), includeDataStreams);
 
                         for (String resolvedIndex : matchedAbstractions.keySet()) {
-                            ParsedIndexReference resolvedParsedIndexReference = index.withIndexName(resolvedIndex);
-                            resolveNegationUpAndDown(resolvedParsedIndexReference.metaName(), excludeNames, partiallyExcludedObjects, request, indexMetadata);
+                            IndexExpression resolvedIndexExpression = index.withIndexName(resolvedIndex);
+                            resolveNegationUpAndDown(resolvedIndexExpression.metaName(), excludeNames, partiallyExcludedObjects, request, indexMetadata);
                         }
                     } else {
                         resolveNegationUpAndDown(index.metaName(), excludeNames, partiallyExcludedObjects, request, indexMetadata);
@@ -664,14 +664,14 @@ public class ResolvedIndices {
             ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
             ImmutableSet.Builder<Meta.DataStream> dataStreams = new ImmutableSet.Builder<>();
 
-            for (ParsedIndexReference parsedIndexReference : request.localIndices) {
-                String resolvedIndexExpression = DateMathExpressionResolver.resolveExpression(parsedIndexReference.baseName());
+            for (IndexExpression indexExpression : request.localIndices) {
+                String resolvedIndexExpression = DateMathExpressionResolver.resolveExpression(indexExpression.baseName());
 
                 if (ActionRequestIntrospector.containsWildcard(resolvedIndexExpression)) {
                     continue;
                 }
 
-                ParsedIndexReference resolvedReference = parsedIndexReference.withIndexName(resolvedIndexExpression);
+                IndexExpression resolvedReference = indexExpression.withIndexName(resolvedIndexExpression);
                 Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolvedReference.metaName());
 
                 if (scope == IndicesRequestInfo.Scope.INDEX) {
@@ -740,14 +740,14 @@ public class ResolvedIndices {
         static ResolvedIndices.Local resolveDataStreamsWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
             ImmutableSet.Builder<Meta.DataStream> dataStreams = new ImmutableSet.Builder<>();
 
-            for (ParsedIndexReference parsedIndexReference : request.localIndices) {
-                String resolved = DateMathExpressionResolver.resolveExpression(parsedIndexReference.baseName());
+            for (IndexExpression indexExpression : request.localIndices) {
+                String resolved = DateMathExpressionResolver.resolveExpression(indexExpression.baseName());
 
                 if (ActionRequestIntrospector.containsWildcard(resolved)) {
                     continue;
                 }
 
-                ParsedIndexReference resolvedWithComponent = parsedIndexReference.withIndexName(resolved);
+                IndexExpression resolvedWithComponent = indexExpression.withIndexName(resolved);
                 Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolvedWithComponent.metaName());
 
                 if (indexLike == null) {
@@ -763,14 +763,14 @@ public class ResolvedIndices {
         static ResolvedIndices.Local resolveAliasesWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {
             ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
 
-            for (ParsedIndexReference parsedIndexReference : request.localIndices) {
-                String resolved = DateMathExpressionResolver.resolveExpression(parsedIndexReference.baseName());
+            for (IndexExpression indexExpression : request.localIndices) {
+                String resolved = DateMathExpressionResolver.resolveExpression(indexExpression.baseName());
 
                 if (ActionRequestIntrospector.containsWildcard(resolved)) {
                     continue;
                 }
 
-                ParsedIndexReference resolvedWithComponent = parsedIndexReference.withIndexName(resolved);
+                IndexExpression resolvedWithComponent = indexExpression.withIndexName(resolved);
                 Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolvedWithComponent.metaName());
 
                 if (indexLike == null) {
@@ -785,12 +785,12 @@ public class ResolvedIndices {
 
         static final ResolvedIndices.Local EMPTY = new Local(ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty(), ImmutableSet.empty());
 
-        private static ImmutableSet<ParsedIndexReference> resolveDateMathExpressions(Collection<ParsedIndexReference> indices) {
-            ImmutableSet<ParsedIndexReference> result = ImmutableSet.empty();
+        private static ImmutableSet<IndexExpression> resolveDateMathExpressions(Collection<IndexExpression> indices) {
+            ImmutableSet<IndexExpression> result = ImmutableSet.empty();
 
-            for (ParsedIndexReference parsedIndexReference : indices) {
-                String resolved = DateMathExpressionResolver.resolveExpression(parsedIndexReference.baseName());
-                result = result.with(parsedIndexReference.withIndexName(resolved));
+            for (IndexExpression indexExpression : indices) {
+                String resolved = DateMathExpressionResolver.resolveExpression(indexExpression.baseName());
+                result = result.with(indexExpression.withIndexName(resolved));
             }
 
             return result;

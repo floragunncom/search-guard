@@ -29,7 +29,7 @@ import com.floragunn.searchsupport.meta.Meta;
  *  "my-index::failures" → ParsedIndexReference("my-index", true)
  *  "my-*::failures"     → ParsedIndexReference("my-*", true)
  */
-class ParsedIndexReference {
+class IndexExpression {
 
     public static final String REMOTE_CLUSTER_INDEX_SEPARATOR = ":";
 
@@ -44,26 +44,26 @@ class ParsedIndexReference {
      */
     private final boolean failureStore;
 
-    private ParsedIndexReference(String baseName, boolean failureStore) {
+    private IndexExpression(String baseName, boolean failureStore) {
         assert (baseName == null) || (!baseName.contains(Meta.COMPONENT_SEPARATOR)) : "Unexpected component separator";
         this.baseName = baseName;
         this.failureStore = failureStore;
     }
 
-    public static ParsedIndexReference of(String indexExpression) {
+    public static IndexExpression of(String indexExpression) {
         if (indexExpression == null) {
-            return new ParsedIndexReference(null, false);
+            return new IndexExpression(null, false);
         }
         int lastIndexOfComponentSeparator = indexExpression.lastIndexOf(Meta.COMPONENT_SEPARATOR);
         if (lastIndexOfComponentSeparator == -1) {
-            return new ParsedIndexReference(indexExpression, false);
+            return new IndexExpression(indexExpression, false);
         } else {
             String indexName = indexExpression.substring(0, lastIndexOfComponentSeparator);
             String componentSuffix = indexExpression.substring(lastIndexOfComponentSeparator);
             if (Meta.FAILURES_SUFFIX.equals(componentSuffix)) {
-                return new ParsedIndexReference(indexName, true);
+                return new IndexExpression(indexName, true);
             } else if (Meta.DATA_SUFFIX.equals(componentSuffix)) {
-                return new ParsedIndexReference(indexName, false);
+                return new IndexExpression(indexName, false);
             } else {
                 throw new IllegalArgumentException(
                         "Unknown component selector '" + componentSuffix + "' in index expression: " + indexExpression);
@@ -79,8 +79,8 @@ class ParsedIndexReference {
         return failureStore;
     }
 
-    public ParsedIndexReference withIndexName(String indexWithoutComponent) {
-        return new ParsedIndexReference(indexWithoutComponent, failureStore);
+    public IndexExpression withIndexName(String indexWithoutComponent) {
+        return new IndexExpression(indexWithoutComponent, failureStore);
     }
 
     /**
@@ -98,9 +98,9 @@ class ParsedIndexReference {
         return (baseName != null) && baseName.startsWith("-");
     }
 
-    public ParsedIndexReference dropExclusion() {
+    public IndexExpression dropExclusion() {
         if(isExclusion()) {
-            return new ParsedIndexReference(baseName.substring(1), failureStore);
+            return new IndexExpression(baseName.substring(1), failureStore);
         }
         return this;
     }
@@ -109,15 +109,15 @@ class ParsedIndexReference {
         return (baseName != null) && baseName.contains("*");
     }
 
-    public ParsedIndexReference mapBaseName(Function<String, String> mapper) {
-        return new ParsedIndexReference(mapper.apply(baseName), failureStore);
+    public IndexExpression mapBaseName(Function<String, String> mapper) {
+        return new IndexExpression(mapper.apply(baseName), failureStore);
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        ParsedIndexReference that = (ParsedIndexReference) o;
+        IndexExpression that = (IndexExpression) o;
         return failureStore == that.failureStore && Objects.equals(baseName, that.baseName);
     }
 
