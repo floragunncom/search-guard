@@ -296,28 +296,6 @@ public class ParsedIndexReferenceTest {
         assertThat(withoutFailures.withIndexName("new-name").failureStore(), is(false));
     }
 
-    // Tests for withFailureStore method
-
-    @Test
-    public void withFailureStore_setsFailureStoreToTrue() {
-        ParsedIndexReference original = ParsedIndexReference.of("my-index");
-        ParsedIndexReference modified = original.withFailureStore(true);
-
-        assertThat(modified.baseName(), is("my-index"));
-        assertThat(modified.failureStore(), is(true));
-        assertThat(modified.metaName(), is("my-index::failures"));
-    }
-
-    @Test
-    public void withFailureStore_setsFailureStoreToFalse() {
-        ParsedIndexReference original = ParsedIndexReference.of("my-index::failures");
-        ParsedIndexReference modified = original.withFailureStore(false);
-
-        assertThat(modified.baseName(), is("my-index"));
-        assertThat(modified.failureStore(), is(false));
-        assertThat(modified.metaName(), is("my-index"));
-    }
-
     @Test
     public void testPredicate() {
         assertThat(ParsedIndexReference.of("local_index").isRemoteIndex(), is(false));

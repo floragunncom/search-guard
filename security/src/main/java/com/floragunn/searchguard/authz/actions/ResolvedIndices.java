@@ -395,7 +395,7 @@ public class ResolvedIndices {
                     } else if (request.createIndexRequest) {
                         return new Local(ImmutableSet.empty(),
                                 ImmutableSet.of(resolveDateMathExpressions(request.localIndices)
-                                        .map(ref -> Meta.Alias.nonExistent(ref.withFailureStore(false).metaName()))), ImmutableSet.empty(), // We keep all non-existent objects in the data scope.
+                                        .map(ref -> Meta.Alias.nonExistent(ref.metaName()))), ImmutableSet.empty(),
                                 ImmutableSet.empty());
                     } else {
                         return resolveAliasesWithoutPatterns(request, indexMetadata);
@@ -457,11 +457,11 @@ public class ResolvedIndices {
 
                         for (String resolvedIndex : matchedAbstractions.keySet()) {
                             ParsedIndexReference resolvedParsedIndexReference = parsedIndexReference.withIndexName(resolvedIndex);
-                            resolveNegationUpAndDown(resolvedParsedIndexReference, excludeNames, partiallyExcludedObjects, request, indexMetadata);
+                            resolveNegationUpAndDown(resolvedParsedIndexReference.metaName(), excludeNames, partiallyExcludedObjects, request, indexMetadata);
                         }
                     } else {
                         ParsedIndexReference strippedParsedIndexReference = parsedIndexReference.withIndexName(index);
-                        resolveNegationUpAndDown(strippedParsedIndexReference, excludeNames, partiallyExcludedObjects, request, indexMetadata);
+                        resolveNegationUpAndDown(strippedParsedIndexReference.metaName(), excludeNames, partiallyExcludedObjects, request, indexMetadata);
                     }
                 } else {
                     index = DateMathExpressionResolver.resolveExpression(index);
@@ -545,13 +545,12 @@ public class ResolvedIndices {
                         Meta.IndexLikeObject indexLikeObject = indexMetadata.getIndexOrLike(indexReference.metaName());
 
                         if (indexLikeObject == null) {
-                            String indexNameInDataScope = indexReference.withFailureStore(false).metaName();
                             if (scope == IndicesRequestInfo.Scope.DATA_STREAM) {
-                                dataStreams.add(Meta.DataStream.nonExistent(indexNameInDataScope)); //We keep all nonExistent object in the data scope
+                                dataStreams.add(Meta.DataStream.nonExistent(indexReference.metaName()));
                             } else if (scope == IndicesRequestInfo.Scope.ALIAS) {
-                                aliases.add(Meta.Alias.nonExistent(indexNameInDataScope)); //We keep all nonExistent object in the data scope
+                                aliases.add(Meta.Alias.nonExistent(indexReference.metaName()));
                             } else {
-                                nonExistingIndices.add(Meta.NonExistent.of(indexNameInDataScope)); //We keep all nonExistent object in the data scope
+                                nonExistingIndices.add(Meta.NonExistent.of(indexReference.metaName()));
                             }
                         } else if (indexLikeObject instanceof Meta.Alias) {
                             if (includeAliases) {
@@ -676,47 +675,46 @@ public class ResolvedIndices {
                 }
 
                 ParsedIndexReference resolvedReference = parsedIndexReference.withIndexName(resolvedIndexExpression);
-                String resolvedComponentInDataComponent = resolvedReference.withFailureStore(false).metaName();
                 Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolvedReference.metaName());
 
                 if (scope == IndicesRequestInfo.Scope.INDEX) {
                     if (indexLike instanceof Meta.Index) {
                         indices.add((Meta.Index) indexLike);
                     } else {
-                        indices.add(Meta.Index.nonExistent(resolvedComponentInDataComponent)); //We keep all nonExistent object in the data scope
+                        indices.add(Meta.Index.nonExistent(resolvedReference.metaName()));
                     }
                 } else if (scope == IndicesRequestInfo.Scope.ALIAS) {
                     if (indexLike instanceof Meta.Alias) {
                         aliases.add((Meta.Alias) indexLike);
                     } else {
-                        aliases.add(Meta.Alias.nonExistent(resolvedComponentInDataComponent)); //We keep all nonExistent object in the data scope
+                        aliases.add(Meta.Alias.nonExistent(resolvedReference.metaName()));
                     }
                 } else if (scope == IndicesRequestInfo.Scope.DATA_STREAM) {
                     if (indexLike instanceof Meta.DataStream) {
                         dataStreams.add((Meta.DataStream) indexLike);
                     } else {
-                        dataStreams.add(Meta.DataStream.nonExistent(resolvedComponentInDataComponent)); //We keep all nonExistent object in the data scope
+                        dataStreams.add(Meta.DataStream.nonExistent(resolvedReference.metaName()));
                     }
                 } else {
                     if (indexLike == null) {
-                        nonExistingIndices.add(Meta.NonExistent.of(resolvedComponentInDataComponent)); //We keep all nonExistent object in the data scope
+                        nonExistingIndices.add(Meta.NonExistent.of(resolvedReference.metaName()));
                     } else if (indexLike instanceof Meta.Alias) {
                         if (scope.includeAliases) {
                             aliases.add((Meta.Alias) indexLike);
                         } else {
-                            nonExistingIndices.add(Meta.NonExistent.of(resolvedComponentInDataComponent)); //We keep all nonExistent object in the data scope
+                            nonExistingIndices.add(Meta.NonExistent.of(resolvedReference.metaName()));
                         }
                     } else if (indexLike instanceof Meta.DataStream) {
                         if (scope.includeDataStreams) {
                             dataStreams.add((Meta.DataStream) indexLike);
                         } else {
-                            nonExistingIndices.add(Meta.NonExistent.of(resolvedComponentInDataComponent)); //We keep all nonExistent object in the data scope
+                            nonExistingIndices.add(Meta.NonExistent.of(resolvedReference.metaName()));
                         }
                     } else {
                         if (scope.includeIndices) {
                             indices.add((Meta.Index) indexLike);
                         } else {
-                            nonExistingIndices.add(Meta.NonExistent.of(resolvedComponentInDataComponent)); //We keep all nonExistent object in the data scope
+                            nonExistingIndices.add(Meta.NonExistent.of(resolvedReference.metaName()));
                         }
                     }
                 }
@@ -756,7 +754,7 @@ public class ResolvedIndices {
                 Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolvedWithComponent.metaName());
 
                 if (indexLike == null) {
-                    dataStreams.add(Meta.DataStream.nonExistent(resolvedWithComponent.withFailureStore(false).metaName())); //We keep all nonExistent object in the data scope
+                    dataStreams.add(Meta.DataStream.nonExistent(resolvedWithComponent.metaName()));
                 } else if (indexLike instanceof Meta.DataStream) {
                     dataStreams.add((Meta.DataStream) indexLike);
                 }
@@ -779,7 +777,7 @@ public class ResolvedIndices {
                 Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolvedWithComponent.metaName());
 
                 if (indexLike == null) {
-                    aliases.add(Meta.Alias.nonExistent(resolvedWithComponent.withFailureStore(false).metaName())); //We keep all nonExistent object in the data scope
+                    aliases.add(Meta.Alias.nonExistent(resolvedWithComponent.metaName()));
                 } else if (indexLike instanceof Meta.Alias) {
                     aliases.add((Meta.Alias) indexLike);
                 }
@@ -817,10 +815,9 @@ public class ResolvedIndices {
             }
         }
 
-        private static void resolveNegationUpAndDown(ParsedIndexReference index, Set<String> excludeNames, Set<String> partiallyExcludedObjects,
+        private static void resolveNegationUpAndDown(String index, Set<String> excludeNames, Set<String> partiallyExcludedObjects,
                 IndicesRequestInfo request, Meta indexMetadata) {
-            String indexWithComponent = index.metaName();
-            Meta.IndexLikeObject indexLikeObject = indexMetadata.getIndexOrLike(indexWithComponent);
+            Meta.IndexLikeObject indexLikeObject = indexMetadata.getIndexOrLike(index);
 
             if (request.isNegationOnlyEffectiveForIndices() && !(indexLikeObject instanceof Meta.Index)) {
                 // Negation is implemented in ES inconsistently:
@@ -829,7 +826,7 @@ public class ResolvedIndices {
                 return;
             }
 
-            excludeNames.add(indexWithComponent);
+            excludeNames.add(index);
 
             if (indexLikeObject != null) {
                 if (indexLikeObject.parentDataStreamName() != null) {

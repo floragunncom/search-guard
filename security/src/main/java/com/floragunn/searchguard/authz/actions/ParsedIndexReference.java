@@ -82,10 +82,6 @@ class ParsedIndexReference {
         return new ParsedIndexReference(indexWithoutComponent, failureStore);
     }
 
-    public ParsedIndexReference withFailureStore(boolean failureStore) {
-        return new ParsedIndexReference(baseName, failureStore);
-    }
-
     /**
      * Return name conform with {@link Meta.IndexLikeObject#name()}
      * @return name conform with {@link Meta.IndexLikeObject#name()}
