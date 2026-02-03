@@ -33,6 +33,9 @@ public class TestDataStream implements TestIndexLike {
         this.name = name;
         this.testData = testData;
         this.failureStoreEnabled = failureStoreEnabled;
+        if ((failureDocumentCount > 0) && (!failureStoreEnabled) ){
+            throw new IllegalStateException("Cannot add documents to the disabled failure store for data stream " + name);
+        }
         this.failureDocumentCount = failureDocumentCount;
     }
 
@@ -94,7 +97,7 @@ public class TestDataStream implements TestIndexLike {
         }
 
         if (failureDocumentCount > 0) {
-            client.post(name + "/_refresh");
+            client.post(name + "::failures/_refresh");
         }
     }
 
