@@ -2,7 +2,7 @@
 set -e
 
 MODULE=$1
-TEST_FILTER="$2"
+TEST_FILTER=$2
 
 MAVEN_CLI_OPTS="--batch-mode -s settings.xml"
 RUN_TESTS_COMMAND="mvn $MAVEN_CLI_OPTS -pl $MODULE test \
@@ -12,7 +12,7 @@ RUN_TESTS_COMMAND="mvn $MAVEN_CLI_OPTS -pl $MODULE test \
   -Delasticsearch.version=$ES_VERSION"
 
 if [ -n "$TEST_FILTER" ]; then
-  RUN_TESTS_COMMAND="$RUN_TESTS_COMMAND -Dtest=$TEST_FILTER"
+  RUN_TESTS_COMMAND="$RUN_TESTS_COMMAND -Dtest=\"$TEST_FILTER\""
 fi
 useradd -m es_test
 
