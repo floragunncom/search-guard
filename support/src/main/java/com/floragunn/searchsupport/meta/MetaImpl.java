@@ -525,7 +525,7 @@ public abstract class MetaImpl implements Meta {
 
             for (Index index : indices) {
                 org.elasticsearch.cluster.metadata.IndexMetadata.Builder esIndex = org.elasticsearch.cluster.metadata.IndexMetadata
-                        .builder(index.nameForIndexPatternMatching())
+                        .builder(index.name())
                         .settings(org.elasticsearch.common.settings.Settings.builder().put(
                                 org.elasticsearch.cluster.metadata.IndexMetadata.SETTING_INDEX_VERSION_CREATED.getKey(),
                                 org.elasticsearch.Version.CURRENT))
@@ -651,7 +651,7 @@ public abstract class MetaImpl implements Meta {
                 Index index = new IndexImpl(this, name, esIndexMetadata.getAliases().keySet(), null, esIndexMetadata.isHidden(),
                         esIndexMetadata.isSystem(), esIndexMetadata.getState());
                 indices.add(index);
-                nameMap.put(index.name(), index);
+                nameMap.put(name, index);
 
                 if (esIndexMetadata.getAliases().isEmpty()) {
                     indicesWithoutParents.add(index);
@@ -699,7 +699,7 @@ public abstract class MetaImpl implements Meta {
             for (Map.Entry<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> entry : dataStreamFailureComponentAliasToIndicesMap.build()
                     .entrySet()) {
 
-                IndexLikeObject writeTarget = null; // it's not clear whether we need to know failure store write target or not, so currently we do not resolve it
+                IndexLikeObject writeTarget = null; // At the moment, write targets for failure stores in data stream aliases are not supported.
 
                 String aliasNameWithFailuresSuffix = Meta.indexLikeNameWithFailuresSuffix(entry.getKey().getName());
                 Alias alias = new AliasImpl(this, aliasNameWithFailuresSuffix, ImmutableList.of(entry.getValue()), false, writeTarget);
