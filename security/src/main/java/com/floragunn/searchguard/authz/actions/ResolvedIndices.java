@@ -444,35 +444,33 @@ public class ResolvedIndices {
 
             // Note: We are going backwards through the list of indices in order to get negated patterns before the patterns they apply to
             for (int i = request.localIndices.size() - 1; i >= 0; i--) {
-                ParsedIndexReference parsedIndexReference = request.localIndices.get(i);
-                String index = parsedIndexReference.baseName();
+                ParsedIndexReference index = request.localIndices.get(i);
 
-                if (index.startsWith("-")) {
-                    index = index.substring(1);
-                    index = DateMathExpressionResolver.resolveExpression(index);
+                if (index.isExclusion()) {
+                    index = index.dropExclusion();
+                    index = index.mapBaseName(DateMathExpressionResolver::resolveExpression);
 
-                    if (index.contains("*")) {
-                        Map<String, IndexAbstraction> matchedAbstractions = WildcardExpressionResolver.matches(metadata, indicesLookup, index,
+                    if (index.containsStarWildcard()) {
+                        Map<String, IndexAbstraction> matchedAbstractions = WildcardExpressionResolver.matches(metadata, indicesLookup, index.baseName(),
                                 request.indicesOptions(), includeDataStreams);
 
                         for (String resolvedIndex : matchedAbstractions.keySet()) {
-                            ParsedIndexReference resolvedParsedIndexReference = parsedIndexReference.withIndexName(resolvedIndex);
+                            ParsedIndexReference resolvedParsedIndexReference = index.withIndexName(resolvedIndex);
                             resolveNegationUpAndDown(resolvedParsedIndexReference.metaName(), excludeNames, partiallyExcludedObjects, request, indexMetadata);
                         }
                     } else {
-                        ParsedIndexReference strippedParsedIndexReference = parsedIndexReference.withIndexName(index);
-                        resolveNegationUpAndDown(strippedParsedIndexReference.metaName(), excludeNames, partiallyExcludedObjects, request, indexMetadata);
+                        resolveNegationUpAndDown(index.metaName(), excludeNames, partiallyExcludedObjects, request, indexMetadata);
                     }
                 } else {
-                    index = DateMathExpressionResolver.resolveExpression(index);
+                    index = index.mapBaseName(DateMathExpressionResolver::resolveExpression);
 
-                    if (index.contains("*")) {
+                    if (index.containsStarWildcard()) {
 
-                        Map<String, IndexAbstraction> matchedAbstractions = WildcardExpressionResolver.matches(metadata, indicesLookup, index,
+                        Map<String, IndexAbstraction> matchedAbstractions = WildcardExpressionResolver.matches(metadata, indicesLookup, index.baseName(),
                                 request.indicesOptions(), includeDataStreams);
 
                         for (Map.Entry<String, IndexAbstraction> entry : matchedAbstractions.entrySet()) {
-                            String matchedAbstractionWithComponent = parsedIndexReference.withIndexName(entry.getKey()).metaName();
+                            String matchedAbstractionWithComponent = index.withIndexName(entry.getKey()).metaName();
                             if (excludeNames.contains(matchedAbstractionWithComponent)) {
                                 continue;
                             }
@@ -537,20 +535,19 @@ public class ResolvedIndices {
                             }
                         }
                     } else {
-                        if (excludeNames.contains(parsedIndexReference.withIndexName(index).metaName())) {
+                        if (excludeNames.contains(index.metaName())) {
                             continue;
                         }
 
-                        ParsedIndexReference indexReference = parsedIndexReference.withIndexName(index);
-                        Meta.IndexLikeObject indexLikeObject = indexMetadata.getIndexOrLike(indexReference.metaName());
+                        Meta.IndexLikeObject indexLikeObject = indexMetadata.getIndexOrLike(index.metaName());
 
                         if (indexLikeObject == null) {
                             if (scope == IndicesRequestInfo.Scope.DATA_STREAM) {
-                                dataStreams.add(Meta.DataStream.nonExistent(indexReference.metaName()));
+                                dataStreams.add(Meta.DataStream.nonExistent(index.metaName()));
                             } else if (scope == IndicesRequestInfo.Scope.ALIAS) {
-                                aliases.add(Meta.Alias.nonExistent(indexReference.metaName()));
+                                aliases.add(Meta.Alias.nonExistent(index.metaName()));
                             } else {
-                                nonExistingIndices.add(Meta.NonExistent.of(indexReference.metaName()));
+                                nonExistingIndices.add(Meta.NonExistent.of(index.metaName()));
                             }
                         } else if (indexLikeObject instanceof Meta.Alias) {
                             if (includeAliases) {

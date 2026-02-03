@@ -296,6 +296,187 @@ public class ParsedIndexReferenceTest {
         assertThat(withoutFailures.withIndexName("new-name").failureStore(), is(false));
     }
 
+    // Tests for isExclusion() method
+
+    @Test
+    public void isExclusion_returnsTrueForMinusPrefix() {
+        assertThat(ParsedIndexReference.of("-my-index").isExclusion(), is(true));
+        assertThat(ParsedIndexReference.of("-logs-*").isExclusion(), is(true));
+        assertThat(ParsedIndexReference.of("-").isExclusion(), is(true));
+    }
+
+    @Test
+    public void isExclusion_returnsFalseForNoMinusPrefix() {
+        assertThat(ParsedIndexReference.of("my-index").isExclusion(), is(false));
+        assertThat(ParsedIndexReference.of("logs-apache-default").isExclusion(), is(false));
+        assertThat(ParsedIndexReference.of("").isExclusion(), is(false));
+    }
+
+    @Test
+    public void isExclusion_returnsFalseForNull() {
+        assertThat(ParsedIndexReference.of(null).isExclusion(), is(false));
+    }
+
+    @Test
+    public void isExclusion_returnsFalseForMinusInMiddle() {
+        assertThat(ParsedIndexReference.of("my-index-name").isExclusion(), is(false));
+        assertThat(ParsedIndexReference.of("logs-apache-default").isExclusion(), is(false));
+    }
+
+    @Test
+    public void isExclusion_worksWithComponentSelectors() {
+        assertThat(ParsedIndexReference.of("-my-index::failures").isExclusion(), is(true));
+        assertThat(ParsedIndexReference.of("-my-index::data").isExclusion(), is(true));
+        assertThat(ParsedIndexReference.of("my-index::failures").isExclusion(), is(false));
+    }
+
+    // Tests for dropExclusion() method
+
+    @Test
+    public void dropExclusion_removesMinusPrefix() {
+        ParsedIndexReference ref = ParsedIndexReference.of("-my-index");
+        ParsedIndexReference dropped = ref.dropExclusion();
+
+        assertThat(dropped.baseName(), is("my-index"));
+        assertThat(dropped.failureStore(), is(false));
+    }
+
+    @Test
+    public void dropExclusion_preservesFailureStore() {
+        ParsedIndexReference ref = ParsedIndexReference.of("-my-index::failures");
+        ParsedIndexReference dropped = ref.dropExclusion();
+
+        assertThat(dropped.baseName(), is("my-index"));
+        assertThat(dropped.failureStore(), is(true));
+    }
+
+    @Test
+    public void dropExclusion_returnsSameInstanceWhenNoExclusion() {
+        ParsedIndexReference ref = ParsedIndexReference.of("my-index");
+        ParsedIndexReference dropped = ref.dropExclusion();
+
+        assertThat(dropped, is(ref));
+    }
+
+    @Test
+    public void dropExclusion_returnsSameInstanceForNull() {
+        ParsedIndexReference ref = ParsedIndexReference.of(null);
+        ParsedIndexReference dropped = ref.dropExclusion();
+
+        assertThat(dropped, is(ref));
+    }
+
+    @Test
+    public void dropExclusion_handlesOnlyMinusPrefix() {
+        ParsedIndexReference ref = ParsedIndexReference.of("-");
+        ParsedIndexReference dropped = ref.dropExclusion();
+
+        assertThat(dropped.baseName(), is(""));
+        assertThat(dropped.failureStore(), is(false));
+    }
+
+    @Test
+    public void dropExclusion_handlesWildcardWithExclusion() {
+        ParsedIndexReference ref = ParsedIndexReference.of("-logs-*::failures");
+        ParsedIndexReference dropped = ref.dropExclusion();
+
+        assertThat(dropped.baseName(), is("logs-*"));
+        assertThat(dropped.failureStore(), is(true));
+    }
+
+    // Tests for containsStarWildcard() method
+
+    @Test
+    public void containsStarWildcard_returnsTrueForWildcard() {
+        assertThat(ParsedIndexReference.of("logs-*").containsStarWildcard(), is(true));
+        assertThat(ParsedIndexReference.of("*").containsStarWildcard(), is(true));
+        assertThat(ParsedIndexReference.of("logs-*-default").containsStarWildcard(), is(true));
+        assertThat(ParsedIndexReference.of("*-logs-*").containsStarWildcard(), is(true));
+    }
+
+    @Test
+    public void containsStarWildcard_returnsFalseForNoWildcard() {
+        assertThat(ParsedIndexReference.of("logs-apache-default").containsStarWildcard(), is(false));
+        assertThat(ParsedIndexReference.of("my-index").containsStarWildcard(), is(false));
+        assertThat(ParsedIndexReference.of("").containsStarWildcard(), is(false));
+    }
+
+    @Test
+    public void containsStarWildcard_returnsFalseForNull() {
+        assertThat(ParsedIndexReference.of(null).containsStarWildcard(), is(false));
+    }
+
+    @Test
+    public void containsStarWildcard_worksWithComponentSelectors() {
+        assertThat(ParsedIndexReference.of("logs-*::failures").containsStarWildcard(), is(true));
+        assertThat(ParsedIndexReference.of("logs-*::data").containsStarWildcard(), is(true));
+        assertThat(ParsedIndexReference.of("logs-apache::failures").containsStarWildcard(), is(false));
+    }
+
+    @Test
+    public void containsStarWildcard_worksWithExclusion() {
+        assertThat(ParsedIndexReference.of("-logs-*").containsStarWildcard(), is(true));
+        assertThat(ParsedIndexReference.of("-logs-apache").containsStarWildcard(), is(false));
+    }
+
+    // Tests for mapBaseName() method
+
+    @Test
+    public void mapBaseName_appliesFunction() {
+        ParsedIndexReference ref = ParsedIndexReference.of("my-index");
+        ParsedIndexReference mapped = ref.mapBaseName(String::toUpperCase);
+
+        assertThat(mapped.baseName(), is("MY-INDEX"));
+        assertThat(mapped.failureStore(), is(false));
+    }
+
+    @Test
+    public void mapBaseName_preservesFailureStore() {
+        ParsedIndexReference ref = ParsedIndexReference.of("my-index::failures");
+        ParsedIndexReference mapped = ref.mapBaseName(s -> s + "-modified");
+
+        assertThat(mapped.baseName(), is("my-index-modified"));
+        assertThat(mapped.failureStore(), is(true));
+    }
+
+    @Test
+    public void mapBaseName_preservesNonFailureStore() {
+        ParsedIndexReference ref = ParsedIndexReference.of("my-index::data");
+        ParsedIndexReference mapped = ref.mapBaseName(s -> s + "-modified");
+
+        assertThat(mapped.baseName(), is("my-index-modified"));
+        assertThat(mapped.failureStore(), is(false));
+    }
+
+    @Test
+    public void mapBaseName_canRemovePrefix() {
+        ParsedIndexReference ref = ParsedIndexReference.of("-excluded-index::failures");
+        ParsedIndexReference mapped = ref.mapBaseName(s -> s.substring(1));
+
+        assertThat(mapped.baseName(), is("excluded-index"));
+        assertThat(mapped.failureStore(), is(true));
+    }
+
+    @Test
+    public void mapBaseName_identityFunctionPreservesValues() {
+        ParsedIndexReference ref = ParsedIndexReference.of("my-index::failures");
+        ParsedIndexReference mapped = ref.mapBaseName(s -> s);
+
+        assertThat(mapped.baseName(), is("my-index"));
+        assertThat(mapped.failureStore(), is(true));
+    }
+
+    @Test
+    public void mapBaseName_canResolveExpression() {
+        ParsedIndexReference ref = ParsedIndexReference.of("<logs-{now/d}>::failures");
+        ParsedIndexReference mapped = ref.mapBaseName(s -> "logs-2024.01.15");
+
+        assertThat(mapped.baseName(), is("logs-2024.01.15"));
+        assertThat(mapped.failureStore(), is(true));
+    }
+
+    // Tests for isRemoteIndex() method
+
     @Test
     public void testPredicate() {
         assertThat(ParsedIndexReference.of("local_index").isRemoteIndex(), is(false));

@@ -18,6 +18,7 @@
 package com.floragunn.searchguard.authz.actions;
 
 import java.util.Objects;
+import java.util.function.Function;
 
 import com.floragunn.searchsupport.meta.Meta;
 
@@ -91,6 +92,25 @@ class ParsedIndexReference {
             return null;
         }
         return failureStore ? baseName + Meta.FAILURES_SUFFIX : baseName;
+    }
+
+    public boolean isExclusion() {
+        return (baseName != null) && baseName.startsWith("-");
+    }
+
+    public ParsedIndexReference dropExclusion() {
+        if(isExclusion()) {
+            return new ParsedIndexReference(baseName.substring(1), failureStore);
+        }
+        return this;
+    }
+
+    public boolean containsStarWildcard() {
+        return (baseName != null) && baseName.contains("*");
+    }
+
+    public ParsedIndexReference mapBaseName(Function<String, String> mapper) {
+        return new ParsedIndexReference(mapper.apply(baseName), failureStore);
     }
 
     @Override
