@@ -2,7 +2,7 @@
 set -e
 
 MODULE=$1
-TEST_FILTER=$2
+TEST_FILTER="$2"
 
 MAVEN_CLI_OPTS="--batch-mode -s settings.xml"
 RUN_TESTS_COMMAND="mvn $MAVEN_CLI_OPTS -pl $MODULE test \
