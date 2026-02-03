@@ -93,9 +93,6 @@ public class Actions {
     private Builder builder = new Builder();
 
     public Actions(SearchGuardModulesRegistry modulesRegistry) {
-
-
-        indexLike(FAILURE_STORE_PERMISSION);
         // We define here "well-known" actions. 
         //
         // Having well-known actions allows us to pre-cache a hash table of allowed actions for roles,
