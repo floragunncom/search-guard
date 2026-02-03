@@ -6,7 +6,7 @@
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
       when: never    
-    - when: never
+    - when: on_success
   artifacts:
     when: always
     reports:
@@ -21,20 +21,14 @@
     policy: pull    
 
 test_security:
-  rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - when: on_success
   extends:
     - .be_unit_test
   script:
+    # The SslHostnameVerificationTest generated a lot of logs, causing GitLab’s log limit to be exceeded.
+    # As a result, logs from other tests were also not displayed, so it was moved to a separate job.
     - ci/run_tests.sh security '\!SslHostnameVerificationTest,\!*\$*'
 
 test_security_SslHostnameVerificationTest:
-  rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - when: on_success
   extends:
     - .be_unit_test
   script:
