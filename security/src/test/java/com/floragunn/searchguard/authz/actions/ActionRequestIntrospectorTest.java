@@ -21,7 +21,6 @@ import static com.floragunn.searchsupport.Constants.DEFAULT_ACK_TIMEOUT;
 import static com.floragunn.searchsupport.Constants.DEFAULT_MASTER_TIMEOUT;
 import static com.floragunn.searchsupport.meta.Meta.Mock.indices;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -44,8 +43,6 @@ import org.junit.Test;
 import com.floragunn.searchguard.authz.SystemIndexAccess;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.ActionRequestInfo;
 import com.floragunn.searchsupport.meta.Meta;
-
-import java.util.Random;
 
 public class ActionRequestIntrospectorTest {
 
