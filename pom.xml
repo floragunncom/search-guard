@@ -382,6 +382,10 @@
             <groupId>org.elasticsearch</groupId>
             <artifactId>elasticsearch-preallocate</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.elasticsearch</groupId>
+            <artifactId>exponential-histogram</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
