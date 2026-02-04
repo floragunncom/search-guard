@@ -62,7 +62,7 @@ public class SearchMapper implements Unscoper<SearchResponse> {
         SearchHits rewrittenSearchHits = SearchHits.unpooled(rewrittenSearchHitArray, originalSearchHits.getTotalHits(), originalSearchHits.getMaxScore());
         // SearchResponseSections is still pooled
         SearchResponseSections rewrittenSections = new SearchResponseSections(rewrittenSearchHits, response.getAggregations(), response.getSuggest(),
-                response.isTimedOut(), response.isTerminatedEarly(), null, response.getNumReducePhases());
+                response.isTimedOut(), response.isTerminatedEarly(), null, response.getNumReducePhases(), response.getTimeRangeFilterFromMillis());
 
         // SearchResponse is still pooled. It is not possible to create unpooled SearchResponse.
         SearchResponse pooledSearchResponse = new SearchResponse(rewrittenSections,
