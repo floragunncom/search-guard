@@ -665,53 +665,52 @@ public class ResolvedIndices {
             ImmutableSet.Builder<Meta.DataStream> dataStreams = new ImmutableSet.Builder<>();
 
             for (IndexExpression indexExpression : request.localIndices) {
-                String resolvedIndexExpression = DateMathExpressionResolver.resolveExpression(indexExpression.baseName());
+                IndexExpression resolvedIndexExpression = indexExpression.mapBaseName(DateMathExpressionResolver::resolveExpression);
 
-                if (ActionRequestIntrospector.containsWildcard(resolvedIndexExpression)) {
+                if (resolvedIndexExpression.containsWildcard()) {
                     continue;
                 }
 
-                IndexExpression resolvedReference = indexExpression.withIndexName(resolvedIndexExpression);
-                Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolvedReference.metaName());
+                Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolvedIndexExpression.metaName());
 
                 if (scope == IndicesRequestInfo.Scope.INDEX) {
                     if (indexLike instanceof Meta.Index) {
                         indices.add((Meta.Index) indexLike);
                     } else {
-                        indices.add(Meta.Index.nonExistent(resolvedReference.metaName()));
+                        indices.add(Meta.Index.nonExistent(resolvedIndexExpression.metaName()));
                     }
                 } else if (scope == IndicesRequestInfo.Scope.ALIAS) {
                     if (indexLike instanceof Meta.Alias) {
                         aliases.add((Meta.Alias) indexLike);
                     } else {
-                        aliases.add(Meta.Alias.nonExistent(resolvedReference.metaName()));
+                        aliases.add(Meta.Alias.nonExistent(resolvedIndexExpression.metaName()));
                     }
                 } else if (scope == IndicesRequestInfo.Scope.DATA_STREAM) {
                     if (indexLike instanceof Meta.DataStream) {
                         dataStreams.add((Meta.DataStream) indexLike);
                     } else {
-                        dataStreams.add(Meta.DataStream.nonExistent(resolvedReference.metaName()));
+                        dataStreams.add(Meta.DataStream.nonExistent(resolvedIndexExpression.metaName()));
                     }
                 } else {
                     if (indexLike == null) {
-                        nonExistingIndices.add(Meta.NonExistent.of(resolvedReference.metaName()));
+                        nonExistingIndices.add(Meta.NonExistent.of(resolvedIndexExpression.metaName()));
                     } else if (indexLike instanceof Meta.Alias) {
                         if (scope.includeAliases) {
                             aliases.add((Meta.Alias) indexLike);
                         } else {
-                            nonExistingIndices.add(Meta.NonExistent.of(resolvedReference.metaName()));
+                            nonExistingIndices.add(Meta.NonExistent.of(resolvedIndexExpression.metaName()));
                         }
                     } else if (indexLike instanceof Meta.DataStream) {
                         if (scope.includeDataStreams) {
                             dataStreams.add((Meta.DataStream) indexLike);
                         } else {
-                            nonExistingIndices.add(Meta.NonExistent.of(resolvedReference.metaName()));
+                            nonExistingIndices.add(Meta.NonExistent.of(resolvedIndexExpression.metaName()));
                         }
                     } else {
                         if (scope.includeIndices) {
                             indices.add((Meta.Index) indexLike);
                         } else {
-                            nonExistingIndices.add(Meta.NonExistent.of(resolvedReference.metaName()));
+                            nonExistingIndices.add(Meta.NonExistent.of(resolvedIndexExpression.metaName()));
                         }
                     }
                 }
@@ -764,17 +763,16 @@ public class ResolvedIndices {
             ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
 
             for (IndexExpression indexExpression : request.localIndices) {
-                String resolved = DateMathExpressionResolver.resolveExpression(indexExpression.baseName());
+                IndexExpression resolved = indexExpression.mapBaseName(DateMathExpressionResolver::resolveExpression);
 
-                if (ActionRequestIntrospector.containsWildcard(resolved)) {
+                if (resolved.containsWildcard()) {
                     continue;
                 }
 
-                IndexExpression resolvedWithComponent = indexExpression.withIndexName(resolved);
-                Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolvedWithComponent.metaName());
+                Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(resolved.metaName());
 
                 if (indexLike == null) {
-                    aliases.add(Meta.Alias.nonExistent(resolvedWithComponent.metaName()));
+                    aliases.add(Meta.Alias.nonExistent(resolved.metaName()));
                 } else if (indexLike instanceof Meta.Alias) {
                     aliases.add((Meta.Alias) indexLike);
                 }
