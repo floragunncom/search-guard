@@ -518,7 +518,7 @@ public abstract class MetaImpl implements Meta {
 
             Map<String, org.elasticsearch.cluster.metadata.AliasMetadata> esAliasMetadata = new HashMap<>();
 
-            for (String alias : aliases.map(Alias::nameForIndexPatternMatching)) {
+            for (String alias : aliases.map(alias -> Meta.indexLikeNameWithoutFailuresSuffix(alias.name()))) {
                 esAliasMetadata.put(alias, org.elasticsearch.cluster.metadata.AliasMetadata.builder(alias).build());
             }
 
@@ -537,13 +537,13 @@ public abstract class MetaImpl implements Meta {
                 esMetadataBuilder.put(esIndex);
             }
 
-            for (String dataStreamNameWithoutComponent : datastreams.map(DataStream::nameForIndexPatternMatching)) {
+            for (String dataStreamNameWithoutComponent : datastreams.map(ds -> Meta.indexLikeNameWithoutFailuresSuffix(ds.name()))) {
                 // Pre ES 8.14 version:
                 // esMetadataBuilder.put(new org.elasticsearch.cluster.metadata.DataStream(dataStream.name(),
                 //         ImmutableList.of(dataStream.members()).map(i -> new org.elasticsearch.index.Index(i.name(), i.name())), 1L,
                 //              ImmutableMap.empty(), false, false, false, false, IndexMode.STANDARD));
 
-                ImmutableSet<DataStream> dataAndFailureDataStreams = dataStreams.matching(ds -> ds.nameForIndexPatternMatching().equals(dataStreamNameWithoutComponent));
+                ImmutableSet<DataStream> dataAndFailureDataStreams = dataStreams.matching(ds -> Meta.indexLikeNameWithoutFailuresSuffix(ds.name()).equals(dataStreamNameWithoutComponent));
                 DataStream dataStreamWithDataIndices = dataAndFailureDataStreams.stream().filter(ds -> !ds.name().endsWith(FAILURES_SUFFIX)).findFirst().orElse(null);
                 DataStream dataStreamWithFailureIndices = dataAndFailureDataStreams.stream().filter(ds -> ds.name().endsWith(FAILURES_SUFFIX)).findFirst().orElse(null);
 
@@ -552,9 +552,9 @@ public abstract class MetaImpl implements Meta {
                 DataStreamOptions dataStreamOptions = failureIndices.isEmpty()?  DataStreamOptions.FAILURE_STORE_DISABLED : DataStreamOptions.FAILURE_STORE_ENABLED;
 
                 esMetadataBuilder.put(new org.elasticsearch.cluster.metadata.DataStream(dataStreamNameWithoutComponent,
-                        dataIndices.map(i -> new org.elasticsearch.index.Index(i.nameForIndexPatternMatching(), i.nameForIndexPatternMatching())), 1L,
+                        dataIndices.map(i -> new org.elasticsearch.index.Index(i.name(), i.name())), 1L,
                         ImmutableMap.empty(), false, false, false, false, IndexMode.STANDARD, DataStreamLifecycle.DEFAULT_DATA_LIFECYCLE, dataStreamOptions,
-                        failureIndices.map(i -> new org.elasticsearch.index.Index(i.nameForIndexPatternMatching(), i.nameForIndexPatternMatching())),
+                        failureIndices.map(i -> new org.elasticsearch.index.Index(i.name(), i.name())),
                         false, null));
             }
 
