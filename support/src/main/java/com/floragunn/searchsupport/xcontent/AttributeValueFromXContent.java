@@ -57,6 +57,11 @@ public class AttributeValueFromXContent implements XContent {
     }
 
     @Override
+    public boolean hasBulkSeparator() {
+        return false;
+    }
+
+    @Override
     public byte bulkSeparator() {
         return 0;
     }
