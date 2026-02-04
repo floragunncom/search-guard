@@ -109,6 +109,10 @@ class IndexExpression {
         return (baseName != null) && baseName.contains("*");
     }
 
+    public boolean  containsWildcard() {
+        return ActionRequestIntrospector.containsWildcard(baseName);
+    }
+
     public IndexExpression mapBaseName(Function<String, String> mapper) {
         return new IndexExpression(mapper.apply(baseName), failureStore);
     }
