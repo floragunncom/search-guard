@@ -651,8 +651,8 @@ public class ResolvedIndices {
 
             pureIndices = pureIndices.matching(index -> index.isFailureStoreRelated() == request.allIndicesFailureStore);
             aliases = aliases.matching(alias -> alias.isFailureStoreRelated() == request.allIndicesFailureStore);
-            // todo COMPONENT SELECTORS -
-//            dataStreams = dataStreams.matching(dataStream -> dataStream.isFailureStoreRelated() == request.allIndicesFailureStore);
+            // todo COMPONENT SELECTORS - we probably nid this.
+            dataStreams = dataStreams.matching(dataStream -> dataStream.isFailureStoreRelated() == request.allIndicesFailureStore);
 
             return new Local(pureIndices, aliases, dataStreams, nonExistingIndices);
         }

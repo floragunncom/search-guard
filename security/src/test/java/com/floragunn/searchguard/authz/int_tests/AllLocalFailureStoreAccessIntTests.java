@@ -20,21 +20,17 @@ import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestComponentTemplate;
 import com.floragunn.searchguard.test.TestDataStream;
 import com.floragunn.searchguard.test.TestIndexTemplate;
-import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.TestSgConfig.User;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.hamcrest.Matchers;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import static com.floragunn.searchguard.test.RestMatchers.distinctNodesAt;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
-import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
@@ -176,7 +172,6 @@ public class AllLocalFailureStoreAccessIntTests {
     }
 
     @Test
-    @Ignore //todo COMPONENT SELECTORS - test fails, return documents from data stream data component
     public void allStarFailures_standardExpandWildcards_userLackingFsAccess() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS)) {
 
@@ -281,7 +276,6 @@ public class AllLocalFailureStoreAccessIntTests {
     }
 
     @Test
-    @Ignore //todo COMPONENT SELECTORS - test fails, return documents from data stream data component
     public void allLocalFailures_standardExpandWildcards_userLackingFsAccess() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS)) {
 
