@@ -20,6 +20,8 @@ package com.floragunn.searchguard.authz.actions;
 import java.util.Objects;
 import java.util.function.Function;
 
+import org.elasticsearch.cluster.metadata.Metadata;
+
 import com.floragunn.searchsupport.meta.Meta;
 
 /**
@@ -45,7 +47,10 @@ class IndexExpression {
     private final boolean failureStore;
 
     private IndexExpression(String baseName, boolean failureStore) {
-        assert (baseName == null) || (!baseName.contains(Meta.COMPONENT_SEPARATOR)) : "Unexpected component separator";
+        if (baseName == null) {
+            baseName = Metadata.ALL;
+        }
+        assert !baseName.contains(Meta.COMPONENT_SEPARATOR) : "Unexpected component separator";
         this.baseName = baseName;
         this.failureStore = failureStore;
     }
@@ -88,14 +93,11 @@ class IndexExpression {
      * @return name conform with {@link Meta.IndexLikeObject#name()}
      */
     public String metaName() {
-        if(baseName == null) {
-            return null;
-        }
         return failureStore ? baseName + Meta.FAILURES_SUFFIX : baseName;
     }
 
     public boolean isExclusion() {
-        return (baseName != null) && baseName.startsWith("-");
+        return baseName.startsWith("-");
     }
 
     public IndexExpression dropExclusion() {
@@ -106,7 +108,7 @@ class IndexExpression {
     }
 
     public boolean containsStarWildcard() {
-        return (baseName != null) && baseName.contains("*");
+        return baseName.contains("*");
     }
 
     public boolean  containsWildcard() {
@@ -136,9 +138,6 @@ class IndexExpression {
     }
 
     public boolean isRemoteIndex() {
-        if (baseName == null) {
-            return false;
-        }
         return baseName.contains(REMOTE_CLUSTER_INDEX_SEPARATOR);
     }
 }

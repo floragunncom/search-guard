@@ -21,7 +21,6 @@ import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
 
 import org.junit.Test;
 
@@ -139,12 +138,12 @@ public class IndexExpressionTest {
     // Tests for null and edge cases
 
     @Test
-    public void of_null_returnsNullBaseNameWithoutFailureStore() {
+    public void of_null_returnsAllBaseNameWithoutFailureStore() {
         IndexExpression ref = IndexExpression.of(null);
 
-        assertThat(ref.baseName(), is(nullValue()));
+        assertThat(ref.baseName(), is("_all"));
         assertThat(ref.failureStore(), is(false));
-        assertThat(ref.metaName(), is(nullValue()));
+        assertThat(ref.metaName(), is("_all"));
     }
 
     @Test
@@ -313,7 +312,7 @@ public class IndexExpressionTest {
     }
 
     @Test
-    public void isExclusion_returnsFalseForNull() {
+    public void isExclusion_returnsFalseForAll() {
         assertThat(IndexExpression.of(null).isExclusion(), is(false));
     }
 
@@ -359,7 +358,7 @@ public class IndexExpressionTest {
     }
 
     @Test
-    public void dropExclusion_returnsSameInstanceForNull() {
+    public void dropExclusion_returnsSameInstanceForAll() {
         IndexExpression ref = IndexExpression.of(null);
         IndexExpression dropped = ref.dropExclusion();
 
@@ -402,7 +401,7 @@ public class IndexExpressionTest {
     }
 
     @Test
-    public void containsStarWildcard_returnsFalseForNull() {
+    public void containsStarWildcard_returnsFalseForAll() {
         assertThat(IndexExpression.of(null).containsStarWildcard(), is(false));
     }
 
