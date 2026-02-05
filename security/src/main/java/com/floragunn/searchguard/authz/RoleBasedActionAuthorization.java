@@ -230,26 +230,24 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
      * @return a configured check table ready for privilege evaluation
      */
     private CheckTable<Meta.IndexLikeObject, Action> createCheckTable(ImmutableSet<Meta.IndexLikeObject> indexLikes, ImmutableSet<Action> actions) {
-        boolean containFailureStore = indexLikes.stream().anyMatch(Meta.IndexLikeObject::isFailureStoreRelated);
-        if (containFailureStore) {
-            // Include specialFailureStoreAction to verify failure store access privileges
-            CheckTable<Meta.IndexLikeObject, Action> checkTable = CheckTable.create(indexLikes, actions.with(specialFailureStoreAction));
+        assert actions.contains(specialFailureStoreAction) : "Cannot evaluate access to failure store";
+        CheckTable<Meta.IndexLikeObject, Action> checkTable = CheckTable.create(indexLikes, actions);
 
-            // The specialFailureStoreAction privilege only applies to failure store components.
-            // Pre-mark data component cells as checked so that only failure store components require this privilege.
-            checkTable.checkIf(Meta.IndexLikeObject::isDataRelated, specialFailureStoreAction);
+        // The specialFailureStoreAction privilege only applies to failure store components.
+        // Pre-mark data component cells as checked so that only failure store components require this privilege.
+        checkTable.checkIf(Meta.IndexLikeObject::isDataRelated, specialFailureStoreAction);
 
-            log.trace("Check table after extension with {} is {}", Actions.FAILURE_STORE_PERMISSION, checkTable);
-            return checkTable;
-        } else {
-            // usual checkable without any extensions
-            return CheckTable.create(indexLikes, actions);
-        }
+        log.trace("Check table after extension with {} is {}", Actions.FAILURE_STORE_PERMISSION, checkTable);
+        return checkTable;
     }
 
     @Override
     public PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, Action primaryAction, ImmutableSet<Action> actions,
             ResolvedIndices resolved, Action.Scope actionScope) throws PrivilegesEvaluationException {
+
+        // Include specialFailureStoreAction to verify failure store access privileges
+        actions = actions.with(specialFailureStoreAction);
+
         if (metricsLevel.basicEnabled()) {
             actions.forEach((action) -> {
                 indexActionTypes.increment();
