@@ -113,6 +113,21 @@ public class GenericRestClient implements AutoCloseable {
         return executeRequest(new HttpGet(getHttpServerUri() + "/" + path), new RequestInfo().path(path).method("GET"), headers);
     }
 
+    public HttpResponse getJson(String path, String body, Header... headers) throws Exception {
+        HttpEntityEnclosingRequestBase uriRequest = new HttpEntityEnclosingRequestBase() {
+            {
+                setURI(URI.create(getHttpServerUri() + "/" + path));
+            }
+
+            @Override
+            public String getMethod() {
+                return "GET";
+            }
+        };
+        uriRequest.setEntity(new StringEntity(body, org.apache.http.entity.ContentType.APPLICATION_JSON));
+        return executeRequest(uriRequest, new RequestInfo().path(path).method("GET"), headers);
+    }
+
     public HttpResponse head(String path, Header... headers) throws Exception {
         return executeRequest(new HttpHead(getHttpServerUri() + "/" + path), new RequestInfo().path(path).method("HEAD"), headers);
     }
