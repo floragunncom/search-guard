@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 floragunn GmbH
+ * Copyright 2026 floragunn GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,27 +51,46 @@ public class AllLocalFailureStoreAccessIntTests {
             .description("User with all access no certs")
             .roles(Role.ALL_ACCESS);
 
-    static User USER_FS_ACCESS = new User("user_fs_access")
-            .description("User with access to all local failure stores")
+    static User USER_FS_ACCESS_DS_LEVEL = new User("user_fs_access_ds_level")
+            .description("User with access to all local failure stores on data stream level")
             .roles(
-                    new Role("all_local_failure_store_role")
+                    new Role("all_local_failure_store_role_ds_level")
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")
                             .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store")
                             .on("*")
             );
 
-    static User USER_LACKING_FS_ACCESS = new User("user_lacking_fs_access")
-            .description("User with access to all local failure stores")
+    static User USER_LACKING_FS_ACCESS_DS_LEVEL = new User("user_lacking_fs_access_ds_level")
+            .description("User with lacking access to all local failure stores on data stream level")
             .roles(
-                    new Role("all_local_no_failure_store_role")
+                    new Role("all_local_no_failure_store_role_ds_level")
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")
                             .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*")
                             .on("*")
             );
 
+    static User USER_LACKING_FS_ACCESS_INDEX_LEVEL = new User("user_lacking_fs_access_index_level")
+            .description("User with lacking access to all local failure stores on index level")
+            .roles(
+                    new Role("all_local_no_failure_store_role_index_level")
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*")
+                            .on("*")
+            );
+
+    static User USER_FS_ACCESS_INDEX_LEVEL = new User("user_fs_access_index_level")
+            .description("User with lacking access to all local failure stores on index level")
+            .roles(
+                    new Role("all_local_no_failure_store_role_index_level")
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store")
+                            .on("*")
+            );
+
+
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
-            .users(USER_FS_ACCESS, USER_ALL_ACCESS_NO_CERTS, USER_LACKING_FS_ACCESS)
+            .users(USER_FS_ACCESS_DS_LEVEL, USER_ALL_ACCESS_NO_CERTS, USER_LACKING_FS_ACCESS_DS_LEVEL, USER_LACKING_FS_ACCESS_INDEX_LEVEL, USER_FS_ACCESS_INDEX_LEVEL)
             .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))
             .dataStreams(ds_alpha)
             .authzDebug(true)
@@ -108,7 +127,7 @@ public class AllLocalFailureStoreAccessIntTests {
 
     @Test
     public void allStar_standardExpandWildcards_userWithFsAccess() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS)) {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_DS_LEVEL)) {
 
             GenericRestClient.HttpResponse response = client.get("/*/_search?pretty&size=100");
 
@@ -121,7 +140,33 @@ public class AllLocalFailureStoreAccessIntTests {
 
     @Test
     public void allStar_standardExpandWildcards_userLackingFsAccess() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS)) {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_DS_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/*/_search?pretty&size=100");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allStar_standardExpandWildcards_userWithFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_INDEX_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/*/_search?pretty&size=100");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allStar_standardExpandWildcards_userLackingFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_INDEX_LEVEL)) {
 
             GenericRestClient.HttpResponse response = client.get("/*/_search?pretty&size=100");
 
@@ -160,7 +205,7 @@ public class AllLocalFailureStoreAccessIntTests {
 
     @Test
     public void allStarFailures_standardExpandWildcards_userWithFsAccess() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS)) {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_DS_LEVEL)) {
 
             GenericRestClient.HttpResponse response = client.get("/*::failures/_search?pretty&size=100");
 
@@ -173,7 +218,33 @@ public class AllLocalFailureStoreAccessIntTests {
 
     @Test
     public void allStarFailures_standardExpandWildcards_userLackingFsAccess() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS)) {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_DS_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/*::failures/_search?pretty&size=100");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allStarFailures_standardExpandWildcards_userWithFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_INDEX_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/*::failures/_search?pretty&size=100");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allStarFailures_standardExpandWildcards_userLackingFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_INDEX_LEVEL)) {
 
             GenericRestClient.HttpResponse response = client.get("/*::failures/_search?pretty&size=100");
 
@@ -212,7 +283,7 @@ public class AllLocalFailureStoreAccessIntTests {
 
     @Test
     public void allLocal_standardExpandWildcards_userWithFsAccess() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS)) {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_DS_LEVEL)) {
 
             GenericRestClient.HttpResponse response = client.get("/_all/_search?pretty&size=100");
 
@@ -225,7 +296,33 @@ public class AllLocalFailureStoreAccessIntTests {
 
     @Test
     public void allLocal_standardExpandWildcards_userLackingFsAccess() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS)) {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_DS_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all/_search?pretty&size=100");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocal_standardExpandWildcards_userWithFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_INDEX_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all/_search?pretty&size=100");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocal_standardExpandWildcards_userLackingFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_INDEX_LEVEL)) {
 
             GenericRestClient.HttpResponse response = client.get("/_all/_search?pretty&size=100");
 
@@ -264,7 +361,7 @@ public class AllLocalFailureStoreAccessIntTests {
 
     @Test
     public void allLocalFailures_standardExpandWildcards_userWithFsAccess() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS)) {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_DS_LEVEL)) {
 
             GenericRestClient.HttpResponse response = client.get("/_all::failures/_search?pretty&size=100");
 
@@ -277,9 +374,349 @@ public class AllLocalFailureStoreAccessIntTests {
 
     @Test
     public void allLocalFailures_standardExpandWildcards_userLackingFsAccess() throws Exception {
-        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS)) {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_DS_LEVEL)) {
 
             GenericRestClient.HttpResponse response = client.get("/_all::failures/_search?pretty&size=100");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocalFailures_standardExpandWildcards_userWithFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_INDEX_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all::failures/_search?pretty&size=100");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocalFailures_standardExpandWildcards_userLackingFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_INDEX_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all::failures/_search?pretty&size=100");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    // --- expandWildcardsAll variant: expand_wildcards=all ---
+
+    @Test
+    public void allStar_expandWildcardsAll_certUser() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+
+            GenericRestClient.HttpResponse response = client.get("/*/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allStar_expandWildcardsAll_allAccessNoCertsUser() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_ALL_ACCESS_NO_CERTS)) {
+
+            GenericRestClient.HttpResponse response = client.get("/*/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allStar_expandWildcardsAll_userWithFsAccess() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_DS_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/*/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allStar_expandWildcardsAll_userLackingFsAccess() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_DS_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/*/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allStar_expandWildcardsAll_userWithFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_INDEX_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/*/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allStar_expandWildcardsAll_userLackingFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_INDEX_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/*/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allStarFailures_expandWildcardsAll_certUser() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+
+            GenericRestClient.HttpResponse response = client.get("/*::failures/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allStarFailures_expandWildcardsAll_allAccessNoCertsUser() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_ALL_ACCESS_NO_CERTS)) {
+
+            GenericRestClient.HttpResponse response = client.get("/*::failures/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allStarFailures_expandWildcardsAll_userWithFsAccess() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_DS_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/*::failures/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allStarFailures_expandWildcardsAll_userLackingFsAccess() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_DS_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/*::failures/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allStarFailures_expandWildcardsAll_userWithFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_INDEX_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/*::failures/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allStarFailures_expandWildcardsAll_userLackingFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_INDEX_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/*::failures/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocal_expandWildcardsAll_certUser() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocal_expandWildcardsAll_allAccessNoCertsUser() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_ALL_ACCESS_NO_CERTS)) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocal_expandWildcardsAll_userWithFsAccess() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_DS_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocal_expandWildcardsAll_userLackingFsAccess() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_DS_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocal_expandWildcardsAll_userWithFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_INDEX_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocal_expandWildcardsAll_userLackingFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_INDEX_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocalFailures_expandWildcardsAll_certUser() throws Exception {
+        try (GenericRestClient client = cluster.getAdminCertRestClient()) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all::failures/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocalFailures_expandWildcardsAll_allAccessNoCertsUser() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_ALL_ACCESS_NO_CERTS)) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all::failures/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocalFailures_expandWildcardsAll_userWithFsAccess() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_DS_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all::failures/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocalFailures_expandWildcardsAll_userLackingFsAccess() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_DS_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all::failures/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocalFailures_expandWildcardsAll_userWithFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_FS_ACCESS_INDEX_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all::failures/_search?pretty&size=100&expand_wildcards=all");
+
+            log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
+            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+        }
+    }
+
+    @Test
+    public void allLocalFailures_expandWildcardsAll_userLackingFsAccessIndexLevel() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_LACKING_FS_ACCESS_INDEX_LEVEL)) {
+
+            GenericRestClient.HttpResponse response = client.get("/_all::failures/_search?pretty&size=100&expand_wildcards=all");
 
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
