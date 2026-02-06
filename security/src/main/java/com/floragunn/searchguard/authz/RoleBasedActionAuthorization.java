@@ -222,22 +222,23 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     /**
      * Creates a check table for evaluating index permissions on the given index-like objects and actions.
      * <p>
-     * The table automatically includes {@code specialFailureStoreAction} to verify failure store access privileges.
-     * Data component cells are pre-marked as checked for this action since it only applies to failure store components.
+     * If the actions set contains {@code specialFailureStoreAction}, data component cells are pre-marked as checked
+     * for that action since the failure store privilege only applies to failure store components.
      *
      * @param indexLikes  the set of index-like objects (indices, aliases, data streams) to check permissions for
-     * @param actions the set of actions to evaluate
+     * @param actions the set of actions to evaluate (may or may not contain {@code specialFailureStoreAction})
      * @return a configured check table ready for privilege evaluation
      */
     private CheckTable<Meta.IndexLikeObject, Action> createCheckTable(ImmutableSet<Meta.IndexLikeObject> indexLikes, ImmutableSet<Action> actions) {
-        assert actions.contains(specialFailureStoreAction) : "Cannot evaluate access to failure store";
         CheckTable<Meta.IndexLikeObject, Action> checkTable = CheckTable.create(indexLikes, actions);
+        if (actions.contains(specialFailureStoreAction)) {
 
-        // The specialFailureStoreAction privilege only applies to failure store components.
-        // Pre-mark data component cells as checked so that only failure store components require this privilege.
-        checkTable.checkIf(Meta.IndexLikeObject::isDataRelated, specialFailureStoreAction);
+            // The specialFailureStoreAction privilege only applies to failure store components.
+            // Pre-mark data component cells as checked so that only failure store components require this privilege.
+            checkTable.checkIf(Meta.IndexLikeObject::isDataRelated, specialFailureStoreAction);
 
-        log.trace("Check table after extension with {} is {}", Actions.FAILURE_STORE_PERMISSION, checkTable);
+            log.trace("Check table with prechecked {} is {}", Actions.FAILURE_STORE_PERMISSION, checkTable);
+        }
         return checkTable;
     }
 
@@ -245,8 +246,10 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     public PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, Action primaryAction, ImmutableSet<Action> actions,
             ResolvedIndices resolved, Action.Scope actionScope) throws PrivilegesEvaluationException {
 
-        // Include specialFailureStoreAction to verify failure store access privileges
-        actions = actions.with(specialFailureStoreAction);
+        // Include specialFailureStoreAction only when the resolved indices contain failure store-related entries.
+        // This avoids adding the failure store action column to the check table when no failure store indices are involved.
+        boolean containFailureStore = resolved.getLocal().getUnion().stream().anyMatch(Meta.IndexLikeObject::isFailureStoreRelated);
+        actions = containFailureStore ? actions.with(specialFailureStoreAction) : actions;
 
         if (metricsLevel.basicEnabled()) {
             actions.forEach((action) -> {
