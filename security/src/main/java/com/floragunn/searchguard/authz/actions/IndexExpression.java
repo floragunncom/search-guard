@@ -20,18 +20,50 @@ package com.floragunn.searchguard.authz.actions;
 import java.util.Objects;
 import java.util.function.Function;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.metadata.Metadata;
 
 import com.floragunn.searchsupport.meta.Meta;
 
 /**
- * Examples:
- *  "my-index"           → ParsedIndexReference("my-index", false)
- *  "my-index::data"     → ParsedIndexReference("my-index", false)
- *  "my-index::failures" → ParsedIndexReference("my-index", true)
- *  "my-*::failures"     → ParsedIndexReference("my-*", true)
+ * Represents a parsed index expression, splitting a raw index string into a base name and an optional
+ * component selector ({@code ::data} or {@code ::failures}).
+ *
+ * <p>Elasticsearch index expressions can include a component selector suffix separated by
+ * {@link Meta#COMPONENT_SEPARATOR} ({@code "::"}). This class parses such expressions and exposes
+ * the base index name and whether the expression targets the failure store.</p>
+ *
+ * <h3>Parsing rules ({@link #of(String)}):</h3>
+ * <ul>
+ *   <li>{@code null} input is normalized to a base name of {@link Metadata#ALL} ({@code "_all"})
+ *       with {@code failureStore = false}.</li>
+ *   <li>An expression without {@code "::"} is treated as a plain index name
+ *       with {@code failureStore = false}.</li>
+ *   <li>An expression ending with {@code "::data"} is parsed as the base name before the separator
+ *       with {@code failureStore = false}.</li>
+ *   <li>An expression ending with {@code "::failures"} is parsed as the base name before the separator
+ *       with {@code failureStore = true}.</li>
+ *   <li>An expression containing {@code "::"} followed by an <em>unknown</em> component selector
+ *       is kept as-is (the full expression including the separator becomes the base name)
+ *       with {@code failureStore = false}. An error is logged in this case.</li>
+ *   <li>When multiple {@code "::"} sequences appear, only the <em>last</em> occurrence is used as
+ *       the component separator.</li>
+ * </ul>
+ *
+ * <h3>Examples:</h3>
+ * <pre>
+ *  IndexExpression.of(null)                → baseName="_all",     failureStore=false
+ *  IndexExpression.of("my-index")          → baseName="my-index", failureStore=false
+ *  IndexExpression.of("my-index::data")    → baseName="my-index", failureStore=false
+ *  IndexExpression.of("my-index::failures")→ baseName="my-index", failureStore=true
+ *  IndexExpression.of("my-*::failures")    → baseName="my-*",     failureStore=true
+ *  IndexExpression.of("my-index::unknown") → baseName="my-index::unknown", failureStore=false  (error logged)
+ * </pre>
  */
 class IndexExpression {
+
+    private static final Logger log = LogManager.getLogger(IndexExpression.class);
 
     public static final String REMOTE_CLUSTER_INDEX_SEPARATOR = ":";
 
@@ -50,28 +82,28 @@ class IndexExpression {
         if (baseName == null) {
             baseName = Metadata.ALL;
         }
-        assert !baseName.contains(Meta.COMPONENT_SEPARATOR) : "Unexpected component separator";
         this.baseName = baseName;
         this.failureStore = failureStore;
     }
 
-    public static IndexExpression of(String indexExpression) {
-        if (indexExpression == null) {
+    public static IndexExpression of(String expression) {
+        if (expression == null) {
             return new IndexExpression(null, false);
         }
-        int lastIndexOfComponentSeparator = indexExpression.lastIndexOf(Meta.COMPONENT_SEPARATOR);
+        int lastIndexOfComponentSeparator = expression.lastIndexOf(Meta.COMPONENT_SEPARATOR);
         if (lastIndexOfComponentSeparator == -1) {
-            return new IndexExpression(indexExpression, false);
+            return new IndexExpression(expression, false);
         } else {
-            String indexName = indexExpression.substring(0, lastIndexOfComponentSeparator);
-            String componentSuffix = indexExpression.substring(lastIndexOfComponentSeparator);
+            String indexName = expression.substring(0, lastIndexOfComponentSeparator);
+            String componentSuffix = expression.substring(lastIndexOfComponentSeparator);
             if (Meta.FAILURES_SUFFIX.equals(componentSuffix)) {
                 return new IndexExpression(indexName, true);
             } else if (Meta.DATA_SUFFIX.equals(componentSuffix)) {
                 return new IndexExpression(indexName, false);
             } else {
-                throw new IllegalArgumentException(
-                        "Unknown component selector '" + componentSuffix + "' in index expression: " + indexExpression);
+                log.error("Unknown component selector '{}' in index expression: '{}'.", componentSuffix, expression);
+                // In this case baseName will contain Meta.COMPONENT_SEPARATOR with component selector
+                return new IndexExpression(expression, false);
             }
         }
     }
@@ -138,6 +170,10 @@ class IndexExpression {
     }
 
     public boolean isRemoteIndex() {
-        return baseName.contains(REMOTE_CLUSTER_INDEX_SEPARATOR);
+        int firstIndex = baseName.indexOf(REMOTE_CLUSTER_INDEX_SEPARATOR);
+        int lastIndex = baseName.lastIndexOf(REMOTE_CLUSTER_INDEX_SEPARATOR);
+
+        // If both are same and not -1, there's exactly one colon
+        return (firstIndex != -1) && (firstIndex == lastIndex);
     }
 }

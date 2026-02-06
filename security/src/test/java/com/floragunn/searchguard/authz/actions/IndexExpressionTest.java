@@ -17,9 +17,7 @@
 
 package com.floragunn.searchguard.authz.actions;
 
-import static com.floragunn.searchsupport.junit.ThrowableAssert.assertThatThrown;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 
 import org.junit.Test;
@@ -266,15 +264,24 @@ public class IndexExpressionTest {
     }
 
     // Tests for unknown/arbitrary component selectors
+    // Unknown selectors are logged as errors, the full expression (including ::) becomes the baseName
 
-    @Test(expected = IllegalArgumentException.class)
-    public void of_unknownComponentSelector_throwsException() {
-        IndexExpression.of("my-index::unknown");
+    @Test
+    public void of_unknownComponentSelector_returnsFullExpressionAsBaseName() {
+        IndexExpression ref = IndexExpression.of("my-index::unknown");
+
+        assertThat(ref.baseName(), is("my-index::unknown"));
+        assertThat(ref.failureStore(), is(false));
+        assertThat(ref.metaName(), is("my-index::unknown"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void of_randomComponentSelector_throwsException() {
-        IndexExpression.of("my-index::something-else");
+    @Test
+    public void of_randomComponentSelector_returnsFullExpressionAsBaseName() {
+        IndexExpression ref = IndexExpression.of("my-index::something-else");
+
+        assertThat(ref.baseName(), is("my-index::something-else"));
+        assertThat(ref.failureStore(), is(false));
+        assertThat(ref.metaName(), is("my-index::something-else"));
     }
 
     // Dedicated tests for failureStore() method
@@ -418,6 +425,43 @@ public class IndexExpressionTest {
         assertThat(IndexExpression.of("-logs-apache").containsStarWildcard(), is(false));
     }
 
+    // Tests for containsWildcard() method
+    // containsWildcard() differs from containsStarWildcard(): it also treats "_all" as a wildcard
+
+    @Test
+    public void containsWildcard_returnsTrueForStarWildcard() {
+        assertThat(IndexExpression.of("logs-*").containsWildcard(), is(true));
+        assertThat(IndexExpression.of("*").containsWildcard(), is(true));
+        assertThat(IndexExpression.of("logs-*-default").containsWildcard(), is(true));
+        assertThat(IndexExpression.of("*-logs-*").containsWildcard(), is(true));
+    }
+
+    @Test
+    public void containsWildcard_returnsTrueForAll() {
+        assertThat(IndexExpression.of(null).containsWildcard(), is(true));
+        assertThat(IndexExpression.of("_all").containsWildcard(), is(true));
+    }
+
+    @Test
+    public void containsWildcard_returnsFalseForConcreteIndex() {
+        assertThat(IndexExpression.of("logs-apache-default").containsWildcard(), is(false));
+        assertThat(IndexExpression.of("my-index").containsWildcard(), is(false));
+        assertThat(IndexExpression.of("").containsWildcard(), is(false));
+    }
+
+    @Test
+    public void containsWildcard_worksWithComponentSelectors() {
+        assertThat(IndexExpression.of("logs-*::failures").containsWildcard(), is(true));
+        assertThat(IndexExpression.of("logs-*::data").containsWildcard(), is(true));
+        assertThat(IndexExpression.of("logs-apache::failures").containsWildcard(), is(false));
+    }
+
+    @Test
+    public void containsWildcard_worksWithExclusion() {
+        assertThat(IndexExpression.of("-logs-*").containsWildcard(), is(true));
+        assertThat(IndexExpression.of("-logs-apache").containsWildcard(), is(false));
+    }
+
     // Tests for mapBaseName() method
 
     @Test
@@ -477,7 +521,7 @@ public class IndexExpressionTest {
     // Tests for isRemoteIndex() method
 
     @Test
-    public void testPredicate() {
+    public void testRemoteIndexPredicate() {
         assertThat(IndexExpression.of("local_index").isRemoteIndex(), is(false));
         assertThat(IndexExpression.of("server:remote_index").isRemoteIndex(), is(true));
         assertThat(IndexExpression.of("myRemote:anotherIndex").isRemoteIndex(), is(true));
@@ -488,13 +532,12 @@ public class IndexExpressionTest {
         assertThat(IndexExpression.of("r:").isRemoteIndex(), is(true));
         assertThat(IndexExpression.of("").isRemoteIndex(), is(false));
 
-        assertThatThrown(() -> IndexExpression.of("not:::remote").isRemoteIndex(), instanceOf(IllegalArgumentException.class));
-        assertThatThrown(() -> IndexExpression.of("not:::remote").isRemoteIndex(), instanceOf(IllegalArgumentException.class));
-        assertThatThrown(() -> IndexExpression.of("not::remote").isRemoteIndex(), instanceOf(IllegalArgumentException.class));
-        assertThatThrown(() -> IndexExpression.of("not_remote::").isRemoteIndex(), instanceOf(IllegalArgumentException.class));
-        assertThatThrown(() -> IndexExpression.of("::not_remote").isRemoteIndex(), instanceOf(IllegalArgumentException.class));
-
-
-        //        assertThat(ParsedIndexReference.of("not:remote:index").isRemoteIndex(), is(false));
+        // Expressions with "::" are parsed as component selectors first.
+        // Unknown selectors fold into baseName; the resulting baseName has multiple colons,
+        // so isRemoteIndex() returns false.
+        assertThat(IndexExpression.of("not:::remote").isRemoteIndex(), is(false));
+        assertThat(IndexExpression.of("not::remote").isRemoteIndex(), is(false));
+        assertThat(IndexExpression.of("not_remote::").isRemoteIndex(), is(false));
+        assertThat(IndexExpression.of("::not_remote").isRemoteIndex(), is(false));
     }
 }
