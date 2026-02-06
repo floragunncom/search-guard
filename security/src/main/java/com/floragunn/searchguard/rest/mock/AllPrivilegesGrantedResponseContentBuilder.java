@@ -88,7 +88,7 @@ class AllPrivilegesGrantedResponseContentBuilder {
                 );
             });
             return grantedApplicationsResourcesPrivileges;
-        }else {
+        } else {
             return Collections.emptyMap();
         }
     }
@@ -103,9 +103,7 @@ class AllPrivilegesGrantedResponseContentBuilder {
 
     private static Map<String, Boolean> markPrivilegesAsGranted(Set<String> privileges) {
         Map<String, Boolean> grantedPrivileges = new HashMap<>(privileges.size());
-        privileges.forEach(privilege -> {
-            grantedPrivileges.put(privilege, true);
-        });
+        privileges.forEach(privilege -> grantedPrivileges.put(privilege, true));
         return grantedPrivileges;
     }
 

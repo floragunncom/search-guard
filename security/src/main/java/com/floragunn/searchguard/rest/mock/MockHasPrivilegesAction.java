@@ -71,22 +71,18 @@ public class MockHasPrivilegesAction extends BaseRestHandler {
         Map<String, Object> responseContent = buildAllPrivilegesGrantedResponseContent(user, requestBody);
 
         return restChannel -> {
-            XContentBuilder builder = restChannel.newBuilder();
             RestResponse response;
-            try {
+            try (XContentBuilder builder = restChannel.newBuilder()) {
                 builder.value(responseContent);
 
                 response = new RestResponse(RestStatus.OK, builder);
             } catch (final Exception e) {
                 log.error(e.toString(), e);
-                builder = restChannel.newBuilder();
-                builder.startObject();
-                builder.field("error", e.toString());
-                builder.endObject();
-                response = new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
-            } finally {
-                if(builder != null) {
-                    builder.close();
+                try (XContentBuilder builder = restChannel.newErrorBuilder()) {
+                    builder.startObject();
+                    builder.field("error", e.toString());
+                    builder.endObject();
+                    response = new RestResponse(RestStatus.INTERNAL_SERVER_ERROR, builder);
                 }
             }
             restChannel.sendResponse(response);
