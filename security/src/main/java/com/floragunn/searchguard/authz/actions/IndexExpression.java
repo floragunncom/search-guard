@@ -101,7 +101,7 @@ class IndexExpression {
             } else if (Meta.DATA_SUFFIX.equals(componentSuffix)) {
                 return new IndexExpression(indexName, false);
             } else {
-                log.error("Unknown component selector '{}' in index expression: '{}'.", componentSuffix, expression);
+                log.debug("Unknown component selector '{}' in index expression: '{}'.", componentSuffix, expression);
                 // In this case baseName will contain Meta.COMPONENT_SEPARATOR with component selector
                 return new IndexExpression(expression, false);
             }
