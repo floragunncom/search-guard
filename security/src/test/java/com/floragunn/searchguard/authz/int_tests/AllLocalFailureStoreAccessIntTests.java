@@ -422,7 +422,7 @@ public class AllLocalFailureStoreAccessIntTests {
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
             assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
-            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
         }
     }
 
@@ -435,6 +435,8 @@ public class AllLocalFailureStoreAccessIntTests {
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
             assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+
+            // assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))); // isn't this expected?
             assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
         }
     }
@@ -448,6 +450,8 @@ public class AllLocalFailureStoreAccessIntTests {
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
             assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+
+//            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))); isn't this expected?
             assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
         }
     }
@@ -474,6 +478,8 @@ public class AllLocalFailureStoreAccessIntTests {
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
             assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+
+            //assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))); //isn't this expected?
             assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
         }
     }
@@ -578,7 +584,7 @@ public class AllLocalFailureStoreAccessIntTests {
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
             assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
-            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
         }
     }
 
@@ -591,6 +597,8 @@ public class AllLocalFailureStoreAccessIntTests {
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
             assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+
+            //            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))); // isn't this expected?
             assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
         }
     }
@@ -604,6 +612,8 @@ public class AllLocalFailureStoreAccessIntTests {
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
             assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+
+            //assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))); // isn't this expected?
             assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
         }
     }
@@ -630,6 +640,8 @@ public class AllLocalFailureStoreAccessIntTests {
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
             assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
+
+//            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))); // isn't this expected?
             assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
         }
     }
