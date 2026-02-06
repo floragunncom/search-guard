@@ -44,6 +44,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.floragunn.searchguard.rest.mock.MockHasPrivilegesAction;
 import com.floragunn.searchguard.ssl.http.netty.SSLInfoPopulatingDispatcher;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.search.QueryCachingPolicy;
@@ -446,6 +447,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                 handlers.add(new SearchGuardConfigUpdateAction(threadPool, adminDns));
             }
 
+            handlers.add(new MockHasPrivilegesAction(threadPool));
             handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
                     indexNameExpressionResolver, scriptService, nodesInCluster, clusterSupportsFeature));
         }
