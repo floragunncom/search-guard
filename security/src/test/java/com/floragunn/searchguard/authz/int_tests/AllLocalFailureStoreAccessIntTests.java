@@ -36,20 +36,21 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import static com.floragunn.searchguard.test.IndexApiMatchers.containsExactly;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedTo;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedToNone;
-import static com.floragunn.searchguard.test.RestMatchers.distinctNodesAt;
+import static com.floragunn.searchguard.test.IndexApiMatchers.searchGuardIndices;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
-import static com.floragunn.searchguard.test.RestMatchers.json;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.startsWith;
 
 @RunWith(Parameterized.class)
 public class AllLocalFailureStoreAccessIntTests {
 
     private static final Logger log = LogManager.getLogger(AllLocalFailureStoreAccessIntTests.class);
+
+    public static final String MATCHER_FAILURE_STORE_ONLY = "matcher-failure-store-only";
+    public static final String MATCHER_DATA_ONLY = "matcher-data-only";
+    public static final String MATCHER_ALL_WITH_EXPAND_WILDCARDS = "matcher-all-with-expand-wildcards";
 
     static TestDataStream ds_alpha = TestDataStream.name("ds_alpha")
             .failureStoreEnabled(true)
@@ -59,63 +60,72 @@ public class AllLocalFailureStoreAccessIntTests {
             .build();
 
     static User ADMIN_CERT_USER = new User("admin_cert_user")
-            .description("Admin cert user")
+            .description("admin_cert_user - admin cert user")
             .adminCertUser()
-            .indexMatcher("failure_store_read", limitedTo(ds_alpha))
-            .indexMatcher("expand_all_sees_fs", limitedTo(ds_alpha));
+            .indexMatcher(MATCHER_FAILURE_STORE_ONLY, containsExactly(ds_alpha.failureStore().orElseThrow()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(ds_alpha, searchGuardIndices()).at("hits.hits[*]._index"));
 
-    // expand_all_sees_fs is limitedToNone() even though this user has all access — isn't this expected to see failure store?
     static User USER_ALL_ACCESS_NO_CERTS = new User("user_all_access_no_certs")
-            .description("User with all access no certs")
+            .description("user_all_access_no_certs - user with all access no certs")
             .roles(Role.ALL_ACCESS)
-            .indexMatcher("failure_store_read", limitedTo(ds_alpha))
-            .indexMatcher("expand_all_sees_fs", limitedToNone());
+            .indexMatcher(MATCHER_FAILURE_STORE_ONLY, containsExactly(ds_alpha.failureStore().orElseThrow()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"))
+            // todo COMPONENT SELECTORS: this is unexpected. Should be the same as in case of ADMIN_CERT_USER but without searchGuardIndices
+            // (failure store indices should be included)
+            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"));
 
-    // expand_all_sees_fs is limitedToNone() even though this user has special:failure_store — isn't this expected to see failure store?
+
     static User USER_FS_ACCESS_DS_LEVEL = new User("user_fs_access_ds_level")
-            .description("User with access to all local failure stores on data stream level")
+            .description("user_fs_access_ds_level - user with access to all local failure stores on data stream level")
             .roles(
                     new Role("all_local_failure_store_role_ds_level")
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")
                             .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store")
                             .on("*")
             )
-            .indexMatcher("failure_store_read", limitedTo(ds_alpha))
-            .indexMatcher("expand_all_sees_fs", limitedToNone());
+            .indexMatcher(MATCHER_FAILURE_STORE_ONLY, containsExactly(ds_alpha.failureStore().orElseThrow()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"))
+            // todo COMPONENT SELECTORS: this is unexpected. Should be the same as in case of ADMIN_CERT_USER but without searchGuardIndices
+            // (failure store indices should be included)
+            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"));
 
     static User USER_LACKING_FS_ACCESS_DS_LEVEL = new User("user_lacking_fs_access_ds_level")
-            .description("User with lacking access to all local failure stores on data stream level")
+            .description("user_lacking_fs_access_ds_level - user with lacking access to all local failure stores on data stream level")
             .roles(
                     new Role("all_local_no_failure_store_role_ds_level")
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")
                             .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*")
                             .on("*")
             )
-            .indexMatcher("failure_store_read", limitedToNone())
-            .indexMatcher("expand_all_sees_fs", limitedToNone());
+            .indexMatcher(MATCHER_FAILURE_STORE_ONLY, limitedToNone().at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"));
 
     static User USER_LACKING_FS_ACCESS_INDEX_LEVEL = new User("user_lacking_fs_access_index_level")
-            .description("User with lacking access to all local failure stores on index level")
+            .description("user_lacking_fs_access_index_level - user with lacking access to all local failure stores on index level")
             .roles(
                     new Role("all_local_no_failure_store_role_index_level")
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*")
                             .on("*")
             )
-            .indexMatcher("failure_store_read", limitedToNone())
-            .indexMatcher("expand_all_sees_fs", limitedToNone());
+            .indexMatcher(MATCHER_FAILURE_STORE_ONLY, limitedToNone().at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"));
 
-    // expand_all_sees_fs is limitedToNone() even though this user has special:failure_store — isn't this expected to see failure store?
     static User USER_FS_ACCESS_INDEX_LEVEL = new User("user_fs_access_index_level")
-            .description("User with access to all local failure stores on index level")
+            .description("user_fs_access_index_level - user with access to all local failure stores on index level")
             .roles(
                     new Role("all_local_failure_store_role_index_level")
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store")
                             .on("*")
             )
-            .indexMatcher("failure_store_read", limitedTo(ds_alpha))
-            .indexMatcher("expand_all_sees_fs", limitedToNone());
+            .indexMatcher(MATCHER_FAILURE_STORE_ONLY, containsExactly(ds_alpha.failureStore().orElseThrow()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"))
+            // todo COMPONENT SELECTORS - This user should have access to the failure store indices when wildcard expansion is enabled.
+            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"));
 
     static List<User> USERS = ImmutableList.of(
             ADMIN_CERT_USER, USER_ALL_ACCESS_NO_CERTS, USER_FS_ACCESS_DS_LEVEL,
@@ -157,8 +167,7 @@ public class AllLocalFailureStoreAccessIntTests {
 
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
-            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
-            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+            assertThat(response, user.indexMatcher(MATCHER_DATA_ONLY));
         }
     }
 
@@ -170,12 +179,7 @@ public class AllLocalFailureStoreAccessIntTests {
 
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
-            if (!user.indexMatcher("failure_store_read").isEmpty()) {
-                assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
-            } else {
-                assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
-            }
-            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+            assertThat(response, user.indexMatcher(MATCHER_FAILURE_STORE_ONLY));
         }
     }
 
@@ -187,8 +191,7 @@ public class AllLocalFailureStoreAccessIntTests {
 
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
-            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
-            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+            assertThat(response, user.indexMatcher(MATCHER_DATA_ONLY));
         }
     }
 
@@ -200,12 +203,7 @@ public class AllLocalFailureStoreAccessIntTests {
 
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
-            if (!user.indexMatcher("failure_store_read").isEmpty()) {
-                assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
-            } else {
-                assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
-            }
-            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+            assertThat(response, user.indexMatcher(MATCHER_FAILURE_STORE_ONLY));
         }
     }
 
@@ -217,12 +215,7 @@ public class AllLocalFailureStoreAccessIntTests {
 
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
-            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
-            if (!user.indexMatcher("expand_all_sees_fs").isEmpty()) {
-                assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
-            } else {
-                assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
-            }
+            assertThat(response, user.indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS));
         }
     }
 
@@ -234,12 +227,7 @@ public class AllLocalFailureStoreAccessIntTests {
 
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
-            if (!user.indexMatcher("failure_store_read").isEmpty()) {
-                assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
-            } else {
-                assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
-            }
-            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+            assertThat(response, user.indexMatcher(MATCHER_FAILURE_STORE_ONLY));
         }
     }
 
@@ -251,12 +239,7 @@ public class AllLocalFailureStoreAccessIntTests {
 
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
-            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
-            if (!user.indexMatcher("expand_all_sees_fs").isEmpty()) {
-                assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
-            } else {
-                assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
-            }
+            assertThat(response, user.indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS));
         }
     }
 
@@ -268,8 +251,7 @@ public class AllLocalFailureStoreAccessIntTests {
 
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
-            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
-            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
+            assertThat(response, user.indexMatcher(MATCHER_DATA_ONLY));
         }
     }
 
@@ -281,12 +263,7 @@ public class AllLocalFailureStoreAccessIntTests {
 
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
-            assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha")))));
-            if (!user.indexMatcher("expand_all_sees_fs").isEmpty()) {
-                assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
-            } else {
-                assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
-            }
+            assertThat(response, user.indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS));
         }
     }
 
@@ -298,12 +275,7 @@ public class AllLocalFailureStoreAccessIntTests {
 
             log.info("Search response status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
-            if (!user.indexMatcher("failure_store_read").isEmpty()) {
-                assertThat(response, json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha")))));
-            } else {
-                assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".fs-ds_alpha"))))));
-            }
-            assertThat(response, not(json(distinctNodesAt("hits.hits[*]._index", hasItem(startsWith(".ds-ds_alpha"))))));
+            assertThat(response, user.indexMatcher(MATCHER_FAILURE_STORE_ONLY));
         }
     }
 }
