@@ -149,7 +149,7 @@ fe_kerberos:
     - apk add python python-dev python py3-setuptools py-pip git
     - pip install awscli --upgrade || true
   services:
-    - docker:19.03-dind
+    - "$SG_DIND_IMAGE"
   tags:
     - test-large
   script:

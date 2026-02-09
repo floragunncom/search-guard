@@ -5,7 +5,9 @@ workflow:
     - when: always
 
 variables:
-  SG_BUILD_IMAGE: "maven:3.9.9-amazoncorretto-21-debian"
+  SG_BUILD_IMAGE: "floragunncom/ubuntu-openjdk25:260209"
+  SG_DIND_IMAGE: "floragunncom/ubuntu-dind:260209"
+
   DOCKER_VERSION: "20.10.17"
   
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
@@ -90,7 +92,7 @@ include:
 
 
 build:
-  image: maven:3.9.9-amazoncorretto-21-debian
+  image: "$SG_BUILD_IMAGE"
   allow_failure: false
   stage: build
   rules:
@@ -149,9 +151,9 @@ deploy_release:
 
 deploy_docker_image:
   stage: "Deploy Docker Image"
-  image: docker:${DOCKER_VERSION}
+  image: "$SG_DIND_IMAGE"
   services:
-    - docker:${DOCKER_VERSION}-dind
+    - "$SG_DIND_IMAGE"
   rules:
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: on_success
