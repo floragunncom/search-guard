@@ -20,6 +20,7 @@ package com.floragunn.searchguard.test;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -52,6 +53,10 @@ public interface TestIndexLike {
         }
 
         return this;
+    }
+
+    default Optional<TestIndexLike> failureStore() {
+        return Optional.empty();
     }
 
     default Map<String, ?> firstDocument() {

@@ -19,7 +19,9 @@ package com.floragunn.searchguard.test;
 
 import com.floragunn.codova.documents.DocNode;
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 public class TestDataStream implements TestIndexLike {
@@ -103,6 +105,47 @@ public class TestDataStream implements TestIndexLike {
 
     public String getName() {
         return name;
+    }
+
+    @Override
+    public Optional<TestIndexLike> failureStore() {
+        if (!failureStoreEnabled) {
+            return Optional.empty();
+        }
+        return Optional.of(new TestIndexLike() {
+            @Override
+            public String getName() {
+                return name + "::failures";
+            }
+
+            @Override
+            public Set<String> getDocumentIds() {
+                return Collections.emptySet();
+            }
+
+            @Override
+            public Map<String, Map<String, ?>> getDocuments() {
+                return Collections.emptyMap();
+            }
+
+            @Override
+            public DocNode getFieldsMappings() {
+                return DocNode.EMPTY;
+            }
+
+            @Override
+            public String toString() {
+                return "Failure store of data stream '" + name + "'";
+            }
+        });
+    }
+
+    public TestDataStream dataOnly() {
+        if (failureStoreEnabled) {
+            return new TestDataStream(name, testData, false, 0);
+        } else {
+            return this;
+        }
     }
 
     public TestData getTestData() {

@@ -49,7 +49,10 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 
 public class IndexApiMatchers {
+
     private static final Pattern DS_BACKING_INDEX_PATTERN = Pattern.compile("\\.ds-(.+)-[0-9\\.]+-[0-9]+");
+    private static final Pattern FS_BACKING_INDEX_PATTERN = Pattern.compile("\\.fs-(.+)-[0-9\\.]+-[0-9]+");
+    private static final String FAILURE_STORE_SUFFIX = "::failures";
     private static final Pattern SHORT_ISO_TIMESTAMP = Pattern.compile("\\b\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z\\b");
     private static final Pattern GEO_COORD_PATTERN = Pattern.compile("([0-9-]+)\\.(\\d+),\\s*([0-9-]+)\\.(\\d+)");
 
@@ -65,6 +68,7 @@ public class IndexApiMatchers {
                 containsEsInternalIndices = true;
             } else {
                 indexNameMap.put(testIndex.getName(), testIndex);
+                testIndex.failureStore().ifPresent(fs -> indexNameMap.put(fs.getName(), fs));
             }
         }
 
@@ -86,6 +90,7 @@ public class IndexApiMatchers {
 
         for (TestIndexLike testIndex : testIndices) {
             indexNameMap.put(testIndex.getName(), testIndex);
+            testIndex.failureStore().ifPresent(fs -> indexNameMap.put(fs.getName(), fs));
         }
 
         return new LimitedToMatcher(indexNameMap);
@@ -230,6 +235,11 @@ public class IndexApiMatchers {
                 DocNode docNode = DocNode.wrap(object);
                 String indexName = docNode.getAsString("_index");
 
+                if (isFailureStoreBackingIndex(indexName)) {
+                    throw new UnsupportedOperationException("Failure store backing index '" + indexName
+                            + "' encountered in matchesByDocs. Failure store content matching is not supported.");
+                }
+
                 if (containsSearchGuardIndices && (indexName.startsWith(".searchguard") || indexName.equals("searchguard"))) {
                     seenSearchGuardIndicesBuilder.add(indexName);
                     continue;
@@ -301,6 +311,20 @@ public class IndexApiMatchers {
                 } else if (containsEsInternalIndices && (index.startsWith(".logs-deprecation") || index.startsWith(".ds-.logs-deprecation")
                         || index.startsWith(".logs-elasticsearch.deprecation") || index.startsWith(".ds-.logs-elasticsearch.deprecation"))) {
                     // We will just ignore these, as they actually might not exist on embedded clusters
+                } else if (index.startsWith(".fs-")) {
+                    // We do a special treatment for failure store backing indices. We convert these to <datastream>::failures if expected indices contains these.
+                    java.util.regex.Matcher fsMatcher = FS_BACKING_INDEX_PATTERN.matcher(index);
+
+                    if (fsMatcher.matches()) {
+                        String failureStoreName = fsMatcher.group(1) + FAILURE_STORE_SUFFIX;
+                        if (expectedIndices.contains(failureStoreName)) {
+                            seenIndicesBuilder.add(failureStoreName);
+                        } else {
+                            seenIndicesBuilder.add(index);
+                        }
+                    } else {
+                        seenIndicesBuilder.add(index);
+                    }
                 } else if (index.startsWith(".ds-")) {
                     // We do a special treatment for data stream backing indices. We convert these to the normal data streams if expected indices contains these.
                     java.util.regex.Matcher matcher = DS_BACKING_INDEX_PATTERN.matcher(index);
@@ -711,7 +735,14 @@ public class IndexApiMatchers {
             ImmutableSet.Builder<String> seenIndicesBuilder = new ImmutableSet.Builder<String>(expectedIndices.size());
 
             for (Object object : collection) {
-                seenIndicesBuilder.add(DocNode.wrap(object).getAsString("_index"));
+                String indexName = DocNode.wrap(object).getAsString("_index");
+
+                if (isFailureStoreBackingIndex(indexName)) {
+                    throw new UnsupportedOperationException("Failure store backing index '" + indexName
+                            + "' encountered in matchesByDocs. Failure store content matching is not supported.");
+                }
+
+                seenIndicesBuilder.add(indexName);
             }
 
             ImmutableSet<String> seenIndices = seenIndicesBuilder.build();
@@ -731,7 +762,24 @@ public class IndexApiMatchers {
             ImmutableSet.Builder<String> seenIndicesBuilder = new ImmutableSet.Builder<String>(expectedIndices.size());
 
             for (Object object : collection) {
-                seenIndicesBuilder.add(object.toString());
+                String index = object.toString();
+
+                if (index.startsWith(".fs-")) {
+                    java.util.regex.Matcher fsMatcher = FS_BACKING_INDEX_PATTERN.matcher(index);
+
+                    if (fsMatcher.matches()) {
+                        String failureStoreName = fsMatcher.group(1) + FAILURE_STORE_SUFFIX;
+                        if (expectedIndices.contains(failureStoreName)) {
+                            seenIndicesBuilder.add(failureStoreName);
+                        } else {
+                            seenIndicesBuilder.add(index);
+                        }
+                    } else {
+                        seenIndicesBuilder.add(index);
+                    }
+                } else {
+                    seenIndicesBuilder.add(index);
+                }
             }
 
             ImmutableSet<String> seenIndices = seenIndicesBuilder.build();
@@ -1260,6 +1308,10 @@ public class IndexApiMatchers {
             return base.covers(testIndex);
         }
 
+    }
+
+    private static boolean isFailureStoreBackingIndex(String indexName) {
+        return indexName != null && FS_BACKING_INDEX_PATTERN.matcher(indexName).matches();
     }
 
     private static String formatResponse(GenericRestClient.HttpResponse response) {
