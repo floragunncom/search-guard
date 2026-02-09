@@ -6,7 +6,7 @@ workflow:
 
 variables:
   SG_BUILD_IMAGE: "floragunncom/ubuntu-openjdk25:251126"
-  SG_DIND_IMAGE: "floragunncom/ubuntu-dind:251127"
+  SG_DIND_IMAGE: "floragunncom/ubuntu-dind:260209"
   DOCKER_VERSION: "20.10.17"
 
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
