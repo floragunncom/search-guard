@@ -6,9 +6,9 @@ workflow:
 
 variables:
   SG_BUILD_IMAGE: "floragunncom/ubuntu-openjdk25:251126"
-  SG_DIND_IMAGE: "floragunncom/alpine-dind:251120"
+  SG_DIND_IMAGE: "floragunncom/ubuntu-dind:260209"
   DOCKER_VERSION: "20.10.17"
-  
+
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   MAVEN_CLI_OPTS: "--batch-mode -s settings.xml -U"
   DOCKER_DRIVER: overlay2
@@ -16,7 +16,7 @@ variables:
   AIKIDO_BASE_BRANCH: main
 
   GIT_DEPTH: 10
-  
+
 default:
   image: "$SG_BUILD_IMAGE"
   tags:
@@ -25,84 +25,66 @@ default:
   timeout: 90m
   before_script:
     - |
-        
-        echo "Executing default before_script for: $CI_JOB_NAME in stage: $CI_JOB_STAGE because of: $CI_PIPELINE_SOURCE with image $CI_JOB_IMAGE"
-        echo "CI_COMMIT_BRANCH: $CI_COMMIT_BRANCH"
-        echo "CI_COMMIT_REF_NAME: $CI_COMMIT_REF_NAME"
-        echo "CI_COMMIT_REF_SLUG: $CI_COMMIT_REF_SLUG"
-        echo "CI_COMMIT_TAG: $CI_COMMIT_TAG"
-  
-        if command -v apt-get &>/dev/null; then
-          # For Debian based images, mainly used during Java build and integration tests
-          # apt-get update &> /dev/null
-          # apt-get install xmlstarlet gnupg -y > /dev/null 2>&1
-          # Above not needed, already instaled in custom image
-          # TODO whole block should be removed
-          echo "Tools already installed" 
-        elif command -v apk &>/dev/null; then
-          # For Alpine based images, mainly used during bash/docker integration tests
-          apk update &> /dev/null
-          apk add --no-cache gomplate jq curl zip xmlstarlet git wget bash sudo > /dev/null 2>&1
-        else
-          echo "ERROR! Unsupported Linux distribution. Neither apt-get nor apk found."
-          exit -1
-        fi
 
-        if [ -z "$CI_COMMIT_TAG" ]; then 
-          export ES_VERSION=$(xmlstarlet sel -t -m "/_:project/_:properties/_:elasticsearch.version" -v . pom.xml)
-          echo "No CI_COMMIT_TAG set, infer ES version from POM: $ES_VERSION";
-          #no need to set SG_VERSION version here because its only used in the release job
-        else
-          # $CI_COMMIT_TAG: sg-flx-1.0.0-es-8.2.3
-          export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
-          export ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
-          echo "SG_VERSION: $SG_VERSION"
-          echo "ES_VERSION: $ES_VERSION"
-        fi
+      echo "Executing default before_script for: $CI_JOB_NAME in stage: $CI_JOB_STAGE because of: $CI_PIPELINE_SOURCE with image $CI_JOB_IMAGE"
+      echo "CI_COMMIT_BRANCH: $CI_COMMIT_BRANCH"
+      echo "CI_COMMIT_REF_NAME: $CI_COMMIT_REF_NAME"
+      echo "CI_COMMIT_REF_SLUG: $CI_COMMIT_REF_SLUG"
+      echo "CI_COMMIT_TAG: $CI_COMMIT_TAG"
 
-        set +e
-        echo "Login in into Docker Hub"
-        echo ""
-        echo "$DOCKER_PASSWORD" | docker login --username floragunncom --password-stdin docker.io
+      if [ -z "$CI_COMMIT_TAG" ]; then
+        export ES_VERSION=$(xmlstarlet sel -t -m "/_:project/_:properties/_:elasticsearch.version" -v . pom.xml)
+        echo "No CI_COMMIT_TAG set, infer ES version from POM: $ES_VERSION";
+        #no need to set SG_VERSION version here because its only used in the release job
+      else
+        # $CI_COMMIT_TAG: sg-flx-1.0.0-es-8.2.3
+        export SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
+        export ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
+        echo "SG_VERSION: $SG_VERSION"
+        echo "ES_VERSION: $ES_VERSION"
+      fi
+
+      set +e
+      echo "Login in into Docker Hub"
+      echo ""
+      echo "$DOCKER_PASSWORD" | docker login --username floragunncom --password-stdin docker.io
 
 stages:
   - prepare
   - build
   - "Backend Unit Tests"
   - "Backend Int Tests Core"
-  - "Frontend Int Tests"  
+  - "Frontend Int Tests"
   - "Frontend MT Data Migration Tests"
-  - "Aikido Scan"  
+  - "Aikido Scan"
   - release
   - "Deploy Docker Image"
 
-
 include:
-  - local: '.gitlab-ci-branch-specific.yml'
-  - local: 'ci/backend-unit-tests.yml'
-  - local: 'ci/backend-int-tests.yml'
-  - local: 'ci/frontend-int-tests.yml'  
-  - local: 'ci/mt-data-migration-tests.yml'  
-  - local: 'ci/aikido.yml'
-
+  - local: ".gitlab-ci-branch-specific.yml"
+  - local: "ci/backend-unit-tests.yml"
+  - local: "ci/backend-int-tests.yml"
+  - local: "ci/frontend-int-tests.yml"
+  - local: "ci/mt-data-migration-tests.yml"
+  - local: "ci/aikido.yml"
 
 build:
   image: "$SG_BUILD_IMAGE"
   allow_failure: false
   stage: build
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: "$DOCKER_ONLY"
       when: never
     - when: on_success
   script:
-    - | 
-       set -e
-       SNAPSHOT_REVISION="$CI_COMMIT_REF_SLUG-SNAPSHOT"
-       mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
-       echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
-       echo "ES_VERSION=$ES_VERSION" >> snapshot.env
-       cat snapshot.env
-       echo "Size of .m2/repository $(du -sm $CI_PROJECT_DIR/.m2/repository | awk '{print $1}') MB"
+    - |
+      set -e
+      SNAPSHOT_REVISION="$CI_COMMIT_REF_SLUG-SNAPSHOT"
+      mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
+      echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
+      echo "ES_VERSION=$ES_VERSION" >> snapshot.env
+      cat snapshot.env
+      echo "Size of .m2/repository $(du -sm $CI_PROJECT_DIR/.m2/repository | awk '{print $1}') MB"
   artifacts:
     when: on_success
     paths:
@@ -117,15 +99,14 @@ build:
       - .m2/repository
     policy: push
 
-
 deploy_release:
   allow_failure: false
   interruptible: false
   stage: release
   rules:
-    - if: '$DOCKER_ONLY'
+    - if: "$DOCKER_ONLY"
       when: never
-    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+    - if: "$CI_COMMIT_TAG =~ /^sg-flx-.*/"
       when: on_success
   script:
     - ./dev/setup_gpg.sh
@@ -135,7 +116,7 @@ deploy_release:
       echo "Release DEPLOY_VERSION: $DEPLOY_VERSION"
       echo "Release ES_VERSION: $ES_VERSION"
       echo "Release SG_VERSION: $SG_VERSION"
-      
+
       MAJOR="$(echo $ES_VERSION | cut -d. -f1-2)"
       TEST_IT_BRANCH="${MAJOR}.x"
       echo "TEST_IT_BRANCH: $TEST_IT_BRANCH"
@@ -149,11 +130,11 @@ deploy_docker_image:
   stage: "Deploy Docker Image"
   image: "$SG_DIND_IMAGE"
   services:
-    - docker:${DOCKER_VERSION}-dind
+    - ${SG_DIND_IMAGE}
   rules:
-    - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
+    - if: "$CI_COMMIT_TAG =~ /^sg-.*/"
       when: on_success
-    - if: '$DOCKER_ONLY'
+    - if: "$DOCKER_ONLY"
       when: never
   tags:
     - build
@@ -161,7 +142,7 @@ deploy_docker_image:
     - |
       cd docker
       apk update && apk add bash curl
-      
+
       SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
       ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-.*-es-\(.*\)$/\1/p')
 
@@ -169,23 +150,21 @@ deploy_docker_image:
         echo "SG_VERSION is empty or ES_VERSION is empty"
         exit 1
       fi
-    
+
       echo "SG_VERSION=$SG_VERSION"
       echo "ES_VERSION=$ES_VERSION"
-      
-            
+
+
       echo "Docker logout"
       docker logout 
-      
-      echo "Login in into Docker Hub"      
+
+      echo "Login in into Docker Hub"
       echo "$DOCKER_PASSWORD" | docker login --username floragunncom --password-stdin docker.io > /dev/null
 
       echo ""
       echo "Enable qemu-user-static to support docker multiarch builds with buildx"
       docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
-  
-      ./build_and_push.sh "floragunncom" "docker.io" "search-guard-flx-elasticsearch" "$ES_VERSION-$SG_VERSION" "--build-arg ES_VERSION="$ES_VERSION" --build-arg SG_VERSION="$SG_VERSION""      
-      
-      
-      
+
+      ./build_and_push.sh "floragunncom" "docker.io" "search-guard-flx-elasticsearch" "$ES_VERSION-$SG_VERSION" "--build-arg ES_VERSION="$ES_VERSION" --build-arg SG_VERSION="$SG_VERSION""
+
   allow_failure: false
