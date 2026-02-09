@@ -1,0 +1,5 @@
+#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
+#Wed Nov 26 13:05:03 GMT 2025
+search-guard-flx-support-docker-images-test-SNAPSHOT-tests.jar>=
+search-guard-flx-support-docker-images-test-SNAPSHOT.jar>=
+search-guard-flx-support-docker-images-test-SNAPSHOT.pom>=

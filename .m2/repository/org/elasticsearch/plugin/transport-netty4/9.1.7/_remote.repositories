@@ -1,0 +1,5 @@
+#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
+#Wed Nov 26 13:07:13 GMT 2025
+transport-netty4-9.1.7.jar>third-party=
+transport-netty4-9.1.7.pom>central=
+transport-netty4-9.1.7.pom>third-party=

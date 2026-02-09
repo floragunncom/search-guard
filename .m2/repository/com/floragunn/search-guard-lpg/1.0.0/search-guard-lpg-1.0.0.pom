@@ -1,0 +1,87 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.floragunn</groupId>
+	<artifactId>search-guard-lpg</artifactId>
+	<version>${revision}</version>
+	<name>Search Guard LPG</name>
+	<description>A fork of BC PG exclusively for license validation</description>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<maven.compiler.source>1.8</maven.compiler.source>
+		<maven.compiler.target>1.8</maven.compiler.target>
+		<revision>0.0.1-SNAPSHOT</revision>
+	</properties>
+
+
+	<distributionManagement>
+		<repository>
+			<id>release</id>
+			<name>Release repository</name>
+			<url>https://maven.search-guard.com:443/util</url>
+		</repository>
+
+		<snapshotRepository>
+			<id>snapshot</id>
+			<name>Snapshot repository</name>
+			<url>https://maven.search-guard.com:443/util-snapshot</url>
+		</snapshotRepository>
+	</distributionManagement>
+
+	<dependencies>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.13.1</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>3.5.0</version>
+				<executions>
+					<execution>
+						<id>enforce-java</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireJavaVersion>
+									<version>[8,)</version>
+									<message>Java 8 or later required</message>
+								</requireJavaVersion>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<artifactId>maven-clean-plugin</artifactId>
+				<version>3.4.0</version>
+			</plugin>
+
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<version>2.43.0</version>
+				<configuration>
+					<pom>
+						<includes>
+							<include>pom.xml</include>
+						</includes>
+						<sortPom>
+							<sortDependencies>
+								scope,classifier,groupId,artifactId</sortDependencies>
+						</sortPom>
+					</pom>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>

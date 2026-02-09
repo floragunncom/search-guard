@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <groupId>com.floragunn</groupId>
+  <artifactId>search-guard-flx-security</artifactId>
+  <versioning>
+    <versions>
+      <version>docker-images-test-SNAPSHOT</version>
+    </versions>
+    <lastUpdated>20251126130357</lastUpdated>
+  </versioning>
+</metadata>

@@ -1,0 +1,294 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>net.javacrumbs.json-unit</groupId>
+    <artifactId>json-unit-parent</artifactId>
+    <version>2.40.1</version>
+    <url>https://github.com/lukas-krecan/JsonUnit</url>
+    <properties>
+        <jackson2.version>2.14.0</jackson2.version>
+        <moshi.version>1.14.0</moshi.version>
+        <gson.version>2.9.1</gson.version>
+        <hamcrest.version>2.2</hamcrest.version>
+        <johnzon.version>1.2.20</johnzon.version>
+        <geronimo.jsonp.version>1.5</geronimo.jsonp.version>
+        <jsonorg.version>20230227</jsonorg.version>
+        <slf4j.version>1.7.36</slf4j.version>
+        <assertj.version>3.24.2</assertj.version>
+        <target.java.version>1.8</target.java.version>
+        <junit-jupiter.version>5.9.1</junit-jupiter.version>
+        <json-path.version>2.8.0</json-path.version>
+        <opentest4j.version>1.2.0</opentest4j.version>
+        <kotlin.version>1.8.20</kotlin.version>
+        <bnd.version>6.3.1</bnd.version>
+        <symbolic.name>${project.groupId}.${project.artifactId}</symbolic.name>
+        <osgi.importPackage>!kotlin.*,*</osgi.importPackage>
+        <osgi.exportPackage />
+        <osgi.includeResource />
+    </properties>
+    <packaging>pom</packaging>
+
+    <description>Unit testing library that can decide if to JSON documents are equal. Strongly inspired by XmlUnit.</description>
+
+    <parent>
+        <groupId>org.sonatype.oss</groupId>
+        <artifactId>oss-parent</artifactId>
+        <version>9</version>
+    </parent>
+
+    <developers>
+        <developer>
+            <id>lukas</id>
+            <name>Lukas Krecan</name>
+            <email>lukas@krecan.net</email>
+        </developer>
+    </developers>
+
+    <modules>
+        <module>json-unit-core</module>
+        <module>json-unit</module>
+        <module>json-unit-json-path</module>
+        <module>json-unit-fluent</module>
+        <module>json-unit-assertj</module>
+        <module>json-unit-spring</module>
+        <module>tests</module>
+    </modules>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>24.0.1</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Some of these dependencies are used by the "bnd-resolver-maven-plugin" (note
+                 the configuration "includeDependencyManagement=true") in combination with project
+                 dependencies as input to calculate a solution which consists of a (minimal)
+                 set of bundles that, given the initial requirements (which in this case are the
+                 individual modules of this project), would actually run in OSGi and be completely
+                 satisfied. By keeping these dependencies in the dependencyManagement section they
+                 are inert for all other intents and purposes or until directly referenced. -->
+            <dependency>
+                <groupId>org.apache.aries.spifly</groupId>
+                <artifactId>org.apache.aries.spifly.dynamic.framework.extension</artifactId>
+                <version>1.3.6</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.johnzon</groupId>
+                <artifactId>johnzon-core</artifactId>
+                <version>${johnzon.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.geronimo.specs</groupId>
+                <artifactId>geronimo-json_1.1_spec</artifactId>
+                <version>${geronimo.jsonp.version}</version>
+                <optional>true</optional>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.platform</groupId>
+                <artifactId>org.eclipse.osgi</artifactId>
+                <version>3.18.300</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-engine</artifactId>
+                <version>${junit-jupiter.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-simple</artifactId>
+                <version>${slf4j.version}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.1.0</version>
+            </plugin>
+            <plugin>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>3.1.1</version>
+            </plugin>
+            <plugin>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <doclint>none</doclint>
+                    <source>8</source>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.mycila.maven-license-plugin</groupId>
+                <artifactId>maven-license-plugin</artifactId>
+                <version>1.9.0</version>
+                <configuration>
+                    <header>header.txt</header>
+                    <excludes>
+                        <exclude>LICENSE.txt</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-release-plugin</artifactId>
+                <version>3.0.0</version>
+                <configuration>
+                    <mavenExecutorId>forked-path</mavenExecutorId>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>animal-sniffer-maven-plugin</artifactId>
+                <version>1.22</version>
+                <configuration>
+                    <signature>
+                        <groupId>org.codehaus.mojo.signature</groupId>
+                        <artifactId>java18</artifactId>
+                        <version>1.0</version>
+                    </signature>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <extensions>true</extensions>
+                <version>5.1.9</version>
+                <configuration>
+                    <instructions>
+                        <Bundle-Name>${project.artifactId}</Bundle-Name>
+                        <Bundle-SymbolicName>${symbolic.name}</Bundle-SymbolicName>
+                        <Bundle-Description>${project.description}</Bundle-Description>
+                        <Import-Package>${osgi.importPackage}</Import-Package>
+                        <Export-Package>${osgi.exportPackage}</Export-Package>
+                        <Bundle-RequiredExecutionEnvironment />
+                        <Include-Resource>${osgi.includeResource}</Include-Resource>
+                        <_removeheaders>Bnd-LastModified</_removeheaders>
+                    </instructions>
+                </configuration>
+            </plugin>
+        </plugins>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.11.0</version>
+                    <configuration>
+                        <source>${target.java.version}</source>
+                        <target>${target.java.version}</target>
+                    </configuration>
+                </plugin>
+
+                <!-- Asserts that the resulting bundle resolves adequately in OSGi in terms
+                     of it's dependencies. If this check fails it is most likely a problem
+                     with package export or import specification. -->
+                <plugin>
+                    <groupId>biz.aQute.bnd</groupId>
+                    <artifactId>bnd-resolver-maven-plugin</artifactId>
+                    <version>${bnd.version}</version>
+                    <configuration>
+                        <failOnChanges>false</failOnChanges>
+                        <includeDependencyManagement>true</includeDependencyManagement>
+                        <reportOptional>false</reportOptional>
+                        <writeOnChanges>false</writeOnChanges>
+                        <bundles>
+                            <bundle>target/${project.artifactId}-${project.version}.jar</bundle>
+                        </bundles>
+                        <scopes>
+                            <scope>compile</scope>
+                            <scope>runtime</scope>
+                            <scope>test</scope>
+                        </scopes>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <phase>pre-integration-test</phase>
+                            <goals>
+                                <goal>resolve</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+    <profiles>
+        <profile>
+            <id>release-sign-artifacts</id>
+            <activation>
+                <property>
+                    <name>performRelease</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <configuration>
+                            <keyname>572516F4</keyname>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <!-- Johnzon does not work with Java 16 -->
+            <id>open-java-base</id>
+            <activation>
+                <jdk>[16,)</jdk>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <argLine>--add-opens java.base/java.util=ALL-UNNAMED</argLine>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+
+    <scm>
+        <connection>scm:git:git@github.com:lukas-krecan/JsonUnit.git</connection>
+        <developerConnection>scm:git:git@github.com:lukas-krecan/JsonUnit.git</developerConnection>
+        <url>scm:git:git@github.com:lukas-krecan/JsonUnit.git</url>
+      <tag>json-unit-parent-2.40.1</tag>
+  </scm>
+</project>

@@ -1,0 +1,6 @@
+#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
+#Wed Nov 26 13:07:15 GMT 2025
+search-guard-flx-elasticsearch-plugin-docker-images-test-SNAPSHOT-demo-installer.sh>=
+search-guard-flx-elasticsearch-plugin-docker-images-test-SNAPSHOT.pom>=
+search-guard-flx-elasticsearch-plugin-docker-images-test-SNAPSHOT.zip.sha512>=
+search-guard-flx-elasticsearch-plugin-docker-images-test-SNAPSHOT.zip>=

@@ -1,0 +1,13 @@
+#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.
+#Wed Nov 26 13:05:58 GMT 2025
+https\://artifacts.elastic.co/maven/.error=
+https\://artifacts.elastic.co/maven/.lastUpdated=1764162357917
+https\://build.shibboleth.net/nexus/content/repositories/releases/.error=
+https\://build.shibboleth.net/nexus/content/repositories/releases/.lastUpdated=1764162358154
+https\://maven.search-guard.com\:443/search-guard-flx-release/.error=
+https\://maven.search-guard.com\:443/search-guard-flx-release/.lastUpdated=1764162357530
+https\://maven.search-guard.com\:443/third-party/.error=
+https\://maven.search-guard.com\:443/third-party/.lastUpdated=1764162357605
+https\://maven.search-guard.com\:443/util/.error=
+https\://maven.search-guard.com\:443/util/.lastUpdated=1764162357565
+https\://repo.maven.apache.org/maven2/.lastUpdated=1764162358203

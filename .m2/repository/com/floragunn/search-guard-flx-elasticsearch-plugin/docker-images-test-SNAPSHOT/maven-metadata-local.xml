@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata modelVersion="1.1.0">
+  <groupId>com.floragunn</groupId>
+  <artifactId>search-guard-flx-elasticsearch-plugin</artifactId>
+  <versioning>
+    <lastUpdated>20251126130357</lastUpdated>
+    <snapshot>
+      <localCopy>true</localCopy>
+    </snapshot>
+    <snapshotVersions>
+      <snapshotVersion>
+        <extension>pom</extension>
+        <value>docker-images-test-SNAPSHOT</value>
+        <updated>20251126130357</updated>
+      </snapshotVersion>
+      <snapshotVersion>
+        <extension>zip</extension>
+        <value>docker-images-test-SNAPSHOT</value>
+        <updated>20251126130357</updated>
+      </snapshotVersion>
+      <snapshotVersion>
+        <classifier>demo-installer</classifier>
+        <extension>sh</extension>
+        <value>docker-images-test-SNAPSHOT</value>
+        <updated>20251126130357</updated>
+      </snapshotVersion>
+      <snapshotVersion>
+        <extension>zip.sha512</extension>
+        <value>docker-images-test-SNAPSHOT</value>
+        <updated>20251126130357</updated>
+      </snapshotVersion>
+    </snapshotVersions>
+  </versioning>
+  <version>docker-images-test-SNAPSHOT</version>
+</metadata>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata modelVersion="1.1.0">
+  <groupId>com.floragunn</groupId>
+  <artifactId>dlic-search-guard-flx-auditlog</artifactId>
+  <versioning>
+    <lastUpdated>20251126130357</lastUpdated>
+    <snapshot>
+      <localCopy>true</localCopy>
+    </snapshot>
+    <snapshotVersions>
+      <snapshotVersion>
+        <extension>pom</extension>
+        <value>docker-images-test-SNAPSHOT</value>
+        <updated>20251126130357</updated>
+      </snapshotVersion>
+      <snapshotVersion>
+        <extension>jar</extension>
+        <value>docker-images-test-SNAPSHOT</value>
+        <updated>20251126130357</updated>
+      </snapshotVersion>
+      <snapshotVersion>
+        <classifier>tests</classifier>
+        <extension>jar</extension>
+        <value>docker-images-test-SNAPSHOT</value>
+        <updated>20251126130357</updated>
+      </snapshotVersion>
+    </snapshotVersions>
+  </versioning>
+  <version>docker-images-test-SNAPSHOT</version>
+</metadata>
