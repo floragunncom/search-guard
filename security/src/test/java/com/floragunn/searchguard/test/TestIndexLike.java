@@ -20,6 +20,7 @@ package com.floragunn.searchguard.test;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -59,6 +60,10 @@ public interface TestIndexLike {
 
     default Optional<TestIndexLike> failureStore() {
         return Optional.empty();
+    }
+
+    default TestIndexLike failureOnly() {
+        return failureStore().orElseThrow(() -> new NoSuchElementException("Failure store not enabled for " + getName()));
     }
 
     default Map<String, ?> firstDocument() {
