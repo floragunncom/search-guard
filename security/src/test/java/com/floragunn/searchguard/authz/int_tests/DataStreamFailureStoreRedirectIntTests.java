@@ -24,6 +24,7 @@ import com.floragunn.searchguard.test.TestDataStream;
 import com.floragunn.searchguard.test.TestIndexTemplate;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -36,13 +37,12 @@ import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.valueSatisfiesMatcher;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 
 public class DataStreamFailureStoreRedirectIntTests {
 
-    static TestDataStream ds_ar1 = TestDataStream.name("ds_ar1").documentCount(22).rolloverAfter(10).build();
     static TestDataStream ds_aw1 = TestDataStream.name("ds_aw1").documentCount(22).rolloverAfter(10).build();
 
     static TestSgConfig.User LIMITED_USER_A = new TestSgConfig.User("limited_user_A")//
@@ -56,7 +56,7 @@ public class DataStreamFailureStoreRedirectIntTests {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(LIMITED_USER_A)//
             .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
-            .dataStreams(ds_ar1, ds_aw1)//
+            .dataStreams(ds_aw1)//
             .authzDebug(true)//
             .useExternalProcessCluster().build();
 
@@ -203,7 +203,8 @@ public class DataStreamFailureStoreRedirectIntTests {
 
     private GenericRestClient.HttpResponse indexSingleDoc(GenericRestClient client, TestDataStream dataStream,
                                                           String requestParams, DocNode doc) throws Exception {
-        return client.postJson("/"+ dataStream.getName() + "/_doc/?" + requestParams, doc);
+        String params = StringUtils.isEmpty(requestParams) ? "" : "?" + requestParams;
+        return client.postJson("/"+ dataStream.getName() + "/_doc/" + params, doc);
     }
 
     private GenericRestClient.HttpResponse indexDocs(GenericRestClient client, TestDataStream dataStream,
@@ -215,7 +216,9 @@ public class DataStreamFailureStoreRedirectIntTests {
             sb.append("\n");
         }
         String docsStr = sb.toString();
-        return client.postJson("/" + dataStream.getName() + "/_bulk?" + requestParams, docsStr);
+
+        String params = StringUtils.isEmpty(requestParams) ? "" : "?" + requestParams;
+        return client.postJson("/" + dataStream.getName() + "/_bulk" + params, docsStr);
     }
 
     private DocNode buildDoc() {
@@ -237,6 +240,7 @@ public class DataStreamFailureStoreRedirectIntTests {
     private void assertThatBulkIndexedDocsWereNotRedirectedToFailureStore(GenericRestClient.HttpResponse response) throws Exception{
         assertThat(response, isOk());
         List<DocNode> indexDocsResponses = response.getBodyAsDocNode().findNodesByJsonPath("$.items[*]");
+        assertThat(indexDocsResponses, not(empty()));
         for (DocNode indexDocResponse : indexDocsResponses) {
             assertThat(indexDocResponse.toJsonString(), indexDocResponse, valueSatisfiesMatcher("$.create._index", String.class, startsWith(".ds")));
             assertThat(indexDocResponse.toJsonString(), indexDocResponse, not(containsFieldPointedByJsonPath("$.create", "failure_store")));
@@ -246,6 +250,7 @@ public class DataStreamFailureStoreRedirectIntTests {
     private void assertThatBulkIndexedDocsWereRedirectedToFailureStore(GenericRestClient.HttpResponse response) throws Exception{
         assertThat(response, isOk());
         List<DocNode> indexDocsResponses = response.getBodyAsDocNode().findNodesByJsonPath("$.items[*]");
+        assertThat(indexDocsResponses, not(empty()));
         for (DocNode indexDocResponse : indexDocsResponses) {
             assertThat(indexDocResponse.toJsonString(), indexDocResponse, valueSatisfiesMatcher("$.create._index", String.class, startsWith(".fs")));
             assertThat(indexDocResponse.toJsonString(), indexDocResponse, containsFieldPointedByJsonPath("$.create", "failure_store"));
