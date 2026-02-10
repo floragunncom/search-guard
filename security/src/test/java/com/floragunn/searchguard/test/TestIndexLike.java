@@ -29,6 +29,8 @@ import com.floragunn.codova.documents.DocNode;
 public interface TestIndexLike {
     String getName();
 
+    TestIndexLike dataOnly();
+
     Set<String> getDocumentIds();
 
     Map<String, Map<String, ?>> getDocuments();
@@ -76,6 +78,16 @@ public interface TestIndexLike {
         @Override
         public String getName() {
             return testIndexLike.getName();
+        }
+
+        @Override
+        public TestIndexLike dataOnly() {
+            return new Filtered(testIndexLike.dataOnly(), filter);
+        }
+
+        @Override
+        public Optional<TestIndexLike> failureStore() {
+            return testIndexLike.failureStore().map(i -> new  Filtered(i, filter));
         }
 
         @Override

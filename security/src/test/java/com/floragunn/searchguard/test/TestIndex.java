@@ -78,6 +78,11 @@ public class TestIndex implements TestIndexLike {
     }
 
     @Override
+    public TestIndexLike dataOnly() {
+        return this;
+    }
+
+    @Override
     public String toString() {
         return "TestIndex '" + name + "'";
     }

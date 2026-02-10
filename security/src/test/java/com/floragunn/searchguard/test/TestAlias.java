@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -130,5 +131,27 @@ public class TestAlias implements TestIndexLike {
         }
 
         return result;
+    }
+
+    @Override
+    public Optional<TestIndexLike> failureStore() {
+        boolean hasFailureStore = indices.stream().anyMatch(indexLike -> indexLike.failureStore().isPresent());
+        if (hasFailureStore) {
+            return Optional.of(new TestAlias(name + "::failures",
+                    indices.stream() //
+                            .map(TestIndexLike::failureStore) //
+                            .filter(Optional::isPresent) //
+                            .map(Optional::get) //
+                            .toArray(TestIndexLike[]::new)));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public TestAlias dataOnly() {
+        return new TestAlias(name, indices.stream()
+                .map(TestIndexLike::dataOnly)
+                .toArray(TestIndexLike[]::new));
     }
 }

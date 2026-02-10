@@ -119,6 +119,11 @@ public class TestDataStream implements TestIndexLike {
             }
 
             @Override
+            public TestDataStream dataOnly() {
+                return null;
+            }
+
+            @Override
             public Set<String> getDocumentIds() {
                 return Collections.emptySet();
             }
@@ -140,6 +145,7 @@ public class TestDataStream implements TestIndexLike {
         });
     }
 
+    @Override
     public TestDataStream dataOnly() {
         if (failureStoreEnabled) {
             return new TestDataStream(name, testData, false, 0);

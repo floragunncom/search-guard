@@ -134,6 +134,11 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public TestIndexLike dataOnly() {
+            return this;
+        }
+
+        @Override
         public Map<String, Map<String, ?>> getDocuments() {
             return null;
         }
@@ -154,6 +159,11 @@ public class IndexApiMatchers {
         @Override
         public String getName() {
             return ".es-internal*";
+        }
+
+        @Override
+        public TestIndexLike dataOnly() {
+            return this;
         }
 
         @Override
@@ -313,12 +323,14 @@ public class IndexApiMatchers {
                     // We will just ignore these, as they actually might not exist on embedded clusters
                 } else if (index.startsWith(".fs-")) {
                     // We do a special treatment for failure store backing indices. We convert these to <datastream>::failures if expected indices contains these.
+                    // Also resolves through aliases when the expected set contains an alias wrapping the data stream.
                     java.util.regex.Matcher fsMatcher = FS_BACKING_INDEX_PATTERN.matcher(index);
 
                     if (fsMatcher.matches()) {
                         String failureStoreName = fsMatcher.group(1) + FAILURE_STORE_SUFFIX;
-                        if (expectedIndices.contains(failureStoreName)) {
-                            seenIndicesBuilder.add(failureStoreName);
+                        String resolved = resolveToExpectedIndex(failureStoreName);
+                        if (resolved != null) {
+                            seenIndicesBuilder.add(resolved);
                         } else {
                             seenIndicesBuilder.add(index);
                         }
@@ -327,10 +339,17 @@ public class IndexApiMatchers {
                     }
                 } else if (index.startsWith(".ds-")) {
                     // We do a special treatment for data stream backing indices. We convert these to the normal data streams if expected indices contains these.
+                    // Also resolves through aliases when the expected set contains an alias wrapping the data stream.
                     java.util.regex.Matcher matcher = DS_BACKING_INDEX_PATTERN.matcher(index);
 
-                    if (matcher.matches() && expectedIndices.contains(matcher.group(1))) {
-                        seenIndicesBuilder.add(matcher.group(1));
+                    if (matcher.matches()) {
+                        String dsName = matcher.group(1);
+                        String resolved = resolveToExpectedIndex(dsName);
+                        if (resolved != null) {
+                            seenIndicesBuilder.add(resolved);
+                        } else {
+                            seenIndicesBuilder.add(index);
+                        }
                     } else {
                         seenIndicesBuilder.add(index);
                     }
@@ -769,8 +788,23 @@ public class IndexApiMatchers {
 
                     if (fsMatcher.matches()) {
                         String failureStoreName = fsMatcher.group(1) + FAILURE_STORE_SUFFIX;
-                        if (expectedIndices.contains(failureStoreName)) {
-                            seenIndicesBuilder.add(failureStoreName);
+                        String resolved = resolveToExpectedIndex(failureStoreName);
+                        if (resolved != null) {
+                            seenIndicesBuilder.add(resolved);
+                        } else {
+                            seenIndicesBuilder.add(index);
+                        }
+                    } else {
+                        seenIndicesBuilder.add(index);
+                    }
+                } else if (index.startsWith(".ds-")) {
+                    java.util.regex.Matcher matcher = DS_BACKING_INDEX_PATTERN.matcher(index);
+
+                    if (matcher.matches()) {
+                        String dsName = matcher.group(1);
+                        String resolved = resolveToExpectedIndex(dsName);
+                        if (resolved != null) {
+                            seenIndicesBuilder.add(resolved);
                         } else {
                             seenIndicesBuilder.add(index);
                         }
@@ -1186,6 +1220,29 @@ public class IndexApiMatchers {
 
         protected ImmutableSet<String> getExpectedIndices() {
             return ImmutableSet.of(indexNameMap.keySet());
+        }
+
+        /**
+         * Resolves a data stream or failure store name to the expected index name.
+         * First checks if the name is directly in expected indices (handles direct data stream entries),
+         * then checks if any TestAlias in the indexNameMap contains an underlying index with this name.
+         * Returns null if not found.
+         */
+        protected String resolveToExpectedIndex(String name) {
+            if (indexNameMap.containsKey(name)) {
+                return name;
+            }
+            for (Map.Entry<String, TestIndexLike> entry : indexNameMap.entrySet()) {
+                if (entry.getValue() instanceof TestAlias) {
+                    TestAlias alias = (TestAlias) entry.getValue();
+                    for (TestIndexLike underlying : alias.getIndices()) {
+                        if (underlying.getName().equals(name)) {
+                            return entry.getKey();
+                        }
+                    }
+                }
+            }
+            return null;
         }
 
     }
