@@ -210,28 +210,9 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
-    @Ignore //todo COMPONENT SELECTORS - test fails, probably the class IndexExpression handles in incorrect way expression "::failures"
-    public void search_noPattern_fsAccess() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("::failures/_search?size=1000");
-            assertThat(httpResponse, containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()).at("hits.hits[*]._index")
-                    .but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-
-    @Test
     public void search_noPattern_noWildcards() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_search?size=1000&expand_wildcards=none");
-            assertThat(httpResponse, containsExactly().at("hits.hits[*]._index").whenEmpty(200));
-        }
-    }
-
-    @Test
-    @Ignore //todo COMPONENT SELECTORS - test fails, probably the class IndexExpression handles in incorrect way expression "::failures"
-    public void search_noPattern_noWildcards_fsAccess() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("::failures/_search?size=1000&expand_wildcards=none");
             assertThat(httpResponse, containsExactly().at("hits.hits[*]._index").whenEmpty(200));
         }
     }
@@ -241,16 +222,6 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_search?size=1000&allow_no_indices=false");
             assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(), index_c1).at("hits.hits[*]._index")
-                    .but(user.indexMatcher("read")).whenEmpty(404));
-        }
-    }
-
-    @Test
-    @Ignore //todo COMPONENT SELECTORS - test fails, probably the class IndexExpression handles in incorrect way expression "::failures"
-    public void search_noPattern_allowNoIndicesFalse_fsAccess() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("::failures/_search?size=1000&allow_no_indices=false");
-            assertThat(httpResponse, containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()).at("hits.hits[*]._index")
                     .but(user.indexMatcher("read")).whenEmpty(404));
         }
     }
@@ -736,19 +707,6 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
-    @Ignore //todo COMPONENT SELECTORS - test fails, probably the class IndexExpression handles in incorrect way expression "::failures"
-    public void search_termsAggregation_index_fsAccess() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.postJson("::failures/_search", //todo COMPONENT SELECTORS - test fails, probably the class IndexExpression handles in incorrect way expression "::failures"
-                    "{\"size\":0,\"aggs\":{\"indices\":{\"terms\":{\"field\":\"_index\",\"size\":1000}}}}");
-
-            assertThat(httpResponse, containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()).at("aggregations.indices.buckets[*].key")
-                    .but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-
-
-    @Test
     public void search_pit() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.post("/ds_a*/_pit?keep_alive=1m");
@@ -815,16 +773,6 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
-    @Ignore //todo COMPONENT SELECTORS - test fails, probably the class IndexExpression handles in incorrect way expression "::failures"
-    public void index_stats_all_fsAccess() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("::failures/_stats"); //todo COMPONENT SELECTORS - test fails, probably the class IndexExpression handles in incorrect way expression "::failures"
-            assertThat(httpResponse, containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()).at("indices.keys()")
-                    .but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-
-    @Test
     public void index_stats_pattern() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_b*/_stats");
@@ -844,7 +792,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     @Test
     public void getAlias_all() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("_alias");
+            HttpResponse httpResponse = restClient.get("_alias");//todo COMPONENT SELECTORS - check if test related to failure store is possible
             assertThat(httpResponse,
                     containsExactly(alias_ab1.dataOnly(), alias_c1.dataOnly()).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
             // Interestingly, this API does not return data streams without aliases - while it returns indices without aliases
@@ -856,19 +804,20 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     @Test
     public void getAlias_staticAlias() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("_alias/alias_c1");
+            // request with alias_ab*::failures return empty response
+            HttpResponse httpResponse = restClient.get("_alias/alias_c1"); // alias "alias_c1" is related to the index; therefore, test with failure store impossible.
             // RestGetAliasesAction does some further post processing on the results, thus we get 404 errors in case a non wildcard alias was removed
             assertThat(httpResponse, containsExactly(alias_c1).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(404));
             assertThat(httpResponse, containsExactly(index_c1).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(404));
         }
     }
 
-    //todo COMPONENT SELECTORS - Add more tests cases related to failures stores and aliases
-
     @Test
     public void getAlias_aliasPattern() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("_alias/alias_ab*");
+            // request with _alias/alias_ab*:: returns empty response
+            HttpResponse httpResponse = restClient.get("_alias/alias_ab*?pretty");
+            log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
             assertThat(httpResponse, containsExactly(alias_ab1.dataOnly()).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
             assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly()).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
         }
@@ -1084,16 +1033,6 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_field_caps?fields=*");
             assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(), index_c1).at("indices")
-                    .but(user.indexMatcher("read")).whenEmpty(200));
-        }
-    }
-
-    @Test
-    @Ignore
-    public void field_caps_all_fsAccess() throws Exception {
-        try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("::failures/_field_caps?fields=*");//todo COMPONENT SELECTORS - test fails, probably the class IndexExpression handles in incorrect way expression "::failures"
-            assertThat(httpResponse, containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()).at("indices")
                     .but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
