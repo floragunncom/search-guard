@@ -21,11 +21,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.floragunn.searchsupport.Constants;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.client.internal.Client;
@@ -146,6 +146,15 @@ public class TestAlias implements TestIndexLike {
         } else {
             return Optional.empty();
         }
+    }
+
+    public TestIndexLike failureOnly() {
+        return failureStore().orElseThrow(() -> {
+            String aliasContent = indices.stream() //
+                    .map(testIndexLike -> "'" + testIndexLike.getClass().getSimpleName() + " - " + testIndexLike.getName() + "'") //
+                    .collect(Collectors.joining(", "));
+            return new NoSuchElementException("Failure store not enabled for '" + getName() + "', alias points to " + aliasContent);
+        });
     }
 
     @Override
