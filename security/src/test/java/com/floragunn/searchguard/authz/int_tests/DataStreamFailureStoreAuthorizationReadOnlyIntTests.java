@@ -447,6 +447,15 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void search_staticIndicies_noIgnoreUnavailable_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2::failures,ds_b1/_search?size=1000");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.dataOnly(), ds_a2.failureOnly(), ds_b1.dataOnly()).at("hits.hits[*]._index").butForbiddenIfIncomplete(user.indexMatcher("read")));
+        }
+    }
+
+    @Test
     public void search_staticIndicies_exceptFailureStore_noIgnoreUnavailable() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a1::data,ds_a2::data,ds_b1::data/_search?size=1000");
@@ -474,6 +483,15 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void search_staticIndicies_exceptFailureStore_noIgnoreUnavailable_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2::failures,ds_b1/_search?size=1000");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.dataOnly(), ds_a2.failureOnly(), ds_b1.dataOnly()).at("hits.hits[*]._index").butForbiddenIfIncomplete(user.indexMatcher("read")));
+        }
+    }
+
+    @Test
     public void search_staticIndicies_ignoreUnavailable() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1/_search?size=1000&ignore_unavailable=true");
@@ -495,6 +513,14 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a1::data,ds_a2::data,ds_b1::data/_search?size=1000&ignore_unavailable=true");
             assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_b1.dataOnly()).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void search_staticIndicies_ignoreUnavailable_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2::failures,ds_b1/_search?size=1000&ignore_unavailable=true");
+            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.failureOnly(), ds_b1.dataOnly()).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -545,6 +571,21 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void search_staticIndicies_negation_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2::failures,ds_b1::failures,-ds_b1::failures/_search?size=1000");
+            if (containsExactly(ds_a1.dataOnly(), ds_a2.failureOnly(), ds_b1.failureOnly()).at("hits.hits[*]._index").isCoveredBy(user.indexMatcher("read"))) {
+                // A 404 error is also acceptable if we get ES complaining about -ds_b1. This will be the case for users with full permissions
+                assertThat(httpResponse, isNotFound());
+                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
+                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
+        }
+    }
+
+    @Test
     public void search_staticIndicies_negation_backingIndices() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1,-.ds-ds_b1*/_search?size=1000");
@@ -565,6 +606,14 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a1::data,ds_a2::data,ds_b1::data,-.ds-ds_b1*/_search?size=1000");
             assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_b1.dataOnly()).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void search_staticIndicies_negation_backingIndices_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2::failures,ds_b1,-.ds-ds_b1*/_search?size=1000");
+            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.failureOnly(), ds_b1.dataOnly()).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -620,6 +669,15 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void search_indexPattern_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a*,ds_b*::failures/_search?size=1000");
+            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()).at("hits.hits[*]._index")
+                    .but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
     public void search_indexPattern_minus() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a*,ds_b*,-ds_b2,-ds_b3/_search?size=1000");
@@ -646,6 +704,16 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             // Elasticsearch does not handle the expression ds_a*,ds_b*,-ds_b2,-ds_b3 in a way that excludes the data streams. See search_indexPattern_minus_backingIndices for an alternative.
             assertThat(httpResponse,
                     containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly()).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void search_indexPattern_minus_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a*,ds_b*::failures,-ds_b2::failures,-ds_b3::failures/_search?size=1000");
+            // Elasticsearch does not handle the expression in a way that excludes the data streams. See search_indexPattern_minus_backingIndices for an alternative.
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -677,6 +745,15 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void search_indexPattern_minus_backingIndices_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a*,ds_b*::failures,-.fs-ds_b2*,-.fs-ds_b3*/_search?size=1000");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.failureOnly()).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
     public void search_indexPattern_nonExistingIndex_ignoreUnavailable() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a*,ds_b*,xxx_non_existing/_search?size=1000&ignore_unavailable=true");
@@ -704,6 +781,15 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void search_indexPattern_nonExistingIndex_ignoreUnavailable_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a*,ds_b*::failures,xxx_non_existing/_search?size=1000&ignore_unavailable=true");
+            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()).at("hits.hits[*]._index")
+                    .but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
     public void search_indexPattern_noWildcards() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a*,ds_b*/_search?size=1000&expand_wildcards=none&ignore_unavailable=true");
@@ -723,6 +809,14 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     public void search_indexPattern_noWildcards_dataAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a*::data,ds_b*::data/_search?size=1000&expand_wildcards=none&ignore_unavailable=true");
+            assertThat(httpResponse, containsExactly().at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void search_indexPattern_noWildcards_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a*,ds_b*::failures/_search?size=1000&expand_wildcards=none&ignore_unavailable=true");
             assertThat(httpResponse, containsExactly().at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
@@ -836,6 +930,15 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void search_aliasAndIndex_ignoreUnavailable_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("alias_ab1,ds_b2::failures/_search?size=1000&ignore_unavailable=true");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.failureOnly()).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
     public void search_aliasAndIndex_noIgnoreUnavailable() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("alias_ab1,ds_b2/_search?size=1000");
@@ -859,6 +962,15 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             HttpResponse httpResponse = restClient.get("alias_ab1::data,ds_b2::data/_search?size=1000");
             assertThat(httpResponse,
                     containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly()).at("hits.hits[*]._index").butForbiddenIfIncomplete(user.indexMatcher("read")));
+        }
+    }
+
+    @Test
+    public void search_aliasAndIndex_noIgnoreUnavailable_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("alias_ab1,ds_b2::failures/_search?size=1000");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.failureOnly()).at("hits.hits[*]._index").butForbiddenIfIncomplete(user.indexMatcher("read")));
         }
     }
 
@@ -1021,6 +1133,20 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             HttpResponse httpResponse = restClient.postJson("/_msearch", msearchBody);
             assertThat(httpResponse,
                     containsExactly(ds_b1.dataOnly(), ds_b2.dataOnly()).at("responses[*].hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void msearch_staticIndices_dataAndFsAccess() throws Exception {
+        String msearchBody = "{\"index\":\"ds_b1\"}\n" //
+                + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n" //
+                + "{\"index\":\"ds_b2::failures\"}\n" //
+                + "{\"size\":10, \"query\":{\"bool\":{\"must\":{\"match_all\":{}}}}}\n";
+
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.postJson("/_msearch", msearchBody);
+            assertThat(httpResponse,
+                    containsExactly(ds_b1.dataOnly(), ds_b2.failureOnly()).at("responses[*].hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -1335,6 +1461,17 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void resolve_indexPattern_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/_resolve/index/ds_a*,ds_b*::failures");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()).at("$.data_streams[*].backing_indices")
+                    .but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
     public void field_caps_all() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_field_caps?fields=*");
@@ -1371,6 +1508,15 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void field_caps_indexPattern_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a*,ds_b*::failures/_field_caps?fields=*");
+            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()).at("indices")
+                    .but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
     public void field_caps_staticIndices_noIgnoreUnavailable() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1/_field_caps?fields=*");
@@ -1398,6 +1544,15 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void field_caps_staticIndices_noIgnoreUnavailable_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2::failures,ds_b1/_field_caps?fields=*");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.dataOnly(), ds_a2.failureOnly(), ds_b1.dataOnly()).at("indices").butForbiddenIfIncomplete(user.indexMatcher("read")));
+        }
+    }
+
+    @Test
     public void field_caps_staticIndices_ignoreUnavailable() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1/_field_caps?fields=*&ignore_unavailable=true");
@@ -1418,6 +1573,14 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a1::data,ds_a2::data,ds_b1::data/_field_caps?fields=*&ignore_unavailable=true");
             assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_b1.dataOnly()).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void field_caps_staticIndices_ignoreUnavailable_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2::failures,ds_b1/_field_caps?fields=*&ignore_unavailable=true");
+            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.failureOnly(), ds_b1.dataOnly()).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -1620,6 +1783,15 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void field_caps_aliasAndDataStream_ignoreUnavailable_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("alias_ab1,ds_b2::failures/_field_caps?fields=*&ignore_unavailable=true");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.failureOnly()).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
     public void field_caps_aliasAndDataStream_noIgnoreUnavailable() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("alias_ab1,ds_b2/_field_caps?fields=*");
@@ -1643,6 +1815,15 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             HttpResponse httpResponse = restClient.get("alias_ab1::data,ds_b2::data/_field_caps?fields=*");
             assertThat(httpResponse,
                     containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly()).at("indices").butForbiddenIfIncomplete(user.indexMatcher("read")));
+        }
+    }
+
+    @Test
+    public void field_caps_aliasAndDataStream_noIgnoreUnavailable_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("alias_ab1,ds_b2::failures/_field_caps?fields=*");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.failureOnly()).at("indices").butForbiddenIfIncomplete(user.indexMatcher("read")));
         }
     }
 
@@ -1692,6 +1873,21 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void field_caps_staticIndices_negation_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2::failures,ds_b1,-ds_b1/_field_caps?fields=*");
+            if (containsExactly(ds_a1.dataOnly(), ds_a2.failureOnly(), ds_b1.dataOnly()).at("indices").isCoveredBy(user.indexMatcher("read"))) {
+                // A 404 error is also acceptable if we get ES complaining about -ds_b1. This will be the case for users with full permissions
+                assertThat(httpResponse, isNotFound());
+                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
+                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
+            } else {
+                assertThat(httpResponse, isForbidden());
+            }
+        }
+    }
+
+    @Test
     public void field_caps_indexPattern_minus() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a*,ds_b*,-ds_b2,-ds_b3/_field_caps?fields=*");
@@ -1718,6 +1914,16 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             // Elasticsearch does not handle the expression ds_a*,ds_b*,-ds_b2,-ds_b3 in a way that excludes the data streams. See field_caps_indexPattern_minus_backingIndices for an alternative.
             assertThat(httpResponse,
                     containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly()).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void field_caps_indexPattern_minus_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a*,ds_b*::failures,-ds_b2,-ds_b3::failures/_field_caps?fields=*");
+            // Elasticsearch does not handle the expression in a way that excludes the data streams. See field_caps_indexPattern_minus_backingIndices for an alternative.
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -1750,6 +1956,16 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void field_caps_indexPattern_minus_backingIndices_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            //.fs-ds_b3* - pattern related to data stream backing indices (failure store) - indices does not accept selectors like ::failures
+            HttpResponse httpResponse = restClient.get("ds_a*,ds_b*::failures,-.fs-ds_b2*,-.fs-ds_b3*/_field_caps?fields=*");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.failureOnly()).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
     public void field_caps_staticIndices_negation_backingIndices() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1,-.ds-ds_b1*/_field_caps?fields=*");
@@ -1771,6 +1987,15 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_a1::data,ds_a2::data,ds_b1::data,-.ds-ds_b1*/_field_caps?fields=*");
             assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_b1.dataOnly()).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void field_caps_staticIndices_negation_backingIndices_dataAndFsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            //-.fs-ds_b1* - pattern related to data stream backing indices (failure store) - indices does not accept selectors like ::failures
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2::failures,ds_b1,-.fs-ds_b1*/_field_caps?fields=*");
+            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.failureOnly(), ds_b1.dataOnly()).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
