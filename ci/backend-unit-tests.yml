@@ -24,15 +24,15 @@ test_security:
   extends:
     - .be_unit_test
   script:
-    # The SslHostnameVerificationTest generated a lot of logs, causing GitLab’s log limit to be exceeded.
-    # As a result, logs from other tests were also not displayed, so it was moved to a separate job.
-    - ci/run_tests.sh security '\!SslHostnameVerificationTest,\!*\$*'
+    - ci/run_tests.sh security
 
 test_security_SslHostnameVerificationTest:
   extends:
     - .be_unit_test
   script:
-    - ci/run_tests.sh security 'SslHostnameVerificationTest'
+    # The SslHostnameVerificationTest generated a lot of logs, causing GitLab’s log limit to be exceeded.
+    # As a result, logs from other tests were also not displayed, so it was moved to a separate job.
+    - ci/run_tests.sh security test-ssl-hostname-verification
 
 test_ssl:
   extends:
