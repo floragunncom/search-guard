@@ -32,6 +32,7 @@ import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import org.hamcrest.Matchers;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -1210,11 +1211,21 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     @Test
     public void getAlias_aliasPattern() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            // request with _alias/alias_ab*:: returns empty response
             HttpResponse httpResponse = restClient.get("_alias/alias_ab*?pretty");
             log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
             assertThat(httpResponse, containsExactly(alias_ab1.dataOnly()).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
             assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly()).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void getAlias_aliasPattern_fsAccess() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("_alias/alias_ab*::failures?pretty");
+            log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
+            assertThat(httpResponse, isOk());
+            // request with _alias/alias_ab*::failures returns empty response body '{}' what is a bit unusual.
+            assertThat(httpResponse, json(nodeAt("$", Matchers.anEmptyMap())));
         }
     }
 
