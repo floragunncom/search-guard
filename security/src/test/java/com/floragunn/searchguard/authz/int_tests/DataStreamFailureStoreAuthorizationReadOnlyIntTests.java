@@ -158,6 +158,76 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             .indexMatcher("read_top_level", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
+    static TestSgConfig.User LIMITED_USER_A_DATA_ONLY = new TestSgConfig.User("limited_user_A_data_only")//
+            .description("ds_a*::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("ds_a*"))//
+            .indexMatcher("read", limitedTo(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly()))//
+            .indexMatcher("read_top_level", limitedTo(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly()))//
+            .indexMatcher("get_alias", limitedToNone());
+
+    static TestSgConfig.User LIMITED_USER_B_DATA_ONLY = new TestSgConfig.User("limited_user_B_data_only")//
+            .description("ds_b*::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("ds_b*"))//
+            .indexMatcher("read", limitedTo(ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly()))//
+            .indexMatcher("read_top_level", limitedTo(ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly()))//
+            .indexMatcher("get_alias", limitedToNone());
+
+    static TestSgConfig.User LIMITED_USER_B1_DATA_ONLY = new TestSgConfig.User("limited_user_B1_data_only")//
+            .description("ds_b1::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("ds_b1"))//
+            .indexMatcher("read", limitedTo(ds_b1.dataOnly()))//
+            .indexMatcher("read_top_level", limitedTo(ds_b1.dataOnly()))//
+            .indexMatcher("get_alias", limitedToNone());
+
+    static TestSgConfig.User LIMITED_USER_ALIAS_AB1_DATA_ONLY = new TestSgConfig.User("limited_user_alias_AB1_data_only")//
+            .description("alias_ab1::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
+                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get").on("alias_ab1*"))//
+            .indexMatcher("read", limitedTo(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), alias_ab1.dataOnly()))//
+            .indexMatcher("read_top_level", limitedTo(alias_ab1.dataOnly()))//
+            .indexMatcher("get_alias", limitedTo(ds_a1, ds_a2, ds_a3, ds_b1, alias_ab1));
+
+    static TestSgConfig.User LIMITED_USER_A_HIDDEN_DATA_ONLY = new TestSgConfig.User("limited_user_A_hidden_data_only")//
+            .description("ds_a*, ds_hidden*::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("ds_a*", "ds_hidden*"))//
+            .indexMatcher("read", limitedTo(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_hidden.dataOnly()))//
+            .indexMatcher("read_top_level", limitedTo(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_hidden.dataOnly()))//
+            .indexMatcher("get_alias", limitedToNone());
+
+    static TestSgConfig.User LIMITED_USER_NONE_DATA_ONLY = new TestSgConfig.User("limited_user_none_data_only")//
+            .description("no privileges for existing indices::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_CRUD", "SGS_INDICES_MONITOR").on("ds_does_not_exist_*"))//
+            .indexMatcher("read", limitedToNone())//
+            .indexMatcher("read_top_level", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
+
+    static TestSgConfig.User INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS_DATA_ONLY = new TestSgConfig.User("invalid_user_index_permissions_for_alias_data_only")//
+            .description("invalid: index permissions for alias::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR").on("alias_ab1"))//
+            .indexMatcher("read", limitedToNone())//
+            .indexMatcher("read_top_level", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
+
     static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user")//
             .description("unlimited complete")//
             .roles(//
@@ -184,7 +254,9 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             .indexMatcher("get_alias", unlimitedIncludingSearchGuardIndices());
 
     static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B1, LIMITED_USER_ALIAS_AB1,
-            LIMITED_USER_A_HIDDEN, LIMITED_USER_NONE, INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS, UNLIMITED_USER, SUPER_UNLIMITED_USER);
+            LIMITED_USER_A_HIDDEN, LIMITED_USER_NONE, INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS, UNLIMITED_USER, SUPER_UNLIMITED_USER,
+            LIMITED_USER_A_DATA_ONLY, LIMITED_USER_B_DATA_ONLY, LIMITED_USER_B1_DATA_ONLY, LIMITED_USER_ALIAS_AB1_DATA_ONLY,
+            LIMITED_USER_A_HIDDEN_DATA_ONLY, LIMITED_USER_NONE_DATA_ONLY, INVALID_USER_INDEX_PERMISSIONS_FOR_ALIAS_DATA_ONLY);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
