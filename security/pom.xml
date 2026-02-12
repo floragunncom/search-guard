@@ -133,6 +133,8 @@
           <!-- please see https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/691 -->
           <excludes>
             <exclude>**/SslHostnameVerificationTest.java</exclude>
+            <!-- to fix problems with tests annotated with @Suite.SuiteClasses where SuiteClasses are their inner classes -->
+            <exclude>**/*$*</exclude>
           </excludes>
         </configuration>
       </plugin>
@@ -154,6 +156,8 @@
               <includes>
                 <include>**/SslHostnameVerificationTest.java</include>
               </includes>
+              <!-- to override exclusions defined in the default profile, otherwise no test will be executed -->
+              <excludes combine.self="override"></excludes>
             </configuration>
           </plugin>
         </plugins>
