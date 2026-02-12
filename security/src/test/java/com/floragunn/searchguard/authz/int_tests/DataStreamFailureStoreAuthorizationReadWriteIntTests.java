@@ -42,6 +42,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 
 import static com.floragunn.searchguard.test.IndexApiMatchers.containsExactly;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedTo;
@@ -103,8 +104,8 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_a*")//
-                            .dataStreamPermissions("SGS_WRITE").on("ds_aw*"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store").on("ds_a*")//
+                            .dataStreamPermissions("SGS_WRITE", "special:failure_store").on("ds_aw*"))//
             .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2))//
             .indexMatcher("write", limitedTo(ds_aw1, ds_aw2))//
             .indexMatcher("create_data_stream", limitedToNone())//
@@ -117,8 +118,8 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
-                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store").on("ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE", "special:failure_store").on("ds_bw*"))//
             .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("create_data_stream", limitedToNone())//
@@ -131,8 +132,8 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_a*", "ds_b*")//
-                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store").on("ds_a*", "ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE", "special:failure_store").on("ds_bw*"))//
             .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2, ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("create_data_stream", limitedToNone())//
@@ -151,9 +152,9 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
-                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
-                            .dataStreamPermissions("indices:admin/mapping/auto_put").on("*"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store").on("ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*", "special:failure_store")//
+                            .dataStreamPermissions("indices:admin/mapping/auto_put", "special:failure_store").on("*"))//
             .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("create_data_stream", limitedToNone())//
@@ -166,9 +167,9 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
-                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
-                            .dataStreamPermissions("SGS_CREATE_DATA_STREAM").on("ds_bw*"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store").on("ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE", "special:failure_store").on("ds_bw*")//
+                            .dataStreamPermissions("SGS_CREATE_DATA_STREAM", "special:failure_store").on("ds_bw*"))//
             .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("create_data_stream", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
@@ -181,9 +182,9 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
-                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
-                            .dataStreamPermissions("SGS_MANAGE").on("ds_bw*"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store").on("ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE", "special:failure_store").on("ds_bw*")//
+                            .dataStreamPermissions("SGS_MANAGE", "special:failure_store").on("ds_bw*"))//
             .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("create_data_stream", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
@@ -196,10 +197,10 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
-                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
-                            .dataStreamPermissions("SGS_MANAGE").on("ds_bw*")//
-                            .aliasPermissions("SGS_MANAGE_ALIASES").on("alias_bwx*"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store").on("ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE", "special:failure_store").on("ds_bw*")//
+                            .dataStreamPermissions("SGS_MANAGE", "special:failure_store").on("ds_bw*")//
+                            .aliasPermissions("SGS_MANAGE_ALIASES", "special:failure_store").on("alias_bwx*"))//
             .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("create_data_stream", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
@@ -212,10 +213,10 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
-                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
-                            .dataStreamPermissions("SGS_CREATE_DATA_STREAM", "SGS_MANAGE_ALIASES").on("ds_bw*")//
-                            .aliasPermissions("SGS_MANAGE_ALIASES").on("alias_bwx*"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store").on("ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*", "special:failure_store")//
+                            .dataStreamPermissions("SGS_CREATE_DATA_STREAM", "SGS_MANAGE_ALIASES", "special:failure_store").on("ds_bw*")//
+                            .aliasPermissions("SGS_MANAGE_ALIASES", "special:failure_store").on("alias_bwx*"))//
             .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("create_data_stream", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
@@ -228,10 +229,10 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*", "ds_hidden*")//
-                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*", "ds_hidden*")//
-                            .dataStreamPermissions("SGS_MANAGE").on("ds_bw*", "ds_hidden*")//
-                            .aliasPermissions("SGS_MANAGE_ALIASES").on("alias_bwx*"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store").on("ds_b*", "ds_hidden*")//
+                            .dataStreamPermissions("SGS_WRITE", "special:failure_store").on("ds_bw*", "ds_hidden*")//
+                            .dataStreamPermissions("SGS_MANAGE", "special:failure_store").on("ds_bw*", "ds_hidden*")//
+                            .aliasPermissions("SGS_MANAGE_ALIASES", "special:failure_store").on("alias_bwx*"))//
             .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2, ds_hidden))//
             .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2, ds_hidden))//
             .indexMatcher("create_data_stream", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2, ds_hidden))//
@@ -244,9 +245,9 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_a*", "ds_b*")//
-                            .dataStreamPermissions("SGS_WRITE").on("ds_aw*", "ds_bw*")//
-                            .dataStreamPermissions("SGS_MANAGE").on("ds_aw*", "ds_bw*"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store").on("ds_a*", "ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE", "special:failure_store").on("ds_aw*", "ds_bw*")//
+                            .dataStreamPermissions("SGS_MANAGE", "special:failure_store").on("ds_aw*", "ds_bw*"))//
             .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2, ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("write", limitedTo(ds_aw1, ds_aw2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("create_data_stream", limitedTo(ds_aw1, ds_aw2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
@@ -259,8 +260,8 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh").on("index_c*")//
-                            .indexPermissions("SGS_WRITE").on("index_cw*"))//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh", "special:failure_store").on("index_c*")//
+                            .indexPermissions("SGS_WRITE", "special:failure_store").on("index_cw*"))//
             .indexMatcher("read", limitedTo(index_cr1, index_cw1))//
             .indexMatcher("write", limitedTo(index_cw1))//
             .indexMatcher("create_data_stream", limitedToNone())//
@@ -273,8 +274,8 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get").on("alias_ab1r")//
-                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get", "SGS_WRITE", "indices:admin/refresh*")
+                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get", "special:failure_store").on("alias_ab1r")//
+                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get", "SGS_WRITE", "indices:admin/refresh*", "special:failure_store")
                             .on("alias_ab1w*"))//
             .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2, ds_br1, ds_bw1, alias_ab1r, alias_ab1w_nowriteindex))//
             .indexMatcher("write", limitedTo(ds_aw1, ds_aw2, ds_bw1, alias_ab1w_nowriteindex))//
@@ -288,8 +289,8 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_WRITE", "indices:admin/refresh").on("ds_aw1")//
-                            .aliasPermissions("SGS_READ").on("alias_ab1w"))//
+                            .dataStreamPermissions("SGS_WRITE", "indices:admin/refresh", "special:failure_store").on("ds_aw1")//
+                            .aliasPermissions("SGS_READ", "special:failure_store").on("alias_ab1w"))//
             .indexMatcher("read", limitedTo(ds_aw1, ds_aw2, ds_bw1))//
             .indexMatcher("write", limitedTo(ds_aw1)) // alias_ab1w is included because ds_aw1 is the write index of alias_ab1w
             .indexMatcher("create_data_stream", limitedToNone())//
@@ -301,7 +302,7 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ").on("*"))//
+                            .dataStreamPermissions("SGS_READ", "special:failure_store").on("*"))//
             .indexMatcher("read", unlimited())//
             .indexMatcher("write", limitedToNone())//
             .indexMatcher("create_data_stream", limitedToNone())//
@@ -314,7 +315,7 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ").on("ds_a*"))//
+                            .dataStreamPermissions("SGS_READ", "special:failure_store").on("ds_a*"))//
             .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2))//
             .indexMatcher("write", limitedToNone())//
             .indexMatcher("create_data_stream", limitedToNone())//
@@ -327,7 +328,7 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_CRUD", "SGS_INDICES_MONITOR").on("ds_does_not_exist_*"))//
+                            .dataStreamPermissions("SGS_CRUD", "SGS_INDICES_MONITOR", "special:failure_store").on("ds_does_not_exist_*"))//
             .indexMatcher("read", limitedToNone())//
             .indexMatcher("write", limitedToNone())//
             .indexMatcher("create_data_stream", limitedToNone())//
@@ -340,7 +341,7 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_CRUD", "SGS_INDICES_MONITOR", "SGS_CREATE_DATA_STREAM").on("ds_*"))//
+                            .indexPermissions("SGS_CRUD", "SGS_INDICES_MONITOR", "SGS_CREATE_DATA_STREAM", "special:failure_store").on("ds_*"))//
             .indexMatcher("read", limitedToNone())//
             .indexMatcher("write", limitedToNone())//
             .indexMatcher("create_data_stream", limitedToNone())//
@@ -357,8 +358,8 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on(".ds-ds_a*")//
-                            .indexPermissions("SGS_WRITE").on(".ds-ds_aw*"))//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store").on(".ds-ds_a*", ".fs-ds_a*")//
+                            .indexPermissions("SGS_WRITE", "special:failure_store").on(".ds-ds_aw*", ".fs-ds_aw*"))//
             .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2))//
             .indexMatcher("write", limitedTo(ds_aw1, ds_aw2))//
             .indexMatcher("create_data_stream", limitedToNone())//
@@ -419,18 +420,28 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
     @Test
     public void createDocument() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.postJson("/ds_bw1/_doc/?pretty", DocNode.of("a", 1, "@timestamp", Instant.now().toString()));
+            HttpResponse httpResponse = restClient.postJson("/ds_bw1/_doc/?pretty", DocNode.of("a", 1, "test", "createDocument", "@timestamp", Instant.now().toString()));
             log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
             assertThat(httpResponse, containsExactly(ds_bw1.dataOnly()).at("_index").but(user.indexMatcher("write")).whenEmpty(403));
+        } finally {
+            deleteTestDocs("createDocument", "ds_bw1");
         }
     }
 
     @Test
     public void createDocument_fs() throws Exception {
+        String createdId = null;
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.postJson("/ds_bw1/_doc/?pretty", DocNode.of("a", 1, "@timestamp", "I am not timestamp, failure store will be used"));
             log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
+            if (httpResponse.getStatusCode() == 201) {
+                createdId = httpResponse.getBodyAsDocNode().getAsString("_id");
+            }
             assertThat(httpResponse, containsExactly(ds_bw1.failureOnly()).at("_index").but(user.indexMatcher("write")).whenEmpty(403));
+        } finally {
+            if (createdId != null) {
+                deleteTestDocsFromFailureStore(ImmutableList.of(createdId), "ds_bw1::failures");
+            }
         }
     }
 
@@ -469,6 +480,57 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             }
         } finally {
             deleteTestDocs("deleteByQuery_indexPattern", "ds_aw*,ds_bw*");
+        }
+    }
+
+    @Test
+    public void deleteByQuery_indexPattern_fs() throws Exception {
+        String docIdPrefix =  "deleteByQuery_indexPattern_fs_" + UUID.randomUUID() + "_";
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            try (GenericRestClient adminRestClient = cluster.getAdminCertRestClient()) {
+
+                DocNode testDoc = DocNode.of("test", "deleteByQuery_indexPattern_fs", "@timestamp", "I am not timestamp, failure store will be used");
+
+                HttpResponse httpResponse = adminRestClient.putJson("/ds_bw1/_create/" + docIdPrefix + "b1?refresh=true",
+                        testDoc.with("delete_by_query_test_delete", "yes"));
+                log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
+                assertThat(httpResponse, isCreated());
+                assertThat(httpResponse, json(nodeAt("failure_store", equalTo("used"))));
+                httpResponse = adminRestClient.putJson("/ds_bw1/_create/" + docIdPrefix + "b2?refresh=true",
+                        testDoc.with("delete_by_query_test_delete", "no"));
+                assertThat(httpResponse, isCreated());
+                assertThat(httpResponse, json(nodeAt("failure_store", equalTo("used"))));
+                httpResponse = adminRestClient.putJson("/ds_aw1/_create/" + docIdPrefix + "a1?refresh=true",
+                        testDoc.with("delete_by_query_test_delete", "yes"));
+                assertThat(httpResponse, isCreated());
+                assertThat(httpResponse, json(nodeAt("failure_store", equalTo("used"))));
+                httpResponse = adminRestClient.putJson("/ds_aw1/_create/" + docIdPrefix + "a2?refresh=true",
+                        testDoc.with("delete_by_query_test_delete", "no"));
+                assertThat(httpResponse, isCreated());
+                assertThat(httpResponse, json(nodeAt("failure_store", equalTo("used"))));
+
+                HttpResponse searchResponse = adminRestClient.postJson("/ds_aw*::failures,ds_bw*::failures/_search",
+                        DocNode.of("query.match_all", DocNode.EMPTY));
+                log.info("Failure store search results: status '{}' body {}", searchResponse.getStatusCode(), searchResponse.getBody());
+            }
+
+            HttpResponse httpResponse = restClient.postJson("/ds_aw*::failures,ds_bw*::failures/_delete_by_query?refresh=true&wait_for_completion=true",
+                    DocNode.of("query.terms", ImmutableMap.of("document.id",
+                            ImmutableList.of(docIdPrefix + "a1", docIdPrefix + "b1"))));
+            log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
+
+            if (containsExactly(ds_aw1, ds_aw2, ds_bw1, ds_bw2).at("_index").but(user.indexMatcher("write")).isEmpty()) {
+                assertThat(httpResponse, isForbidden());
+            } else {
+                //user can remove some or all docs found by search request
+                assertThat(httpResponse, isOk());
+                int expectedDeleteCount = containsExactly(ds_aw1.failureOnly(), ds_bw1.failureOnly()).at("_index").but(user.indexMatcher("write")).size();
+                assertThat(httpResponse, json(nodeAt("deleted", equalTo(expectedDeleteCount))));
+            }
+        } finally {
+            deleteTestDocsFromFailureStore(
+                    ImmutableList.of(docIdPrefix + "a1", docIdPrefix + "a2", docIdPrefix + "b1", docIdPrefix + "b2"),
+                    "ds_aw*::failures,ds_bw*::failures");
         }
     }
 
@@ -636,6 +698,15 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
                     DocNode.of("query.term", ImmutableMap.of("test.keyword", testName)));
         } catch (Exception e) {
             throw new RuntimeException("Error while cleaning up test docs", e);
+        }
+    }
+
+    private void deleteTestDocsFromFailureStore(List<String> docIds, String failureStoreIndices) {
+        try (GenericRestClient adminRestClient = cluster.getAdminCertRestClient()) {
+            adminRestClient.postJson("/" + failureStoreIndices + "/_delete_by_query?refresh=true&wait_for_completion=true",
+                    DocNode.of("query.terms", ImmutableMap.of("document.id", docIds)));
+        } catch (Exception e) {
+            throw new RuntimeException("Error while cleaning up failure store test docs", e);
         }
     }
 
