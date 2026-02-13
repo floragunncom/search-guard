@@ -163,7 +163,7 @@ deploy_docker_image:
       apk update && apk add bash curl
       
       SG_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-\(.*\)-es-.*$/\1/p')
-      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-.*-es-\(.*\)$/\1/p')
+      ES_VERSION=$(echo $CI_COMMIT_TAG | sed -n 's/^sg-flx-.*-es-\(.*\)$/\1/p')
 
       if [[ -z "$SG_VERSION" || -z "$ES_VERSION" ]]; then
         echo "SG_VERSION is empty or ES_VERSION is empty"
