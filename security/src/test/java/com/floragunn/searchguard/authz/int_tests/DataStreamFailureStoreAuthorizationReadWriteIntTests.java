@@ -19,6 +19,7 @@ package com.floragunn.searchguard.authz.int_tests;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestAlias;
@@ -527,6 +528,64 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
                 int expectedDeleteCount = containsExactly(ds_aw1.failureOnly(), ds_bw1.failureOnly()).at("_index").but(user.indexMatcher("write")).size();
                 assertThat(httpResponse, json(nodeAt("deleted", equalTo(expectedDeleteCount))));
             }
+        } finally {
+            deleteTestDocsFromFailureStore(
+                    ImmutableList.of(docIdPrefix + "a1", docIdPrefix + "a2", docIdPrefix + "b1", docIdPrefix + "b2"),
+                    "ds_aw*::failures,ds_bw*::failures");
+        }
+    }
+
+    @Test
+    public void updateByQuery_indexPattern_fs() throws Exception {
+        String docIdPrefix = "updateByQuery_indexPattern_fs_" + UUID.randomUUID() + "_";
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            try (GenericRestClient adminRestClient = cluster.getAdminCertRestClient()) {
+
+                DocNode testDoc = DocNode.of("test", "updateByQuery_indexPattern_fs", "@timestamp", "I am not timestamp, failure store will be used");
+
+                HttpResponse httpResponse = adminRestClient.putJson("/ds_bw1/_create/" + docIdPrefix + "b1?refresh=true",
+                        testDoc.with("update_by_query_test_update", "yes"));
+                log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
+                assertThat(httpResponse, isCreated());
+                assertThat(httpResponse, json(nodeAt("failure_store", equalTo("used"))));
+                httpResponse = adminRestClient.putJson("/ds_bw1/_create/" + docIdPrefix + "b2?refresh=true",
+                        testDoc.with("update_by_query_test_update", "no"));
+                assertThat(httpResponse, isCreated());
+                assertThat(httpResponse, json(nodeAt("failure_store", equalTo("used"))));
+                httpResponse = adminRestClient.putJson("/ds_aw1/_create/" + docIdPrefix + "a1?refresh=true",
+                        testDoc.with("update_by_query_test_update", "yes"));
+                assertThat(httpResponse, isCreated());
+                assertThat(httpResponse, json(nodeAt("failure_store", equalTo("used"))));
+                httpResponse = adminRestClient.putJson("/ds_aw1/_create/" + docIdPrefix + "a2?refresh=true",
+                        testDoc.with("update_by_query_test_update", "no"));
+                assertThat(httpResponse, isCreated());
+                assertThat(httpResponse, json(nodeAt("failure_store", equalTo("used"))));
+            }
+
+            HttpResponse httpResponse = restClient.postJson("/ds_aw*::failures,ds_bw*::failures/_update_by_query?refresh=true&wait_for_completion=true",
+                    DocNode.of("query.terms", ImmutableMap.of("document.id",
+                                    ImmutableList.of(docIdPrefix + "a1", docIdPrefix + "b1")))
+                            .with("script", ImmutableMap.of("lang", "painless", "source", "ctx._source['update_by_query_test_updated'] = 'done'")));
+            log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
+
+            boolean updateExecuted = false;
+            if (containsExactly(ds_aw1.failureOnly(), ds_aw2.failureOnly(), ds_bw1.failureOnly(), ds_bw2.failureOnly()).at("_index").but(user.indexMatcher("write")).size() < 4) {
+                // DNFOF is not available for _update_by_query.
+                // forbidden reason - You have privileges for some, but not all requested indices. However,
+                // access to the whole operation is denied, because the action indices:data/write/update/byquery is not available for ignore_unauthorized_indices.
+                assertThat(httpResponse, isForbidden());
+            } else {
+                //user can update some or all docs found by search request
+                assertThat(httpResponse, isOk());
+                int expectedUpdateCount = containsExactly(ds_aw1.failureOnly(), ds_bw1.failureOnly()).at("_index").but(user.indexMatcher("write")).size();
+                assertThat(httpResponse, json(nodeAt("updated", equalTo(expectedUpdateCount))));
+                updateExecuted = true;
+            }
+            // make sure that user who can update failure store in fact updated the failure store
+            boolean isAllowedToExecuteUpdate = ImmutableSet //
+                    .of("unlimited_user", "super_unlimited_user", "limited_user_AB_manage_index") //
+                    .contains(user.getName());
+            assertThat(isAllowedToExecuteUpdate, equalTo(updateExecuted));
         } finally {
             deleteTestDocsFromFailureStore(
                     ImmutableList.of(docIdPrefix + "a1", docIdPrefix + "a2", docIdPrefix + "b1", docIdPrefix + "b2"),
