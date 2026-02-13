@@ -32,6 +32,7 @@ import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+
 import org.hamcrest.Matchers;
 
 import java.util.ArrayList;
@@ -196,7 +197,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
                             .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get").on("alias_ab1*"))//
             .indexMatcher("read", limitedTo(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), alias_ab1.dataOnly()))//
             .indexMatcher("read_top_level", limitedTo(alias_ab1.dataOnly()))//
-            .indexMatcher("get_alias", limitedTo(ds_a1, ds_a2, ds_a3, ds_b1, alias_ab1));
+            .indexMatcher("get_alias", limitedTo(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), alias_ab1.dataOnly()));
 
     static TestSgConfig.User LIMITED_USER_A_HIDDEN_DATA_ONLY = new TestSgConfig.User("limited_user_A_hidden_data_only")//
             .description("ds_a*, ds_hidden*::data")//
@@ -607,6 +608,11 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
                 assertThat(httpResponse, isNotFound());
                 assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
                 assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
+            } else if (user == LIMITED_USER_ALIAS_AB1_DATA_ONLY) {
+                // A 404 error is also acceptable if we get ES complaining about -ds_b1
+                assertThat(httpResponse, isNotFound());
+                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
+                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
             } else {
                 assertThat(httpResponse, isForbidden());
             }
@@ -634,6 +640,11 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             HttpResponse httpResponse = restClient.get("ds_a1::data,ds_a2::data,ds_b1::data,-ds_b1::data/_search?size=1000");
             if (containsExactly(ds_a1, ds_a2, ds_b1).at("hits.hits[*]._index").isCoveredBy(user.indexMatcher("read"))) {
                 // A 404 error is also acceptable if we get ES complaining about -ds_b1. This will be the case for users with full permissions
+                assertThat(httpResponse, isNotFound());
+                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
+                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
+            } else if (user == LIMITED_USER_ALIAS_AB1_DATA_ONLY) {
+                // A 404 error is also acceptable if we get ES complaining about -ds_b1
                 assertThat(httpResponse, isNotFound());
                 assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
                 assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
@@ -1431,12 +1442,29 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_resolve/index/*::failures?pretty");
             log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
-            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(), alias_ab1.dataOnly(), alias_c1).at("$.*[*].name")
-                    .but(user.indexMatcher("read")).whenEmpty(200));
-            assertThat(httpResponse, containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly()).at("$.aliases[*].indices")
-                    .but(user.indexMatcher("get_alias")).whenEmpty(200));
-            assertThat(httpResponse, containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()).at("$.data_streams[*].backing_indices")
-                    .but(user.indexMatcher("read")).whenEmpty(200));
+            boolean lackFailureStoreAccess = containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), //
+                    ds_b2.failureOnly(), ds_b3.failureOnly(), alias_ab1.failureOnly()) //
+                    .at("$.*[*].name") //
+                    .but(user.indexMatcher("read")) //
+                    .isEmpty();
+            if (lackFailureStoreAccess) {
+                // The user who lacks permissions to access the failure store should receive an empty response.
+                log.info("User '{}' described as '{}' has no access to failure store.", user.getName(), user.getDescription());
+                assertThat(httpResponse, isOk());
+                assertEmptyResolveIndexResponse(httpResponse);
+            } else  {
+                // The query is related to the failure stores only. We need a matcher in the scope of data because query results at "$.*[*].name"
+                // contain base names like ds_a1, ds_a2, ds_a3, without an indication that the object is related to the failure store.
+                assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(),
+                        ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(), alias_ab1.dataOnly(), alias_c1).at("$.*[*].name")
+                        .but(user.indexMatcher("read")).whenEmpty(200));
+            }
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly()).at("$.aliases[*].indices")
+                            .but(user.indexMatcher("get_alias")).whenEmpty(200));
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(),
+                            ds_b3.failureOnly()).at("$.data_streams[*].backing_indices").but(user.indexMatcher("read")).whenEmpty(200));
 
         }
     }
@@ -1483,9 +1511,21 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
                 assertThat(httpResponse, containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly(), ds_hidden.failureOnly()).at("$.data_streams[*].backing_indices")
                         .but(user.indexMatcher("read")).whenEmpty(200));
             } else {
-                assertThat(httpResponse,
-                        containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3,
-                                ds_hidden, alias_ab1.dataOnly(), alias_c1, esInternalIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
+                // The query is related to the failure stores only. We need a matcher in the scope of data because query results at "$.*[*].name"
+                // contain base names like ds_a1, ds_a2, ds_a3, without an indication that the object is related to the failure store.
+                boolean lackFailureStoreAccess = containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), //
+                        ds_b2.failureOnly(), ds_b3.failureOnly(), alias_ab1.failureOnly()) //
+                        .at("$.*[*].name") //
+                        .but(user.indexMatcher("read")) //
+                        .isEmpty();
+                if (lackFailureStoreAccess) {
+                    log.info("User '{}' described as '{}' has no access to failure store.", user.getName(), user.getDescription());
+                    assertThat(httpResponse, isOk());
+                    assertEmptyResolveIndexResponse(httpResponse);
+                } else {
+                    assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, ds_hidden, alias_ab1.dataOnly(), alias_c1,
+                            esInternalIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
+                }
                 assertThat(httpResponse, containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly()).at("$.aliases[*].indices")
                         .but(user.indexMatcher("get_alias")).whenEmpty(200));
                 assertThat(httpResponse, containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly(), ds_hidden.failureOnly()).at("$.data_streams[*].backing_indices")
@@ -1527,8 +1567,20 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_resolve/index/ds_a*::failures,ds_b*::failures?pretty");
             log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
-            assertThat(httpResponse,
-                    containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
+            boolean lackFailureStoreAccess =  containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()) //
+                    .at("$.*[*].name") //
+                    .but(user.indexMatcher("read")) //
+                    .isEmpty();
+            if (lackFailureStoreAccess) {
+                // The query is related to the failure stores only. We need a matcher in the scope of data because query results at "$.*[*].name"
+                // contain base names like ds_a1, ds_a2, ds_a3, without an indication that the object is related to the failure store.
+                log.info("User '{}' described as '{}' has no access to failure store.", user.getName(), user.getDescription());
+                assertThat(httpResponse, isOk());
+                assertEmptyResolveIndexResponse(httpResponse);
+            } else {
+                assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(),
+                        ds_b3.dataOnly()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
+            }
             assertThat(httpResponse, containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()).at("$.data_streams[*].backing_indices")
                     .but(user.indexMatcher("read")).whenEmpty(200));
         }
@@ -1547,8 +1599,20 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     public void resolve_indexPattern_dataAndFsAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_resolve/index/ds_a*,ds_b*::failures");
-            assertThat(httpResponse,
-                    containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
+            // The query is mixed: ds_a* (data) and ds_b*::failures (failure store only).
+            // Users without failure store access to ds_b* only see the data part (ds_a*) at "$.*[*].name".
+            boolean lackFailureStoreAccess = containsExactly(ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()) //
+                    .at("$.*[*].name") //
+                    .but(user.indexMatcher("read")) //
+                    .isEmpty();
+            if (lackFailureStoreAccess) {
+                log.info("User '{}' described as '{}' has no access to failure store.", user.getName(), user.getDescription());
+                assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly()) //
+                        .at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
+            } else {
+                assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(),
+                        ds_b3.dataOnly()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
+            }
             assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly()).at("$.data_streams[*].backing_indices")
                     .but(user.indexMatcher("read")).whenEmpty(200));
         }
@@ -1919,6 +1983,11 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
                 assertThat(httpResponse, isNotFound());
                 assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
                 assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
+            } else if (user == LIMITED_USER_ALIAS_AB1_DATA_ONLY) {
+                // A 404 error is also acceptable if we get ES complaining about -ds_b1
+                assertThat(httpResponse, isNotFound());
+                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
+                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
             } else {
                 assertThat(httpResponse, isForbidden());
             }
@@ -1946,6 +2015,11 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             HttpResponse httpResponse = restClient.get("ds_a1::data,ds_a2::data,ds_b1::data,-ds_b1::data/_field_caps?fields=*");
             if (containsExactly(ds_a1, ds_a2, ds_b1).at("indices").isCoveredBy(user.indexMatcher("read"))) {
                 // A 404 error is also acceptable if we get ES complaining about -ds_b1. This will be the case for users with full permissions
+                assertThat(httpResponse, isNotFound());
+                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
+                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
+            } else if (user == LIMITED_USER_ALIAS_AB1_DATA_ONLY) {
+                // A 404 error is also acceptable if we get ES complaining about -ds_b1
                 assertThat(httpResponse, isNotFound());
                 assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
                 assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
@@ -2080,6 +2154,12 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             HttpResponse httpResponse = restClient.get("ds_a1,ds_a2::failures,ds_b1,-.fs-ds_b1*/_field_caps?fields=*");
             assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.failureOnly(), ds_b1.dataOnly()).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
         }
+    }
+
+    private static void assertEmptyResolveIndexResponse(HttpResponse httpResponse) {
+        assertThat(httpResponse, json(nodeAt("indices", Matchers.empty())));
+        assertThat(httpResponse, json(nodeAt("aliases", Matchers.empty())));
+        assertThat(httpResponse, json(nodeAt("data_streams", Matchers.empty())));
     }
 
     @Parameters(name = "{1}")
