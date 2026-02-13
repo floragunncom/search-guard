@@ -399,6 +399,8 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", unlimitedIncludingSearchGuardIndices())//
             .indexMatcher("get_alias", unlimitedIncludingSearchGuardIndices());
 
+    //todo COMPONENT SELECTORS - Define user which lacking failure store access to test negative cases
+
     static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B_READ_ONLY_A,
             LIMITED_USER_B_AUTO_PUT_ON_ALL, LIMITED_USER_B_CREATE_DS, LIMITED_USER_B_MANAGE_DS, LIMITED_USER_B_MANAGE_INDEX_ALIAS,
             LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS, LIMITED_USER_AB_MANAGE_INDEX, LIMITED_USER_C, LIMITED_USER_AB1_ALIAS,
@@ -536,6 +538,55 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
     }
 
     @Test
+    public void updateByQuery_indexPattern() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            try (GenericRestClient adminRestClient = cluster.getAdminCertRestClient()) {
+                DocNode testDoc = DocNode.of("test", "updateByQuery_indexPattern", "@timestamp", Instant.now().toString());
+
+                HttpResponse httpResponse = adminRestClient.putJson("/ds_bw1/_create/put_update_update_by_query_b1?refresh=true",
+                        testDoc.with("update_by_query_test_update", "yes"));
+                log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
+                assertThat(httpResponse, isCreated());
+                httpResponse = adminRestClient.putJson("/ds_bw1/_create/put_update_update_by_query_b2?refresh=true",
+                        testDoc.with("update_by_query_test_update", "no"));
+                assertThat(httpResponse, isCreated());
+                httpResponse = adminRestClient.putJson("/ds_aw1/_create/put_update_update_by_query_a1?refresh=true",
+                        testDoc.with("update_by_query_test_update", "yes"));
+                assertThat(httpResponse, isCreated());
+                httpResponse = adminRestClient.putJson("/ds_aw1/_create/put_update_update_by_query_a2?refresh=true",
+                        testDoc.with("update_by_query_test_update", "no"));
+                assertThat(httpResponse, isCreated());
+            }
+
+            HttpResponse httpResponse = restClient.postJson("/ds_aw*,ds_bw*/_update_by_query?refresh=true&wait_for_completion=true",
+                    DocNode.of("query.term.update_by_query_test_update", "yes")
+                            .with("script", ImmutableMap.of("lang", "painless", "source", "ctx._source['update_by_query_test_updated'] = 'done'")));
+            log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
+
+            boolean updateExecuted = false;
+            if (containsExactly(ds_aw1.dataOnly(), ds_aw2.dataOnly(), ds_bw1.dataOnly(), ds_bw2.dataOnly()).at("_index").but(user.indexMatcher("write")).size() < 4) {
+                // DNFOF is not available for _update_by_query.
+                // forbidden reason - You have privileges for some, but not all requested indices. However,
+                // access to the whole operation is denied, because the action indices:data/write/update/byquery is not available for ignore_unauthorized_indices.
+                assertThat(httpResponse, isForbidden());
+            } else {
+                //user can update some or all docs found by search request
+                assertThat(httpResponse, isOk());
+                int expectedUpdateCount = containsExactly(ds_aw1.dataOnly(), ds_bw1.dataOnly()).at("_index").but(user.indexMatcher("write")).size();
+                assertThat(httpResponse, json(nodeAt("updated", equalTo(expectedUpdateCount))));
+                updateExecuted = true;
+            }
+            // make sure that user who can update the data stream in fact updated it
+            boolean isAllowedToExecuteUpdate = ImmutableSet //
+                    .of("unlimited_user", "super_unlimited_user", "limited_user_AB_manage_index") //
+                    .contains(user.getName());
+            assertThat(isAllowedToExecuteUpdate, equalTo(updateExecuted));
+        } finally {
+            deleteTestDocs("updateByQuery_indexPattern", "ds_aw*,ds_bw*");
+        }
+    }
+
+    @Test
     public void updateByQuery_indexPattern_fs() throws Exception {
         String docIdPrefix = "updateByQuery_indexPattern_fs_" + UUID.randomUUID() + "_";
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
@@ -616,6 +667,33 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
 
         } finally {
             deleteTestDocs("putDocument_bulk", "ds_aw*,ds_bw*");
+        }
+    }
+
+    @Test
+    public void putDocument_bulk_fs() throws Exception {
+        String docIdPrefix = "bulk_fs_" + UUID.randomUUID() + "_";
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.putNdJson("/_bulk?refresh=true", //
+                    DocNode.of("create._index", "ds_aw1", "create._id", docIdPrefix + "a1"),
+                    DocNode.of("a", 1, "@timestamp", "I am not a timestamp, failure store will be used"), //
+                    DocNode.of("create._index", "ds_bw1", "create._id", docIdPrefix + "b1"),
+                    DocNode.of("b", 1, "@timestamp", "I am not a timestamp, failure store will be used"));
+            log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
+
+            if (user == LIMITED_USER_PERMISSIONS_ON_BACKING_INDICES) {
+                // special case for this user: As there is no DNFOF functionality available for bulk[s] operations,
+                // these will also fail, even if we have write privileges on the backing indices. This is because
+                // privilege evaluation will yield OK_WHEN_RESOLVED which will need DNFOF functionality.
+                assertThat(httpResponse,
+                        containsExactly().at("items[*].create[?(@.result == 'created')]._index").but(user.indexMatcher("write")).whenEmpty(200));
+            } else {
+                assertThat(httpResponse, containsExactly(ds_aw1.failureOnly(), ds_bw1.failureOnly()).at("items[*].create[?(@.result == 'created')]._index")
+                        .but(user.indexMatcher("write")).whenEmpty(200));
+            }
+
+        } finally {
+            deleteTestDocsFromFailureStore(ImmutableList.of(docIdPrefix + "a1", docIdPrefix + "b1"), "ds_aw1::failures,ds_bw1::failures");
         }
     }
 
