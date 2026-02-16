@@ -139,10 +139,35 @@ public class TestDataStream implements TestIndexLike {
             }
 
             @Override
+            public boolean isFailureStoreOnly() {
+                return true;
+            }
+
+            @Override
+            public TestIndexLike enableFailureStore() {
+                return this;
+            }
+
+            @Override
+            public Optional<TestIndexLike> failureStore() {
+                return Optional.of(this);
+            }
+
+            @Override
             public String toString() {
                 return "Failure store of data stream '" + name + "'";
             }
         });
+    }
+
+    @Override
+    public boolean isFailureStoreOnly() {
+        return false;
+    }
+
+    @Override
+    public TestIndexLike enableFailureStore() {
+        return new TestDataStream(name, testData, true, failureDocumentCount);
     }
 
     @Override

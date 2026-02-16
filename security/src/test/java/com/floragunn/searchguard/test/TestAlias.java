@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -135,6 +136,9 @@ public class TestAlias implements TestIndexLike {
 
     @Override
     public Optional<TestIndexLike> failureStore() {
+        if(isFailureStoreOnly()) {
+            return Optional.of(this);
+        }
         boolean hasFailureStore = indices.stream().anyMatch(indexLike -> indexLike.failureStore().isPresent());
         if (hasFailureStore) {
             return Optional.of(new TestAlias(name + "::failures",
@@ -148,6 +152,11 @@ public class TestAlias implements TestIndexLike {
         }
     }
 
+    @Override
+    public boolean isFailureStoreOnly() {
+        return indices.stream().allMatch(TestIndexLike::isFailureStoreOnly);
+    }
+
     public TestIndexLike failureOnly() {
         return failureStore().orElseThrow(() -> {
             String aliasContent = indices.stream() //
@@ -158,9 +167,20 @@ public class TestAlias implements TestIndexLike {
     }
 
     @Override
+    public TestIndexLike enableFailureStore() {
+        return new TestAlias(name, indices.stream()
+                .map(TestIndexLike::enableFailureStore)
+                .toArray(TestIndexLike[]::new));
+    }
+
+    @Override
     public TestAlias dataOnly() {
+        if(isDataOnly()) {
+            return this;
+        }
         return new TestAlias(name, indices.stream()
                 .map(TestIndexLike::dataOnly)
+                .filter(Objects::nonNull)
                 .toArray(TestIndexLike[]::new));
     }
 }

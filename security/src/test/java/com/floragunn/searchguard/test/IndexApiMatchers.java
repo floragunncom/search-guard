@@ -47,6 +47,7 @@ import java.util.stream.Stream;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.in;
 
 public class IndexApiMatchers {
 
@@ -149,6 +150,16 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public boolean isFailureStoreOnly() {
+            return false;
+        }
+
+        @Override
+        public TestIndexLike enableFailureStore() {
+            throw new UnsupportedOperationException("ES indices do not support failure store");
+        }
+
+        @Override
         public Set<String> getDocumentIds() {
             return null;
         }
@@ -174,6 +185,16 @@ public class IndexApiMatchers {
         @Override
         public DocNode getFieldsMappings() {
             return DocNode.EMPTY;
+        }
+
+        @Override
+        public boolean isFailureStoreOnly() {
+            return false;
+        }
+
+        @Override
+        public TestIndexLike enableFailureStore() {
+            throw new UnsupportedOperationException("ES indices do not support failure store");
         }
 
         @Override
@@ -452,6 +473,15 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public IndexMatcher withFailureStore() {
+            Map<String, TestIndexLike> newIndexNameMap = new HashMap<>();
+            for (Map.Entry<String, TestIndexLike> entry : indexNameMap.entrySet()) {
+                newIndexNameMap.put(entry.getKey(), entry.getValue().enableFailureStore());
+            }
+            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCodeWhenEmpty);
+        }
+
+        @Override
         public boolean covers(TestIndex testIndex) {
             return indexNameMap.containsKey(testIndex.getName());
         }
@@ -635,6 +665,11 @@ public class IndexApiMatchers {
         @Override
         public IndexMatcher whenEmpty(int statusCode) {
             return new SqlLimitedToMatcher(this.indexNameMap, statusCode, this.shouldContainColumns);
+        }
+
+        @Override
+        public IndexMatcher withFailureStore() {
+            throw new UnsupportedOperationException("Not supported by this matcher");
         }
 
         @Override
@@ -838,6 +873,15 @@ public class IndexApiMatchers {
             return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCode);
         }
 
+        @Override
+        public IndexMatcher withFailureStore() {
+            Map<String, TestIndexLike> newIndexNameMap = new HashMap<>();
+            for (Map.Entry<String, TestIndexLike> entry : this.indexNameMap.entrySet()) {
+                newIndexNameMap.put(entry.getKey(), entry.getValue().enableFailureStore());
+            }
+            return new ContainsExactlyMatcher(newIndexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCodeWhenEmpty);
+        }
+
     }
 
     public static class UnlimitedMatcher extends DiagnosingMatcher<Object> implements IndexMatcher {
@@ -927,6 +971,11 @@ public class IndexApiMatchers {
         @Override
         public IndexMatcher aggregateTerm(String term) {
             return null;
+        }
+
+        @Override
+        public IndexMatcher withFailureStore() {
+            return this;
         }
 
         @Override
@@ -1028,6 +1077,11 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public IndexMatcher withFailureStore() {
+            throw new UnsupportedOperationException("StatusCodeMatcher does not support failure store");
+        }
+
+        @Override
         public boolean containsDocument(String id) {
             return false;
         }
@@ -1048,6 +1102,8 @@ public class IndexApiMatchers {
         IndexMatcher whenEmpty(int statusCode);
 
         IndexMatcher aggregateTerm(String term);
+
+        IndexMatcher withFailureStore();
 
         boolean isEmpty();
 
@@ -1207,8 +1263,14 @@ public class IndexApiMatchers {
                 String key = entry.getKey();
                 TestIndexLike index1 = entry.getValue();
                 TestIndexLike index2 = map2.get(key);
+                if ((index2 == null) && key.endsWith("::failures")) {
+                    index2 = map2.get(key.substring(0, key.length() - "::failures".length()));
+                }
 
                 if (index2 == null) {
+                    continue;
+                }
+                if((index1.isFailureStoreOnly() && index2.isDataOnly()) || (index1.isDataOnly() && index2.isFailureStoreOnly())) {
                     continue;
                 }
 
@@ -1358,6 +1420,11 @@ public class IndexApiMatchers {
             AbstractIndexMatcher base = (AbstractIndexMatcher) this.base.whenEmpty(statusCode);
             return new TermAggregationMatcher(this.term, base.indexNameMap, base.containsSearchGuardIndices, base.containsEsInternalIndices,
                     base.jsonPath, statusCode, base);
+        }
+
+        @Override
+        public IndexMatcher withFailureStore() {
+            throw new UnsupportedOperationException("Not supported yet.");
         }
 
         @Override

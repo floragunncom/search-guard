@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import com.floragunn.codova.documents.DocNode;
+import org.elasticsearch.cluster.metadata.AliasAction;
 
 public interface TestIndexLike {
     String getName();
@@ -42,25 +43,50 @@ public interface TestIndexLike {
         return new Filtered(this, filter);
     }
 
+    default String getBaseName() {
+        if(getName().endsWith("::failures")) {
+            return getName().substring(0, getName().length() - "::failures".length());
+        }
+        return getName();
+    }
+
     default TestIndexLike intersection(TestIndexLike other) {
         if (other == this) {
             return this;
         }
 
-        if (!this.getName().equals(other.getName())) {
+        if (!this.getBaseName().equals(other.getBaseName())) {
             throw new IllegalArgumentException("Cannot intersect different indices: " + this + " vs " + other);
         }
 
+        boolean newDataOnly = this.isDataOnly() || other.isDataOnly();
+        boolean newFailureStoreOnly = this.isFailureStoreOnly() || other.isFailureStoreOnly();
+        if(newDataOnly && newFailureStoreOnly) {
+            throw new IllegalArgumentException("Cannot intersect different indices: " + this + " vs " + other);
+        }
+        TestIndexLike result = this;
         if (other instanceof TestIndexLike.Filtered) {
-            return ((TestIndexLike.Filtered) other).intersection(this);
+            result = ((TestIndexLike.Filtered) other).intersection(this);
         }
 
-        return this;
+        if (newDataOnly) {
+            return result.dataOnly();
+        } else if (newFailureStoreOnly) {
+            return result.failureOnly();
+        } else {
+            return result;
+        }
     }
 
     default Optional<TestIndexLike> failureStore() {
         return Optional.empty();
     }
+
+    default boolean isDataOnly() {
+        return failureStore().isEmpty();
+    }
+
+    boolean isFailureStoreOnly();
 
     default TestIndexLike failureOnly() {
         return failureStore().orElseThrow(() -> new NoSuchElementException("Failure store not enabled for " + getName()));
@@ -69,6 +95,8 @@ public interface TestIndexLike {
     default Map<String, ?> firstDocument() {
         return getDocuments().values().stream().findFirst().orElseThrow();
     }
+
+    TestIndexLike enableFailureStore();
 
     public static class Filtered implements TestIndexLike {
         final TestIndexLike testIndexLike;
@@ -93,6 +121,16 @@ public interface TestIndexLike {
         @Override
         public Optional<TestIndexLike> failureStore() {
             return testIndexLike.failureStore().map(i -> new  Filtered(i, filter));
+        }
+
+        @Override
+        public boolean isFailureStoreOnly() {
+            return testIndexLike.isFailureStoreOnly();
+        }
+
+        @Override
+        public TestIndexLike enableFailureStore() {
+            return new Filtered(testIndexLike.enableFailureStore(), filter);
         }
 
         @Override
