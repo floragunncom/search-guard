@@ -77,14 +77,12 @@ build:
       when: never
     - when: on_success
   script:
-    - |
-      set -e
-      SNAPSHOT_REVISION="$CI_COMMIT_REF_SLUG-SNAPSHOT"
-      mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
-      echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
-      echo "ES_VERSION=$ES_VERSION" >> snapshot.env
-      cat snapshot.env
-      echo "Size of .m2/repository $(du -sm $CI_PROJECT_DIR/.m2/repository | awk '{print $1}') MB"
+      - SNAPSHOT_REVISION="$CI_COMMIT_REF_SLUG-SNAPSHOT"
+      - mvn -Drevision=$SNAPSHOT_REVISION $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean deploy
+      - echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION" > snapshot.env
+      - echo "ES_VERSION=$ES_VERSION" >> snapshot.env
+      - cat snapshot.env
+      - echo "Size of .m2/repository $(du -sm $CI_PROJECT_DIR/.m2/repository | awk '{print $1}') MB"
   artifacts:
     when: on_success
     paths:
