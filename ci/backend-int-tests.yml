@@ -88,8 +88,8 @@ signals_2:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-SGI.*/'
       when: never
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_TAG =~ /^sg-flx-.*/ || $FORCE_SGI'
-      when: always
-  image: "$SG_DIND_IMAGE"
+      when: on_success
+  image: docker:${DOCKER_VERSION}
   services:
     - "$SG_DIND_IMAGE"
   script:

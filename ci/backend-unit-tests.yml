@@ -1,242 +1,82 @@
-default:
-  image: "$SG_DIND_IMAGE"
+.be_unit_test:
+  allow_failure: false
+  stage: "Backend Unit Tests"
+  tags:
+    - test
+  rules:
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
+      when: never    
+    - when: on_success
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - "*/target/surefire-reports/TEST-*.xml"
+        - "*/target/failsafe-reports/TEST-*.xml"
+    expire_in: 1 week
+  cache:
+    key: mavenrepo-main-es8
+    paths:
+      - .m2/repository
+    policy: pull    
 
 test_security:
-  stage: test
-  interruptible: true
-  tags:
-    - test
-  rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never    
-    - when: always
+  extends:
+    - .be_unit_test
   script:
     - ci/run_tests.sh security
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo-main-es8
-    paths:
-      - .m2/repository
-    policy: pull
 
 test_ssl:
-  stage: test
-  interruptible: true
-  tags:
-    - test
-  rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never   
-    - when: always
+  extends:
+    - .be_unit_test
   script:
     - ci/run_tests.sh ssl
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo-main-es8
-    paths:
-      - .m2/repository
-    policy: pull
 
 test_signals:
-  stage: test
-  interruptible: true
-  tags:
-    - test
-  rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - when: always
+  extends:
+    - .be_unit_test
   script:
     - ci/run_tests.sh signals
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo-main-es8
-    paths:
-      - .m2/repository
-    policy: pull
+
 
 test_scheduler:
-  stage: test
-  interruptible: true
-  tags:
-    - test
-  rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never      
-    - when: always
+  extends:
+    - .be_unit_test
   script:
     - ci/run_tests.sh scheduler
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo-main-es8
-    paths:
-      - .m2/repository
-    policy: pull
 
 test_support:
-  stage: test
-  interruptible: true
-  tags:
-    - test
-  rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never    
-    - when: always
+  extends:
+    - .be_unit_test
   script:
     - ci/run_tests.sh support
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo-main-es8
-    paths:
-      - .m2/repository
-    policy: pull
 
 test_dlic_security:
-  stage: test
-  interruptible: true
-  tags:
-    - test
-  rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never      
-    - when: always
+  extends:
+    - .be_unit_test
   script:
     - ci/run_tests.sh dlic-security
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo-main-es8
-    paths:
-      - .m2/repository
-    policy: pull
     
 test_dlic_dlsfls:
-  stage: test
-  interruptible: true
-  tags:
-    - test
-  rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - when: always
+  extends:
+    - .be_unit_test
   script:
     - ci/run_tests.sh dlic-dlsfls
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo-main-es8
-    paths:
-      - .m2/repository
-    policy: pull
 
 test_dlic_femt:
-  stage: test
-  interruptible: true
-  tags:
-    - test
-  rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - when: always
+  extends:
+    - .be_unit_test
   script:
     - ci/run_tests.sh dlic-fe-multi-tenancy
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo-main-es8
-    paths:
-      - .m2/repository
-    policy: pull
 
 test_dlic_auditlog:
-  stage: test
-  interruptible: true
-  tags:
-    - test
-  rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - when: always
+  extends:
+    - .be_unit_test
   script:
     - ci/run_tests.sh dlic-auditlog
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo-main-es8
-    paths:
-      - .m2/repository
-    policy: pull
-
+    
 test_dlic_signals:
-  stage: test
-  interruptible: true
-  tags:
-    - test
-  rules:
-    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/'
-      when: never
-    - when: always
+  extends:
+    - .be_unit_test
   script:
     - ci/run_tests.sh dlic-signals
-  artifacts:
-    when: always
-    reports:
-      junit:
-        - "*/target/surefire-reports/TEST-*.xml"
-        - "*/target/failsafe-reports/TEST-*.xml"
-    expire_in: 1 week
-  cache:
-    key: mavenrepo-main-es8
-    paths:
-      - .m2/repository
-    policy: pull
