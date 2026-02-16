@@ -233,7 +233,7 @@ public class DataStreamFailureStoreSpecificOperationsIntTests {
         public static Collection<Object[]> params() {
             List<Object[]> result = new ArrayList<>();
 
-            for (TestSgConfig.User user : DataStreamFailureStoreSpecificOperationsIntTests.FailureStoreOperations.USERS) {
+            for (TestSgConfig.User user : USERS) {
                 result.add(new Object[]{user, user.getDescription()});
             }
 
@@ -315,7 +315,7 @@ public class DataStreamFailureStoreSpecificOperationsIntTests {
         }
     }
 
-    private static void createOrUpdateIngestPipeline(String name, DocNode... processors) throws Exception{
+    private static void createOrUpdateIngestPipeline(String name, DocNode... processors) throws Exception {
         try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient()) {
             String processorsArrayString = Stream.of(processors).map(DocNode::toJsonString).collect(Collectors.joining(",", "[", "]"));
             GenericRestClient.HttpResponse response = adminCertClient.putJson("/_ingest/pipeline/" + name, """
@@ -342,7 +342,7 @@ public class DataStreamFailureStoreSpecificOperationsIntTests {
         createOrUpdateIngestPipeline(name, restoreProcessor, callNextPipelineProcessor, rerouteProcessor);
     }
 
-    private static void deleteIngestPipeline(String name) throws Exception{
+    private static void deleteIngestPipeline(String name) throws Exception {
         try (GenericRestClient adminCertClient = cluster.getAdminCertRestClient()) {
             GenericRestClient.HttpResponse response = adminCertClient.delete("/_ingest/pipeline/" + name);
             assertThat(response, isOk());
@@ -404,7 +404,7 @@ public class DataStreamFailureStoreSpecificOperationsIntTests {
         assertThat(response.getBody(), response.getBodyAsDocNode(), valueSatisfiesMatcher("$._index", String.class, startsWith(".fs")));
     }
 
-    private static void assertThatBulkIndexedDocsWereNotRedirectedToFailureStore(GenericRestClient.HttpResponse response) throws Exception{
+    private static void assertThatBulkIndexedDocsWereNotRedirectedToFailureStore(GenericRestClient.HttpResponse response) throws Exception {
         assertThat(response, isOk());
         List<DocNode> indexDocsResponses = response.getBodyAsDocNode().findNodesByJsonPath("$.items[*]");
         assertThat(indexDocsResponses, not(empty()));
@@ -414,7 +414,7 @@ public class DataStreamFailureStoreSpecificOperationsIntTests {
         }
     }
 
-    private static void assertThatBulkIndexedDocsWereRedirectedToFailureStore(GenericRestClient.HttpResponse response) throws Exception{
+    private static void assertThatBulkIndexedDocsWereRedirectedToFailureStore(GenericRestClient.HttpResponse response) throws Exception {
         assertThat(response, isOk());
         List<DocNode> indexDocsResponses = response.getBodyAsDocNode().findNodesByJsonPath("$.items[*]");
         assertThat(indexDocsResponses, not(empty()));
