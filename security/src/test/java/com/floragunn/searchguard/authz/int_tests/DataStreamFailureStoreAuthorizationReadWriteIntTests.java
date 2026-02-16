@@ -22,6 +22,7 @@ import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
+import com.floragunn.searchguard.test.IndexApiMatchers;
 import com.floragunn.searchguard.test.TestAlias;
 import com.floragunn.searchguard.test.TestComponentTemplate;
 import com.floragunn.searchguard.test.TestDataStream;
@@ -95,8 +96,8 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
 
     static TestAlias alias_c1 = new TestAlias("alias_c1", index_cr1);
 
-    static TestIndex ds_bwx1 = TestIndex.name("ds_bwx1").documentCount(0).build(); // not initially created
-    static TestIndex ds_bwx2 = TestIndex.name("ds_bwx2").documentCount(0).build(); // not initially created
+    static TestDataStream ds_bwx1 = TestDataStream.name("ds_bwx1").documentCount(0).build(); // not initially created
+    static TestDataStream ds_bwx2 = TestDataStream.name("ds_bwx2").documentCount(0).build(); // not initially created
 
     static TestAlias alias_bwx = new TestAlias("alias_bwx"); // not initially created
 
@@ -109,6 +110,20 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
                             .dataStreamPermissions("SGS_WRITE", "special:failure_store").on("ds_aw*"))//
             .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2))//
             .indexMatcher("write", limitedTo(ds_aw1, ds_aw2))//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
+            .indexMatcher("manage_alias", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
+
+    static TestSgConfig.User LIMITED_USER_A_DATA_ONLY = new TestSgConfig.User("limited_user_A_data_only")//
+            .description("ds_a*::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_a*")//
+                            .dataStreamPermissions("SGS_WRITE").on("ds_aw*"))//
+            .indexMatcher("read", limitedTo(ds_ar1.dataOnly(), ds_ar2.dataOnly(), ds_aw1.dataOnly(), ds_aw2.dataOnly()))//
+            .indexMatcher("write", limitedTo(ds_aw1.dataOnly(), ds_aw2.dataOnly()))//
             .indexMatcher("create_data_stream", limitedToNone())//
             .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone())//
@@ -128,6 +143,20 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
+    static TestSgConfig.User LIMITED_USER_B_DATA_ONLY = new TestSgConfig.User("limited_user_B_data_only")//
+            .description("ds_b*::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*"))//
+            .indexMatcher("read", limitedTo(ds_br1.dataOnly(), ds_br2.dataOnly(), ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
+            .indexMatcher("manage_alias", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
+
     static TestSgConfig.User LIMITED_USER_B_READ_ONLY_A = new TestSgConfig.User("limited_user_B_read_only_A")//
             .description("ds_b*; read only on ds_a*")//
             .roles(//
@@ -137,6 +166,20 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
                             .dataStreamPermissions("SGS_WRITE", "special:failure_store").on("ds_bw*"))//
             .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2, ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
+            .indexMatcher("manage_alias", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
+
+    static TestSgConfig.User LIMITED_USER_B_READ_ONLY_A_DATA_ONLY = new TestSgConfig.User("limited_user_B_read_only_A_data_only")//
+            .description("ds_b*; read only on ds_a*::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_a*", "ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*"))//
+            .indexMatcher("read", limitedTo(ds_ar1.dataOnly(), ds_ar2.dataOnly(), ds_aw1.dataOnly(), ds_aw2.dataOnly(), ds_br1.dataOnly(), ds_br2.dataOnly(), ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
             .indexMatcher("create_data_stream", limitedToNone())//
             .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone())//
@@ -163,6 +206,21 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
+    static TestSgConfig.User LIMITED_USER_B_AUTO_PUT_ON_ALL_DATA_ONLY = new TestSgConfig.User("limited_user_B_auto_put_on_all_data_only")//
+            .description("ds_b* with full auto put::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
+                            .dataStreamPermissions("indices:admin/mapping/auto_put").on("*"))//
+            .indexMatcher("read", limitedTo(ds_br1.dataOnly(), ds_br2.dataOnly(), ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
+            .indexMatcher("manage_alias", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
+
     static TestSgConfig.User LIMITED_USER_B_CREATE_DS = new TestSgConfig.User("limited_user_B_create_ds")//
             .description("ds_b* with create ds privs")//
             .roles(//
@@ -174,6 +232,21 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .indexMatcher("read", limitedTo(ds_br1, ds_br2, ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("write", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("create_data_stream", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
+            .indexMatcher("manage_data_stream", limitedToNone())//
+            .indexMatcher("manage_alias", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
+
+    static TestSgConfig.User LIMITED_USER_B_CREATE_DS_DATA_ONLY = new TestSgConfig.User("limited_user_B_create_ds_data_only")//
+            .description("ds_b* with create ds privs::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
+                            .dataStreamPermissions("SGS_CREATE_DATA_STREAM").on("ds_bw*"))//
+            .indexMatcher("read", limitedTo(ds_br1.dataOnly(), ds_br2.dataOnly(), ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
             .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
@@ -193,6 +266,21 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("get_alias", limitedTo());
 
+    static TestSgConfig.User LIMITED_USER_B_MANAGE_DS_DATA_ONLY = new TestSgConfig.User("limited_user_B_manage_ds_data_only")//
+            .description("ds_b* with manage privs::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
+                            .dataStreamPermissions("SGS_MANAGE").on("ds_bw*"))//
+            .indexMatcher("read", limitedTo(ds_br1.dataOnly(), ds_br2.dataOnly(), ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("manage_data_stream", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("manage_alias", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("get_alias", limitedTo());
+
     static TestSgConfig.User LIMITED_USER_B_MANAGE_INDEX_ALIAS = new TestSgConfig.User("limited_user_B_manage_index_alias")//
             .description("ds_b*, alias_bwx* with manage privs")//
             .roles(//
@@ -209,6 +297,22 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2, alias_bwx))//
             .indexMatcher("get_alias", limitedTo(alias_bwx));
 
+    static TestSgConfig.User LIMITED_USER_B_MANAGE_INDEX_ALIAS_DATA_ONLY = new TestSgConfig.User("limited_user_B_manage_index_alias_data_only")//
+            .description("ds_b*, alias_bwx* with manage privs::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
+                            .dataStreamPermissions("SGS_MANAGE").on("ds_bw*")//
+                            .aliasPermissions("SGS_MANAGE_ALIASES").on("alias_bwx*"))//
+            .indexMatcher("read", limitedTo(ds_br1.dataOnly(), ds_br2.dataOnly(), ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("manage_data_stream", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2, alias_bwx.dataOnly()))//
+            .indexMatcher("manage_alias", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2, alias_bwx.dataOnly()))//
+            .indexMatcher("get_alias", limitedTo(alias_bwx.dataOnly()));
+
     static TestSgConfig.User LIMITED_USER_B_CREATE_INDEX_MANAGE_ALIAS = new TestSgConfig.User("limited_user_B_create_index")//
             .description("ds_b* with create ds privs and manage alias privs, alias_bwx* with manage alias privs")//
             .roles(//
@@ -223,6 +327,22 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .indexMatcher("create_data_stream", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2))//
             .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2, alias_bwx))//
+            .indexMatcher("get_alias", limitedToNone());
+
+    static TestSgConfig.User LIMITED_USER_B_CREATE_INDEX_MANAGE_ALIAS_DATA_ONLY = new TestSgConfig.User("limited_user_B_create_index_data_only")//
+            .description("ds_b* with create ds privs and manage alias privs, alias_bwx* with manage alias privs::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*")//
+                            .dataStreamPermissions("SGS_CREATE_DATA_STREAM", "SGS_MANAGE_ALIASES").on("ds_bw*")//
+                            .aliasPermissions("SGS_MANAGE_ALIASES").on("alias_bwx*"))//
+            .indexMatcher("read", limitedTo(ds_br1.dataOnly(), ds_br2.dataOnly(), ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("manage_data_stream", limitedToNone())//
+            .indexMatcher("manage_alias", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2, alias_bwx.dataOnly()))//
             .indexMatcher("get_alias", limitedToNone());
 
     static TestSgConfig.User LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS = new TestSgConfig.User("limited_user_B_HIDDEN_anage_index_alias")//
@@ -241,6 +361,22 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", limitedTo(ds_bw1, ds_bw2, ds_bwx1, ds_bwx2, alias_bwx, ds_hidden))//
             .indexMatcher("get_alias", limitedTo(alias_bwx));
 
+    static TestSgConfig.User LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS_DATA_ONLY = new TestSgConfig.User("limited_user_B_HIDDEN_manage_index_alias_data_only")//
+            .description("ds_b*, ds_hidden*, alias_bwx* with manage privs::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*", "ds_hidden*")//
+                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*", "ds_hidden*")//
+                            .dataStreamPermissions("SGS_MANAGE").on("ds_bw*", "ds_hidden*")//
+                            .aliasPermissions("SGS_MANAGE_ALIASES").on("alias_bwx*"))//
+            .indexMatcher("read", limitedTo(ds_br1.dataOnly(), ds_br2.dataOnly(), ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2, ds_hidden.dataOnly()))//
+            .indexMatcher("write", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2, ds_hidden.dataOnly()))//
+            .indexMatcher("create_data_stream", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2, ds_hidden.dataOnly()))//
+            .indexMatcher("manage_data_stream", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2, alias_bwx.dataOnly(), ds_hidden.dataOnly()))//
+            .indexMatcher("manage_alias", limitedTo(ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2, alias_bwx.dataOnly(), ds_hidden.dataOnly()))//
+            .indexMatcher("get_alias", limitedTo(alias_bwx.dataOnly()));
+
     static TestSgConfig.User LIMITED_USER_AB_MANAGE_INDEX = new TestSgConfig.User("limited_user_AB_manage_index")//
             .description("ds_a*, ds_b* with manage index privs")//
             .roles(//
@@ -256,6 +392,21 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
+    static TestSgConfig.User LIMITED_USER_AB_MANAGE_INDEX_DATA_ONLY = new TestSgConfig.User("limited_user_AB_manage_index_data_only")//
+            .description("ds_a*, ds_b* with manage index privs::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_a*", "ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE").on("ds_aw*", "ds_bw*")//
+                            .dataStreamPermissions("SGS_MANAGE").on("ds_aw*", "ds_bw*"))//
+            .indexMatcher("read", limitedTo(ds_ar1.dataOnly(), ds_ar2.dataOnly(), ds_aw1.dataOnly(), ds_aw2.dataOnly(), ds_br1.dataOnly(), ds_br2.dataOnly(), ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("write", limitedTo(ds_aw1.dataOnly(), ds_aw2.dataOnly(), ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("create_data_stream", limitedTo(ds_aw1.dataOnly(), ds_aw2.dataOnly(), ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("manage_data_stream", limitedTo(ds_aw1.dataOnly(), ds_aw2.dataOnly(), ds_bw1.dataOnly(), ds_bw2.dataOnly(), ds_bwx1, ds_bwx2))//
+            .indexMatcher("manage_alias", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
+
     static TestSgConfig.User LIMITED_USER_C = new TestSgConfig.User("limited_user_C")//
             .description("index_c*")//
             .roles(//
@@ -263,6 +414,20 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh", "special:failure_store").on("index_c*")//
                             .indexPermissions("SGS_WRITE", "special:failure_store").on("index_cw*"))//
+            .indexMatcher("read", limitedTo(index_cr1, index_cw1))//
+            .indexMatcher("write", limitedTo(index_cw1))//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
+            .indexMatcher("manage_alias", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
+
+    static TestSgConfig.User LIMITED_USER_C_DATA_ONLY = new TestSgConfig.User("limited_user_C_data_only")//
+            .description("index_c*::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh").on("index_c*")//
+                            .indexPermissions("SGS_WRITE").on("index_cw*"))//
             .indexMatcher("read", limitedTo(index_cr1, index_cw1))//
             .indexMatcher("write", limitedTo(index_cw1))//
             .indexMatcher("create_data_stream", limitedToNone())//
@@ -285,6 +450,21 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2, ds_br1, ds_bw1, alias_ab1r));
 
+    static TestSgConfig.User LIMITED_USER_AB1_ALIAS_DATA_ONLY = new TestSgConfig.User("limited_user_alias_AB1_data_only")//
+            .description("alias_ab1::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get").on("alias_ab1r")//
+                            .aliasPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/aliases/get", "SGS_WRITE", "indices:admin/refresh*")
+                            .on("alias_ab1w*"))//
+            .indexMatcher("read", limitedTo(ds_ar1.dataOnly(), ds_ar2.dataOnly(), ds_aw1.dataOnly(), ds_aw2.dataOnly(), ds_br1.dataOnly(), ds_bw1.dataOnly(), alias_ab1r.dataOnly(), alias_ab1w_nowriteindex.dataOnly()))//
+            .indexMatcher("write", limitedTo(ds_aw1.dataOnly(), ds_aw2.dataOnly(), ds_bw1.dataOnly(), alias_ab1w_nowriteindex.dataOnly()))//
+            .indexMatcher("create_data_stream", limitedTo(ds_aw1.dataOnly(), ds_aw2.dataOnly(), ds_bw1.dataOnly()))//
+            .indexMatcher("manage_data_stream", limitedToNone())//
+            .indexMatcher("manage_alias", limitedToNone())//
+            .indexMatcher("get_alias", limitedTo(ds_ar1.dataOnly(), ds_ar2.dataOnly(), ds_aw1.dataOnly(), ds_aw2.dataOnly(), ds_br1.dataOnly(), ds_bw1.dataOnly(), alias_ab1r.dataOnly()));
+
     static TestSgConfig.User LIMITED_USER_AB1_ALIAS_READ_ONLY = new TestSgConfig.User("limited_user_alias_AB1_read_only")//
             .description("read/only on alias_ab1w, but with write privs in write index ds_aw1")//
             .roles(//
@@ -294,6 +474,19 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
                             .aliasPermissions("SGS_READ", "special:failure_store").on("alias_ab1w"))//
             .indexMatcher("read", limitedTo(ds_aw1, ds_aw2, ds_bw1))//
             .indexMatcher("write", limitedTo(ds_aw1)) // alias_ab1w is included because ds_aw1 is the write index of alias_ab1w
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
+            .indexMatcher("manage_alias", limitedToNone());
+
+    static TestSgConfig.User LIMITED_USER_AB1_ALIAS_READ_ONLY_DATA_ONLY = new TestSgConfig.User("limited_user_alias_AB1_read_only_data_only")//
+            .description("read/only on alias_ab1w, but with write privs in write index ds_aw1::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_WRITE", "indices:admin/refresh").on("ds_aw1")//
+                            .aliasPermissions("SGS_READ").on("alias_ab1w"))//
+            .indexMatcher("read", limitedTo(ds_aw1.dataOnly(), ds_aw2.dataOnly(), ds_bw1.dataOnly()))//
+            .indexMatcher("write", limitedTo(ds_aw1.dataOnly())) // alias_ab1w is included because ds_aw1 is the write index of alias_ab1w
             .indexMatcher("create_data_stream", limitedToNone())//
             .indexMatcher("manage_data_stream", limitedToNone())//
             .indexMatcher("manage_alias", limitedToNone());
@@ -311,6 +504,19 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
+    static TestSgConfig.User LIMITED_READ_ONLY_ALL_DATA_ONLY = new TestSgConfig.User("limited_read_only_all_data_only")//
+            .description("read/only on *::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ").on("*"))//
+            .indexMatcher("read", unlimited())//
+            .indexMatcher("write", limitedToNone())//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
+            .indexMatcher("manage_alias", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
+
     static TestSgConfig.User LIMITED_READ_ONLY_A = new TestSgConfig.User("limited_read_only_A")//
             .description("read/only on ds_a*")//
             .roles(//
@@ -318,6 +524,19 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
                             .dataStreamPermissions("SGS_READ", "special:failure_store").on("ds_a*"))//
             .indexMatcher("read", limitedTo(ds_ar1, ds_ar2, ds_aw1, ds_aw2))//
+            .indexMatcher("write", limitedToNone())//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
+            .indexMatcher("manage_alias", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
+
+    static TestSgConfig.User LIMITED_READ_ONLY_A_DATA_ONLY = new TestSgConfig.User("limited_read_only_A_data_only")//
+            .description("read/only on ds_a*::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .dataStreamPermissions("SGS_READ").on("ds_a*"))//
+            .indexMatcher("read", limitedTo(ds_ar1.dataOnly(), ds_ar2.dataOnly(), ds_aw1.dataOnly(), ds_aw2.dataOnly()))//
             .indexMatcher("write", limitedToNone())//
             .indexMatcher("create_data_stream", limitedToNone())//
             .indexMatcher("manage_data_stream", limitedToNone())//
@@ -368,6 +587,20 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());
 
+    static TestSgConfig.User LIMITED_USER_PERMISSIONS_ON_BACKING_INDICES_DATA_ONLY = new TestSgConfig.User("limited_user_permissions_on_backing_indices_data_only")//
+            .description("ds_a* on backing indices::data")//
+            .roles(//
+                    new Role("r1")//
+                            .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on(".ds-ds_a*")//
+                            .indexPermissions("SGS_WRITE").on(".ds-ds_aw*"))//
+            .indexMatcher("read", limitedTo(ds_ar1.dataOnly(), ds_ar2.dataOnly(), ds_aw1.dataOnly(), ds_aw2.dataOnly()))//
+            .indexMatcher("write", limitedTo(ds_aw1.dataOnly(), ds_aw2.dataOnly()))//
+            .indexMatcher("create_data_stream", limitedToNone())//
+            .indexMatcher("manage_data_stream", limitedToNone())//
+            .indexMatcher("manage_alias", limitedToNone())//
+            .indexMatcher("get_alias", limitedToNone());
+
     static TestSgConfig.User UNLIMITED_USER = new TestSgConfig.User("unlimited_user")//
             .description("unlimited")//
             .roles(//
@@ -399,13 +632,25 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             .indexMatcher("manage_alias", unlimitedIncludingSearchGuardIndices())//
             .indexMatcher("get_alias", unlimitedIncludingSearchGuardIndices());
 
-    //todo COMPONENT SELECTORS - Define user which lacking failure store access to test negative cases
-
-    static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B_READ_ONLY_A,
-            LIMITED_USER_B_AUTO_PUT_ON_ALL, LIMITED_USER_B_CREATE_DS, LIMITED_USER_B_MANAGE_DS, LIMITED_USER_B_MANAGE_INDEX_ALIAS,
-            LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS, LIMITED_USER_AB_MANAGE_INDEX, LIMITED_USER_C, LIMITED_USER_AB1_ALIAS,
-            LIMITED_USER_AB1_ALIAS_READ_ONLY, LIMITED_READ_ONLY_ALL, LIMITED_READ_ONLY_A, LIMITED_USER_NONE,
-            INVALID_USER_INDEX_PERMISSIONS_FOR_DATA_STREAM, LIMITED_USER_PERMISSIONS_ON_BACKING_INDICES, UNLIMITED_USER, SUPER_UNLIMITED_USER);
+    static List<TestSgConfig.User> USERS = ImmutableList.of(LIMITED_USER_A, LIMITED_USER_A_DATA_ONLY,
+            LIMITED_USER_B, LIMITED_USER_B_DATA_ONLY,
+            LIMITED_USER_B_READ_ONLY_A, LIMITED_USER_B_READ_ONLY_A_DATA_ONLY,
+            LIMITED_USER_B_AUTO_PUT_ON_ALL, LIMITED_USER_B_AUTO_PUT_ON_ALL_DATA_ONLY,
+            LIMITED_USER_B_CREATE_DS, LIMITED_USER_B_CREATE_DS_DATA_ONLY,
+            LIMITED_USER_B_MANAGE_DS, LIMITED_USER_B_MANAGE_DS_DATA_ONLY,
+            LIMITED_USER_B_MANAGE_INDEX_ALIAS, LIMITED_USER_B_MANAGE_INDEX_ALIAS_DATA_ONLY,
+            LIMITED_USER_B_CREATE_INDEX_MANAGE_ALIAS, LIMITED_USER_B_CREATE_INDEX_MANAGE_ALIAS_DATA_ONLY,
+            LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS, LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS_DATA_ONLY,
+            LIMITED_USER_AB_MANAGE_INDEX, LIMITED_USER_AB_MANAGE_INDEX_DATA_ONLY,
+            LIMITED_USER_C, LIMITED_USER_C_DATA_ONLY,
+            LIMITED_USER_AB1_ALIAS, LIMITED_USER_AB1_ALIAS_DATA_ONLY,
+            LIMITED_USER_AB1_ALIAS_READ_ONLY, LIMITED_USER_AB1_ALIAS_READ_ONLY_DATA_ONLY,
+            LIMITED_READ_ONLY_ALL, LIMITED_READ_ONLY_ALL_DATA_ONLY,
+            LIMITED_READ_ONLY_A, LIMITED_READ_ONLY_A_DATA_ONLY,
+            LIMITED_USER_NONE,
+            INVALID_USER_INDEX_PERMISSIONS_FOR_DATA_STREAM,
+            LIMITED_USER_PERMISSIONS_ON_BACKING_INDICES, LIMITED_USER_PERMISSIONS_ON_BACKING_INDICES_DATA_ONLY,
+            UNLIMITED_USER, SUPER_UNLIMITED_USER);
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(USERS)//
@@ -440,7 +685,10 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             if (httpResponse.getStatusCode() == 201) {
                 createdId = httpResponse.getBodyAsDocNode().getAsString("_id");
             }
-            assertThat(httpResponse, containsExactly(ds_bw1.failureOnly()).at("_index").but(user.indexMatcher("write")).whenEmpty(403));
+            IndexApiMatchers.IndexMatcher write = user.indexMatcher("write").withFailureStore();
+            IndexApiMatchers.IndexMatcher queryMatcher = containsExactly(ds_bw1.failureOnly()).at("_index");
+            IndexApiMatchers.IndexMatcher matchersIntersection = queryMatcher.but(write);
+            assertThat(httpResponse, matchersIntersection.whenEmpty(403));
         } finally {
             if (createdId != null) {
                 deleteTestDocsFromFailureStore(ImmutableList.of(createdId), "ds_bw1::failures");
@@ -522,7 +770,7 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
                             ImmutableList.of(docIdPrefix + "a1", docIdPrefix + "b1"))));
             log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
 
-            if (containsExactly(ds_aw1, ds_aw2, ds_bw1, ds_bw2).at("_index").but(user.indexMatcher("write")).isEmpty()) {
+            if (containsExactly(ds_aw1.failureOnly(), ds_aw2.failureOnly(), ds_bw1.failureOnly(), ds_bw2.failureOnly()).at("_index").but(user.indexMatcher("write")).isEmpty()) {
                 assertThat(httpResponse, isForbidden());
             } else {
                 //user can remove some or all docs found by search request
@@ -578,7 +826,8 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             }
             // make sure that user who can update the data stream in fact updated it
             boolean isAllowedToExecuteUpdate = ImmutableSet //
-                    .of("unlimited_user", "super_unlimited_user", "limited_user_AB_manage_index") //
+                    .of(UNLIMITED_USER.getName(), SUPER_UNLIMITED_USER.getName(), LIMITED_USER_AB_MANAGE_INDEX.getName(),
+                            LIMITED_USER_AB_MANAGE_INDEX_DATA_ONLY.getName()) //
                     .contains(user.getName());
             assertThat(isAllowedToExecuteUpdate, equalTo(updateExecuted));
         } finally {
@@ -654,7 +903,7 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
                     DocNode.of("b", 1, "test", "putDocument_bulk", "@timestamp", Instant.now().toString()));
             log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
 
-            if (user == LIMITED_USER_PERMISSIONS_ON_BACKING_INDICES) {
+            if ((user == LIMITED_USER_PERMISSIONS_ON_BACKING_INDICES) || (user == LIMITED_USER_PERMISSIONS_ON_BACKING_INDICES_DATA_ONLY)) {
                 // special case for this user: As there is no DNFOF functionality available for bulk[s] operations,
                 // these will also fail, even if we have write privileges on the backing indices. This is because
                 // privilege evaluation will yield OK_WHEN_RESOLVED which will need DNFOF functionality.
@@ -681,7 +930,7 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
                     DocNode.of("b", 1, "@timestamp", "I am not a timestamp, failure store will be used"));
             log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
 
-            if (user == LIMITED_USER_PERMISSIONS_ON_BACKING_INDICES) {
+            if ((user == LIMITED_USER_PERMISSIONS_ON_BACKING_INDICES) || (user == LIMITED_USER_PERMISSIONS_ON_BACKING_INDICES_DATA_ONLY)) {
                 // special case for this user: As there is no DNFOF functionality available for bulk[s] operations,
                 // these will also fail, even if we have write privileges on the backing indices. This is because
                 // privilege evaluation will yield OK_WHEN_RESOLVED which will need DNFOF functionality.
@@ -689,7 +938,7 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
                         containsExactly().at("items[*].create[?(@.result == 'created')]._index").but(user.indexMatcher("write")).whenEmpty(200));
             } else {
                 assertThat(httpResponse, containsExactly(ds_aw1.failureOnly(), ds_bw1.failureOnly()).at("items[*].create[?(@.result == 'created')]._index")
-                        .but(user.indexMatcher("write")).whenEmpty(200));
+                        .but(user.indexMatcher("write").withFailureStore()).whenEmpty(200));
             }
 
         } finally {
@@ -717,8 +966,11 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             HttpResponse httpResponse = restClient.put("/_data_stream/ds_bwx1");
             log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
 
-            ImmutableSet<String> userAllowedToEnableFailureStore = ImmutableSet.of(LIMITED_USER_B_MANAGE_DS.getName(), LIMITED_USER_B_MANAGE_INDEX_ALIAS.getName(),
-                    LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS.getName(), LIMITED_USER_AB_MANAGE_INDEX.getName(), UNLIMITED_USER.getName(), SUPER_UNLIMITED_USER.getName());
+            ImmutableSet<String> userAllowedToEnableFailureStore = ImmutableSet.of(LIMITED_USER_B_MANAGE_DS.getName(), LIMITED_USER_B_MANAGE_DS_DATA_ONLY.getName(),
+                    LIMITED_USER_B_MANAGE_INDEX_ALIAS.getName(), LIMITED_USER_B_MANAGE_INDEX_ALIAS_DATA_ONLY.getName(),
+                    LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS.getName(), LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS_DATA_ONLY.getName(),
+                    LIMITED_USER_AB_MANAGE_INDEX.getName(), LIMITED_USER_AB_MANAGE_INDEX_DATA_ONLY.getName(),
+                    UNLIMITED_USER.getName(), SUPER_UNLIMITED_USER.getName());
             if (containsExactly(ds_bwx1).but(user.indexMatcher("create_data_stream")).isEmpty()) {
                 assertThat(httpResponse, isForbidden());
             } else {
@@ -729,7 +981,7 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
                 HttpResponse enableFsResponse = restClient.putJson("/_data_stream/ds_bwx1/_options",
                         DocNode.of("failure_store.enabled", true));
                 log.info("Rest response status code '{}' and body {}", enableFsResponse.getStatusCode(), enableFsResponse.getBody());
-                if (user == LIMITED_USER_B_CREATE_DS) {
+                if ((user == LIMITED_USER_B_CREATE_DS) || (user == LIMITED_USER_B_CREATE_DS_DATA_ONLY)) {
                     // user LIMITED_USER_B_CREATE_DS does not have permission indices:admin/data_stream/options/put required to
                     // execute PUT /_data_stream/ds_bwx1/_options
                     assertThat(enableFsResponse,  isForbidden());
@@ -743,7 +995,7 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
                     failureStoreEnabled = true;
                 }
                 // ensure that some user managed to create DS with enabled failure store
-                assertThat(userAllowedToEnableFailureStore.contains(user.getName()), equalTo(failureStoreEnabled));
+                assertThat("User " + user.getName() + "(" + user + ") enabled failure store " + failureStoreEnabled,  userAllowedToEnableFailureStore.contains(user.getName()), equalTo(failureStoreEnabled));
             }
         }
     }
