@@ -712,6 +712,43 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
     }
 
     @Test
+    public void createDataStream_fs() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
+            HttpResponse httpResponse = restClient.put("/_data_stream/ds_bwx1");
+            log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
+
+            ImmutableSet<String> userAllowedToEnableFailureStore = ImmutableSet.of(LIMITED_USER_B_MANAGE_DS.getName(), LIMITED_USER_B_MANAGE_INDEX_ALIAS.getName(),
+                    LIMITED_USER_B_HIDDEN_MANAGE_INDEX_ALIAS.getName(), LIMITED_USER_AB_MANAGE_INDEX.getName(), UNLIMITED_USER.getName(), SUPER_UNLIMITED_USER.getName());
+            if (containsExactly(ds_bwx1).but(user.indexMatcher("create_data_stream")).isEmpty()) {
+                assertThat(httpResponse, isForbidden());
+            } else {
+                assertThat(httpResponse, isOk());
+
+                boolean failureStoreEnabled = false;
+
+                HttpResponse enableFsResponse = restClient.putJson("/_data_stream/ds_bwx1/_options",
+                        DocNode.of("failure_store.enabled", true));
+                log.info("Rest response status code '{}' and body {}", enableFsResponse.getStatusCode(), enableFsResponse.getBody());
+                if (user == LIMITED_USER_B_CREATE_DS) {
+                    // user LIMITED_USER_B_CREATE_DS does not have permission indices:admin/data_stream/options/put required to
+                    // execute PUT /_data_stream/ds_bwx1/_options
+                    assertThat(enableFsResponse,  isForbidden());
+                } else {
+                    assertThat(enableFsResponse, isOk());
+
+                    HttpResponse getResponse = cluster.getAdminCertRestClient().get("/_data_stream/ds_bwx1");
+                    log.info("Rest response status code '{}' and body {}", getResponse.getStatusCode(), getResponse.getBody());
+                    assertThat(getResponse, isOk());
+                    assertThat(getResponse, json(nodeAt("data_streams[0].failure_store.enabled", equalTo(true))));
+                    failureStoreEnabled = true;
+                }
+                // ensure that some user managed to create DS with enabled failure store
+                assertThat(userAllowedToEnableFailureStore.contains(user.getName()), equalTo(failureStoreEnabled));
+            }
+        }
+    }
+
+    @Test
     public void putDataStream() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user).trackResources(cluster.getAdminCertRestClient())) {
             HttpResponse httpResponse = restClient.putJson("/ds_bwx1/", DocNode.EMPTY);
