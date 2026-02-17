@@ -59,6 +59,7 @@ stages:
   - "Aikido Scan"
   - release
   - "Deploy Docker Image"
+  - post_merge
 
 include:
   - local: ".gitlab-ci-branch-specific.yml"
@@ -67,6 +68,7 @@ include:
   - local: "ci/frontend-int-tests.yml"
   - local: "ci/mt-data-migration-tests.yml"
   - local: "ci/aikido.yml"
+  - local: 'ci/backport.yml'
 
 build:
   image: "$SG_BUILD_IMAGE"
