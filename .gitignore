@@ -10,7 +10,7 @@ deploy_all.sh
 *.log
 .externalToolBuilders
 maven-eclipse.xml
-
+.m2
 ### Intellij ###
 .idea/
 *.iml
