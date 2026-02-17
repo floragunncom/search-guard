@@ -35,6 +35,7 @@ import org.junit.Test;
 
 import java.time.Instant;
 
+import static com.floragunn.searchguard.test.IndexApiMatchers.containsExactly;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsFieldPointedByJsonPath;
@@ -72,7 +73,7 @@ public class DataStreamsFailureStoreIntTests {
             .roles(//
                     new TestSgConfig.Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_a*")//
+                            .dataStreamPermissions("SGS_READ", "special:failure_store", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_a*")//
                             .dataStreamPermissions("SGS_WRITE").on("ds_aw*"));
 
     static TestSgConfig.User LIMITED_USER_B = new TestSgConfig.User("limited_user_B")//
@@ -80,15 +81,15 @@ public class DataStreamsFailureStoreIntTests {
             .roles(//
                     new TestSgConfig.Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_b*")//
-                            .dataStreamPermissions("SGS_WRITE").on("ds_bw*"));
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store").on("ds_b*")//
+                            .dataStreamPermissions("SGS_WRITE", "special:failure_store").on("ds_bw*"));
 
     static TestSgConfig.User LIMITED_USER_B_READ_ONLY_A = new TestSgConfig.User("limited_user_B_read_only_A")//
             .description("ds_b*; read only on ds_a*")//
             .roles(//
                     new TestSgConfig.Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*").on("ds_a*", "ds_b*")//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store").on("ds_a*", "ds_b*")//
                             .dataStreamPermissions("SGS_WRITE").on("ds_bw*"));
 
     static TestSgConfig.User LIMITED_USER_A_FAILURE_STORE_INDEX = new TestSgConfig.User("limited_to_a_failure_store_index")
@@ -136,7 +137,7 @@ public class DataStreamsFailureStoreIntTests {
             .description("data_stream_a_as_index_")//
             .roles(new TestSgConfig.Role("data_stream_a_as_index_role")
                     .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS", "SGS_CLUSTER_MONITOR")
-                    .indexPermissions("SGS_READ").on("ds_aw1*"));
+                    .indexPermissions("SGS_READ").on(".ds-ds_aw1*", ".fs-ds_aw1*"));
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B_READ_ONLY_A,
@@ -209,7 +210,6 @@ public class DataStreamsFailureStoreIntTests {
     }
 
     @Test
-    @Ignore //todo COMPONENT SELECTORS - adjust test then support for the component selectors in implemented
     public void read_data_stream_as_index() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(DATA_STREAM_A_AS_INDEX)) {
             HttpResponse response = client.get("/" + ds_aw1.getName() + "::data/_search?pretty");
@@ -219,41 +219,38 @@ public class DataStreamsFailureStoreIntTests {
 
             response = client.get("/" + ds_aw1.getName() + "/_search?pretty");
             log.info("Generic ds search status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
-            assertThat(response, isForbidden());
+            assertThat(response, isOk());
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value", 23));
+            assertThat(response.getBody(), response.getBodyAsDocNode(),
+                    containsExactly(ds_aw1.dataOnly()).at("hits.hits[*]._index"));
 
             response = client.get("/" + ds_aw1.getName() + "::failures/_search?pretty");
             log.info("search ds failure store status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
-            assertThat(response, isOk());
-            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            assertThat(response, isForbidden()); // missing permission "special:failure_store"
         }
     }
 
     @Test
-    //todo COMPONENT SELECTORS -  Enable once component selector privilege evaluation is implemented.
-    //  Currently, this test expects isForbidden() because privileges like "indices:data/read/*" on "ds_*"
-    //  do not grant access to "ds_*::failures" (the failure store component). Once Search Guard supports
-    //  evaluating component selectors, update assertions to reflect the correct authorization behavior.
-    @Ignore
     public void testFailureStore() throws Exception {
         try (GenericRestClient aClient = cluster.getRestClient(LIMITED_USER_A);
                 GenericRestClient bClient = cluster.getRestClient(LIMITED_USER_B);
                 GenericRestClient bReadAClient = cluster.getRestClient(LIMITED_USER_B_READ_ONLY_A)) {
 
             HttpResponse response = aClient.get("/" + ds_aw1.getName() + "::failures/_search?size=1000");
-            assertThat(response, isForbidden());
-//            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            assertThat(response, isOk());
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
 
             response = bReadAClient.get("/" + ds_aw1.getName() + "::failures/_search?size=1000");
-            assertThat(response, isForbidden());
-//            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            assertThat(response, isOk());
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
 
             response = bReadAClient.get("/" + ds_bw1.getName() + "::failures/_search?size=1000");
-            assertThat(response, isForbidden());
-//            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            assertThat(response, isOk());
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
 
             response = bClient.get("/" + ds_bw1.getName() + "::failures/_search?size=1000");
-            assertThat(response, isForbidden());
-//            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            assertThat(response, isOk());
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
 
             response = bClient.get("/" + ds_aw1.getName() + "::failures/_search");
             assertThat(response, isForbidden());
@@ -261,28 +258,26 @@ public class DataStreamsFailureStoreIntTests {
     }
 
     @Test
-    //todo COMPONENT SELECTORS -  Enable and update assertions once component selector privilege evaluation is implemented
-    @Ignore
     public void testDataComponentSelector() throws Exception {
         try (GenericRestClient aClient = cluster.getRestClient(LIMITED_USER_A);
                 GenericRestClient bClient = cluster.getRestClient(LIMITED_USER_B);
                 GenericRestClient bReadAClient = cluster.getRestClient(LIMITED_USER_B_READ_ONLY_A)) {
 
             HttpResponse response = aClient.get("/" + ds_aw1.getName() + "::data/_search?size=1000");
-            assertThat(response, isForbidden());
-//            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",23));
+            assertThat(response, isOk());
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",23));
 
             response = bReadAClient.get("/" + ds_aw1.getName() + "::data/_search?size=1000");
-            assertThat(response, isForbidden());
-//            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",23));
+            assertThat(response, isOk());
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",23));
 
             response = bReadAClient.get("/" + ds_bw1.getName() + "::data/_search?size=1000");
-            assertThat(response, isForbidden());
-//            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",23));
+            assertThat(response, isOk());
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",23));
 
             response = bClient.get("/" + ds_bw1.getName() + "::data/_search?size=1000");
-            assertThat(response, isForbidden());
-//            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",23));
+            assertThat(response, isOk());
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",23));
 
             response = bClient.get("/" + ds_aw1.getName() + "::data/_search");
             assertThat(response, isForbidden());
