@@ -981,7 +981,8 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
                 HttpResponse enableFsResponse = restClient.putJson("/_data_stream/ds_bwx1/_options",
                         DocNode.of("failure_store.enabled", true));
                 log.info("Rest response status code '{}' and body {}", enableFsResponse.getStatusCode(), enableFsResponse.getBody());
-                if ((user == LIMITED_USER_B_CREATE_DS) || (user == LIMITED_USER_B_CREATE_DS_DATA_ONLY)) {
+                if ((user == LIMITED_USER_B_CREATE_DS) || (user == LIMITED_USER_B_CREATE_DS_DATA_ONLY) ||
+                        (user == LIMITED_USER_B_CREATE_INDEX_MANAGE_ALIAS) || (user == LIMITED_USER_B_CREATE_INDEX_MANAGE_ALIAS_DATA_ONLY)) {
                     // user LIMITED_USER_B_CREATE_DS does not have permission indices:admin/data_stream/options/put required to
                     // execute PUT /_data_stream/ds_bwx1/_options
                     assertThat(enableFsResponse,  isForbidden());
@@ -1046,7 +1047,7 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             HttpResponse httpResponse = restClient.postJson("/_aliases",
                     DocNode.of("actions", DocNode.array(DocNode.of("add.index", "ds_bw1", "add.alias", "alias_bwx"))));
             log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
-            if (containsExactly(ds_bw1, alias_bwx).isCoveredBy(user.indexMatcher("manage_alias"))) {
+            if (containsExactly(ds_bw1.dataOnly(), alias_bwx.dataOnly()).isCoveredBy(user.indexMatcher("manage_alias"))) {
                 assertThat(httpResponse, isOk());
             } else {
                 assertThat(httpResponse, isForbidden());
@@ -1062,7 +1063,7 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             HttpResponse httpResponse = restClient.postJson("/_aliases",
                     DocNode.of("actions", DocNode.array(DocNode.of("add.indices", DocNode.array("ds_bw*"), "add.alias", "alias_bwx"))));
             log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
-            if (containsExactly(ds_bw1, ds_bw2, alias_bwx).isCoveredBy(user.indexMatcher("manage_alias"))) {
+            if (containsExactly(ds_bw1.dataOnly(), ds_bw2.dataOnly(), alias_bwx.dataOnly()).isCoveredBy(user.indexMatcher("manage_alias"))) {
                 assertThat(httpResponse, isOk());
             } else {
                 assertThat(httpResponse, isForbidden());
