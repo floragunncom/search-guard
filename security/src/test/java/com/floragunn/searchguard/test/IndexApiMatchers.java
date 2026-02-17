@@ -22,7 +22,6 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format.UnknownDocTypeException;
-import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
@@ -752,11 +751,11 @@ public class IndexApiMatchers {
         @Override
         public IndexMatcher but(IndexMatcher other) {
             if (other instanceof LimitedToMatcher) {
-                return new LimitedToMatcher(ImmutableMap.of(this.indexNameMap).intersection(((LimitedToMatcher) other).getExpectedIndices()),
+                return new LimitedToMatcher(testIndicesIntersection(this.indexNameMap, ((LimitedToMatcher) other).indexNameMap),
                         this.jsonPath, this.statusCodeWhenEmpty);
             } else if (other instanceof ContainsExactlyMatcher) {
                 return new ContainsExactlyMatcher(
-                        ImmutableMap.of(this.indexNameMap).intersection(((ContainsExactlyMatcher) other).getExpectedIndices()), false, false,
+                        testIndicesIntersection(this.indexNameMap, ((ContainsExactlyMatcher) other).indexNameMap), false, false,
                         this.jsonPath, this.statusCodeWhenEmpty);
             } else if (other instanceof UnlimitedMatcher) {
                 return this;
