@@ -29,6 +29,8 @@ import com.floragunn.codova.documents.DocNode;
 import org.elasticsearch.cluster.metadata.AliasAction;
 
 public interface TestIndexLike {
+    String FAILURE_STORE_SUFFIX = "::failures";
+
     String getName();
 
     TestIndexLike dataOnly();
@@ -44,8 +46,8 @@ public interface TestIndexLike {
     }
 
     default String getBaseName() {
-        if(getName().endsWith("::failures")) {
-            return getName().substring(0, getName().length() - "::failures".length());
+        if(getName().endsWith(FAILURE_STORE_SUFFIX)) {
+            return getName().substring(0, getName().length() - FAILURE_STORE_SUFFIX.length());
         }
         return getName();
     }

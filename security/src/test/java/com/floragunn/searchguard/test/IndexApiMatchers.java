@@ -46,13 +46,11 @@ import java.util.stream.Stream;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.in;
 
 public class IndexApiMatchers {
 
     private static final Pattern DS_BACKING_INDEX_PATTERN = Pattern.compile("\\.ds-(.+)-[0-9\\.]+-[0-9]+");
     private static final Pattern FS_BACKING_INDEX_PATTERN = Pattern.compile("\\.fs-(.+)-[0-9\\.]+-[0-9]+");
-    private static final String FAILURE_STORE_SUFFIX = "::failures";
     private static final Pattern SHORT_ISO_TIMESTAMP = Pattern.compile("\\b\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z\\b");
     private static final Pattern GEO_COORD_PATTERN = Pattern.compile("([0-9-]+)\\.(\\d+),\\s*([0-9-]+)\\.(\\d+)");
 
@@ -347,7 +345,7 @@ public class IndexApiMatchers {
                     java.util.regex.Matcher fsMatcher = FS_BACKING_INDEX_PATTERN.matcher(index);
 
                     if (fsMatcher.matches()) {
-                        String failureStoreName = fsMatcher.group(1) + FAILURE_STORE_SUFFIX;
+                        String failureStoreName = fsMatcher.group(1) + TestIndexLike.FAILURE_STORE_SUFFIX;
                         String resolved = resolveToExpectedIndex(failureStoreName);
                         if (resolved != null) {
                             seenIndicesBuilder.add(resolved);
@@ -821,7 +819,7 @@ public class IndexApiMatchers {
                     java.util.regex.Matcher fsMatcher = FS_BACKING_INDEX_PATTERN.matcher(index);
 
                     if (fsMatcher.matches()) {
-                        String failureStoreName = fsMatcher.group(1) + FAILURE_STORE_SUFFIX;
+                        String failureStoreName = fsMatcher.group(1) + TestIndexLike.FAILURE_STORE_SUFFIX;
                         String resolved = resolveToExpectedIndex(failureStoreName);
                         if (resolved != null) {
                             seenIndicesBuilder.add(resolved);
@@ -1262,8 +1260,8 @@ public class IndexApiMatchers {
                 String key = entry.getKey();
                 TestIndexLike index1 = entry.getValue();
                 TestIndexLike index2 = map2.get(key);
-                if ((index2 == null) && key.endsWith("::failures")) {
-                    index2 = map2.get(key.substring(0, key.length() - "::failures".length()));
+                if ((index2 == null) && key.endsWith(TestIndexLike.FAILURE_STORE_SUFFIX)) {
+                    index2 = map2.get(key.substring(0, key.length() - TestIndexLike.FAILURE_STORE_SUFFIX.length()));
                 }
 
                 if (index2 == null) {
@@ -1284,8 +1282,8 @@ public class IndexApiMatchers {
                 String key = entry.getKey();
                 TestIndexLike thisIndex = entry.getValue();
                 TestIndexLike otherIndex = otherMap.get(key);
-                if (otherIndex == null && key.endsWith("::failures")) {
-                    otherIndex = otherMap.get(key.substring(0, key.length() - "::failures".length()));
+                if (otherIndex == null && key.endsWith(TestIndexLike.FAILURE_STORE_SUFFIX)) {
+                    otherIndex = otherMap.get(key.substring(0, key.length() - TestIndexLike.FAILURE_STORE_SUFFIX.length()));
                 }
                 if (otherIndex == null) {
                     return false;

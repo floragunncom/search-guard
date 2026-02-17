@@ -141,7 +141,7 @@ public class TestAlias implements TestIndexLike {
         }
         boolean hasFailureStore = indices.stream().anyMatch(indexLike -> indexLike.failureStore().isPresent());
         if (hasFailureStore) {
-            return Optional.of(new TestAlias(name + "::failures",
+            return Optional.of(new TestAlias(name + FAILURE_STORE_SUFFIX,
                     indices.stream() //
                             .map(TestIndexLike::failureStore) //
                             .filter(Optional::isPresent) //

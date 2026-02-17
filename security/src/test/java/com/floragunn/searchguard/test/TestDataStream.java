@@ -115,7 +115,7 @@ public class TestDataStream implements TestIndexLike {
         return Optional.of(new TestIndexLike() {
             @Override
             public String getName() {
-                return name + "::failures";
+                return name + FAILURE_STORE_SUFFIX;
             }
 
             @Override
