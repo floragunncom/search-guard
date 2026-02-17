@@ -5,7 +5,9 @@ workflow:
     - when: always
 
 variables:
-  SG_BUILD_IMAGE: "maven:3.9.9-amazoncorretto-21-debian"
+  SG_BUILD_IMAGE: "floragunncom/ubuntu-openjdk25:260209"
+  SG_DIND_IMAGE: "floragunncom/ubuntu-dind:260209"
+
   DOCKER_VERSION: "20.10.17"
   
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
@@ -24,26 +26,12 @@ default:
   timeout: 90m
   before_script:
     - |
-        
         echo "Executing default before_script for: $CI_JOB_NAME in stage: $CI_JOB_STAGE because of: $CI_PIPELINE_SOURCE with image $CI_JOB_IMAGE"
         echo "CI_COMMIT_BRANCH: $CI_COMMIT_BRANCH"
         echo "CI_COMMIT_REF_NAME: $CI_COMMIT_REF_NAME"
         echo "CI_COMMIT_REF_SLUG: $CI_COMMIT_REF_SLUG"
         echo "CI_COMMIT_TAG: $CI_COMMIT_TAG"
   
-        if command -v apt-get &>/dev/null; then
-          # For Debian based images, mainly used during Java build and integration tests
-          apt-get update &> /dev/null
-          apt-get install xmlstarlet gnupg -y > /dev/null 2>&1
-        elif command -v apk &>/dev/null; then
-          # For Alpine based images, mainly used during bash/docker integration tests
-          apk update &> /dev/null
-          apk add --no-cache gomplate jq curl zip xmlstarlet git wget bash sudo > /dev/null 2>&1
-        else
-          echo "ERROR! Unsupported Linux distribution. Neither apt-get nor apk found."
-          exit -1
-        fi
-
         if [ -z "$CI_COMMIT_TAG" ]; then 
           export ES_VERSION=$(xmlstarlet sel -t -m "/_:project/_:properties/_:elasticsearch.version" -v . pom.xml)
           echo "No CI_COMMIT_TAG set, infer ES version from POM: $ES_VERSION";
@@ -79,7 +67,7 @@ include:
 
 
 build:
-  image: maven:3.9.9-amazoncorretto-21-debian
+  image: "$SG_BUILD_IMAGE"
   allow_failure: false
   stage: build
   rules:
@@ -139,9 +127,9 @@ deploy_release:
 
 deploy_docker_image:
   stage: "Deploy Docker Image"
-  image: docker:${DOCKER_VERSION}
+  image: "$SG_DIND_IMAGE"
   services:
-    - docker:${DOCKER_VERSION}-dind
+    - "$SG_DIND_IMAGE"
   rules:
     - if: '$CI_COMMIT_TAG =~ /^sg-.*/'
       when: on_success
