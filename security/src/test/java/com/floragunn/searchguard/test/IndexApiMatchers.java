@@ -200,6 +200,14 @@ public class IndexApiMatchers {
         }
     };
 
+    /**
+     * Matcher that verifies a response contains exactly the expected indices/documents, no more and no less.
+     *
+     * <p>Failure store support: Full. Factory method {@link IndexApiMatchers#containsExactly} automatically adds
+     * failure store entries from {@link TestIndexLike#failureStore()}. Index matching resolves {@code .fs-} backing
+     * indices to their parent data stream's {@code ::failures} name. Document-level matching ({@code matchesByDocs})
+     * does not support failure store documents and throws {@link UnsupportedOperationException} if encountered.</p>
+     */
     public static class ContainsExactlyMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
         public ContainsExactlyMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices,
@@ -475,7 +483,7 @@ public class IndexApiMatchers {
             for (Map.Entry<String, TestIndexLike> entry : indexNameMap.entrySet()) {
                 newIndexNameMap.put(entry.getKey(), entry.getValue().enableFailureStore());
             }
-            return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCodeWhenEmpty);
+            return new ContainsExactlyMatcher(newIndexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCodeWhenEmpty);
         }
 
         @Override
@@ -485,6 +493,13 @@ public class IndexApiMatchers {
 
     }
 
+    /**
+     * Matcher for SQL query results. Verifies that SQL responses contain only rows from the expected indices.
+     *
+     * <p>Failure store support: Limited. SQL queries do not typically target failure stores, so failure store
+     * semantics in {@code isCoveredBy} and {@code covers} use simple key comparison without {@code ::failures}
+     * suffix fallback.</p>
+     */
     public static class SqlLimitedToMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
         private boolean shouldContainColumns;
@@ -697,6 +712,14 @@ public class IndexApiMatchers {
         }
     }
 
+    /**
+     * Matcher that verifies a response contains no indices beyond the expected set (but may contain fewer).
+     *
+     * <p>Failure store support: Full. Factory method {@link IndexApiMatchers#limitedTo} automatically adds
+     * failure store entries from {@link TestIndexLike#failureStore()}. Index matching resolves {@code .fs-} backing
+     * indices to their parent data stream's {@code ::failures} name. Document-level matching ({@code matchesByDocs})
+     * does not support failure store documents and throws {@link UnsupportedOperationException} if encountered.</p>
+     */
     public static class LimitedToMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
         public LimitedToMatcher(Map<String, TestIndexLike> indexNameMap) {
@@ -881,6 +904,12 @@ public class IndexApiMatchers {
 
     }
 
+    /**
+     * Matcher that accepts any 200 OK response regardless of which indices are returned.
+     *
+     * <p>Failure store support: Full. {@link #withFailureStore()} returns {@code this} since no index
+     * filtering is applied. All operations ({@code but}, {@code isCoveredBy}) work transparently.</p>
+     */
     public static class UnlimitedMatcher extends DiagnosingMatcher<Object> implements IndexMatcher {
 
         private final boolean containsSearchGuardIndices;
@@ -987,6 +1016,12 @@ public class IndexApiMatchers {
         }
     }
 
+    /**
+     * Matcher that only checks the HTTP status code, ignoring response content.
+     *
+     * <p>Failure store support: None. {@link #withFailureStore()} throws {@link UnsupportedOperationException}.
+     * This matcher is used for error responses (e.g. 403 Forbidden) where index content is irrelevant.</p>
+     */
     public static class StatusCodeMatcher extends DiagnosingMatcher<Object> implements IndexMatcher {
         private int expectedStatusCode = 403;
 
@@ -1203,10 +1238,26 @@ public class IndexApiMatchers {
                 return this;
             }
 
-            HashMap<String, TestIndexLike> unmatched = new HashMap<>(this.indexNameMap);
-            unmatched.keySet().removeAll(((AbstractIndexMatcher) other).indexNameMap.keySet());
+            Map<String, TestIndexLike> otherMap = ((AbstractIndexMatcher) other).indexNameMap;
+            boolean allCovered = true;
+            for (Map.Entry<String, TestIndexLike> entry : this.indexNameMap.entrySet()) {
+                String key = entry.getKey();
+                TestIndexLike thisIndex = entry.getValue();
+                TestIndexLike otherIndex = otherMap.get(key);
+                if (otherIndex == null && key.endsWith(TestIndexLike.FAILURE_STORE_SUFFIX)) {
+                    otherIndex = otherMap.get(key.substring(0, key.length() - TestIndexLike.FAILURE_STORE_SUFFIX.length()));
+                }
+                if (otherIndex == null) {
+                    allCovered = false;
+                    break;
+                }
+                if ((thisIndex.isFailureStoreOnly() && otherIndex.isDataOnly()) || (thisIndex.isDataOnly() && otherIndex.isFailureStoreOnly())) {
+                    allCovered = false;
+                    break;
+                }
+            }
 
-            if (!unmatched.isEmpty()) {
+            if (!allCovered) {
                 return new StatusCodeMatcher(statusCode);
             } else {
                 return this.but(other);
@@ -1309,11 +1360,24 @@ public class IndexApiMatchers {
             if (indexNameMap.containsKey(name)) {
                 return name;
             }
+            // For failure store names like "ds::failures", also try resolving the base name through aliases
+            String baseName = name.endsWith(TestIndexLike.FAILURE_STORE_SUFFIX)
+                    ? name.substring(0, name.length() - TestIndexLike.FAILURE_STORE_SUFFIX.length())
+                    : null;
             for (Map.Entry<String, TestIndexLike> entry : indexNameMap.entrySet()) {
                 if (entry.getValue() instanceof TestAlias) {
                     TestAlias alias = (TestAlias) entry.getValue();
                     for (TestIndexLike underlying : alias.getIndices()) {
                         if (underlying.getName().equals(name)) {
+                            return entry.getKey();
+                        }
+                        if (baseName != null && underlying.getName().equals(baseName)) {
+                            // The failure store backing index belongs to a data stream under this alias
+                            // Resolve to the alias's failure store name
+                            String aliasFailureName = entry.getKey() + TestIndexLike.FAILURE_STORE_SUFFIX;
+                            if (indexNameMap.containsKey(aliasFailureName)) {
+                                return aliasFailureName;
+                            }
                             return entry.getKey();
                         }
                     }
@@ -1324,6 +1388,12 @@ public class IndexApiMatchers {
 
     }
 
+    /**
+     * Matcher for term aggregation results. Verifies that aggregation buckets match the expected documents.
+     *
+     * <p>Failure store support: None. {@link #withFailureStore()} throws {@link UnsupportedOperationException}.
+     * Aggregations over failure store documents are not currently supported.</p>
+     */
     static class TermAggregationMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
         private IndexMatcher base;

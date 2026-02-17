@@ -28,6 +28,26 @@ import java.util.function.Predicate;
 import com.floragunn.codova.documents.DocNode;
 import org.elasticsearch.cluster.metadata.AliasAction;
 
+/**
+ * Common interface for test index-like objects used in integration tests. Implementations represent different
+ * Elasticsearch index types: regular indices, data streams, aliases, and filtered views.
+ *
+ * <h2>Failure Store Support</h2>
+ *
+ * <p>Data streams in Elasticsearch can have a failure store that captures documents which failed indexing.
+ * The failure store is identified by appending {@link #FAILURE_STORE_SUFFIX} ({@code "::failures"}) to the
+ * data stream name.</p>
+ *
+ * <p>Failure store support by implementation:</p>
+ * <ul>
+ *     <li>{@link TestDataStream} - Full support. Use {@code failureStoreEnabled(true)} in the builder.
+ *         {@link #failureStore()} returns an anonymous {@code TestIndexLike} with empty documents.</li>
+ *     <li>{@link TestAlias} - Supported. Derives failure store from underlying indices that have failure stores enabled.</li>
+ *     <li>{@link TestIndex} - Not supported. Regular indices do not have failure stores.
+ *         {@link #failureStore()} returns empty, {@link #enableFailureStore()} returns {@code this}.</li>
+ *     <li>{@link Filtered} - Delegates to the wrapped {@code TestIndexLike}.</li>
+ * </ul>
+ */
 public interface TestIndexLike {
     String FAILURE_STORE_SUFFIX = "::failures";
 
