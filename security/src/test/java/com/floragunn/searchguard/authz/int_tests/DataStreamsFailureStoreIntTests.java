@@ -49,15 +49,15 @@ import static org.hamcrest.Matchers.startsWith;
 public class DataStreamsFailureStoreIntTests {
 
     private static final Logger log = LogManager.getLogger(DataStreamsFailureStoreIntTests.class);
-    static TestDataStream ds_two_documents = TestDataStream.name("ds_two_documents").documentCount(1).rolloverAfter(10).build();
-    static TestDataStream ds_ar1 = TestDataStream.name("ds_ar1").documentCount(22).rolloverAfter(10).build();
-    static TestDataStream ds_ar2 = TestDataStream.name("ds_ar2").documentCount(22).rolloverAfter(10).build();
-    static TestDataStream ds_aw1 = TestDataStream.name("ds_aw1").documentCount(22).rolloverAfter(10).build();
-    static TestDataStream ds_aw2 = TestDataStream.name("ds_aw2").documentCount(22).rolloverAfter(10).build();
-    static TestDataStream ds_br1 = TestDataStream.name("ds_br1").documentCount(22).rolloverAfter(10).build();
-    static TestDataStream ds_br2 = TestDataStream.name("ds_br2").documentCount(22).rolloverAfter(10).build();
-    static TestDataStream ds_bw1 = TestDataStream.name("ds_bw1").documentCount(22).rolloverAfter(10).build();
-    static TestDataStream ds_bw2 = TestDataStream.name("ds_bw2").documentCount(22).rolloverAfter(10).build();
+    static TestDataStream ds_two_documents = TestDataStream.name("ds_two_documents").documentCount(1).rolloverAfter(10).failureStoreEnabled(true).build();
+    static TestDataStream ds_ar1 = TestDataStream.name("ds_ar1").documentCount(22).rolloverAfter(10).failureStoreEnabled(true).build();
+    static TestDataStream ds_ar2 = TestDataStream.name("ds_ar2").documentCount(22).rolloverAfter(10).failureStoreEnabled(true).build();
+    static TestDataStream ds_aw1 = TestDataStream.name("ds_aw1").documentCount(22).rolloverAfter(10).failureStoreEnabled(true).build();
+    static TestDataStream ds_aw2 = TestDataStream.name("ds_aw2").documentCount(22).rolloverAfter(10).failureStoreEnabled(true).build();
+    static TestDataStream ds_br1 = TestDataStream.name("ds_br1").documentCount(22).rolloverAfter(10).failureStoreEnabled(true).build();
+    static TestDataStream ds_br2 = TestDataStream.name("ds_br2").documentCount(22).rolloverAfter(10).failureStoreEnabled(true).build();
+    static TestDataStream ds_bw1 = TestDataStream.name("ds_bw1").documentCount(22).rolloverAfter(10).failureStoreEnabled(true).build();
+    static TestDataStream ds_bw2 = TestDataStream.name("ds_bw2").documentCount(22).rolloverAfter(10).failureStoreEnabled(true).build();
     static TestIndex index_cr1 = TestIndex.name("index_cr1").documentCount(10).build();
     static TestIndex index_cw1 = TestIndex.name("index_cw1").documentCount(10).build();
     static TestDataStream ds_hidden = TestDataStream.name("ds_hidden").documentCount(10).rolloverAfter(3).seed(8).attr("prefix", "h").build();
@@ -143,9 +143,9 @@ public class DataStreamsFailureStoreIntTests {
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().users(LIMITED_USER_A, LIMITED_USER_B, LIMITED_USER_B_READ_ONLY_A,
                     LIMITED_USER_A_FAILURE_STORE_INDEX, LIMITED_USER_A_DATA_COMPONENT_SELECTOR, LIMITED_USER_A_FAILURE_COMPONENT_SELECTOR,
                     TWO_DOCUMENT_USER, ADMIN_USER, ALL_INDEX_READ_USER, DATA_STREAM_A_AS_INDEX)//
-            .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
+            .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_ENABLED_FAILURE_STORE))//
             .indexTemplates(new TestIndexTemplate("ds_hidden", "ds_hidden*").priority(10).dataStream("hidden", true)
-                    .composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
+                    .composedOf(TestComponentTemplate.DATA_STREAM_ENABLED_FAILURE_STORE))//
             .indices(index_cr1, index_cw1)//
             .aliases(alias_ab1w, alias_ab1r, alias_ab1w_nowriteindex, alias_c1)//
             .dataStreams(ds_ar1, ds_ar2, ds_aw1, ds_aw2, ds_br1, ds_br2, ds_bw1, ds_bw2, ds_hidden, ds_two_documents)//
@@ -172,6 +172,8 @@ public class DataStreamsFailureStoreIntTests {
             log.info("Generic ds search status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            assertThat(response.getBody(), response.getBodyAsDocNode(),
+                    containsExactly(ds_two_documents.dataOnly()).at("hits.hits[*]._index"));
 
             response = client.get("/.fs-ds_two_documents*/_search?pretty");
             log.info("search ds failure store status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
@@ -187,11 +189,15 @@ public class DataStreamsFailureStoreIntTests {
             log.info("Generic ds search status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            assertThat(response.getBody(), response.getBodyAsDocNode(),
+                    containsExactly(ds_two_documents.dataOnly()).at("hits.hits[*]._index"));
 
             response = client.get("/" + ds_two_documents.getName() + "::failures/_search?pretty");
             log.info("search ds failure store status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            assertThat(response.getBody(), response.getBodyAsDocNode(),
+                    containsExactly(ds_two_documents.failureOnly()).at("hits.hits[*]._index"));
         }
     }
 
@@ -202,6 +208,8 @@ public class DataStreamsFailureStoreIntTests {
             log.info("Generic ds search status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            assertThat(response.getBody(), response.getBodyAsDocNode(),
+                    containsExactly(ds_two_documents.dataOnly()).at("hits.hits[*]._index"));
 
             response = client.get("/" + ds_two_documents.getName() + "::failures/_search?pretty");
             log.info("search ds failure store status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
@@ -216,6 +224,8 @@ public class DataStreamsFailureStoreIntTests {
             log.info("DS search with ::data status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",23));
+            assertThat(response.getBody(), response.getBodyAsDocNode(),
+                    containsExactly(ds_aw1.dataOnly()).at("hits.hits[*]._index"));
 
             response = client.get("/" + ds_aw1.getName() + "/_search?pretty");
             log.info("Generic ds search status code '{}' and body '{}'", response.getStatusCode(), response.getBody());
@@ -239,18 +249,26 @@ public class DataStreamsFailureStoreIntTests {
             HttpResponse response = aClient.get("/" + ds_aw1.getName() + "::failures/_search?size=1000");
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            assertThat(response.getBody(), response.getBodyAsDocNode(),
+                    containsExactly(ds_aw1.failureOnly()).at("hits.hits[*]._index"));
 
             response = bReadAClient.get("/" + ds_aw1.getName() + "::failures/_search?size=1000");
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            assertThat(response.getBody(), response.getBodyAsDocNode(),
+                    containsExactly(ds_aw1.failureOnly()).at("hits.hits[*]._index"));
 
             response = bReadAClient.get("/" + ds_bw1.getName() + "::failures/_search?size=1000");
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            assertThat(response.getBody(), response.getBodyAsDocNode(),
+                    containsExactly(ds_bw1.failureOnly()).at("hits.hits[*]._index"));
 
             response = bClient.get("/" + ds_bw1.getName() + "::failures/_search?size=1000");
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",1));
+            assertThat(response.getBody(), response.getBodyAsDocNode(),
+                    containsExactly(ds_bw1.failureOnly()).at("hits.hits[*]._index"));
 
             response = bClient.get("/" + ds_aw1.getName() + "::failures/_search");
             assertThat(response, isForbidden());
@@ -266,18 +284,26 @@ public class DataStreamsFailureStoreIntTests {
             HttpResponse response = aClient.get("/" + ds_aw1.getName() + "::data/_search?size=1000");
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",23));
+            assertThat(response.getBody(), response.getBodyAsDocNode(),
+                    containsExactly(ds_aw1.dataOnly()).at("hits.hits[*]._index"));
 
             response = bReadAClient.get("/" + ds_aw1.getName() + "::data/_search?size=1000");
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",23));
+            assertThat(response.getBody(), response.getBodyAsDocNode(),
+                    containsExactly(ds_aw1.dataOnly()).at("hits.hits[*]._index"));
 
             response = bReadAClient.get("/" + ds_bw1.getName() + "::data/_search?size=1000");
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",23));
+            assertThat(response.getBody(), response.getBodyAsDocNode(),
+                    containsExactly(ds_bw1.dataOnly()).at("hits.hits[*]._index"));
 
             response = bClient.get("/" + ds_bw1.getName() + "::data/_search?size=1000");
             assertThat(response, isOk());
             assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value",23));
+            assertThat(response.getBody(), response.getBodyAsDocNode(),
+                    containsExactly(ds_bw1.dataOnly()).at("hits.hits[*]._index"));
 
             response = bClient.get("/" + ds_aw1.getName() + "::data/_search");
             assertThat(response, isForbidden());
@@ -299,6 +325,39 @@ public class DataStreamsFailureStoreIntTests {
 
             HttpResponse response = client.get("/" + ds_ar1.getName() + "::failures/_search?size=1000");
             assertThat(response, isForbidden());
+        }
+    }
+
+    @Test
+    public void writeToFailureStore_doesNotRequireFailureStorePermission() throws Exception {
+        try (GenericRestClient aClient = cluster.getRestClient(LIMITED_USER_A);
+                GenericRestClient bClient = cluster.getRestClient(LIMITED_USER_B)) {
+            // LIMITED_USER_A has SGS_WRITE on ds_aw* WITHOUT special:failure_store
+            // LIMITED_USER_B has SGS_WRITE with special:failure_store on ds_bw*
+            // Both should succeed because special:failure_store only controls read access;
+            // Elasticsearch redirects invalid documents to the failure store transparently
+            insertValidDoc(aClient, ds_aw2.getName(), 201);
+            insertInvalidDoc(aClient, ds_aw2.getName(), 201);
+
+            insertValidDoc(bClient, ds_bw2.getName(), 201);
+            insertInvalidDoc(bClient, ds_bw2.getName(), 201);
+        }
+    }
+
+    @Test
+    public void writeToFailureStore_withoutWritePermission() throws Exception {
+        try (GenericRestClient bClient = cluster.getRestClient(LIMITED_USER_B);
+                GenericRestClient adminClient = cluster.getAdminCertRestClient()) {
+            // LIMITED_USER_B has no write permission on ds_aw* - invalid doc should be rejected
+            // and NOT redirected to the failure store
+            HttpResponse response = bClient.postJson("/" + ds_aw2.getName() + "/_doc/?refresh=true",
+                    DocNode.of("a", 1, "@timestamp", "not_a_valid_timestamp"));
+            assertThat(response, isForbidden());
+
+            // Verify the document was not added to the failure store
+            response = adminClient.get("/" + ds_aw2.getName() + "::failures/_search?q=a:1&size=1000");
+            assertThat(response, isOk());
+            assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.hits.total.value", 0));
         }
     }
 
@@ -327,7 +386,7 @@ public class DataStreamsFailureStoreIntTests {
     }
 
     private static void insertInvalidDoc(GenericRestClient client, String dataStream, int expectedResponseCode) throws Exception {
-        HttpResponse response = client.postJson("/"+ dataStream + "/_doc/?refresh=true", DocNode.of("a", 1, "@timestamp", "asd"));
+        HttpResponse response = client.postJson("/"+ dataStream + "/_doc/?refresh=true", DocNode.of("a", 1, "@timestamp", "not_a_valid_timestamp"));
         assertThat(response.getBody(), response.getStatusCode(), equalTo(expectedResponseCode));
         assertThat(response.getBody(), response.getBodyAsDocNode(), containsValue("$.failure_store", "used"));
         assertThat(response.getBody(), response.getBodyAsDocNode(), valueSatisfiesMatcher("$._index", String.class, startsWith(".fs")));

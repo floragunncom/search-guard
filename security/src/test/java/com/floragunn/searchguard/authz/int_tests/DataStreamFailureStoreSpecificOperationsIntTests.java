@@ -81,7 +81,7 @@ public class DataStreamFailureStoreSpecificOperationsIntTests {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .users(LIMITED_USER_A, LIMITED_USER_A_WITH_FAILURE_STORE, ADMIN_CERT_USER)//
-            .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
+            .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_ENABLED_FAILURE_STORE))//
             .dataStreams(ds_aw1)//
             .authzDebug(true)//
             .useExternalProcessCluster().build();

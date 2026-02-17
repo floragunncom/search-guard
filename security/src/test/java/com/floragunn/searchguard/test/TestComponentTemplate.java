@@ -21,15 +21,21 @@ import com.floragunn.codova.documents.Document;
 import com.floragunn.fluent.collections.ImmutableMap;
 
 public class TestComponentTemplate implements Document<TestComponentTemplate> {
+
     public static TestComponentTemplate DATA_STREAM_MINIMAL = new TestComponentTemplate("test_component_template_data_stream_minimal",
-            new TestMapping(new TestMapping.Property("@timestamp", "date", "date_optional_time||epoch_millis")));
+            new TestMapping(new TestMapping.Property("@timestamp", "date", "date_optional_time||epoch_millis")), false);
+
+    public static TestComponentTemplate DATA_STREAM_ENABLED_FAILURE_STORE = new TestComponentTemplate("test_component_template_data_stream_failure_store",
+            new TestMapping(new TestMapping.Property("@timestamp", "date", "date_optional_time||epoch_millis")), true);
 
     private String name;
     private TestMapping mapping;
+    private boolean failureStoreEnabled;
 
-    public TestComponentTemplate(String name, TestMapping mapping) {
+    public TestComponentTemplate(String name, TestMapping mapping, boolean failureStoreEnabled) {
         this.name = name;
         this.mapping = mapping;
+        this.failureStoreEnabled = failureStoreEnabled;
     }
 
     public String getName() {
@@ -50,7 +56,11 @@ public class TestComponentTemplate implements Document<TestComponentTemplate> {
 
     @Override
     public Object toBasicObject() {
-        return ImmutableMap.of("template", ImmutableMap.of("mappings", this.mapping.toBasicObject(), "data_stream_options", ImmutableMap.of("failure_store", ImmutableMap.of("enabled", true))));
+        if (failureStoreEnabled) {
+            return ImmutableMap.of("template", ImmutableMap.of("mappings", this.mapping.toBasicObject(),
+                    "data_stream_options", ImmutableMap.of("failure_store", ImmutableMap.of("enabled", true))));
+        }
+        return ImmutableMap.of("template", ImmutableMap.of("mappings", this.mapping.toBasicObject()));
     }
 
 }
