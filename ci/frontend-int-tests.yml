@@ -140,7 +140,7 @@ fe_kerberos:
     TEST_SG_KI_PLUGIN: "$SG_KI_PLUGIN"
     TEST_KI_VERSION: "$KI_VERSION"
     TEST_IT_BRANCH: "$IT_BRANCH"
-  image: floragunncom/ci-docker-compose-openjdk11:19.03.1
+  image: "$SG_DIND_IMAGE"
   before_script:
     - sudo sysctl -w vm.max_map_count=262144
     - docker-compose --version
@@ -149,7 +149,7 @@ fe_kerberos:
     - apk add python python-dev python py3-setuptools py-pip git
     - pip install awscli --upgrade || true
   services:
-    - docker:19.03-dind
+    - "$SG_DIND_IMAGE"
   tags:
     - test-large
   script:
