@@ -61,6 +61,8 @@ test_dlic_dlsfls:
   extends:
     - .be_unit_test
   script:
+    - echo "debug and sleep"
+    - sleep 3600
     - ci/run_tests.sh dlic-dlsfls
 
 test_dlic_femt:
