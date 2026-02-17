@@ -1,0 +1,23 @@
+variables:
+  # GITLAB_TOKEN: ${GITLAB_TOKEN}
+
+backport_automation:
+  image: floragunncom/python-toolbox:251218
+  stage: post_merge
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+      when: always
+      # &&  $CI_COMMIT_TITLE =~ /^Merge branch.*/dd
+  before_script:
+    - |
+      if [ -z "${GITLAB_TOKEN}" ]; then
+        echo "ERROR: GITLAB_TOKEN is not set!"
+        exit 1
+      fi
+  script:
+    - pip install -r ci/backport/requirements.txt
+    - git config --global --add safe.directory '*'
+    - python ci/backport/backport.py 
+
+
+
