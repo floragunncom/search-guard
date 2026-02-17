@@ -64,7 +64,7 @@ test_dlic_dlsfls:
     # - echo "debug and sleep"
     # - sleep 3600
     - which mvn
-    - ci/run_tests.sh dlic-dlsfls
+    - bash -x ci/run_tests.sh dlic-dlsfls
 
 # test_dlic_femt:
 #   extends:
