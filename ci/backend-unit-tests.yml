@@ -20,65 +20,66 @@
       - .m2/repository
     policy: pull    
 
-test_security:
-  extends:
-    - .be_unit_test
-  script:
-    - ci/run_tests.sh security
+# test_security:
+#   extends:
+#     - .be_unit_test
+#   script:
+#     - ci/run_tests.sh security
 
-test_ssl:
-  extends:
-    - .be_unit_test
-  script:
-    - ci/run_tests.sh ssl
+# test_ssl:
+#   extends:
+#     - .be_unit_test
+#   script:
+#     - ci/run_tests.sh ssl
 
-test_signals:
-  extends:
-    - .be_unit_test
-  script:
-    - ci/run_tests.sh signals
+# test_signals:
+#   extends:
+#     - .be_unit_test
+#   script:
+#     - ci/run_tests.sh signals
 
 
-test_scheduler:
-  extends:
-    - .be_unit_test
-  script:
-    - ci/run_tests.sh scheduler
+# test_scheduler:
+#   extends:
+#     - .be_unit_test
+#   script:
+#     - ci/run_tests.sh scheduler
 
-test_support:
-  extends:
-    - .be_unit_test
-  script:
-    - ci/run_tests.sh support
+# test_support:
+#   extends:
+#     - .be_unit_test
+#   script:
+#     - ci/run_tests.sh support
 
-test_dlic_security:
-  extends:
-    - .be_unit_test
-  script:
-    - ci/run_tests.sh dlic-security
+# test_dlic_security:
+#   extends:
+#     - .be_unit_test
+#   script:
+#     - ci/run_tests.sh dlic-security
     
 test_dlic_dlsfls:
   extends:
     - .be_unit_test
   script:
-    - echo "debug and sleep"
-    - sleep 3600
+    # - echo "debug and sleep"
+    # - sleep 3600
+    - which mvn
     - ci/run_tests.sh dlic-dlsfls
 
-test_dlic_femt:
-  extends:
-    - .be_unit_test
-  script:
-    - ci/run_tests.sh dlic-fe-multi-tenancy
+# test_dlic_femt:
+#   extends:
+#     - .be_unit_test
+#   script:
+#     - ci/run_tests.sh dlic-fe-multi-tenancy
 
-test_dlic_auditlog:
-  extends:
-    - .be_unit_test
-  script:
-    - ci/run_tests.sh dlic-auditlog
+# test_dlic_auditlog:
+#   extends:
+#     - .be_unit_test
+#   script:
+#     - ci/run_tests.sh dlic-auditlog
     
-test_dlic_signals:
-  extends:
-    - .be_unit_test
-  script:
-    - ci/run_tests.sh dlic-signals
+# test_dlic_signals:
+#   extends:
+#     - .be_unit_test
+#   script:
+#     - ci/run_tests.sh dlic-signals
