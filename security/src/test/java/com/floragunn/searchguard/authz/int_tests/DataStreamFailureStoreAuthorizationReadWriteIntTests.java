@@ -786,6 +786,44 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
     }
 
     @Test
+    public void deleteByQuery_indexPattern_data() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            try (GenericRestClient adminRestClient = cluster.getAdminCertRestClient()) {
+                // Init test data
+                DocNode testDoc = DocNode.of("test", "deleteByQuery_indexPattern_data", "@timestamp", Instant.now().toString());
+
+                HttpResponse httpResponse = adminRestClient.putJson("/ds_bw1/_create/put_delete_delete_by_query_data_b1?refresh=true",
+                        testDoc.with("delete_by_query_test_delete", "yes"));
+                assertThat(httpResponse, isCreated());
+                httpResponse = adminRestClient.putJson("/ds_bw1/_create/put_delete_delete_by_query_data_b2?refresh=true",
+                        testDoc.with("delete_by_query_test_delete", "no"));
+                assertThat(httpResponse, isCreated());
+                httpResponse = adminRestClient.putJson("/ds_aw1/_create/put_delete_delete_by_query_data_a1?refresh=true",
+                        testDoc.with("delete_by_query_test_delete", "yes"));
+                assertThat(httpResponse, isCreated());
+                httpResponse = adminRestClient.putJson("/ds_aw1/_create/put_delete_delete_by_query_data_a2?refresh=true",
+                        testDoc.with("delete_by_query_test_delete", "no"));
+                assertThat(httpResponse, isCreated());
+            }
+
+            HttpResponse httpResponse = restClient.postJson("/ds_aw*::data,ds_bw*::data/_delete_by_query?refresh=true&wait_for_completion=true&pretty",
+                    DocNode.of("query.term.delete_by_query_test_delete", "yes"));
+            log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
+
+            if (containsExactly(ds_aw1, ds_aw2, ds_bw1, ds_bw2).at("_index").but(user.indexMatcher("write")).isEmpty()) {
+                assertThat(httpResponse, isForbidden());
+            } else {
+                //user can remove some or all docs found by search request
+                assertThat(httpResponse, isOk());
+                int expectedDeleteCount = containsExactly(ds_aw1.dataOnly(), ds_bw1.dataOnly()).at("_index").but(user.indexMatcher("write")).size();
+                assertThat(httpResponse, json(nodeAt("deleted", equalTo(expectedDeleteCount))));
+            }
+        } finally {
+            deleteTestDocs("deleteByQuery_indexPattern_data", "ds_aw*,ds_bw*");
+        }
+    }
+
+    @Test
     public void updateByQuery_indexPattern() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             try (GenericRestClient adminRestClient = cluster.getAdminCertRestClient()) {
@@ -890,6 +928,54 @@ public class DataStreamFailureStoreAuthorizationReadWriteIntTests {
             deleteTestDocsFromFailureStore(
                     ImmutableList.of(docIdPrefix + "a1", docIdPrefix + "a2", docIdPrefix + "b1", docIdPrefix + "b2"),
                     "ds_aw*::failures,ds_bw*::failures");
+        }
+    }
+
+    @Test
+    public void updateByQuery_indexPattern_data() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            try (GenericRestClient adminRestClient = cluster.getAdminCertRestClient()) {
+                DocNode testDoc = DocNode.of("test", "updateByQuery_indexPattern_data", "@timestamp", Instant.now().toString());
+
+                HttpResponse httpResponse = adminRestClient.putJson("/ds_bw1/_create/put_update_update_by_query_data_b1?refresh=true",
+                        testDoc.with("update_by_query_test_update", "yes"));
+                log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
+                assertThat(httpResponse, isCreated());
+                httpResponse = adminRestClient.putJson("/ds_bw1/_create/put_update_update_by_query_data_b2?refresh=true",
+                        testDoc.with("update_by_query_test_update", "no"));
+                assertThat(httpResponse, isCreated());
+                httpResponse = adminRestClient.putJson("/ds_aw1/_create/put_update_update_by_query_data_a1?refresh=true",
+                        testDoc.with("update_by_query_test_update", "yes"));
+                assertThat(httpResponse, isCreated());
+                httpResponse = adminRestClient.putJson("/ds_aw1/_create/put_update_update_by_query_data_a2?refresh=true",
+                        testDoc.with("update_by_query_test_update", "no"));
+                assertThat(httpResponse, isCreated());
+            }
+
+            HttpResponse httpResponse = restClient.postJson("/ds_aw*::data,ds_bw*::data/_update_by_query?refresh=true&wait_for_completion=true",
+                    DocNode.of("query.term.update_by_query_test_update", "yes")
+                            .with("script", ImmutableMap.of("lang", "painless", "source", "ctx._source['update_by_query_test_updated'] = 'done'")));
+            log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
+
+            boolean updateExecuted = false;
+            if (containsExactly(ds_aw1.dataOnly(), ds_aw2.dataOnly(), ds_bw1.dataOnly(), ds_bw2.dataOnly()).at("_index").but(user.indexMatcher("write")).size() < 4) {
+                // DNFOF is not available for _update_by_query.
+                assertThat(httpResponse, isForbidden());
+            } else {
+                //user can update some or all docs found by search request
+                assertThat(httpResponse, isOk());
+                int expectedUpdateCount = containsExactly(ds_aw1.dataOnly(), ds_bw1.dataOnly()).at("_index").but(user.indexMatcher("write")).size();
+                assertThat(httpResponse, json(nodeAt("updated", equalTo(expectedUpdateCount))));
+                updateExecuted = true;
+            }
+            // make sure that user who can update the data stream in fact updated it
+            boolean isAllowedToExecuteUpdate = ImmutableSet //
+                    .of(UNLIMITED_USER.getName(), SUPER_UNLIMITED_USER.getName(), LIMITED_USER_AB_MANAGE_INDEX.getName(),
+                            LIMITED_USER_AB_MANAGE_INDEX_DATA_ONLY.getName()) //
+                    .contains(user.getName());
+            assertThat(isAllowedToExecuteUpdate, equalTo(updateExecuted));
+        } finally {
+            deleteTestDocs("updateByQuery_indexPattern_data", "ds_aw*,ds_bw*");
         }
     }
 
