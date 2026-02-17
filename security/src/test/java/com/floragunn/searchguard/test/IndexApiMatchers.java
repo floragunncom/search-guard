@@ -451,9 +451,9 @@ public class IndexApiMatchers {
             // -> true
 
             if (other instanceof LimitedToMatcher) {
-                return ((LimitedToMatcher) other).getExpectedIndices().containsAll(this.getExpectedIndices());
+                return isIndexMapCoveredBy(((LimitedToMatcher) other).indexNameMap);
             } else if (other instanceof ContainsExactlyMatcher) {
-                return ((ContainsExactlyMatcher) other).getExpectedIndices().containsAll(this.getExpectedIndices());
+                return isIndexMapCoveredBy(((ContainsExactlyMatcher) other).indexNameMap);
             } else if (other instanceof UnlimitedMatcher) {
                 return true;
             } else {
@@ -773,9 +773,9 @@ public class IndexApiMatchers {
         @Override
         public boolean isCoveredBy(IndexMatcher other) {
             if (other instanceof LimitedToMatcher) {
-                return ((LimitedToMatcher) other).getExpectedIndices().containsAll(this.getExpectedIndices());
+                return isIndexMapCoveredBy(((LimitedToMatcher) other).indexNameMap);
             } else if (other instanceof ContainsExactlyMatcher) {
-                return ((ContainsExactlyMatcher) other).getExpectedIndices().containsAll(this.getExpectedIndices());
+                return isIndexMapCoveredBy(((ContainsExactlyMatcher) other).indexNameMap);
             } else if (other instanceof UnlimitedMatcher) {
                 return true;
             } else {
@@ -1277,6 +1277,24 @@ public class IndexApiMatchers {
             }
 
             return Collections.unmodifiableMap(result);
+        }
+
+        protected boolean isIndexMapCoveredBy(Map<String, TestIndexLike> otherMap) {
+            for (Map.Entry<String, TestIndexLike> entry : this.indexNameMap.entrySet()) {
+                String key = entry.getKey();
+                TestIndexLike thisIndex = entry.getValue();
+                TestIndexLike otherIndex = otherMap.get(key);
+                if (otherIndex == null && key.endsWith("::failures")) {
+                    otherIndex = otherMap.get(key.substring(0, key.length() - "::failures".length()));
+                }
+                if (otherIndex == null) {
+                    return false;
+                }
+                if ((thisIndex.isFailureStoreOnly() && otherIndex.isDataOnly()) || (thisIndex.isDataOnly() && otherIndex.isFailureStoreOnly())) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         protected ImmutableSet<String> getExpectedIndices() {
