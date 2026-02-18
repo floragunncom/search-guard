@@ -375,19 +375,10 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     public void search_all_includeHidden_fsAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_all::failures/_search?size=1000&expand_wildcards=all");
-            if (user == SUPER_UNLIMITED_USER) { //todo COMPONENT SELECTORS - this indicates problem with index resolution
-                // failure stores are included - expected
                 assertThat(httpResponse,
                         containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly(),
                                 ds_hidden.failureOnly(), esInternalIndices()).at("hits.hits[*]._index")
                                 .but(user.indexMatcher("read")).whenEmpty(200));
-            } else {
-                // failure stores are excluded
-                assertThat(httpResponse,
-                        containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly(),
-                                ds_hidden.failureOnly(), esInternalIndices()).at("hits.hits[*]._index")
-                                .but(user.indexMatcher("read")).whenEmpty(200));
-            }
         }
     }
 
@@ -461,17 +452,12 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     public void search_wildcard_includeHidden_fsAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/*::failures/_search?size=1000&expand_wildcards=all");
-            if (user == SUPER_UNLIMITED_USER) { //todo COMPONENT SELECTORS - this indicates problem with index resolution
+
                 assertThat(httpResponse,
                         containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly(),
                                 ds_hidden.failureOnly(), esInternalIndices()).at("hits.hits[*]._index")
                                 .but(user.indexMatcher("read")).whenEmpty(200));
-            } else {
-                assertThat(httpResponse,
-                        containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly(),
-                                ds_hidden.failureOnly(), esInternalIndices()).at("hits.hits[*]._index")
-                                .but(user.indexMatcher("read")).whenEmpty(200));
-            }
+
         }
     }
 
@@ -1271,7 +1257,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     @Test
     public void getAlias_all() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("_alias");//todo COMPONENT SELECTORS - check if test related to failure store is possible
+            HttpResponse httpResponse = restClient.get("_alias");
             assertThat(httpResponse,
                     containsExactly(alias_ab1.dataOnly(), alias_c1.dataOnly()).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
             // Interestingly, this API does not return data streams without aliases - while it returns indices without aliases

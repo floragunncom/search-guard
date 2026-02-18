@@ -651,7 +651,7 @@ public class ResolvedIndices {
 
             pureIndices = pureIndices.matching(index -> index.isFailureStoreRelated() == request.allIndicesFailureStore);
             aliases = aliases.matching(alias -> alias.isFailureStoreRelated() == request.allIndicesFailureStore);
-            // todo COMPONENT SELECTORS - we probably need this.
+            // todo COMPONENT SELECTORS - we probably need this, but this line causes problems: https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/714
             dataStreams = dataStreams.matching(dataStream -> dataStream.isFailureStoreRelated() == request.allIndicesFailureStore);
 
             return new Local(pureIndices, aliases, dataStreams, nonExistingIndices);
