@@ -482,16 +482,30 @@ public class ResolvedIndices {
 
                                 if (indexAbstraction instanceof DataStream) {
                                     if (includeDataStreams) {
-                                        dataStreams.add((Meta.DataStream) indexMetadata.getIndexOrLike(matchedAbstractionWithComponent));
+                                        Meta.DataStream dataStream = (Meta.DataStream) indexMetadata.getIndexOrLike(matchedAbstractionWithComponent);
+                                        if (dataStream != null) {
+                                            dataStreams.add(dataStream);
+                                        } else {
+                                            dataStreams.add(Meta.DataStream.nonExistent(matchedAbstractionWithComponent));
+                                        }
                                     }
                                 } else if (indexAbstraction instanceof IndexAbstraction.Alias) {
                                     if (includeAliases) {
-                                        aliases.add((Meta.Alias) indexMetadata.getIndexOrLike(matchedAbstractionWithComponent));
+                                        Meta.Alias alias = (Meta.Alias) indexMetadata.getIndexOrLike(matchedAbstractionWithComponent);
+                                        if (alias != null) {
+                                            aliases.add(alias);
+                                        } else {
+                                            // e.g., a regular index alias with ::failures component selector - no failure store counterpart exists
+                                            aliases.add(Meta.Alias.nonExistent(matchedAbstractionWithComponent));
+                                        }
                                     }
                                 } else {
                                     if (includeIndices) {
                                         Meta.Index indexMeta = (Meta.Index) indexMetadata.getIndexOrLike(matchedAbstractionWithComponent);
 
+                                        if (indexMeta == null) {
+                                            continue;
+                                        }
                                         if (!indexMeta.isSystem() || request.systemIndexAccess.isAllowed(indexMeta.nameForIndexPatternMatching())) {
                                             indices.add(indexMeta);
                                         }
@@ -502,7 +516,10 @@ public class ResolvedIndices {
 
                                 Meta.IndexLikeObject indexLike = indexMetadata.getIndexOrLike(matchedAbstractionWithComponent);
 
-                                if (indexLike instanceof Meta.IndexCollection) {
+                                if (indexLike == null) {
+                                    // Component selector refers to a non-existent variant (e.g., ::failures on a regular index alias)
+                                    continue;
+                                } else if (indexLike instanceof Meta.IndexCollection) {
                                     for (Meta.IndexLikeObject member : ((Meta.IndexCollection) indexLike).members()) {
                                         if (!excludeNames.contains(member.name())) {
                                             if (member instanceof Meta.Index) {
