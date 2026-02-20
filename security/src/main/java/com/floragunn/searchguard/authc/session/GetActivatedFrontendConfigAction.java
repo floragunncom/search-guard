@@ -48,7 +48,7 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
     public static final RestApi REST_API = new RestApi()//
             .handlesGet("/_searchguard/auth/config")
             .with(GetActivatedFrontendConfigAction.INSTANCE,
-                    (params, body) -> new Request(params.get("config_id"), params.get("next_url"), params.get("frontend_base_url")))//
+                    (params, body) -> new Request(params.get("config_id"), params.get("next_url"), params.get("frontend_base_url"), params.get("dynamic_frontend_base_url")))//
             .handlesPost("/_searchguard/auth/config")//
             .with(GetActivatedFrontendConfigAction.INSTANCE)//
             .name("Search Guard Frontend Auth Config");
@@ -63,12 +63,14 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
         private final String nextURL;
         private final String configId;
         private final String frontendBaseUrl;
+        private final String dynamicBaseFrontendUrl;
 
-        public Request(String configId, String nextURL, String frontendBaseUrl) {
+        public Request(String configId, String nextURL, String frontendBaseUrl, String dynamicBaseFrontendUrl) {
             super();
             this.configId = configId;
             this.nextURL = nextURL;
             this.frontendBaseUrl = frontendBaseUrl;
+            this.dynamicBaseFrontendUrl = dynamicBaseFrontendUrl;
         }
 
         public Request(UnparsedMessage message) throws ConfigValidationException {
@@ -76,6 +78,7 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
             this.configId = docNode.getAsString("config_id");
             this.nextURL = docNode.getAsString("next_url");
             this.frontendBaseUrl = docNode.getAsString("frontend_base_url");
+            this.dynamicBaseFrontendUrl = docNode.getAsString("dynamic_frontend_base_url");
         }
 
         @Override
@@ -93,6 +96,10 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
 
         public String getFrontendBaseUrl() {
             return frontendBaseUrl;
+        }
+
+        public String getDynamicFrontendBaseUrl() {
+            return dynamicBaseFrontendUrl;
         }
 
     }

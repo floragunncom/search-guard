@@ -89,7 +89,7 @@ public class OidcAuthenticatorRedirectUrlTest {
 
     @Test
     public void shouldCreateValidOidcRedirectUrl() throws AuthenticatorUnavailableException, MalformedURLException {
-        AuthMethod authMethod = authenticator.activateFrontendConfig(OIDC_AUTH_METHOD, new Request(null, null, frontendBaseUrl));
+        AuthMethod authMethod = authenticator.activateFrontendConfig(OIDC_AUTH_METHOD, new Request(null, null, frontendBaseUrl, null));
         String redirectUrl = URLEncodedUtils.parse(authMethod.getSsoLocation(), Charset.forName("UTF-8")).stream()//
             .filter(nameValuePair -> "redirect_uri".equals(nameValuePair.getName()))//
             .map(pair -> pair.getValue())//
