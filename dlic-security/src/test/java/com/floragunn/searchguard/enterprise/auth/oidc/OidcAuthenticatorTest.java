@@ -15,6 +15,7 @@ package com.floragunn.searchguard.enterprise.auth.oidc;
 
 import java.io.FileNotFoundException;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -31,6 +32,7 @@ import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import org.apache.http.client.utils.URLEncodedUtils;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
@@ -393,6 +395,109 @@ public class OidcAuthenticatorTest {
             Assert.assertTrue(e.getMessage(), e.getMessage().contains("not before claim is set to:"));
             Assert.assertTrue(e.getMessage(), e.getMessage().contains(DateTimeFormatter.ISO_DATE_TIME.format(future.atZone(ZoneId.systemDefault()).truncatedTo(ChronoUnit.SECONDS))));
         }
+    }
+
+    @Test
+    public void dynamicFrontendUrl_usedForRedirectUriWhenEnabled() throws Exception {
+        String dynamicFrontendBaseUrl = "http://dynamic.example.com";
+        ImmutableMap<String, Object> config = basicAuthenticatorSettings.with("use_dynamic_frontend_url", true);
+        OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
+        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
+        authMethod = authenticator.activateFrontendConfig(authMethod,
+                new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, dynamicFrontendBaseUrl));
+
+        String redirectUri = extractRedirectUriFromSsoLocation(authMethod.getSsoLocation());
+
+        Assert.assertTrue("redirect_uri should use dynamic URL: " + redirectUri, redirectUri.startsWith(dynamicFrontendBaseUrl));
+        Assert.assertFalse("redirect_uri should not use static URL: " + redirectUri, redirectUri.startsWith(FRONTEND_BASE_URL));
+    }
+
+    @Test
+    public void dynamicFrontendUrl_ignoredForRedirectUriWhenDisabled() throws Exception {
+        String dynamicFrontendBaseUrl = "http://dynamic.example.com";
+        OidcAuthenticator authenticator = new OidcAuthenticator(basicAuthenticatorSettings, testContext);
+        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
+        authMethod = authenticator.activateFrontendConfig(authMethod,
+                new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, dynamicFrontendBaseUrl));
+
+        String redirectUri = extractRedirectUriFromSsoLocation(authMethod.getSsoLocation());
+
+        Assert.assertTrue("redirect_uri should use static URL: " + redirectUri, redirectUri.startsWith(FRONTEND_BASE_URL));
+        Assert.assertFalse("redirect_uri should not use dynamic URL: " + redirectUri, redirectUri.startsWith(dynamicFrontendBaseUrl));
+    }
+
+    @Test
+    public void dynamicFrontendUrl_fallsBackToStaticWhenDynamicIsNull() throws Exception {
+        ImmutableMap<String, Object> config = basicAuthenticatorSettings.with("use_dynamic_frontend_url", true);
+        OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
+        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
+        authMethod = authenticator.activateFrontendConfig(authMethod,
+                new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, null));
+
+        String redirectUri = extractRedirectUriFromSsoLocation(authMethod.getSsoLocation());
+
+        Assert.assertTrue("redirect_uri should use static URL when dynamic is null: " + redirectUri,
+                redirectUri.startsWith(FRONTEND_BASE_URL));
+    }
+
+    @Test
+    public void dynamicFrontendUrl_fallsBackToStaticWhenDynamicIsEmpty() throws Exception {
+        ImmutableMap<String, Object> config = basicAuthenticatorSettings.with("use_dynamic_frontend_url", true);
+        OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
+        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
+        authMethod = authenticator.activateFrontendConfig(authMethod,
+                new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, ""));
+
+        String redirectUri = extractRedirectUriFromSsoLocation(authMethod.getSsoLocation());
+
+        Assert.assertTrue("redirect_uri should use static URL when dynamic is empty: " + redirectUri,
+                redirectUri.startsWith(FRONTEND_BASE_URL));
+    }
+
+    @Test
+    public void dynamicFrontendUrl_fullSsoFlowSucceeds() throws Exception {
+        String dynamicFrontendBaseUrl = "http://dynamic.example.com";
+        ImmutableMap<String, Object> config = basicAuthenticatorSettings.with("use_dynamic_frontend_url", true);
+        OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
+        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
+        authMethod = authenticator.activateFrontendConfig(authMethod,
+                new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, dynamicFrontendBaseUrl));
+
+        String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_COY_SIGNED_OCT_1);
+
+        Map<String, Object> request = ImmutableMap.of("sso_result", ssoResponse, "sso_context", authMethod.getSsoContext(),
+                "frontend_base_url", FRONTEND_BASE_URL, "dynamic_frontend_base_url", dynamicFrontendBaseUrl);
+
+        AuthCredentials authCredentials = authenticator.extractCredentials(request);
+
+        Assert.assertEquals(TestJwts.MCCOY_SUBJECT, authCredentials.getUsername());
+    }
+
+    @Test
+    public void dynamicFrontendUrl_disabledSsoFlowUsesStaticUrl() throws Exception {
+        String dynamicFrontendBaseUrl = "http://dynamic.example.com";
+        OidcAuthenticator authenticator = new OidcAuthenticator(basicAuthenticatorSettings, testContext);
+        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
+        authMethod = authenticator.activateFrontendConfig(authMethod,
+                new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, dynamicFrontendBaseUrl));
+
+        String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_COY_SIGNED_OCT_1);
+
+        // dynamic_frontend_base_url is present in the request but must be ignored since use_dynamic_frontend_url=false
+        Map<String, Object> request = ImmutableMap.of("sso_result", ssoResponse, "sso_context", authMethod.getSsoContext(),
+                "frontend_base_url", FRONTEND_BASE_URL, "dynamic_frontend_base_url", dynamicFrontendBaseUrl);
+
+        AuthCredentials authCredentials = authenticator.extractCredentials(request);
+
+        Assert.assertEquals(TestJwts.MCCOY_SUBJECT, authCredentials.getUsername());
+    }
+
+    private static String extractRedirectUriFromSsoLocation(String ssoLocation) {
+        return URLEncodedUtils.parse(ssoLocation, Charset.forName("UTF-8")).stream()
+                .filter(pair -> "redirect_uri".equals(pair.getName()))
+                .map(pair -> pair.getValue())
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("redirect_uri not found in SSO location: " + ssoLocation));
     }
 
 }
