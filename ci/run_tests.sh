@@ -17,4 +17,4 @@ fi
 
 echo "RUN TEST COMMAND $RUN_TESTS_COMMAND"
 
-su es_test -c "$RUN_TESTS_COMMAND"
+su - es_test -c "cd `pwd` && $RUN_TESTS_COMMAND"

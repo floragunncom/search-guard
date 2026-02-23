@@ -89,9 +89,9 @@ signals_2:
       when: never
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_TAG =~ /^sg-flx-.*/ || $FORCE_SGI'
       when: on_success
-  image: docker:${DOCKER_VERSION}
+  image: "$SG_DIND_IMAGE"
   services:
-    - docker:${DOCKER_VERSION}-dind
+    - "$SG_DIND_IMAGE"
   script:
     - |
        #apk update
