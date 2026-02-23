@@ -31,7 +31,7 @@ public class TestDataStream implements TestIndexLike {
     private final boolean failureStoreEnabled;
     private final int failureDocumentCount;
 
-    public TestDataStream(String name, TestData testData, boolean failureStoreEnabled, int failureDocumentCount) {
+    TestDataStream(String name, TestData testData, boolean failureStoreEnabled, int failureDocumentCount) {
         this.name = name;
         this.testData = testData;
         this.failureStoreEnabled = failureStoreEnabled;
@@ -39,6 +39,10 @@ public class TestDataStream implements TestIndexLike {
             throw new IllegalStateException("Cannot add documents to the disabled failure store for data stream " + name);
         }
         this.failureDocumentCount = failureDocumentCount;
+    }
+
+    public TestDataStream(String name, TestData testData) {
+        this(name, testData, false, 0);
     }
 
     @Override

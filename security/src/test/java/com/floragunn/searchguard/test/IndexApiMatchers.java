@@ -481,7 +481,11 @@ public class IndexApiMatchers {
         public IndexMatcher withFailureStore() {
             Map<String, TestIndexLike> newIndexNameMap = new HashMap<>();
             for (Map.Entry<String, TestIndexLike> entry : indexNameMap.entrySet()) {
-                newIndexNameMap.put(entry.getKey(), entry.getValue().enableFailureStore());
+                TestIndexLike testIndexLike = entry.getValue();
+                if (testIndexLike instanceof TestIndex) {
+                    continue;
+                }
+                newIndexNameMap.put(entry.getKey(), testIndexLike.enableFailureStore());
             }
             return new ContainsExactlyMatcher(newIndexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCodeWhenEmpty);
         }
@@ -897,7 +901,12 @@ public class IndexApiMatchers {
         public IndexMatcher withFailureStore() {
             Map<String, TestIndexLike> newIndexNameMap = new HashMap<>();
             for (Map.Entry<String, TestIndexLike> entry : this.indexNameMap.entrySet()) {
-                newIndexNameMap.put(entry.getKey(), entry.getValue().enableFailureStore());
+                TestIndexLike index = entry.getValue();
+                if (index instanceof TestIndex) {
+                    continue;
+                }
+                TestIndexLike testIndexLike = index.enableFailureStore();
+                newIndexNameMap.put(entry.getKey(), testIndexLike);
             }
             return new ContainsExactlyMatcher(newIndexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCodeWhenEmpty);
         }

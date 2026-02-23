@@ -37,7 +37,6 @@ import java.util.Collection;
 import java.util.List;
 
 import static com.floragunn.searchguard.test.IndexApiMatchers.containsExactly;
-import static com.floragunn.searchguard.test.IndexApiMatchers.limitedTo;
 import static com.floragunn.searchguard.test.IndexApiMatchers.limitedToNone;
 import static com.floragunn.searchguard.test.IndexApiMatchers.searchGuardIndices;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
@@ -52,7 +51,7 @@ public class AllLocalFailureStoreAccessIntTests {
     public static final String MATCHER_DATA_ONLY = "matcher-data-only";
     public static final String MATCHER_ALL_WITH_EXPAND_WILDCARDS = "matcher-all-with-expand-wildcards";
 
-    static TestDataStream ds_alpha = TestDataStream.name("ds_alpha")
+    static TestDataStream test_data_stream = TestDataStream.name("test_data_stream")
             .failureStoreEnabled(true)
             .documentCount(3)
             .rolloverAfter(2)
@@ -62,18 +61,18 @@ public class AllLocalFailureStoreAccessIntTests {
     static User ADMIN_CERT_USER = new User("admin_cert_user")
             .description("admin_cert_user - admin cert user")
             .adminCertUser()
-            .indexMatcher(MATCHER_FAILURE_STORE_ONLY, containsExactly(ds_alpha.failureStore().orElseThrow()).at("hits.hits[*]._index"))
-            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"))
-            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(ds_alpha, searchGuardIndices()).at("hits.hits[*]._index"));
+            .indexMatcher(MATCHER_FAILURE_STORE_ONLY, containsExactly(test_data_stream.failureStore().orElseThrow()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(test_data_stream, searchGuardIndices()).at("hits.hits[*]._index"));
 
     static User USER_ALL_ACCESS_NO_CERTS = new User("user_all_access_no_certs")
             .description("user_all_access_no_certs - user with all access no certs")
             .roles(Role.ALL_ACCESS)
-            .indexMatcher(MATCHER_FAILURE_STORE_ONLY, containsExactly(ds_alpha.failureStore().orElseThrow()).at("hits.hits[*]._index"))
-            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_FAILURE_STORE_ONLY, containsExactly(test_data_stream.failureStore().orElseThrow()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"))
             // todo COMPONENT SELECTORS: this is unexpected. Should be the same as in case of ADMIN_CERT_USER but without searchGuardIndices
             // (failure store indices should be included)
-            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"));
+            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"));
 
 
     static User USER_FS_ACCESS_DS_LEVEL = new User("user_fs_access_ds_level")
@@ -84,11 +83,11 @@ public class AllLocalFailureStoreAccessIntTests {
                             .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store")
                             .on("*")
             )
-            .indexMatcher(MATCHER_FAILURE_STORE_ONLY, containsExactly(ds_alpha.failureStore().orElseThrow()).at("hits.hits[*]._index"))
-            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_FAILURE_STORE_ONLY, containsExactly(test_data_stream.failureStore().orElseThrow()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"))
             // todo COMPONENT SELECTORS: this is unexpected. Should be the same as in case of ADMIN_CERT_USER but without searchGuardIndices
             // (failure store indices should be included)
-            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"));
+            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"));
 
     static User USER_LACKING_FS_ACCESS_DS_LEVEL = new User("user_lacking_fs_access_ds_level")
             .description("user_lacking_fs_access_ds_level - user with lacking access to all local failure stores on data stream level")
@@ -99,8 +98,8 @@ public class AllLocalFailureStoreAccessIntTests {
                             .on("*")
             )
             .indexMatcher(MATCHER_FAILURE_STORE_ONLY, limitedToNone().at("hits.hits[*]._index"))
-            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"))
-            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"));
+            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"));
 
     static User USER_LACKING_FS_ACCESS_INDEX_LEVEL = new User("user_lacking_fs_access_index_level")
             .description("user_lacking_fs_access_index_level - user with lacking access to all local failure stores on index level")
@@ -111,8 +110,8 @@ public class AllLocalFailureStoreAccessIntTests {
                             .on("*")
             )
             .indexMatcher(MATCHER_FAILURE_STORE_ONLY, limitedToNone().at("hits.hits[*]._index"))
-            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"))
-            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"));
+            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"));
 
     static User USER_FS_ACCESS_INDEX_LEVEL = new User("user_fs_access_index_level")
             .description("user_fs_access_index_level - user with access to all local failure stores on index level")
@@ -122,10 +121,10 @@ public class AllLocalFailureStoreAccessIntTests {
                             .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "indices:admin/refresh*", "special:failure_store")
                             .on("*")
             )
-            .indexMatcher(MATCHER_FAILURE_STORE_ONLY, containsExactly(ds_alpha.failureStore().orElseThrow()).at("hits.hits[*]._index"))
-            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_FAILURE_STORE_ONLY, containsExactly(test_data_stream.failureStore().orElseThrow()).at("hits.hits[*]._index"))
+            .indexMatcher(MATCHER_DATA_ONLY, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"))
             // todo COMPONENT SELECTORS - This user should have access to the failure store indices when wildcard expansion is enabled.
-            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(ds_alpha.dataOnly()).at("hits.hits[*]._index"));
+            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"));
 
     static List<User> USERS = ImmutableList.of(
             ADMIN_CERT_USER, USER_ALL_ACCESS_NO_CERTS, USER_FS_ACCESS_DS_LEVEL,
@@ -135,8 +134,8 @@ public class AllLocalFailureStoreAccessIntTests {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
             .users(USERS)
-            .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))
-            .dataStreams(ds_alpha)
+            .indexTemplates(new TestIndexTemplate("ds_test",  test_data_stream.getName() + "*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))
+            .dataStreams(test_data_stream)
             .authzDebug(true)
             .enterpriseModulesEnabled()
             .useExternalProcessCluster()

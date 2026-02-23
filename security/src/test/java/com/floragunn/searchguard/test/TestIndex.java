@@ -55,8 +55,7 @@ public class TestIndex implements TestIndexLike {
 
     @Override
     public TestIndexLike enableFailureStore() {
-        // index does not contain failure store
-        return this;
+        throw new UnsupportedOperationException("Index " + this.name + " is does not contain failure store");
     }
 
     public void create(Client client) {
