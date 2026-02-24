@@ -465,17 +465,9 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     public void search_wildcard_includeHidden_dataAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/*::data/_search?size=1000&expand_wildcards=all");
-            // todo COMPONENT SELECTORS - this indicates problem with index resolution
-//            if (user == SUPER_UNLIMITED_USER) {
                 assertThat(httpResponse,
                         containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, ds_hidden, searchGuardIndices(), esInternalIndices()).at(
                                 "hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
-//            } else {
-//                assertThat(httpResponse,
-//                        containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(),
-//                                index_c1, ds_hidden.dataOnly(), searchGuardIndices(), esInternalIndices()).at("hits.hits[*]._index")
-//                                .but(user.indexMatcher("read")).whenEmpty(200));
-//            }
         }
     }
 
