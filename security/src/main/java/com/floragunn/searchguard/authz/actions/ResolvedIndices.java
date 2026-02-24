@@ -666,12 +666,33 @@ public class ResolvedIndices {
 
             pureIndices = pureIndices.matching(index -> !index.isSystem() || request.systemIndexAccess.isAllowed(index.nameForIndexPatternMatching()));
 
-            pureIndices = pureIndices.matching(index -> index.isFailureStoreRelated() == request.allIndicesFailureStore);
-            aliases = aliases.matching(alias -> alias.isFailureStoreRelated() == request.allIndicesFailureStore);
-            // todo COMPONENT SELECTORS - we probably need this, but this line causes problems: https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/714
-            dataStreams = dataStreams.matching(dataStream -> dataStream.isFailureStoreRelated() == request.allIndicesFailureStore);
+
+            pureIndices = pureIndices.matching(index -> shouldIncludeIndexLikeForAllLocal(index, includeHidden, request.allIndicesFailureStore));
+            aliases = aliases.matching(alias -> shouldIncludeIndexLikeForAllLocal(alias, includeHidden, request.allIndicesFailureStore));
+//            // todo COMPONENT SELECTORS - we probably need this, but this line causes problems: https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/714
+            dataStreams = dataStreams.matching(dataStream -> shouldIncludeIndexLikeForAllLocal(dataStream, includeHidden, request.allIndicesFailureStore));
+
 
             return new Local(pureIndices, aliases, dataStreams, nonExistingIndices);
+        }
+
+        private static boolean shouldIncludeIndexLikeForAllLocal(Meta.IndexLikeObject indexLike, boolean includeHidden,
+                boolean allIndicesFailureStoreSelector) {
+            if (allIndicesFailureStoreSelector) {
+                // only indices related to a failure store should be returned
+                // expressions like "*::failure" or "_all::failure"
+                return indexLike.isFailureStoreRelated();
+            } else {
+                // data selector "*::data" or "_all::data"
+                // or not component selector "*" or "_all"
+                if (includeHidden) {
+                    // in this case we need to include data and failure store components
+                    return true;
+                } else {
+                    // in this case we need to include only index-like objects related to data component
+                    return !indexLike.isFailureStoreRelated();
+                }
+            }
         }
 
         static ResolvedIndices.Local resolveWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {

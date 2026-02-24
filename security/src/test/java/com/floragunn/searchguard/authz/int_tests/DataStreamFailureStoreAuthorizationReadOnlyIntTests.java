@@ -355,19 +355,19 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     public void search_all_includeHidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_all/_search?size=1000&expand_wildcards=all");
-            if (user == SUPER_UNLIMITED_USER) { //todo COMPONENT SELECTORS - this indicates problem with index resolution
+//            if (user == SUPER_UNLIMITED_USER) { //todo COMPONENT SELECTORS - this indicates problem with index resolution
                 // failure stores are included - expected
                 assertThat(httpResponse,
                         containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3,
                                 index_c1, ds_hidden, searchGuardIndices(), esInternalIndices()).at("hits.hits[*]._index")
                                 .but(user.indexMatcher("read")).whenEmpty(200));
-            } else {
-                // failure stores are excluded
-                assertThat(httpResponse,
-                        containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(),
-                                index_c1, ds_hidden.dataOnly(), searchGuardIndices(), esInternalIndices()).at("hits.hits[*]._index")
-                                .but(user.indexMatcher("read")).whenEmpty(200));
-            }
+//            } else {
+//                // failure stores are excluded
+//                assertThat(httpResponse,
+//                        containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(),
+//                                index_c1, ds_hidden.dataOnly(), searchGuardIndices(), esInternalIndices()).at("hits.hits[*]._index")
+//                                .but(user.indexMatcher("read")).whenEmpty(200));
+//            }
         }
     }
 
@@ -386,19 +386,19 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     public void search_all_includeHidden_dataAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_all::data/_search?size=1000&expand_wildcards=all");
-            if (user == SUPER_UNLIMITED_USER) { //todo COMPONENT SELECTORS - this indicates problem with index resolution
+//            if (user == SUPER_UNLIMITED_USER) { //todo COMPONENT SELECTORS - this indicates problem with index resolution
                 // failure stores are included - expected
                 assertThat(httpResponse,
                         containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3,
                                 index_c1, ds_hidden, searchGuardIndices(), esInternalIndices()).at("hits.hits[*]._index")
                                 .but(user.indexMatcher("read")).whenEmpty(200));
-            } else {
-                // failure stores are excluded
-                assertThat(httpResponse,
-                        containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(),
-                                index_c1, ds_hidden.dataOnly(), searchGuardIndices(), esInternalIndices()).at("hits.hits[*]._index")
-                                .but(user.indexMatcher("read")).whenEmpty(200));
-            }
+//            } else {
+//                // failure stores are excluded
+//                assertThat(httpResponse,
+//                        containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(),
+//                                index_c1, ds_hidden.dataOnly(), searchGuardIndices(), esInternalIndices()).at("hits.hits[*]._index")
+//                                .but(user.indexMatcher("read")).whenEmpty(200));
+//            }
         }
     }
 
@@ -434,17 +434,17 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/*/_search?size=1000&expand_wildcards=all");
             // todo COMPONENT SELECTORS - this indicates problem with index resolution
-            if (user == SUPER_UNLIMITED_USER) {
+//            if (user == SUPER_UNLIMITED_USER) {
                 assertThat(httpResponse,
                         containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, ds_hidden, searchGuardIndices(), esInternalIndices()).at(
                                 "hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
-            } else {
-
-                assertThat(httpResponse,
-                        containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(),
-                                index_c1, ds_hidden.dataOnly(), searchGuardIndices(), esInternalIndices()).at("hits.hits[*]._index")
-                                .but(user.indexMatcher("read")).whenEmpty(200));
-            }
+//            } else {
+//
+//                assertThat(httpResponse,
+//                        containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(),
+//                                index_c1, ds_hidden.dataOnly(), searchGuardIndices(), esInternalIndices()).at("hits.hits[*]._index")
+//                                .but(user.indexMatcher("read")).whenEmpty(200));
+//            }
         }
     }
 
@@ -466,16 +466,16 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/*::data/_search?size=1000&expand_wildcards=all");
             // todo COMPONENT SELECTORS - this indicates problem with index resolution
-            if (user == SUPER_UNLIMITED_USER) {
+//            if (user == SUPER_UNLIMITED_USER) {
                 assertThat(httpResponse,
                         containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, ds_hidden, searchGuardIndices(), esInternalIndices()).at(
                                 "hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
-            } else {
-                assertThat(httpResponse,
-                        containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(),
-                                index_c1, ds_hidden.dataOnly(), searchGuardIndices(), esInternalIndices()).at("hits.hits[*]._index")
-                                .but(user.indexMatcher("read")).whenEmpty(200));
-            }
+//            } else {
+//                assertThat(httpResponse,
+//                        containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(),
+//                                index_c1, ds_hidden.dataOnly(), searchGuardIndices(), esInternalIndices()).at("hits.hits[*]._index")
+//                                .but(user.indexMatcher("read")).whenEmpty(200));
+//            }
         }
     }
 
@@ -1466,19 +1466,19 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     public void resolve_wildcard_includeHidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_resolve/index/*?expand_wildcards=all");
-            if (user == SUPER_UNLIMITED_USER) { //todo COMPONENT SELECTORS - indicates problems related to index resolution
+//            if (user == SUPER_UNLIMITED_USER) { //todo COMPONENT SELECTORS - indicates problems related to index resolution
                 assertThat(httpResponse,
                         containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3,
                                 //todo COMPONENT SELECTORS - alias_ab1.dataOnly() - this is needed only for the admin cert user. This is probably also related to problems associated with index resolutions
                                 index_c1, alias_ab1.dataOnly(),
                                 alias_c1, ds_hidden, searchGuardIndices(),
                                 esInternalIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
-            } else {
-                assertThat(httpResponse,
-                        containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(),
-                                index_c1, alias_ab1.dataOnly(), alias_c1.dataOnly(), ds_hidden.dataOnly(), searchGuardIndices(),
-                                esInternalIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
-            }
+//            } else {
+//                assertThat(httpResponse,
+//                        containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(),
+//                                index_c1, alias_ab1.dataOnly(), alias_c1.dataOnly(), ds_hidden.dataOnly(), searchGuardIndices(),
+//                                esInternalIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
+//            }
         }
     }
 
@@ -1523,18 +1523,18 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     public void resolve_wildcard_includeHidden_dataAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_resolve/index/*::data?expand_wildcards=all");
-            if (user == SUPER_UNLIMITED_USER) { //todo COMPONENT SELECTORS - indicates problems related to index resolution
+//            if (user == SUPER_UNLIMITED_USER) { //todo COMPONENT SELECTORS - indicates problems related to index resolution
                 assertThat(httpResponse,
                         containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3,
                                 index_c1, alias_ab1.dataOnly(), //todo COMPONENT SELECTORS - alias_ab1.dataOnly() - why dataOnly invocation is needed here
                                 alias_c1, ds_hidden, searchGuardIndices(),
                                 esInternalIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
-            } else {
-                assertThat(httpResponse,
-                        containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(),
-                                index_c1, alias_ab1.dataOnly(), alias_c1.dataOnly(), ds_hidden.dataOnly(), searchGuardIndices(),
-                                esInternalIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
-            }
+//            } else {
+//                assertThat(httpResponse,
+//                        containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(),
+//                                index_c1, alias_ab1.dataOnly(), alias_c1.dataOnly(), ds_hidden.dataOnly(), searchGuardIndices(),
+//                                esInternalIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
+//            }
         }
     }
 
