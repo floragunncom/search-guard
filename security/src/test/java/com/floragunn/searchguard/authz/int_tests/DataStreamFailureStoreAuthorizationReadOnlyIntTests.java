@@ -1444,7 +1444,11 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             HttpResponse httpResponse = restClient.get("/_resolve/index/*?expand_wildcards=all");
             assertThat(httpResponse,
                     containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3,
-                            //todo COMPONENT SELECTORS - alias_ab1.dataOnly() - this is needed only for the admin cert user. This is probably also related to problems associated with index resolutions
+                            // alias_ab1.dataOnly() is needed because the _resolve/index response reports aliases by base name only
+                            // ("alias_ab1"). There is no separate "alias_ab1::failures" entry in the response. Using the full alias_ab1
+                            // would cause containsExactly() to add "alias_ab1::failures" to the expected set (via failureStore()),
+                            // which would never match any response entry. Data streams don't have this problem because their .fs-*
+                            // backing indices appear in indices[*].name when expand_wildcards=all.
                             index_c1, alias_ab1.dataOnly(),
                             alias_c1, ds_hidden, searchGuardIndices(),
                             esInternalIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
@@ -1488,7 +1492,8 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             HttpResponse httpResponse = restClient.get("/_resolve/index/*::data?expand_wildcards=all");
                 assertThat(httpResponse,
                     containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3,
-                            index_c1, alias_ab1.dataOnly(), //todo COMPONENT SELECTORS - alias_ab1.dataOnly() - why dataOnly invocation is needed here
+                            // alias_ab1.dataOnly() — see comment in resolve_wildcard_includeHidden for explanation
+                            index_c1, alias_ab1.dataOnly(),
                             alias_c1, ds_hidden, searchGuardIndices(),
                             esInternalIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
         }
