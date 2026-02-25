@@ -63,14 +63,14 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
         private final String nextURL;
         private final String configId;
         private final String frontendBaseUrl;
-        private final String dynamicBaseFrontendUrl;
+        private final String dynamicFrontendBaseUrl;
 
-        public Request(String configId, String nextURL, String frontendBaseUrl, String dynamicBaseFrontendUrl) {
+        public Request(String configId, String nextURL, String frontendBaseUrl, String dynamicFrontendBaseUrl) {
             super();
             this.configId = configId;
             this.nextURL = nextURL;
             this.frontendBaseUrl = frontendBaseUrl;
-            this.dynamicBaseFrontendUrl = dynamicBaseFrontendUrl;
+            this.dynamicFrontendBaseUrl = dynamicFrontendBaseUrl;
         }
 
         public Request(UnparsedMessage message) throws ConfigValidationException {
@@ -78,7 +78,7 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
             this.configId = docNode.getAsString("config_id");
             this.nextURL = docNode.getAsString("next_url");
             this.frontendBaseUrl = docNode.getAsString("frontend_base_url");
-            this.dynamicBaseFrontendUrl = docNode.getAsString("dynamic_frontend_base_url");
+            this.dynamicFrontendBaseUrl = docNode.getAsString("dynamic_frontend_base_url");
         }
 
         @Override
@@ -99,7 +99,7 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
         }
 
         public String getDynamicFrontendBaseUrl() {
-            return dynamicBaseFrontendUrl;
+            return dynamicFrontendBaseUrl;
         }
 
     }

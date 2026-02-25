@@ -465,9 +465,17 @@ public class OidcAuthenticatorTest {
 
         String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_COY_SIGNED_OCT_1);
 
+        // The mock IdP builds the sso_result as redirect_uri?code=...&state=..., so the
+        // sso_result base URL must be the dynamic URL, not the static one.
+        Assert.assertTrue("sso_result callback should use dynamic URL: " + ssoResponse, ssoResponse.startsWith(dynamicFrontendBaseUrl));
+        Assert.assertFalse("sso_result callback should not use static URL: " + ssoResponse, ssoResponse.startsWith(FRONTEND_BASE_URL));
+
         Map<String, Object> request = ImmutableMap.of("sso_result", ssoResponse, "sso_context", authMethod.getSsoContext(),
                 "frontend_base_url", FRONTEND_BASE_URL, "dynamic_frontend_base_url", dynamicFrontendBaseUrl);
 
+        // extractCredentials must also send the dynamic URL as redirect_uri in the token
+        // exchange — the mock IdP enforces that it matches the value stored above and
+        // returns HTTP 400 if it doesn't, which would cause extractCredentials to throw.
         AuthCredentials authCredentials = authenticator.extractCredentials(request);
 
         Assert.assertEquals(TestJwts.MCCOY_SUBJECT, authCredentials.getUsername());
