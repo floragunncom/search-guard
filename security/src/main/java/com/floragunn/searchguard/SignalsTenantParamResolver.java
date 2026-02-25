@@ -2,6 +2,8 @@ package com.floragunn.searchguard;
 
 import org.elasticsearch.rest.RestRequest;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 public class SignalsTenantParamResolver {
@@ -18,7 +20,7 @@ public class SignalsTenantParamResolver {
         final Optional<String> tenantFromUri = getSignalsTenantFrom(request);
 
         if (tenantFromUri.isPresent()) {
-            String tenantParamValue = tenantFromUri.get();
+            String tenantParamValue = URLDecoder.decode(tenantFromUri.get(), StandardCharsets.UTF_8);
 
             if ("_main".equals(tenantParamValue)) {
                 return null;
