@@ -346,15 +346,10 @@ public class IndexAuthorizationReadOnlyIntTests {
             // On static indices, negation does not have an effect
             HttpResponse httpResponse = restClient.get("index_a1,index_a2,index_b1,-index_b1/_search?size=1000");
 
-            if (httpResponse.getStatusCode() == 404) {
-                // The pecularities of index resolution, chapter 634:
-                // A 404 error is also acceptable if we get ES complaining about -index_b1. This will be the case for users with full permissions
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-index_b1]"))));
-            } else {
+
                 assertThat(httpResponse,
-                        containsExactly(index_a1, index_a2, index_b1).at("hits.hits[*]._index").butForbiddenIfIncomplete(user.indexMatcher("read")).whenEmpty(403));
-            }
+                        containsExactly(index_a1, index_a2).at("hits.hits[*]._index").butForbiddenIfIncomplete(user.indexMatcher("read")).whenEmpty(403));
+
         }
     }
 
@@ -929,15 +924,10 @@ public class IndexAuthorizationReadOnlyIntTests {
             // On static indices, negation does not have an effect
             HttpResponse httpResponse = restClient.get("index_a1,index_a2,index_b1,-index_b1/_field_caps?fields=*");
 
-            if (httpResponse.getStatusCode() == 404) {
-                // The pecularities of index resolution, chapter 634:
-                // A 404 error is also acceptable if we get ES complaining about -index_b1. This will be the case for users with full permissions
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-index_b1]"))));
-            } else {
+
                 assertThat(httpResponse,
-                        containsExactly(index_a1, index_a2, index_b1).at("indices").butForbiddenIfIncomplete(user.indexMatcher("read")).whenEmpty(403));
-            }
+                        containsExactly(index_a1, index_a2).at("indices").butForbiddenIfIncomplete(user.indexMatcher("read")).whenEmpty(403));
+
         }
     }
 
