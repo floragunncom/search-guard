@@ -669,7 +669,6 @@ public class ResolvedIndices {
 
             pureIndices = pureIndices.matching(index -> shouldIncludeIndexLikeForAllLocal(index, includeHidden, request.allIndicesFailureStore, scope));
             aliases = aliases.matching(alias -> shouldIncludeIndexLikeForAllLocal(alias, includeHidden, request.allIndicesFailureStore, scope));
-//            // todo COMPONENT SELECTORS - we probably need this, but this line causes problems: https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/714
             dataStreams = dataStreams.matching(dataStream -> shouldIncludeIndexLikeForAllLocal(dataStream, includeHidden, request.allIndicesFailureStore, scope));
 
 
