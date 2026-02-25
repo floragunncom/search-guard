@@ -67,7 +67,8 @@ public class FileHelper {
                 return tmp;
             }
 
-            return Files.createTempDirectory(directoryNamePrefix).toFile();
+            // getCanonicalFile is needed to resolve symbolic links on MacOS. Otherwise, the temp directory might be created in a different location than expected, which can cause issues with path based entitlements.
+            return Files.createTempDirectory(directoryNamePrefix).toFile().getCanonicalFile();
         } catch (IOException e) {
             log.error("Failed to create temp directory with prefix: {}", directoryNamePrefix, e);
             throw new RuntimeException(e);
