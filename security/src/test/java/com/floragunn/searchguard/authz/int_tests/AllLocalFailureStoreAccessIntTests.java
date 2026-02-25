@@ -43,6 +43,7 @@ import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 @RunWith(Parameterized.class)
+//todo COMPONENT SELECTORS - the test can be removed, contain duplicates of DataStreamFailureStoreAuthorizationReadOnlyIntTests
 public class AllLocalFailureStoreAccessIntTests {
 
     private static final Logger log = LogManager.getLogger(AllLocalFailureStoreAccessIntTests.class);
