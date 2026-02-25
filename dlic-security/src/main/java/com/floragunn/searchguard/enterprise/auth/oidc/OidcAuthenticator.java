@@ -153,7 +153,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
             if (useDynamicFrontendUrl && (request.getDynamicFrontendBaseUrl() != null) && !request.getDynamicFrontendBaseUrl().isEmpty()) {
                 frontendBaseUrl = new URI(request.getDynamicFrontendBaseUrl());
             } else {
-                frontendBaseUrl = new URI(request.getFrontendBaseUrl()); // TODO OIDC this needs to be more dynamic
+                frontendBaseUrl = new URI(request.getFrontendBaseUrl());
             }
 
             String redirectUri = getLoginPostURI(frontendBaseUrl).toASCIIString();
