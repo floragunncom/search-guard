@@ -301,6 +301,17 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
+    public void search_noPattern_includeHidden() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/_search?size=1000&expand_wildcards=all");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3,
+                            index_c1, ds_hidden, searchGuardIndices(), esInternalIndices()).at("hits.hits[*]._index")
+                            .but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
     public void search_all() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_all/_search?size=1000");
@@ -1441,11 +1452,20 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     }
 
     @Test
-    @Ignore // todo COMPONENT SELECTORS - the test fails, although I am not sure if this is a problem related to test or production code
     public void resolve_wildcard_includeHidden_fsAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_resolve/index/*::failures?expand_wildcards=all&pretty");
             log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
+            boolean lackFailureStoreAccess = containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(),
+                    ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly(), ds_hidden.failureOnly(), alias_ab1.failureOnly())
+                    .at("$.*[*].name")
+                    .but(user.indexMatcher("read"))
+                    .isEmpty();
+            if (lackFailureStoreAccess) {
+                log.info("User '{}' described as '{}' has no access to failure store.", user.getName(), user.getDescription());
+                assertThat(httpResponse, isOk());
+                assertEmptyResolveIndexResponse(httpResponse);
+            } else {
                 // Assert data stream names and alias names separately. The $.*[*].name path cannot be used here because
                 // for limited users, SG replaces *::failures with resolved indices, causing .fs-* backing indices to appear
                 // in the indices[*].name section. For unlimited users, that section is empty. Asserting per section avoids this.
@@ -1458,6 +1478,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
                         .but(user.indexMatcher("get_alias")).whenEmpty(200));
                 assertThat(httpResponse, containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly(), ds_hidden.failureOnly()).at("$.data_streams[*].backing_indices")
                         .but(user.indexMatcher("read")).whenEmpty(200));
+            }
         }
     }
 
