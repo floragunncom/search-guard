@@ -666,12 +666,40 @@ public class ResolvedIndices {
 
             pureIndices = pureIndices.matching(index -> !index.isSystem() || request.systemIndexAccess.isAllowed(index.nameForIndexPatternMatching()));
 
-            pureIndices = pureIndices.matching(index -> index.isFailureStoreRelated() == request.allIndicesFailureStore);
-            aliases = aliases.matching(alias -> alias.isFailureStoreRelated() == request.allIndicesFailureStore);
-            // todo COMPONENT SELECTORS - we probably need this, but this line causes problems: https://git.floragunn.com/search-guard/search-guard-suite-enterprise/-/issues/714
-            dataStreams = dataStreams.matching(dataStream -> dataStream.isFailureStoreRelated() == request.allIndicesFailureStore);
+
+            pureIndices = pureIndices.matching(index -> shouldIncludeIndexLikeForAllLocal(index, includeHidden, request.allIndicesFailureStore, scope));
+            aliases = aliases.matching(alias -> shouldIncludeIndexLikeForAllLocal(alias, includeHidden, request.allIndicesFailureStore, scope));
+            dataStreams = dataStreams.matching(dataStream -> shouldIncludeIndexLikeForAllLocal(dataStream, includeHidden, request.allIndicesFailureStore, scope));
+
 
             return new Local(pureIndices, aliases, dataStreams, nonExistingIndices);
+        }
+
+        private static boolean shouldIncludeIndexLikeForAllLocal(Meta.IndexLikeObject indexLike, boolean includeHidden,
+                boolean allIndicesFailureStoreSelector, IndicesRequestInfo.Scope scope) {
+            if (allIndicesFailureStoreSelector) {
+                // only indices related to a failure store should be returned
+                // expressions like "*::failures" or "_all::failures"
+                return indexLike.isFailureStoreRelated();
+            } else if (scope == IndicesRequestInfo.Scope.INDICES_DATA_STREAMS) {
+                // INDICES_DATA_STREAMS scope is used for admin/alias requests that don't support component selectors.
+                // For example, GET _alias/alias_c1 resolves its index part (implicit _all) with this scope.
+                // If we included failure-store-related objects like ds_b3::failures here, SG would pass them
+                // to ES when replacing indices for limited users, causing:
+                //   unsupported_selector_exception: "Index component selectors are not supported in this context
+                //   but found selector in expression [ds_b3::failures]"
+                return !indexLike.isFailureStoreRelated();
+            } else {
+                // data selector "*::data" or "_all::data"
+                // or no component selector "*" or "_all"
+                if (includeHidden) {
+                    // expand_wildcards=all: include both data and failure store components
+                    return true;
+                } else {
+                    // include only index-like objects related to data component
+                    return !indexLike.isFailureStoreRelated();
+                }
+            }
         }
 
         static ResolvedIndices.Local resolveWithoutPatterns(IndicesRequestInfo request, Meta indexMetadata) {

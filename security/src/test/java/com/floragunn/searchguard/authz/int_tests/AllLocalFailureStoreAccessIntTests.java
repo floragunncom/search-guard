@@ -43,6 +43,7 @@ import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 @RunWith(Parameterized.class)
+//todo COMPONENT SELECTORS - the test can be removed, contain duplicates of DataStreamFailureStoreAuthorizationReadOnlyIntTests
 public class AllLocalFailureStoreAccessIntTests {
 
     private static final Logger log = LogManager.getLogger(AllLocalFailureStoreAccessIntTests.class);
@@ -70,9 +71,7 @@ public class AllLocalFailureStoreAccessIntTests {
             .roles(Role.ALL_ACCESS)
             .indexMatcher(MATCHER_FAILURE_STORE_ONLY, containsExactly(test_data_stream.failureStore().orElseThrow()).at("hits.hits[*]._index"))
             .indexMatcher(MATCHER_DATA_ONLY, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"))
-            // todo COMPONENT SELECTORS: this is unexpected. Should be the same as in case of ADMIN_CERT_USER but without searchGuardIndices
-            // (failure store indices should be included)
-            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"));
+            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(test_data_stream).at("hits.hits[*]._index"));
 
 
     static User USER_FS_ACCESS_DS_LEVEL = new User("user_fs_access_ds_level")
@@ -85,9 +84,7 @@ public class AllLocalFailureStoreAccessIntTests {
             )
             .indexMatcher(MATCHER_FAILURE_STORE_ONLY, containsExactly(test_data_stream.failureStore().orElseThrow()).at("hits.hits[*]._index"))
             .indexMatcher(MATCHER_DATA_ONLY, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"))
-            // todo COMPONENT SELECTORS: this is unexpected. Should be the same as in case of ADMIN_CERT_USER but without searchGuardIndices
-            // (failure store indices should be included)
-            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"));
+            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(test_data_stream).at("hits.hits[*]._index"));
 
     static User USER_LACKING_FS_ACCESS_DS_LEVEL = new User("user_lacking_fs_access_ds_level")
             .description("user_lacking_fs_access_ds_level - user with lacking access to all local failure stores on data stream level")
@@ -123,8 +120,7 @@ public class AllLocalFailureStoreAccessIntTests {
             )
             .indexMatcher(MATCHER_FAILURE_STORE_ONLY, containsExactly(test_data_stream.failureStore().orElseThrow()).at("hits.hits[*]._index"))
             .indexMatcher(MATCHER_DATA_ONLY, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"))
-            // todo COMPONENT SELECTORS - This user should have access to the failure store indices when wildcard expansion is enabled.
-            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(test_data_stream.dataOnly()).at("hits.hits[*]._index"));
+            .indexMatcher(MATCHER_ALL_WITH_EXPAND_WILDCARDS, containsExactly(test_data_stream).at("hits.hits[*]._index"));
 
     static List<User> USERS = ImmutableList.of(
             ADMIN_CERT_USER, USER_ALL_ACCESS_NO_CERTS, USER_FS_ACCESS_DS_LEVEL,
