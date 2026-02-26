@@ -479,8 +479,14 @@ public class ResolvedIndices {
                                 request.indicesOptions(), includeDataStreams);
 
                         for (Map.Entry<String, IndexAbstraction> entry : matchedAbstractions.entrySet()) {
-                            if (excludeNames.contains(entry.getKey())) {
-                                continue;
+                            if (request.isNegationOnlyEffectiveForIndicesAndForOtherNonWildcardObjects()) {
+                                if (entry.getValue() instanceof IndexAbstraction.ConcreteIndex && excludeNames.contains(entry.getKey())) {
+                                    continue;
+                                }
+                            } else {
+                                if (excludeNames.contains(entry.getKey())) {
+                                    continue;
+                                }
                             }
 
                             if (!partiallyExcludedObjects.contains(entry.getKey()) || scope == IndicesRequestInfo.Scope.ALIAS
@@ -819,13 +825,6 @@ public class ResolvedIndices {
         private static void resolveNegationUpAndDown(String index, Set<String> excludeNames, Set<String> partiallyExcludedObjects,
                 IndicesRequestInfo request, Meta indexMetadata) {
             Meta.IndexLikeObject indexLikeObject = indexMetadata.getIndexOrLike(index);
-
-            if (request.isNegationOnlyEffectiveForIndices() && !(indexLikeObject instanceof Meta.Index)) {
-                // Negation is implemented in ES inconsistently:
-                // Some actions (like search) only perform it properly on indicies, but not on aliases and data streams. Thus /my_datastreams_*,-my_datastream_1/ does not have the effect one might expect.
-                // Other actions do implement it properly. The flag request.isNegationOnlyEffectiveForIndices() indicated the way we need to use
-                return;
-            }
 
             excludeNames.add(index);
 
