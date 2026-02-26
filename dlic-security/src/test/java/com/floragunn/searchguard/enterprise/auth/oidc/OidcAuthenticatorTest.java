@@ -15,6 +15,7 @@ package com.floragunn.searchguard.enterprise.auth.oidc;
 
 import java.io.FileNotFoundException;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -31,6 +32,7 @@ import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.floragunn.codova.config.net.TLSConfig;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.validation.ConfigValidationException;
+import org.apache.http.client.utils.URLEncodedUtils;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.session.ActivatedFrontendConfig;
 import com.floragunn.searchguard.authc.session.GetActivatedFrontendConfigAction;
@@ -105,7 +107,7 @@ public class OidcAuthenticatorTest {
     public void basicTest() throws Exception {
         OidcAuthenticator authenticator = new OidcAuthenticator(basicAuthenticatorSettings, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
-        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, null));
 
         String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_COY_SIGNED_OCT_1);
 
@@ -124,7 +126,7 @@ public class OidcAuthenticatorTest {
                         "Das Geheimnis", "pkce", false, "get_user_info", true),
                 testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
-        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, null));
 
         String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_COY_SIGNED_OCT_1,
                 ImmutableMap.of("sub", TestJwts.MCCOY_SUBJECT, "user_info_attr", 1234));
@@ -147,7 +149,7 @@ public class OidcAuthenticatorTest {
 
         OidcAuthenticator authenticator = new OidcAuthenticator(authenticatorSettings, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
-        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, null));
 
         String ssoResponse = pkceMockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_COY_SIGNED_OCT_1);
 
@@ -163,7 +165,7 @@ public class OidcAuthenticatorTest {
     public void pkceMissingTest() throws Exception {
         OidcAuthenticator authenticator = new OidcAuthenticator(basicAuthenticatorSettings, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
-        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, null));
 
         String ssoResponse = pkceMockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_COY_SIGNED_OCT_1);
 
@@ -176,7 +178,7 @@ public class OidcAuthenticatorTest {
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
         String redirectTarget = "/goto/0f8bc3727ebe162dc2ceeae137e607a1?sg_tenant=management";
         authMethod = authenticator.activateFrontendConfig(authMethod,
-                new GetActivatedFrontendConfigAction.Request(null, redirectTarget, FRONTEND_BASE_URL));
+                new GetActivatedFrontendConfigAction.Request(null, redirectTarget, FRONTEND_BASE_URL, null));
 
         String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_COY_SIGNED_OCT_1);
 
@@ -205,7 +207,7 @@ public class OidcAuthenticatorTest {
             OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
             ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
             authMethod = authenticator.activateFrontendConfig(authMethod,
-                    new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+                    new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, null));
 
             Assert.assertNotNull(authMethod);
             Assert.assertNotNull(authMethod.toString(), authMethod.getSsoLocation());
@@ -236,7 +238,7 @@ public class OidcAuthenticatorTest {
             OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
             ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
             authMethod = authenticator.activateFrontendConfig(authMethod,
-                    new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+                    new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, null));
 
             Assert.assertNotNull(authMethod);
             Assert.assertNotNull(authMethod.toString(), authMethod.getSsoLocation());
@@ -257,7 +259,7 @@ public class OidcAuthenticatorTest {
     public void testExp() throws Exception {
         OidcAuthenticator authenticator = new OidcAuthenticator(basicAuthenticatorSettings, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
-        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, null));
 
         String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_COY_EXPIRED_SIGNED_OCT_1);
 
@@ -276,7 +278,7 @@ public class OidcAuthenticatorTest {
     public void testRS256() throws Exception {
         OidcAuthenticator authenticator = new OidcAuthenticator(basicAuthenticatorSettings, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
-        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, null));
 
         String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_COY_SIGNED_RSA_1);
 
@@ -293,7 +295,7 @@ public class OidcAuthenticatorTest {
     public void testBadSignature() throws Exception {
         OidcAuthenticator authenticator = new OidcAuthenticator(basicAuthenticatorSettings, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
-        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, null));
 
         String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.MC_COY_SIGNED_RSA_X);
 
@@ -312,7 +314,7 @@ public class OidcAuthenticatorTest {
     public void testPeculiarJsonEscaping() throws Exception {
         OidcAuthenticator authenticator = new OidcAuthenticator(basicAuthenticatorSettings, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
-        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, null));
 
         String ssoResponse = mockIdpServer.handleSsoGetRequestURI(authMethod.getSsoLocation(), TestJwts.PeculiarEscaping.MC_COY_SIGNED_RSA_1);
 
@@ -329,7 +331,7 @@ public class OidcAuthenticatorTest {
     public void testNotBeforeInTheFuture() throws Exception {
         OidcAuthenticator authenticator = new OidcAuthenticator(basicAuthenticatorSettings, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
-        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, null));
 
         Instant future = Instant.now().plusSeconds(30);
         JwtToken notBeforeInTheFuture = TestJwts.create(TestJwts.MCCOY_SUBJECT, TestJwts.TEST_AUDIENCE, JwtConstants.CLAIM_NOT_BEFORE, future.getEpochSecond());
@@ -354,7 +356,7 @@ public class OidcAuthenticatorTest {
         ImmutableMap<String, Object> configuration = basicAuthenticatorSettings.with("max_clock_skew_seconds", 120);
         OidcAuthenticator authenticator = new OidcAuthenticator(configuration, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
-        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, null));
 
         Instant future = Instant.now().plusSeconds(30);
         JwtToken notBeforeInTheFuture = TestJwts.create(TestJwts.MCCOY_SUBJECT, TestJwts.TEST_AUDIENCE, JwtConstants.CLAIM_NOT_BEFORE, future.getEpochSecond());
@@ -375,7 +377,7 @@ public class OidcAuthenticatorTest {
         ImmutableMap<String, Object> configuration = basicAuthenticatorSettings.with("max_clock_skew_seconds", maxClockSkew);
         OidcAuthenticator authenticator = new OidcAuthenticator(configuration, testContext);
         ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
-        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL));
+        authMethod = authenticator.activateFrontendConfig(authMethod, new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, null));
 
         Instant future = Instant.now().plusSeconds(maxClockSkew * 2);
         JwtToken notBeforeInTheFuture = TestJwts.create(TestJwts.MCCOY_SUBJECT, TestJwts.TEST_AUDIENCE, JwtConstants.CLAIM_NOT_BEFORE, future.getEpochSecond());
@@ -393,6 +395,43 @@ public class OidcAuthenticatorTest {
             Assert.assertTrue(e.getMessage(), e.getMessage().contains("not before claim is set to:"));
             Assert.assertTrue(e.getMessage(), e.getMessage().contains(DateTimeFormatter.ISO_DATE_TIME.format(future.atZone(ZoneId.systemDefault()).truncatedTo(ChronoUnit.SECONDS))));
         }
+    }
+
+    @Test
+    public void dynamicFrontendUrl_usedForRedirectUriWhenEnabled() throws Exception {
+        String dynamicFrontendBaseUrl = "http://dynamic.example.com";
+        ImmutableMap<String, Object> config = basicAuthenticatorSettings.with("use_dynamic_frontend_url", true);
+        OidcAuthenticator authenticator = new OidcAuthenticator(config, testContext);
+        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
+        authMethod = authenticator.activateFrontendConfig(authMethod,
+                new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, dynamicFrontendBaseUrl));
+
+        String redirectUri = extractRedirectUriFromSsoLocation(authMethod.getSsoLocation());
+
+        Assert.assertTrue("redirect_uri should use dynamic URL: " + redirectUri, redirectUri.startsWith(dynamicFrontendBaseUrl));
+        Assert.assertFalse("redirect_uri should not use static URL: " + redirectUri, redirectUri.startsWith(FRONTEND_BASE_URL));
+    }
+
+    @Test
+    public void dynamicFrontendUrl_ignoredForRedirectUriWhenDisabled() throws Exception {
+        String dynamicFrontendBaseUrl = "http://dynamic.example.com";
+        OidcAuthenticator authenticator = new OidcAuthenticator(basicAuthenticatorSettings, testContext);
+        ActivatedFrontendConfig.AuthMethod authMethod = new ActivatedFrontendConfig.AuthMethod("oidc", "OIDC", null);
+        authMethod = authenticator.activateFrontendConfig(authMethod,
+                new GetActivatedFrontendConfigAction.Request(null, null, FRONTEND_BASE_URL, dynamicFrontendBaseUrl));
+
+        String redirectUri = extractRedirectUriFromSsoLocation(authMethod.getSsoLocation());
+
+        Assert.assertTrue("redirect_uri should use static URL: " + redirectUri, redirectUri.startsWith(FRONTEND_BASE_URL));
+        Assert.assertFalse("redirect_uri should not use dynamic URL: " + redirectUri, redirectUri.startsWith(dynamicFrontendBaseUrl));
+    }
+
+    private static String extractRedirectUriFromSsoLocation(String ssoLocation) {
+        return URLEncodedUtils.parse(ssoLocation, Charset.forName("UTF-8")).stream()
+                .filter(pair -> "redirect_uri".equals(pair.getName()))
+                .map(pair -> pair.getValue())
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("redirect_uri not found in SSO location: " + ssoLocation));
     }
 
 }
