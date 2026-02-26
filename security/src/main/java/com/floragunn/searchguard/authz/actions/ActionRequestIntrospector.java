@@ -735,7 +735,12 @@ public class ActionRequestIntrospector {
         private final ImmutableSet<String> remoteIndices;
         final ImmutableList<String> localIndices;
         final Scope scope;
-        private final boolean negationOnlyEffectiveForIndices;
+        /**
+         * This only exists to model weird ES behavior: If this is true, then negated index expressions (like -index)
+         * are only effective for index names (i.e., not data streams or aliases) and additionally and other expressions
+         * that are NOT utilizing wildcards.
+         */
+        private final boolean negationOnlyEffectiveForIndicesAndForOtherNonWildcardObjects;
 
         IndicesRequestInfo(Action.AdditionalDimension role, IndicesRequest indicesRequest, Scope scope, SystemIndexAccess systemIndexAccess,
                 Meta indexMetadata) {
@@ -757,7 +762,7 @@ public class ActionRequestIntrospector {
             this.indexMetadata = indexMetadata;
             this.scope = scope;
             this.systemIndexAccess = systemIndexAccess;
-            this.negationOnlyEffectiveForIndices = scope != Scope.DATA_STREAM && scope != Scope.ALIAS;
+            this.negationOnlyEffectiveForIndicesAndForOtherNonWildcardObjects = scope != Scope.DATA_STREAM && scope != Scope.ALIAS;
         }
 
         IndicesRequestInfo(Action.AdditionalDimension role, String index, IndicesOptions indicesOptions, Scope scope,
@@ -780,7 +785,7 @@ public class ActionRequestIntrospector {
 
             this.scope = scope;
             this.systemIndexAccess = systemIndexAccess;
-            this.negationOnlyEffectiveForIndices = scope != Scope.DATA_STREAM && scope != Scope.ALIAS;
+            this.negationOnlyEffectiveForIndicesAndForOtherNonWildcardObjects = scope != Scope.DATA_STREAM && scope != Scope.ALIAS;
         }
 
         IndicesRequestInfo(Action.AdditionalDimension role, List<String> indices, IndicesOptions indicesOptions, Scope scope,
@@ -803,7 +808,7 @@ public class ActionRequestIntrospector {
 
             this.scope = scope;
             this.systemIndexAccess = systemIndexAccess;
-            this.negationOnlyEffectiveForIndices = scope != Scope.DATA_STREAM && scope != Scope.ALIAS;
+            this.negationOnlyEffectiveForIndicesAndForOtherNonWildcardObjects = scope != Scope.DATA_STREAM && scope != Scope.ALIAS;
         }
 
         IndicesRequestInfo(List<String> indices, IndicesOptions indicesOptions, Scope scope, SystemIndexAccess systemIndexAccess,
@@ -934,8 +939,8 @@ public class ActionRequestIntrospector {
             return indicesOptions;
         }
 
-        boolean isNegationOnlyEffectiveForIndices() {
-            return negationOnlyEffectiveForIndices;
+        boolean isNegationOnlyEffectiveForIndicesAndForOtherNonWildcardObjects() {
+            return negationOnlyEffectiveForIndicesAndForOtherNonWildcardObjects;
         }
 
         public IndicesRequest.Replaceable asIndicesRequestWithoutRemoteIndices() {

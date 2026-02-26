@@ -1,6 +1,7 @@
 package com.floragunn.searchguard.authz;
 
 import static com.floragunn.searchguard.test.RestMatchers.distinctNodesAt;
+import static com.floragunn.searchguard.test.RestMatchers.isBadRequest;
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
 import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
@@ -97,7 +98,7 @@ public class IgnoreUnauthorizedCcsWithDisabledSkipUnavailableRemoteClusterIntTes
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.get(query);
 
-            Assert.assertThat(httpResponse, isNotFound());
+            Assert.assertThat(httpResponse, isBadRequest());
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
