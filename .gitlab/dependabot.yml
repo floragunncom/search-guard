@@ -9,6 +9,9 @@ updates:
       - dependency-name: "org.elasticsearch*"
       - dependency-name: "com.fasterxml.jackson.*"
       - dependency-name: "org.apache.maven.resolver:maven-resolver-connector-basic"
+    labels:
+      - "dependencies"
+      - "backport-main-es8"
     #pull-request-branch-name:
       #separator: 'default: "-"'
       #prefix: 'default: "dependabot"'
