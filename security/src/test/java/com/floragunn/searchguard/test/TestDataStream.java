@@ -19,17 +19,30 @@ package com.floragunn.searchguard.test;
 
 import com.floragunn.codova.documents.DocNode;
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 public class TestDataStream implements TestIndexLike {
 
     private final String name;
     private final TestData testData;
+    private final boolean failureStoreEnabled;
+    private final int failureDocumentCount;
 
-    public TestDataStream(String name, TestData testData) {
+    TestDataStream(String name, TestData testData, boolean failureStoreEnabled, int failureDocumentCount) {
         this.name = name;
         this.testData = testData;
+        this.failureStoreEnabled = failureStoreEnabled;
+        if ((failureDocumentCount > 0) && (!failureStoreEnabled) ){
+            throw new IllegalStateException("Cannot add documents to the disabled failure store for data stream " + name);
+        }
+        this.failureDocumentCount = failureDocumentCount;
+    }
+
+    public TestDataStream(String name, TestData testData) {
+        this(name, testData, false, 0);
     }
 
     @Override
@@ -47,6 +60,15 @@ public class TestDataStream implements TestIndexLike {
         if (response.getStatusCode() != 200 && response.getStatusCode() != 201) {
             throw new RuntimeException("Error while creating data stream " + name + "\n" + response);
         }
+
+        if (failureStoreEnabled) {
+            DocNode failureStoreOptions = DocNode.of("failure_store", DocNode.of("enabled", true));
+            GenericRestClient.HttpResponse optionsResponse = client.putJson("/_data_stream/" + name + "/_options", failureStoreOptions);
+            if (optionsResponse.getStatusCode() != 200) {
+                throw new RuntimeException(
+                        "Cannot enable failure store for data stream '" + name + "' response code '" + optionsResponse.getStatusCode() + "' and body '" + optionsResponse.getBody() + "'");
+            }
+        }
         DocNode mappings = testData.getFieldMappingsWithoutTimestamp();
         if (! mappings.isEmpty()) {
             DocNode mappingRequestBody = DocNode.of("properties", mappings);
@@ -58,14 +80,115 @@ public class TestDataStream implements TestIndexLike {
         }
 
         testData.putDocuments(client, name);
+
+        putFailureDocuments(client);
+    }
+
+    private void putFailureDocuments(GenericRestClient client) throws Exception {
+        for (int i = 0; i < failureDocumentCount; i++) {
+            // Create document without @timestamp - this will cause it to be redirected to the failure store
+            DocNode document = DocNode.of(
+                "source_ip", "100.100.100." + i,
+                "dest_ip", "100.100.101." + i,
+                "source_loc", "FailureLocation" + i,
+                "dest_loc", "FailureDestination" + i,
+                "dept", "dept_failure"
+            );
+
+            GenericRestClient.HttpResponse response = client.postJson(name + "/_doc", document);
+
+            if (response.getStatusCode() != 201) {
+                throw new RuntimeException("Error while creating failure document " + i + " in " + name + "\n" + response);
+            }
+        }
+
+        if (failureDocumentCount > 0) {
+            client.post(name + "::failures/_refresh");
+        }
     }
 
     public String getName() {
         return name;
     }
 
+    @Override
+    public Optional<TestIndexLike> failureStore() {
+        if (!failureStoreEnabled) {
+            return Optional.empty();
+        }
+        return Optional.of(new TestIndexLike() {
+            @Override
+            public String getName() {
+                return name + FAILURE_STORE_SUFFIX;
+            }
+
+            @Override
+            public TestDataStream dataOnly() {
+                return null;
+            }
+
+            @Override
+            public Set<String> getDocumentIds() {
+                return Collections.emptySet();
+            }
+
+            @Override
+            public Map<String, Map<String, ?>> getDocuments() {
+                return Collections.emptyMap();
+            }
+
+            @Override
+            public DocNode getFieldsMappings() {
+                return DocNode.EMPTY;
+            }
+
+            @Override
+            public boolean isFailureStoreOnly() {
+                return true;
+            }
+
+            @Override
+            public TestIndexLike enableFailureStore() {
+                return this;
+            }
+
+            @Override
+            public Optional<TestIndexLike> failureStore() {
+                return Optional.of(this);
+            }
+
+            @Override
+            public String toString() {
+                return "Failure store of data stream '" + name + "'";
+            }
+        });
+    }
+
+    @Override
+    public boolean isFailureStoreOnly() {
+        return false;
+    }
+
+    @Override
+    public TestIndexLike enableFailureStore() {
+        return new TestDataStream(name, testData, true, failureDocumentCount);
+    }
+
+    @Override
+    public TestDataStream dataOnly() {
+        if (failureStoreEnabled) {
+            return new TestDataStream(name, testData, false, 0);
+        } else {
+            return this;
+        }
+    }
+
     public TestData getTestData() {
         return testData;
+    }
+
+    public int getFailureDocumentCount() {
+        return failureDocumentCount;
     }
 
     public static Builder name(String name) {
@@ -81,6 +204,8 @@ public class TestDataStream implements TestIndexLike {
         private String name;
         private TestData.Builder testDataBuilder = new TestData.Builder().timestampColumnName("@timestamp").deletedDocumentFraction(0);
         private TestData testData;
+        private boolean failureStoreEnabled = false;
+        private int failureDocumentCount = 0;
 
         public Builder name(String name) {
             this.name = name;
@@ -122,12 +247,22 @@ public class TestDataStream implements TestIndexLike {
             return this;
         }
 
+        public Builder failureStoreEnabled(boolean failureStoreEnabled) {
+            this.failureStoreEnabled = failureStoreEnabled;
+            return this;
+        }
+
+        public Builder failureDocumentCount(int failureDocumentCount) {
+            this.failureDocumentCount = failureDocumentCount;
+            return this;
+        }
+
         public TestDataStream build() {
             if (testData == null) {
                 testData = testDataBuilder.get();
             }
 
-            return new TestDataStream(name, testData);
+            return new TestDataStream(name, testData, failureStoreEnabled, failureDocumentCount);
         }
     }
 
