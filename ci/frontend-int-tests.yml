@@ -20,8 +20,9 @@ check_frontend_prerequisites:
         --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
         "https://git.floragunn.com/api/v4/projects/14/repository/branches/${SG_KI_BRANCH}")
 
+      echo "DEBUG: Branch check HTTP code: ${BRANCH_HTTP_CODE}"
       if [ "${BRANCH_HTTP_CODE}" != "200" ]; then
-        echo "ERROR: Branch '${SG_KI_BRANCH}' does NOT exist in search-guard-kibana-plugin"
+        echo "ERROR: Branch '${SG_KI_BRANCH}' does NOT exist in search-guard-kibana-plugin (HTTP ${BRANCH_HTTP_CODE}: 403=permissions, 404=not found, 400=bad request/empty ref)"
         exit 1
       fi
 
