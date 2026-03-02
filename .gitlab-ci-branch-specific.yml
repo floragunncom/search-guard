@@ -1,4 +1,6 @@
-variables:
-  # IT_BRANCH: "remove-legacy"
-  SG_KI_BRANCH: "release-prep/prepare-es-9.3.x"
-  # KI_VERSION: "7.16.3" 
+# default.variables są stosowane do każdego joba i nie są nadpisywane przez główny plik
+default:
+  variables:
+    # IT_BRANCH: "remove-legacy"
+    SG_KI_BRANCH: "release-prep/prepare-es-9.3.x"
+    # KI_VERSION: "7.16.3"
