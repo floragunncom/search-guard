@@ -87,6 +87,7 @@ build:
       echo "ES_VERSION=$ES_VERSION" >> snapshot.env
       cat snapshot.env
       echo "Size of .m2/repository $(du -sm $CI_PROJECT_DIR/.m2/repository | awk '{print $1}') MB"
+      echo "SG_KI_BRANCH=${SG_KI_BRANCH}"
   artifacts:
     when: on_success
     paths:
