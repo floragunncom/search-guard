@@ -1,4 +1,4 @@
 variables:
   # IT_BRANCH: "remove-legacy"
-  SG_KI_BRANCH: "main"
+  SG_KI_BRANCH: "release-prep/prepare-es-9.3.x"
   # KI_VERSION: "7.16.3" 
