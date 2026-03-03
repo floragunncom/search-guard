@@ -13,17 +13,11 @@ Please set DATA_DIR_ARCHIVE_NAME:
     - when: manual      
   script:
     - |
-      BRANCH_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-        --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-        "https://git.floragunn.com/api/v4/projects/14/repository/branches/${SG_KI_BRANCH}")
-
-      if [ "${BRANCH_HTTP_CODE}" != "200" ]; then
-        echo "ERROR: Branch '${SG_KI_BRANCH}' does NOT exist in search-guard-kibana-plugin"
-        exit 1
-      fi
 
       PLUGIN_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin "${CI_COMMIT_REF_NAME}-SNAPSHOT" .zip)
-      KIBANA_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin "b-${SG_KI_BRANCH}-SNAPSHOT" .zip)
+      # replace slashes in SG_KI_BRANCH with hyphens so artifact name is valid
+      KIBANA_BRANCH_SAFE=$(echo "${SG_KI_BRANCH}" | sed 's#/#-#g')
+      KIBANA_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin "b-${KIBANA_BRANCH_SAFE}-SNAPSHOT" .zip)
 
       PLUGIN_HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "${PLUGIN_ARIFACT_URL}")
 
