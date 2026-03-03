@@ -14,7 +14,7 @@ Please set DATA_DIR_ARCHIVE_NAME:
   script:
     - |
 
-      PLUGIN_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin "${CI_COMMIT_REF_NAME}-SNAPSHOT" .zip)
+      PLUGIN_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin "${CI_COMMIT_REF_SLUG}-SNAPSHOT" .zip)
       # replace slashes in SG_KI_BRANCH with hyphens so artifact name is valid
       KIBANA_BRANCH_SAFE=$(echo "${SG_KI_BRANCH}" | sed 's#/#-#g')
       KIBANA_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-kibana-plugin "b-${KIBANA_BRANCH_SAFE}-SNAPSHOT" .zip)
