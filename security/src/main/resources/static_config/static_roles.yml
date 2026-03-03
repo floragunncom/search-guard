@@ -329,7 +329,6 @@ SGS_KIBANA_SERVER:
     - ".kibana-siem-rule-migrations*"
     - ".elastic-connectors*"
     - ".internal.cases*"
-    - ".workflows-execution-data-stream-logs"
     allowed_actions:
     - "SGS_INDICES_ALL"
   - index_patterns:
