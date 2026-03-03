@@ -1,6 +1,3 @@
-variables:
-  # GITLAB_TOKEN: ${GITLAB_TOKEN}
-
 backport_automation:
   image: floragunncom/python-toolbox:251218
   stage: post_merge
