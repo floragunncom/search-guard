@@ -401,6 +401,41 @@ public final class AuditMessage {
         disabledFields.forEach(auditInfo.keySet()::remove);
     }
 
+    public void redactRequestBody(List<java.util.regex.Pattern> patterns) {
+        if (patterns == null || patterns.isEmpty()) {
+            return;
+        }
+        String body = (String) auditInfo.get(REQUEST_BODY);
+        if (body == null || body.isEmpty()) {
+            return;
+        }
+        for (java.util.regex.Pattern pattern : patterns) {
+            body = pattern.matcher(body).replaceAll(mr -> {
+                // Two supported pattern styles:
+                //
+                // 1. Capture-group style — use when the JSON key must be preserved in the output.
+                //    Group 1 captures the key prefix (e.g. "password": "), which is then
+                //    prepended to ***REDACTED*** in the replacement, so only the value is
+                //    replaced. The rest of the pattern (after the closing parenthesis) matches
+                //    the value but is NOT part of group 1, so it is consumed and discarded.
+                //    Pattern:  ("password"\s*:\s*")(?:[^"\\]|\\.)*
+                //               |_____group 1_____||___value match__|
+                //    Input:    "password": "s3cr3t"
+                //    Output:   "password": "***REDACTED***"
+                //              ^-- group 1 restored --^
+                //
+                // 2. Plain-text style — use for literal substrings or when no structural
+                //    context needs to be preserved. No capture group; the full match is replaced.
+                //    Pattern:  Search Guard
+                //    Input:    Get started with Search Guard in seconds using Docker:
+                //    Output:   Get started with ***REDACTED*** in seconds using Docker:
+                String prefix = mr.groupCount() >= 1 ? mr.group(1) : "";
+                return prefix + "***REDACTED***";
+            });
+        }
+        auditInfo.put(REQUEST_BODY, body);
+    }
+
     public String getInitiatingUser() {
         return (String) this.auditInfo.get(REQUEST_INITIATING_USER);
     }

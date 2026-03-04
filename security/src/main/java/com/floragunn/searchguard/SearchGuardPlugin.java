@@ -975,6 +975,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
                     Setting.boolSetting(ConfigConstants.SEARCHGUARD_AUDIT_EXCLUDE_SENSITIVE_HEADERS, true, Property.NodeScope, Property.Filtered));
             settings.add(Setting.listSetting(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_FIELDS,  Collections.emptyList(),
                 Function.identity(), Property.NodeScope)); //not filtered here
+            settings.add(Setting.groupSetting(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_BODY_REDACTION_PATTERNS + ".", Property.NodeScope));
 
             // SG6 - Audit - Sink
             settings.add(Setting.simpleString(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DEFAULT_PREFIX + ConfigConstants.SEARCHGUARD_AUDIT_ES_INDEX,

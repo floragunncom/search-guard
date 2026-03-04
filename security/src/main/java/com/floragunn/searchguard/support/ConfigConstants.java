@@ -97,6 +97,7 @@ public class ConfigConstants {
     public static final boolean SEARCHGUARD_AUDIT_SSL_ENABLE_SSL_CLIENT_AUTH_DEFAULT = false;
     public static final String SEARCHGUARD_AUDIT_EXCLUDE_SENSITIVE_HEADERS = "searchguard.audit.exclude_sensitive_headers";
     public static final String SEARCHGUARD_AUDIT_CONFIG_DISABLED_FIELDS = "searchguard.audit.config.disabled_fields";
+    public static final String SEARCHGUARD_AUDIT_CONFIG_BODY_REDACTION_PATTERNS = "searchguard.audit.config.body_redaction_patterns";
 
     public static final String SEARCHGUARD_AUDIT_CONFIG_DEFAULT_PREFIX = "searchguard.audit.config.";
 

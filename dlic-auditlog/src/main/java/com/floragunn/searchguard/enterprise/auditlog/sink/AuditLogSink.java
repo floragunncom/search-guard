@@ -20,9 +20,15 @@ import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -39,19 +45,40 @@ public abstract class AuditLogSink {
     private final String name;
     protected final AuditLogSink fallbackSink;
     protected final Map<String, String> customMessageAttributes;
+    private final Map<String, List<Pattern>> bodyRedactionPatterns;
     private final int retryCount;
     private final long delayMs;
-    
+
     protected AuditLogSink(String name, Settings settings, String settingsPrefix, AuditLogSink fallbackSink) {
         this.name = name.toLowerCase();
     	this.settings = Objects.requireNonNull(settings);
         this.settingsPrefix = settingsPrefix;
         this.fallbackSink = fallbackSink;
-        
+
         retryCount = settings.getAsInt(ConfigConstants.SEARCHGUARD_AUDIT_RETRY_COUNT, 0);
         delayMs = settings.getAsLong(ConfigConstants.SEARCHGUARD_AUDIT_RETRY_DELAY_MS, 1000L);
         Settings customAttributes = getSinkSettings(settingsPrefix).getByPrefix(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_CUSTOM_ATTRIBUTES_PREFIX);
         this.customMessageAttributes = customAttributes.keySet().stream().collect(Collectors.toMap(key -> key, customAttributes::get));
+
+        Map<String, List<Pattern>> redactionPatterns = new HashMap<>();
+        Settings patternSettings = settings.getByPrefix(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_BODY_REDACTION_PATTERNS + ".");
+        for (AuditMessage.Category category : AuditMessage.Category.values()) {
+            List<String> patternStrings = patternSettings.getAsList(category.name(), Collections.emptyList());
+            if (!patternStrings.isEmpty()) {
+                List<Pattern> compiled = new ArrayList<>();
+                for (String p : patternStrings) {
+                    try {
+                        compiled.add(Pattern.compile(p)); // TODO redaction is pattern thread safe?
+                    } catch (PatternSyntaxException e) {
+                        log.error("Invalid body redaction pattern '{}' for category {}: {}", p, category.name(), e.getMessage());
+                    }
+                }
+                if (!compiled.isEmpty()) {
+                    redactionPatterns.put(category.name(), Collections.unmodifiableList(compiled));
+                }
+            }
+        }
+        this.bodyRedactionPatterns = Collections.unmodifiableMap(redactionPatterns);
     }
     
     public boolean isHandlingBackpressure() {
@@ -69,6 +96,10 @@ public abstract class AuditLogSink {
     public final void store(AuditMessage msg) {
         msg.addCustomFields(customMessageAttributes);
         msg.removeDisabledFields(settings.getAsList(SEARCHGUARD_AUDIT_CONFIG_DISABLED_FIELDS));
+        List<Pattern> patterns = bodyRedactionPatterns.get(msg.getCategory().name());
+        if (patterns != null) {
+            msg.redactRequestBody(patterns);
+        }
         if (!doStoreWithRetry(msg) && !fallbackSink.doStoreWithRetry(msg)) {
 			System.err.println(msg.toPrettyString());
 		}

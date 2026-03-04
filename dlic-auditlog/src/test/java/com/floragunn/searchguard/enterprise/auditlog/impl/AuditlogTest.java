@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -479,6 +480,135 @@ public class AuditlogTest {
             Assert.assertEquals(request.writeIndexOnly(), requestBody.getBoolean("write_index_only"));
             Assert.assertEquals(origin, requestBody.getAsString("origin"));
         }
+    }
+
+    @Test
+    public void testBodyRedactionAppliedForConfiguredCategory() throws Exception {
+        String body = "{\"mode\":\"basic\",\"user\":\"admin\",\"password\":\"secret123\"}";
+        Settings settings = Settings.builder()
+            .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+            .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
+            .put("searchguard.audit.threadpool.size", 0)
+            .putList(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_BODY_REDACTION_PATTERNS + ".AUTHENTICATED",
+                List.of("(\"password\"\\s*:\\s*\")(?:[^\"\\\\]|\\\\.)*"))
+            .build();
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logSucceededLogin(UserInformation.forName("admin"), false, UserInformation.forName("admin"),
+                new MockRestRequest("/_searchguard/auth/session", body));
+            Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+            String auditBody = (String) TestAuditlogImpl.messages.get(0).getAsMap().get(AuditMessage.REQUEST_BODY);
+            Assert.assertNotNull("audit_request_body must be present", auditBody);
+            Assert.assertFalse("Password value must not appear in audit body", auditBody.contains("secret123"));
+            Assert.assertTrue("Redaction placeholder must be present", auditBody.contains("***REDACTED***"));
+        }
+    }
+
+    @Test
+    public void testBodyRedactionNotAppliedForOtherCategory() throws Exception {
+        String body = "{\"mode\":\"basic\",\"user\":\"admin\",\"password\":\"secret123\"}";
+        // Redaction is configured only for FAILED_LOGIN, not for AUTHENTICATED
+        Settings settings = Settings.builder()
+            .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+            .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
+            .put("searchguard.audit.threadpool.size", 0)
+            .putList(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_BODY_REDACTION_PATTERNS + ".FAILED_LOGIN",
+                List.of("(\"password\"\\s*:\\s*\")(?:[^\"\\\\]|\\\\.)*"))
+            .build();
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logSucceededLogin(UserInformation.forName("admin"), false, UserInformation.forName("admin"),
+                new MockRestRequest("/_searchguard/auth/session", body));
+            Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+            String auditBody = (String) TestAuditlogImpl.messages.get(0).getAsMap().get(AuditMessage.REQUEST_BODY);
+            Assert.assertNotNull("audit_request_body must be present", auditBody);
+            Assert.assertTrue("Password value must remain in audit body when redaction is not configured for this category",
+                auditBody.contains("secret123"));
+            Assert.assertFalse("Redaction placeholder must not be present", auditBody.contains("***REDACTED***"));
+        }
+    }
+
+    @Test
+    public void testBodyRedactionInvalidPatternSkippedGracefully() throws Exception {
+        String body = "{\"mode\":\"basic\",\"user\":\"admin\",\"password\":\"secret123\"}";
+        // One invalid pattern and one valid pattern: only the valid one should be applied
+        Settings settings = Settings.builder()
+            .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+            .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "NONE")
+            .put("searchguard.audit.threadpool.size", 0)
+            .putList(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_BODY_REDACTION_PATTERNS + ".AUTHENTICATED",
+                List.of("[invalid(regex", "(\"password\"\\s*:\\s*\")(?:[^\"\\\\]|\\\\.)*"))
+            .build();
+        // Construction must not throw despite the invalid regex
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logSucceededLogin(UserInformation.forName("admin"), false, UserInformation.forName("admin"),
+                new MockRestRequest("/_searchguard/auth/session", body));
+            Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+            String auditBody = (String) TestAuditlogImpl.messages.get(0).getAsMap().get(AuditMessage.REQUEST_BODY);
+            Assert.assertNotNull("audit_request_body must be present", auditBody);
+            // The valid pattern should still have been applied
+            Assert.assertFalse("Password value must not appear in audit body", auditBody.contains("secret123"));
+            Assert.assertTrue("Redaction placeholder from valid pattern must be present", auditBody.contains("***REDACTED***"));
+        }
+    }
+
+    @Test
+    public void testBodyRedactionWithPrettyPrintedJsonBody() {
+        // Directly exercise redactRequestBody with a pretty-printed body containing
+        // a space after ":" — the pattern must match "password": "value" (with space).
+        AuditMessage msg = new AuditMessage(AuditMessage.Category.AUTHENTICATED, null,
+            AuditLog.Origin.REST, AuditLog.Origin.REST);
+        msg.addUnescapedJsonToRequestBody(
+            "{\n  \"mode\": \"basic\",\n  \"user\": \"admin\",\n  \"password\": \"secret123\"\n}");
+
+        List<Pattern> patterns = List.of(
+            Pattern.compile("(\"password\"\\s*:\\s*\")(?:[^\"\\\\]|\\\\.)*"));
+        msg.redactRequestBody(patterns);
+
+        String result = (String) msg.getAsMap().get(AuditMessage.REQUEST_BODY);
+        Assert.assertNotNull(result);
+        Assert.assertFalse("Password value must not appear in pretty-printed body", result.contains("secret123"));
+        Assert.assertTrue("Redaction placeholder must be present", result.contains("***REDACTED***"));
+        Assert.assertTrue("JSON key must be preserved", result.contains("\"password\""));
+    }
+
+    @Test
+    public void testBodyRedactionWithEscapedQuoteInPassword() {
+        // Password containing an escaped quote: p\"ass — [^"]* would stop early here,
+        // but (?:[^"\\]|\\.)* must consume the full escaped sequence.
+        AuditMessage msg = new AuditMessage(AuditMessage.Category.AUTHENTICATED, null,
+            AuditLog.Origin.REST, AuditLog.Origin.REST);
+        // Raw body string value: {"password":"p\"ass"}
+        msg.addUnescapedJsonToRequestBody("{\"password\":\"p\\\"ass\"}");
+
+        List<Pattern> patterns = List.of(
+            Pattern.compile("(\"password\"\\s*:\\s*\")(?:[^\"\\\\]|\\\\.)*"));
+        msg.redactRequestBody(patterns);
+
+        String result = (String) msg.getAsMap().get(AuditMessage.REQUEST_BODY);
+        Assert.assertNotNull(result);
+        Assert.assertFalse("Password with escaped quote must be fully redacted", result.contains("p\\\"ass"));
+        Assert.assertTrue("Redaction placeholder must be present", result.contains("***REDACTED***"));
+        Assert.assertTrue("JSON key must be preserved", result.contains("\"password\""));
+    }
+
+    @Test
+    public void testBodyRedactionWithPlainTextBody() {
+        // A plain-text pattern (literal string, no JSON awareness) matches anywhere in
+        // the body, making it suitable for free-text or non-JSON payloads.
+        AuditMessage msg = new AuditMessage(AuditMessage.Category.AUTHENTICATED, null,
+            AuditLog.Origin.REST, AuditLog.Origin.REST);
+        msg.addUnescapedJsonToRequestBody("Get started with Search Guard in seconds using Docker:");
+
+        List<Pattern> patterns = List.of(Pattern.compile("Search Guard"));
+        msg.redactRequestBody(patterns);
+
+        String result = (String) msg.getAsMap().get(AuditMessage.REQUEST_BODY);
+        Assert.assertNotNull(result);
+        Assert.assertFalse("Sensitive string must not appear in the body", result.contains("Search Guard"));
+        Assert.assertTrue("Redaction placeholder must be present", result.contains("***REDACTED***"));
+        Assert.assertEquals("Get started with ***REDACTED*** in seconds using Docker:", result);
     }
 
     private void assertAuditLogDoesNotContainDisabledFields() {
