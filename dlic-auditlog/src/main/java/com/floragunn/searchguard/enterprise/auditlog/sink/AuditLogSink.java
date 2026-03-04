@@ -16,13 +16,12 @@ package com.floragunn.searchguard.enterprise.auditlog.sink;
 
 import static com.floragunn.searchguard.support.ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_FIELDS;
 
+import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -45,7 +44,7 @@ public abstract class AuditLogSink {
     private final String name;
     protected final AuditLogSink fallbackSink;
     protected final Map<String, String> customMessageAttributes;
-    private final Map<String, List<Pattern>> bodyRedactionPatterns;
+    private final ImmutableMap<String, ImmutableList<Pattern>> bodyRedactionPatterns;
     private final int retryCount;
     private final long delayMs;
 
@@ -60,25 +59,26 @@ public abstract class AuditLogSink {
         Settings customAttributes = getSinkSettings(settingsPrefix).getByPrefix(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_CUSTOM_ATTRIBUTES_PREFIX);
         this.customMessageAttributes = customAttributes.keySet().stream().collect(Collectors.toMap(key -> key, customAttributes::get));
 
-        Map<String, List<Pattern>> redactionPatterns = new HashMap<>();
+        ImmutableMap.Builder<String, ImmutableList<Pattern>> redactionPatterns = new ImmutableMap.Builder<>();
         Settings patternSettings = settings.getByPrefix(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_BODY_REDACTION_PATTERNS + ".");
         for (AuditMessage.Category category : AuditMessage.Category.values()) {
-            List<String> patternStrings = patternSettings.getAsList(category.name(), Collections.emptyList());
+            List<String> patternStrings = patternSettings.getAsList(category.name(), List.of());
             if (!patternStrings.isEmpty()) {
-                List<Pattern> compiled = new ArrayList<>();
+                ImmutableList.Builder<Pattern> compiled = new ImmutableList.Builder<>();
                 for (String p : patternStrings) {
                     try {
-                        compiled.add(Pattern.compile(p)); // TODO redaction is pattern thread safe?
+                        compiled.add(Pattern.compile(p));
                     } catch (PatternSyntaxException e) {
                         log.error("Invalid body redaction pattern '{}' for category {}: {}", p, category.name(), e.getMessage());
                     }
                 }
-                if (!compiled.isEmpty()) {
-                    redactionPatterns.put(category.name(), Collections.unmodifiableList(compiled));
+                ImmutableList<Pattern> compiledList = compiled.build();
+                if (!compiledList.isEmpty()) {
+                    redactionPatterns.with(category.name(), compiledList);
                 }
             }
         }
-        this.bodyRedactionPatterns = Collections.unmodifiableMap(redactionPatterns);
+        this.bodyRedactionPatterns = redactionPatterns.build();
     }
     
     public boolean isHandlingBackpressure() {
