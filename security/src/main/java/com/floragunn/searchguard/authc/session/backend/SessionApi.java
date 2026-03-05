@@ -52,6 +52,8 @@ import com.floragunn.searchsupport.cstate.metrics.Meter;
 
 public class SessionApi {
 
+    public static final String SESSION_RESOURCE = "/_searchguard/auth/session";
+
     public static class GetExtendedInfoAction extends Action<EmptyRequest, GetExtendedInfoAction.Response> {
 
         public static final GetExtendedInfoAction INSTANCE = new GetExtendedInfoAction();
@@ -278,11 +280,11 @@ public class SessionApi {
         private SessionService sessionService;
 
         public Rest() {
-            handlesGet("/_searchguard/auth/session/extended").with(GetExtendedInfoAction.INSTANCE);
-            handlesGet("/_searchguard/auth/session").with((r, c) -> handleGet(r, c));
-            handlesPost("/_searchguard/auth/session/with_header").with(CreateAction.INSTANCE);
-            handlesPost("/_searchguard/auth/session").with((r, c) -> handlePost(r, c));
-            handlesDelete("/_searchguard/auth/session").with(DeleteAction.INSTANCE);
+            handlesGet(SESSION_RESOURCE + "/extended").with(GetExtendedInfoAction.INSTANCE);
+            handlesGet(SESSION_RESOURCE).with((r, c) -> handleGet(r, c));
+            handlesPost(SESSION_RESOURCE + "/with_header").with(CreateAction.INSTANCE);
+            handlesPost(SESSION_RESOURCE).with((r, c) -> handlePost(r, c));
+            handlesDelete(SESSION_RESOURCE).with(DeleteAction.INSTANCE);
         }
 
         private RestChannelConsumer handleGet(RestRequest request, NodeClient client) {
