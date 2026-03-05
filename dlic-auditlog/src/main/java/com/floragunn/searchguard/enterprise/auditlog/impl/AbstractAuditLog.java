@@ -20,6 +20,7 @@ import com.floragunn.codova.documents.Format;
 import com.floragunn.codova.documents.patch.JsonPatch;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.codova.validation.ValidationErrors;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.auditlog.AuditLogConfig;
@@ -180,6 +181,9 @@ public abstract class AbstractAuditLog implements AuditLog {
 
         logRequestBody = settings.getAsBoolean(ConfigConstants.SEARCHGUARD_AUDIT_LOG_REQUEST_BODY, true);
         List<String> ignoredRequestBodies = settings.getAsList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUEST_BODIES, Collections.emptyList());
+        if( !ignoredRequestBodies.contains("/_searchguard/auth/session") ) {
+            ignoredRequestBodies = ImmutableList.of(ignoredRequestBodies).with("/_searchguard/auth/session");
+        }
         try {
             this.ignoredRequestBodies = Pattern.create(ignoredRequestBodies);
         } catch (ConfigValidationException e) {
