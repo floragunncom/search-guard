@@ -608,6 +608,10 @@ public interface Action {
                 ImmutableSet.ofArray("indices:admin/aliases"));
         public static final AdditionalDimension DELETE_INDEX = new AdditionalDimension("delete_index", Scope.INDEX_LIKE,
                 ImmutableSet.ofArray("indices:admin/delete"));
+        public static final AdditionalDimension ADD_INDEX_TO_DATA_STREAM = new AdditionalDimension("add_index_to_data_stream", Scope.INDEX,
+                ImmutableSet.ofArray("indices:admin/data_stream/modify"));
+        public static final AdditionalDimension REMOVE_INDEX_FROM_DATA_STREAM = new AdditionalDimension("remove_index_from_data_stream", Scope.INDEX,
+                ImmutableSet.ofArray("indices:admin/data_stream/modify"));
 
         private final String id;
         private final ImmutableSet<String> requiredPrivileges;
