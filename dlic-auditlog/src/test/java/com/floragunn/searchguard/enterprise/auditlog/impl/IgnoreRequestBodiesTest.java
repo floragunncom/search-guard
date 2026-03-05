@@ -138,6 +138,33 @@ public class IgnoreRequestBodiesTest {
         }
     }
 
+    @Test
+    public void testSessionEndpointBodyExcludedByDefault() throws Exception {
+        String jsonBody = "{\"password\":\"secret\"}";
+        UserInformation userInformation = UserInformation.forName("testuser");
+        try (AbstractAuditLog al = new AuditLogImpl(settingsBuilder.build(), null, null, newThreadPool(), null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logSucceededLogin(userInformation, false, userInformation, new MockRestRequest("/_searchguard/auth/session", jsonBody));
+            assertEquals(1, TestAuditlogImpl.messages.size());
+            assertFalse(TestAuditlogImpl.messages.get(0).getAsMap().containsKey(REQUEST_BODY));
+        }
+    }
+
+    @Test
+    public void testSessionEndpointBodyExcludedEvenWhenCustomListOmitsIt() throws Exception {
+        String jsonBody = "{\"password\":\"secret\"}";
+        UserInformation userInformation = UserInformation.forName("testuser");
+        Settings settings = settingsBuilder
+                .putList(ConfigConstants.SEARCHGUARD_AUDIT_IGNORE_REQUEST_BODIES, "/some/other/path")
+                .build();
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, newThreadPool(), null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logSucceededLogin(userInformation, false, userInformation, new MockRestRequest("/_searchguard/auth/session", jsonBody));
+            assertEquals(1, TestAuditlogImpl.messages.size());
+            assertFalse(TestAuditlogImpl.messages.get(0).getAsMap().containsKey(REQUEST_BODY));
+        }
+    }
+
     private static ThreadPool newThreadPool() {
         return new ThreadPool(Settings.builder().put("node.name", "mock").build(), MeterRegistry.NOOP, new DefaultBuiltInExecutorBuilders());
     }
