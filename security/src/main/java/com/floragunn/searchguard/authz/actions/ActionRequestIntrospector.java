@@ -48,10 +48,12 @@ import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.action.admin.indices.resolve.ResolveIndexAction;
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.datastreams.ModifyDataStreamsAction;
 import org.elasticsearch.action.downsample.DownsampleAction;
 import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchContextId;
+import org.elasticsearch.cluster.metadata.DataStreamAction;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.action.search.ClearScrollRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
@@ -131,7 +133,21 @@ public class ActionRequestIntrospector {
                 return new ActionRequestInfo("*", IndicesOptions.LENIENT_EXPAND_OPEN_CLOSED_HIDDEN, IndicesRequestInfo.Scope.ANY);
             }
         } else if (request instanceof IndicesRequest) {
-            if (action.scope() == Action.Scope.DATA_STREAM) {
+            if (request instanceof ModifyDataStreamsAction.Request modifyDataStreamsRequest) {
+                ActionRequestInfo result = new ActionRequestInfo(ImmutableSet.empty());
+                for (DataStreamAction dataStreamAction : modifyDataStreamsRequest.getActions()) {
+                    String dataStream = dataStreamAction.getDataStream();
+                    String index = dataStreamAction.getIndex(); // todo how this is working for failure stores?
+                    DataStreamAction.Type type = dataStreamAction.getType();
+                    Action.AdditionalDimension additionalDimension = switch (type) {
+                        case ADD_BACKING_INDEX -> Action.AdditionalDimension.ADD_INDEX_TO_DATA_STREAM;
+                        case REMOVE_BACKING_INDEX -> Action.AdditionalDimension.REMOVE_INDEX_FROM_DATA_STREAM;
+                    };
+                    result = result.with(ImmutableSet.of(dataStream), EXACT, Scope.INDICES_DATA_STREAMS)
+                            .additional(additionalDimension, ImmutableList.of(index), EXACT, Scope.INDEX);
+                }
+                return result;
+            } else if (action.scope() == Action.Scope.DATA_STREAM) {
                 return new ActionRequestInfo((IndicesRequest) request, IndicesRequestInfo.Scope.DATA_STREAM);
             } else if (request instanceof AliasesRequest) {
                 AliasesRequest aliasesRequest = (AliasesRequest) request;
