@@ -94,7 +94,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "special:failure_store").on("ds_a*"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "SGS_FAILURE_STORE_ACCESS").on("ds_a*"))//
             .indexMatcher("read", limitedTo(ds_a1, ds_a2, ds_a3, ds_ax))//
             .indexMatcher("read_top_level", limitedTo(ds_a1, ds_a2, ds_a3))//
             .indexMatcher("get_alias", limitedToNone());
@@ -134,7 +134,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "special:failure_store").on("ds_b1"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "SGS_FAILURE_STORE_ACCESS").on("ds_b1"))//
             .indexMatcher("read", limitedTo(ds_b1))//
             .indexMatcher("read_top_level", limitedTo(ds_b1))//
             .indexMatcher("get_alias", limitedToNone());
@@ -174,7 +174,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
-                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "special:failure_store").on("ds_a*", "ds_hidden*"))//
+                            .dataStreamPermissions("SGS_READ", "SGS_INDICES_MONITOR", "SGS_FAILURE_STORE_ACCESS").on("ds_a*", "ds_hidden*"))//
             .indexMatcher("read", limitedTo(ds_a1, ds_a2, ds_a3, ds_ax, ds_hidden))//
             .indexMatcher("read_top_level", limitedTo(ds_a1, ds_a2, ds_a3, ds_ax, ds_hidden))//
             .indexMatcher("get_alias", limitedToNone());
@@ -214,7 +214,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
             .roles(//
                     new Role("r1")//
                             .clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO", "SGS_CLUSTER_MONITOR")//
-                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "special:failure_store").on("alias_ab1"))//
+                            .indexPermissions("SGS_READ", "SGS_INDICES_MONITOR", "SGS_FAILURE_STORE_ACCESS").on("alias_ab1"))//
             .indexMatcher("read", limitedToNone())//
             .indexMatcher("read_top_level", limitedToNone())//
             .indexMatcher("get_alias", limitedToNone());

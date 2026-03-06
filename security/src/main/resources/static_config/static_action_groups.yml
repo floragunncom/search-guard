@@ -496,3 +496,12 @@ SGS_SQL_READ:
     - "indices:data/read/field_caps"
     - "indices:data/read/open_point_in_time"
     - "indices:data/read/search"
+
+SGS_FAILURE_STORE_ACCESS:
+  reserved: true
+  hidden: false
+  static: true
+  type: "index"
+  allowed_actions:
+    - "special:failure_store"
+
