@@ -524,7 +524,11 @@
     <dependency>
       <groupId>org.apache.maven</groupId>
       <artifactId>maven-embedder</artifactId>
+<<<<<<< HEAD
       <version>3.9.11</version>
+=======
+      <version>3.9.13</version>
+>>>>>>> 2ef69131 (Bump org.apache.maven:maven-embedder from 3.9.12 to 3.9.13)
       <scope>test</scope>
     </dependency>
 
