@@ -263,7 +263,7 @@ public class SessionService {
                     try {
                         StartSessionResponse response = createLightweightJwt(authcResult.getUser(), authcResult.getRedirectUri(), meter);
                         meter.close();
-                        auditLog.logSucceededKibanaLogin(authcResult.getUser(), restRequest);
+                        auditLog.logSucceededKibanaLogin(authcResult.getUser(), restRequest.getHeaders());
                         onResult.accept(response);
                     } catch (SessionCreationException e) {
                         meter.close();

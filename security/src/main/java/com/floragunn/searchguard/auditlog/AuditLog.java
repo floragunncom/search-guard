@@ -81,8 +81,8 @@ public interface AuditLog extends Closeable {
     void logIndexSettingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest);
     void logIndexMappingsUpdated(List<String> indexNames, String action, TransportRequest transportRequest);
 
-    void logSucceededKibanaLogin(UserInformation effectiveUser, RestRequest request);
-    void logSucceededKibanaLogout(UserInformation effectiveUser, RestRequest request);
+    void logSucceededKibanaLogin(UserInformation effectiveUser, Map<String, List<String>> restHeaders);
+    void logSucceededKibanaLogout(UserInformation effectiveUser, Map<String, List<String>> restHeaders);
 
     public enum Origin {
         REST, TRANSPORT, LOCAL

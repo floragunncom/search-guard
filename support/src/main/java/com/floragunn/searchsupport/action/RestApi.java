@@ -98,14 +98,6 @@ public class RestApi extends BaseRestHandler {
         return this;
     }
 
-    protected boolean prettyPrintResponse(RestRequest restRequest) {
-        return restRequest.paramAsBoolean("pretty", false);
-    }
-
-    protected ImmutableMap<String, String> getStaticResponseHeaders() {
-        return staticResponseHeaders;
-    }
-
     public Endpoint handlesGet(String routes) {
         return new Endpoint(Method.GET, routes);
     }
@@ -237,7 +229,7 @@ public class RestApi extends BaseRestHandler {
 
             return with((restRequest, client) -> {
                 try {
-                    boolean prettyPrintResponse = prettyPrintResponse(restRequest);
+                    boolean prettyPrintResponse = restRequest.paramAsBoolean("pretty", false);
 
                     UnparsedDocument<?> unparsedDoc = null;
 
@@ -285,7 +277,7 @@ public class RestApi extends BaseRestHandler {
          * To be used with Actions based on com.floragunn.searchsupport.action.Action
          */
         public <RequestType extends Action.Request, ResponseType extends Action.Response> RestApi with(Action<RequestType, ResponseType> action,
-                RestRequestParser<RequestType> requestParser) {
+                RestRequestParserWithHeaders<RequestType> requestParser) {
             if (action == null) {
                 throw new IllegalArgumentException("action must not be null");
             }
@@ -296,7 +288,7 @@ public class RestApi extends BaseRestHandler {
 
             return with((restRequest, client) -> {
                 try {
-                    boolean prettyPrintResponse = prettyPrintResponse(restRequest);
+                    boolean prettyPrintResponse = restRequest.paramAsBoolean("pretty", false);
 
                     UnparsedDocument<?> unparsedDoc = null;
 
@@ -312,7 +304,7 @@ public class RestApi extends BaseRestHandler {
                         unparsedDoc = UnparsedDocument.from(BytesReference.toBytes(restRequest.content()), contentType);
                     }
 
-                    RequestType transportRequest = requestParser.parse(new RestRequestParams(restRequest), unparsedDoc);
+                    RequestType transportRequest = requestParser.parse(new RestRequestParams(restRequest), unparsedDoc, restRequest.getHeaders());
 
                     String ifMatchHeader = restRequest.header("If-Match");
 
@@ -346,6 +338,14 @@ public class RestApi extends BaseRestHandler {
         }
 
         /**
+         * To be used with Actions based on com.floragunn.searchsupport.action.Action
+         */
+        public <RequestType extends Action.Request, ResponseType extends Action.Response> RestApi with(Action<RequestType, ResponseType> action,
+                RestRequestParser<RequestType> requestParser) {
+            return  with(action, (params, body, headers) -> requestParser.parse(params, body));
+        }
+
+        /**
          * To be used with basic action classes from Elasticsearch/OpenSearch
          */
         public <RequestType extends ActionRequest, ResponseType extends ActionResponse> RestApi with(ActionType<ResponseType> action,
@@ -356,7 +356,7 @@ public class RestApi extends BaseRestHandler {
 
             return with((restRequest, client) -> {
                 try {
-                    boolean prettyPrintResponse = prettyPrintResponse(restRequest);
+                    boolean prettyPrintResponse = restRequest.paramAsBoolean("pretty", false);
 
                     UnparsedDocument<?> unparsedDoc = null;
 
@@ -441,6 +441,11 @@ public class RestApi extends BaseRestHandler {
     @FunctionalInterface
     public static interface RestRequestParser<RequestType extends ActionRequest> {
         RequestType parse(Map<String, String> requestUrlParams, UnparsedDocument<?> requestBody) throws ConfigValidationException;
+    }
+
+    @FunctionalInterface
+    public interface RestRequestParserWithHeaders<RequestType extends ActionRequest> {
+        RequestType parse(Map<String, String> requestUrlParams, UnparsedDocument<?> requestBody, Map<String, List<String>> headers) throws ConfigValidationException;
     }
 
     private static class RestRequestParams implements Map<String, String> {

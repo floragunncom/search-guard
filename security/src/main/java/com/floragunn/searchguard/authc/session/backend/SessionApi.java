@@ -21,6 +21,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import com.floragunn.codova.validation.errors.ValidationError;
+import com.floragunn.fluent.collections.ImmutableMap;
+import com.floragunn.searchguard.BaseDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,7 +35,6 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.rest.action.RestResponseListener;
 import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.documents.DocNode;
@@ -42,7 +44,6 @@ import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.OrderedImmutableMap;
 import com.floragunn.searchguard.authc.AuthInfoService;
-import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.action.Action;
@@ -142,32 +143,34 @@ public class SessionApi {
         }
     }
 
-    public static class DeleteAction extends Action<EmptyRequest, StandardResponse> {
+    public static class DeleteAction extends Action<RestRequestHeadersRequest, StandardResponse> {
 
         public static final DeleteAction INSTANCE = new DeleteAction();
         public static final String NAME = "cluster:admin:searchguard:session/_own/delete";
 
         protected DeleteAction() {
-            super(NAME, EmptyRequest::new, StandardResponse::new);
+            super(NAME, RestRequestHeadersRequest::new, StandardResponse::new);
         }
 
-        public static class Handler extends Action.Handler<EmptyRequest, StandardResponse> {
+        public static class Handler extends Action.Handler<RestRequestHeadersRequest, StandardResponse> {
             private static final Logger log = LogManager.getLogger(Handler.class);
 
             private final SessionService sessionService;
             private final AuthInfoService authInfoService;
+            private final AuditLog auditLog;
 
             @Inject
             public Handler(HandlerDependencies handlerDependencies, SessionService sessionService, AuthInfoService authInfoService,
-                    PrivilegesEvaluator privilegesEvaluator) {
+                           BaseDependencies baseDependencies) {
                 super(DeleteAction.INSTANCE, handlerDependencies);
 
                 this.sessionService = sessionService;
                 this.authInfoService = authInfoService;
+                this.auditLog = baseDependencies.getAuditLog();
             }
 
             @Override
-            protected final CompletableFuture<StandardResponse> doExecute(EmptyRequest request) {
+            protected final CompletableFuture<StandardResponse> doExecute(RestRequestHeadersRequest request) {
                 User user = authInfoService.getCurrentUser();
 
                 return supplyAsync(() -> {
@@ -190,6 +193,7 @@ public class SessionApi {
 
                         String status = sessionService.delete(user, authToken);
 
+                        auditLog.logSucceededKibanaLogout(user, request.getRestHeaders());
                         return new StandardResponse(200, status);
                     } catch (NoSuchSessionException e) {
                         return new StandardResponse(404, new StandardResponse.Error("No such auth token: " + authTokenId));
@@ -206,32 +210,34 @@ public class SessionApi {
      * Note: This is only used for /_searchguard/auth/session/with_header endpoint. In most cases, sessions will be started with /_searchguard/auth/session, which
      * uses no transport action.
      */
-    public static class CreateAction extends Action<EmptyRequest, StartSessionResponse> {
+    public static class CreateAction extends Action<RestRequestHeadersRequest, StartSessionResponse> {
 
         public static final CreateAction INSTANCE = new CreateAction();
         public static final String NAME = "cluster:admin:searchguard:session/create";
 
         protected CreateAction() {
-            super(NAME, EmptyRequest::new, StartSessionResponse::new);
+            super(NAME, RestRequestHeadersRequest::new, StartSessionResponse::new);
         }
 
-        public static class Handler extends Action.Handler<EmptyRequest, StartSessionResponse> {
+        public static class Handler extends Action.Handler<RestRequestHeadersRequest, StartSessionResponse> {
             private static final Logger log = LogManager.getLogger(Handler.class);
 
             private final SessionService sessionService;
             private final AuthInfoService authInfoService;
+            private final AuditLog auditLog;
 
             @Inject
             public Handler(HandlerDependencies handlerDependencies, SessionService sessionService, AuthInfoService authInfoService,
-                    PrivilegesEvaluator privilegesEvaluator) {
+                    BaseDependencies baseDependencies) {
                 super(CreateAction.INSTANCE, handlerDependencies);
 
                 this.sessionService = sessionService;
                 this.authInfoService = authInfoService;
+                this.auditLog = baseDependencies.getAuditLog();
             }
 
             @Override
-            protected final CompletableFuture<StartSessionResponse> doExecute(EmptyRequest request) {
+            protected final CompletableFuture<StartSessionResponse> doExecute(RestRequestHeadersRequest request) {
                 User user = authInfoService.getCurrentUser();
 
                 if (user == null) {
@@ -241,8 +247,50 @@ public class SessionApi {
                     return result;
                 }
 
-                return sessionService.createSession(user);
+                return sessionService.createSession(user)
+                        .whenComplete((response, ex) -> {
+                            if (response != null) {
+                                auditLog.logSucceededKibanaLogin(user, request.getRestHeaders());
+                            }
+                        });
             }
+        }
+    }
+
+    public static class RestRequestHeadersRequest extends Action.Request {
+
+        public static final String FIELD_REST_HEADERS = "rest_headers";
+        private final Map<String, List<String>> restHeaders;
+
+        public RestRequestHeadersRequest(Map<String, List<String>> restHeaders) {
+            this.restHeaders = restHeaders;
+        }
+
+        @SuppressWarnings("unchecked")
+        public RestRequestHeadersRequest(UnparsedMessage message) throws ConfigValidationException {
+            super(message);
+            if (message.unparsedDoc() == null) {
+                this.restHeaders = null;
+            } else {
+                DocNode docNode = message.requiredDocNode();
+                ImmutableMap.Builder<String, List<String>> headers = new ImmutableMap.Builder<>();
+                for (Map.Entry<String, Object> entry : docNode.entrySet()) {
+                    if (! (entry.getValue() instanceof List<?> list) || ! list.stream().allMatch(item -> item instanceof String)) {
+                        throw new ConfigValidationException(new ValidationError(FIELD_REST_HEADERS, "Is not of type Map<String, List<String>>", headers));
+                    }
+                    headers.put(entry.getKey(), (List<String>) entry.getValue());
+                }
+                this.restHeaders = headers.build();
+            }
+        }
+
+        public Map<String, List<String>> getRestHeaders() {
+            return restHeaders;
+        }
+
+        @Override
+        public Object toBasicObject() {
+            return this.restHeaders == null? null : ImmutableMap.of(FIELD_REST_HEADERS, this.restHeaders);
         }
     }
 
@@ -280,15 +328,13 @@ public class SessionApi {
     public static class Rest extends RestApi {
         private static final Logger log = LogManager.getLogger(Rest.class);
         private SessionService sessionService;
-        private AuditLog auditLog;
-        private AuthInfoService authInfoService;
 
         public Rest() {
             handlesGet(SESSION_RESOURCE + "/extended").with(GetExtendedInfoAction.INSTANCE);
             handlesGet(SESSION_RESOURCE).with((r, c) -> handleGet(r, c));
-            handlesPost(SESSION_RESOURCE + "/with_header").with((r, c) -> handlePostWithHeader(r, c));
+            handlesPost(SESSION_RESOURCE + "/with_header").with(CreateAction.INSTANCE, (params, body, headers) -> new RestRequestHeadersRequest(headers));
             handlesPost(SESSION_RESOURCE).with((r, c) -> handlePost(r, c));
-            handlesDelete(SESSION_RESOURCE).with((r, c) -> handleDelete(r, c));
+            handlesDelete(SESSION_RESOURCE).with(DeleteAction.INSTANCE, (params, body, headers) -> new RestRequestHeadersRequest(headers));
         }
 
         private RestChannelConsumer handleGet(RestRequest request, NodeClient client) {
@@ -338,34 +384,6 @@ public class SessionApi {
             };
         }
 
-        private RestChannelConsumer handleDelete(RestRequest request, NodeClient client) {
-
-            return restChannel -> client.execute(DeleteAction.INSTANCE, new EmptyRequest(), new RestResponseListener<>(restChannel) {
-
-                @Override
-                public RestResponse buildResponse(StandardResponse response) throws Exception {
-                    if (response.status() == RestStatus.OK) {
-                        auditLog.logSucceededKibanaLogout(authInfoService.getCurrentUser(), request);
-                    }
-                    return toRestResponse(response, prettyPrintResponse(request), getStaticResponseHeaders());
-                }
-            });
-        }
-
-        private RestChannelConsumer handlePostWithHeader(RestRequest request, NodeClient client) {
-
-            return restChannel -> client.execute(CreateAction.INSTANCE, new EmptyRequest(), new RestResponseListener<>(restChannel) {
-
-                @Override
-                public RestResponse buildResponse(StartSessionResponse response) throws Exception {
-                    if (response.status() == RestStatus.OK) {
-                        auditLog.logSucceededKibanaLogin(authInfoService.getCurrentUser(), request);
-                    }
-                    return toRestResponse(response, prettyPrintResponse(request), getStaticResponseHeaders());
-                }
-            });
-        }
-
         @Override
         public String getName() {
             return "/_searchguard/auth/session";
@@ -377,14 +395,6 @@ public class SessionApi {
 
         public void setSessionService(SessionService sessionService) {
             this.sessionService = sessionService;
-        }
-
-        public void setAuditLog(AuditLog auditLog) {
-            this.auditLog = auditLog;
-        }
-
-        public void setAuthInfoService(AuthInfoService authInfoService) {
-            this.authInfoService = authInfoService;
         }
     }
 }

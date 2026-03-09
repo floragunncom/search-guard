@@ -164,12 +164,12 @@ public class NullAuditLog implements AuditLog {
     }
 
     @Override
-    public void logSucceededKibanaLogin(UserInformation effectiveUser, RestRequest request) {
+    public void logSucceededKibanaLogin(UserInformation effectiveUser, Map<String, List<String >> restHeaders) {
         //noop, intentionally left empty
     }
 
     @Override
-    public void logSucceededKibanaLogout(UserInformation effectiveUser, RestRequest request) {
+    public void logSucceededKibanaLogout(UserInformation effectiveUser, Map<String, List<String >> restHeaders) {
         //noop, intentionally left empty
     }
 

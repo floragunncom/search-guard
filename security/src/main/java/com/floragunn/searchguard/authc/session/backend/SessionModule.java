@@ -97,8 +97,6 @@ public class SessionModule implements SearchGuardModule, ComponentStateProvider 
         sessionTokenAuthenticationDomain = new SessionTokenAuthenticationDomain(sessionService);
 
         sessionRestAction.setSessionService(sessionService);
-        sessionRestAction.setAuditLog(baseDependencies.getAuditLog());
-        sessionRestAction.setAuthInfoService(baseDependencies.getAuthInfoService());
 
         baseDependencies.getConfigurationRepository().subscribeOnChange(new ConfigurationChangeListener() {
 
