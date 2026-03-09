@@ -332,11 +332,11 @@ public class DisabledCategoriesTest {
 	}
 
     protected void logSucceededKibanaLogin(AuditLog auditLog) {
-        auditLog.logSucceededKibanaLogin(UserInformation.forName("testuser.kibana.succeededlogin"));
+        auditLog.logSucceededKibanaLogin(UserInformation.forName("testuser.kibana.succeededlogin"), new MockRestRequest());
     }
 
     protected void logSucceededKibanaLogout(AuditLog auditLog) {
-        auditLog.logSucceededKibanaLogout(UserInformation.forName("testuser.kibana.succeededlogout"));
+        auditLog.logSucceededKibanaLogout(UserInformation.forName("testuser.kibana.succeededlogout"), new MockRestRequest());
     }
 
 

@@ -263,7 +263,7 @@ public class SessionService {
                     try {
                         StartSessionResponse response = createLightweightJwt(authcResult.getUser(), authcResult.getRedirectUri(), meter);
                         meter.close();
-                        auditLog.logSucceededKibanaLogin(authcResult.getUser());
+                        auditLog.logSucceededKibanaLogin(authcResult.getUser(), restRequest);
                         onResult.accept(response);
                     } catch (SessionCreationException e) {
                         meter.close();
@@ -290,7 +290,6 @@ public class SessionService {
         threadPool.generic().submit(() -> {
             try {
                 StartSessionResponse response = createLightweightJwt(user, null, meter);
-                auditLog.logSucceededKibanaLogin(user);
                 result.complete(response);
             } catch (Exception e) {
                 log.error("Creating token failed", e);
@@ -553,8 +552,6 @@ public class SessionService {
             }
 
             String updateStatus = updateSessionToken(sessionToken.getRevokedInstance(), UpdateType.REVOKED, meter);
-
-            auditLog.logSucceededKibanaLogout(user);
 
             if (updateStatus != null) {
                 return updateStatus;

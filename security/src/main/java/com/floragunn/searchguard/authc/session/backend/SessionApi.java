@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import com.floragunn.searchguard.auditlog.AuditLog;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.client.internal.node.NodeClient;
@@ -31,6 +32,7 @@ import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.rest.action.RestResponseListener;
 import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.documents.DocNode;
@@ -278,13 +280,15 @@ public class SessionApi {
     public static class Rest extends RestApi {
         private static final Logger log = LogManager.getLogger(Rest.class);
         private SessionService sessionService;
+        private AuditLog auditLog;
+        private AuthInfoService authInfoService;
 
         public Rest() {
             handlesGet(SESSION_RESOURCE + "/extended").with(GetExtendedInfoAction.INSTANCE);
             handlesGet(SESSION_RESOURCE).with((r, c) -> handleGet(r, c));
-            handlesPost(SESSION_RESOURCE + "/with_header").with(CreateAction.INSTANCE);
+            handlesPost(SESSION_RESOURCE + "/with_header").with((r, c) -> handlePostWithHeader(r, c));
             handlesPost(SESSION_RESOURCE).with((r, c) -> handlePost(r, c));
-            handlesDelete(SESSION_RESOURCE).with(DeleteAction.INSTANCE);
+            handlesDelete(SESSION_RESOURCE).with((r, c) -> handleDelete(r, c));
         }
 
         private RestChannelConsumer handleGet(RestRequest request, NodeClient client) {
@@ -334,6 +338,34 @@ public class SessionApi {
             };
         }
 
+        private RestChannelConsumer handleDelete(RestRequest request, NodeClient client) {
+
+            return restChannel -> client.execute(DeleteAction.INSTANCE, new EmptyRequest(), new RestResponseListener<>(restChannel) {
+
+                @Override
+                public RestResponse buildResponse(StandardResponse response) throws Exception {
+                    if (response.status() == RestStatus.OK) {
+                        auditLog.logSucceededKibanaLogout(authInfoService.getCurrentUser(), request);
+                    }
+                    return toRestResponse(response, prettyPrintResponse(request), getStaticResponseHeaders());
+                }
+            });
+        }
+
+        private RestChannelConsumer handlePostWithHeader(RestRequest request, NodeClient client) {
+
+            return restChannel -> client.execute(CreateAction.INSTANCE, new EmptyRequest(), new RestResponseListener<>(restChannel) {
+
+                @Override
+                public RestResponse buildResponse(StartSessionResponse response) throws Exception {
+                    if (response.status() == RestStatus.OK) {
+                        auditLog.logSucceededKibanaLogin(authInfoService.getCurrentUser(), request);
+                    }
+                    return toRestResponse(response, prettyPrintResponse(request), getStaticResponseHeaders());
+                }
+            });
+        }
+
         @Override
         public String getName() {
             return "/_searchguard/auth/session";
@@ -345,6 +377,14 @@ public class SessionApi {
 
         public void setSessionService(SessionService sessionService) {
             this.sessionService = sessionService;
+        }
+
+        public void setAuditLog(AuditLog auditLog) {
+            this.auditLog = auditLog;
+        }
+
+        public void setAuthInfoService(AuthInfoService authInfoService) {
+            this.authInfoService = authInfoService;
         }
     }
 }

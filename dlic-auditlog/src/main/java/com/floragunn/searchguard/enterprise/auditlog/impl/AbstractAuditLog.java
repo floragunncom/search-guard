@@ -1049,7 +1049,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     }
 
     @Override
-    public void logSucceededKibanaLogin(UserInformation effectiveUser) {
+    public void logSucceededKibanaLogin(UserInformation effectiveUser, RestRequest request) {
         Category category = Category.KIBANA_LOGIN;
 
         if (!checkRestFilter(category, effectiveUser, null)) {
@@ -1059,13 +1059,14 @@ public abstract class AbstractAuditLog implements AuditLog {
         AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.REST);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
+        msg.addRestHeaders(request.getHeaders(), excludeSensitiveHeaders);
 
         msg.addEffectiveUser(effectiveUser);
         save(msg);
     }
 
     @Override
-    public void logSucceededKibanaLogout(UserInformation effectiveUser) {
+    public void logSucceededKibanaLogout(UserInformation effectiveUser, RestRequest request) {
         Category category = Category.KIBANA_LOGOUT;
 
         if (!checkRestFilter(category, effectiveUser, null)) {
@@ -1075,6 +1076,7 @@ public abstract class AbstractAuditLog implements AuditLog {
         AuditMessage msg = new AuditMessage(category, clusterState, getOrigin(), Origin.REST);
         TransportAddress remoteAddress = getRemoteAddress();
         msg.addRemoteAddress(remoteAddress);
+        msg.addRestHeaders(request.getHeaders(), excludeSensitiveHeaders);
 
         msg.addEffectiveUser(effectiveUser);
         save(msg);

@@ -361,7 +361,7 @@ public class AuditlogTest {
         String userName = "test-user";
         try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
-            al.logSucceededKibanaLogin(UserInformation.forName(userName));
+            al.logSucceededKibanaLogin(UserInformation.forName(userName), new MockRestRequest());
             Assert.assertEquals(1, TestAuditlogImpl.messages.size());
             Map<String, Object> msgAsMap = TestAuditlogImpl.messages.get(0).getAsMap();
             Assert.assertEquals(AuditLog.Origin.REST, msgAsMap.get(AuditMessage.REQUEST_LAYER));
@@ -380,7 +380,7 @@ public class AuditlogTest {
         String userName = "test-user";
         try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
-            al.logSucceededKibanaLogout(UserInformation.forName(userName));
+            al.logSucceededKibanaLogout(UserInformation.forName(userName), new MockRestRequest());
             Assert.assertEquals(1, TestAuditlogImpl.messages.size());
             Map<String, Object> msgAsMap = TestAuditlogImpl.messages.get(0).getAsMap();
             Assert.assertEquals(AuditLog.Origin.REST, msgAsMap.get(AuditMessage.REQUEST_LAYER));

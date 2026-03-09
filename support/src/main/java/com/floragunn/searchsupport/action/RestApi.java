@@ -98,6 +98,14 @@ public class RestApi extends BaseRestHandler {
         return this;
     }
 
+    protected boolean prettyPrintResponse(RestRequest restRequest) {
+        return restRequest.paramAsBoolean("pretty", false);
+    }
+
+    protected ImmutableMap<String, String> getStaticResponseHeaders() {
+        return staticResponseHeaders;
+    }
+
     public Endpoint handlesGet(String routes) {
         return new Endpoint(Method.GET, routes);
     }
@@ -229,7 +237,7 @@ public class RestApi extends BaseRestHandler {
 
             return with((restRequest, client) -> {
                 try {
-                    boolean prettyPrintResponse = restRequest.paramAsBoolean("pretty", false);
+                    boolean prettyPrintResponse = prettyPrintResponse(restRequest);
 
                     UnparsedDocument<?> unparsedDoc = null;
 
@@ -288,7 +296,7 @@ public class RestApi extends BaseRestHandler {
 
             return with((restRequest, client) -> {
                 try {
-                    boolean prettyPrintResponse = restRequest.paramAsBoolean("pretty", false);
+                    boolean prettyPrintResponse = prettyPrintResponse(restRequest);
 
                     UnparsedDocument<?> unparsedDoc = null;
 
@@ -348,7 +356,7 @@ public class RestApi extends BaseRestHandler {
 
             return with((restRequest, client) -> {
                 try {
-                    boolean prettyPrintResponse = restRequest.paramAsBoolean("pretty", false);
+                    boolean prettyPrintResponse = prettyPrintResponse(restRequest);
 
                     UnparsedDocument<?> unparsedDoc = null;
 
