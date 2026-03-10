@@ -623,6 +623,16 @@
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
+      <id>central</id>
+      <url>https://repo.maven.apache.org/maven2</url>
+    </repository>
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
       <id>release</id>
       <url>https://maven.search-guard.com:443/search-guard-flx-release</url>
     </repository>
