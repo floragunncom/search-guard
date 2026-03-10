@@ -270,13 +270,26 @@ public class SessionApi {
         public RestRequestHeadersRequest(UnparsedMessage message) throws ConfigValidationException {
             super(message);
             if (message.unparsedDoc() == null) {
-                this.restHeaders = null;
+                this.restHeaders = ImmutableMap.empty();
             } else {
                 DocNode docNode = message.requiredDocNode();
+                if (! docNode.containsKey(FIELD_REST_HEADERS)) {
+                    throw new ConfigValidationException(
+                            new ValidationError(null, "Does not contain %s key".formatted(FIELD_REST_HEADERS), docNode)
+                    );
+                }
+                if (!(docNode.get(FIELD_REST_HEADERS) instanceof Map<?,?>)) {
+                    throw new ConfigValidationException(
+                            new ValidationError(FIELD_REST_HEADERS, "Is not of type Map", docNode)
+                    );
+                }
+
                 ImmutableMap.Builder<String, List<String>> headers = new ImmutableMap.Builder<>();
-                for (Map.Entry<String, Object> entry : docNode.entrySet()) {
+                for (Map.Entry<String, Object> entry : docNode.getAsNode(FIELD_REST_HEADERS).entrySet()) {
                     if (! (entry.getValue() instanceof List<?> list) || ! list.stream().allMatch(item -> item instanceof String)) {
-                        throw new ConfigValidationException(new ValidationError(FIELD_REST_HEADERS, "Is not of type Map<String, List<String>>", headers));
+                        throw new ConfigValidationException(
+                                new ValidationError(FIELD_REST_HEADERS, "Is not of type Map<String, List<String>>", docNode)
+                        );
                     }
                     headers.put(entry.getKey(), (List<String>) entry.getValue());
                 }
