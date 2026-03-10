@@ -204,6 +204,7 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN), equalTo("basic/internal_users_db"));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.NODE_VERSION), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.NODE_HOST_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.REST_REQUEST_HEADERS), notNullValue());
 
             TestAuditlogImpl.clear();
 
@@ -227,6 +228,7 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN), equalTo("basic/internal_users_db"));
             assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.NODE_VERSION), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.NODE_HOST_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.REST_REQUEST_HEADERS), notNullValue());
 
         }
     }
@@ -269,6 +271,7 @@ public class AuditlogIntegrationTest {
             assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.REQUEST_EFFECTIVE_USER_AUTH_DOMAIN), nullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.NODE_VERSION), notNullValue());
             assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.NODE_HOST_NAME), notNullValue());
+            assertThat(auditMessage.toJsonString(), auditMessage.getAsString(AuditMessage.REST_REQUEST_HEADERS), notNullValue());
 
         }
     }

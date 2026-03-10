@@ -169,13 +169,13 @@ public class AuditLogRelay implements AuditLog {
     }
 
     @Override
-    public void logSucceededKibanaLogin(UserInformation effectiveUser) {
-        auditLog.logSucceededKibanaLogin(effectiveUser);
+    public void logSucceededKibanaLogin(UserInformation effectiveUser, Map<String, List<String>> restHeaders) {
+        auditLog.logSucceededKibanaLogin(effectiveUser, restHeaders);
     }
 
     @Override
-    public void logSucceededKibanaLogout(UserInformation effectiveUser) {
-        auditLog.logSucceededKibanaLogout(effectiveUser);
+    public void logSucceededKibanaLogout(UserInformation effectiveUser, Map<String, List<String>> restHeaders) {
+        auditLog.logSucceededKibanaLogout(effectiveUser, restHeaders);
     }
 
     public void setAuditLog(AuditLog auditLog) {
