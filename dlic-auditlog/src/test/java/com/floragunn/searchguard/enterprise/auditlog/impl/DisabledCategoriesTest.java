@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchsupport.action.StandardRequests;
 import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.cluster.ClusterName;
@@ -332,11 +333,11 @@ public class DisabledCategoriesTest {
 	}
 
     protected void logSucceededKibanaLogin(AuditLog auditLog) {
-        auditLog.logSucceededKibanaLogin(UserInformation.forName("testuser.kibana.succeededlogin"));
+        auditLog.logSucceededKibanaLogin(UserInformation.forName("testuser.kibana.succeededlogin"), ImmutableMap.empty());
     }
 
     protected void logSucceededKibanaLogout(AuditLog auditLog) {
-        auditLog.logSucceededKibanaLogout(UserInformation.forName("testuser.kibana.succeededlogout"));
+        auditLog.logSucceededKibanaLogout(UserInformation.forName("testuser.kibana.succeededlogout"), ImmutableMap.empty());
     }
 
 
