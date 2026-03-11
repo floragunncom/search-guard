@@ -81,6 +81,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
     private final boolean usePkce;
     private final boolean useUserInfoEndpoint;
     private final boolean useDynamicFrontendUrl;
+    private final String forDomain;
     
     private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "oidc", OidcAuthenticator.class).initialized()
             .requiresEnterpriseLicense();
@@ -114,6 +115,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         String requiredAudience = vNode.get("required_audience").asString();
         String requiredIssuer = vNode.get("required_issuer").asString();
         int maxClockSkewSeconds = vNode.get("max_clock_skew_seconds").withDefault(10).asInt();
+        this.forDomain = vNode.get("for_domain").asString();
 
         vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
@@ -178,7 +180,13 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
                 ssoContext += ";" + SSO_CONTEXT_PREFIX_CODE_VERIFIER + codeVerifier;
             }
 
-            return frontendConfig.ssoLocation(ssoLocationBuilder.build().toASCIIString()).ssoContext(ssoContext);
+            ActivatedFrontendConfig.AuthMethod result = frontendConfig.ssoLocation(ssoLocationBuilder.build().toASCIIString()).ssoContext(ssoContext);
+
+            if (forDomain != null) {
+                result = result.config("for_domain", forDomain);
+            }
+
+            return result;
 
         } catch (URISyntaxException e) {
             log.error("Error while activating SAML authenticator", e);
