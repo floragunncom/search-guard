@@ -289,6 +289,11 @@ public class OpenIdProviderClient {
                                                 openIdConnectEndpoint, "userinfo_endpoint", userInfoEndpoint, "response", entityString);
                             }
                         } else if (entity.getContentType().getValue().startsWith("application/jwt")) {
+                            if (userInfoJwtVerifier == null) {
+                                throw new AuthenticatorUnavailableException("Error calling OIDC userinfo endpoint",
+                                        "Userinfo endpoint returned application/jwt but no JWT verifier is configured").details(
+                                                "openid_configuration_url", openIdConnectEndpoint, "userinfo_endpoint", userInfoEndpoint);
+                            }
                             try {
                                 return userInfoJwtVerifier.getVerifiedJwtToken(entityString).getClaims().asMap();
                             } catch (BadCredentialsException e) {
