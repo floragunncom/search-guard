@@ -564,70 +564,32 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     @Test
     public void search_staticIndicies_negation() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1,-ds_b1/_search?size=1000");
-            if (containsExactly(ds_a1, ds_a2, ds_b1).at("hits.hits[*]._index").isCoveredBy(user.indexMatcher("read"))) {
-                // A 404 error is also acceptable if we get ES complaining about -ds_b1. This will be the case for users with full permissions
-                assertThat(httpResponse, isNotFound());
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
-            } else if (user == LIMITED_USER_ALIAS_AB1_DATA_ONLY) {
-                // A 404 error is also acceptable if we get ES complaining about -ds_b1
-                assertThat(httpResponse, isNotFound());
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
-            } else {
-                assertThat(httpResponse, isForbidden());
-            }
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1,-ds_b1/_search?size=1000&ignore_unavailable=true");
+            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly()).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
     @Test
     public void search_staticIndicies_negation_fsAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("ds_a1::failures,ds_a2::failures,ds_b1::failures,-ds_b1::failures/_search?size=1000");
-            if (containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_b1.failureOnly()).at("hits.hits[*]._index").isCoveredBy(user.indexMatcher("read"))) {
-                // A 404 error is also acceptable if we get ES complaining about -ds_b1. This will be the case for users with full permissions
-                assertThat(httpResponse, isNotFound());
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
-            } else {
-                assertThat(httpResponse, isForbidden());
-            }
+            HttpResponse httpResponse = restClient.get("ds_a1::failures,ds_a2::failures,ds_b1::failures,-ds_b1::failures/_search?size=1000&ignore_unavailable=true");
+            assertThat(httpResponse, containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly()).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
     @Test
     public void search_staticIndicies_negation_dataAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("ds_a1::data,ds_a2::data,ds_b1::data,-ds_b1::data/_search?size=1000");
-            if (containsExactly(ds_a1, ds_a2, ds_b1).at("hits.hits[*]._index").isCoveredBy(user.indexMatcher("read"))) {
-                // A 404 error is also acceptable if we get ES complaining about -ds_b1. This will be the case for users with full permissions
-                assertThat(httpResponse, isNotFound());
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
-            } else if (user == LIMITED_USER_ALIAS_AB1_DATA_ONLY) {
-                // A 404 error is also acceptable if we get ES complaining about -ds_b1
-                assertThat(httpResponse, isNotFound());
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
-            } else {
-                assertThat(httpResponse, isForbidden());
-            }
+            HttpResponse httpResponse = restClient.get("ds_a1::data,ds_a2::data,ds_b1::data,-ds_b1::data/_search?size=1000&ignore_unavailable=true");
+            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly()).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
     @Test
     public void search_staticIndicies_negation_dataAndFsAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2::failures,ds_b1::failures,-ds_b1::failures/_search?size=1000");
-            if (containsExactly(ds_a1.dataOnly(), ds_a2.failureOnly(), ds_b1.failureOnly()).at("hits.hits[*]._index").isCoveredBy(user.indexMatcher("read"))) {
-                // A 404 error is also acceptable if we get ES complaining about -ds_b1. This will be the case for users with full permissions
-                assertThat(httpResponse, isNotFound());
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
-            } else {
-                assertThat(httpResponse, isForbidden());
-            }
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2::failures,ds_b1::failures,-ds_b1::failures/_search?size=1000&ignore_unavailable=true");
+            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.failureOnly()).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -1923,70 +1885,37 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     @Test
     public void field_caps_staticIndices_negation() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1,-ds_b1/_field_caps?fields=*");
-            if (containsExactly(ds_a1, ds_a2, ds_b1).at("indices").isCoveredBy(user.indexMatcher("read"))) {
-                // A 404 error is also acceptable if we get ES complaining about -ds_b1. This will be the case for users with full permissions
-                assertThat(httpResponse, isNotFound());
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
-            } else if (user == LIMITED_USER_ALIAS_AB1_DATA_ONLY) {
-                // A 404 error is also acceptable if we get ES complaining about -ds_b1
-                assertThat(httpResponse, isNotFound());
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
-            } else {
-                assertThat(httpResponse, isForbidden());
-            }
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1,-ds_b1/_field_caps?fields=*&ignore_unavailable=true");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly()).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
+
         }
     }
 
     @Test
     public void field_caps_staticIndices_negation_fsAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("ds_a1::failures,ds_a2::failures,ds_b1::failures,-ds_b1::failures/_field_caps?fields=*");
-            if (containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_b1.failureOnly()).at("indices").isCoveredBy(user.indexMatcher("read"))) {
-                // A 404 error is also acceptable if we get ES complaining about -ds_b1. This will be the case for users with full permissions
-                assertThat(httpResponse, isNotFound());
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
-            } else {
-                assertThat(httpResponse, isForbidden());
-            }
+            HttpResponse httpResponse = restClient.get("ds_a1::failures,ds_a2::failures,ds_b1::failures,-ds_b1::failures/_field_caps?fields=*&ignore_unavailable=true");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly()).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
     @Test
     public void field_caps_staticIndices_negation_dataAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("ds_a1::data,ds_a2::data,ds_b1::data,-ds_b1::data/_field_caps?fields=*");
-            if (containsExactly(ds_a1, ds_a2, ds_b1).at("indices").isCoveredBy(user.indexMatcher("read"))) {
-                // A 404 error is also acceptable if we get ES complaining about -ds_b1. This will be the case for users with full permissions
-                assertThat(httpResponse, isNotFound());
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
-            } else if (user == LIMITED_USER_ALIAS_AB1_DATA_ONLY) {
-                // A 404 error is also acceptable if we get ES complaining about -ds_b1
-                assertThat(httpResponse, isNotFound());
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
-            } else {
-                assertThat(httpResponse, isForbidden());
-            }
+            HttpResponse httpResponse = restClient.get("ds_a1::data,ds_a2::data,ds_b1::data,-ds_b1::data/_field_caps?fields=*&ignore_unavailable=true");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly()).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
     @Test
     public void field_caps_staticIndices_negation_dataAndFsAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2::failures,ds_b1,-ds_b1/_field_caps?fields=*");
-            if (containsExactly(ds_a1.dataOnly(), ds_a2.failureOnly(), ds_b1.dataOnly()).at("indices").isCoveredBy(user.indexMatcher("read"))) {
-                // A 404 error is also acceptable if we get ES complaining about -ds_b1. This will be the case for users with full permissions
-                assertThat(httpResponse, isNotFound());
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
-            } else {
-                assertThat(httpResponse, isForbidden());
-            }
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2::failures,ds_b1,-ds_b1/_field_caps?fields=*&ignore_unavailable=true");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1.dataOnly(), ds_a2.failureOnly()).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
