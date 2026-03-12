@@ -28,9 +28,9 @@ import org.opensaml.saml.metadata.resolver.impl.AbstractBatchMetadataResolver;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.google.common.base.Charsets;
 
-import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
-import net.shibboleth.utilities.java.support.resolver.ResolverException;
-import net.shibboleth.utilities.java.support.xml.BasicParserPool;
+import net.shibboleth.shared.component.ComponentInitializationException;
+import net.shibboleth.shared.resolver.ResolverException;
+import net.shibboleth.shared.xml.impl.BasicParserPool;
 
 public class StaticMetadataResolver extends AbstractBatchMetadataResolver {
 
