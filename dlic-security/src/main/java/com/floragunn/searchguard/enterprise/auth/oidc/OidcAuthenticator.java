@@ -80,6 +80,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
     private final String logoutUrl;
     private final boolean usePkce;
     private final boolean useUserInfoEndpoint;
+    private final boolean useDynamicFrontendUrl;
     
     private final ComponentState componentState = new ComponentState(0, "authentication_frontend", "oidc", OidcAuthenticator.class).initialized()
             .requiresEnterpriseLicense();
@@ -90,6 +91,7 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         ValidatingDocNode vNode = new ValidatingDocNode(config, validationErrors, context);
 
         this.clientId = vNode.get("client_id").required().asString();
+        this.useDynamicFrontendUrl = vNode.get("use_dynamic_frontend_url").withDefault(false).asBoolean();
         this.usePkce = vNode.get("pkce").withDefault(true).asBoolean();
         this.useUserInfoEndpoint = vNode.get("get_user_info").withDefault(false).asBoolean();
         this.clientSecret = vNode.get("client_secret").required(!this.usePkce).asString();
@@ -147,8 +149,8 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
                 throw new AuthenticatorUnavailableException("Invalid configuration", "frontend_base_url is required for OIDC authentication")
                         .details("request", request.toBasicObject());
             }
-
-            URI frontendBaseUrl = new URI(request.getFrontendBaseUrl());
+            boolean usingDynamic = shouldUseDynamicFrontendUrl(request.getDynamicFrontendBaseUrl());
+            URI frontendBaseUrl = new URI(usingDynamic ? request.getDynamicFrontendBaseUrl() : request.getFrontendBaseUrl());
 
             String redirectUri = getLoginPostURI(frontendBaseUrl).toASCIIString();
             String stateToken = createOpaqueToken(24);
@@ -221,10 +223,15 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
 
         URI frontendBaseUrl;
 
+        String staticUrl = String.valueOf(request.get("frontend_base_url"));
+        String dynamicUrl = request.get("dynamic_frontend_base_url") instanceof String s ? s : null;
+        boolean usingDynamic = shouldUseDynamicFrontendUrl(dynamicUrl);
+        String resolvedUrl = usingDynamic ? dynamicUrl : staticUrl;
         try {
-            frontendBaseUrl = new URI(String.valueOf(request.get("frontend_base_url")));
+            frontendBaseUrl = new URI(resolvedUrl);
         } catch (URISyntaxException e) {
-            throw new ConfigValidationException(new InvalidAttributeValue("frontend_base_url", request.get("frontend_base_url"), "A URL"));
+            String fieldName = usingDynamic ? "dynamic_frontend_base_url" : "frontend_base_url";
+            throw new ConfigValidationException(new InvalidAttributeValue(fieldName, resolvedUrl, "A URL"));
         }
 
         Map<String, String> ssoResultParams = getUriParams(ssoResult);
@@ -381,6 +388,10 @@ public class OidcAuthenticator implements ApiAuthenticationFrontend {
         } catch (URISyntaxException e) {
             throw new ConfigValidationException(new InvalidAttributeValue("sso_result", uriString, "URI"));
         }
+    }
+
+    private boolean shouldUseDynamicFrontendUrl(String dynamicUrl) {
+        return useDynamicFrontendUrl && dynamicUrl != null && !dynamicUrl.isEmpty();
     }
 
     private URI getLoginPostURI(URI frontendBaseURI) {
