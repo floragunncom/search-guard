@@ -371,6 +371,7 @@ SGS_KIBANA_SERVER:
         - ".kibana-event-log-ds*"
         - ".kibana-reporting*"
         - ".edr-workflow-insights*"
+        - ".workflows-execution-data-stream-logs"
       allowed_actions:
         - "*"
 
