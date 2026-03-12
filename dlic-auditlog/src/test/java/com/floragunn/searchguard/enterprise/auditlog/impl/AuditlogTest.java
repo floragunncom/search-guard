@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Format;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.enterprise.auditlog.helper.MockRestRequest;
@@ -381,7 +382,7 @@ public class AuditlogTest {
         String userName = "test-user";
         try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
-            al.logSucceededKibanaLogin(UserInformation.forName(userName));
+            al.logSucceededKibanaLogin(UserInformation.forName(userName), ImmutableMap.empty());
             Assert.assertEquals(1, TestAuditlogImpl.messages.size());
             Map<String, Object> msgAsMap = TestAuditlogImpl.messages.get(0).getAsMap();
             Assert.assertEquals(AuditLog.Origin.REST, msgAsMap.get(AuditMessage.REQUEST_LAYER));
@@ -400,7 +401,7 @@ public class AuditlogTest {
         String userName = "test-user";
         try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
-            al.logSucceededKibanaLogout(UserInformation.forName(userName));
+            al.logSucceededKibanaLogout(UserInformation.forName(userName), ImmutableMap.empty());
             Assert.assertEquals(1, TestAuditlogImpl.messages.size());
             Map<String, Object> msgAsMap = TestAuditlogImpl.messages.get(0).getAsMap();
             Assert.assertEquals(AuditLog.Origin.REST, msgAsMap.get(AuditMessage.REQUEST_LAYER));
