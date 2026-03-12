@@ -356,7 +356,7 @@ public class IgnoreUnauthorizedCcsIntTest {
             Assert.assertThat(httpResponse, json(nodeAt("hits.hits", empty())));
             Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.status", equalTo("skipped"))));
             Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures", hasSize(1))));
-            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures[0].reason.reason", containsString("no such index"))));
+            Assert.assertThat(httpResponse, json(nodeAt("_clusters.details.my_remote.failures[0].reason.reason", containsString("Invalid index name"))));
         }
 
         try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {

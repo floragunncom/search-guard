@@ -304,15 +304,8 @@ public class DataStreamAuthorizationReadOnlyIntTests {
     @Test
     public void search_staticIndicies_negation() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1,-ds_b1/_search?size=1000");
-            if (containsExactly(ds_a1, ds_a2, ds_b1).at("hits.hits[*]._index").isCoveredBy(user.indexMatcher("read"))) {
-                // A 404 error is also acceptable if we get ES complaining about -ds_b1. This will be the case for users with full permissions
-                assertThat(httpResponse, isNotFound());
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
-            } else {
-                assertThat(httpResponse, isForbidden());
-            }
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1,-ds_b1/_search?size=1000&ignore_unavailable=true");
+            assertThat(httpResponse, containsExactly(ds_a1, ds_a2).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -772,15 +765,9 @@ public class DataStreamAuthorizationReadOnlyIntTests {
     @Test
     public void field_caps_staticIndices_negation() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
-            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1,-ds_b1/_field_caps?fields=*");
-            if (containsExactly(ds_a1, ds_a2, ds_b1).at("indices").isCoveredBy(user.indexMatcher("read"))) {
-                // A 404 error is also acceptable if we get ES complaining about -ds_b1. This will be the case for users with full permissions
-                assertThat(httpResponse, isNotFound());
-                assertThat(httpResponse, json(nodeAt("error.type", equalTo("index_not_found_exception"))));
-                assertThat(httpResponse, json(nodeAt("error.reason", containsString("no such index [-ds_b1]"))));
-            } else {
-                assertThat(httpResponse, isForbidden());
-            }
+            HttpResponse httpResponse = restClient.get("ds_a1,ds_a2,ds_b1,-ds_b1/_field_caps?fields=*&ignore_unavailable=true");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1, ds_a2).at("indices").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
