@@ -20,4 +20,5 @@ ALL-UNNAMED:
         - es.set.netty.runtime.available.processors
         - com.sun.security.enableCRLDP
         - org.apache.xml.security.ignoreLineBreaks
+        - org.apache.xml.security.XMLParser
 
