@@ -264,6 +264,48 @@
       <scope>test</scope>
     </dependency>
 
+    <!--
+      Force Apache HttpClient5 and HttpCore5 to versions required by WireMock 3.13.2.
+
+      Problem: OpenSAML 5.2.1 (via shib-networking) pulls in httpclient5:5.3.1 and
+      httpcore5:5.2.5. WireMock 3.13.2 was compiled against httpclient5:5.5.1 which
+      requires httpcore5:5.3.6. Maven's nearest-wins rule picks the older OpenSAML
+      versions, causing:
+        - NoSuchMethodError on RequestConfig.Builder.setProtocolUpgradeEnabled()
+          (added in httpclient5 5.4+)
+        - NoClassDefFoundError on ManagedHttpClientConnectionFactory initialization
+          (httpclient5 5.5.1 classes depend on httpcore5 5.3.6 APIs)
+
+      Fix: declare httpclient5 5.5.1, httpcore5 5.3.6, and httpcore5-h2 5.3.6 as
+      direct compile-scope dependencies so they win version mediation at depth 1.
+      Compile scope is required because SamlHTTPMetadataResolver uses httpclient5
+      classes in production code — a test-scoped override would suppress the transitive
+      versions but leave the compile classpath without them.
+
+      Note: the version numbers differ (5.5.1 vs 5.3.6) because httpclient5 and
+      httpcore5 are separate Apache projects with independent version schemes.
+      httpclient5:5.5.1 was built against httpcore5:5.3.6 — these are the matching
+      versions as declared in the httpclient5-parent:5.5.1 POM.
+    -->
+    <dependency>
+      <groupId>org.apache.httpcomponents.client5</groupId>
+      <artifactId>httpclient5</artifactId>
+      <version>5.5.1</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents.core5</groupId>
+      <artifactId>httpcore5</artifactId>
+      <version>5.3.6</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents.core5</groupId>
+      <artifactId>httpcore5-h2</artifactId>
+      <version>5.3.6</version>
+      <scope>compile</scope>
+    </dependency>
+
     <dependency>
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-security</artifactId>
