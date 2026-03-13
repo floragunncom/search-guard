@@ -14,6 +14,10 @@
  * limitations under the License.
  * 
  */
+/*
+ * Includes code from https://github.com/opensearch-project/security/blob/721e7e2c7dd31992f3ab0280e631774c5efe7b14/src/main/java/com/amazon/opendistroforelasticsearch/security/ssl/OpenDistroSecuritySSLPlugin.java
+ * which is Copyright OpenSearch Contributors
+ */
 
 package com.floragunn.searchguard.ssl;
 
@@ -322,8 +326,25 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD, Property.NodeScope, Property.Filtered));
-        settings.add(
-                Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH, Property.NodeScope, Property.Filtered));
+
+        // Extended Key Usage: separate server/client certificates for transport layer
+        settings.add(Setting.boolSetting(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_EXTENDED_KEY_USAGE_ENABLED,
+                SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_EXTENDED_KEY_USAGE_ENABLED_DEFAULT, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_KEYSTORE_ALIAS, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_KEYSTORE_KEYPASSWORD, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_TRUSTSTORE_ALIAS, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_KEYSTORE_ALIAS, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_KEYSTORE_KEYPASSWORD, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_TRUSTSTORE_ALIAS, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMCERT_FILEPATH, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMKEY_FILEPATH, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMKEY_PASSWORD, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMTRUSTEDCAS_FILEPATH, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMCERT_FILEPATH, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMKEY_FILEPATH, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMKEY_PASSWORD, Property.NodeScope, Property.Filtered));
+        settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMTRUSTEDCAS_FILEPATH, Property.NodeScope, Property.Filtered));
 
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMCERT_FILEPATH, Property.NodeScope, Property.Filtered));
         settings.add(Setting.simpleString(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_PEMKEY_FILEPATH, Property.NodeScope, Property.Filtered));
