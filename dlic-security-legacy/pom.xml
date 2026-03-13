@@ -24,8 +24,8 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.floragunn.dependencies.org.opensaml</groupId>
-      <artifactId>opensaml-xmlsec-impl-patched</artifactId>
+      <groupId>org.opensaml</groupId>
+      <artifactId>opensaml-xmlsec-impl</artifactId>
     </dependency>
 
     <dependency>
