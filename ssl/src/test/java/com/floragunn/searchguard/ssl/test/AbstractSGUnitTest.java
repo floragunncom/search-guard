@@ -14,6 +14,10 @@
  * limitations under the License.
  *
  */
+/*
+ * Includes code from https://github.com/opensearch-project/security/blob/721e7e2c7dd31992f3ab0280e631774c5efe7b14/src/test/java/com/amazon/opendistroforelasticsearch/security/test/AbstractSecurityUnitTest.java
+ * which is Copyright OpenSearch Contributors
+ */
 
 package com.floragunn.searchguard.ssl.test;
 
@@ -100,7 +104,9 @@ public abstract class AbstractSGUnitTest {
     }
 
     protected boolean hasCustomTransportSettings(Settings customSettings) {
-        return customSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH) != null;
+        return customSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH) != null
+                || customSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMCERT_FILEPATH) != null
+                || customSettings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH) != null;
     }
 
     protected NodeSettingsSupplier minimumSearchGuardSettingsSslOnly(Settings other) {

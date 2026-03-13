@@ -14,6 +14,10 @@
  * limitations under the License.
  * 
  */
+/*
+ * Includes code from https://github.com/opensearch-project/security/blob/721e7e2c7dd31992f3ab0280e631774c5efe7b14/src/main/java/com/amazon/opendistroforelasticsearch/security/ssl/util/SSLConfigConstants.java
+ * which is Copyright OpenSearch Contributors
+ */
 
 package com.floragunn.searchguard.ssl.util;
 
@@ -63,6 +67,28 @@ public final class SSLConfigConstants {
     public static final String SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH = "searchguard.ssl.transport.truststore_filepath";
     public static final String SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_PASSWORD = "searchguard.ssl.transport.truststore_password";
     public static final String SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_TYPE = "searchguard.ssl.transport.truststore_type";
+
+    // Extended Key Usage: separate server/client certificates for transport layer
+    public static final String SEARCHGUARD_SSL_TRANSPORT_EXTENDED_KEY_USAGE_ENABLED = "searchguard.ssl.transport.extended_key_usage_enabled";
+    public static final boolean SEARCHGUARD_SSL_TRANSPORT_EXTENDED_KEY_USAGE_ENABLED_DEFAULT = false;
+
+    // EKU keystore mode — separate aliases within the same keystore/truststore files
+    public static final String SEARCHGUARD_SSL_TRANSPORT_SERVER_KEYSTORE_ALIAS = "searchguard.ssl.transport.server_keystore_alias";
+    public static final String SEARCHGUARD_SSL_TRANSPORT_SERVER_KEYSTORE_KEYPASSWORD = "searchguard.ssl.transport.server_keystore_keypassword";
+    public static final String SEARCHGUARD_SSL_TRANSPORT_SERVER_TRUSTSTORE_ALIAS = "searchguard.ssl.transport.server_truststore_alias";
+    public static final String SEARCHGUARD_SSL_TRANSPORT_CLIENT_KEYSTORE_ALIAS = "searchguard.ssl.transport.client_keystore_alias";
+    public static final String SEARCHGUARD_SSL_TRANSPORT_CLIENT_KEYSTORE_KEYPASSWORD = "searchguard.ssl.transport.client_keystore_keypassword";
+    public static final String SEARCHGUARD_SSL_TRANSPORT_CLIENT_TRUSTSTORE_ALIAS = "searchguard.ssl.transport.client_truststore_alias";
+
+    // EKU PEM mode — separate file paths for server and client certs
+    public static final String SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMCERT_FILEPATH = "searchguard.ssl.transport.server_pemcert_filepath";
+    public static final String SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMKEY_FILEPATH = "searchguard.ssl.transport.server_pemkey_filepath";
+    public static final String SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMKEY_PASSWORD = "searchguard.ssl.transport.server_pemkey_password";
+    public static final String SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMTRUSTEDCAS_FILEPATH = "searchguard.ssl.transport.server_pemtrustedcas_filepath";
+    public static final String SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMCERT_FILEPATH = "searchguard.ssl.transport.client_pemcert_filepath";
+    public static final String SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMKEY_FILEPATH = "searchguard.ssl.transport.client_pemkey_filepath";
+    public static final String SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMKEY_PASSWORD = "searchguard.ssl.transport.client_pemkey_password";
+    public static final String SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMTRUSTEDCAS_FILEPATH = "searchguard.ssl.transport.client_pemtrustedcas_filepath";
     public static final String SEARCHGUARD_SSL_TRANSPORT_ENABLED_CIPHERS = "searchguard.ssl.transport.enabled_ciphers";
     public static final String SEARCHGUARD_SSL_TRANSPORT_ENABLED_PROTOCOLS = "searchguard.ssl.transport.enabled_protocols";
     public static final String SEARCHGUARD_SSL_HTTP_ENABLED_CIPHERS = "searchguard.ssl.http.enabled_ciphers";
