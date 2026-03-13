@@ -246,7 +246,12 @@ class GitlabBackport:
             mr = self.current_project.mergerequests.get(mr_iid)
             # 2. Validate labels and target branches
             target_branches = self.get_target_branches(mr.labels)
-            mr_commit_hash = mr.sha  # The hash of the commit that was merged
+            #mr_commit_hash = mr.sha  # The hash of the commit that was merged
+            mr_commit_hash = (
+                mr.attributes.get("merge_commit_sha") # MR commit  or
+                or mr.attributes.get("sha")  # last commit in MR
+
+            )
             if not target_branches:
                 print(
                     f"MR !{mr_iid} does not have '{self.backport_label_prefix}' labels. Exiting."
