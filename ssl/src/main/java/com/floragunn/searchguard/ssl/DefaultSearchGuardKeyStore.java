@@ -16,6 +16,10 @@
  * limitations under the License.
  * 
  */
+/*
+ * Includes code from https://github.com/opensearch-project/security/blob/721e7e2c7dd31992f3ab0280e631774c5efe7b14/src/main/java/com/amazon/opendistroforelasticsearch/security/ssl/DefaultOpenDistroSecurityKeyStore.java
+ * which is Copyright OpenSearch Contributors
+ */
 
 package com.floragunn.searchguard.ssl;
 
@@ -254,12 +258,30 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
 
     @Override
     public void initTransportSSLConfig() {
-        final String rawKeyStoreFilePath = settings
-                .get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH, null);
-        final String rawPemCertFilePath = settings
-                .get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, null);
+        // When true, the node uses separate certificates for the server role (accepting inbound
+        // transport connections) and the client role (initiating outbound transport connections).
+        // This allows each certificate to carry the appropriate X.509 Extended Key Usage extension
+        // (serverAuth / clientAuth only) instead of requiring a single dual-purpose certificate.
+        final boolean extendedKeyUsageEnabled = settings.getAsBoolean(
+                SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_EXTENDED_KEY_USAGE_ENABLED,
+                SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_EXTENDED_KEY_USAGE_ENABLED_DEFAULT);
 
-        if (rawKeyStoreFilePath != null) {
+        // Two flags represent the two mutually exclusive credential formats for transport SSL.
+        // They are kept as separate named booleans rather than inlined into the if/else-if below
+        // because the PEM detection is non-trivial and both names make the branch site readable.
+        //
+        // useKeyStore: true when a JKS/PKCS12 keystore file is configured. The keystore branch
+        // takes precedence — if both formats are supplied the keystore branch wins.
+        final boolean useKeyStore = settings.hasValue(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH);
+        // useRawFiles: true when PEM files are configured. Without EKU the single shared
+        // pemcert_filepath is enough. With EKU that shared setting is absent (role-specific paths
+        // are used instead), so the check also covers the server- or client-specific PEM paths.
+        final boolean useRawFiles = settings.hasValue(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH)
+                || (extendedKeyUsageEnabled
+                        && (settings.hasValue(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMCERT_FILEPATH)
+                                || settings.hasValue(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMCERT_FILEPATH)));
+
+        if (useKeyStore) {
 
             final String keystoreFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH,
                     true);
@@ -269,17 +291,10 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                     SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_PASSWORD,
                     SSLConfigConstants.DEFAULT_STORE_PASSWORD);
 
-            final String keyPassword = settings.get(
-                    SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_KEYPASSWORD,
-                    keystorePassword);
-
-            final String keystoreAlias = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS,
-                    null);
-
             final String truststoreFilePath = resolve(
                     SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, true);
 
-            if (settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, null) == null) {
+            if (!settings.hasValue(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH)) {
                 throw new ElasticsearchException(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH
                         + " must be set if transport ssl is requested.");
             }
@@ -289,8 +304,6 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
             final String truststorePassword = settings.get(
                     SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_PASSWORD,
                     SSLConfigConstants.DEFAULT_STORE_PASSWORD);
-            final String truststoreAlias = settings
-                    .get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_ALIAS, null);
 
             try {
 
@@ -299,43 +312,106 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                         (keystorePassword == null || keystorePassword.length() == 0) ? null
                                 : keystorePassword.toCharArray());
 
-                final X509Certificate[] transportKeystoreCert = SSLCertificateHelper.exportServerCertChain(ks,
-                        keystoreAlias);
-                final PrivateKey transportKeystoreKey = SSLCertificateHelper.exportDecryptedKey(ks, keystoreAlias,
-                        (keyPassword == null || keyPassword.length() == 0) ? null
-                                : keyPassword.toCharArray());
-
-                if (transportKeystoreKey == null) {
-                    throw new ElasticsearchException(
-                            "No key found in " + keystoreFilePath + " with alias " + keystoreAlias);
-                }
-
-                if (transportKeystoreCert == null || transportKeystoreCert.length == 0) {
-                    throw new ElasticsearchException(
-                            "No certificates found in " + keystoreFilePath + " with alias " + keystoreAlias);
-                }
-
                 final KeyStore ts = KeyStore.getInstance(truststoreType);
                 ts.load(new FileInputStream(new File(truststoreFilePath)),
                         (truststorePassword == null || truststorePassword.length() == 0) ? null
                                 : truststorePassword.toCharArray());
 
-                final X509Certificate[] trustedTransportCertificates = SSLCertificateHelper
-                        .exportRootCertificates(ts, truststoreAlias);
+                final PrivateKey serverKey;
+                final X509Certificate[] serverCert;
+                final X509Certificate[] serverTrustedCerts;
+                final PrivateKey clientKey;
+                final X509Certificate[] clientCert;
+                final X509Certificate[] clientTrustedCerts;
 
-                if (trustedTransportCertificates == null || trustedTransportCertificates.length == 0) {
-                    throw new ElasticsearchException("No truststore configured for server");
+                if (extendedKeyUsageEnabled) {
+                    final String serverKeystoreAlias = settings.get(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_KEYSTORE_ALIAS, null);
+                    final String clientKeystoreAlias = settings.get(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_KEYSTORE_ALIAS, null);
+                    final String serverTruststoreAlias = settings.get(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_TRUSTSTORE_ALIAS, null);
+                    final String clientTruststoreAlias = settings.get(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_TRUSTSTORE_ALIAS, null);
+
+                    if (serverKeystoreAlias == null || clientKeystoreAlias == null
+                            || serverTruststoreAlias == null || clientTruststoreAlias == null) {
+                        throw new ElasticsearchException(
+                                SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_KEYSTORE_ALIAS + ", "
+                                + SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_KEYSTORE_ALIAS + ", "
+                                + SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_TRUSTSTORE_ALIAS + ", "
+                                + SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_TRUSTSTORE_ALIAS
+                                + " must all be set when "
+                                + SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_EXTENDED_KEY_USAGE_ENABLED + " is true.");
+                    }
+
+                    final String serverKeyPassword = settings.get(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_KEYSTORE_KEYPASSWORD, keystorePassword);
+                    final String clientKeyPassword = settings.get(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_KEYSTORE_KEYPASSWORD, keystorePassword);
+
+                    serverKey = SSLCertificateHelper.exportDecryptedKey(ks, serverKeystoreAlias,
+                            (serverKeyPassword == null || serverKeyPassword.length() == 0) ? null
+                                    : serverKeyPassword.toCharArray());
+                    serverCert = SSLCertificateHelper.exportServerCertChain(ks, serverKeystoreAlias);
+                    serverTrustedCerts = SSLCertificateHelper.exportRootCertificates(ts, serverTruststoreAlias);
+
+                    clientKey = SSLCertificateHelper.exportDecryptedKey(ks, clientKeystoreAlias,
+                            (clientKeyPassword == null || clientKeyPassword.length() == 0) ? null
+                                    : clientKeyPassword.toCharArray());
+                    clientCert = SSLCertificateHelper.exportServerCertChain(ks, clientKeystoreAlias);
+                    clientTrustedCerts = SSLCertificateHelper.exportRootCertificates(ts, clientTruststoreAlias);
+                } else {
+                    final String keystoreAlias = settings.get(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_ALIAS, null);
+                    final String truststoreAlias = settings.get(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_ALIAS, null);
+                    final String keyPassword = settings.get(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_KEYPASSWORD, keystorePassword);
+
+                    serverKey = SSLCertificateHelper.exportDecryptedKey(ks, keystoreAlias,
+                            (keyPassword == null || keyPassword.length() == 0) ? null
+                                    : keyPassword.toCharArray());
+                    serverCert = SSLCertificateHelper.exportServerCertChain(ks, keystoreAlias);
+                    serverTrustedCerts = SSLCertificateHelper.exportRootCertificates(ts, truststoreAlias);
+
+                    // same cert/key for both roles when EKU is not enabled
+                    clientKey = serverKey;
+                    clientCert = serverCert;
+                    clientTrustedCerts = serverTrustedCerts;
                 }
 
-                onNewCerts("Transport", currentTransportCerts, transportKeystoreCert, currentTransportTrustedCerts, trustedTransportCertificates);
-                transportServerSslContext = buildSSLServerContext(transportKeystoreKey, transportKeystoreCert,
-                        trustedTransportCertificates, getEnabledSSLCiphers(this.sslTransportServerProvider, false),
+                if (serverKey == null) {
+                    throw new ElasticsearchException("No server key found in " + keystoreFilePath);
+                }
+                if (serverCert == null || serverCert.length == 0) {
+                    throw new ElasticsearchException("No server certificates found in " + keystoreFilePath);
+                }
+                if (clientKey == null) {
+                    throw new ElasticsearchException("No client key found in " + keystoreFilePath);
+                }
+                if (clientCert == null || clientCert.length == 0) {
+                    throw new ElasticsearchException("No client certificates found in " + keystoreFilePath);
+                }
+                if (serverTrustedCerts == null || serverTrustedCerts.length == 0) {
+                    throw new ElasticsearchException("No truststore configured for transport server");
+                }
+
+                // For cert-rotation tracking, combine server+client certs when EKU is enabled
+                final X509Certificate[] allTransportCerts = extendedKeyUsageEnabled
+                        ? Stream.concat(Arrays.stream(serverCert), Arrays.stream(clientCert))
+                                .toArray(X509Certificate[]::new)
+                        : serverCert;
+
+                onNewCerts("Transport", currentTransportCerts, allTransportCerts, currentTransportTrustedCerts, serverTrustedCerts);
+                transportServerSslContext = buildSSLServerContext(serverKey, serverCert,
+                        serverTrustedCerts, getEnabledSSLCiphers(this.sslTransportServerProvider, false),
                         this.sslTransportServerProvider, ClientAuth.REQUIRE);
-                transportClientSslContext = buildSSLClientContext(transportKeystoreKey, transportKeystoreCert,
-                        trustedTransportCertificates, getEnabledSSLCiphers(sslTransportClientProvider, false),
+                transportClientSslContext = buildSSLClientContext(clientKey, clientCert,
+                        clientTrustedCerts, getEnabledSSLCiphers(sslTransportClientProvider, false),
                         sslTransportClientProvider);
-                setCurrentTransportSSLCerts(transportKeystoreCert);
-                setCurrentTransportTrustedCerts(trustedTransportCertificates);
+                setCurrentTransportSSLCerts(allTransportCerts);
+                setCurrentTransportTrustedCerts(serverTrustedCerts);
 
             } catch (final Exception e) {
                 logExplanation(e);
@@ -343,48 +419,100 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
                         "Error while initializing transport SSL layer: " + e.toString(), e);
             }
 
-        } else if (rawPemCertFilePath != null) {
-
-        	//file path to the pem encoded X509 certificate including its chain (which *may* include the root certificate but, 
-        	//if there any intermediates, must contain them)
-            final String pemTransportCertFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH,
-                    true);
-            
-            //file path for the pem encoded PKCS1 or PKCS8 key for the certificate
-            final String pemTransportKeyFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, true);
-            
-            //file path to the pem encoded X509 root certificate (or multiple certificates if we should trust more than one root)
-            final String pemTransportTrustedCasFilePath = resolve(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH,
-                    true);
-
-            validateIfDemoCertsAreNotUsedWhenNotAllowed(pemTransportCertFilePath, pemTransportKeyFilePath, pemTransportTrustedCasFilePath);
+        } else if (useRawFiles) {
 
             try {
-            	//X509 certificate including its chain (which *may* include the root certificate but, 
-                //if there any intermediates, must contain them)
-            	final X509Certificate[] transportCertsChain = PemKeyReader.loadCertificatesFromFile(pemTransportCertFilePath);
-                
-            	//root certificate (or multiple certificates if we should trust more than one root)
-            	final X509Certificate[] transportTrustedCaCerts = pemTransportTrustedCasFilePath != null ? PemKeyReader.loadCertificatesFromFile(pemTransportTrustedCasFilePath) : null;
-            	
-            	//maybe null id the private key is not encrypted
-            	final String pemKeyPassword = settings.get(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD);
-            	
-            	//PKCS1 or PKCS8 key for the certificate
-            	final PrivateKey transportCertPrivateKey = PemKeyReader.loadKeyFromFile(pemKeyPassword, pemTransportKeyFilePath);
-                
-                onNewCerts("Transport", currentTransportCerts, transportCertsChain, currentTransportTrustedCerts, transportTrustedCaCerts);
-                
-                //The server needs to send its certificate including its chain (which *may* contain the root cert) to the client
-                transportServerSslContext = buildSSLServerContext(transportCertPrivateKey, transportCertsChain, transportTrustedCaCerts,
+                final PrivateKey serverKey;
+                final X509Certificate[] serverCertsChain;
+                final X509Certificate[] serverTrustedCaCerts;
+                final PrivateKey clientKey;
+                final X509Certificate[] clientCertsChain;
+                final X509Certificate[] clientTrustedCaCerts;
+
+                if (extendedKeyUsageEnabled) {
+                    //file path to the pem encoded X509 certificate including its chain (which *may* include the root certificate but,
+                    //if there any intermediates, must contain them)
+                    final String serverPemCertFilePath = resolve(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMCERT_FILEPATH, true);
+                    //file path for the pem encoded PKCS1 or PKCS8 key for the certificate
+                    final String serverPemKeyFilePath = resolve(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMKEY_FILEPATH, true);
+                    //file path to the pem encoded X509 root certificate (or multiple certificates if we should trust more than one root)
+                    final String serverPemTrustedCasFilePath = resolve(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMTRUSTEDCAS_FILEPATH, true);
+                    //maybe null if the private key is not encrypted
+                    final String serverPemKeyPassword = settings.get(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMKEY_PASSWORD);
+
+                    //file path to the pem encoded X509 certificate including its chain (which *may* include the root certificate but,
+                    //if there any intermediates, must contain them)
+                    final String clientPemCertFilePath = resolve(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMCERT_FILEPATH, true);
+                    //file path for the pem encoded PKCS1 or PKCS8 key for the certificate
+                    final String clientPemKeyFilePath = resolve(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMKEY_FILEPATH, true);
+                    //file path to the pem encoded X509 root certificate (or multiple certificates if we should trust more than one root)
+                    final String clientPemTrustedCasFilePath = resolve(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMTRUSTEDCAS_FILEPATH, true);
+                    //maybe null if the private key is not encrypted
+                    final String clientPemKeyPassword = settings.get(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMKEY_PASSWORD);
+
+                    validateIfDemoCertsAreNotUsedWhenNotAllowed(serverPemCertFilePath, serverPemKeyFilePath,
+                            serverPemTrustedCasFilePath, clientPemCertFilePath, clientPemKeyFilePath,
+                            clientPemTrustedCasFilePath);
+
+                    serverCertsChain = PemKeyReader.loadCertificatesFromFile(serverPemCertFilePath);
+                    serverTrustedCaCerts = serverPemTrustedCasFilePath != null
+                            ? PemKeyReader.loadCertificatesFromFile(serverPemTrustedCasFilePath) : null;
+                    serverKey = PemKeyReader.loadKeyFromFile(serverPemKeyPassword, serverPemKeyFilePath);
+
+                    clientCertsChain = PemKeyReader.loadCertificatesFromFile(clientPemCertFilePath);
+                    clientTrustedCaCerts = clientPemTrustedCasFilePath != null
+                            ? PemKeyReader.loadCertificatesFromFile(clientPemTrustedCasFilePath) : null;
+                    clientKey = PemKeyReader.loadKeyFromFile(clientPemKeyPassword, clientPemKeyFilePath);
+                } else {
+                    final String pemTransportCertFilePath = resolve(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMCERT_FILEPATH, true);
+                    final String pemTransportKeyFilePath = resolve(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_FILEPATH, true);
+                    final String pemTransportTrustedCasFilePath = resolve(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMTRUSTEDCAS_FILEPATH, true);
+                    final String pemKeyPassword = settings.get(
+                            SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_PEMKEY_PASSWORD);
+
+                    validateIfDemoCertsAreNotUsedWhenNotAllowed(pemTransportCertFilePath,
+                            pemTransportKeyFilePath, pemTransportTrustedCasFilePath);
+
+                    serverCertsChain = PemKeyReader.loadCertificatesFromFile(pemTransportCertFilePath);
+                    serverTrustedCaCerts = pemTransportTrustedCasFilePath != null
+                            ? PemKeyReader.loadCertificatesFromFile(pemTransportTrustedCasFilePath) : null;
+                    serverKey = PemKeyReader.loadKeyFromFile(pemKeyPassword, pemTransportKeyFilePath);
+
+                    // same cert/key for both roles when EKU is not enabled
+                    clientCertsChain = serverCertsChain;
+                    clientTrustedCaCerts = serverTrustedCaCerts;
+                    clientKey = serverKey;
+                }
+
+                // For cert-rotation tracking, combine server+client certs when EKU is enabled
+                final X509Certificate[] allTransportCerts = extendedKeyUsageEnabled
+                        ? Stream.concat(Arrays.stream(serverCertsChain), Arrays.stream(clientCertsChain))
+                                .toArray(X509Certificate[]::new)
+                        : serverCertsChain;
+
+                onNewCerts("Transport", currentTransportCerts, allTransportCerts, currentTransportTrustedCerts, serverTrustedCaCerts);
+
+                // The server needs to send its certificate including its chain to the client
+                transportServerSslContext = buildSSLServerContext(serverKey, serverCertsChain, serverTrustedCaCerts,
                         getEnabledSSLCiphers(this.sslTransportServerProvider, false),
                         this.sslTransportServerProvider, ClientAuth.REQUIRE);
-                
-                //The client needs to send its certificate including its chain (which *may* contain the root cert) to the server
-                transportClientSslContext = buildSSLClientContext(transportCertPrivateKey, transportCertsChain, transportTrustedCaCerts,
+
+                // The client needs to send its certificate including its chain to the server
+                transportClientSslContext = buildSSLClientContext(clientKey, clientCertsChain, clientTrustedCaCerts,
                         getEnabledSSLCiphers(sslTransportClientProvider, false), sslTransportClientProvider);
-                setCurrentTransportSSLCerts(transportCertsChain);
-                setCurrentTransportTrustedCerts(transportTrustedCaCerts);
+                setCurrentTransportSSLCerts(allTransportCerts);
+                setCurrentTransportTrustedCerts(serverTrustedCaCerts);
 
             } catch (final Exception e) {
                 logExplanation(e);
