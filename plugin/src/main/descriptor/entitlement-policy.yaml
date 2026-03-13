@@ -21,4 +21,5 @@ ALL-UNNAMED:
         - com.sun.security.enableCRLDP
         - org.apache.xml.security.ignoreLineBreaks
         - org.apache.xml.security.XMLParser
+        - org.bouncycastle.pemreader.lax
 

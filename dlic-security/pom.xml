@@ -42,11 +42,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.opensaml</groupId>
-      <artifactId>opensaml-xmlsec-impl</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>com.jayway.jsonpath</groupId>
       <artifactId>json-path</artifactId>
       <exclusions>
@@ -173,10 +168,6 @@
           <artifactId>httpclient</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>org.opensaml</groupId>
-          <artifactId>opensaml-xmlsec-impl</artifactId>
-        </exclusion>
-        <exclusion>
           <!-- Bouncy Castle is configured globally -->
           <groupId>org.bouncycastle</groupId>
           <artifactId>bcprov-jdk18on</artifactId>
@@ -185,6 +176,21 @@
           <!-- Bouncy Castle is configured globally -->
           <groupId>org.bouncycastle</groupId>
           <artifactId>bcpkix-jdk18on</artifactId>
+        </exclusion>
+        <exclusion>
+          <!-- Version overridden explicitly below to satisfy WireMock 3.13.2 -->
+          <groupId>org.apache.httpcomponents.client5</groupId>
+          <artifactId>httpclient5</artifactId>
+        </exclusion>
+        <exclusion>
+          <!-- Version overridden explicitly below to satisfy WireMock 3.13.2 -->
+          <groupId>org.apache.httpcomponents.core5</groupId>
+          <artifactId>httpcore5</artifactId>
+        </exclusion>
+        <exclusion>
+          <!-- Version overridden explicitly below to satisfy WireMock 3.13.2 -->
+          <groupId>org.apache.httpcomponents.core5</groupId>
+          <artifactId>httpcore5-h2</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
