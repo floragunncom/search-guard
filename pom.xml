@@ -62,7 +62,6 @@
     <cxf.version>4.2.0</cxf.version>
     <http.commons.version>4.5.14</http.commons.version>
     <opensaml.version>5.2.1</opensaml.version>
-    <opensaml.patch.version>4.3.0-1.0.3</opensaml.patch.version>
     <mockito.version>5.23.0</mockito.version>
     <org.ow2.asm.version>9.9.1</org.ow2.asm.version>
 
@@ -141,9 +140,9 @@
       </dependency>
 
       <dependency>
-        <groupId>com.floragunn.dependencies.org.opensaml</groupId>
-        <artifactId>opensaml-xmlsec-impl-patched</artifactId>
-        <version>${opensaml.patch.version}</version>
+        <groupId>org.opensaml</groupId>
+        <artifactId>opensaml-xmlsec-impl</artifactId>
+        <version>${opensaml.version}</version>
       </dependency>
       <dependency>
         <groupId>com.github.stephenc.jcip</groupId>
