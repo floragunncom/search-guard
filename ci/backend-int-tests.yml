@@ -96,7 +96,7 @@ signals_2:
     - |
        #apk update
        #apk add --no-cache gomplate jq curl zip xmlstarlet git wget bash sudo
-       
+       echo "$DOCKER_AUTH_CONFIG" 
        sudo sysctl -w vm.max_map_count=262144
        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION"
        echo "TEST_DEFINITIONS $TEST_DEFINITIONS"
