@@ -22,11 +22,19 @@
 package com.floragunn.searchguard.ssl;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.SocketException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.KeyStore;
+import java.security.PrivateKey;
 import java.security.Security;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -60,6 +68,7 @@ import com.floragunn.searchguard.ssl.test.helper.rest.RestHelper;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import com.floragunn.searchguard.ssl.util.config.GenericSSLConfig;
+import com.floragunn.searchguard.support.PemKeyReader;
 
 import io.netty.util.internal.PlatformDependent;
 
@@ -750,6 +759,146 @@ public class SSLTest extends SingleClusterTest {
             Throwable rootCause = ExceptionUtils.getRootCause(e);
             Assert.assertTrue("Error should mention the missing alias settings: " + rootCause,
                     rootCause.toString().contains(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_KEYSTORE_ALIAS));
+        }
+    }
+
+    @Test
+    public void testTransportSslWithExtendedKeyUsageKeystore() throws Exception {
+        // Builds a JKS keystore containing separate server and client key entries, and a separate
+        // JKS truststore with CA entries for both roles, then verifies the cluster starts and
+        // serves SSL requests when EKU keystore mode is configured.
+        Path serverCertPath = FileHelper.getAbsoluteFilePathFromClassPath("ssl/extended_key_usage/node-server.pem");
+        Path serverKeyPath  = FileHelper.getAbsoluteFilePathFromClassPath("ssl/extended_key_usage/node-key-server.pem");
+        Path clientCertPath = FileHelper.getAbsoluteFilePathFromClassPath("ssl/extended_key_usage/node-client.pem");
+        Path clientKeyPath  = FileHelper.getAbsoluteFilePathFromClassPath("ssl/extended_key_usage/node-key-client.pem");
+        Path caCertPath     = FileHelper.getAbsoluteFilePathFromClassPath("ssl/extended_key_usage/root-ca.pem");
+
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        X509Certificate serverCert = (X509Certificate) cf.generateCertificate(new FileInputStream(serverCertPath.toFile()));
+        X509Certificate clientCert = (X509Certificate) cf.generateCertificate(new FileInputStream(clientCertPath.toFile()));
+        X509Certificate caCert     = (X509Certificate) cf.generateCertificate(new FileInputStream(caCertPath.toFile()));
+        PrivateKey serverKey = PemKeyReader.toPrivateKey(serverKeyPath.toFile(), null);
+        PrivateKey clientKey = PemKeyReader.toPrivateKey(clientKeyPath.toFile(), null);
+
+        // Keystore: separate entries for server and client roles
+        KeyStore ks = KeyStore.getInstance("JKS");
+        ks.load(null, null);
+        ks.setKeyEntry("server", serverKey, "changeit".toCharArray(), new Certificate[]{serverCert});
+        ks.setKeyEntry("client", clientKey, "changeit".toCharArray(), new Certificate[]{clientCert});
+        File keystoreFile = repositoryPath.newFile("eku-keystore.jks");
+        try (FileOutputStream fos = new FileOutputStream(keystoreFile)) {
+            ks.store(fos, "changeit".toCharArray());
+        }
+
+        // Truststore: CA cert entries for server and client trust aliases
+        KeyStore ts = KeyStore.getInstance("JKS");
+        ts.load(null, null);
+        ts.setCertificateEntry("server-trust", caCert);
+        ts.setCertificateEntry("client-trust", caCert);
+        File truststoreFile = repositoryPath.newFile("eku-truststore.jks");
+        try (FileOutputStream fos = new FileOutputStream(truststoreFile)) {
+            ts.store(fos, "changeit".toCharArray());
+        }
+
+        final Settings settings = Settings.builder()
+                .put("searchguard.ssl.transport.enabled", true)
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_EXTENDED_KEY_USAGE_ENABLED, true)
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH, keystoreFile.getAbsolutePath())
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_PASSWORD, "changeit")
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH, truststoreFile.getAbsolutePath())
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_PASSWORD, "changeit")
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_KEYSTORE_ALIAS, "server")
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_KEYSTORE_ALIAS, "client")
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_TRUSTSTORE_ALIAS, "server-trust")
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_TRUSTSTORE_ALIAS, "client-trust")
+                .put("searchguard.ssl.transport.enforce_hostname_verification", false)
+                .put("searchguard.ssl.transport.resolve_hostname", false)
+                .put("searchguard.ssl.http.enabled", true)
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0")
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH,
+                        FileHelper.getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH,
+                        FileHelper.getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
+                .build();
+
+        setupSslOnlyMode(settings);
+
+        RestHelper rh = restHelper();
+        rh.enableHTTPClientSSL = true;
+        rh.setSslConfig(new GenericSSLConfig.Builder().trustAll(true).build());
+        try {
+            Assert.assertTrue(rh.executeSimpleRequest("_searchguard/sslinfo?pretty").contains("TLS"));
+            Assert.assertTrue(rh.executeSimpleRequest("_nodes/settings?pretty").contains(clusterInfo.clustername));
+        } finally {
+            rh.setSslConfig(null);
+        }
+    }
+
+    @Test
+    public void testTransportSslEkuPemMissingClientCert() throws Exception {
+        // When EKU is enabled in PEM mode, omitting the client cert path must produce a clear
+        // error referencing the missing setting name, not a NullPointerException.
+        final Settings settings = Settings.builder()
+                .put("searchguard.ssl.transport.enabled", true)
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_EXTENDED_KEY_USAGE_ENABLED, true)
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMCERT_FILEPATH,
+                        FileHelper.getAbsoluteFilePathFromClassPath("ssl/extended_key_usage/node-server.pem"))
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMKEY_FILEPATH,
+                        FileHelper.getAbsoluteFilePathFromClassPath("ssl/extended_key_usage/node-key-server.pem"))
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMTRUSTEDCAS_FILEPATH,
+                        FileHelper.getAbsoluteFilePathFromClassPath("ssl/extended_key_usage/root-ca.pem"))
+                // Intentionally omitting all client PEM paths
+                .put("searchguard.ssl.transport.enforce_hostname_verification", false)
+                .put("searchguard.ssl.transport.resolve_hostname", false)
+                .put("searchguard.ssl.http.enabled", true)
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0")
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH,
+                        FileHelper.getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH,
+                        FileHelper.getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
+                .build();
+
+        try {
+            setupSslOnlyMode(settings);
+            Assert.fail("Expected an exception due to missing client PEM settings");
+        } catch (Exception e) {
+            Throwable rootCause = ExceptionUtils.getRootCause(e);
+            Assert.assertTrue("Error should mention the missing client cert setting: " + rootCause,
+                    rootCause.toString().contains(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMCERT_FILEPATH));
+        }
+    }
+
+    @Test
+    public void testTransportSslExtendedKeyUsageKeystoreServerAliasOnly() throws Exception {
+        // Providing only the server keystore alias (but missing client and truststore aliases)
+        // in EKU keystore mode must produce a clear error listing all required alias settings.
+        final Settings settings = Settings.builder()
+                .put("searchguard.ssl.transport.enabled", true)
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_EXTENDED_KEY_USAGE_ENABLED, true)
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_KEYSTORE_FILEPATH,
+                        FileHelper.getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_TRUSTSTORE_FILEPATH,
+                        FileHelper.getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_KEYSTORE_ALIAS, "node-0")
+                // Intentionally omitting client keystore alias, server and client truststore aliases
+                .put("searchguard.ssl.transport.enforce_hostname_verification", false)
+                .put("searchguard.ssl.transport.resolve_hostname", false)
+                .put("searchguard.ssl.http.enabled", true)
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_ALIAS, "node-0")
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_KEYSTORE_FILEPATH,
+                        FileHelper.getAbsoluteFilePathFromClassPath("ssl/node-0-keystore.jks"))
+                .put(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_TRUSTSTORE_FILEPATH,
+                        FileHelper.getAbsoluteFilePathFromClassPath("ssl/truststore.jks"))
+                .build();
+
+        try {
+            setupSslOnlyMode(settings);
+            Assert.fail("Expected an exception due to partial EKU alias settings");
+        } catch (Exception e) {
+            Throwable rootCause = ExceptionUtils.getRootCause(e);
+            // The error message lists all four required aliases; verify the client alias is mentioned
+            Assert.assertTrue("Error should mention the missing client alias setting: " + rootCause,
+                    rootCause.toString().contains(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_KEYSTORE_ALIAS));
         }
     }
 }

@@ -23,10 +23,13 @@ import static java.util.Collections.emptyList;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Function;
+
+import org.bouncycastle.asn1.x509.KeyPurposeId;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -98,6 +101,21 @@ public class TestCertificates {
                 caCertificate.getCertificate(), caCertificate.getKeyPair().getPrivate());
         return new TestCertificate(certificateWithKeyPair.getCertificate(), certificateWithKeyPair.getKeyPair(), privateKeyPassword,
                 CertificateType.other, resources);
+    }
+
+    /**
+     * Creates a new transport certificate signed by this instance's CA with a custom
+     * Extended Key Usage extension. Useful for generating EKU-split certs (e.g.
+     * {@code serverAuth}-only or {@code clientAuth}-only) for testing the
+     * {@code extended_key_usage_enabled} transport-SSL feature.
+     */
+    public TestCertificate createTransportCertWithEku(String dn, KeyPurposeId... extendedKeyUsage) {
+        CertificateWithKeyPair certificateWithKeyPair = testCertificateFactory.createNodeCertificateWithCustomEku(
+                dn, 30, "1.2.3.4.5.5", emptyList(), Collections.singletonList("127.0.0.1"),
+                caCertificate.getCertificate(), caCertificate.getKeyPair().getPrivate(),
+                extendedKeyUsage);
+        return new TestCertificate(certificateWithKeyPair.getCertificate(), certificateWithKeyPair.getKeyPair(),
+                null, CertificateType.node_transport, resources);
     }
 
     public TestCertificates at(File directory) {
