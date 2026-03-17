@@ -314,8 +314,40 @@ public class DataStreamAuthorizationReadOnlyIntTests {
         }
     }
     
+    /**
+     * Bug: SG fails to apply data-stream-name exclusion (-ds_a*) to the hidden backing indices
+     * (.ds-ds_a1-*, .ds-ds_a2-*, .ds-ds_a3-*) that are pulled in by expand_wildcards=all.
+     * ES natively resolves ds_a* to the data streams and removes their backing indices;
+     * SG does not, so UNLIMITED_USER sees extra .ds-ds_a*-* indices in the result.
+     */
     @Test
-    public void search_staticIndicies_hidden() throws Exception {  
+    public void search_excludeDataStreamByWildcard_expandAll() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("index_c1,*,-ds_a*/_search?size=1000&expand_wildcards=all");
+            assertThat(httpResponse,
+                    containsExactly(ds_b1, ds_b2, ds_b3, ds_hidden, index_c1, searchGuardIndices(), esInternalIndices())
+                            .at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    /**
+     * Bug: SG fails to apply backing-index wildcard exclusion (-.ds-ds_a1*) to the hidden indices
+     * that are pulled in by expand_wildcards=all.
+     * ES natively matches -.ds-ds_a1* against the expanded backing index names and removes them;
+     * SG does not, so UNLIMITED_USER sees extra .ds-ds_a1-* indices in the result.
+     */
+    @Test
+    public void search_excludeBackingIndexWildcard_expandAll() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("index_c1,*,-.ds-ds_a1*/_search?size=1000&expand_wildcards=all");
+            assertThat(httpResponse,
+                    containsExactly(ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, ds_hidden, index_c1, searchGuardIndices(), esInternalIndices())
+                            .at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void search_staticIndicies_hidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("ds_hidden/_search?size=1000");
             assertThat(httpResponse, containsExactly(ds_hidden).at("hits.hits[*]._index").butForbiddenIfIncomplete(user.indexMatcher("read")));
