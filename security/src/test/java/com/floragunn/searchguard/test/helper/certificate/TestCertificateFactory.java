@@ -168,6 +168,41 @@ public class TestCertificateFactory {
         }
     }
 
+    /**
+     * Like {@link #createNodeCertificate} but with a caller-supplied Extended Key Usage extension.
+     * Use this to create certs restricted to a single role (e.g. {@code serverAuth} only or
+     * {@code clientAuth} only) as required by the EKU transport-split feature.
+     */
+    public CertificateWithKeyPair createNodeCertificateWithCustomEku(String dn, int validityDays, String nodeOid, List<String> dnsList,
+                                                                     List<String> ipList, X509CertificateHolder signingCertificate,
+                                                                     PrivateKey signingPrivateKey, KeyPurposeId[] extendedKeyUsage) {
+        try {
+            KeyPair keyPair = asymmetricCryptographyAlgorithm.generateKeyPair();
+            X500Name subjectName = DnGenerator.nodeDn.apply(dn);
+
+            ContentSigner contentSigner = new JcaContentSignerBuilder(asymmetricCryptographyAlgorithm.getSignatureAlgorithmName()).setProvider(
+                    securityProvider).build(signingPrivateKey);
+
+            Date validityStartDate = new Date(System.currentTimeMillis());
+            Date validityEndDate = getEndDate(validityStartDate, validityDays);
+            X509v3CertificateBuilder certBuilder = new X509v3CertificateBuilder(signingCertificate.getSubject(),
+                    CertificateSerialNumberGenerator.generateNextCertificateSerialNumber(), validityStartDate, validityEndDate, subjectName,
+                    SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded()))
+                    .addExtension(Extension.authorityKeyIdentifier, false, extUtils.createAuthorityKeyIdentifier(signingCertificate))
+                    .addExtension(Extension.subjectKeyIdentifier, false, extUtils.createSubjectKeyIdentifier(keyPair.getPublic()))
+                    .addExtension(Extension.basicConstraints, true, new BasicConstraints(false))
+                    .addExtension(Extension.keyUsage, true,
+                            new KeyUsage(KeyUsage.digitalSignature | KeyUsage.nonRepudiation | KeyUsage.keyEncipherment))
+                    .addExtension(Extension.extendedKeyUsage, true, new ExtendedKeyUsage(extendedKeyUsage))
+                    .addExtension(Extension.subjectAlternativeName, false,
+                            SubjectAlternativesNameGenerator.createSubjectAlternativeNameList(nodeOid, dnsList, ipList));
+            return new CertificateWithKeyPair(certBuilder.build(contentSigner), keyPair);
+        } catch (OperatorCreationException | CertIOException e) {
+            log.error("Error while generating node certificate with custom EKU", e);
+            throw new RuntimeException("Error while generating node certificate with custom EKU", e);
+        }
+    }
+
     private Date getEndDate(Date startDate, int validityDays) {
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(startDate);
