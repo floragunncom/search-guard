@@ -262,6 +262,92 @@ public class SSLReloadCertsActionTests {
         }
     }
 
+    @Test
+    public void testReloadTransportSSLCertsPassWithExtendedKeyUsage() throws Exception {
+        // 4 node certs: [0]=initial server, [1]=initial client, [2]=new server, [3]=new client
+        TestCertificates certificatesContext = prepareTestCertificates(4);
+        TestCertificate initialServerCert = certificatesContext.getNodesCertificates().get(0);
+        TestCertificate initialClientCert = certificatesContext.getNodesCertificates().get(1);
+        TestCertificate newServerCert = certificatesContext.getNodesCertificates().get(2);
+        TestCertificate newClientCert = certificatesContext.getNodesCertificates().get(3);
+
+        LocalCluster cluster = initTestClusterWithExtendedKeyUsage(certificatesContext, initialServerCert, initialClientCert, true);
+
+        try (GenericRestClient restClient = cluster.getAdminCertRestClient()) {
+            // show_full_server_certs=true is required in EKU mode: the transport array holds
+            // [serverCert, clientCert] and show_server_certs=true applies limit(1), returning
+            // only the first entry; show_full_server_certs=true returns the full array.
+            GenericRestClient.HttpResponse certDetailsResponse = restClient.get(GET_CERT_FULL_DETAILS_ENDPOINT);
+            Assert.assertEquals(200, certDetailsResponse.getStatusCode());
+
+            // In EKU mode, transport_certificates_list contains both server and client certs
+            List<String> initialTransportCertsAsStrings = certificatesToListOfString(
+                    initialServerCert.getCertificate(), initialClientCert.getCertificate());
+            Assert.assertEquals(initialTransportCertsAsStrings,
+                    certDetailsResponse.getBodyAsDocNode().getAsListOfStrings("transport_certificates_list"));
+
+            // Replace server and client cert files on disk with the new ones
+            FileHelper.copyFileContents(newServerCert.getCertificateFile().getAbsolutePath(),
+                    initialServerCert.getCertificateFile().getAbsolutePath());
+            FileHelper.copyFileContents(newServerCert.getPrivateKeyFile().getAbsolutePath(),
+                    initialServerCert.getPrivateKeyFile().getAbsolutePath());
+            FileHelper.copyFileContents(newClientCert.getCertificateFile().getAbsolutePath(),
+                    initialClientCert.getCertificateFile().getAbsolutePath());
+            FileHelper.copyFileContents(newClientCert.getPrivateKeyFile().getAbsolutePath(),
+                    initialClientCert.getPrivateKeyFile().getAbsolutePath());
+
+            GenericRestClient.HttpResponse reloadCertsResponse = restClient.post(RELOAD_TRANSPORT_CERTS_ENDPOINT);
+            Assert.assertEquals(200, reloadCertsResponse.getStatusCode());
+            Assert.assertEquals(reloadCertsResponse.getBody(), ImmutableMap.of("message", "updated transport certs"),
+                    DocReader.json().read(reloadCertsResponse.getBody()));
+
+            certDetailsResponse = restClient.get(GET_CERT_FULL_DETAILS_ENDPOINT);
+            Assert.assertEquals(200, certDetailsResponse.getStatusCode());
+
+            List<String> newTransportCertsAsStrings = certificatesToListOfString(
+                    newServerCert.getCertificate(), newClientCert.getCertificate());
+            Assert.assertEquals(newTransportCertsAsStrings,
+                    certDetailsResponse.getBodyAsDocNode().getAsListOfStrings("transport_certificates_list"));
+
+            // HTTP certs should be unaffected by transport reload
+            List<String> initialHttpCertsAsStrings = certificatesToListOfString(initialServerCert.getCertificate());
+            Assert.assertEquals(initialHttpCertsAsStrings,
+                    certDetailsResponse.getBodyAsDocNode().getAsListOfStrings("http_certificates_list"));
+        }
+    }
+
+    private LocalCluster initTestClusterWithExtendedKeyUsage(TestCertificates certificatesContext,
+            TestCertificate serverCertificate, TestCertificate clientCertificate, boolean sslCertReload) {
+        TestCertificate rootCertificate = certificatesContext.getCaCertificate();
+        // admin_dn and http certs are configured automatically by certificatesContext.getSgSettings()
+        return new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
+                // In EKU mode, nodes present the client cert on outbound connections, so both
+                // the server cert DN and the client cert DN must be trusted as node identities.
+                .nodeSettings(ConfigConstants.SEARCHGUARD_NODES_DN,
+                        Arrays.asList(
+                                serverCertificate.getCertificate().getSubject().toString(),
+                                clientCertificate.getCertificate().getSubject().toString()))
+                .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENABLED, true)
+                .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_HTTP_ENABLED, true)
+                .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION, false)
+                .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_ENFORCE_HOSTNAME_VERIFICATION_RESOLVE_HOST_NAME, false)
+                .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_EXTENDED_KEY_USAGE_ENABLED, true)
+                .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMCERT_FILEPATH,
+                        serverCertificate.getCertificateFile().getAbsolutePath())
+                .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMKEY_FILEPATH,
+                        serverCertificate.getPrivateKeyFile().getAbsolutePath())
+                .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_SERVER_PEMTRUSTEDCAS_FILEPATH,
+                        rootCertificate.getCertificateFile().getAbsolutePath())
+                .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMCERT_FILEPATH,
+                        clientCertificate.getCertificateFile().getAbsolutePath())
+                .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMKEY_FILEPATH,
+                        clientCertificate.getPrivateKeyFile().getAbsolutePath())
+                .nodeSettings(SSLConfigConstants.SEARCHGUARD_SSL_TRANSPORT_CLIENT_PEMTRUSTEDCAS_FILEPATH,
+                        rootCertificate.getCertificateFile().getAbsolutePath())
+                .nodeSettings(ConfigConstants.SEARCHGUARD_SSL_CERT_RELOAD_ENABLED, sslCertReload)
+                .embedded().start();
+    }
+
     private TestCertificates prepareTestCertificates(int numberOfNodeCerts) {
         TestCertificates.TestCertificatesBuilder builder = TestCertificates.builder();
         builder.ca("CN=root.ca.example.com,OU=SearchGuard,O=SearchGuard");
