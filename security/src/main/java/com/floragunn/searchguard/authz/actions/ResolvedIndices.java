@@ -842,6 +842,52 @@ public class ResolvedIndices {
             if (indexLikeObject != null) {
                 if (indexLikeObject.parentDataStreamName() != null) {
                     partiallyExcludedObjects.add(indexLikeObject.parentDataStreamName());
+                    // Also mark ancestor aliases of the parent DataStream as partially excluded.
+                    //
+                    // Concrete example — request "index_c1,*,-.ds-ds_a1*" with expand_wildcards=all,
+                    // where alias_ab1 = {ds_a1, ds_a2, ds_a3, ds_b1}:
+                    //
+                    //   -.ds-ds_a1* → WildcardExpressionResolver returns the ten concrete backing
+                    //   indices .ds-ds_a1-<date>-000001 … 000010 (no DataStream entries, because
+                    //   ".ds-ds_a1" is a key prefix that only covers backing index names).
+                    //
+                    //   For each backing index this method is called, setting:
+                    //     excludeNames          = { .ds-ds_a1-<date>-000001, …, 000010 }
+                    //     partiallyExcludedObjects = { ds_a1 }   ← added two lines above
+                    //
+                    //   The ancestor alias alias_ab1 is NOT yet in excludeNames or
+                    //   partiallyExcludedObjects, so during the positive * expansion it would be
+                    //   picked up by the happy-case branch and added to the resolved union as a whole.
+                    //   This causes two problems:
+                    //
+                    //   Problem 1 — alias leaks ds_a1 through the resolved union:
+                    //     alias_ab1 is in the resolved union; the privilege evaluator resolves
+                    //     incomplete aliases into their member DataStreams (alias_ab1 → ds_a1, ds_a2,
+                    //     ds_a3, ds_b1). A user with ds_a* permissions can access ds_a1, so it is
+                    //     added to the available-indices set used to rewrite the request.
+                    //     ES then receives ds_a1 and expands it to all its backing indices — exactly
+                    //     what the negation was supposed to prevent.
+                    //
+                    //   Problem 2 — partial-exclusion branch is never triggered for alias_ab1:
+                    //     isNegationOnlyEffectiveForIndicesAndForOtherNonWildcardObjects() returns
+                    //     true for search (ANY scope), so the positive loop only checks excludeNames
+                    //     for ConcreteIndex entries. alias_ab1 is an Alias, not a ConcreteIndex, so
+                    //     it is not skipped — the partial-exclusion branch that would strip ds_a1 is
+                    //     never reached.
+                    //
+                    // By adding alias_ab1 to partiallyExcludedObjects here, both problems are solved:
+                    //   partiallyExcludedObjects = { ds_a1, alias_ab1 }
+                    //
+                    // - alias_ab1 takes the partial-exclusion branch during * expansion. Its member
+                    //   ds_a1 has all backing indices in excludeNames, so nothing is added for it.
+                    //   Its members ds_a2, ds_a3, ds_b1 have no excluded backing indices, so they
+                    //   are added as individual DataStreams. alias_ab1 itself never enters the union.
+                    // - The privilege evaluator never sees alias_ab1, so it cannot resolve it into
+                    //   ds_a1, and the leak is prevented.
+                    Meta.IndexLikeObject parentDS = indexMetadata.getIndexOrLike(indexLikeObject.parentDataStreamName());
+                    if (parentDS != null) {
+                        partiallyExcludedObjects.addAll(parentDS.parentAliasNames());
+                    }
                 }
                 partiallyExcludedObjects.addAll(indexLikeObject.parentAliasNames());
                 if (indexLikeObject instanceof Meta.IndexCollection) {

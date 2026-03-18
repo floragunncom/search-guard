@@ -316,13 +316,7 @@ public class DataStreamAuthorizationReadOnlyIntTests {
             assertThat(httpResponse, containsExactly(ds_a1, ds_a2, ds_b1).at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
-    
-    /**
-     * Bug: SG fails to apply data-stream-name exclusion (-ds_a*) to the hidden backing indices
-     * (.ds-ds_a1-*, .ds-ds_a2-*, .ds-ds_a3-*) that are pulled in by expand_wildcards=all.
-     * ES natively resolves ds_a* to the data streams and removes their backing indices;
-     * SG does not, so UNLIMITED_USER sees extra .ds-ds_a*-* indices in the result.
-     */
+
     @Test
     public void search_excludeDataStreamByWildcard_expandAll() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
@@ -333,12 +327,6 @@ public class DataStreamAuthorizationReadOnlyIntTests {
         }
     }
 
-    /**
-     * Bug: SG fails to apply backing-index wildcard exclusion (-.ds-ds_a1*) to the hidden indices
-     * that are pulled in by expand_wildcards=all.
-     * ES natively matches -.ds-ds_a1* against the expanded backing index names and removes them;
-     * SG does not, so UNLIMITED_USER sees extra .ds-ds_a1-* indices in the result.
-     */
     @Test
     public void search_excludeBackingIndexWildcard_expandAll() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
