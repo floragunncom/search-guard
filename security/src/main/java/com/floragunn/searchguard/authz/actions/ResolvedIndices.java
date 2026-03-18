@@ -464,8 +464,19 @@ public class ResolvedIndices {
                         Map<String, IndexAbstraction> matchedAbstractions = WildcardExpressionResolver.matches(metadata, indicesLookup, index,
                                 request.indicesOptions(), includeDataStreams);
 
-                        for (String resolvedIndex : matchedAbstractions.keySet()) {
-                            resolveNegationUpAndDown(resolvedIndex, excludeNames, partiallyExcludedObjects, request, indexMetadata);
+                        for (Map.Entry<String, IndexAbstraction> matchedEntry : matchedAbstractions.entrySet()) {
+                            resolveNegationUpAndDown(matchedEntry.getKey(), excludeNames, partiallyExcludedObjects, request, indexMetadata);
+                            // When a wildcard negation directly matches a DataStream or Alias, also add it to
+                            // partiallyExcludedObjects. This ensures the partial-exclusion branch is taken during
+                            // positive wildcard expansion, where excludeNames is not checked for non-ConcreteIndex
+                            // entries (because isNegationOnlyEffectiveForIndicesAndForOtherNonWildcardObjects() is
+                            // true for ANY-scope requests like search). All backing indices are already in
+                            // excludeNames via resolveNegationUpAndDown, so the partial-exclusion branch adds none
+                            // of them — effectively fully excluding the collection.
+                            if (matchedEntry.getValue().getType() == IndexAbstraction.Type.DATA_STREAM
+                                    || matchedEntry.getValue().getType() == IndexAbstraction.Type.ALIAS) {
+                                partiallyExcludedObjects.add(matchedEntry.getKey());
+                            }
                         }
                     } else {
                         resolveNegationUpAndDown(index, excludeNames, partiallyExcludedObjects, request, indexMetadata);
