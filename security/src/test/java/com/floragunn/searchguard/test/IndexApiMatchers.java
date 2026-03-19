@@ -22,7 +22,6 @@ import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
 import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.Format.UnknownDocTypeException;
-import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
@@ -49,7 +48,9 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 
 public class IndexApiMatchers {
+
     private static final Pattern DS_BACKING_INDEX_PATTERN = Pattern.compile("\\.ds-(.+)-[0-9\\.]+-[0-9]+");
+    private static final Pattern FS_BACKING_INDEX_PATTERN = Pattern.compile("\\.fs-(.+)-[0-9\\.]+-[0-9]+");
     private static final Pattern SHORT_ISO_TIMESTAMP = Pattern.compile("\\b\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z\\b");
     private static final Pattern GEO_COORD_PATTERN = Pattern.compile("([0-9-]+)\\.(\\d+),\\s*([0-9-]+)\\.(\\d+)");
 
@@ -65,6 +66,7 @@ public class IndexApiMatchers {
                 containsEsInternalIndices = true;
             } else {
                 indexNameMap.put(testIndex.getName(), testIndex);
+                testIndex.failureStore().ifPresent(fs -> indexNameMap.put(fs.getName(), fs));
             }
         }
 
@@ -86,6 +88,7 @@ public class IndexApiMatchers {
 
         for (TestIndexLike testIndex : testIndices) {
             indexNameMap.put(testIndex.getName(), testIndex);
+            testIndex.failureStore().ifPresent(fs -> indexNameMap.put(fs.getName(), fs));
         }
 
         return new LimitedToMatcher(indexNameMap);
@@ -129,6 +132,11 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public TestIndexLike dataOnly() {
+            return this;
+        }
+
+        @Override
         public Map<String, Map<String, ?>> getDocuments() {
             return null;
         }
@@ -136,6 +144,16 @@ public class IndexApiMatchers {
         @Override
         public DocNode getFieldsMappings() {
             return DocNode.EMPTY;
+        }
+
+        @Override
+        public boolean isFailureStoreOnly() {
+            return false;
+        }
+
+        @Override
+        public TestIndexLike enableFailureStore() {
+            throw new UnsupportedOperationException("ES indices do not support failure store");
         }
 
         @Override
@@ -152,6 +170,11 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public TestIndexLike dataOnly() {
+            return this;
+        }
+
+        @Override
         public Map<String, Map<String, ?>> getDocuments() {
             return null;
         }
@@ -162,11 +185,29 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public boolean isFailureStoreOnly() {
+            return false;
+        }
+
+        @Override
+        public TestIndexLike enableFailureStore() {
+            throw new UnsupportedOperationException("ES indices do not support failure store");
+        }
+
+        @Override
         public Set<String> getDocumentIds() {
             return null;
         }
     };
 
+    /**
+     * Matcher that verifies a response contains exactly the expected indices/documents, no more and no less.
+     *
+     * <p>Failure store support: Full. Factory method {@link IndexApiMatchers#containsExactly} automatically adds
+     * failure store entries from {@link TestIndexLike#failureStore()}. Index matching resolves {@code .fs-} backing
+     * indices to their parent data stream's {@code ::failures} name. Document-level matching ({@code matchesByDocs})
+     * does not support failure store documents and throws {@link UnsupportedOperationException} if encountered.</p>
+     */
     public static class ContainsExactlyMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
         public ContainsExactlyMatcher(Map<String, TestIndexLike> indexNameMap, boolean containsSearchGuardIndices,
@@ -229,6 +270,11 @@ public class IndexApiMatchers {
             for (Object object : collection) {
                 DocNode docNode = DocNode.wrap(object);
                 String indexName = docNode.getAsString("_index");
+
+                if (isFailureStoreBackingIndex(indexName)) {
+                    throw new UnsupportedOperationException("Failure store backing index '" + indexName
+                            + "' encountered in matchesByDocs. Failure store content matching is not supported.");
+                }
 
                 if (containsSearchGuardIndices && (indexName.startsWith(".searchguard") || indexName.equals("searchguard"))) {
                     seenSearchGuardIndicesBuilder.add(indexName);
@@ -301,12 +347,35 @@ public class IndexApiMatchers {
                 } else if (containsEsInternalIndices && (index.startsWith(".logs-deprecation") || index.startsWith(".ds-.logs-deprecation")
                         || index.startsWith(".logs-elasticsearch.deprecation") || index.startsWith(".ds-.logs-elasticsearch.deprecation"))) {
                     // We will just ignore these, as they actually might not exist on embedded clusters
+                } else if (index.startsWith(".fs-")) {
+                    // We do a special treatment for failure store backing indices. We convert these to <datastream>::failures if expected indices contains these.
+                    // Also resolves through aliases when the expected set contains an alias wrapping the data stream.
+                    java.util.regex.Matcher fsMatcher = FS_BACKING_INDEX_PATTERN.matcher(index);
+
+                    if (fsMatcher.matches()) {
+                        String failureStoreName = fsMatcher.group(1) + TestIndexLike.FAILURE_STORE_SUFFIX;
+                        String resolved = resolveToExpectedIndex(failureStoreName);
+                        if (resolved != null) {
+                            seenIndicesBuilder.add(resolved);
+                        } else {
+                            seenIndicesBuilder.add(index);
+                        }
+                    } else {
+                        seenIndicesBuilder.add(index);
+                    }
                 } else if (index.startsWith(".ds-")) {
                     // We do a special treatment for data stream backing indices. We convert these to the normal data streams if expected indices contains these.
+                    // Also resolves through aliases when the expected set contains an alias wrapping the data stream.
                     java.util.regex.Matcher matcher = DS_BACKING_INDEX_PATTERN.matcher(index);
 
-                    if (matcher.matches() && expectedIndices.contains(matcher.group(1))) {
-                        seenIndicesBuilder.add(matcher.group(1));
+                    if (matcher.matches()) {
+                        String dsName = matcher.group(1);
+                        String resolved = resolveToExpectedIndex(dsName);
+                        if (resolved != null) {
+                            seenIndicesBuilder.add(resolved);
+                        } else {
+                            seenIndicesBuilder.add(index);
+                        }
                     } else {
                         seenIndicesBuilder.add(index);
                     }
@@ -388,9 +457,9 @@ public class IndexApiMatchers {
             // -> true
 
             if (other instanceof LimitedToMatcher) {
-                return ((LimitedToMatcher) other).getExpectedIndices().containsAll(this.getExpectedIndices());
+                return isIndexMapCoveredBy(((LimitedToMatcher) other).indexNameMap);
             } else if (other instanceof ContainsExactlyMatcher) {
-                return ((ContainsExactlyMatcher) other).getExpectedIndices().containsAll(this.getExpectedIndices());
+                return isIndexMapCoveredBy(((ContainsExactlyMatcher) other).indexNameMap);
             } else if (other instanceof UnlimitedMatcher) {
                 return true;
             } else {
@@ -409,12 +478,32 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public IndexMatcher withFailureStore() {
+            Map<String, TestIndexLike> newIndexNameMap = new HashMap<>();
+            for (Map.Entry<String, TestIndexLike> entry : indexNameMap.entrySet()) {
+                TestIndexLike testIndexLike = entry.getValue();
+                if (testIndexLike instanceof TestIndex) {
+                    continue;
+                }
+                newIndexNameMap.put(entry.getKey(), testIndexLike.enableFailureStore());
+            }
+            return new ContainsExactlyMatcher(newIndexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCodeWhenEmpty);
+        }
+
+        @Override
         public boolean covers(TestIndex testIndex) {
             return indexNameMap.containsKey(testIndex.getName());
         }
 
     }
 
+    /**
+     * Matcher for SQL query results. Verifies that SQL responses contain only rows from the expected indices.
+     *
+     * <p>Failure store support: Limited. SQL queries do not typically target failure stores, so failure store
+     * semantics in {@code isCoveredBy} and {@code covers} use simple key comparison without {@code ::failures}
+     * suffix fallback.</p>
+     */
     public static class SqlLimitedToMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
         private boolean shouldContainColumns;
@@ -595,6 +684,11 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public IndexMatcher withFailureStore() {
+            throw new UnsupportedOperationException("Not supported by this matcher");
+        }
+
+        @Override
         public boolean isCoveredBy(IndexMatcher other) {
             if (other instanceof SqlLimitedToMatcher sqlLimitedToMatcher) {
                 return sqlLimitedToMatcher.indexNameMap.keySet().containsAll(this.indexNameMap.keySet());
@@ -622,6 +716,14 @@ public class IndexApiMatchers {
         }
     }
 
+    /**
+     * Matcher that verifies a response contains no indices beyond the expected set (but may contain fewer).
+     *
+     * <p>Failure store support: Full. Factory method {@link IndexApiMatchers#limitedTo} automatically adds
+     * failure store entries from {@link TestIndexLike#failureStore()}. Index matching resolves {@code .fs-} backing
+     * indices to their parent data stream's {@code ::failures} name. Document-level matching ({@code matchesByDocs})
+     * does not support failure store documents and throws {@link UnsupportedOperationException} if encountered.</p>
+     */
     public static class LimitedToMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
         public LimitedToMatcher(Map<String, TestIndexLike> indexNameMap) {
@@ -674,11 +776,11 @@ public class IndexApiMatchers {
         @Override
         public IndexMatcher but(IndexMatcher other) {
             if (other instanceof LimitedToMatcher) {
-                return new LimitedToMatcher(ImmutableMap.of(this.indexNameMap).intersection(((LimitedToMatcher) other).getExpectedIndices()),
+                return new LimitedToMatcher(testIndicesIntersection(this.indexNameMap, ((LimitedToMatcher) other).indexNameMap),
                         this.jsonPath, this.statusCodeWhenEmpty);
             } else if (other instanceof ContainsExactlyMatcher) {
                 return new ContainsExactlyMatcher(
-                        ImmutableMap.of(this.indexNameMap).intersection(((ContainsExactlyMatcher) other).getExpectedIndices()), false, false,
+                        testIndicesIntersection(this.indexNameMap, ((ContainsExactlyMatcher) other).indexNameMap), false, false,
                         this.jsonPath, this.statusCodeWhenEmpty);
             } else if (other instanceof UnlimitedMatcher) {
                 return this;
@@ -696,9 +798,9 @@ public class IndexApiMatchers {
         @Override
         public boolean isCoveredBy(IndexMatcher other) {
             if (other instanceof LimitedToMatcher) {
-                return ((LimitedToMatcher) other).getExpectedIndices().containsAll(this.getExpectedIndices());
+                return isIndexMapCoveredBy(((LimitedToMatcher) other).indexNameMap);
             } else if (other instanceof ContainsExactlyMatcher) {
-                return ((ContainsExactlyMatcher) other).getExpectedIndices().containsAll(this.getExpectedIndices());
+                return isIndexMapCoveredBy(((ContainsExactlyMatcher) other).indexNameMap);
             } else if (other instanceof UnlimitedMatcher) {
                 return true;
             } else {
@@ -711,7 +813,14 @@ public class IndexApiMatchers {
             ImmutableSet.Builder<String> seenIndicesBuilder = new ImmutableSet.Builder<String>(expectedIndices.size());
 
             for (Object object : collection) {
-                seenIndicesBuilder.add(DocNode.wrap(object).getAsString("_index"));
+                String indexName = DocNode.wrap(object).getAsString("_index");
+
+                if (isFailureStoreBackingIndex(indexName)) {
+                    throw new UnsupportedOperationException("Failure store backing index '" + indexName
+                            + "' encountered in matchesByDocs. Failure store content matching is not supported.");
+                }
+
+                seenIndicesBuilder.add(indexName);
             }
 
             ImmutableSet<String> seenIndices = seenIndicesBuilder.build();
@@ -731,7 +840,39 @@ public class IndexApiMatchers {
             ImmutableSet.Builder<String> seenIndicesBuilder = new ImmutableSet.Builder<String>(expectedIndices.size());
 
             for (Object object : collection) {
-                seenIndicesBuilder.add(object.toString());
+                String index = object.toString();
+
+                if (index.startsWith(".fs-")) {
+                    java.util.regex.Matcher fsMatcher = FS_BACKING_INDEX_PATTERN.matcher(index);
+
+                    if (fsMatcher.matches()) {
+                        String failureStoreName = fsMatcher.group(1) + TestIndexLike.FAILURE_STORE_SUFFIX;
+                        String resolved = resolveToExpectedIndex(failureStoreName);
+                        if (resolved != null) {
+                            seenIndicesBuilder.add(resolved);
+                        } else {
+                            seenIndicesBuilder.add(index);
+                        }
+                    } else {
+                        seenIndicesBuilder.add(index);
+                    }
+                } else if (index.startsWith(".ds-")) {
+                    java.util.regex.Matcher matcher = DS_BACKING_INDEX_PATTERN.matcher(index);
+
+                    if (matcher.matches()) {
+                        String dsName = matcher.group(1);
+                        String resolved = resolveToExpectedIndex(dsName);
+                        if (resolved != null) {
+                            seenIndicesBuilder.add(resolved);
+                        } else {
+                            seenIndicesBuilder.add(index);
+                        }
+                    } else {
+                        seenIndicesBuilder.add(index);
+                    }
+                } else {
+                    seenIndicesBuilder.add(index);
+                }
             }
 
             ImmutableSet<String> seenIndices = seenIndicesBuilder.build();
@@ -756,8 +897,28 @@ public class IndexApiMatchers {
             return new ContainsExactlyMatcher(indexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCode);
         }
 
+        @Override
+        public IndexMatcher withFailureStore() {
+            Map<String, TestIndexLike> newIndexNameMap = new HashMap<>();
+            for (Map.Entry<String, TestIndexLike> entry : this.indexNameMap.entrySet()) {
+                TestIndexLike index = entry.getValue();
+                if (index instanceof TestIndex) {
+                    continue;
+                }
+                TestIndexLike testIndexLike = index.enableFailureStore();
+                newIndexNameMap.put(entry.getKey(), testIndexLike);
+            }
+            return new ContainsExactlyMatcher(newIndexNameMap, containsSearchGuardIndices, containsEsInternalIndices, jsonPath, statusCodeWhenEmpty);
+        }
+
     }
 
+    /**
+     * Matcher that accepts any 200 OK response regardless of which indices are returned.
+     *
+     * <p>Failure store support: Full. {@link #withFailureStore()} returns {@code this} since no index
+     * filtering is applied. All operations ({@code but}, {@code isCoveredBy}) work transparently.</p>
+     */
     public static class UnlimitedMatcher extends DiagnosingMatcher<Object> implements IndexMatcher {
 
         private final boolean containsSearchGuardIndices;
@@ -848,6 +1009,11 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public IndexMatcher withFailureStore() {
+            return this;
+        }
+
+        @Override
         public boolean containsDocument(String id) {
             return true;
         }
@@ -859,6 +1025,12 @@ public class IndexApiMatchers {
         }
     }
 
+    /**
+     * Matcher that only checks the HTTP status code, ignoring response content.
+     *
+     * <p>Failure store support: None. {@link #withFailureStore()} throws {@link UnsupportedOperationException}.
+     * This matcher is used for error responses (e.g. 403 Forbidden) where index content is irrelevant.</p>
+     */
     public static class StatusCodeMatcher extends DiagnosingMatcher<Object> implements IndexMatcher {
         private int expectedStatusCode = 403;
 
@@ -946,6 +1118,11 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public IndexMatcher withFailureStore() {
+            throw new UnsupportedOperationException("StatusCodeMatcher does not support failure store");
+        }
+
+        @Override
         public boolean containsDocument(String id) {
             return false;
         }
@@ -966,6 +1143,8 @@ public class IndexApiMatchers {
         IndexMatcher whenEmpty(int statusCode);
 
         IndexMatcher aggregateTerm(String term);
+
+        IndexMatcher withFailureStore();
 
         boolean isEmpty();
 
@@ -1068,10 +1247,26 @@ public class IndexApiMatchers {
                 return this;
             }
 
-            HashMap<String, TestIndexLike> unmatched = new HashMap<>(this.indexNameMap);
-            unmatched.keySet().removeAll(((AbstractIndexMatcher) other).indexNameMap.keySet());
+            Map<String, TestIndexLike> otherMap = ((AbstractIndexMatcher) other).indexNameMap;
+            boolean allCovered = true;
+            for (Map.Entry<String, TestIndexLike> entry : this.indexNameMap.entrySet()) {
+                String key = entry.getKey();
+                TestIndexLike thisIndex = entry.getValue();
+                TestIndexLike otherIndex = otherMap.get(key);
+                if (otherIndex == null && key.endsWith(TestIndexLike.FAILURE_STORE_SUFFIX)) {
+                    otherIndex = otherMap.get(key.substring(0, key.length() - TestIndexLike.FAILURE_STORE_SUFFIX.length()));
+                }
+                if (otherIndex == null) {
+                    allCovered = false;
+                    break;
+                }
+                if ((thisIndex.isFailureStoreOnly() && otherIndex.isDataOnly()) || (thisIndex.isDataOnly() && otherIndex.isFailureStoreOnly())) {
+                    allCovered = false;
+                    break;
+                }
+            }
 
-            if (!unmatched.isEmpty()) {
+            if (!allCovered) {
                 return new StatusCodeMatcher(statusCode);
             } else {
                 return this.but(other);
@@ -1125,8 +1320,14 @@ public class IndexApiMatchers {
                 String key = entry.getKey();
                 TestIndexLike index1 = entry.getValue();
                 TestIndexLike index2 = map2.get(key);
+                if ((index2 == null) && key.endsWith(TestIndexLike.FAILURE_STORE_SUFFIX)) {
+                    index2 = map2.get(key.substring(0, key.length() - TestIndexLike.FAILURE_STORE_SUFFIX.length()));
+                }
 
                 if (index2 == null) {
+                    continue;
+                }
+                if((index1.isFailureStoreOnly() && index2.isDataOnly()) || (index1.isDataOnly() && index2.isFailureStoreOnly())) {
                     continue;
                 }
 
@@ -1136,12 +1337,72 @@ public class IndexApiMatchers {
             return Collections.unmodifiableMap(result);
         }
 
+        protected boolean isIndexMapCoveredBy(Map<String, TestIndexLike> otherMap) {
+            for (Map.Entry<String, TestIndexLike> entry : this.indexNameMap.entrySet()) {
+                String key = entry.getKey();
+                TestIndexLike thisIndex = entry.getValue();
+                TestIndexLike otherIndex = otherMap.get(key);
+                if (otherIndex == null && key.endsWith(TestIndexLike.FAILURE_STORE_SUFFIX)) {
+                    otherIndex = otherMap.get(key.substring(0, key.length() - TestIndexLike.FAILURE_STORE_SUFFIX.length()));
+                }
+                if (otherIndex == null) {
+                    return false;
+                }
+                if ((thisIndex.isFailureStoreOnly() && otherIndex.isDataOnly()) || (thisIndex.isDataOnly() && otherIndex.isFailureStoreOnly())) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         protected ImmutableSet<String> getExpectedIndices() {
             return ImmutableSet.of(indexNameMap.keySet());
         }
 
+        /**
+         * Resolves a data stream or failure store name to the expected index name.
+         * First checks if the name is directly in expected indices (handles direct data stream entries),
+         * then checks if any TestAlias in the indexNameMap contains an underlying index with this name.
+         * Returns null if not found.
+         */
+        protected String resolveToExpectedIndex(String name) {
+            if (indexNameMap.containsKey(name)) {
+                return name;
+            }
+            // For failure store names like "ds::failures", also try resolving the base name through aliases
+            String baseName = name.endsWith(TestIndexLike.FAILURE_STORE_SUFFIX)
+                    ? name.substring(0, name.length() - TestIndexLike.FAILURE_STORE_SUFFIX.length())
+                    : null;
+            for (Map.Entry<String, TestIndexLike> entry : indexNameMap.entrySet()) {
+                if (entry.getValue() instanceof TestAlias) {
+                    TestAlias alias = (TestAlias) entry.getValue();
+                    for (TestIndexLike underlying : alias.getIndices()) {
+                        if (underlying.getName().equals(name)) {
+                            return entry.getKey();
+                        }
+                        if (baseName != null && underlying.getName().equals(baseName)) {
+                            // The failure store backing index belongs to a data stream under this alias
+                            // Resolve to the alias's failure store name
+                            String aliasFailureName = entry.getKey() + TestIndexLike.FAILURE_STORE_SUFFIX;
+                            if (indexNameMap.containsKey(aliasFailureName)) {
+                                return aliasFailureName;
+                            }
+                            return entry.getKey();
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
     }
 
+    /**
+     * Matcher for term aggregation results. Verifies that aggregation buckets match the expected documents.
+     *
+     * <p>Failure store support: None. {@link #withFailureStore()} throws {@link UnsupportedOperationException}.
+     * Aggregations over failure store documents are not currently supported.</p>
+     */
     static class TermAggregationMatcher extends AbstractIndexMatcher implements IndexMatcher {
 
         private IndexMatcher base;
@@ -1256,10 +1517,19 @@ public class IndexApiMatchers {
         }
 
         @Override
+        public IndexMatcher withFailureStore() {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
         public boolean covers(TestIndex testIndex) {
             return base.covers(testIndex);
         }
 
+    }
+
+    private static boolean isFailureStoreBackingIndex(String indexName) {
+        return indexName != null && FS_BACKING_INDEX_PATTERN.matcher(indexName).matches();
     }
 
     private static String formatResponse(GenericRestClient.HttpResponse response) {

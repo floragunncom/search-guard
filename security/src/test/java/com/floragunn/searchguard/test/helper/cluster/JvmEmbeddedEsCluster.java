@@ -299,6 +299,7 @@ public class JvmEmbeddedEsCluster extends LocalEsCluster {
             }
 
             nodeRoles.add("remote_cluster_client");
+            nodeRoles.add("ingest");
 
             return Settings.builder().put("node.name", nodeName).putList("node.roles", nodeRoles).put("path.home", nodeHomeDir.toPath())
                     .put("path.data", dataDir.toPath()).put("path.logs", logsDir.toPath()).put("transport.port", transportPort)

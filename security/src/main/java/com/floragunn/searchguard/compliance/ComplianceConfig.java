@@ -20,6 +20,7 @@ package com.floragunn.searchguard.compliance;
 
 import java.util.Collections;
 
+import com.floragunn.searchsupport.meta.Meta;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -97,7 +98,7 @@ public class ComplianceConfig implements LicenseChangeListener {
         if (resolved.isLocalAll()) {
             return true;
         } else {
-            return immutableIndicesPatterns.matches(resolved.getLocal().getDeepUnion());
+            return immutableIndicesPatterns.matches(resolved.getLocal().getDeepUnion().map(Meta.IndexLikeObject::nameForIndexPatternMatching));
         }
     }
 

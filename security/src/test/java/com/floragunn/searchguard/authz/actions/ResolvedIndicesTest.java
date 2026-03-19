@@ -63,6 +63,11 @@ public class ResolvedIndicesTest {
             .alias("alias_a2").of("index_a21", "index_a22")//
             .alias("alias_b").of("index_b1", "index_b2");
 
+    // Meta with both data and failure store components for testing component selectors
+    static final Meta META_WITH_FAILURE_STORE = indices("index_a11")//
+            .dataStream("ds_test").of(".ds-ds_test-000001")//
+            .dataStream("ds_test::failures").of(".fs-ds_test-000001");
+
     static final String NAME_SYSTEM_INDEX_1 = "system_index_1";
     static final String NAME_SYSTEM_INDEX_2 = "system_index_2";
     static final String NAME_SYSTEM_INDEX_3 = "system_index_3";
@@ -105,7 +110,7 @@ public class ResolvedIndicesTest {
         IndexMetadata systemIndex = createIndexMetadata(NAME_SYSTEM_INDEX_1, true);
         IndexMetadata regularIndex = createIndexMetadata(NAME_REGULAR_INDEX_1, false);
         Meta meta = metaForIndexMetadata(systemIndex, regularIndex);
-        when(systemIndexAccess.isAllowed(Mockito.<Meta.IndexLikeObject>any())).thenReturn(true);
+        when(systemIndexAccess.isAllowed(Mockito.anyString())).thenReturn(true);
         IndicesRequestInfo indicesRequestInfo = new IndicesRequestInfo(ImmutableList.of("*"),
             IndicesOptions.LENIENT_EXPAND_OPEN,
             Scope.ANY,
@@ -216,5 +221,34 @@ public class ResolvedIndicesTest {
         IndicesRequestInfo indicesRequestInfo = new IndicesRequestInfo(ImmutableList.ofArray(indices), indicesOptions, scope,
                 SystemIndexAccess.DISALLOWED, META);
         return indicesRequestInfo.resolveIndices();
+    }
+
+    private static ResolvedIndices getWithFailureStore(IndicesOptions indicesOptions, Scope scope, String... indices) {
+        IndicesRequestInfo indicesRequestInfo = new IndicesRequestInfo(ImmutableList.ofArray(indices), indicesOptions, scope,
+                SystemIndexAccess.DISALLOWED, META_WITH_FAILURE_STORE);
+        return indicesRequestInfo.resolveIndices();
+    }
+
+
+
+    @Test
+    public void componentSelector_failureStore_wildcardAll() {
+        // Test that *::failures resolves only to failure store data streams
+        ResolvedIndices subject = getWithFailureStore(IndicesOptions.LENIENT_EXPAND_OPEN, Scope.ANY, "*::failures");
+        assertThat(subject, hasNoIndices().hasNoAliases().hasDataStreams("ds_test::failures"));
+    }
+
+    @Test
+    public void componentSelector_dataStore_wildcardAll() {
+        // Test that * (without ::failures) resolves only to data component
+        ResolvedIndices subject = getWithFailureStore(IndicesOptions.LENIENT_EXPAND_OPEN, Scope.ANY, "*");
+        assertThat(subject, hasIndices("index_a11").hasNoAliases().hasDataStreams("ds_test"));
+    }
+
+    @Test
+    public void componentSelector_explicitFailureStore() {
+        // Test explicit ds_test::failures resolves to failure store
+        ResolvedIndices subject = getWithFailureStore(IndicesOptions.LENIENT_EXPAND_OPEN, Scope.ANY, "ds_test::failures");
+        assertThat(subject, hasNoIndices().hasNoAliases().hasDataStreams("ds_test::failures"));
     }
 }

@@ -132,7 +132,7 @@ public class DlsFilterLevelActionHandler {
         this.indicesService = indicesService;
         this.threadContext = threadContext;
 
-        this.requiresIndexScoping = resolved.isLocalAll() || resolved.getLocalAndRemoteIndices().size() != 1;
+        this.requiresIndexScoping = resolved.isLocalAll() || resolved.getNumberOfLocalAndRemoteIndices() != 1;
     }
 
     private SyncAuthorizationFilter.Result handle() {

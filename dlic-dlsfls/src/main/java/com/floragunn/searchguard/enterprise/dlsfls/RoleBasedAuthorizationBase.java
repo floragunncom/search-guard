@@ -195,7 +195,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
     private boolean hasRestrictions(PrivilegesEvaluationContext context, StatefulRules<SingleRule> statefulRules, Meta.Index index)
             throws PrivilegesEvaluationException {
         
-        if (statefulRules != null && statefulRules.covers(index.name())) {
+        if (statefulRules != null && statefulRules.covers(index)) {
             ImmutableCompactSubSet<String> roleWithoutRule = statefulRules.index.indexToRoleWithoutRule.get(index);
 
             if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
@@ -231,7 +231,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
     private boolean hasRestrictions(PrivilegesEvaluationContext context, StatefulRules<SingleRule> statefulRules, Meta.Alias alias)
             throws PrivilegesEvaluationException {
 
-        if (statefulRules != null && statefulRules.covers(alias.name())) {
+        if (statefulRules != null && statefulRules.covers(alias)) {
             ImmutableCompactSubSet<String> roleWithoutRule = statefulRules.alias.aliasToRoleWithoutRule.get(alias);
 
             if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
@@ -263,7 +263,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         }
 
         for (Meta.Alias alias : aliases) {
-            if (statefulRules != null && statefulRules.covers(alias.name())) {
+            if (statefulRules != null && statefulRules.covers(alias)) {
                 ImmutableCompactSubSet<String> roleWithoutRule = statefulRules.alias.aliasToRoleWithoutRule.get(alias);
 
                 if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
@@ -286,7 +286,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
 
     private boolean hasRestrictions(PrivilegesEvaluationContext context, StatefulRules<SingleRule> statefulRules, Meta.DataStream dataStream)
             throws PrivilegesEvaluationException {
-        if (statefulRules != null && statefulRules.covers(dataStream.name())) {
+        if (statefulRules != null && statefulRules.covers(dataStream)) {
             ImmutableCompactSubSet<String> roleWithoutRule = statefulRules.dataStream.dataStreamToRoleWithoutRule.get(dataStream);
 
             if (roleWithoutRule != null && roleWithoutRule.containsAny(context.getMappedRoles())) {
@@ -351,7 +351,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         Map<String, SingleRule> roleToQueryForIndex = null;
         Map<String, SingleRule> roleToQueryForDataStream = null;
         
-        if (statefulRules != null && !statefulRules.covers(index.name())) {
+        if (statefulRules != null && !statefulRules.covers(index)) {
             // if the stateful rules do not cover the index, we won't use it. Slower static rules will be used as fallback instead.
             statefulRules = null;
         }
@@ -416,7 +416,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 // Only when we have no stateful information, we also check the simple index patterns
 
                 Pattern indexPatternWithoutRule = this.staticIndexRules.rolesToIndexPatternWithoutRule.get(role);
-                if (indexPatternWithoutRule != null && indexPatternWithoutRule.matches(index.name())) {
+                if (indexPatternWithoutRule != null && indexPatternWithoutRule.matches(index.nameForIndexPatternMatching())) {
                     return unrestricted();
                 }
 
@@ -425,7 +425,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                     for (Map.Entry<Pattern, SingleRule> entry : indexPatternToRule.entrySet()) {
                         Pattern pattern = entry.getKey();
 
-                        if (pattern.matches(index.name())) {
+                        if (pattern.matches(index.nameForIndexPatternMatching())) {
                             rules.add(entry.getValue());
                         }
                     }
@@ -440,7 +440,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                     try {
                         Pattern pattern = context.getRenderedPattern(indexPatternTemplate.getTemplate());
 
-                        if (pattern.matches(index.name()) && !indexPatternTemplate.getExclusions().matches(index.name())) {
+                        if (pattern.matches(index.nameForIndexPatternMatching()) && !indexPatternTemplate.getExclusions().matches(index.nameForIndexPatternMatching())) {
                             return unrestricted();
                         }
                     } catch (ExpressionEvaluationException e) {
@@ -457,7 +457,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                     try {
                         Pattern pattern = context.getRenderedPattern(entry.getKey().getTemplate());
 
-                        if (pattern.matches(index.name()) && !entry.getKey().getExclusions().matches(index.name())) {
+                        if (pattern.matches(index.nameForIndexPatternMatching()) && !entry.getKey().getExclusions().matches(index.nameForIndexPatternMatching())) {
                             rules.add(entry.getValue());
                         }
                     } catch (ExpressionEvaluationException e) {
@@ -474,7 +474,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                     try {
                         Pattern pattern = context.getRenderedDateMathExpression(dateMathExpression.getDateMathExpression());
 
-                        if (pattern.matches(index.name()) && !dateMathExpression.getExclusions().matches(index.name())) {
+                        if (pattern.matches(index.nameForIndexPatternMatching()) && !dateMathExpression.getExclusions().matches(index.nameForIndexPatternMatching())) {
                             return unrestricted();
                         }
                     } catch (ExpressionEvaluationException e) {
@@ -507,7 +507,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                     // then come via the backing indices
 
                     Pattern dataStreamPatternWithoutRule = this.staticDataStreamRules.rolesToIndexPatternWithoutRule.get(role);
-                    if (dataStreamPatternWithoutRule != null && dataStreamPatternWithoutRule.matches(parentDataStream.name())) {
+                    if (dataStreamPatternWithoutRule != null && dataStreamPatternWithoutRule.matches(parentDataStream.nameForIndexPatternMatching())) {
                         return unrestricted();
                     }
 
@@ -516,7 +516,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                         for (Map.Entry<Pattern, SingleRule> entry : dataStreamPatternToRule.entrySet()) {
                             Pattern pattern = entry.getKey();
 
-                            if (pattern.matches(parentDataStream.name())) {
+                            if (pattern.matches(parentDataStream.nameForIndexPatternMatching())) {
                                 rules.add(entry.getValue());
                             }
                         }
@@ -531,7 +531,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                         try {
                             Pattern pattern = context.getRenderedPattern(indexPatternTemplate.getTemplate());
 
-                            if (pattern.matches(parentDataStream.name()) && !indexPatternTemplate.getExclusions().matches(parentDataStream.name())) {
+                            if (pattern.matches(parentDataStream.nameForIndexPatternMatching()) && !indexPatternTemplate.getExclusions().matches(parentDataStream.nameForIndexPatternMatching())) {
                                 return unrestricted();
                             }
                         } catch (ExpressionEvaluationException e) {
@@ -548,7 +548,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                         try {
                             Pattern pattern = context.getRenderedPattern(entry.getKey().getTemplate());
 
-                            if (pattern.matches(parentDataStream.name()) && !entry.getKey().getExclusions().matches(parentDataStream.name())) {
+                            if (pattern.matches(parentDataStream.nameForIndexPatternMatching()) && !entry.getKey().getExclusions().matches(parentDataStream.nameForIndexPatternMatching())) {
                                 rules.add(entry.getValue());
                             }
                         } catch (ExpressionEvaluationException e) {
@@ -634,7 +634,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
 
                 if (aliasPatternWithoutRule != null) {
                     for (Meta.Alias alias : indexLike.parentAliases()) {
-                        if (aliasPatternWithoutRule.matches(alias.name())) {
+                        if (aliasPatternWithoutRule.matches(alias.nameForIndexPatternMatching())) {
                             return true;
                         }
                     }
@@ -654,7 +654,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                             try {
                                 Pattern pattern = context.getRenderedPattern(indexPatternTemplate.getTemplate());
 
-                                if (pattern.matches(alias.name()) && !indexPatternTemplate.getExclusions().matches(alias.name())) {
+                                if (pattern.matches(alias.nameForIndexPatternMatching()) && !indexPatternTemplate.getExclusions().matches(alias.nameForIndexPatternMatching())) {
                                     return true;
                                 }
                             } catch (ExpressionEvaluationException e) {
@@ -674,7 +674,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                 if (aliasPatternToRule != null) {
                     for (Meta.Alias alias : indexLike.parentAliases()) {
                         for (Map.Entry<Pattern, SingleRule> entry : aliasPatternToRule.entrySet()) {
-                            if (entry.getKey().matches(alias.name())) {
+                            if (entry.getKey().matches(alias.nameForIndexPatternMatching())) {
                                 rulesSink.add(entry.getValue());
                             }
                         }
@@ -693,7 +693,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                             try {
                                 Pattern pattern = context.getRenderedPattern(entry.getKey().getTemplate());
 
-                                if (pattern.matches(alias.name()) && !entry.getKey().getExclusions().matches(alias.name())) {
+                                if (pattern.matches(alias.nameForIndexPatternMatching()) && !entry.getKey().getExclusions().matches(alias.nameForIndexPatternMatching())) {
                                     rulesSink.add(entry.getValue());
                                 }
                             } catch (ExpressionEvaluationException e) {
@@ -841,7 +841,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
             for (String role : context.getMappedRoles()) {
                 Pattern pattern = this.rolesToIndexPatternWithoutRule.get(role);
 
-                if (pattern != null && pattern.matches(indexLike.name())) {
+                if (pattern != null && pattern.matches(indexLike.nameForIndexPatternMatching())) {
                     return true;
                 }
             }
@@ -861,7 +861,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                         try {
                             Pattern pattern = context.getRenderedPattern(indexPatternTemplate.getTemplate());
 
-                            if (pattern.matches(indexLike.name()) && !indexPatternTemplate.getExclusions().matches(indexLike.name())) {
+                            if (pattern.matches(indexLike.nameForIndexPatternMatching()) && !indexPatternTemplate.getExclusions().matches(indexLike.nameForIndexPatternMatching())) {
                                 return true;
                             }
                         } catch (ExpressionEvaluationException e) {
@@ -878,7 +878,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                         try {
                             Pattern pattern = context.getRenderedDateMathExpression(dateMathExpression.getDateMathExpression());
                             
-                            if (pattern.matches(indexLike.name()) && !dateMathExpression.getExclusions().matches(indexLike.name())) {
+                            if (pattern.matches(indexLike.nameForIndexPatternMatching()) && !dateMathExpression.getExclusions().matches(indexLike.nameForIndexPatternMatching())) {
                                 return true;
                             }
                         } catch (ExpressionEvaluationException e) {
@@ -911,8 +911,8 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
             this.componentState.addParts(this.index.getComponentState(), this.alias.getComponentState(), this.dataStream.getComponentState());
         }
 
-        boolean covers(String index) {
-            return this.indexMetadata.getIndexOrLike(index) != null;
+        boolean covers(Meta.IndexLikeObject indexLike) {
+            return this.indexMetadata.getIndexOrLike(indexLike.name()) != null;
         }
 
         static class Index<SingleRule> implements ComponentStateProvider {
@@ -962,11 +962,11 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                             SingleRule rule = this.roleToRule(indexPermissions);
 
                             if (rule != null) {
-                                for (Meta.Index index : indexPattern.iterateMatching(indexMetadata.indices(), Meta.Index::name)) {
+                                for (Meta.Index index : indexPattern.iterateMatching(indexMetadata.indices(), Meta.Index::nameForIndexPatternMatching)) {
                                     indexToRoleToRule.get(index).put(roleName, rule);
                                 }
                             } else {
-                                for (Meta.Index index : indexPattern.iterateMatching(indexMetadata.indices(), Meta.Index::name)) {
+                                for (Meta.Index index : indexPattern.iterateMatching(indexMetadata.indices(), Meta.Index::nameForIndexPatternMatching)) {
                                     indexToRoleWithoutRule.get(index).add(roleName);
                                 }
                             }
@@ -983,7 +983,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                             SingleRule rule = this.roleToRule(aliasPermissions);
 
                             if (rule != null) {
-                                for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::name)) {
+                                for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::nameForIndexPatternMatching)) {
                                     alias.members().forEach((member) -> {
                                         if (member instanceof Meta.Index) {
                                             indexToRoleToRule.get((Meta.Index) member).put(roleName, rule);
@@ -992,7 +992,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                                     });
                                 }
                             } else {
-                                for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::name)) {
+                                for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::nameForIndexPatternMatching)) {
                                     alias.members().forEach((member) -> {
                                         if (member instanceof Meta.Index) {
                                             indexToRoleWithoutRule.get((Meta.Index) member).add(roleName);
@@ -1081,11 +1081,11 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                             SingleRule rule = this.roleToRule(aliasPermissions);
 
                             if (rule != null) {
-                                for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::name)) {
+                                for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::nameForIndexPatternMatching)) {
                                     indexToRoleToQuery.get(alias).put(roleName, rule);
                                 }
                             } else {
-                                for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::name)) {
+                                for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::nameForIndexPatternMatching)) {
                                     indexToRoleWithoutQuery.get(alias).add(roleName);
                                 }
                             }
@@ -1170,12 +1170,12 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
 
                             if (rule != null) {
                                 for (Meta.DataStream dataStream : dataStreamPattern.iterateMatching(indexMetadata.dataStreams(),
-                                        Meta.DataStream::name)) {
+                                        Meta.DataStream::nameForIndexPatternMatching)) {
                                     indexToRoleToQuery.get(dataStream).put(roleName, rule);
                                 }
                             } else {
                                 for (Meta.DataStream dataStream : dataStreamPattern.iterateMatching(indexMetadata.dataStreams(),
-                                        Meta.DataStream::name)) {
+                                        Meta.DataStream::nameForIndexPatternMatching)) {
                                     indexToRoleWithoutQuery.get(dataStream).add(roleName);
                                 }
                             }
@@ -1197,7 +1197,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                             SingleRule rule = this.roleToRule(aliasPermissions);
 
                             if (rule != null) {
-                                for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::name)) {
+                                for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::nameForIndexPatternMatching)) {
                                     alias.members().forEach((member) -> {
                                         if (member instanceof Meta.DataStream) {
                                             indexToRoleToQuery.get((Meta.DataStream) member).put(roleName, rule);
@@ -1205,7 +1205,7 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
                                     });
                                 }
                             } else {
-                                for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::name)) {
+                                for (Meta.Alias alias : aliasPattern.iterateMatching(indexMetadata.aliases(), Meta.Alias::nameForIndexPatternMatching)) {
                                     alias.members().forEach((member) -> {
                                         if (member instanceof Meta.DataStream) {
                                             indexToRoleWithoutQuery.get((Meta.DataStream) member).add(roleName);

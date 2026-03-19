@@ -21,10 +21,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.floragunn.searchsupport.Constants;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions;
 import org.elasticsearch.client.internal.Client;
@@ -130,5 +132,55 @@ public class TestAlias implements TestIndexLike {
         }
 
         return result;
+    }
+
+    @Override
+    public Optional<TestIndexLike> failureStore() {
+        if(isFailureStoreOnly()) {
+            return Optional.of(this);
+        }
+        boolean hasFailureStore = indices.stream().anyMatch(indexLike -> indexLike.failureStore().isPresent());
+        if (hasFailureStore) {
+            return Optional.of(new TestAlias(name + FAILURE_STORE_SUFFIX,
+                    indices.stream() //
+                            .map(TestIndexLike::failureStore) //
+                            .filter(Optional::isPresent) //
+                            .map(Optional::get) //
+                            .toArray(TestIndexLike[]::new)));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public boolean isFailureStoreOnly() {
+        return indices.stream().allMatch(TestIndexLike::isFailureStoreOnly);
+    }
+
+    public TestIndexLike failureOnly() {
+        return failureStore().orElseThrow(() -> {
+            String aliasContent = indices.stream() //
+                    .map(testIndexLike -> "'" + testIndexLike.getClass().getSimpleName() + " - " + testIndexLike.getName() + "'") //
+                    .collect(Collectors.joining(", "));
+            return new NoSuchElementException("Failure store not enabled for '" + getName() + "', alias points to " + aliasContent);
+        });
+    }
+
+    @Override
+    public TestIndexLike enableFailureStore() {
+        return new TestAlias(name, indices.stream()
+                .map(TestIndexLike::enableFailureStore)
+                .toArray(TestIndexLike[]::new));
+    }
+
+    @Override
+    public TestAlias dataOnly() {
+        if(isDataOnly()) {
+            return this;
+        }
+        return new TestAlias(name, indices.stream()
+                .map(TestIndexLike::dataOnly)
+                .filter(Objects::nonNull)
+                .toArray(TestIndexLike[]::new));
     }
 }
