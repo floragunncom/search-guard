@@ -13,7 +13,6 @@ variables:
   MAVEN_CLI_OPTS: "--batch-mode -s settings.xml -U"
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
-  AIKIDO_BASE_BRANCH: main
 
   GIT_DEPTH: 10
 
@@ -56,7 +55,6 @@ stages:
   - "Backend Int Tests Core"
   - "Frontend Int Tests"
   - "Frontend MT Data Migration Tests"
-  - "Aikido Scan"
   - release
   - "Deploy Docker Image"
   - post_merge
@@ -67,7 +65,6 @@ include:
   - local: "ci/backend-int-tests.yml"
   - local: "ci/frontend-int-tests.yml"
   - local: "ci/mt-data-migration-tests.yml"
-  - local: "ci/aikido.yml"
   - local: 'ci/backport.yml'
 
 build:
