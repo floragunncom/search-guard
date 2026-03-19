@@ -668,6 +668,21 @@ public class DataStreamAuthorizationReadOnlyIntTests {
         }
     }
 
+    /**
+     * Bug: SG fails to apply the concrete data-stream-name exclusion (-ds_a1) to ds_a1's hidden
+     * backing indices that are pulled in by expand_wildcards=all.
+     * ES natively excludes ds_a1 and its backing indices; SG does not, so UNLIMITED_USER sees
+     * ds_a1 in the resolved result even though it is explicitly excluded.
+     */
+    @Test
+    public void resolve_excludeStaticDataStream_expandAll() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("/_resolve/index/*,-ds_a1?expand_wildcards=all");
+            assertThat(httpResponse, containsExactly(ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, ds_hidden, index_c1, alias_ab1, alias_c1,
+                    searchGuardIndices(), esInternalIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
     @Test
     public void resolve_indexPattern() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
