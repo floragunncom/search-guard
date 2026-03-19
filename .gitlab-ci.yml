@@ -67,7 +67,6 @@ include:
   - local: "ci/backend-int-tests.yml"
   - local: "ci/frontend-int-tests.yml"
   - local: "ci/mt-data-migration-tests.yml"
-  - local: "ci/aikido.yml"
   - local: 'ci/backport.yml'
 
 build:
