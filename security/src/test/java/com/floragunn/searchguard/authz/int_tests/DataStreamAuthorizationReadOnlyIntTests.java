@@ -353,6 +353,26 @@ public class DataStreamAuthorizationReadOnlyIntTests {
         }
     }
 
+    /**
+     * Corrected: SG applies the wildcard exclusion (-ds_a*) to the explicitly listed ds_a1,
+     * removing its backing indices from the user's accessible set. ES natively recognises that
+     * ds_a1 was explicitly listed before the wildcard and keeps it in the result even though
+     * the subsequent -ds_a* exclusion would otherwise remove all ds_a* data streams.
+     */
+    @Test
+    public void search_explicitDataStream_withWildcardExclusion_expandAll() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("ds_a1,*,-ds_a*/_search?size=1000&expand_wildcards=all");
+            // ds_a1 is explicitly listed, so its backing indices should appear even though -ds_a* would exclude ds_a*
+            // ds_a2 and ds_a3 are only matched by * and are correctly excluded by -ds_a*
+            assertThat(httpResponse,
+                    containsExactly(ds_a1, ds_b1, ds_b2, ds_b3, ds_hidden, index_c1, searchGuardIndices(), esInternalIndices())
+                            .at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+
+
     @Test
     public void search_staticIndicies_hidden() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {

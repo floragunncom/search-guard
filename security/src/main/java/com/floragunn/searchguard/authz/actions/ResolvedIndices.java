@@ -440,6 +440,20 @@ public class ResolvedIndices {
             ImmutableSet.Builder<Meta.Alias> aliases = new ImmutableSet.Builder<>();
             ImmutableSet.Builder<Meta.DataStream> dataStreams = new ImmutableSet.Builder<>();
             Set<String> excludeNames = new HashSet<>();
+            // Tracks names added to excludeNames by a *concrete* (non-wildcard) exclusion token, e.g. "-ds_a1".
+            // Used to distinguish concrete exclusions from wildcard exclusions (e.g. "-ds_a*") so that an explicit
+            // positive token can survive a wildcard exclusion that happens to cover the same name.
+            //
+            // Example: "ds_a1,*,-ds_a*"
+            //   - The backwards pass processes "-ds_a*" first; wildcard expansion adds "ds_a1" (and its backing
+            //     indices) to excludeNames, but NOT to concreteExcludeNames.
+            //   - The forward pass then encounters the explicit "ds_a1" token.  Because "ds_a1" is absent from
+            //     concreteExcludeNames, the token is NOT skipped — matching ES behaviour where an explicit name
+            //     takes precedence over a subsequent wildcard exclusion.
+            //
+            // Contrast with "*,-ds_a1": the concrete exclusion "-ds_a1" puts "ds_a1" into concreteExcludeNames,
+            // so the explicit token (if any) is still skipped, i.e. concrete exclusions continue to win.
+            Set<String> concreteExcludeNames = new HashSet<>();
             Set<String> partiallyExcludedObjects = new HashSet<>();
 
             // Note: We are going backwards through the list of indices in order to get negated patterns before the patterns they apply to
@@ -471,6 +485,9 @@ public class ResolvedIndices {
                             }
                         }
                     } else {
+                        // Concrete exclusion (e.g. "-ds_a1"): record in concreteExcludeNames so that the forward
+                        // pass can distinguish it from a wildcard exclusion that merely happens to match the same name.
+                        concreteExcludeNames.add(index.metaName());
                         resolveNegationUpAndDown(index.metaName(), excludeNames, partiallyExcludedObjects, request, indexMetadata);
                     }
                 } else {
@@ -570,7 +587,12 @@ public class ResolvedIndices {
                             }
                         }
                     } else {
-                        if (excludeNames.contains(index.metaName())) {
+                        // An explicit positive token (e.g. "ds_a1" in "ds_a1,*,-ds_a*") is only skipped when a
+                        // *concrete* exclusion for the same name exists (e.g. "-ds_a1").  A wildcard exclusion
+                        // like "-ds_a*" adds "ds_a1" to excludeNames but NOT to concreteExcludeNames, so the
+                        // explicit token survives — matching ES behaviour where explicit names take precedence
+                        // over wildcard exclusions.  See search_explicitDataStream_withWildcardExclusion_expandAll.
+                        if (concreteExcludeNames.contains(index.metaName())) {
                             continue;
                         }
 
