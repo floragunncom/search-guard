@@ -454,6 +454,23 @@ public class ResolvedIndices {
             // Contrast with "*,-ds_a1": the concrete exclusion "-ds_a1" puts "ds_a1" into concreteExcludeNames,
             // so the explicit token (if any) is still skipped, i.e. concrete exclusions continue to win.
             Set<String> concreteExcludeNames = new HashSet<>();
+            // Tracks names that are the direct target of an exclusion token — either a concrete token (e.g. "-ds_a1")
+            // or a name resolved from a wildcard exclusion (e.g. "-ds_a*" resolving to "ds_a1").
+            //
+            // This is a superset of concreteExcludeNames. It does NOT include names that were added to excludeNames
+            // as member/child propagation by resolveNegationUpAndDown (e.g., when "-alias_ab" adds the alias's member
+            // indices "index_a1" and "index_b1" to excludeNames).
+            //
+            // Used in the partial-exclusion branch to determine whether an alias/collection member should be filtered.
+            // Without this distinction, the expression "*,-index_a1,-alias_ab" (where alias_ab = {index_a1, index_b1})
+            // incorrectly loses index_b1:
+            //   1. -alias_ab adds index_b1 to excludeNames (member propagation)
+            //   2. -index_a1 adds alias_ab to partiallyExcludedObjects (parent marking)
+            //   3. Forward pass: * matches alias_ab → partial-exclusion branch → index_b1 in excludeNames → skipped
+            //
+            // By checking directlyExcludedNames instead, index_b1 is correctly retained: it was never the direct
+            // target of any exclusion token.
+            Set<String> directlyExcludedNames = new HashSet<>();
             Set<String> partiallyExcludedObjects = new HashSet<>();
 
             // Note: We are going backwards through the list of indices in order to get negated patterns before the patterns they apply to
@@ -471,6 +488,7 @@ public class ResolvedIndices {
                         for (Map.Entry<String, IndexAbstraction> matchedEntry : matchedAbstractions.entrySet()) {
                             String resolvedIndex = matchedEntry.getKey();
                             IndexExpression resolvedIndexExpression = index.withIndexName(resolvedIndex);
+                            directlyExcludedNames.add(resolvedIndexExpression.metaName());
                             resolveNegationUpAndDown(resolvedIndexExpression.metaName(), excludeNames, partiallyExcludedObjects, request, indexMetadata);
                             // When a wildcard negation directly matches a DataStream or Alias, also add it to
                             // partiallyExcludedObjects. This ensures the partial-exclusion branch is taken during
@@ -488,6 +506,7 @@ public class ResolvedIndices {
                         // Concrete exclusion (e.g. "-ds_a1"): record in concreteExcludeNames so that the forward
                         // pass can distinguish it from a wildcard exclusion that merely happens to match the same name.
                         concreteExcludeNames.add(index.metaName());
+                        directlyExcludedNames.add(index.metaName());
                         resolveNegationUpAndDown(index.metaName(), excludeNames, partiallyExcludedObjects, request, indexMetadata);
                     }
                 } else {
@@ -555,8 +574,21 @@ public class ResolvedIndices {
                                     // Component selector refers to a non-existent variant (e.g., ::failures on a regular index alias)
                                     continue;
                                 } else if (indexLike instanceof Meta.IndexCollection) {
+                                    // Use directlyExcludedNames (not excludeNames) to filter members.
+                                    // excludeNames includes names propagated by resolveNegationUpAndDown when a
+                                    // parent collection was excluded (e.g. -alias_ab adds index_b1 to excludeNames).
+                                    // Those propagated names should not cause members to be filtered here — only
+                                    // names that were the direct target of an exclusion token should be filtered.
+                                    //
+                                    // Special case: if the collection is a DataStream and it was directly excluded,
+                                    // skip it entirely. Unlike alias members (which are independent entities that
+                                    // can be matched by wildcard on their own), backing indices are internal to
+                                    // the data stream and should all be excluded when the data stream itself is.
+                                    if (indexLike instanceof Meta.DataStream && directlyExcludedNames.contains(matchedAbstractionWithComponent)) {
+                                        continue;
+                                    }
                                     for (Meta.IndexLikeObject member : ((Meta.IndexCollection) indexLike).members()) {
-                                        if (!excludeNames.contains(member.name())) {
+                                        if (!directlyExcludedNames.contains(member.name())) {
                                             if (member instanceof Meta.Index) {
                                                 if (includeIndices) {
                                                     Meta.Index indexMeta = (Meta.Index) member;
@@ -567,9 +599,9 @@ public class ResolvedIndices {
                                             } else if (member instanceof Meta.DataStream) {
                                                 if (includeDataStreams) {
                                                     Meta.DataStream dataStream = (Meta.DataStream) member;
-                                                    if (dataStream.members().stream().anyMatch(dsMember -> excludeNames.contains(dsMember.name()))) {
+                                                    if (dataStream.members().stream().anyMatch(dsMember -> directlyExcludedNames.contains(dsMember.name()))) {
                                                         for (Meta.IndexLikeObject dsMember : dataStream.members()) {
-                                                            if (!excludeNames.contains(dsMember.name())) {
+                                                            if (!directlyExcludedNames.contains(dsMember.name())) {
                                                                 indices.add((Meta.Index) dsMember);
                                                             }
                                                         }
