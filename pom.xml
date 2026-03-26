@@ -46,7 +46,7 @@
   </distributionManagement>
 
   <properties>
-    <elasticsearch.version>8.19.6</elasticsearch.version>
+    <elasticsearch.version>8.19.13</elasticsearch.version>
     <sg-suite.version>master-SNAPSHOT</sg-suite.version>
     <revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
 
@@ -55,7 +55,6 @@
     <dependency.locations.enabled>false</dependency.locations.enabled>
     <maven.compiler.release>17</maven.compiler.release>
 
-    <netty.version>4.2.10.Final</netty.version>
     <bc.version>1.83</bc.version>
     <log4j.version>2.25.3</log4j.version>
     <jackson.version>2.18.6</jackson.version>
