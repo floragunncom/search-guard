@@ -90,6 +90,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
      * Furthermore, invocation alias_c1.failureOnly() throws exceptions.
      */
     static TestAlias alias_c1 = new TestAlias("alias_c1", index_c1);
+    static TestAlias alias_ab = new TestAlias("alias_ab", index_a1, index_b1);
 
     static TestSgConfig.User LIMITED_USER_A = new TestSgConfig.User("limited_user_A")//
             .description("ds_a*")//
@@ -268,7 +269,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
                     .composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
             .dataStreams(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, ds_hidden)//
             .indices(index_c1, index_a1, index_b1)//
-            .aliases(alias_ab1, alias_c1)//
+            .aliases(alias_ab1, alias_c1, alias_ab)//
             .authzDebug(true)//
             //     .logRequests()//
             .useExternalProcessCluster()//
@@ -454,6 +455,29 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
                 assertThat(httpResponse,
                         containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3, index_c1, index_a1, index_b1, ds_hidden, searchGuardIndices(), esInternalIndices()).at(
                                 "hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    /**
+     * Expression: {@code *,-index_a1,-alias_ab} with {@code expand_wildcards=all}.
+     *
+     * <p>Expected: {@code index_b1} is present — it was matched directly by {@code *} and was
+     * never independently excluded. {@code -alias_ab} removes the alias abstraction;
+     * {@code -index_a1} removes one concrete index. Neither should remove {@code index_b1}.
+     *
+     * <p>Bug: {@code index_b1} is absent from the SG result because
+     * {@code resolveNegationUpAndDown} for {@code -alias_ab} added it to {@code excludeNames},
+     * and the partial-exclusion branch (triggered because {@code -index_a1} put {@code alias_ab}
+     * into {@code partiallyExcludedObjects}) filters it out.
+     */
+    @Test
+    public void search_excludeAliasMemberAndAlias_otherMemberSurvives() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse httpResponse = restClient.get("*,-index_a1,-alias_ab/_search?size=1000&expand_wildcards=all");
+            assertThat(httpResponse,
+                    containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3,
+                            index_b1, index_c1, ds_hidden, searchGuardIndices(), esInternalIndices())
+                            .at("hits.hits[*]._index").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
 
@@ -1199,7 +1223,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("_alias");
             assertThat(httpResponse,
-                    containsExactly(alias_ab1.dataOnly(), alias_c1.dataOnly()).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+                    containsExactly(alias_ab1.dataOnly(), alias_c1.dataOnly(), alias_ab.dataOnly()).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
             // Interestingly, this API does not return data streams without aliases - while it returns indices without aliases
             assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), index_c1, index_a1, index_b1, searchGuardIndices()).at("$.keys()")
                     .but(user.indexMatcher("get_alias")).whenEmpty(200));
@@ -1222,8 +1246,8 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("_alias/alias_ab*?pretty");
             log.info("Rest response status code '{}' and body {}", httpResponse.getStatusCode(), httpResponse.getBody());
-            assertThat(httpResponse, containsExactly(alias_ab1.dataOnly()).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
-            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly()).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(alias_ab1.dataOnly(), alias_ab.dataOnly()).at("$.*.aliases.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
+            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), index_a1, index_b1).at("$.keys()").but(user.indexMatcher("get_alias")).whenEmpty(200));
         }
     }
 
@@ -1356,7 +1380,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     public void resolve_wildcard() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_resolve/index/*");
-            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(), index_c1.dataOnly(), index_a1.dataOnly(), index_b1.dataOnly(), alias_ab1.dataOnly(), alias_c1.dataOnly()).at("$.*[*].name")
+            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(), index_c1.dataOnly(), index_a1.dataOnly(), index_b1.dataOnly(), alias_ab1.dataOnly(), alias_c1.dataOnly(), alias_ab.dataOnly()).at("$.*[*].name")
                     .but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
@@ -1380,7 +1404,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
                 // The query is related to the failure stores only. We need a matcher in the scope of data because query results at "$.*[*].name"
                 // contain base names like ds_a1, ds_a2, ds_a3, without an indication that the object is related to the failure store.
                 assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(),
-                        ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(), alias_ab1.dataOnly(), alias_c1).at("$.*[*].name")
+                        ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(), alias_ab1.dataOnly(), alias_c1, alias_ab).at("$.*[*].name")
                         .but(user.indexMatcher("read")).whenEmpty(200));
             }
             assertThat(httpResponse,
@@ -1397,7 +1421,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
     public void resolve_wildcard_dataAccess() throws Exception {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("/_resolve/index/*::data");
-            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(), index_c1.dataOnly(), index_a1.dataOnly(), index_b1.dataOnly(), alias_ab1.dataOnly(), alias_c1.dataOnly()).at("$.*[*].name")
+            assertThat(httpResponse, containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(), index_c1.dataOnly(), index_a1.dataOnly(), index_b1.dataOnly(), alias_ab1.dataOnly(), alias_c1.dataOnly(), alias_ab.dataOnly()).at("$.*[*].name")
                     .but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
@@ -1414,7 +1438,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
                             // which would never match any response entry. Data streams don't have this problem because their .fs-*
                             // backing indices appear in indices[*].name when expand_wildcards=all.
                             index_c1, index_a1, index_b1, alias_ab1.dataOnly(),
-                            alias_c1, ds_hidden, searchGuardIndices(),
+                            alias_c1, alias_ab, ds_hidden, searchGuardIndices(),
                             esInternalIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
@@ -1441,7 +1465,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
                         containsExactly(ds_a1.dataOnly(), ds_a2.dataOnly(), ds_a3.dataOnly(), ds_b1.dataOnly(), ds_b2.dataOnly(), ds_b3.dataOnly(),
                                 ds_hidden.dataOnly(), esInternalIndices()).at("$.data_streams[*].name").but(user.indexMatcher("read")).whenEmpty(200));
                 assertThat(httpResponse,
-                        containsExactly(alias_ab1.dataOnly(), alias_c1).at("$.aliases[*].name").but(user.indexMatcher("get_alias")).whenEmpty(200));
+                        containsExactly(alias_ab1.dataOnly(), alias_c1, alias_ab).at("$.aliases[*].name").but(user.indexMatcher("get_alias")).whenEmpty(200));
                 assertThat(httpResponse, containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly()).at("$.aliases[*].indices")
                         .but(user.indexMatcher("get_alias")).whenEmpty(200));
                 assertThat(httpResponse, containsExactly(ds_a1.failureOnly(), ds_a2.failureOnly(), ds_a3.failureOnly(), ds_b1.failureOnly(), ds_b2.failureOnly(), ds_b3.failureOnly(), ds_hidden.failureOnly()).at("$.data_streams[*].backing_indices")
@@ -1458,7 +1482,7 @@ public class DataStreamFailureStoreAuthorizationReadOnlyIntTests {
                     containsExactly(ds_a1, ds_a2, ds_a3, ds_b1, ds_b2, ds_b3,
                             // alias_ab1.dataOnly() — see comment in resolve_wildcard_includeHidden for explanation
                             index_c1, index_a1, index_b1, alias_ab1.dataOnly(),
-                            alias_c1, ds_hidden, searchGuardIndices(),
+                            alias_c1, alias_ab, ds_hidden, searchGuardIndices(),
                             esInternalIndices()).at("$.*[*].name").but(user.indexMatcher("read")).whenEmpty(200));
         }
     }
