@@ -153,8 +153,8 @@
         </dependency>
 
         <dependency>
-          <groupId>com.floragunn.dependencies.org.opensaml</groupId>
-          <artifactId>opensaml-xmlsec-impl-patched</artifactId>
+          <groupId>org.opensaml</groupId>
+          <artifactId>opensaml-xmlsec-impl</artifactId>
         </dependency>
 
       </dependencies>
@@ -302,9 +302,9 @@
         </dependency>
 
         <dependency>
-          <groupId>com.floragunn.dependencies.org.opensaml</groupId>
-          <artifactId>opensaml-xmlsec-impl-patched</artifactId>
-          <version>${opensaml.patch.version}</version>
+          <groupId>org.opensaml</groupId>
+          <artifactId>opensaml-xmlsec-impl</artifactId>
+          <version>${opensaml.version}</version>
         </dependency>
       </dependencies>
       <build>
