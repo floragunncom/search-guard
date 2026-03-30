@@ -55,11 +55,12 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManagerFactory;
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletInputStream;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.ReadListener;
+import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.ServletInputStream;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -154,9 +155,9 @@ import org.w3c.dom.Document;
 import com.floragunn.searchguard.test.helper.cluster.FileHelper;
 import com.floragunn.searchguard.test.helper.network.PortAllocator;
 
-import net.shibboleth.utilities.java.support.codec.Base64Support;
-import net.shibboleth.utilities.java.support.codec.EncodingException;
-import net.shibboleth.utilities.java.support.component.ComponentInitializationException;
+import net.shibboleth.shared.codec.Base64Support;
+import net.shibboleth.shared.codec.EncodingException;
+import net.shibboleth.shared.component.ComponentInitializationException;
 
 class MockSamlIdpServer implements Closeable {
 
@@ -356,7 +357,7 @@ class MockSamlIdpServer implements Closeable {
 
             HTTPRedirectDeflateDecoder decoder = new HTTPRedirectDeflateDecoder();
             decoder.setParserPool(XMLObjectProviderRegistrySupport.getParserPool());
-            decoder.setHttpServletRequest(httpServletRequest);
+            decoder.setHttpServletRequestSupplier(() -> httpServletRequest);
             decoder.initialize();
             decoder.decode();
 
@@ -389,7 +390,7 @@ class MockSamlIdpServer implements Closeable {
 
             HTTPRedirectDeflateDecoder decoder = new HTTPRedirectDeflateDecoder();
             decoder.setParserPool(XMLObjectProviderRegistrySupport.getParserPool());
-            decoder.setHttpServletRequest(httpServletRequest);
+            decoder.setHttpServletRequestSupplier(() -> httpServletRequest);
             decoder.initialize();
             decoder.decode();
 
@@ -538,7 +539,7 @@ class MockSamlIdpServer implements Closeable {
 
         NameIDFormat nameIdFormat = createSamlElement(NameIDFormat.class);
 
-        nameIdFormat.setFormat("urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified");
+        nameIdFormat.setURI("urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified");
 
         return nameIdFormat;
     }
@@ -582,7 +583,7 @@ class MockSamlIdpServer implements Closeable {
     private AuthnContext createAuthnCotext() {
         AuthnContext authnContext = createSamlElement(AuthnContext.class);
         AuthnContextClassRef authnContextClassRef = createSamlElement(AuthnContextClassRef.class);
-        authnContextClassRef.setAuthnContextClassRef(AuthnContext.UNSPECIFIED_AUTHN_CTX);
+        authnContextClassRef.setURI(AuthnContext.UNSPECIFIED_AUTHN_CTX);
         authnContext.setAuthnContextClassRef(authnContextClassRef);
         return authnContext;
     }
@@ -784,6 +785,20 @@ class MockSamlIdpServer implements Closeable {
 
                     public void close() throws IOException {
                         in.close();
+                    }
+
+                    @Override
+                    public boolean isFinished() {
+                        return false;
+                    }
+
+                    @Override
+                    public boolean isReady() {
+                        return true;
+                    }
+
+                    @Override
+                    public void setReadListener(ReadListener readListener) {
                     }
                 };
             } else {
@@ -1064,6 +1079,81 @@ class MockSamlIdpServer implements Closeable {
         @Override
         public boolean isUserInRole(String arg0) {
             return false;
+        }
+
+        @Override
+        public long getContentLengthLong() {
+            return getContentLength();
+        }
+
+        @Override
+        public jakarta.servlet.ServletContext getServletContext() {
+            return null;
+        }
+
+        @Override
+        public jakarta.servlet.AsyncContext startAsync() throws IllegalStateException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public jakarta.servlet.AsyncContext startAsync(jakarta.servlet.ServletRequest servletRequest, jakarta.servlet.ServletResponse servletResponse) throws IllegalStateException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean isAsyncStarted() {
+            return false;
+        }
+
+        @Override
+        public boolean isAsyncSupported() {
+            return false;
+        }
+
+        @Override
+        public jakarta.servlet.AsyncContext getAsyncContext() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public jakarta.servlet.DispatcherType getDispatcherType() {
+            return jakarta.servlet.DispatcherType.REQUEST;
+        }
+
+        @Override
+        public String changeSessionId() {
+            return null;
+        }
+
+        @Override
+        public boolean authenticate(jakarta.servlet.http.HttpServletResponse response) throws IOException, jakarta.servlet.ServletException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void login(String username, String password) throws jakarta.servlet.ServletException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void logout() throws jakarta.servlet.ServletException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public java.util.Collection<jakarta.servlet.http.Part> getParts() throws IOException, jakarta.servlet.ServletException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public jakarta.servlet.http.Part getPart(String name) throws IOException, jakarta.servlet.ServletException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <T extends jakarta.servlet.http.HttpUpgradeHandler> T upgrade(Class<T> handlerClass) throws IOException, jakarta.servlet.ServletException {
+            throw new UnsupportedOperationException();
         }
     }
 
