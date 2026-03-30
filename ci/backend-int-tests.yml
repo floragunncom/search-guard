@@ -81,7 +81,11 @@ signals_2:
 .be_integration_test:
   allow_failure: false
   stage: "Backend Int Tests Core"
-  needs: ["build"]
+  needs:
+    - job: build
+      optional: true
+    - job: build_release
+      optional: true
   tags:
     - test-large
   rules:
@@ -113,6 +117,17 @@ signals_2:
        rm -f docker/elasticsearch/search-guard.zip
        cp -a ../../plugin/target/releases/search-guard-flx-elasticsearch-plugin-${SNAPSHOT_REVISION}.zip docker/elasticsearch/search-guard.zip
        ./run_test_definition.sh "$TEST_DEFINITIONS"
+  after_script:
+    - |
+      if [ -n "$KEEP_TEST_ARTIFACTS" ]; then
+        echo "KEEP_TEST_ARTIFACTS is set - skipping artifact cleanup"
+      elif [ "$CI_JOB_STATUS" == "success" ]; then
+        echo "Job succeeded - removing heavy artifacts, keeping JUnit XML only"
+        find sgi8/client/test/testresults* -type f ! -path "*/junit/*.xml" -delete 2>/dev/null || true
+        find sgi8/client/test/testresults* -type d -empty -delete 2>/dev/null || true
+      else
+        echo "Job failed - keeping all artifacts for debugging"
+      fi
   artifacts:
     when: always
     paths:
@@ -120,4 +135,4 @@ signals_2:
     reports:
       junit:
         - "sgi8/client/test/testresults**/junit/Test*.xml"
-    expire_in: 30 days
+    expire_in: 7 days
