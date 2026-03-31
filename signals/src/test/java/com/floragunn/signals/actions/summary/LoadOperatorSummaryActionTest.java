@@ -1860,6 +1860,25 @@ public class LoadOperatorSummaryActionTest {
         });
     }
 
+    @Test
+    public void shouldGetSummaryUsingGlobalTenantName() throws Exception {
+        PredefinedWatches predefinedWatches = new PredefinedWatches(cluster, USER_ADMIN, "_main");
+        predefinedWatches.defineTemperatureSeverityWatch("temperature-alerts-global-tenant", INDEX_NAME_WATCHED_1, INDEX_ALARMS, .25, "createAlarm");
+        try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
+            await().until(() -> predefinedWatches.countWatchStatusWithAvailableStatusCode(INDEX_SIGNALS_WATCHES_STATE) > 0);
+
+            HttpResponse response = restClient.postJson("/_signals/watch/SGS_GLOBAL_TENANT/summary", EMPTY_JSON_BODY);
+
+            log.info("Watch summary response body '{}'.", response.getBody());
+            assertThat(response.getStatusCode(), equalTo(SC_OK));
+            DocNode body = response.getBodyAsDocNode();
+            assertThat(body, docNodeSizeEqualTo("data.watches", 1));
+            assertThat(body, containsValue("data.watches[0].watch_id", "temperature-alerts-global-tenant"));
+        } finally {
+            predefinedWatches.deleteWatches();
+        }
+    }
+
     private static void waitForWatchStatuses(PredefinedWatches predefinedWatches, int expectedNumberOfWatchStatuses) {
         await().pollDelay(500, MILLISECONDS)//
             .until(() -> predefinedWatches.countWatchStatusWithAvailableStatusCode(INDEX_SIGNALS_WATCHES_STATE) >= //
