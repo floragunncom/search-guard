@@ -68,6 +68,8 @@ build:
   rules:
     - if: "$DOCKER_ONLY"
       when: never
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: never
     - when: on_success
   script:
     - |
@@ -83,7 +85,7 @@ build:
     paths:
       - "plugin/target/releases/"
       - "snapshot.env"
-    expire_in: 1 week
+    expire_in: 1 day
     reports:
       dotenv: snapshot.env
   cache:
@@ -91,6 +93,16 @@ build:
     paths:
       - .m2/repository
     policy: push
+
+build_release:
+  extends: build
+  rules:
+    - if: "$DOCKER_ONLY"
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: on_success
+  artifacts:
+    expire_in: 1 week
 
 deploy_release:
   allow_failure: false
