@@ -6,6 +6,7 @@ check_frontend_prerequisites:
   image: "$SG_BUILD_IMAGE"
   needs:
     - job: build
+      optional: true
   artifacts:
     reports:
       dotenv: frontend-int-test.env      
@@ -49,6 +50,7 @@ frontend_int_tests:
     - when: on_success
   needs:
     - job: build
+      optional: true
     - job: check_frontend_prerequisites
       artifacts: true
   variables:
