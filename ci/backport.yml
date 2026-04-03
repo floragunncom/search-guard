@@ -3,9 +3,10 @@ backport_automation:
   image: floragunncom/python-toolbox:251218
   stage: post_merge
   rules:
+    - if: '$CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: never
     - if: '$CI_PIPELINE_SOURCE == "push"'
       when: always
-      # &&  $CI_COMMIT_TITLE =~ /^Merge branch.*/dd
   before_script:
     - |
       if [ -z "${GITLAB_TOKEN}" ]; then
