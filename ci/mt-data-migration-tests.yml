@@ -6,11 +6,14 @@ Please set DATA_DIR_ARCHIVE_NAME:
   image: "$SG_BUILD_IMAGE"
   needs:
     - job: build
+      optional: true
   artifacts:
     reports:
       dotenv: mt-data-migration-test.env    
   rules:
-    - when: manual      
+    - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-UT.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/ || $CI_COMMIT_TAG =~ /^sg-flx-.*/'
+      when: never
+    - when: manual
   script:
     - |
       PLUGIN_ARIFACT_URL=$(ci/artifact_uri.sh search-guard-flx-snapshot search-guard-flx-elasticsearch-plugin "${CI_COMMIT_REF_SLUG}-SNAPSHOT" .zip)
@@ -63,6 +66,7 @@ mt_data_migration_tests:
     - when: on_success
   needs:
     - job: build
+      optional: true
     - job: Please set DATA_DIR_ARCHIVE_NAME
       artifacts: true
   variables:
