@@ -18,7 +18,7 @@
  */
 /*
  * Includes code from https://github.com/opensearch-project/security/blob/721e7e2c7dd31992f3ab0280e631774c5efe7b14/src/main/java/com/amazon/opendistroforelasticsearch/security/ssl/DefaultOpenDistroSecurityKeyStore.java
- * which is Copyright OpenSearch Contributors
+ * which is Copyright OpenSearch Contributors. Please check GitHub history for details.
  */
 
 package com.floragunn.searchguard.ssl;
