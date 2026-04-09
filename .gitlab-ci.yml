@@ -13,7 +13,6 @@ variables:
   MAVEN_CLI_OPTS: "--batch-mode -s settings.xml -U"
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
-  AIKIDO_BASE_BRANCH: main-es8
 
   GIT_DEPTH: 10
 
@@ -53,7 +52,6 @@ stages:
   - build
   - "Backend Unit Tests"
   - "Backend Int Tests Core"
-  - "Aikido Scan"
   - release
   - "Deploy Docker Image"
 
@@ -61,7 +59,6 @@ include:
   - local: '.gitlab-ci-branch-specific.yml'
   - local: 'ci/backend-unit-tests.yml'
   - local: 'ci/backend-int-tests.yml'
-  - local: 'ci/aikido.yml'
 
 
 build:
