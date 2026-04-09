@@ -47,14 +47,20 @@ public class TestCertificates {
     private final ImmutableList<TestCertificate> nodeCertificates;
     private final ImmutableList<TestCertificate> clientCertificates;
     private final File resources;
+    // Nullable — present only when EKU transport mode is configured
+    private final TestCertificate serverTransportCertificate;
+    private final TestCertificate clientTransportCertificate;
 
     private TestCertificates(TestCertificate caCertificate, List<TestCertificate> nodeCertificates, List<TestCertificate> clientCertificates,
-            TestCertificateFactory testCertificateFactory, File resources) {
+            TestCertificateFactory testCertificateFactory, File resources, TestCertificate serverTransportCertificate,
+            TestCertificate clientTransportCertificate) {
         this.caCertificate = caCertificate;
         this.nodeCertificates = ImmutableList.of(nodeCertificates);
         this.clientCertificates = ImmutableList.of(clientCertificates);
         this.testCertificateFactory = testCertificateFactory;
         this.resources = resources;
+        this.serverTransportCertificate = serverTransportCertificate;
+        this.clientTransportCertificate = clientTransportCertificate;
     }
 
     public File getCaKeyFile() {
@@ -120,7 +126,9 @@ public class TestCertificates {
 
     public TestCertificates at(File directory) {
         return new TestCertificates(caCertificate.at(directory), nodeCertificates.map(c -> c.at(directory)),
-                clientCertificates.map(c -> c.at(directory)), testCertificateFactory, directory);
+                clientCertificates.map(c -> c.at(directory)), testCertificateFactory, directory,
+                serverTransportCertificate != null ? serverTransportCertificate.at(directory) : null,
+                clientTransportCertificate != null ? clientTransportCertificate.at(directory) : null);
     }
 
     public Settings getSgSettings() {
@@ -128,18 +136,35 @@ public class TestCertificates {
 
         Settings.Builder result = Settings.builder();
 
-        result.put("searchguard.ssl.transport.pemcert_filepath", certificate.getCertificateFile().getAbsolutePath());
-        result.put("searchguard.ssl.transport.pemkey_filepath", certificate.getPrivateKeyFile().getAbsolutePath());
-        if (certificate.getPrivateKeyPassword() != null) {
-            result.put("searchguard.ssl.transport.pemkey_password", certificate.getPrivateKeyPassword());
+        // When addEkuTransportCerts() was called on the builder, both EKU cert fields are non-null.
+        // Their presence is the signal to emit EKU-mode transport settings instead of the legacy
+        // single-cert transport path.
+        if (serverTransportCertificate != null && clientTransportCertificate != null) {
+            result.put("searchguard.ssl.transport.extended_key_usage_enabled", true);
+            result.put("searchguard.ssl.transport.server_pemcert_filepath", serverTransportCertificate.getCertificateFile().getAbsolutePath());
+            result.put("searchguard.ssl.transport.server_pemkey_filepath", serverTransportCertificate.getPrivateKeyFile().getAbsolutePath());
+            result.put("searchguard.ssl.transport.server_pemtrustedcas_filepath", getCaCertFile().getAbsolutePath());
+            result.put("searchguard.ssl.transport.client_pemcert_filepath", clientTransportCertificate.getCertificateFile().getAbsolutePath());
+            result.put("searchguard.ssl.transport.client_pemkey_filepath", clientTransportCertificate.getPrivateKeyFile().getAbsolutePath());
+            result.put("searchguard.ssl.transport.client_pemtrustedcas_filepath", getCaCertFile().getAbsolutePath());
+            result.putList("searchguard.nodes_dn",
+                    serverTransportCertificate.getCertificate().getSubject().toString(),
+                    clientTransportCertificate.getCertificate().getSubject().toString());
+        } else {
+            result.put("searchguard.ssl.transport.pemcert_filepath", certificate.getCertificateFile().getAbsolutePath());
+            result.put("searchguard.ssl.transport.pemkey_filepath", certificate.getPrivateKeyFile().getAbsolutePath());
+            if (certificate.getPrivateKeyPassword() != null) {
+                result.put("searchguard.ssl.transport.pemkey_password", certificate.getPrivateKeyPassword());
+            }
+            result.put("searchguard.ssl.transport.pemtrustedcas_filepath", getCaCertFile().getAbsolutePath());
         }
+
         result.put("searchguard.ssl.http.pemcert_filepath", certificate.getCertificateFile().getAbsolutePath());
         result.put("searchguard.ssl.http.pemkey_filepath", certificate.getPrivateKeyFile().getAbsolutePath());
         if (certificate.getPrivateKeyPassword() != null) {
             result.put("searchguard.ssl.http.pemkey_password", certificate.getPrivateKeyPassword());
         }
         result.putList("searchguard.authcz.admin_dn", getAdminCertificate().getCertificate().getSubject().toString());
-        result.put("searchguard.ssl.transport.pemtrustedcas_filepath", getCaCertFile().getAbsolutePath());
         result.put("searchguard.ssl.http.pemtrustedcas_filepath", getCaCertFile().getAbsolutePath());
         result.put("searchguard.ssl.http.enabled", true);
 
@@ -168,6 +193,8 @@ public class TestCertificates {
         private final List<TestCertificate> nodesCertificates = new ArrayList<>();
         private final List<TestCertificate> clientsCertificates = new ArrayList<>();
         private final File resources;
+        private TestCertificate serverTransportCertificate;
+        private TestCertificate clientTransportCertificate;
 
         public TestCertificatesBuilder(TestCertificateFactory testCertificateFactory) {
             this.testCertificateFactory = testCertificateFactory;
@@ -183,7 +210,37 @@ public class TestCertificates {
             if (nodesCertificates.isEmpty()) {
                 addNodes(DEFAULT_ONE_NODE_DN);
             }
-            return new TestCertificates(caCertificate, nodesCertificates, clientsCertificates, testCertificateFactory, resources);
+            return new TestCertificates(caCertificate, nodesCertificates, clientsCertificates, testCertificateFactory, resources,
+                    serverTransportCertificate, clientTransportCertificate);
+        }
+
+        /**
+         * Creates a dedicated pair of transport certificates for EKU (Extended Key Usage) split mode:
+         * a {@code serverAuth}-only cert used for inbound connections and a {@code clientAuth}-only
+         * cert used for outbound connections. Both certs carry the node OID {@code 1.2.3.4.5.5} in
+         * their SAN so they are recognised as cluster-node identities.
+         * <p>
+         * Calling this method causes {@link TestCertificates#getSgSettings()} to emit the EKU-mode
+         * transport settings ({@code extended_key_usage_enabled=true}, separate {@code server_*} /
+         * {@code client_*} PEM paths, and {@code nodes_dn}) instead of the legacy single-cert path.
+         */
+        public TestCertificatesBuilder addEkuTransportCerts(String serverDn, String clientDn) {
+            validateCaCertificate();
+
+            CertificateWithKeyPair serverPair = testCertificateFactory.createNodeCertificateWithCustomEku(serverDn,
+                    certificatesDefaults.validityDays, certificatesDefaults.nodeOid, Collections.emptyList(),
+                    Collections.singletonList("127.0.0.1"), caCertificate.getCertificate(),
+                    caCertificate.getKeyPair().getPrivate(), new KeyPurposeId[] { KeyPurposeId.id_kp_serverAuth });
+            CertificateWithKeyPair clientPair = testCertificateFactory.createNodeCertificateWithCustomEku(clientDn,
+                    certificatesDefaults.validityDays, certificatesDefaults.nodeOid, Collections.emptyList(),
+                    Collections.singletonList("127.0.0.1"), caCertificate.getCertificate(),
+                    caCertificate.getKeyPair().getPrivate(), new KeyPurposeId[] { KeyPurposeId.id_kp_clientAuth });
+
+            this.serverTransportCertificate = new TestCertificate(serverPair.getCertificate(), serverPair.getKeyPair(),
+                    null, CertificateType.node_transport, resources);
+            this.clientTransportCertificate = new TestCertificate(clientPair.getCertificate(), clientPair.getKeyPair(),
+                    null, CertificateType.node_transport, resources);
+            return this;
         }
 
         public TestCertificatesBuilder defaults(Function<CertificatesDefaults, CertificatesDefaults> defaultsFunction) {
