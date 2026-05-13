@@ -52,7 +52,10 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
 import org.elasticsearch.features.NodeFeature;
+import java.util.Collection;
+
 import org.elasticsearch.plugins.ActionPlugin;
+import org.elasticsearch.plugins.ActionPlugin.RestHandlersServices;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
@@ -241,9 +244,8 @@ public class ResourceOwnerServiceTests {
         }
 
         @Override
-        public List<RestHandler> getRestHandlers(Settings settings, NamedWriteableRegistry namedWriteableRegistry, RestController restController, ClusterSettings clusterSettings,
-                                                 IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-                                                 Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
+        public Collection<RestHandler> getRestHandlers(RestHandlersServices restHandlersServices, Supplier<DiscoveryNodes> nodesInCluster,
+                                                       Predicate<NodeFeature> clusterSupportsFeature) {
             return Arrays.asList(
                     new SimpleRestHandler<>(new Route(Method.POST, "/{index}/_async_search"), MockSubmitTransportAction.TYPE,
                             (request) -> new MockSubmitActionRequest(request.param("index"))),

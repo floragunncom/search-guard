@@ -46,6 +46,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.plugins.ActionPlugin;
+import org.elasticsearch.plugins.ActionPlugin.RestHandlersServices;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
@@ -93,9 +94,8 @@ public class SearchGuardInterceptorIntegrationTests {
             return Arrays.asList(actionHandler(MockTransportAction.TYPE, MockTransportAction.class));
         }
         @Override
-        public List<RestHandler> getRestHandlers(Settings settings, NamedWriteableRegistry namedWriteableRegistry, RestController restController, ClusterSettings clusterSettings,
-                                                 IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-                                                 Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
+        public Collection<RestHandler> getRestHandlers(RestHandlersServices restHandlersServices, Supplier<DiscoveryNodes> nodesInCluster,
+                                                       Predicate<NodeFeature> clusterSupportsFeature) {
             return Arrays.asList(new SimpleRestHandler<>(new Route(Method.GET, "/_header_test"), MockTransportAction.TYPE,
                     (request) -> new MockActionRequest(request.param("id"))));
         }
