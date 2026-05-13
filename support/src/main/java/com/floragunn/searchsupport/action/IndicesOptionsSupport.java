@@ -25,7 +25,8 @@ public class IndicesOptionsSupport {
                     .concreteTargetOptions(IndicesOptions.ConcreteTargetOptions.ERROR_WHEN_UNAVAILABLE_TARGETS)
                     .wildcardOptions(
             IndicesOptions.WildcardOptions.builder()
-                    .resolveAliases(true)
+                    // TODO investigate method removal
+//                    .resolveAliases(true)
                     .matchClosed(false)
                     .includeHidden(false)
                     .allowEmptyExpressions(false)

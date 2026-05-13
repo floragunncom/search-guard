@@ -65,11 +65,10 @@ import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.ClusterSettings;
-import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.settings.SettingsFilter;
+import org.elasticsearch.plugins.ActionPlugin.RestHandlersServices;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.PageCacheRecycler;
@@ -398,16 +397,16 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
     }
 
     @Override
-    public List<RestHandler> getRestHandlers(Settings settings, NamedWriteableRegistry namedWriteableRegistry, RestController restController, ClusterSettings clusterSettings,
-                                             IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-                                             Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
+    public Collection<RestHandler> getRestHandlers(RestHandlersServices restHandlersServices, Supplier<DiscoveryNodes> nodesInCluster,
+                                                   Predicate<NodeFeature> clusterSupportsFeature) {
+        Settings settings = restHandlersServices.settings();
+        RestController restController = restHandlersServices.restController();
 
         final List<RestHandler> handlers = new ArrayList<RestHandler>();
 
         if (!disabled) {
 
-            handlers.addAll(super.getRestHandlers(settings, namedWriteableRegistry, restController, clusterSettings, indexScopedSettings, settingsFilter,
-                    indexNameExpressionResolver, nodesInCluster, clusterSupportsFeature));
+            handlers.addAll(super.getRestHandlers(restHandlersServices, nodesInCluster, clusterSupportsFeature));
 
             if (!sslOnly) {
                 handlers.add(
@@ -448,8 +447,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             }
 
             handlers.add(new MockHasPrivilegesAction(threadPool));
-            handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings, settingsFilter,
-                    indexNameExpressionResolver, scriptService, nodesInCluster, clusterSupportsFeature));
+            handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, scriptService, nodesInCluster, clusterSupportsFeature));
         }
 
         return handlers;

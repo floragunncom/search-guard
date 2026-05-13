@@ -38,6 +38,11 @@ public class LocalClusterAliasExtractor {
                 }
 
                 @Override
+                public long position() {
+                    return 0;
+                }
+
+                @Override
                 public void writeByte(byte b) throws IOException {
 
                 }
