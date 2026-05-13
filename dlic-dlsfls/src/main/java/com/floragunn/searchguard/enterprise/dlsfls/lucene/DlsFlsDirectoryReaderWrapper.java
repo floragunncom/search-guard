@@ -128,6 +128,7 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
             if (dlsRestriction.isUnrestricted()) {
                 dlsQuery = null;
             } else {
+                // TODO: verify if null is correct for requestSize and shardSearchStats (new params in ES 9.4.0)
                 SearchExecutionContext queryShardContext = this.indexService.newSearchExecutionContext(shardId.getId(), 0, null, nowSupplier(config),
                         null, Collections.emptyMap(), null, null);
 
