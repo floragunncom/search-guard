@@ -98,7 +98,7 @@ public class SgAwarePluginsService extends PluginsService {
                 false,
                 true,
                 false,
-                PluginDescriptor.DeploymentTarget.ALL); // TODO check usage of value DeploymentTarget.ALL
+                PluginDescriptor.DeploymentTarget.ALL);
     }
 
     /**
