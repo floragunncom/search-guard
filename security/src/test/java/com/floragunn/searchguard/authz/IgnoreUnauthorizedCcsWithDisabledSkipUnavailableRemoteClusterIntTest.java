@@ -7,7 +7,9 @@ import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.matches;
+import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -20,7 +22,10 @@ import org.junit.runners.Parameterized.Parameters;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestAlias;
+import com.floragunn.searchguard.test.TestComponentTemplate;
+import com.floragunn.searchguard.test.TestDataStream;
 import com.floragunn.searchguard.test.TestIndex;
+import com.floragunn.searchguard.test.TestIndexTemplate;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
@@ -68,11 +73,37 @@ public class IgnoreUnauthorizedCcsWithDisabledSkipUnavailableRemoteClusterIntTes
     static TestAlias xalias_coord_ab1 = new TestAlias("xalias_ab1", index_coord_a1, index_coord_a2, index_coord_b1);
     static TestAlias xalias_remote_ab1 = new TestAlias("xalias_ab1", index_remote_a1, index_remote_a2, index_remote_b1);
 
+    static TestDataStream ds_remote_a1 = TestDataStream.name("ds_a1").documentCount(10).rolloverAfter(5).seed(100)
+            .failureStoreEnabled(true).failureDocumentCount(2).build();
+
+    static TestSgConfig.User LIMITED_USER_COORD_DS_A_WITH_FS = new TestSgConfig.User("limited_user_ds_A_with_fs").roles(//
+            new Role("limited_user_ds_a_with_fs_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO")//
+                    .dataStreamPermissions("SGS_READ", "SGS_FAILURE_STORE_ACCESS").on("ds_a*"));
+
+    static TestSgConfig.User LIMITED_USER_REMOTE_DS_A_WITH_FS = new TestSgConfig.User("limited_user_ds_A_with_fs").roles(//
+            new Role("limited_user_ds_a_with_fs_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO")//
+                    .dataStreamPermissions("SGS_READ", "SGS_FAILURE_STORE_ACCESS", "indices:admin/search/search_shards",
+                            "indices:admin/shards/search_shards", "indices:admin/resolve/cluster").on("ds_a*"));
+
+    static TestSgConfig.User LIMITED_USER_COORD_DS_A_NO_FS = new TestSgConfig.User("limited_user_ds_A_no_fs").roles(//
+            new Role("limited_user_ds_a_no_fs_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO")//
+                    .dataStreamPermissions("SGS_READ").on("ds_a*"));
+
+    static TestSgConfig.User LIMITED_USER_REMOTE_DS_A_NO_FS = new TestSgConfig.User("limited_user_ds_A_no_fs").roles(//
+            new Role("limited_user_ds_a_no_fs_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO")//
+                    .dataStreamPermissions("SGS_READ", "indices:admin/search/search_shards", "indices:admin/shards/search_shards",
+                            "indices:admin/resolve/cluster").on("ds_a*"));
+
     @ClassRule
     public static LocalCluster anotherCluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
-            .nodeSettings("searchguard.diagnosis.action_stack.enabled", true).users(LIMITED_USER_REMOTE_A, LIMITED_USER_REMOTE_B, UNLIMITED_USER)//
+            .nodeSettings("searchguard.diagnosis.action_stack.enabled", true)
+            .users(LIMITED_USER_REMOTE_A, LIMITED_USER_REMOTE_B, UNLIMITED_USER, LIMITED_USER_REMOTE_DS_A_WITH_FS, LIMITED_USER_REMOTE_DS_A_NO_FS)//
             .indices(index_remote_a1, index_remote_a2, index_remote_b1, index_remote_b2, index_remote_r1)//
             .aliases(xalias_remote_ab1)//
+            .componentTemplates(TestComponentTemplate.DATA_STREAM_MINIMAL)//
+            .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
+            .dataStreams(ds_remote_a1)//
+            .useExternalProcessCluster()
             .build();
 
     @Parameter
@@ -86,7 +117,8 @@ public class IgnoreUnauthorizedCcsWithDisabledSkipUnavailableRemoteClusterIntTes
     @ClassRule
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
             .remote("my_remote", anotherCluster).nodeSettings("searchguard.diagnosis.action_stack.enabled", true)
-            .nodeSettings("cluster.remote.my_remote.skip_unavailable", false).users(LIMITED_USER_COORD_A, LIMITED_USER_COORD_B, UNLIMITED_USER)//
+            .nodeSettings("cluster.remote.my_remote.skip_unavailable", false)
+            .users(LIMITED_USER_COORD_A, LIMITED_USER_COORD_B, UNLIMITED_USER, LIMITED_USER_COORD_DS_A_WITH_FS, LIMITED_USER_COORD_DS_A_NO_FS)//
             .indices(index_coord_a1, index_coord_a2, index_coord_b1, index_coord_b2, index_coord_c1)//
             .aliases(xalias_coord_ab1)//
             .embedded().build();
@@ -111,6 +143,25 @@ public class IgnoreUnauthorizedCcsWithDisabledSkipUnavailableRemoteClusterIntTes
     @Test
     public void search_staticIndices() throws Exception {
         String query = "my_remote:b1/_search?size=1000&" + ccsMinimizeRoundtrips;
+
+        try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
+            HttpResponse httpResponse = restClient.get(query);
+
+            Assert.assertThat(httpResponse, isOk());
+            Assert.assertThat(httpResponse, json(distinctNodesAt("hits.hits[*]._index", containsInAnyOrder("my_remote:b1"))));
+        }
+
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_A)) {
+            HttpResponse httpResponse = restClient.get(query);
+
+            Assert.assertThat(httpResponse, isForbidden());
+        }
+
+    }
+
+    @Test
+    public void search_staticIndices_withDataComponentSelector() throws Exception {
+        String query = "my_remote:b1::data/_search?size=1000&" + ccsMinimizeRoundtrips;
 
         try (GenericRestClient restClient = cluster.getRestClient(UNLIMITED_USER)) {
             HttpResponse httpResponse = restClient.get(query);
@@ -172,6 +223,32 @@ public class IgnoreUnauthorizedCcsWithDisabledSkipUnavailableRemoteClusterIntTes
 
             Assert.assertThat(httpResponse, isOk());
             Assert.assertThat(httpResponse, json(distinctNodesAt("responses[*].error.type", containsInAnyOrder("security_exception"))));
+        }
+    }
+
+    @Test
+    public void search_remoteDataStreamFailureStore_authorized() throws Exception {
+        String query = "my_remote:ds_a1::failures/_search?size=1000&" + ccsMinimizeRoundtrips;
+
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_DS_A_WITH_FS)) {
+            HttpResponse httpResponse = restClient.get(query);
+
+            Assert.assertThat(httpResponse, isOk());
+            // containsExactly(ds_remote_a1.failureOnly()).at("hits.hits[*]._index") cannot be used here because CCS
+            // prefixes _index with the cluster alias (my_remote:.fs-ds_a1-...), bypassing the .fs- pattern detection
+            // in ContainsExactlyMatcher. Instead, verify the exact failure document count.
+            Assert.assertThat(httpResponse, json(nodeAt("hits.total.value", equalTo(ds_remote_a1.getFailureDocumentCount()))));
+        }
+    }
+
+    @Test
+    public void search_remoteDataStreamFailureStore_unauthorized() throws Exception {
+        String query = "my_remote:ds_a1::failures/_search?size=1000&" + ccsMinimizeRoundtrips;
+
+        try (GenericRestClient restClient = cluster.getRestClient(LIMITED_USER_COORD_DS_A_NO_FS)) {
+            HttpResponse httpResponse = restClient.get(query);
+
+            Assert.assertThat(httpResponse, isForbidden());
         }
     }
 }

@@ -375,6 +375,13 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             for (TestIndex index : this.testIndices) {
                 index.create(client);
             }
+            if (!this.testDataStreams.isEmpty()) {
+                String message = """
+                        Local in process cluster does not support data streams during integration tests
+                        use .useExternalProcessCluster() to run data stream tests
+                        """;
+                throw new IllegalArgumentException(message);
+            }
             for (TestAlias alias : this.testAliases) {
                 alias.create(client);
             }
