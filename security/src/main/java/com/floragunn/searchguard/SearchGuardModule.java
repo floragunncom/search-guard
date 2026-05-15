@@ -60,9 +60,7 @@ import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchsupport.StaticSettings;
 
 public interface SearchGuardModule {
-    default List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
-            IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
+    default List<RestHandler> getRestHandlers(RestHandlerDependencies restHandlerDependencies) {
         return Collections.emptyList();
     }
 
@@ -159,5 +157,17 @@ public interface SearchGuardModule {
     @FunctionalInterface
     interface QueryCacheWeightProvider {
         Weight apply(Index index, Weight weight, QueryCachingPolicy policy);
+    }
+
+    record RestHandlerDependencies(
+            Settings settings,
+            RestController restController,
+            ClusterSettings clusterSettings,
+            IndexScopedSettings indexScopedSettings,
+            SettingsFilter settingsFilter,
+            IndexNameExpressionResolver indexNameExpressionResolver,
+            ScriptService scriptService,
+            Supplier<DiscoveryNodes> nodesInCluster,
+            Predicate<NodeFeature> clusterSupportsFeature) {
     }
 }

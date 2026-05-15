@@ -215,9 +215,7 @@ public class FeMultiTenancyModule implements SearchGuardModule, ComponentStatePr
     }
 
     @Override
-    public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
-            IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
+    public List<RestHandler> getRestHandlers(SearchGuardModule.RestHandlerDependencies dependencies) {
         return ImmutableList.of(FeMultiTenancyConfigApi.REST_API, DataMigrationApi.REST_API);
     }
 
