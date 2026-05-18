@@ -6,7 +6,6 @@ import java.security.PrivilegedAction;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import org.elasticsearch.SpecialPermission;
 
 public class ReflectiveAttributeAccessors {
     public static <O> Function<O, Object> objectAttr(String name) {
@@ -49,7 +48,6 @@ public class ReflectiveAttributeAccessors {
             final SecurityManager sm = System.getSecurityManager();
 
             if (sm != null) {
-                sm.checkPermission(new SpecialPermission());
             }
 
             return AccessController.doPrivileged((PrivilegedAction<R>) () -> {
@@ -86,7 +84,6 @@ public class ReflectiveAttributeAccessors {
             final SecurityManager sm = System.getSecurityManager();
 
             if (sm != null) {
-                sm.checkPermission(new SpecialPermission());
             }
 
             return AccessController.doPrivileged((PrivilegedAction<R>) () -> {
@@ -125,7 +122,6 @@ public class ReflectiveAttributeAccessors {
             final SecurityManager sm = System.getSecurityManager();
 
             if (sm != null) {
-                sm.checkPermission(new SpecialPermission());
             }
 
             return AccessController.doPrivileged((PrivilegedAction<Void>) () -> {

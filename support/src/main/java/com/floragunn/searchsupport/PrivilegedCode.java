@@ -23,7 +23,7 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.function.Supplier;
 
-import org.elasticsearch.SpecialPermission;
+
 
 public class PrivilegedCode {
 
@@ -31,7 +31,6 @@ public class PrivilegedCode {
         SecurityManager sm = System.getSecurityManager();
 
         if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
         }
 
         return AccessController.doPrivileged(new PrivilegedAction<R>() {
@@ -46,7 +45,6 @@ public class PrivilegedCode {
         SecurityManager sm = System.getSecurityManager();
 
         if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
         }
 
         AccessController.doPrivileged(new PrivilegedAction<Void>() {
@@ -62,7 +60,6 @@ public class PrivilegedCode {
         SecurityManager sm = System.getSecurityManager();
 
         if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
         }
 
         try {
@@ -88,7 +85,6 @@ public class PrivilegedCode {
         SecurityManager sm = System.getSecurityManager();
 
         if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
         }
 
         try {
@@ -116,7 +112,6 @@ public class PrivilegedCode {
         SecurityManager sm = System.getSecurityManager();
 
         if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
         }
 
         try {
@@ -145,7 +140,6 @@ public class PrivilegedCode {
         SecurityManager sm = System.getSecurityManager();
 
         if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
         }
 
         try {
