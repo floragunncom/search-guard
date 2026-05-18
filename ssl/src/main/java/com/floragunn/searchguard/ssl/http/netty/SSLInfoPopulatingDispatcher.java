@@ -27,7 +27,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -145,7 +144,6 @@ public class SSLInfoPopulatingDispatcher implements HttpServerTransport.Dispatch
                     final SecurityManager sm = System.getSecurityManager();
 
                     if (sm != null) {
-                        sm.checkPermission(new SpecialPermission());
                     }
 
                     validationFailure = AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> !validate(x509CertsF, settings, configPath));
