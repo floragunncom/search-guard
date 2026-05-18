@@ -297,6 +297,7 @@ SGS_KIBANA_SERVER:
   - "cluster:admin/transform/start"
   - "cluster:admin/ingest/pipeline/get"
   - "cluster:admin/script*"
+  - "cluster:admin/streams/logs/toggle"
   index_permissions:
   - index_patterns:
     - ".kibana"
@@ -375,6 +376,7 @@ SGS_KIBANA_SERVER:
         - ".workflows-execution-data-stream-logs"
         - "logs*"
         - ".slo-observability.*"
+        - ".workflows-events"
       allowed_actions:
         - "*"
 
