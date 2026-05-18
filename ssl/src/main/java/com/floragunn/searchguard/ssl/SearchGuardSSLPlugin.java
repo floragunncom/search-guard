@@ -35,7 +35,6 @@ import com.floragunn.searchguard.ssl.http.netty.SSLInfoPopulatingDispatcher;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -142,7 +141,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
             if (!rejectClientInitiatedRenegotiation) {
 
                 if (sm != null) {
-                    sm.checkPermission(new SpecialPermission());
                 }
 
                 AccessController.doPrivileged(new PrivilegedAction<Object>() {
@@ -161,7 +159,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         }
 
         if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
         }
 
         //TODO check initialize native netty open ssl libs still neccessary
