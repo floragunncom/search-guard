@@ -159,7 +159,7 @@ public class SearchGuardModulesRegistry {
             ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
         List<RestHandler> result = new ArrayList<>();
         SearchGuardModule.RestHandlerDependencies dependencies = new SearchGuardModule.RestHandlerDependencies(settings, restController, clusterSettings,
-                indexScopedSettings, settingsFilter, indexNameExpressionResolver, scriptService, nodesInCluster, clusterSupportsFeature);
+                 scriptService, nodesInCluster, clusterSupportsFeature);
 
         for (SearchGuardModule module : modules) {
             result.addAll(module.getRestHandlers(dependencies));
