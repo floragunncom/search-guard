@@ -447,7 +447,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             }
 
             handlers.add(new MockHasPrivilegesAction(threadPool));
-            handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, scriptService, nodesInCluster, clusterSupportsFeature));
+            handlers.addAll(moduleRegistry.getRestHandlers(settings, restController, clusterService.getClusterSettings(), scriptService, nodesInCluster, clusterSupportsFeature));
         }
 
         return handlers;
