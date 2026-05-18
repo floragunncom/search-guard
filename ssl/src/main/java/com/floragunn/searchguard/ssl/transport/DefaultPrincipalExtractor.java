@@ -32,7 +32,6 @@ import javax.security.auth.x500.X500Principal;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.SpecialPermission;
 
 public class DefaultPrincipalExtractor implements PrincipalExtractor {
 
@@ -47,7 +46,6 @@ public class DefaultPrincipalExtractor implements PrincipalExtractor {
         final SecurityManager sm = System.getSecurityManager();
 
         if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
         }
 
         String dnString = AccessController.doPrivileged(new PrivilegedAction<String>() {
