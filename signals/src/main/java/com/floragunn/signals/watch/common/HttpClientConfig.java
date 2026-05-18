@@ -28,7 +28,6 @@ import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
-import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.validation.ConfigValidationException;
@@ -100,7 +99,6 @@ public class HttpClientConfig extends WatchElement {
             SecurityManager sm = System.getSecurityManager();
 
             if (sm != null) {
-                sm.checkPermission(new SpecialPermission());
             }
 
             return AccessController.doPrivileged((PrivilegedExceptionAction<HttpClient>) () -> new HttpClient(clientBuilder.build()));
