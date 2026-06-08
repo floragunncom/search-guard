@@ -32,12 +32,9 @@ import org.apache.lucene.search.Weight;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.support.ActionFilter;
-import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.settings.ClusterSettings;
-import org.elasticsearch.common.settings.IndexScopedSettings;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.core.CheckedFunction;
 import org.elasticsearch.features.NodeFeature;
 import org.elasticsearch.index.Index;
@@ -60,9 +57,7 @@ import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchsupport.StaticSettings;
 
 public interface SearchGuardModule {
-    default List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
-            IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
+    default List<RestHandler> getRestHandlers(RestHandlerDependencies restHandlerDependencies) {
         return Collections.emptyList();
     }
 
@@ -159,5 +154,14 @@ public interface SearchGuardModule {
     @FunctionalInterface
     interface QueryCacheWeightProvider {
         Weight apply(Index index, Weight weight, QueryCachingPolicy policy);
+    }
+
+    record RestHandlerDependencies(
+            Settings settings,
+            RestController restController,
+            ClusterSettings clusterSettings,
+            ScriptService scriptService,
+            Supplier<DiscoveryNodes> nodesInCluster,
+            Predicate<NodeFeature> clusterSupportsFeature) {
     }
 }
