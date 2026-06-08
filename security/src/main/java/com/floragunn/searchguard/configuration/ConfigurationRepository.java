@@ -114,6 +114,8 @@ import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.xcontent.XContentParserContext;
 
+import static org.elasticsearch.common.xcontent.ChunkedToXContentObject.wrapAsToXContentObject;
+
 public class ConfigurationRepository implements ComponentStateProvider {
     private static final Logger LOGGER = LogManager.getLogger(ConfigurationRepository.class);
 
@@ -580,7 +582,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                         .actionGet();
 
                 if (searchResponse.getHits().getHits().length == 0) {
-                    throw new Exception("Search request returned too few entries: " + Strings.toString(searchResponse));
+                    throw new Exception("Search request returned too few entries: " + Strings.toString(wrapAsToXContentObject(searchResponse)));
                 }
             } catch (Exception e) {
                 LOGGER.error("Error while reading data from existing index for migration", e);
@@ -1120,7 +1122,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             }
 
             if (bulkResponse.hasFailures()) {
-                LOGGER.error("Index update finished with errors:\n" + Strings.toString(bulkResponse));
+                LOGGER.error("Index update finished with errors:\n" + Strings.toString(wrapAsToXContentObject(bulkResponse)));
 
                 List<String> documentIdsWithVersionConflictEngineException = getDocumentIdsWithVersionConflictEngineException(bulkResponse);
 
@@ -1138,7 +1140,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                     throw new ConfigUpdateException("Updating the configuration failed", bulkResponse).updateResult(result);
                 }
             } else {
-                LOGGER.info("Index update done:\n{}", Strings.toString(bulkResponse));
+                LOGGER.info("Index update done:\n{}", Strings.toString(wrapAsToXContentObject(bulkResponse)));
                 LOGGER.info("Sending config update request");
                 
                 try {
