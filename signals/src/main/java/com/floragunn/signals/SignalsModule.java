@@ -122,10 +122,12 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
     }
 
     @Override
-    public List<RestHandler> getRestHandlers(Settings settings, RestController controller, ClusterSettings clusterSettings,
-            IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
+    public List<RestHandler> getRestHandlers(SearchGuardModule.RestHandlerDependencies restHandlerDependencies) {
         if (enabled) {
+            Settings settings = restHandlerDependencies.settings();
+            RestController controller = restHandlerDependencies.restController();
+            ScriptService scriptService = restHandlerDependencies.scriptService();
+            Predicate<NodeFeature> clusterSupportsFeature = restHandlerDependencies.clusterSupportsFeature();
             return Arrays.asList(new WatchApiAction(settings), new ExecuteWatchApiAction(settings, scriptService, this.signals),
                     new DeActivateWatchAction(settings, controller), new AckWatchApiAction(settings, controller), new SearchWatchApiAction(settings, clusterSupportsFeature),
                     new AccountApiAction(settings, controller), new SearchAccountApiAction(clusterSupportsFeature), new WatchStateApiAction(settings, controller),

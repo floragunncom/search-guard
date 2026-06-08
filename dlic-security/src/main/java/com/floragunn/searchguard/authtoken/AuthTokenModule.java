@@ -79,9 +79,8 @@ public class AuthTokenModule implements SearchGuardModule, ComponentStateProvide
     private AuthTokenAuthenticationDomain authenticationDomain;
 
     @Override
-    public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
-            IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
+    public List<RestHandler> getRestHandlers(SearchGuardModule.RestHandlerDependencies dependencies) {
+        Predicate<NodeFeature> clusterSupportsFeature = dependencies.clusterSupportsFeature();
         return Arrays.asList(new AuthTokenRestAction(), new SearchAuthTokenRestAction(clusterSupportsFeature), new AuthTokenInfoRestAction(),
                 AuthTokenServiceConfigApi.REST_API);
     }
