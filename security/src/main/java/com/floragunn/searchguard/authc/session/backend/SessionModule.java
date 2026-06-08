@@ -66,9 +66,7 @@ public class SessionModule implements SearchGuardModule, ComponentStateProvider 
     private final ComponentState componentState = new ComponentState(2, "authc", "session_service", SessionModule.class);
 
     @Override
-    public List<RestHandler> getRestHandlers(Settings settings, RestController restController, ClusterSettings clusterSettings,
-            IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-            ScriptService scriptService, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
+    public List<RestHandler> getRestHandlers(SearchGuardModule.RestHandlerDependencies dependencies) {
         return Arrays.asList(sessionRestAction, SessionServiceConfigApi.REST_API);
     }
 
