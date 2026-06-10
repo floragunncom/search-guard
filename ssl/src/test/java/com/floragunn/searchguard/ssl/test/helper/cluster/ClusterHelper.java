@@ -65,6 +65,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static com.floragunn.searchsupport.Constants.DEFAULT_MASTER_TIMEOUT;
+import static org.elasticsearch.common.xcontent.ChunkedToXContentObject.wrapAsToXContentObject;
 
 public final class ClusterHelper {
 
@@ -301,11 +302,11 @@ public final class ClusterHelper {
 
                 //System.out.println("-- Time out while waiting for test cluster --");
                 log.error(Strings.toString(healthResponse));
-                log.error(Strings.toString(client.execute(TransportPendingClusterTasksAction.TYPE, new PendingClusterTasksRequest(masterNodeTimeout)).actionGet()));
-                log.error(Strings.toString(client.admin().indices().getIndex(new GetIndexRequest(DEFAULT_MASTER_TIMEOUT).includeDefaults(true).features(GetIndexRequest.Feature.MAPPINGS)).actionGet()));
-                log.error(Strings.toString(client.admin().indices().stats(new IndicesStatsRequest().all()).actionGet()));
+                log.error(Strings.toString(wrapAsToXContentObject(client.execute(TransportPendingClusterTasksAction.TYPE, new PendingClusterTasksRequest(masterNodeTimeout)).actionGet())));
+                log.error(Strings.toString(wrapAsToXContentObject(client.admin().indices().getIndex(new GetIndexRequest(DEFAULT_MASTER_TIMEOUT).includeDefaults(true).features(GetIndexRequest.Feature.MAPPINGS)).actionGet())));
+                log.error(Strings.toString(wrapAsToXContentObject(client.admin().indices().stats(new IndicesStatsRequest().all()).actionGet())));
                 log.error(Strings.toString(client.admin().cluster().nodesInfo(new NodesInfoRequest()).actionGet()));
-                log.error(Strings.toString(client.admin().cluster().nodesStats(new NodesStatsRequest()).actionGet()));
+                log.error(Strings.toString(wrapAsToXContentObject(client.admin().cluster().nodesStats(new NodesStatsRequest()).actionGet())));
 
 
                 throw new IOException(
