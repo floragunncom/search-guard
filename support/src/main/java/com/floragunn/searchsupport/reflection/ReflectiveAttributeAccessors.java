@@ -45,10 +45,6 @@ public class ReflectiveAttributeAccessors {
 
         @Override
         public R apply(O object) {
-            final SecurityManager sm = System.getSecurityManager();
-
-            if (sm != null) {
-            }
 
             return AccessController.doPrivileged((PrivilegedAction<R>) () -> {
                 if (object == null) {
@@ -81,10 +77,6 @@ public class ReflectiveAttributeAccessors {
 
         @Override
         public R apply(O object) {
-            final SecurityManager sm = System.getSecurityManager();
-
-            if (sm != null) {
-            }
 
             return AccessController.doPrivileged((PrivilegedAction<R>) () -> {
                 if (object == null) {
@@ -119,10 +111,6 @@ public class ReflectiveAttributeAccessors {
 
         @Override
         public Void apply(O object, R value) {
-            final SecurityManager sm = System.getSecurityManager();
-
-            if (sm != null) {
-            }
 
             return AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
                 if (object == null) {

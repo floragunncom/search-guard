@@ -73,11 +73,6 @@ public class SnapshotRestoreHelper {
     }
 
     private static void setCurrentThreadName(final String name) {
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-        }
-
         AccessController.doPrivileged(new PrivilegedAction<Object>() {
             @Override
             public Object run() {
