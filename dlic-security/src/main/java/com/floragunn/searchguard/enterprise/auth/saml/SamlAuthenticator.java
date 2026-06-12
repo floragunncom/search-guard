@@ -354,10 +354,6 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, AutoCloseab
 
     private SamlResponse createSamlResponse(Saml2Settings saml2Settings, String acsEndpoint, String samlResponseBase64,
             Map<String, Object> debugDetails) throws ValidationError {
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-        }
 
         try {
             return AccessController.doPrivileged((PrivilegedExceptionAction<SamlResponse>) () -> {

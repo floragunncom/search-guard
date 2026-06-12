@@ -59,10 +59,6 @@ public class StaticMetadataResolver extends AbstractBatchMetadataResolver {
     }
 
     public void initializePrivileged() throws ComponentInitializationException {
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-        }
 
         try {
             AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {

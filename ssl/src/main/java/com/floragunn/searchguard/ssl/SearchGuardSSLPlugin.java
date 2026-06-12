@@ -130,7 +130,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         final boolean rejectClientInitiatedRenegotiation = Boolean
                 .parseBoolean(System.getProperty(SSLConfigConstants.JDK_TLS_REJECT_CLIENT_INITIATED_RENEGOTIATION));
 
-        SecurityManager sm = System.getSecurityManager();
         
         if (allowClientInitiatedRenegotiation && !rejectClientInitiatedRenegotiation) {
             final String renegoMsg = "Client side initiated TLS renegotiation enabled. This can open a vulnerablity for DoS attacks through client side initiated TLS renegotiation.";
@@ -139,9 +138,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
             System.err.println(renegoMsg);
         } else {
             if (!rejectClientInitiatedRenegotiation) {
-
-                if (sm != null) {
-                }
 
                 AccessController.doPrivileged(new PrivilegedAction<Object>() {
 
@@ -156,9 +152,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
             } else {
                 log.debug("Client side initiated TLS renegotiation already disabled.");
             }
-        }
-
-        if (sm != null) {
         }
 
         //TODO check initialize native netty open ssl libs still neccessary

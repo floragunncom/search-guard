@@ -43,11 +43,6 @@ public class DefaultPrincipalExtractor implements PrincipalExtractor {
             return null;
         }
 
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-        }
-
         String dnString = AccessController.doPrivileged(new PrivilegedAction<String>() {
             @Override
             public String run() {          

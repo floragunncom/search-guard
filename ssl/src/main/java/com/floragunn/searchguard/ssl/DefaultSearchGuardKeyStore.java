@@ -864,11 +864,6 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
 
     private SslContext buildSSLContext0(final SslContextBuilder sslContextBuilder) throws SSLException {
 
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-        }
-
         SslContext sslContext = null;
         try {
             sslContext = AccessController.doPrivileged(new PrivilegedExceptionAction<SslContext>() {

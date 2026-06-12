@@ -58,11 +58,6 @@ public class SignalsMailer {
 
     public void sendMail(Email email) throws MailException {
 
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-        }
-
         try {
             AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
                 @Override

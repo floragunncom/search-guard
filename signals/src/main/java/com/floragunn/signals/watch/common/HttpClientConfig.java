@@ -96,11 +96,6 @@ public class HttpClientConfig extends WatchElement {
         }
 
         try {
-            SecurityManager sm = System.getSecurityManager();
-
-            if (sm != null) {
-            }
-
             return AccessController.doPrivileged((PrivilegedExceptionAction<HttpClient>) () -> new HttpClient(clientBuilder.build()));
         } catch (PrivilegedActionException e) {
             throw new RuntimeException(e.getCause());

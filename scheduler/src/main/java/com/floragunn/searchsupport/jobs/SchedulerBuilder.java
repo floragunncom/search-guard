@@ -303,11 +303,6 @@ public class SchedulerBuilder<JobType extends JobConfig> {
     private ClassLoadHelper initClassLoadHelper() {
 
         try {
-            final SecurityManager sm = System.getSecurityManager();
-
-            if (sm != null) {
-            }
-
             return AccessController.doPrivileged((PrivilegedExceptionAction<ClassLoadHelper>) () -> {
                 ClassLoadHelper classLoaderHelper = new CascadingClassLoadHelper();
                 classLoaderHelper.initialize();

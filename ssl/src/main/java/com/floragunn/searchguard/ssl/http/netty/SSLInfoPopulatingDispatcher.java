@@ -141,11 +141,6 @@ public class SSLInfoPopulatingDispatcher implements HttpServerTransport.Dispatch
                     x509Certs = Arrays.copyOf(certs, certs.length, X509Certificate[].class);
                     final X509Certificate[] x509CertsF = x509Certs;
 
-                    final SecurityManager sm = System.getSecurityManager();
-
-                    if (sm != null) {
-                    }
-
                     validationFailure = AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> !validate(x509CertsF, settings, configPath));
 
                     if(validationFailure) {

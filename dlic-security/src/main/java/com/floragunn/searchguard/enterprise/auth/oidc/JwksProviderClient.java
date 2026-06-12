@@ -49,11 +49,6 @@ public class JwksProviderClient {
 
     public JsonWebKeys getJsonWebKeys(URI uri) throws AuthenticatorUnavailableException {
 
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-        }
-
         try {
             return AccessController.doPrivileged((PrivilegedExceptionAction<JsonWebKeys>) () -> getJsonWebKeysPrivileged(uri));
         } catch (PrivilegedActionException e) {

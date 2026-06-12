@@ -28,10 +28,6 @@ import java.util.function.Supplier;
 public class PrivilegedCode {
 
     public static <R> R execute(Supplier<R> supplier) {
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-        }
 
         return AccessController.doPrivileged(new PrivilegedAction<R>() {
             @Override
@@ -42,10 +38,6 @@ public class PrivilegedCode {
     }
     
     public static void execute(Runnable runnable) {
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-        }
 
         AccessController.doPrivileged(new PrivilegedAction<Void>() {
             @Override
@@ -57,10 +49,6 @@ public class PrivilegedCode {
     }
 
     public static <R, E1 extends Exception> R execute(PrivilegedSupplierThrowing1<R, E1> supplier, Class<E1> throws1) throws E1 {
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-        }
 
         try {
             return AccessController.doPrivileged(new PrivilegedExceptionAction<R>() {
@@ -82,10 +70,6 @@ public class PrivilegedCode {
 
     public static <R, E1 extends Exception, E2 extends Exception> R execute(PrivilegedSupplierThrowing2<R, E1, E2> supplier, Class<E1> throws1,
             Class<E2> throws2) throws E1, E2 {
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-        }
 
         try {
             return AccessController.doPrivileged(new PrivilegedExceptionAction<R>() {
@@ -109,10 +93,6 @@ public class PrivilegedCode {
 
     public static <R, E1 extends Exception, E2 extends Exception, E3 extends Exception> R execute(PrivilegedSupplierThrowing3<R, E1, E2, E3> supplier,
             Class<E1> throws1, Class<E2> throws2, Class<E3> throws3) throws E1, E2, E3 {
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-        }
 
         try {
             return AccessController.doPrivileged(new PrivilegedExceptionAction<R>() {
@@ -137,10 +117,6 @@ public class PrivilegedCode {
     }
 
     public static <E1 extends Exception> void execute(PrivilegedProcedureThrowing1<E1> procedure, Class<E1> throws1) throws E1 {
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-        }
 
         try {
             AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
