@@ -19,7 +19,6 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
-import org.elasticsearch.SpecialPermission;
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.io.UnmarshallingException;
 import org.opensaml.saml.metadata.resolver.filter.FilterException;
@@ -60,11 +59,6 @@ public class StaticMetadataResolver extends AbstractBatchMetadataResolver {
     }
 
     public void initializePrivileged() throws ComponentInitializationException {
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
 
         try {
             AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {

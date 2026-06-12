@@ -31,7 +31,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
-import org.elasticsearch.SpecialPermission;
 
 import com.floragunn.codova.config.net.ProxyConfig;
 import com.floragunn.codova.config.net.TLSConfig;
@@ -49,12 +48,6 @@ public class JwksProviderClient {
     }
 
     public JsonWebKeys getJsonWebKeys(URI uri) throws AuthenticatorUnavailableException {
-
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
 
         try {
             return AccessController.doPrivileged((PrivilegedExceptionAction<JsonWebKeys>) () -> getJsonWebKeysPrivileged(uri));

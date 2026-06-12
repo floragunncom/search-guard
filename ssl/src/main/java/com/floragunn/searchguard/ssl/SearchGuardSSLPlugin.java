@@ -35,7 +35,6 @@ import com.floragunn.searchguard.ssl.http.netty.SSLInfoPopulatingDispatcher;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.TransportVersion;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
@@ -131,7 +130,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
         final boolean rejectClientInitiatedRenegotiation = Boolean
                 .parseBoolean(System.getProperty(SSLConfigConstants.JDK_TLS_REJECT_CLIENT_INITIATED_RENEGOTIATION));
 
-        SecurityManager sm = System.getSecurityManager();
         
         if (allowClientInitiatedRenegotiation && !rejectClientInitiatedRenegotiation) {
             final String renegoMsg = "Client side initiated TLS renegotiation enabled. This can open a vulnerablity for DoS attacks through client side initiated TLS renegotiation.";
@@ -140,10 +138,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
             System.err.println(renegoMsg);
         } else {
             if (!rejectClientInitiatedRenegotiation) {
-
-                if (sm != null) {
-                    sm.checkPermission(new SpecialPermission());
-                }
 
                 AccessController.doPrivileged(new PrivilegedAction<Object>() {
 
@@ -158,10 +152,6 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
             } else {
                 log.debug("Client side initiated TLS renegotiation already disabled.");
             }
-        }
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
         }
 
         //TODO check initialize native netty open ssl libs still neccessary

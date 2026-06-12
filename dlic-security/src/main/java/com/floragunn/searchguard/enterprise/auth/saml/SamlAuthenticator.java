@@ -33,7 +33,6 @@ import javax.xml.xpath.XPathExpressionException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
 import org.opensaml.core.config.InitializationException;
 import org.opensaml.core.config.InitializationService;
@@ -355,11 +354,6 @@ public class SamlAuthenticator implements ApiAuthenticationFrontend, AutoCloseab
 
     private SamlResponse createSamlResponse(Saml2Settings saml2Settings, String acsEndpoint, String samlResponseBase64,
             Map<String, Object> debugDetails) throws ValidationError {
-        SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
 
         try {
             return AccessController.doPrivileged((PrivilegedExceptionAction<SamlResponse>) () -> {

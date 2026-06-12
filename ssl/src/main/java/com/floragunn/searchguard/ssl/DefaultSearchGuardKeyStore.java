@@ -54,7 +54,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
 
@@ -864,12 +863,6 @@ public class DefaultSearchGuardKeyStore implements SearchGuardKeyStore {
     }
 
     private SslContext buildSSLContext0(final SslContextBuilder sslContextBuilder) throws SSLException {
-
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
 
         SslContext sslContext = null;
         try {

@@ -24,7 +24,6 @@ import java.util.concurrent.CountDownLatch;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.SpecialPermission;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
@@ -74,12 +73,6 @@ public class SnapshotRestoreHelper {
     }
 
     private static void setCurrentThreadName(final String name) {
-        final SecurityManager sm = System.getSecurityManager();
-
-        if (sm != null) {
-            sm.checkPermission(new SpecialPermission());
-        }
-
         AccessController.doPrivileged(new PrivilegedAction<Object>() {
             @Override
             public Object run() {
