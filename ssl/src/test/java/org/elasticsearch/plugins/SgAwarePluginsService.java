@@ -88,7 +88,8 @@ public class SgAwarePluginsService extends PluginsService {
                 false,
                 false,
                 true,
-                false);
+                false,
+                PluginDescriptor.DeploymentTarget.ALL);
     }
 
     /**

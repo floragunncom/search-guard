@@ -129,7 +129,7 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
                 dlsQuery = null;
             } else {
                 SearchExecutionContext queryShardContext = this.indexService.newSearchExecutionContext(shardId.getId(), 0, null, nowSupplier(config),
-                        null, Collections.emptyMap());
+                        null, Collections.emptyMap(), null, null);
 
                 // no need for scoring here, so its possible to wrap this in a ConstantScoreQuery
                 dlsQuery = new ConstantScoreQuery(dlsRestriction.toQuery(queryShardContext, null));

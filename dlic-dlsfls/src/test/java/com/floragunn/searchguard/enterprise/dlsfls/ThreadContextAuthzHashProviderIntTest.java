@@ -55,7 +55,10 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsFilter;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.ChunkedToXContentObject;
+import java.util.Collection;
+
 import org.elasticsearch.plugins.ActionPlugin;
+import org.elasticsearch.plugins.ActionPlugin.RestHandlersServices;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.rest.RestController;
 import org.elasticsearch.rest.RestHandler;
@@ -156,7 +159,8 @@ public class ThreadContextAuthzHashProviderIntTest {
         }
 
         @Override
-        public List<RestHandler> getRestHandlers(Settings settings, NamedWriteableRegistry namedWriteableRegistry, RestController restController, ClusterSettings clusterSettings, IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
+        public Collection<RestHandler> getRestHandlers(RestHandlersServices restHandlersServices, Supplier<DiscoveryNodes> nodesInCluster,
+                                                       Predicate<NodeFeature> clusterSupportsFeature) {
             return Arrays.asList(new SimpleRestHandler<>(new Route(Method.POST, "/{index}/_mock"), MockTransportAction.TYPE,
                     (request) -> new MockActionNodesRequest(request.param("index"))));
         }

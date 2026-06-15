@@ -26,6 +26,7 @@ import org.elasticsearch.http.HttpBody;
 import org.elasticsearch.http.HttpRequest;
 import org.elasticsearch.http.HttpResponse;
 import org.elasticsearch.rest.ChunkedRestResponseBodyPart;
+import org.elasticsearch.rest.RequestParams;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.xcontent.XContentParserConfiguration;
@@ -34,7 +35,7 @@ public class MockRestRequest extends RestRequest {
     public MockRestRequest() {
         //NamedXContentRegistry xContentRegistry, Map<String, String> params, String path,
         //Map<String, List<String>> headers, HttpRequest httpRequest, HttpChannel httpChannel
-        super(XContentParserConfiguration.EMPTY, Collections.emptyMap(), "", Collections.emptyMap(), new HttpRequest() {
+        super(XContentParserConfiguration.EMPTY, RequestParams.empty(), "", Collections.emptyMap(), new HttpRequest() {
             @Override
             public Method method() {
                 return Method.GET;
@@ -103,7 +104,7 @@ public class MockRestRequest extends RestRequest {
     }
 
     public MockRestRequest(String uri, String jsonBody) {
-        super(XContentParserConfiguration.EMPTY, Collections.emptyMap(), uri, Collections.emptyMap(), new HttpRequest() {
+        super(XContentParserConfiguration.EMPTY, RequestParams.empty(), uri, Collections.emptyMap(), new HttpRequest() {
             final HttpBody body = HttpBody.fromBytesReference(BytesReference.fromByteBuffer(ByteBuffer.wrap(jsonBody.getBytes())));
             @Override
             public Method method() {
