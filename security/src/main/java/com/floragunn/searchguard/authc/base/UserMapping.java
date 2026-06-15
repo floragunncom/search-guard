@@ -40,6 +40,7 @@ import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.authc.AuthenticationDomain;
 import com.floragunn.searchguard.authc.CredentialsException;
 import com.floragunn.searchguard.authc.AuthenticationBackend.UserMapper;
+import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.google.common.base.Splitter;
@@ -397,7 +398,10 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
                     JsonPath jsonPath = entry.getValue();
                     Object value = JsonPath.using(attributePathConfiguration).parse(authCredentials.getAttributesForUserMapping()).read(jsonPath);
 
-                    result.with(entry.getKey(), value);
+                    // Normalize to plain, JDK-serializable types. Values read from the request headers are backed by
+                    // a non-serializable Netty collection, which would otherwise break inter-node serialization of the
+                    // User object (NotSerializableException: io.netty.handler.codec.HeadersUtils$1).
+                    result.with(entry.getKey(), Attributes.normalize(value));
                 } catch (PathNotFoundException e) {
                     if (log.isDebugEnabled()) {
                         log.debug("Attribute mapping path not found: " + entry, e);
