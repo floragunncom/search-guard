@@ -19,6 +19,8 @@ import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
 
+import static org.elasticsearch.common.xcontent.ChunkedToXContentObject.wrapAsToXContentObject;
+
 public class WatchStateIndexWriter implements WatchStateWriter<DocWriteResponse> {
     private static final Logger log = LogManager.getLogger(WatchStateIndexWriter.class);
 
@@ -77,7 +79,7 @@ public class WatchStateIndexWriter implements WatchStateWriter<DocWriteResponse>
             @Override
             public void onResponse(BulkResponse response) {
                 if (log.isDebugEnabled()) {
-                    log.debug("Updated " + idToStateMap.keySet() + "\n" + Strings.toString(response));
+                    log.debug("Updated " + idToStateMap.keySet() + "\n" + Strings.toString(wrapAsToXContentObject(response)));
                 }
             }
 

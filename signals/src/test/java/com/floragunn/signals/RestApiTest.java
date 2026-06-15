@@ -20,6 +20,7 @@ package com.floragunn.signals;
 import static com.floragunn.searchguard.test.TestSgConfig.Role.ALL_ACCESS;
 import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.containsValue;
 import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
+import static org.elasticsearch.common.xcontent.ChunkedToXContent.wrapAsToXContent;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.equalTo;
@@ -3186,7 +3187,7 @@ public class RestApiTest {
         SearchResponse response = client.search(request).get();
 
         try {
-            return Strings.toString(response.getHits());
+            return Strings.toString(wrapAsToXContent(response.getHits()));
         } finally {
             response.decRef();
         }

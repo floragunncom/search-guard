@@ -30,6 +30,8 @@ import com.floragunn.signals.support.InlineMustacheTemplate;
 import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.init.WatchInitializationService;
 
+import static org.elasticsearch.common.xcontent.ChunkedToXContentObject.wrapAsToXContentObject;
+
 public class IndexAction extends ActionHandler {
     private static final Logger log = LogManager.getLogger(IndexAction.class);
 
@@ -106,7 +108,7 @@ public class IndexAction extends ActionHandler {
                 BulkResponse response = ctx.getClient().bulk(bulkRequest).get();
 
                 if (log.isDebugEnabled()) {
-                    log.debug("Result of " + this + ":\n" + Strings.toString(response));
+                    log.debug("Result of " + this + ":\n" + Strings.toString(wrapAsToXContentObject(response)));
                 }
 
                 if (response.hasFailures()) {
