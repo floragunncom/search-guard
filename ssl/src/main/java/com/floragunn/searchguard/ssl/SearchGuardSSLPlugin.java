@@ -206,10 +206,7 @@ public class SearchGuardSSLPlugin extends Plugin implements ActionPlugin, Networ
     }
 
     @Override
-    public List<RestHandler> getRestHandlers(Settings settings, NamedWriteableRegistry namedWriteableRegistry, RestController restController, ClusterSettings clusterSettings,
-            IndexScopedSettings indexScopedSettings, SettingsFilter settingsFilter, IndexNameExpressionResolver indexNameExpressionResolver,
-            Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
-
+    public Collection<RestHandler> getRestHandlers(RestHandlersServices restHandlersServices, Supplier<DiscoveryNodes> nodesInCluster, Predicate<NodeFeature> clusterSupportsFeature) {
         final List<RestHandler> handlers = new ArrayList<RestHandler>(1);
 
         handlers.add(new SearchGuardSSLInfoAction(sgks));
