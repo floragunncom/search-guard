@@ -79,56 +79,9 @@ public class Attributes {
         validate(value, 0);
     }
 
-    /**
-     * Returns a deep copy of the given value that uses only plain, JDK-serializable types: {@link String},
-     * {@link Number}, {@link Boolean}, {@link Character}, {@link ArrayList} and {@link LinkedHashMap}.
-     * <p>
-     * User attribute values are stored in the {@link User} object, which is Java-serialized for inter-node transport
-     * (see {@code SearchGuardInterceptor.ensureCorrectHeaders}). Values extracted via JSON path may be backed by
-     * non-serializable implementation types - for example a value read from the request headers keeps a reference to
-     * a Netty-internal collection ({@code io.netty.handler.codec.HeadersUtils$1}). Storing such a value would later
-     * cause a {@code NotSerializableException} as soon as a request has to be dispatched to another node.
-     * <p>
-     * Normalizing here keeps the logical content identical (same scalars, same collection/map structure and order)
-     * while guaranteeing the value can be serialized. Any value whose type is none of the supported ones is converted
-     * to its {@link Object#toString()} representation.
-     */
-    public static Object normalize(Object value) {
-        return normalize(value, 0);
-    }
-
-    private static Object normalize(Object value, int depth) {
-        if (depth > 10) {
-            throw new IllegalArgumentException("Value exceeds max allowed nesting (or the value contains loops)");
-        }
-
-        if (value == null) {
-            return null;
-        } else if (value instanceof String || value instanceof Number || value instanceof Boolean || value instanceof Character) {
-            return value;
-        } else if (value instanceof Map) {
-            Map<?, ?> sourceMap = (Map<?, ?>) value;
-            LinkedHashMap<Object, Object> result = new LinkedHashMap<>(sourceMap.size());
-            for (Map.Entry<?, ?> entry : sourceMap.entrySet()) {
-                result.put(normalize(entry.getKey(), depth + 1), normalize(entry.getValue(), depth + 1));
-            }
-            return result;
-        } else if (value instanceof Collection) {
-            Collection<?> sourceCollection = (Collection<?>) value;
-            ArrayList<Object> result = new ArrayList<>(sourceCollection.size());
-            for (Object element : sourceCollection) {
-                result.add(normalize(element, depth + 1));
-            }
-            return result;
-        } else {
-            // TODO is this correct solution?
-            return value.toString();
-        }
-    }
-
     static void addAttributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source, Map<String, Object> target) {
         for (Map.Entry<String, JsonPath> entry : jsonPathMap.entrySet()) {
-            Object values = normalize(JsonPath.using(JSON_PATH_CONFIG).parse(source).read(entry.getValue()));
+            Object values = JsonPath.using(JSON_PATH_CONFIG).parse(source).read(entry.getValue());
             try {
                 Attributes.validate(values);
             } catch (IllegalArgumentException e) {
@@ -143,7 +96,7 @@ public class Attributes {
 
     static void addAttributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source, ImmutableMap.Builder<String, Object> target) {
         for (Map.Entry<String, JsonPath> entry : jsonPathMap.entrySet()) {
-            Object values = normalize(JsonPath.using(JSON_PATH_CONFIG).parse(source).read(entry.getValue()));
+            Object values = JsonPath.using(JSON_PATH_CONFIG).parse(source).read(entry.getValue());
             try {
                 Attributes.validate(values);
             } catch (IllegalArgumentException e) {
