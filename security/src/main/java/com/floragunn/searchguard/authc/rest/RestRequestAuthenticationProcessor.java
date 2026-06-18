@@ -23,6 +23,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import com.floragunn.searchguard.SignalsTenantParamResolver;
 import com.floragunn.searchguard.support.ConfigConstants;
@@ -132,9 +133,8 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
                 }
             }
 
-            Map<String, List<String>> headers = new HashMap<>(request.getHeaders());
             // list used in the map might cause difficulties during serialization. Therefore, list implementation is replaced
-            headers.replaceAll((key, values) -> List.copyOf(values));
+            ImmutableMap<String, List<String>> headers = ImmutableMap.of(request.getHeaders()).map(Function.identity(), List::copyOf);
             ac = ac.userMappingAttributes(ImmutableMap.of("request", ImmutableMap.of("headers", ImmutableMap.of(headers), "direct_ip_address",
                     String.valueOf(request.getDirectIpAddress()), "originating_ip_address", String.valueOf(request.getOriginatingIpAddress()))));
             return proceed(ac, authenticationDomain, onResult, onFailure);
