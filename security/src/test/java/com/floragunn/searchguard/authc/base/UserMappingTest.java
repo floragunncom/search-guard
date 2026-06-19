@@ -17,7 +17,12 @@
 
 package com.floragunn.searchguard.authc.base;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Arrays;
+import java.util.List;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -114,6 +119,30 @@ public class UserMappingTest {
         User user = userMapping.map(backendCredentials);
 
         Assert.assertEquals("cave", user.getName());
+    }
+
+    @Test
+    public void userWithAttributesMappedFromHeadersIsSerializable() throws Exception {
+        UserMapping userMapping = UserMapping.parse(
+                DocNode.of("attrs.from", DocNode.of("accesslog", "$.request.headers[\"x-proxy-attr-accesslog\"]")),
+                null);
+
+        AuthCredentials credentials = AuthCredentials.forUser("proxy-user")
+                .userMappingAttribute("request", ImmutableMap.of("headers", ImmutableMap.of("x-proxy-attr-accesslog", List.of("yes"))))
+                .build();
+
+        User user = userMapping.map(credentials);
+
+        byte[] serialized;
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream(); ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(user);
+            serialized = baos.toByteArray();
+        }
+
+        try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(serialized))) {
+            User deserialized = (User) ois.readObject();
+            Assert.assertEquals(List.of("yes"), deserialized.getStructuredAttributes().get("accesslog"));
+        }
     }
 
     @Test
