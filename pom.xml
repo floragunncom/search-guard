@@ -63,7 +63,7 @@
     <http.commons.version>4.5.14</http.commons.version>
     <opensaml.version>5.2.1</opensaml.version>
     <mockito.version>5.23.0</mockito.version>
-    <org.ow2.asm.version>9.9.1</org.ow2.asm.version>
+    <org.ow2.asm.version>9.10.1</org.ow2.asm.version>
 
     <!-- For mvn license:aggregate-add-third-party -->
     <license.excludedArtifacts>.*search-guard.*</license.excludedArtifacts>
