@@ -1,0 +1,131 @@
+# =============================================================================
+# GitLab CI/CD — Java (Maven) build + Trivy security scanning
+#
+# Stages:
+#   build       -> mvn package (so Trivy sees the full resolved dependency tree)
+#   scan        -> Trivy: vuln + secret + misconfig  (FAILS on HIGH/CRITICAL)
+#                  Trivy: license                     (report-only, never fails)
+#   image       -> build Docker image (dind)
+#   image-scan  -> Trivy image scan                   (FAILS on HIGH/CRITICAL)
+#
+# Free & self-hostable. Works on GitLab CE (self-managed).
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Hidden base job for all Trivy scans
+# -----------------------------------------------------------------------------
+.trivy:
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  cache:
+    key: "trivy-cache-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .trivycache
+  variables:
+    TRIVY_NO_PROGRESS: "true"
+    TRIVY_CACHE_DIR: "$CI_PROJECT_DIR/.trivycache"
+    # Severities that BLOCK the pipeline:
+    TRIVY_SEVERITY: "HIGH,CRITICAL"
+
+
+scan:build:
+  stage: "Scan Phase 1"
+  image: "$SG_BUILD_IMAGE"
+  script:
+    - mvn -Drevision=trivy $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean package
+  artifacts:
+    paths:
+      - target/          # jar + resolved deps -> consumed by scan + image jobs
+    expire_in: 1 hour
+  variables:
+    # --- Maven ---
+    MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+    MAVEN_CLI_OPTS: "--batch-mode --errors --show-version -DskipTests"
+
+# -----------------------------------------------------------------------------
+# 2a) Dependency vulns + secrets + IaC/Dockerfile misconfig  (BLOCKING)
+# -----------------------------------------------------------------------------
+scan:dependencies:
+  extends: .trivy
+  stage: "Scan Phase 1"
+  needs: ["scan:build"]
+  script:
+    # Human-readable output in the job log
+    - trivy fs
+        --scanners vuln,secret,misconfig
+        --severity $TRIVY_SEVERITY
+        --ignore-unfixed
+        --exit-code 0
+        --format table
+        .
+    # GitLab-native report for the MR "Security" widget (does not fail here)
+    - trivy fs
+        --scanners vuln
+        --format template --template "@/contrib/gitlab.tpl"
+        --output gl-dependency-scanning-report.json
+        .
+    # Enforcement pass: THIS fails the pipeline on HIGH/CRITICAL
+    - trivy fs
+        --scanners vuln,secret,misconfig
+        --severity $TRIVY_SEVERITY
+        --ignore-unfixed
+        --exit-code 1
+        .
+  artifacts:
+    when: always
+    reports:
+      dependency_scanning: gl-dependency-scanning-report.json
+    paths:
+      - gl-dependency-scanning-report.json
+
+# -----------------------------------------------------------------------------
+# 2b) License compliance  (REPORT-ONLY — license policy is org-specific)
+# -----------------------------------------------------------------------------
+#scan:licenses:
+#  extends: .trivy
+#  stage: scan
+#  needs: ["build"]
+#  allow_failure: true
+#  script:
+#    - trivy fs
+#        --scanners license
+#        --severity "UNKNOWN,MEDIUM,HIGH,CRITICAL"
+#        --format table
+#        --exit-code 0
+#        .
+#
+## -----------------------------------------------------------------------------
+## 3) Build the image AND scan it in ONE job.
+##    The image tarball stays local to the job workspace and is NEVER uploaded
+##    as a CI artifact -> the artifact size limit does not apply.
+## -----------------------------------------------------------------------------
+#build-and-scan:image:
+#  stage: image
+#  image: docker:24
+#  services:
+#    - docker:24-dind
+#  needs: ["build"]
+#  variables:
+#    DOCKER_TLS_CERTDIR: "/certs"
+#    TRIVY_VERSION: "0.58.0"
+#  cache:
+#    key: "$CI_COMMIT_REF_SLUG"
+#    paths:
+#      - .trivycache
+#  before_script:
+#    # Install the Trivy binary into the docker image
+#    - apk add --no-cache curl
+#    - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh
+#        | sh -s -- -b /usr/local/bin "v${TRIVY_VERSION}"
+#  script:
+#    - docker build -t "$IMAGE_TAG" .
+#    # Trivy talks to the dind daemon (DOCKER_HOST is set automatically) and
+#    # scans the freshly built image directly -- no tar file, no artifact.
+#    - trivy image
+#        --scanners vuln,secret,misconfig
+#        --severity $TRIVY_SEVERITY
+#        --ignore-unfixed
+#        --exit-code 1
+#        --format table
+#        "$IMAGE_TAG"

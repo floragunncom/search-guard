@@ -15,10 +15,10 @@
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
   cache:
-    key: mavenrepo-main-es8
+    key: "mavenrepo-$CI_COMMIT_REF_SLUG"
     paths:
       - .m2/repository
-    policy: pull    
+    policy: pull
 
 test_security:
   extends:

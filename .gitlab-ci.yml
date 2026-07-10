@@ -51,6 +51,7 @@ default:
 stages:
   - prepare
   - build
+  - "Scan Phase 1"
   - "Backend Unit Tests"
   - "Backend Int Tests Core"
   - "Frontend Int Tests"
@@ -66,6 +67,7 @@ include:
   - local: "ci/frontend-int-tests.yml"
   - local: "ci/mt-data-migration-tests.yml"
   - local: 'ci/backport.yml'
+  - local: 'ci/trivy.yml'
 
 build:
   image: "$SG_BUILD_IMAGE"
@@ -95,7 +97,7 @@ build:
     reports:
       dotenv: snapshot.env
   cache:
-    key: mavenrepo-main-es8
+    key: "mavenrepo-$CI_COMMIT_REF_SLUG"
     paths:
       - .m2/repository
     policy: push
