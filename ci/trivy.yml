@@ -41,7 +41,7 @@ scan:build:
     # Locate the aggregate SBOM (path varies on multi-module layouts) and copy
     # it to a fixed root path so the scan jobs always find it. Fails loudly if
     # no SBOM was produced.
-    - if [ -f target/bom.json ]; then BOM=target/bom.json; else BOM=$(find . -name bom.json | head -n1); fi; echo "Using SBOM: $BOM"; test -n "$BOM"; cp "$BOM" bom.json
+    - 'if [ -f target/bom.json ]; then BOM=target/bom.json; else BOM=$(find . -name bom.json | head -n1); fi; echo "Using SBOM $BOM"; test -n "$BOM"; cp "$BOM" bom.json'
     - ls -la bom.json
   artifacts:
     paths:
