@@ -67,7 +67,7 @@ scan:vuln:
   stage: "Scan Phase 1"
   needs: ["scan:build"]
   script:
-    - test -s bom.json || { echo "ERROR: bom.json is missing/empty - check the build job"; exit 1; }
+    - 'test -s bom.json || { echo "ERROR: bom.json is missing/empty - check the build job"; exit 1; }'
     # GitLab-native report for the MR "Security" widget (does not fail here)
     - trivy sbom bom.json --format template --template "@/contrib/gitlab.tpl" --output gl-dependency-scanning-report.json
     # Enforcement pass: fails the pipeline on HIGH/CRITICAL
