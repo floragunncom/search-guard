@@ -33,44 +33,43 @@ scan:build:
   stage: "Scan Phase 1"
   image: "$SG_BUILD_IMAGE"
   script:
-    - mvn -Drevision=trivy $MAVEN_CLI_OPTS -Delasticsearch.version=$ES_VERSION -DskipTests clean package
+
+    - mvn $Drevision=trivy Delasticsearch.version=$ES_VERSION $MAVEN_CLI_OPTS package
+    # Generate a CycloneDX SBOM with FULLY RESOLVED versions straight from the
+    # build's local .m2 cache. Trivy scans this offline -> no remote Maven
+    # lookups, so no more 429 rate-limit / IP blocks.
+    - mvn $Drevision=trivy Delasticsearch.version=$ES_VERSION $MAVEN_CLI_OPTS org.cyclonedx:cyclonedx-maven-plugin:${CYCLONEDX_VERSION}:makeAggregateBom -DoutputFormat=json -DoutputName=bom
   artifacts:
     paths:
-      - target/          # jar + resolved deps -> consumed by scan + image jobs
+      # Only the SBOM is passed on -- a few hundred KB, well under any limit.
+      # makeAggregateBom writes ONE aggregate SBOM at the repo root covering
+      # every module of this multi-module build.
+      - target/bom.json
     expire_in: 1 hour
   variables:
     # --- Maven ---
     MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
     MAVEN_CLI_OPTS: "--batch-mode --errors --show-version -DskipTests"
+    CYCLONEDX_VERSION: "2.9.1"   # bump as needed
 
 # -----------------------------------------------------------------------------
 # 2a) Dependency vulns + secrets + IaC/Dockerfile misconfig  (BLOCKING)
 # -----------------------------------------------------------------------------
-scan:dependencies:
+scan:vuln:
   extends: .trivy
   stage: "Scan Phase 1"
   needs: ["scan:build"]
   script:
-    # Human-readable output in the job log
-    - trivy fs
-        --scanners vuln,secret,misconfig
-        --severity $TRIVY_SEVERITY
-        --ignore-unfixed
-        --exit-code 0
-        --format table
-        .
     # GitLab-native report for the MR "Security" widget (does not fail here)
-    - trivy fs
-        --scanners vuln
-        --format template --template "@/contrib/gitlab.tpl"
-        --output gl-dependency-scanning-report.json
-        .
+    - trivy sbom target/bom.json
+      --format template --template "@/contrib/gitlab.tpl"
+      --output gl-dependency-scanning-report.json
     # Enforcement pass: THIS fails the pipeline on HIGH/CRITICAL
-    - trivy fs
-        --scanners vuln,secret,misconfig
-        --severity $TRIVY_SEVERITY
-        --ignore-unfixed
-        --exit-code 1
+    - trivy sbom target/bom.json
+      --severity $TRIVY_SEVERITY
+      --ignore-unfixed
+      --exit-code 1
+      --format table
         .
   artifacts:
     when: always
@@ -78,6 +77,18 @@ scan:dependencies:
       dependency_scanning: gl-dependency-scanning-report.json
     paths:
       - gl-dependency-scanning-report.json
+
+scan:code:
+  extends: .trivy
+  stage: "Scan Phase 1"
+  needs: []          # runs immediately, in parallel with build
+  script:
+    - trivy fs
+      --scanners secret,misconfig
+      --severity $TRIVY_SEVERITY
+      --ignore-unfixed
+      --exit-code 1
+      --format table
 
 # -----------------------------------------------------------------------------
 # 2b) License compliance  (REPORT-ONLY — license policy is org-specific)
