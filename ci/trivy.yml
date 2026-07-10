@@ -27,6 +27,7 @@
     TRIVY_CACHE_DIR: "$CI_PROJECT_DIR/.trivycache"
     # Severities that BLOCK the pipeline:
     TRIVY_SEVERITY: "HIGH,CRITICAL"
+    TRIVY_QUIET: "true"
 
 
 scan:build:
@@ -118,7 +119,7 @@ build-and-scan:image:
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
     TRIVY_VERSION: "0.72.0"
-    IMAGE_TAG: "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+    IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
   cache:
     key: "$CI_COMMIT_REF_SLUG"
     paths:
