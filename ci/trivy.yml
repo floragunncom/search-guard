@@ -33,12 +33,11 @@ scan:build:
   stage: "Scan Phase 1"
   image: "$SG_BUILD_IMAGE"
   script:
-
-    - mvn $Drevision=trivy Delasticsearch.version=$ES_VERSION $MAVEN_CLI_OPTS package
+    - mvn -Drevision=trivy -Delasticsearch.version=$ES_VERSION $MAVEN_CLI_OPTS package
     # Generate a CycloneDX SBOM with FULLY RESOLVED versions straight from the
     # build's local .m2 cache. Trivy scans this offline -> no remote Maven
     # lookups, so no more 429 rate-limit / IP blocks.
-    - mvn $Drevision=trivy Delasticsearch.version=$ES_VERSION $MAVEN_CLI_OPTS org.cyclonedx:cyclonedx-maven-plugin:${CYCLONEDX_VERSION}:makeAggregateBom -DoutputFormat=json -DoutputName=bom
+    - mvn -Drevision=trivy -Delasticsearch.version=$ES_VERSION $MAVEN_CLI_OPTS org.cyclonedx:cyclonedx-maven-plugin:${CYCLONEDX_VERSION}:makeAggregateBom -DoutputFormat=json -DoutputName=bom
   artifacts:
     paths:
       # Only the SBOM is passed on -- a few hundred KB, well under any limit.
@@ -51,7 +50,12 @@ scan:build:
     MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
     MAVEN_CLI_OPTS: "--batch-mode --errors --show-version -DskipTests"
     CYCLONEDX_VERSION: "2.9.1"   # bump as needed
-
+  cache:
+    key: "mavenrepo-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .m2/repository
+    policy: pull
+    
 # -----------------------------------------------------------------------------
 # 2a) Dependency vulns + secrets + IaC/Dockerfile misconfig  (BLOCKING)
 # -----------------------------------------------------------------------------
@@ -77,8 +81,7 @@ scan:code:
   stage: "Scan Phase 1"
   needs: []          # runs immediately, in parallel with build
   script:
-    - trivy fs --scanners secret,misconfig --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table .
-
+    - trivy fs --scanners secret,misconfig --offline-scan --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table .
 # -----------------------------------------------------------------------------
 # 2b) License compliance  (REPORT-ONLY — license policy is org-specific)
 # -----------------------------------------------------------------------------
