@@ -32,14 +32,15 @@ default:
 
       if [ -z "$CI_COMMIT_TAG" ]; then
         if command -v xmlstarlet >/dev/null 2>&1; then
-          export ES_VERSION=$(xmlstarlet sel -t -m "/_:project/_:properties/_:elasticsearch.version" -v . pom.xml)
+          ES_VERSION=$(xmlstarlet sel -t -m "/_:project/_:properties/_:elasticsearch.version" -v . pom.xml)
         else
-          export ES_VERSION=$(grep -oP '(?<=<elasticsearch\.version>)[^<]+' pom.xml)
-            if ! [[ $ES_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              echo "Error: ES_VERSION '$ES_VERSION' does not match expected a.b.c format" >&2
-              exit 1
-            fi
+          ES_VERSION=$(sed -n 's:.*<elasticsearch\.version>\(.*\)</elasticsearch\.version>.*:\1:p' pom.xml)
+          if ! printf '%s' "$ES_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Error: ES_VERSION '$ES_VERSION' does not match expected a.b.c format" >&2
+            exit 1
+          fi
         fi
+        export ES_VERSION
         echo "No CI_COMMIT_TAG set, infer ES version from POM: $ES_VERSION";
         #no need to set SG_VERSION version here because its only used in the release job
       else

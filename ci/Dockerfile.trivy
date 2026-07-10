@@ -1,0 +1,7 @@
+ARG ES_VERSION
+
+FROM docker.elastic.co/elasticsearch/elasticsearch:${ES_VERSION} as base
+
+FROM base as flx
+COPY search-guard-flx-elasticsearch-plugin-trivy.zip plugin.zip
+RUN elasticsearch-plugin install --batch plugin.zip
