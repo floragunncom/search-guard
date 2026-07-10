@@ -61,15 +61,9 @@ scan:vuln:
   needs: ["scan:build"]
   script:
     # GitLab-native report for the MR "Security" widget (does not fail here)
-    - trivy sbom target/bom.json
-      --format template --template "@/contrib/gitlab.tpl"
-      --output gl-dependency-scanning-report.json
-    # Enforcement pass: THIS fails the pipeline on HIGH/CRITICAL
-    - trivy sbom target/bom.json
-      --severity $TRIVY_SEVERITY
-      --ignore-unfixed
-      --exit-code 1
-      --format table
+    - trivy sbom target/bom.json --format template --template "@/contrib/gitlab.tpl" --output gl-dependency-scanning-report.json
+    # Enforcement pass: fails the pipeline on HIGH/CRITICAL
+    - trivy sbom target/bom.json --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table
         .
   artifacts:
     when: always
@@ -83,12 +77,7 @@ scan:code:
   stage: "Scan Phase 1"
   needs: []          # runs immediately, in parallel with build
   script:
-    - trivy fs
-      --scanners secret,misconfig
-      --severity $TRIVY_SEVERITY
-      --ignore-unfixed
-      --exit-code 1
-      --format table
+    - trivy fs --scanners secret,misconfig --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table .
 
 # -----------------------------------------------------------------------------
 # 2b) License compliance  (REPORT-ONLY — license policy is org-specific)
