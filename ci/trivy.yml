@@ -38,12 +38,15 @@ scan:build:
     # build's local .m2 cache. Trivy scans this offline -> no remote Maven
     # lookups, so no more 429 rate-limit / IP blocks.
     - mvn -Drevision=trivy -Delasticsearch.version=$ES_VERSION $MAVEN_CLI_OPTS org.cyclonedx:cyclonedx-maven-plugin:${CYCLONEDX_VERSION}:makeAggregateBom -DoutputFormat=json -DoutputName=bom
+    # Locate the aggregate SBOM (path varies on multi-module layouts) and copy
+    # it to a fixed root path so the scan jobs always find it. Fails loudly if
+    # no SBOM was produced.
+    - if [ -f target/bom.json ]; then BOM=target/bom.json; else BOM=$(find . -name bom.json | head -n1); fi; echo "Using SBOM: $BOM"; test -n "$BOM"; cp "$BOM" bom.json
+    - ls -la bom.json
   artifacts:
     paths:
-      # Only the SBOM is passed on -- a few hundred KB, well under any limit.
-      # makeAggregateBom writes ONE aggregate SBOM at the repo root covering
-      # every module of this multi-module build.
-      - target/bom.json
+      # One aggregate SBOM covering every module; a few hundred KB.
+      - bom.json
     expire_in: 1 hour
   variables:
     # --- Maven ---
@@ -64,10 +67,11 @@ scan:vuln:
   stage: "Scan Phase 1"
   needs: ["scan:build"]
   script:
+    - test -s bom.json || { echo "ERROR: bom.json is missing/empty - check the build job"; exit 1; }
     # GitLab-native report for the MR "Security" widget (does not fail here)
-    - trivy sbom target/bom.json --format template --template "@/contrib/gitlab.tpl" --output gl-dependency-scanning-report.json
+    - trivy sbom bom.json --format template --template "@/contrib/gitlab.tpl" --output gl-dependency-scanning-report.json
     # Enforcement pass: fails the pipeline on HIGH/CRITICAL
-    - trivy sbom target/bom.json --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table
+    - trivy sbom bom.json --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table
         .
   artifacts:
     when: always
@@ -81,7 +85,9 @@ scan:code:
   stage: "Scan Phase 1"
   needs: []          # runs immediately, in parallel with build
   script:
-    - trivy fs --scanners secret,misconfig --offline-scan --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table
+    # --offline-scan stops the Java analyzer from resolving versions against
+    # Maven Central (that remote lookup is what triggers the 429 here).
+    - trivy fs --scanners secret,misconfig --offline-scan --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table .
   allow_failure: true
 # -----------------------------------------------------------------------------
 # 2b) License compliance  (REPORT-ONLY — license policy is org-specific)
