@@ -80,13 +80,15 @@ scan:vuln:
     - 'test -s bom.json || { echo "ERROR: bom.json is missing/empty - check the build job"; exit 1; }'
     # Scan ONCE (this is the only step that needs the DB); all reports are derived
     # from this JSON via `trivy convert` (no re-scan, no DB access).
-    - trivy sbom bom.json --format json --output trivy-vuln.json
+    # NOTE: --ignore-unfixed must be applied HERE at scan time -- `trivy convert`
+    # does not support that flag (it only supports --severity / --exit-code).
+    - trivy sbom bom.json --ignore-unfixed --format json --output trivy-vuln.json
     # GitLab-native dependency-scanning report (MR Security widget; Ultimate only).
     - trivy convert --format template --template "@/contrib/gitlab.tpl" --output gl-dependency-scanning-report.json trivy-vuln.json
     # JUnit report so each finding shows in the pipeline "Tests" tab (all tiers, incl. CE). Non-failing.
-    - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --format template --template "@/contrib/junit.tpl" --output junit-trivy-vuln.xml trivy-vuln.json
+    - trivy convert --severity $TRIVY_SEVERITY --format template --template "@/contrib/junit.tpl" --output junit-trivy-vuln.xml trivy-vuln.json
     # Enforcement pass: fails the pipeline on HIGH/CRITICAL
-    - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table trivy-vuln.json
+    - trivy convert --severity $TRIVY_SEVERITY --exit-code 1 --format table trivy-vuln.json
   cache:
     key: trivy-db
     paths:
@@ -111,9 +113,10 @@ scan:code:
     # Scan ONCE to JSON, then derive reports via `trivy convert` (no re-scan).
     - trivy fs --scanners secret,misconfig --offline-scan --format json --output trivy-code.json .
     # JUnit report so each finding shows in the pipeline "Tests" tab. Non-failing.
-    - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --format template --template "@/contrib/junit.tpl" --output junit-trivy-code.xml trivy-code.json
+    # (--ignore-unfixed omitted: not meaningful for secret/misconfig, and unsupported by `trivy convert`.)
+    - trivy convert --severity $TRIVY_SEVERITY --format template --template "@/contrib/junit.tpl" --output junit-trivy-code.xml trivy-code.json
     # Enforcement pass: fails the pipeline on HIGH/CRITICAL
-    - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table trivy-code.json
+    - trivy convert --severity $TRIVY_SEVERITY --exit-code 1 --format table trivy-code.json
   artifacts:
     when: always
     reports:
@@ -164,11 +167,12 @@ build-and-scan:image:
     - cd ci
     - docker build -f Dockerfile.trivy -t "$IMAGE_TAG" --build-arg ES_VERSION="$ES_VERSION" .
     # Scan the image ONCE to JSON (absolute path since we cd'd into ci/), then derive reports via `trivy convert`.
-    - trivy image --scanners vuln,secret,misconfig --offline-scan --format json --output "$CI_PROJECT_DIR/trivy-image.json" "$IMAGE_TAG"
+    # --ignore-unfixed applied here at scan time (`trivy convert` does not support it).
+    - trivy image --scanners vuln,secret,misconfig --offline-scan --ignore-unfixed --format json --output "$CI_PROJECT_DIR/trivy-image.json" "$IMAGE_TAG"
     # JUnit report so each finding shows in the pipeline "Tests" tab. Non-failing.
-    - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --format template --template "@/tmp/junit.tpl" --output "$CI_PROJECT_DIR/junit-trivy-image.xml" "$CI_PROJECT_DIR/trivy-image.json"
+    - trivy convert --severity $TRIVY_SEVERITY --format template --template "@/tmp/junit.tpl" --output "$CI_PROJECT_DIR/junit-trivy-image.xml" "$CI_PROJECT_DIR/trivy-image.json"
     # Enforcement pass: fails the pipeline on HIGH/CRITICAL
-    - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table "$CI_PROJECT_DIR/trivy-image.json"
+    - trivy convert --severity $TRIVY_SEVERITY --exit-code 1 --format table "$CI_PROJECT_DIR/trivy-image.json"
   artifacts:
     when: always
     reports:
