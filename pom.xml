@@ -55,10 +55,9 @@
     <dependency.locations.enabled>false</dependency.locations.enabled>
     <maven.compiler.release>17</maven.compiler.release>
 
-    <netty.version>4.2.10.Final</netty.version>
     <bc.version>1.84</bc.version>
     <log4j.version>2.26.0</log4j.version>
-    <jackson.version>2.18.6</jackson.version>
+    <jackson.version>2.18.9</jackson.version>
     <cxf.version>4.2.2</cxf.version>
     <http.commons.version>4.5.14</http.commons.version>
     <opensaml.version>5.2.2</opensaml.version>
