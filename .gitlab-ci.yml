@@ -106,9 +106,10 @@ build:
       dotenv: snapshot.env
   cache:
     key: "mavenrepo-$CI_COMMIT_REF_SLUG"
+    fallback_keys:
+      - "mavenrepo-main"
     paths:
       - .m2/repository
-    policy: push
 
 build_release:
   extends: build

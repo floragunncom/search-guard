@@ -18,17 +18,17 @@
   image:
     name: "aquasec/trivy:0.72.0@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f"
     entrypoint: [""]
-  cache:
-    key: "trivy-cache-$CI_COMMIT_REF_SLUG"
-    paths:
-      - .trivycache
   variables:
     TRIVY_NO_PROGRESS: "true"
     TRIVY_CACHE_DIR: "$CI_PROJECT_DIR/.trivycache"
     # Severities that BLOCK the pipeline:
     TRIVY_SEVERITY: "HIGH,CRITICAL"
     TRIVY_QUIET: "true"
-
+  cache:
+    key: trivy-db
+    paths:
+      - .trivycache
+    policy: pull
 
 scan:build:
   stage: "Scan Phase 1"
@@ -74,6 +74,11 @@ scan:vuln:
     - trivy sbom bom.json --format template --template "@/contrib/gitlab.tpl" --output gl-dependency-scanning-report.json
     # Enforcement pass: fails the pipeline on HIGH/CRITICAL
     - trivy sbom bom.json --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table
+  cache:
+    key: trivy-db
+    paths:
+      - .trivycache
+    policy: pull-push        # the one producer that refreshes the DB
   artifacts:
     when: always
     reports:
@@ -90,6 +95,8 @@ scan:code:
     # Maven Central (that remote lookup is what triggers the 429 here).
     - trivy fs --scanners secret,misconfig --offline-scan --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table .
   allow_failure: true
+  cache: {} #no cache required
+
 # -----------------------------------------------------------------------------
 # 2b) License compliance  (REPORT-ONLY — license policy is org-specific)
 # -----------------------------------------------------------------------------
@@ -112,6 +119,7 @@ scan:code:
 ##    as a CI artifact -> the artifact size limit does not apply.
 ## -----------------------------------------------------------------------------
 build-and-scan:image:
+  extends: .trivy
   stage: "Scan Phase 1"
   image: docker:29
   services:
@@ -121,10 +129,6 @@ build-and-scan:image:
     DOCKER_TLS_CERTDIR: "/certs"
     TRIVY_VERSION: "0.72.0"
     IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
-  cache:
-    key: "$CI_COMMIT_REF_SLUG"
-    paths:
-      - .trivycache
   script:
     - echo "script start, ES_VERSION=$ES_VERSION"
     - apk add --no-cache curl
