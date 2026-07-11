@@ -154,7 +154,6 @@ build-and-scan:image:
     - docker:29-dind
   needs: ["scan:build"]
   variables:
-    DOCKER_TLS_CERTDIR: "/certs"
     IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
   script:
     - echo "script start, ES_VERSION=$ES_VERSION"
