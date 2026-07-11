@@ -1,4 +1,2 @@
 variables:
-  # IT_BRANCH: "remove-legacy"
   SG_KI_BRANCH: "main"
-  # KI_VERSION: "7.16.3"

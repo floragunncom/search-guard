@@ -57,7 +57,6 @@ default:
       echo "$DOCKER_PASSWORD" | docker login --username floragunncom --password-stdin docker.io
 
 stages:
-  - prepare
   - build
   - "Scan Phase 1"
   - "Backend Unit Tests"
