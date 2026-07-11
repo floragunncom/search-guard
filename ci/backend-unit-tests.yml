@@ -14,11 +14,19 @@
         - "*/target/surefire-reports/TEST-*.xml"
         - "*/target/failsafe-reports/TEST-*.xml"
     expire_in: 1 week
+  variables:
+    ES_DL_CACHE: "$CI_PROJECT_DIR/.es-download"
   cache:
-    key: "mavenrepo-$CI_COMMIT_REF_SLUG"
-    paths:
-      - .m2/repository
-    policy: pull
+    - key: "mavenrepo-$CI_COMMIT_REF_SLUG"
+      paths:
+        - .m2/repository
+      policy: pull
+    # ES tarballs are keyed by version in their filename, so a single static
+    # cache is safely shared across branches and jobs.
+    - key: "es-download"
+      paths:
+        - .es-download
+      policy: pull-push
 
 test_security:
   extends:
