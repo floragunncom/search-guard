@@ -29,6 +29,14 @@
     paths:
       - .trivycache
     policy: pull
+  # NOTE: allow_failure does NOT support variable expansion at job level.
+  # rules:allow_failure is the supported way to make it toggleable via $ALLOW_TRIVY_FAILURE.
+  rules:
+    - if: '$ALLOW_TRIVY_FAILURE == "true"'
+      when: on_success
+      allow_failure: true
+    - when: on_success
+      allow_failure: false
 
 scan:build:
   stage: "Scan Phase 1"
@@ -79,7 +87,6 @@ scan:vuln:
     - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --format template --template "@/contrib/junit.tpl" --output junit-trivy-vuln.xml trivy-vuln.json
     # Enforcement pass: fails the pipeline on HIGH/CRITICAL
     - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table trivy-vuln.json
-  allow_failure: $ALLOW_TRIVY_FAILURE
   cache:
     key: trivy-db
     paths:
@@ -107,7 +114,6 @@ scan:code:
     - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --format template --template "@/contrib/junit.tpl" --output junit-trivy-code.xml trivy-code.json
     # Enforcement pass: fails the pipeline on HIGH/CRITICAL
     - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table trivy-code.json
-  allow_failure: $ALLOW_TRIVY_FAILURE
   artifacts:
     when: always
     reports:
@@ -163,7 +169,6 @@ build-and-scan:image:
     - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --format template --template "@/tmp/junit.tpl" --output "$CI_PROJECT_DIR/junit-trivy-image.xml" "$CI_PROJECT_DIR/trivy-image.json"
     # Enforcement pass: fails the pipeline on HIGH/CRITICAL
     - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table "$CI_PROJECT_DIR/trivy-image.json"
-  allow_failure: $ALLOW_TRIVY_FAILURE
   artifacts:
     when: always
     reports:
