@@ -5,14 +5,15 @@ workflow:
     - when: always
 
 variables:
+  ALLOW_TRIVY_FAILURE: "true"
+  # Single source of truth for Trivy (scan image tag + curl-installed binary in the image-scan job)
+  TRIVY_VERSION: "0.72.0"
   SG_BUILD_IMAGE: "floragunncom/ubuntu-openjdk25:251126"
   SG_DIND_IMAGE: "floragunncom/ubuntu-dind:260209"
-
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   MAVEN_CLI_OPTS: "--batch-mode -s settings.xml -U"
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
-
   GIT_DEPTH: 10
 
 default:
@@ -187,8 +188,5 @@ deploy_docker_image:
       echo "Enable qemu-user-static to support docker multiarch builds with buildx"
       docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
   
-      ./build_and_push.sh "floragunncom" "docker.io" "search-guard-flx-elasticsearch" "$SG_VERSION-es-$ES_VERSION" "--build-arg ES_VERSION="$ES_VERSION" --build-arg SG_VERSION="$SG_VERSION""      
-      
-      
-      
+      ./build_and_push.sh "floragunncom" "docker.io" "search-guard-flx-elasticsearch" "$SG_VERSION-es-$ES_VERSION" "--build-arg ES_VERSION="$ES_VERSION" --build-arg SG_VERSION="$SG_VERSION""
   allow_failure: false

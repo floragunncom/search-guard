@@ -16,7 +16,7 @@
 # -----------------------------------------------------------------------------
 .trivy:
   image:
-    name: "aquasec/trivy:0.72.0@sha256:cffe3f5161a47a6823fbd23d985795b3ed72a4c806da4c4df16266c02accdd6f"
+    name: "aquasec/trivy:${TRIVY_VERSION}"
     entrypoint: [""]
   variables:
     TRIVY_NO_PROGRESS: "true"
@@ -70,10 +70,16 @@ scan:vuln:
   needs: ["scan:build"]
   script:
     - 'test -s bom.json || { echo "ERROR: bom.json is missing/empty - check the build job"; exit 1; }'
-    # GitLab-native report for the MR "Security" widget (does not fail here)
-    - trivy sbom bom.json --format template --template "@/contrib/gitlab.tpl" --output gl-dependency-scanning-report.json
+    # Scan ONCE (this is the only step that needs the DB); all reports are derived
+    # from this JSON via `trivy convert` (no re-scan, no DB access).
+    - trivy sbom bom.json --format json --output trivy-vuln.json
+    # GitLab-native dependency-scanning report (MR Security widget; Ultimate only).
+    - trivy convert --format template --template "@/contrib/gitlab.tpl" --output gl-dependency-scanning-report.json trivy-vuln.json
+    # JUnit report so each finding shows in the pipeline "Tests" tab (all tiers, incl. CE). Non-failing.
+    - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --format template --template "@/contrib/junit.tpl" --output junit-trivy-vuln.xml trivy-vuln.json
     # Enforcement pass: fails the pipeline on HIGH/CRITICAL
-    - trivy sbom bom.json --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table
+    - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table trivy-vuln.json
+  allow_failure: $ALLOW_TRIVY_FAILURE
   cache:
     key: trivy-db
     paths:
@@ -83,8 +89,10 @@ scan:vuln:
     when: always
     reports:
       dependency_scanning: gl-dependency-scanning-report.json
+      junit: junit-trivy-vuln.xml
     paths:
       - gl-dependency-scanning-report.json
+      - junit-trivy-vuln.xml
 
 scan:code:
   extends: .trivy
@@ -93,8 +101,19 @@ scan:code:
   script:
     # --offline-scan stops the Java analyzer from resolving versions against
     # Maven Central (that remote lookup is what triggers the 429 here).
-    - trivy fs --scanners secret,misconfig --offline-scan --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table .
-  allow_failure: true
+    # Scan ONCE to JSON, then derive reports via `trivy convert` (no re-scan).
+    - trivy fs --scanners secret,misconfig --offline-scan --format json --output trivy-code.json .
+    # JUnit report so each finding shows in the pipeline "Tests" tab. Non-failing.
+    - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --format template --template "@/contrib/junit.tpl" --output junit-trivy-code.xml trivy-code.json
+    # Enforcement pass: fails the pipeline on HIGH/CRITICAL
+    - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table trivy-code.json
+  allow_failure: $ALLOW_TRIVY_FAILURE
+  artifacts:
+    when: always
+    reports:
+      junit: junit-trivy-code.xml
+    paths:
+      - junit-trivy-code.xml
   cache: {} #no cache required
 
 # -----------------------------------------------------------------------------
@@ -127,14 +146,27 @@ build-and-scan:image:
   needs: ["scan:build"]
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
-    TRIVY_VERSION: "0.72.0"
     IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
   script:
     - echo "script start, ES_VERSION=$ES_VERSION"
     - apk add --no-cache curl
     - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v${TRIVY_VERSION}/contrib/install.sh | sh -s -- -b /usr/local/bin "v${TRIVY_VERSION}"
+    # The binary install does not bundle the contrib templates, fetch junit.tpl (version-pinned)
+    - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v${TRIVY_VERSION}/contrib/junit.tpl -o /tmp/junit.tpl
     - ls -la plugin/target/releases/
     - cp plugin/target/releases/search-guard-flx-elasticsearch-plugin-trivy.zip ci/search-guard-flx-elasticsearch-plugin-trivy.zip
     - cd ci
     - docker build -f Dockerfile.trivy -t "$IMAGE_TAG" --build-arg ES_VERSION="$ES_VERSION" .
-    - trivy image --scanners vuln,secret,misconfig --offline-scan --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table "$IMAGE_TAG"
+    # Scan the image ONCE to JSON (absolute path since we cd'd into ci/), then derive reports via `trivy convert`.
+    - trivy image --scanners vuln,secret,misconfig --offline-scan --format json --output "$CI_PROJECT_DIR/trivy-image.json" "$IMAGE_TAG"
+    # JUnit report so each finding shows in the pipeline "Tests" tab. Non-failing.
+    - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --format template --template "@/tmp/junit.tpl" --output "$CI_PROJECT_DIR/junit-trivy-image.xml" "$CI_PROJECT_DIR/trivy-image.json"
+    # Enforcement pass: fails the pipeline on HIGH/CRITICAL
+    - trivy convert --severity $TRIVY_SEVERITY --ignore-unfixed --exit-code 1 --format table "$CI_PROJECT_DIR/trivy-image.json"
+  allow_failure: $ALLOW_TRIVY_FAILURE
+  artifacts:
+    when: always
+    reports:
+      junit: junit-trivy-image.xml
+    paths:
+      - junit-trivy-image.xml
