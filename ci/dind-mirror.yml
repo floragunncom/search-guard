@@ -27,7 +27,7 @@ variables:
         reg="${entry%%:*}"
         port="${entry##*:}"
         mirror_url="http://${REGISTRY_MIRROR_BASE}:${port}"
-        catalog=$(curl -sf --max-time 3 "${mirror_url}/v2/_catalog" 2>/dev/null)
+        catalog=$(curl -sf --max-time 3 "${mirror_url}/v2/_catalog" 2>/dev/null || true)
         if [ -n "$catalog" ]; then
           echo "[OK] ${reg} (port ${port}): ${catalog}"
         else
