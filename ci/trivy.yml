@@ -259,7 +259,8 @@ publish:sftp:
     TRIVY_WEB_SFTP_PORT: "22"
     TRIVY_WEB_SFTP_REMOTE_DIR: "/data/upload"
   rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $TRIVY_WEB_SFTP_HOST && $TRIVY_WEB_SFTP_SSH_PRIVATE_KEY'
+    - if: '$TRIVY_WEB_SFTP_HOST && $TRIVY_WEB_SFTP_SSH_PRIVATE_KEY'
+    #- if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $TRIVY_WEB_SFTP_HOST && $TRIVY_WEB_SFTP_SSH_PRIVATE_KEY'
       when: on_success
   script:
     - apk add --no-cache openssh-client
