@@ -1,14 +1,22 @@
 # =============================================================================
-# GitLab CI/CD — Java (Maven) build + Trivy security scanning
+# GitLab CI/CD (include template) — Java (Maven) build + Trivy security scanning
 #
-# Stages:
-#   build       -> mvn package (so Trivy sees the full resolved dependency tree)
-#   scan        -> Trivy: vuln + secret + misconfig  (FAILS on HIGH/CRITICAL)
-#                  Trivy: license                     (report-only, never fails)
-#   image       -> build Docker image (dind)
-#   image-scan  -> Trivy image scan                   (FAILS on HIGH/CRITICAL)
+# Flow (all in "Security Scan Phase 1" unless noted):
+#   scan:build           -> mvn package + CycloneDX SBOM
+#   scan:vuln            -> deps vuln  -> JSON + reports; captures gate exit code
+#   scan:code            -> secret/misconfig -> JSON + reports; captures exit code
+#   build-and-scan:image -> build image + scan -> JSON + reports; captures exit code
+#   report:html          -> scan2html HTML from deps + code + IMAGE JSON
+#   publish:cloudflare   -> deploy HTML to Cloudflare Pages (default branch)
+#   verify:security      -> Phase 2 GATE: fails if any captured exit code != 0
 #
-# Free & self-hostable. Works on GitLab CE (self-managed).
+# Enforcement is "delayed": scan jobs never fail on findings (they record the
+# gate result to exit_code_*.txt). The report/publish therefore always run, and
+# verify:security is the single place that turns the pipeline red.
+#
+# Expected from the including project: TRIVY_VERSION, SCAN2HTML_VERSION,
+# SG_BUILD_IMAGE, ES_VERSION, and the two stage names.
+# Optional: ALLOW_TRIVY_FAILURE=true to make the gate non-blocking.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -29,17 +37,9 @@
     paths:
       - .trivycache
     policy: pull
-  # NOTE: allow_failure does NOT support variable expansion at job level.
-  # rules:allow_failure is the supported way to make it toggleable via $ALLOW_TRIVY_FAILURE.
-  rules:
-    - if: '$ALLOW_TRIVY_FAILURE == "true"'
-      when: on_success
-      allow_failure: true
-    - when: on_success
-      allow_failure: false
 
 scan:build:
-  stage: "Scan Phase 1"
+  stage: "Security Scan Phase 1"
   image: "$SG_BUILD_IMAGE"
   script:
     - mvn -Drevision=trivy -Delasticsearch.version=$ES_VERSION $MAVEN_CLI_OPTS package
@@ -70,11 +70,11 @@ scan:build:
     policy: pull
 
 # -----------------------------------------------------------------------------
-# 2a) Dependency vulns + secrets + IaC/Dockerfile misconfig  (BLOCKING)
+# 2a) Dependency vulnerabilities (BLOCKING via verify:security gate)
 # -----------------------------------------------------------------------------
 scan:vuln:
   extends: .trivy
-  stage: "Scan Phase 1"
+  stage: "Security Scan Phase 1"
   needs: ["scan:build"]
   script:
     - 'test -s bom.json || { echo "ERROR: bom.json is missing/empty - check the build job"; exit 1; }'
@@ -87,8 +87,10 @@ scan:vuln:
     - trivy convert --format template --template "@/contrib/gitlab.tpl" --output gl-dependency-scanning-report.json trivy-vuln.json
     # JUnit report so each finding shows in the pipeline "Tests" tab (all tiers, incl. CE). Non-failing.
     - trivy convert --severity $TRIVY_SEVERITY --format template --template "@/contrib/junit.tpl" --output junit-trivy-vuln.xml trivy-vuln.json
-    # Enforcement pass: fails the pipeline on HIGH/CRITICAL
-    - trivy convert --severity $TRIVY_SEVERITY --exit-code 1 --format table trivy-vuln.json
+    # Enforcement pass: prints the table AND records the gate exit code, WITHOUT
+    # failing this job. Single-line if/else so the captured code is Trivy's own
+    # exit status regardless of the runner's errexit behaviour (robust vs `set +e`).
+    - 'if trivy convert --severity $TRIVY_SEVERITY --exit-code 1 --format table trivy-vuln.json; then echo 0 > exit_code_vuln.txt; else echo $? > exit_code_vuln.txt; fi'
   cache:
     key: trivy-db
     paths:
@@ -102,10 +104,12 @@ scan:vuln:
     paths:
       - gl-dependency-scanning-report.json
       - junit-trivy-vuln.xml
+      - trivy-vuln.json
+      - exit_code_vuln.txt
 
 scan:code:
   extends: .trivy
-  stage: "Scan Phase 1"
+  stage: "Security Scan Phase 1"
   needs: []          # runs immediately, in parallel with build
   script:
     # --offline-scan stops the Java analyzer from resolving versions against
@@ -115,14 +119,16 @@ scan:code:
     # JUnit report so each finding shows in the pipeline "Tests" tab. Non-failing.
     # (--ignore-unfixed omitted: not meaningful for secret/misconfig, and unsupported by `trivy convert`.)
     - trivy convert --severity $TRIVY_SEVERITY --format template --template "@/contrib/junit.tpl" --output junit-trivy-code.xml trivy-code.json
-    # Enforcement pass: fails the pipeline on HIGH/CRITICAL
-    - trivy convert --severity $TRIVY_SEVERITY --exit-code 1 --format table trivy-code.json
+    # Enforcement pass: record gate exit code without failing the job (see scan:vuln).
+    - 'if trivy convert --severity $TRIVY_SEVERITY --exit-code 1 --format table trivy-code.json; then echo 0 > exit_code_code.txt; else echo $? > exit_code_code.txt; fi'
   artifacts:
     when: always
     reports:
       junit: junit-trivy-code.xml
     paths:
       - junit-trivy-code.xml
+      - trivy-code.json
+      - exit_code_code.txt
   cache: {} #no cache required
 
 # -----------------------------------------------------------------------------
@@ -140,15 +146,14 @@ scan:code:
 #        --format table
 #        --exit-code 0
 #        .
-#
-## -----------------------------------------------------------------------------
-## 3) Build the image AND scan it in ONE job.
-##    The image tarball stays local to the job workspace and is NEVER uploaded
-##    as a CI artifact -> the artifact size limit does not apply.
-## -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# 3) Build the image AND scan it. trivy-image.json is artifacted so the HTML
+#    report can include image findings; enforcement is recorded, not failed.
+# -----------------------------------------------------------------------------
 build-and-scan:image:
   extends: .trivy
-  stage: "Scan Phase 1"
+  stage: "Security Scan Phase 1"
   image: docker:29
   services:
     - docker:29-dind
@@ -165,16 +170,142 @@ build-and-scan:image:
     - cp plugin/target/releases/search-guard-flx-elasticsearch-plugin-trivy.zip ci/search-guard-flx-elasticsearch-plugin-trivy.zip
     - cd ci
     - docker build -f Dockerfile.trivy -t "$IMAGE_TAG" --build-arg ES_VERSION="$ES_VERSION" .
-    # Scan the image ONCE to JSON (absolute path since we cd'd into ci/), then derive reports via `trivy convert`.
+    # Scan the image ONCE to JSON (absolute paths since we cd'd into ci/), then derive reports via `trivy convert`.
     # --ignore-unfixed applied here at scan time (`trivy convert` does not support it).
     - trivy image --scanners vuln,secret,misconfig --offline-scan --ignore-unfixed --format json --output "$CI_PROJECT_DIR/trivy-image.json" "$IMAGE_TAG"
     # JUnit report so each finding shows in the pipeline "Tests" tab. Non-failing.
     - trivy convert --severity $TRIVY_SEVERITY --format template --template "@/tmp/junit.tpl" --output "$CI_PROJECT_DIR/junit-trivy-image.xml" "$CI_PROJECT_DIR/trivy-image.json"
-    # Enforcement pass: fails the pipeline on HIGH/CRITICAL
-    - trivy convert --severity $TRIVY_SEVERITY --exit-code 1 --format table "$CI_PROJECT_DIR/trivy-image.json"
+    # Enforcement pass: record gate exit code without failing the job (see scan:vuln).
+    # Write to $CI_PROJECT_DIR so the artifact path resolves (cwd is ci/ here).
+    - 'if trivy convert --severity $TRIVY_SEVERITY --exit-code 1 --format table "$CI_PROJECT_DIR/trivy-image.json"; then echo 0 > "$CI_PROJECT_DIR/exit_code_image.txt"; else echo $? > "$CI_PROJECT_DIR/exit_code_image.txt"; fi'
   artifacts:
     when: always
     reports:
       junit: junit-trivy-image.xml
     paths:
       - junit-trivy-image.xml
+      - trivy-image.json
+      - exit_code_image.txt
+
+# -----------------------------------------------------------------------------
+# 4) Build ONE interactive HTML report from deps + code + IMAGE JSON.
+# -----------------------------------------------------------------------------
+report:html:
+  image:
+    name: "aquasec/trivy:${TRIVY_VERSION}"
+    entrypoint: [""]
+  stage: "Security Scan Phase 1"
+  needs: ["scan:vuln", "scan:code", "build-and-scan:image"]
+  script:
+    - 'ls trivy-vuln.json trivy-code.json >/dev/null 2>&1 || { echo "No scan JSON found; skipping report."; exit 0; }'
+    # If pinning fails on your Trivy version, use: trivy plugin install scan2html
+    - trivy plugin install "github.com/fatihtokus/scan2html@${SCAN2HTML_VERSION}"
+    - mkdir -p public
+    # Include the image results only if the image job produced them.
+    - 'FROM="trivy-vuln.json,trivy-code.json"; if [ -s trivy-image.json ]; then FROM="$FROM,trivy-image.json"; fi; echo "Report sources -> $FROM"'
+    - trivy scan2html generate --scan2html-flags --report-title "Trivy Security Report - ${CI_PROJECT_NAME}" --output "public/${CI_PROJECT_NAME}.html" --from "$FROM"
+    - cp "public/${CI_PROJECT_NAME}.html" public/index.html
+  artifacts:
+    when: always
+    paths:
+      - public
+    expire_in: 30 days
+
+# -----------------------------------------------------------------------------
+# 5) Publish the HTML to Cloudflare Pages (default branch only, token present).
+#    Site: https://<sanitized-repo-name>.pages.dev  (protect it via Zero Trust).
+# -----------------------------------------------------------------------------
+publish:cloudflare:
+  stage: "Security Scan Phase 1"
+  image: node:20-alpine
+  needs: ["report:html"]
+  variables:
+    WRANGLER_VERSION: "3"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CLOUDFLARE_API_TOKEN'
+      when: on_success
+  script:
+    - 'test -f public/index.html || { echo "No report to publish."; exit 0; }'
+    - 'PAGES_PROJECT=$(echo "$CI_PROJECT_NAME" | tr "[:upper:]" "[:lower:]" | tr -c "a-z0-9-" "-" | sed "s/-\{2,\}/-/g; s/^-//; s/-$//")'
+    - 'echo "Cloudflare Pages project name -> $PAGES_PROJECT"'
+    - 'npx --yes wrangler@${WRANGLER_VERSION} pages project create "$PAGES_PROJECT" --production-branch=main 2>/dev/null || true'
+    - 'npx --yes wrangler@${WRANGLER_VERSION} pages deploy public --project-name="$PAGES_PROJECT" --branch=main'
+    - 'echo "DEPLOY_URL=https://$PAGES_PROJECT.pages.dev" > deploy.env'
+    - 'cat deploy.env'
+  artifacts:
+    reports:
+      dotenv: deploy.env
+  environment:
+    name: cloudflare-pages/$CI_PROJECT_NAME
+    url: $DEPLOY_URL
+
+# -----------------------------------------------------------------------------
+# 5b) Publish the HTML report to a server via SFTP, and (re)build a simple
+#     index.html linking every report present in the remote directory.
+#
+#     Required CI/CD variables:
+#       TRIVY_WEB_SFTP_HOST         target IP / hostname
+#       TRIVY_WEB_SFTP_USER         ssh user
+#       TRIVY_WEB_SFTP_SSH_PRIVATE_KEY   *File*-type variable holding the private key
+#     Optional (defaults below):
+#       TRIVY_WEB_SFTP_PORT         default 22
+#       TRIVY_WEB_SFTP_REMOTE_DIR   default /data/upload (must be the web root served)
+# -----------------------------------------------------------------------------
+publish:sftp:
+  stage: "Security Scan Phase 1"
+  image: alpine:latest
+  needs: ["report:html"]
+  variables:
+    TRIVY_WEB_SFTP_PORT: "22"
+    TRIVY_WEB_SFTP_REMOTE_DIR: "/data/upload"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $TRIVY_WEB_SFTP_HOST && $TRIVY_WEB_SFTP_SSH_PRIVATE_KEY'
+      when: on_success
+  script:
+    - apk add --no-cache openssh-client
+    - 'test -f "public/${CI_PROJECT_NAME}.html" || { echo "No report to publish."; exit 0; }'
+    - 'mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"'
+    - 'cp "$TRIVY_WEB_SFTP_SSH_PRIVATE_KEY" "$HOME/.ssh/id_deploy" && chmod 600 "$HOME/.ssh/id_deploy"'
+    # accept-new = trust on first use. For stronger security, provide a
+    # known_hosts File variable and copy it to $HOME/.ssh/known_hosts instead.
+    - 'COMMON="-i $HOME/.ssh/id_deploy -o StrictHostKeyChecking=accept-new"'
+    - 'ssh $COMMON -p "$TRIVY_WEB_SFTP_PORT" "${TRIVY_WEB_SFTP_USER}@${TRIVY_WEB_SFTP_HOST}" "mkdir -p ${TRIVY_WEB_SFTP_REMOTE_DIR}"'
+    # Upload THIS repo's report, named like the repo.
+    - 'scp $COMMON -P "$TRIVY_WEB_SFTP_PORT" "public/${CI_PROJECT_NAME}.html" "${TRIVY_WEB_SFTP_USER}@${TRIVY_WEB_SFTP_HOST}:${TRIVY_WEB_SFTP_REMOTE_DIR}/${CI_PROJECT_NAME}.html"'
+    # List every report on the server and (re)build a simple index locally.
+    - 'FILES=$(ssh $COMMON -p "$TRIVY_WEB_SFTP_PORT" "${TRIVY_WEB_SFTP_USER}@${TRIVY_WEB_SFTP_HOST}" "cd ${TRIVY_WEB_SFTP_REMOTE_DIR} && ls -1 *.html 2>/dev/null" | tr -d "\r")'
+    - |
+      {
+        echo '<!doctype html>'
+        echo '<html lang="en"><head><meta charset="utf-8">'
+        echo '<title>Trivy Security Reports</title>'
+        echo '<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem}h1{font-size:1.4rem}li{margin:.35rem 0}a{text-decoration:none}</style>'
+        echo '</head><body><h1>Trivy Security Reports</h1><ul>'
+        for f in $FILES; do
+          [ "$f" = "index.html" ] && continue
+          echo "<li><a href=\"$f\">${f%.html}</a></li>"
+        done
+        echo '</ul></body></html>'
+      } > index.html
+    # Upload the refreshed index.
+    - 'scp $COMMON -P "$TRIVY_WEB_SFTP_PORT" index.html "${TRIVY_WEB_SFTP_USER}@${TRIVY_WEB_SFTP_HOST}:${TRIVY_WEB_SFTP_REMOTE_DIR}/index.html"'
+
+# -----------------------------------------------------------------------------
+# 6) GATE: fail the pipeline if any scan recorded a non-zero enforcement code.
+#    Runs after Phase 1 so report/publish already happened. Toggle blocking via
+#    $ALLOW_TRIVY_FAILURE.
+# -----------------------------------------------------------------------------
+verify:security:
+  stage: "Security Scan Phase 2"
+  image: busybox
+  needs: ["scan:vuln", "scan:code", "build-and-scan:image"]
+  script:
+    - 'RC=0; for f in exit_code_vuln.txt exit_code_code.txt exit_code_image.txt; do code=$(cat "$f" 2>/dev/null || echo MISSING); echo "$f -> $code"; [ "$code" = "0" ] || RC=1; done; if [ "$RC" -ne 0 ]; then echo "Security gate FAILED (HIGH/CRITICAL findings present)"; else echo "Security gate passed"; fi; exit $RC'
+  # NOTE: allow_failure does NOT support variable expansion at job level.
+  # rules:allow_failure is the supported way to make it toggleable via $ALLOW_TRIVY_FAILURE.
+  rules:
+    - if: '$ALLOW_TRIVY_FAILURE == "true"'
+      when: on_success
+      allow_failure: true
+    - when: on_success
+      allow_failure: false
