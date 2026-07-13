@@ -1,0 +1,89 @@
+variables:
+  # Registry mirror map: "registry:port" pairs (host.docker.internal is the base host)
+  # Each port runs a separate pull-through cache for its upstream registry:
+  #   5000 -> registry-1.docker.io
+  #   5001 -> docker.elastic.co
+  #   5002 -> mcr.microsoft.com
+  REGISTRY_MIRROR_BASE: "host.docker.internal"
+  REGISTRY_MIRROR_MAP: "docker.io:5000 docker.elastic.co:5001 mcr.microsoft.com:5002"
+  DOCKER_TLS_CERTDIR: ""
+
+.dind_mirror:
+  services:
+    - name: "$SG_DIND_IMAGE"
+      alias: docker
+      command:
+        - "--registry-mirror=http://host.docker.internal:5000"
+        - "--insecure-registry=host.docker.internal:5000"
+        - "--insecure-registry=host.docker.internal:5001"
+        - "--insecure-registry=host.docker.internal:5002"
+  before_script:
+    - |
+      docker info 2>&1 | grep -A2 "Registry Mirrors" || echo "No registry mirror configured"
+      getent hosts host.docker.internal || echo "host.docker.internal: not resolvable"
+
+      # Verify registry mirrors are reachable and show cached images
+      for entry in ${REGISTRY_MIRROR_MAP}; do
+        reg="${entry%%:*}"
+        port="${entry##*:}"
+        mirror_url="http://${REGISTRY_MIRROR_BASE}:${port}"
+        catalog=$(curl -sf --max-time 3 "${mirror_url}/v2/_catalog" 2>/dev/null)
+        if [ -n "$catalog" ]; then
+          echo "[OK] ${reg} (port ${port}): ${catalog}"
+        else
+          echo "[WARN] ${reg} (port ${port}): not reachable at ${mirror_url} (pulls will go direct)"
+        fi
+      done
+
+      # Configure BuildKit to use registry mirrors (for docker compose build / docker build)
+      > /tmp/buildkitd.toml
+      for entry in ${REGISTRY_MIRROR_MAP}; do
+        reg="${entry%%:*}"
+        port="${entry##*:}"
+        mirror_host="${REGISTRY_MIRROR_BASE}:${port}"
+        printf '[registry."%s"]\n  http = true\n\n' "$mirror_host" >> /tmp/buildkitd.toml
+        printf '[registry."%s"]\n  mirrors = ["%s"]\n\n' "$reg" "$mirror_host" >> /tmp/buildkitd.toml
+      done
+      if [ -n "${DOCKER_CERT_PATH:-}" ] && [ -f "${DOCKER_CERT_PATH}/ca.pem" ]; then
+        docker context create mirror-ctx --docker "host=${DOCKER_HOST},ca=${DOCKER_CERT_PATH}/ca.pem,cert=${DOCKER_CERT_PATH}/cert.pem,key=${DOCKER_CERT_PATH}/key.pem" 2>/dev/null || true
+        docker buildx create --name mirror-builder --driver docker-container --driver-opt network=host --config /tmp/buildkitd.toml --use mirror-ctx || echo "WARN: could not create buildx mirror-builder"
+      else
+        docker buildx create --name mirror-builder --driver docker-container --driver-opt network=host --config /tmp/buildkitd.toml --use || echo "WARN: could not create buildx mirror-builder"
+      fi
+      if [ "${REGISTRY_MIRROR_DEBUG:-false}" = "true" ]; then
+        echo "--- REGISTRY_MIRROR_MAP=$REGISTRY_MIRROR_MAP DOCKER_HOST=${DOCKER_HOST:-local socket}"
+
+        echo "=== buildkitd.toml ==="
+        cat /tmp/buildkitd.toml
+
+        echo "=== docker compose version ==="
+        docker compose version
+
+        echo "=== PULL TEST (docker pull golang, 1st) ==="
+        docker rmi golang:1.23 2>/dev/null || true
+        time docker pull golang:1.23
+
+        echo "=== PULL TEST (docker pull golang, 2nd - cache hit) ==="
+        docker rmi golang:1.23
+        time docker pull golang:1.23
+
+        echo "=== BUILD TEST (docker compose build, 1st) ==="
+        printf 'services:\n  buildtest:\n    build:\n      context: /tmp/buildtest\n    command: ["echo", "build mirror test ok"]\n' > /tmp/docker-compose-build-test.yml
+        mkdir -p /tmp/buildtest
+        printf 'FROM alpine:3.20\nRUN echo "built ok"\n' > /tmp/buildtest/Dockerfile
+        time docker compose -f /tmp/docker-compose-build-test.yml build
+
+        echo "=== BUILD TEST (docker compose build, 2nd - cache hit) ==="
+        docker builder prune -af 2>/dev/null || true
+        time docker compose -f /tmp/docker-compose-build-test.yml build
+        rm -rf /tmp/buildtest /tmp/docker-compose-build-test.yml
+
+        echo "=== DEBUG: REGISTRY CATALOGS ==="
+        for entry in ${REGISTRY_MIRROR_MAP}; do
+          reg="${entry%%:*}"
+          port="${entry##*:}"
+          echo "  ${reg} (port ${port}):"
+          curl -sf --max-time 3 "http://${REGISTRY_MIRROR_BASE}:${port}/v2/_catalog" 2>/dev/null && echo "" || echo "    not reachable"
+        done
+        echo "=== DONE ==="
+      fi

@@ -79,6 +79,7 @@ signals_2:
     TEST_DEFINITIONS: ".*signals_2.*"
 
 .be_integration_test:
+  extends: .dind_mirror
   allow_failure: false
   stage: "Backend Int Tests Core"
   needs:
@@ -91,7 +92,7 @@ signals_2:
   rules:
     - if: '$DOCKER_ONLY || $CI_COMMIT_MESSAGE =~ /.*SKIP-TESTS.*/ || $CI_COMMIT_MESSAGE =~ /.*SKIP-SGI.*/'
       when: never
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_TAG =~ /^sg-flx-.*/ || $FORCE_SGI'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "push" || $CI_COMMIT_TAG =~ /^sg-flx-.*/ || $FORCE_SGI'
       when: on_success
   image: "$SG_DIND_IMAGE"
   services:
@@ -136,3 +137,6 @@ signals_2:
       junit:
         - "sgi8/client/test/testresults**/junit/Test*.xml"
     expire_in: 7 days
+
+include:
+  - local: 'ci/dind-mirror.yml'

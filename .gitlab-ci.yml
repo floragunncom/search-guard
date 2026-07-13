@@ -15,6 +15,7 @@ variables:
   MAVEN_CLI_OPTS: "--batch-mode -s settings.xml -U"
   DOCKER_TLS_CERTDIR: "/certs"
   GIT_DEPTH: 10
+  REGISTRY_MIRROR_DEBUG: true
 
 default:
   image: "$SG_BUILD_IMAGE"
