@@ -7,7 +7,7 @@ variables:
   REGISTRY_MIRROR_BASE: "host.docker.internal"
   REGISTRY_MIRROR_MAP: "docker.io:5000 mcr.microsoft.com:5002"
   DOCKER_TLS_CERTDIR: ""
-#p
+
 .dind_mirror:
   services:
     - name: "$SG_DIND_IMAGE"
