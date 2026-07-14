@@ -2,7 +2,6 @@ variables:
   # Registry mirror map: "registry:port" pairs (host.docker.internal is the base host)
   # Each port runs a separate pull-through cache for its upstream registry:
   #   5000 -> registry-1.docker.io
-  #   5001 -> docker.elastic.co
   #   5002 -> mcr.microsoft.com
   REGISTRY_MIRROR_BASE: "host.docker.internal"
   REGISTRY_MIRROR_MAP: "docker.io:5000 mcr.microsoft.com:5002"
