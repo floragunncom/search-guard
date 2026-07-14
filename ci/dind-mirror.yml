@@ -5,7 +5,7 @@ variables:
   #   5001 -> docker.elastic.co
   #   5002 -> mcr.microsoft.com
   REGISTRY_MIRROR_BASE: "host.docker.internal"
-  REGISTRY_MIRROR_MAP: "docker.io:5000 docker.elastic.co:5001 mcr.microsoft.com:5002"
+  REGISTRY_MIRROR_MAP: "docker.io:5000 mcr.microsoft.com:5002"
   DOCKER_TLS_CERTDIR: ""
 
 .dind_mirror:
@@ -15,7 +15,6 @@ variables:
       command:
         - "--registry-mirror=http://host.docker.internal:5000"
         - "--insecure-registry=host.docker.internal:5000"
-        - "--insecure-registry=host.docker.internal:5001"
         - "--insecure-registry=host.docker.internal:5002"
   before_script:
     - |
