@@ -203,7 +203,7 @@ report:html:
     - mkdir -p public
     # Include the image results only if the image job produced them.
     - 'FROM="trivy-vuln.json,trivy-code.json"; if [ -s trivy-image.json ]; then FROM="$FROM,trivy-image.json"; fi; echo "Report sources -> $FROM"'
-    - trivy scan2html generate --scan2html-flags --report-title "Trivy Security Report - ${CI_PROJECT_NAME}" --output "public/${CI_PROJECT_NAME}.html" --from "$FROM"
+    - trivy scan2html generate --scan2html-flags --report-title "Trivy Security Report (ES ${ES_VERSION}) - ${CI_PROJECT_NAME}" --output "public/${CI_PROJECT_NAME}.html" --from "$FROM"
     - cp "public/${CI_PROJECT_NAME}.html" public/index.html
   artifacts:
     when: always
