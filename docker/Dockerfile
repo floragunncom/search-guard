@@ -1,7 +1,7 @@
 ARG ES_VERSION
 
 
-FROM docker.elastic.co/elasticsearch/elasticsearch:${ES_VERSION} as base
+FROM docker.elastic.co/floragunncom/es-mirror:${ES_VERSION} as base
 
 # Search Guard plugin
 ARG SG_VERSION
