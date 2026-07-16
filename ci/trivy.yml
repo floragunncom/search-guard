@@ -30,6 +30,7 @@
     TRIVY_NO_PROGRESS: "true"
     TRIVY_CACHE_DIR: "$CI_PROJECT_DIR/.trivycache"
     # Severities that BLOCK the pipeline:
+    # Severities that BLOCK the pipeline:
     TRIVY_SEVERITY: "HIGH,CRITICAL"
     TRIVY_QUIET: "true"
   cache:
@@ -154,12 +155,13 @@ scan:code:
 build-and-scan:image:
   extends: .trivy
   stage: "Security Scan Phase 1"
-  image: docker:29
+  image: docker:26
   services:
-    - docker:29-dind
+    - docker:26-dind
   needs: ["scan:build"]
   variables:
     IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
+    DOCKER_BUILDKIT: "0"
   script:
     - echo "script start, ES_VERSION=$ES_VERSION"
     - apk add --no-cache curl
@@ -215,29 +217,29 @@ report:html:
 # 5) Publish the HTML to Cloudflare Pages (default branch only, token present).
 #    Site: https://<sanitized-repo-name>.pages.dev  (protect it via Zero Trust).
 # -----------------------------------------------------------------------------
-publish:cloudflare:
-  stage: "Security Scan Phase 1"
-  image: node:20-alpine
-  needs: ["report:html"]
-  variables:
-    WRANGLER_VERSION: "3"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CLOUDFLARE_API_TOKEN'
-      when: on_success
-  script:
-    - 'test -f public/index.html || { echo "No report to publish."; exit 0; }'
-    - 'PAGES_PROJECT=$(echo "$CI_PROJECT_NAME" | tr "[:upper:]" "[:lower:]" | tr -c "a-z0-9-" "-" | sed "s/-\{2,\}/-/g; s/^-//; s/-$//")'
-    - 'echo "Cloudflare Pages project name -> $PAGES_PROJECT"'
-    - 'npx --yes wrangler@${WRANGLER_VERSION} pages project create "$PAGES_PROJECT" --production-branch=main 2>/dev/null || true'
-    - 'npx --yes wrangler@${WRANGLER_VERSION} pages deploy public --project-name="$PAGES_PROJECT" --branch=main'
-    - 'echo "DEPLOY_URL=https://$PAGES_PROJECT.pages.dev" > deploy.env'
-    - 'cat deploy.env'
-  artifacts:
-    reports:
-      dotenv: deploy.env
-  environment:
-    name: cloudflare-pages/$CI_PROJECT_NAME
-    url: $DEPLOY_URL
+#publish:cloudflare:
+#  stage: "Security Scan Phase 1"
+#  image: node:20-alpine
+#  needs: ["report:html"]
+#  variables:
+#    WRANGLER_VERSION: "3"
+#  rules:
+#    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CLOUDFLARE_API_TOKEN'
+#      when: on_success
+#  script:
+#    - 'test -f public/index.html || { echo "No report to publish."; exit 0; }'
+#    - 'PAGES_PROJECT=$(echo "$CI_PROJECT_NAME" | tr "[:upper:]" "[:lower:]" | tr -c "a-z0-9-" "-" | sed "s/-\{2,\}/-/g; s/^-//; s/-$//")'
+#    - 'echo "Cloudflare Pages project name -> $PAGES_PROJECT"'
+#    - 'npx --yes wrangler@${WRANGLER_VERSION} pages project create "$PAGES_PROJECT" --production-branch=main 2>/dev/null || true'
+#    - 'npx --yes wrangler@${WRANGLER_VERSION} pages deploy public --project-name="$PAGES_PROJECT" --branch=main'
+#    - 'echo "DEPLOY_URL=https://$PAGES_PROJECT.pages.dev" > deploy.env'
+#    - 'cat deploy.env'
+#  artifacts:
+#    reports:
+#      dotenv: deploy.env
+#  environment:
+#    name: cloudflare-pages/$CI_PROJECT_NAME
+#    url: $DEPLOY_URL
 
 # -----------------------------------------------------------------------------
 # 5b) Publish the HTML report to a server via SFTP, and (re)build a simple
