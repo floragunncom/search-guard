@@ -9,6 +9,9 @@ updates:
       - dependency-name: "org.elasticsearch*"
       - dependency-name: "com.fasterxml.jackson.*"
       - dependency-name: "org.apache.maven.resolver:maven-resolver-connector-basic"
+      # netty and log4j should match the versions used in elastic
+      - dependency-name: "io.netty*"
+      - dependency-name: "org.apache.logging.log4j*"
     #pull-request-branch-name:
       #separator: 'default: "-"'
       #prefix: 'default: "dependabot"'
