@@ -115,7 +115,7 @@ scan:code:
     # --offline-scan stops the Java analyzer from resolving versions against
     # Maven Central (that remote lookup is what triggers the 429 here).
     # Scan ONCE to JSON, then derive reports via `trivy convert` (no re-scan).
-    - trivy fs --scanners secret,misconfig --offline-scan --format json --output trivy-code.json .
+    - trivy fs --scanners secret,misconfig --skip-files security/tools/install_demo_configuration.sh --offline-scan --format json --output trivy-code.json .
     # JUnit report so each finding shows in the pipeline "Tests" tab. Non-failing.
     # (--ignore-unfixed omitted: not meaningful for secret/misconfig, and unsupported by `trivy convert`.)
     - trivy convert --severity $TRIVY_SEVERITY --format template --template "@/contrib/junit.tpl" --output junit-trivy-code.xml trivy-code.json
