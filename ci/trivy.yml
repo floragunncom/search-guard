@@ -82,7 +82,7 @@ scan:vuln:
     # from this JSON via `trivy convert` (no re-scan, no DB access).
     # NOTE: --ignore-unfixed must be applied HERE at scan time -- `trivy convert`
     # does not support that flag (it only supports --severity / --exit-code).
-    - trivy sbom bom.json --dependency-tree --ignore-unfixed --format json --output trivy-vuln.json
+    - trivy sbom bom.json --ignore-unfixed --format json --output trivy-vuln.json
     # GitLab-native dependency-scanning report (MR Security widget; Ultimate only).
     - trivy convert --format template --template "@/contrib/gitlab.tpl" --output gl-dependency-scanning-report.json trivy-vuln.json
     # JUnit report so each finding shows in the pipeline "Tests" tab (all tiers, incl. CE). Non-failing.
