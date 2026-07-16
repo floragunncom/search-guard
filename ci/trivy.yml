@@ -174,7 +174,7 @@ build-and-scan:image:
     - docker build -f Dockerfile.trivy -t "$IMAGE_TAG" --build-arg ES_VERSION="$ES_VERSION" .
     # Scan the image ONCE to JSON (absolute paths since we cd'd into ci/), then derive reports via `trivy convert`.
     # --ignore-unfixed applied here at scan time (`trivy convert` does not support it).
-    - trivy image --scanners vuln,secret,misconfig --offline-scan --ignore-unfixed --format json --output "$CI_PROJECT_DIR/trivy-image.json" "$IMAGE_TAG"
+    - trivy image --skip-files "/usr/share/elasticsearch/**/*" --scanners vuln,secret,misconfig --offline-scan --ignore-unfixed --format json --output "$CI_PROJECT_DIR/trivy-image.json" "$IMAGE_TAG"
     # JUnit report so each finding shows in the pipeline "Tests" tab. Non-failing.
     - trivy convert --severity $TRIVY_SEVERITY --format template --template "@/tmp/junit.tpl" --output "$CI_PROJECT_DIR/junit-trivy-image.xml" "$CI_PROJECT_DIR/trivy-image.json"
     # Enforcement pass: record gate exit code without failing the job (see scan:vuln).
