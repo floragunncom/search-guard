@@ -155,13 +155,13 @@ scan:code:
 build-and-scan:image:
   extends: .trivy
   stage: "Security Scan Phase 1"
-  image: docker:26
+  image: "$SG_DIND_IMAGE"
   services:
-    - docker:26-dind
+    - "$SG_DIND_IMAGE"
   needs: ["scan:build"]
   variables:
     IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
-    DOCKER_BUILDKIT: "0"
+    #DOCKER_BUILDKIT: "0"
   script:
     - echo "script start, ES_VERSION=$ES_VERSION"
     - apk add --no-cache curl
