@@ -1,0 +1,8 @@
+# Suppress specific findings that you've reviewed and accepted.
+# One ID per line. Add a comment with the reason + review date.
+#
+# Vulnerabilities:
+# CVE-2023-12345   # false positive, not reachable in our usage - reviewed 2026-07-09
+#
+# Secret rule IDs / misconfig IDs work here too:
+# AVD-DS-0002      # running as root is intentional for this base image

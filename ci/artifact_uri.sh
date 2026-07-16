@@ -16,7 +16,7 @@ else
   METADATA_URI=$(echo $SEARCH_RESULT | jq -r ".results | map(select(.uri | endswith(\"$TYPE\"))) | map(select(.uri | endswith(\"$FILTER\") | not)) | max_by(.uri) | .uri")
 fi
 
-if [ -z $METADATA_URI ] | [ "$METADATA_URI" = "null" ]; then
+if [ -z "$METADATA_URI" ] || [ "$METADATA_URI" = "null" ]; then
   exit 1
 fi
 
