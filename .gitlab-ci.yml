@@ -5,15 +5,15 @@ workflow:
     - when: always
 
 variables:
+  ALLOW_TRIVY_FAILURE: "true"
+  # Single source of truth for Trivy (scan image tag + curl-installed binary in the image-scan job)
+  TRIVY_VERSION: "0.72.0"
+  SCAN2HTML_VERSION: "v0.3.27" # pin the plugin for reproducibility
   SG_BUILD_IMAGE: "floragunncom/ubuntu-openjdk25:251126"
   SG_DIND_IMAGE: "floragunncom/ubuntu-dind:260209"
-  DOCKER_VERSION: "20.10.17"
-
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   MAVEN_CLI_OPTS: "--batch-mode -s settings.xml -U"
-  DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
-
   GIT_DEPTH: 10
 
 default:
@@ -32,7 +32,16 @@ default:
       echo "CI_COMMIT_TAG: $CI_COMMIT_TAG"
 
       if [ -z "$CI_COMMIT_TAG" ]; then
-        export ES_VERSION=$(xmlstarlet sel -t -m "/_:project/_:properties/_:elasticsearch.version" -v . pom.xml)
+        if command -v xmlstarlet >/dev/null 2>&1; then
+          ES_VERSION=$(xmlstarlet sel -t -m "/_:project/_:properties/_:elasticsearch.version" -v . pom.xml)
+        else
+          ES_VERSION=$(sed -n 's:.*<elasticsearch\.version>\(.*\)</elasticsearch\.version>.*:\1:p' pom.xml)
+          if ! printf '%s' "$ES_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Error: ES_VERSION '$ES_VERSION' does not match expected a.b.c format" >&2
+            exit 1
+          fi
+        fi
+        export ES_VERSION
         echo "No CI_COMMIT_TAG set, infer ES version from POM: $ES_VERSION";
         #no need to set SG_VERSION version here because its only used in the release job
       else
@@ -49,8 +58,9 @@ default:
       echo "$DOCKER_PASSWORD" | docker login --username floragunncom --password-stdin docker.io
 
 stages:
-  - prepare
   - build
+  - "Security Scan Phase 1"
+  - "Security Scan Phase 2"
   - "Backend Unit Tests"
   - "Backend Int Tests Core"
   - "Frontend Int Tests"
@@ -66,6 +76,7 @@ include:
   - local: "ci/frontend-int-tests.yml"
   - local: "ci/mt-data-migration-tests.yml"
   - local: 'ci/backport.yml'
+  - local: 'ci/trivy.yml'
 
 build:
   image: "$SG_BUILD_IMAGE"
@@ -95,10 +106,11 @@ build:
     reports:
       dotenv: snapshot.env
   cache:
-    key: mavenrepo-main-es8
+    key: "mavenrepo-$CI_COMMIT_REF_SLUG"
+    fallback_keys:
+      - "mavenrepo-main"
     paths:
       - .m2/repository
-    policy: push
 
 build_release:
   extends: build
@@ -176,8 +188,5 @@ deploy_docker_image:
       echo "Enable qemu-user-static to support docker multiarch builds with buildx"
       docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null
   
-      ./build_and_push.sh "floragunncom" "docker.io" "search-guard-flx-elasticsearch" "$SG_VERSION-es-$ES_VERSION" "--build-arg ES_VERSION="$ES_VERSION" --build-arg SG_VERSION="$SG_VERSION""      
-      
-      
-      
+      ./build_and_push.sh "floragunncom" "docker.io" "search-guard-flx-elasticsearch" "$SG_VERSION-es-$ES_VERSION" "--build-arg ES_VERSION="$ES_VERSION" --build-arg SG_VERSION="$SG_VERSION""
   allow_failure: false
