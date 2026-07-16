@@ -1,2 +1,4 @@
 variables:
   SG_KI_BRANCH: "main"
+  # IT_BRANCH can point to a branch in the sgi8 repo. By default its MAJOR.MINOR.X
+  # IT_BRANCH: "something"
