@@ -269,16 +269,21 @@ publish:sftp:
     - 'test -f "public/${CI_PROJECT_NAME}.html" || { echo "No report to publish."; exit 0; }'
     - 'mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"'
     - 'cp "$TRIVY_WEB_SFTP_SSH_PRIVATE_KEY" "$HOME/.ssh/id_deploy" && chmod 600 "$HOME/.ssh/id_deploy"'
-    # accept-new = trust on first use. For stronger security, provide a
-    # known_hosts File variable and copy it to $HOME/.ssh/known_hosts instead.
-    - 'COMMON="-i $HOME/.ssh/id_deploy -o StrictHostKeyChecking=accept-new"'
-    - 'ssh $COMMON -p "$TRIVY_WEB_SFTP_PORT" "${TRIVY_WEB_SFTP_USER}@${TRIVY_WEB_SFTP_HOST}" "mkdir -p ${TRIVY_WEB_SFTP_REMOTE_DIR}"'
-    # Upload THIS repo's report. The remote name carries a UTC timestamp plus the
-    # branch/tag (CI_COMMIT_REF_SLUG) so successive runs never overwrite each other:
-    #   yyyy_mm_dd_HH_mm_ss_<branch-or-tag>_<repo>.html
+    # The remote name carries a UTC timestamp plus the branch/tag (CI_COMMIT_REF_SLUG)
+    # so successive runs never overwrite each other:
+    #   yyyy_mm_dd_HH_mm_ss_<repo>_<branch-or-tag>.html
     - 'REMOTE_NAME="$(date -u +%Y_%m_%d_%H_%M_%S)_${CI_PROJECT_NAME}_${CI_COMMIT_REF_SLUG}.html"'
     - 'echo "Remote report name -> $REMOTE_NAME"'
-    - 'scp $COMMON -P "$TRIVY_WEB_SFTP_PORT" "public/${CI_PROJECT_NAME}.html" "${TRIVY_WEB_SFTP_USER}@${TRIVY_WEB_SFTP_HOST}:${TRIVY_WEB_SFTP_REMOTE_DIR}/${REMOTE_NAME}"'
+    # The server allows the SFTP subsystem only (no exec channel), so scp and
+    # `ssh <cmd>` are rejected. Drive everything through the sftp client via a
+    # batch file. `-mkdir` is prefixed with `-` so a pre-existing dir is not a
+    # fatal error (sftp mkdir is single-level; the parent must already exist).
+    # accept-new = trust on first use. For stronger security, provide a
+    # known_hosts File variable and copy it to $HOME/.ssh/known_hosts instead.
+    - 'printf "%s\n" "-mkdir ${TRIVY_WEB_SFTP_REMOTE_DIR}" "put public/${CI_PROJECT_NAME}.html ${TRIVY_WEB_SFTP_REMOTE_DIR}/${REMOTE_NAME}" "bye" > sftp_batch.txt'
+    - 'cat sftp_batch.txt'
+    - 'sftp -i "$HOME/.ssh/id_deploy" -o StrictHostKeyChecking=accept-new -o "Port=${TRIVY_WEB_SFTP_PORT}" -b sftp_batch.txt "${TRIVY_WEB_SFTP_USER}@${TRIVY_WEB_SFTP_HOST}"'
+
 # -----------------------------------------------------------------------------
 # 6) GATE: fail the pipeline if any scan recorded a non-zero enforcement code.
 #    Runs after Phase 1 so report/publish already happened. Toggle blocking via
