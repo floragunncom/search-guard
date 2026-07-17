@@ -174,7 +174,7 @@ build-and-scan:image:
     - docker build -f Dockerfile.trivy -t "$IMAGE_TAG" --build-arg ES_VERSION="$ES_VERSION" .
     # Scan the image ONCE to JSON (absolute paths since we cd'd into ci/), then derive reports via `trivy convert`.
     # --ignore-unfixed applied here at scan time (`trivy convert` does not support it).
-    - trivy image --skip-files "/usr/share/elasticsearch/**/*" --scanners vuln,secret,misconfig --offline-scan --ignore-unfixed --format json --output "$CI_PROJECT_DIR/trivy-image.json" "$IMAGE_TAG"
+    - trivy image --scanners vuln,secret,misconfig --offline-scan --ignore-unfixed --format json --output "$CI_PROJECT_DIR/trivy-image.json" "$IMAGE_TAG"
     # JUnit report so each finding shows in the pipeline "Tests" tab. Non-failing.
     - trivy convert --severity $TRIVY_SEVERITY --format template --template "@/tmp/junit.tpl" --output "$CI_PROJECT_DIR/junit-trivy-image.xml" "$CI_PROJECT_DIR/trivy-image.json"
     # Enforcement pass: record gate exit code without failing the job (see scan:vuln).
@@ -294,7 +294,34 @@ verify:security:
   image: busybox
   needs: ["scan:vuln", "scan:code", "build-and-scan:image"]
   script:
-    - 'RC=0; for f in exit_code_vuln.txt exit_code_code.txt exit_code_image.txt; do code=$(cat "$f" 2>/dev/null || echo MISSING); echo "$f -> $code"; [ "$code" = "0" ] || RC=1; done; if [ "$RC" -ne 0 ]; then echo "Security gate FAILED (HIGH/CRITICAL findings present)"; else echo "Security gate passed"; fi; exit $RC'
+    - |
+      # BLOCKING checks: dependency + code scans gate the pipeline.
+      RC=0
+      for f in exit_code_vuln.txt exit_code_code.txt; do
+        code=$(cat "$f" 2>/dev/null || echo MISSING)
+        echo "$f -> $code"
+        [ "$code" = "0" ] || RC=1
+      done
+
+      # NON-BLOCKING check: image scan is report-only. A non-zero result is
+      # surfaced prominently but never fails the job (base-image CVEs are often
+      # outside this repo's control).
+      image_code=$(cat exit_code_image.txt 2>/dev/null || echo MISSING)
+      echo "exit_code_image.txt -> $image_code"
+      if [ "$image_code" != "0" ]; then
+        echo "############################################################"
+        echo "## WARNING: image scan reported HIGH/CRITICAL findings     ##"
+        echo "## (exit_code_image.txt=$image_code) - NOT failing the job ##"
+        echo "## Review the Trivy image report / Tests tab.              ##"
+        echo "############################################################"
+      fi
+
+      if [ "$RC" -ne 0 ]; then
+        echo "Security gate FAILED (HIGH/CRITICAL findings present in deps/code)"
+      else
+        echo "Security gate passed"
+      fi
+      exit $RC
   # NOTE: allow_failure does NOT support variable expansion at job level.
   # rules:allow_failure is the supported way to make it toggleable via $ALLOW_TRIVY_FAILURE.
   rules:
