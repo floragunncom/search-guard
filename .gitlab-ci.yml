@@ -9,7 +9,7 @@ variables:
   # Single source of truth for Trivy (scan image tag + curl-installed binary in the image-scan job)
   TRIVY_VERSION: "0.72.0"
   SCAN2HTML_VERSION: "v0.3.27" # pin the plugin for reproducibility
-  SG_BUILD_IMAGE: "floragunncom/ubuntu-openjdk25:251126"
+  SG_BUILD_IMAGE: "floragunncom/ubuntu-openjdk25:260720-191407"
   SG_DIND_IMAGE: "floragunncom/ubuntu-dind:260209"
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   MAVEN_CLI_OPTS: "--batch-mode -s settings.xml -U"
