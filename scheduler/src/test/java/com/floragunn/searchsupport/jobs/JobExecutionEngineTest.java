@@ -17,6 +17,7 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.env.NodeEnvironment;
+import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.node.PluginAwareNode;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.xcontent.XContentType;
@@ -116,9 +117,7 @@ public class JobExecutionEngineTest {
 
             Thread.sleep(2 * 1000);
 
-           SearchResponse searchResponse = client.search(new SearchRequest("test_job_config_interval_trigger_start_time_trigger_state")).actionGet();
-
-           SearchHit hit = searchResponse.getHits().getAt(0);
+           SearchHit hit = awaitFirstTriggerState(client, "test_job_config_interval_trigger_start_time_trigger_state");
            DocNode hitSource = DocNode.wrap(hit.getSourceAsMap());
            
            assertNotNull(hitSource + " must contain startTime attr", hitSource.get("startTime"));
@@ -139,10 +138,8 @@ public class JobExecutionEngineTest {
            
            Thread.sleep(2 * 1000);
 
-           searchResponse = client.search(new SearchRequest("test_job_config_interval_trigger_start_time_trigger_state")).actionGet();
-            
-           hit = searchResponse.getHits().getAt(0);
-           hitSource = DocNode.wrap(hit.getSourceAsMap());           
+           hit = awaitFirstTriggerState(client, "test_job_config_interval_trigger_start_time_trigger_state");
+           hitSource = DocNode.wrap(hit.getSourceAsMap());
                           
            long startTime2 = hitSource.getNumber("startTime").longValue();
            long nextFireTime2 = hitSource.getNumber("nextFireTime").longValue();
@@ -161,9 +158,36 @@ public class JobExecutionEngineTest {
             }
         }
     }
-    
-    
-    
+
+    /**
+     * The trigger state documents are written asynchronously by the scheduler and only become visible to search after an index refresh. Polling
+     * here - instead of relying on a fixed sleep followed by a single unchecked {@code getAt(0)} - makes the test robust against a slow scheduler
+     * startup or a delayed refresh on a loaded CI machine, which previously caused a flaky ArrayIndexOutOfBoundsException.
+     */
+    private static SearchHit awaitFirstTriggerState(Client client, String index) throws Exception {
+        long deadline = System.currentTimeMillis() + 30_000;
+        Exception lastException = null;
+
+        do {
+            try {
+                client.admin().indices().prepareRefresh(index).get();
+
+                SearchResponse searchResponse = client.search(new SearchRequest(index)).actionGet();
+
+                if (searchResponse.getHits().getHits().length > 0) {
+                    return searchResponse.getHits().getAt(0);
+                }
+            } catch (IndexNotFoundException e) {
+                // The scheduler has not written any trigger state yet, so the index does not exist. Keep waiting.
+                lastException = e;
+            }
+
+            Thread.sleep(100);
+        } while (System.currentTimeMillis() < deadline);
+
+        throw new AssertionError("No trigger state document appeared in index " + index + " within timeout", lastException);
+    }
+
     @Ignore("Only for manual testing")
     @Test
     public void overCapacity() throws Exception {

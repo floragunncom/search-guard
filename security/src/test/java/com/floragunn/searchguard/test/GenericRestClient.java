@@ -387,7 +387,10 @@ public class GenericRestClient implements AutoCloseable {
             clientBuilder.setSSLSocketFactory(sslsf);
         }
 
-        clientBuilder.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(20 * 1000).build());
+        // Generous socket read timeout: test data setup (index creation, data stream rollover, bulk indexing) can take well over 20s when the CI
+        // machine is loaded (e.g. several external process clusters starting and extracting ES tarballs concurrently), which previously caused
+        // flaky "Read timed out" failures. This is only an upper bound before a stalled request fails; successful fast requests are unaffected.
+        clientBuilder.setDefaultSocketConfig(SocketConfig.custom().setSoTimeout(60 * 1000).build());
 
         if (requestConfig != null) {
             clientBuilder.setDefaultRequestConfig(requestConfig);
