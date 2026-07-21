@@ -105,7 +105,9 @@ public class JvmEmbeddedEsCluster extends LocalEsCluster {
 
     public void waitForGreenCluster() throws Exception {
         ClusterHealthStatus status = ClusterHealthStatus.GREEN;
-        TimeValue timeout = TimeValue.timeValueSeconds(10);
+        // Generous ceiling: on a loaded CI machine, allocating the replica shards of the Search Guard/system indices can take well over 10s,
+        // leaving the cluster transiently YELLOW even though all nodes have joined. Aligned with the external process cluster (30s).
+        TimeValue timeout = TimeValue.timeValueSeconds(30);
         int expectedNodeCount = allNodes.size();
         Client client = clientNode().getInternalNodeClient();
 

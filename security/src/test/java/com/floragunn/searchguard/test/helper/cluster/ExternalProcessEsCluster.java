@@ -24,8 +24,8 @@ import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -68,6 +68,14 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
      */
     private static final ExecutorService quickActionExecutorService = new ThreadPoolExecutor(0, 10, 5, TimeUnit.MINUTES, new SynchronousQueue<>());
 
+    /**
+     * Hard ceiling for the time a node may take from process launch until it reaches the "Search Guard configuration has been successfully
+     * initialized" milestone. This guards against a node that never forms a cluster. It is deliberately generous because the external process
+     * clusters start several real ES JVMs, which can be slow on a loaded CI machine. Once the milestone is reached, readiness is governed by the
+     * polling loop instead (see {@link Node#processLogLine(String)}), so this ceiling no longer applies.
+     */
+    private static final Duration STARTUP_TIMEOUT = Duration.ofMinutes(3);
+
     private boolean started;
     protected final File esDir;
     private EsInstallation esInstallation;
@@ -109,8 +117,11 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
                 + "searchguard.background_init_if_sgindex_not_exist: false");
 
        // this.esInstallation.writeConfig("log4j2.properties", FileHelper.loadFile("log4j2-test.properties"));
+        // Keep the external node at INFO for the Search Guard authz package. Running it at TRACE floods the CI log (the node's stdout is echoed
+        // back into the parent JVM), which previously exceeded GitLab's log size limit for the security module. Raise this locally when debugging
+        // authorization behaviour.
         this.esInstallation.appendConfig("log4j2.properties", "logger.sg.name = com.floragunn.searchguard.authz\n"
-                + "logger.sg.level = trace");
+                + "logger.sg.level = info");
 
         this.installedTestCertificates = this.testCertificates.at(this.esInstallation.getConfigPath());
 
@@ -191,6 +202,13 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
         private final long startupTime;
 
         private boolean ready = false;
+
+        /**
+         * Set once the node has reached the "Search Guard configuration has been successfully initialized" milestone and the readiness polling loop
+         * has started. From that point on, readiness (and its timeout) is owned by the polling loop, so the per-log-line startup ceiling must not
+         * fire anymore - otherwise a stray ES log line crossing {@link #STARTUP_TIMEOUT} could kill a node that is seconds away from being ready.
+         */
+        private volatile boolean startupInProgress = false;
 
         Node(NodeSettings nodeSettings, Process process, int httpPort, int transportPort, CompletableFuture<Node> onReady,
                 ExternalProcessEsCluster cluster, long startupTime) throws UnknownHostException {
@@ -371,6 +389,7 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
 
                     });
                 } else if (line.contains("Search Guard configuration has been successfully initialized")) {
+                    this.startupInProgress = true;
                     quickActionExecutorService.submit(() -> {
                         for (int i = 0; i < 10000; i++) {
                             try {
@@ -397,12 +416,14 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
                             }
                         }
 
-                        this.completeFutureExceptionally(new Exception("Node startup has timed out"));
+                        this.completeFutureExceptionally(
+                                new Exception("Node startup has timed out while waiting for the node to stop responding with 503"));
                     });
                 } else if (line.contains("BindHttpException")) {
                     cluster.portCollisionDetected = true;
-                } else if (this.started.compareTo(Instant.now().minus(1, ChronoUnit.MINUTES)) < 0) {
-                    this.completeFutureExceptionally(new Exception("Node startup has timed out"));
+                } else if (!this.startupInProgress && this.started.compareTo(Instant.now().minus(STARTUP_TIMEOUT)) < 0) {
+                    this.completeFutureExceptionally(new Exception("Node startup has timed out after " + STARTUP_TIMEOUT.toSeconds()
+                            + "s without reaching Search Guard initialization"));
                 }
             }
         }
