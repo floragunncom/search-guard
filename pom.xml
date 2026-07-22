@@ -836,8 +836,9 @@
           <configuration>
             <!-- add-opens is necessary for powermock on Java 17 -->
             <!-- java.xml/jdk.xml.internal=ALL-UNNAMED required after wiremock bump to 3.5.4-->
+            <!-- java.base/sun.security.x509=ALL-UNNAMED required for wiremock to generate certificates at runtime for HTTPS mocking -->
             <argLine>-Xmx4g -Xms4g --add-opens java.base/sun.security.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/sun.nio.fs=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.base=ALL-UNNAMED
-              --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.xml/jdk.xml.internal=ALL-UNNAMED</argLine>
+              --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.xml/jdk.xml.internal=ALL-UNNAMED --add-exports java.base/sun.security.x509=ALL-UNNAMED</argLine>
             <rerunFailingTestsCount>3</rerunFailingTestsCount>
             <forkCount>3</forkCount>
             <reuseForks>true</reuseForks>
