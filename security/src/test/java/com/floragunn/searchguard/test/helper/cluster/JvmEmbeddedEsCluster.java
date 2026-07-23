@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 import org.apache.commons.io.FileUtils;
@@ -65,10 +66,12 @@ public class JvmEmbeddedEsCluster extends LocalEsCluster {
     private static final Logger log = LogManager.getLogger(JvmEmbeddedEsCluster.class);
 
     private final List<Class<? extends Plugin>> additionalPlugins;
-    private final List<Node> allNodes = new ArrayList<>();
-    private final List<Node> masterNodes = new ArrayList<>();
-    private final List<Node> dataNodes = new ArrayList<>();
-    private final List<Node> clientNodes = new ArrayList<>();
+    // Nodes are added from async start threads (see startNode()), while teardown (stop()) may iterate these lists
+    // concurrently when a start fails - CopyOnWriteArrayList keeps iteration snapshot-safe and avoids ConcurrentModificationException.
+    private final List<Node> allNodes = new CopyOnWriteArrayList<>();
+    private final List<Node> masterNodes = new CopyOnWriteArrayList<>();
+    private final List<Node> dataNodes = new CopyOnWriteArrayList<>();
+    private final List<Node> clientNodes = new CopyOnWriteArrayList<>();
 
     public JvmEmbeddedEsCluster(String clusterName, ClusterConfiguration clusterConfiguration, NodeSettingsSupplier nodeSettingsSupplier,
             List<Class<? extends Plugin>> additionalPlugins, TestCertificates testCertificates) {
