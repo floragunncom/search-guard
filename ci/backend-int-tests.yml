@@ -99,7 +99,14 @@ signals_2:
     - |
        #apk update
        #apk add --no-cache gomplate jq curl zip xmlstarlet git wget bash sudo
-       
+
+       # Resource/contention diagnostics (shared with the unit-test job). For int tests the docker section is the key
+       # signal: ES/Kibana/the test runner are sibling containers via docker compose, so `docker stats` shows their
+       # per-container CPU/mem/PIDs (the job container's own /proc cannot). Written to ci-diagnostics/ (uploaded always).
+       export DIAG_DIR="$CI_PROJECT_DIR/ci-diagnostics"
+       . "$CI_PROJECT_DIR/ci/resource-diagnostics.sh"
+       diag_init "$CI_JOB_NAME"
+
        sudo sysctl -w vm.max_map_count=262144
        echo "SNAPSHOT_REVISION=$SNAPSHOT_REVISION"
        echo "TEST_DEFINITIONS $TEST_DEFINITIONS"
@@ -109,14 +116,23 @@ signals_2:
          TEST_IT_BRANCH="${MAJOR}.x"
        else
          TEST_IT_BRANCH=$IT_BRANCH
-       fi    
+       fi
        echo "TEST_IT_BRANCH: $TEST_IT_BRANCH"
        rm -rf sgi8 #safeguard, git clone fails sometimes with a 403 when the folder already exists
        git clone --depth 1 --branch $TEST_IT_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@git.floragunn.com/private/sgi8.git
        cd sgi8/server
        rm -f docker/elasticsearch/search-guard.zip
        cp -a ../../plugin/target/releases/search-guard-flx-elasticsearch-plugin-${SNAPSHOT_REVISION}.zip docker/elasticsearch/search-guard.zip
-       ./run_test_definition.sh "$TEST_DEFINITIONS"
+
+       diag_snapshot "BEFORE TESTS"
+       diag_sampler_start
+       # Capture the test exit code (works with or without set -e) so the closing diagnostics can run and we still
+       # propagate the real result as the job status.
+       if ./run_test_definition.sh "$TEST_DEFINITIONS"; then TEST_EXIT=0; else TEST_EXIT=$?; fi
+       diag_sampler_stop
+       diag_snapshot "AFTER TESTS"
+       echo "TEST EXIT CODE: $TEST_EXIT (see $CI_PROJECT_DIR/ci-diagnostics, uploaded as an artifact)"
+       exit $TEST_EXIT
   after_script:
     - |
       if [ -n "$KEEP_TEST_ARTIFACTS" ]; then
@@ -132,6 +148,8 @@ signals_2:
     when: always
     paths:
       - sgi8/client/test/testresults**/**/*
+      # Resource/contention diagnostics written by ci/resource-diagnostics.sh, kept on success and failure.
+      - ci-diagnostics/
     reports:
       junit:
         - "sgi8/client/test/testresults**/junit/Test*.xml"
