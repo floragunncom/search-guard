@@ -50,9 +50,21 @@ print_diagnostics() {
     echo "vm.overcommit_memory : $(cat /proc/sys/vm/overcommit_memory 2>/dev/null || echo '?')"
     echo "--- ulimits for the es_test user that runs ES (nofile/memlock/nproc are ES bootstrap checks) ---"
     su - es_test -c 'ulimit -a' 2>/dev/null || echo '?'
-    echo "--- co-located load (other java/mvn processes = other jobs sharing this host) ---"
-    echo "java processes  : $(pgrep -c -x java 2>/dev/null || echo '?')"
-    echo "mvn processes   : $(pgrep -c -f 'org.apache.maven' 2>/dev/null || echo '?')"
+    echo "--- process counts (NOTE: this container has its own PID namespace, so these see only THIS job;"
+    echo "    use host-wide loadavg/PSI above as the cross-job contention signal) ---"
+    echo "java processes  : $(pgrep -x java 2>/dev/null | wc -l)"
+    echo "mvn processes   : $(pgrep -f 'org.apache.maven' 2>/dev/null | wc -l)"
+    echo "threads (tasks) : $(ps -eLf 2>/dev/null | tail -n +2 | wc -l)"
+    echo "--- file descriptors (the nofile=1024 canary; a single java proc nearing 1024 = FD exhaustion) ---"
+    echo "system-wide fs.file-nr (allocated unused max): $(cat /proc/sys/fs/file-nr 2>/dev/null || echo '?')"
+    for pid in $(pgrep -x java 2>/dev/null); do
+      soft="$(cat /proc/$pid/limits 2>/dev/null | awk '/Max open files/{print $4}')"
+      count="$(ls /proc/$pid/fd 2>/dev/null | wc -l)"
+      echo "  java pid $pid : open_fds=$count soft_limit=${soft:-?}"
+    done
+    echo "--- cgroup tasks / cpu throttling (throttling stays 0 until a cpus limit is set) ---"
+    echo "pids.current/max : $(cat /sys/fs/cgroup/pids.current 2>/dev/null || echo '?') / $(cat /sys/fs/cgroup/pids.max 2>/dev/null || echo '?')"
+    awk '{print "cpu.stat "$0}' /sys/fs/cgroup/cpu.stat 2>/dev/null || echo 'cpu.stat unavailable'
     echo "--- top 10 processes by memory (RSS) ---"
     ps -eo pid,ppid,user,rss,pcpu,comm --sort=-rss 2>/dev/null | head -n 11 || echo '?'
     echo "--- recent OOM-killer activity (best effort; often unavailable in unprivileged containers) ---"
@@ -89,6 +101,8 @@ print_diagnostics "BEFORE TESTS"
 SAMPLER_PID=""
 if [ "${CI_RESOURCE_SAMPLING:-true}" == "true" ]; then
   (
+    # Best-effort sampling: never let a missing probe path (awk exits 2 on a missing file, etc.) kill the loop.
+    set +e
     while true; do
       cpu_psi="$(awk '/some/{print $2}' /proc/pressure/cpu 2>/dev/null)"
       mem_psi="$(awk '/some/{print $2}' /proc/pressure/memory 2>/dev/null)"
@@ -98,7 +112,17 @@ if [ "${CI_RESOURCE_SAMPLING:-true}" == "true" ]; then
       else
         cg_mem="$(cat /sys/fs/cgroup/memory/memory.usage_in_bytes 2>/dev/null)"
       fi
-      line="[resource-sample $(date -u +%FT%TZ)] loadavg=$(cut -d' ' -f1-3 /proc/loadavg 2>/dev/null) mem_available_kb=$(awk '/MemAvailable/{print $2}' /proc/meminfo 2>/dev/null) swap_free_kb=$(awk '/SwapFree/{print $2}' /proc/meminfo 2>/dev/null) cgroup_mem_bytes=${cg_mem:-?} psi_cpu=${cpu_psi:-n/a} psi_mem=${mem_psi:-n/a} psi_io=${io_psi:-n/a}"
+      # FD pressure: java process count, and the MAX open-fd count held by any single java process (the nofile=1024 canary).
+      java_procs=0; fd_java_max=0
+      for pid in $(pgrep -x java 2>/dev/null); do
+        n="$(ls /proc/$pid/fd 2>/dev/null | wc -l)"
+        java_procs=$((java_procs + 1))
+        [ "$n" -gt "$fd_java_max" ] && fd_java_max=$n
+      done
+      fd_sys="$(awk '{print $1}' /proc/sys/fs/file-nr 2>/dev/null)"
+      threads="$(ps -eLf 2>/dev/null | tail -n +2 | wc -l)"
+      cpu_throttled_us="$(awk '/throttled_usec/{print $2}' /sys/fs/cgroup/cpu.stat 2>/dev/null)"
+      line="[resource-sample $(date -u +%FT%TZ)] loadavg=$(cut -d' ' -f1-3 /proc/loadavg 2>/dev/null) mem_available_kb=$(awk '/MemAvailable/{print $2}' /proc/meminfo 2>/dev/null) swap_free_kb=$(awk '/SwapFree/{print $2}' /proc/meminfo 2>/dev/null) cgroup_mem_bytes=${cg_mem:-?} psi_cpu=${cpu_psi:-n/a} psi_mem=${mem_psi:-n/a} psi_io=${io_psi:-n/a} java=${java_procs} fd_java_max=${fd_java_max} fd_sys_alloc=${fd_sys:-?} threads=${threads} cpu_throttled_us=${cpu_throttled_us:-0}"
       echo "$line"
       echo "$line" >> "$DIAG_FILE"
       sleep "${CI_RESOURCE_SAMPLING_INTERVAL:-30}"

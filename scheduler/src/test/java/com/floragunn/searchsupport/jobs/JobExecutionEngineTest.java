@@ -135,16 +135,17 @@ public class JobExecutionEngineTest {
                    .nodeComparator(new NodeNameComparator(clusterService)).build();
 
            scheduler.start();
-           
-           Thread.sleep(2 * 1000);
 
-           hit = awaitFirstTriggerState(client, "test_job_config_interval_trigger_start_time_trigger_state");
+           // Poll until the restarted scheduler has fired the job at least once more, instead of a fixed 2s sleep.
+           // On a loaded CI machine the new scheduler can take longer than 2s to pick up and fire the job, which made
+           // the assertNotEquals below flaky ("Job was triggered. Actual: <n>").
+           hit = awaitTriggeredMoreThan(client, "test_job_config_interval_trigger_start_time_trigger_state", timesTriggered);
            hitSource = DocNode.wrap(hit.getSourceAsMap());
-                          
+
            long startTime2 = hitSource.getNumber("startTime").longValue();
            long nextFireTime2 = hitSource.getNumber("nextFireTime").longValue();
            long timesTriggered2 =  hitSource.getNumber("timesTriggered").longValue();
-           
+
            assertNotEquals("Job was triggered", timesTriggered, timesTriggered2);
 
            assertEquals("startTime must have been preserved over scheduler restart", startTime, startTime2);
@@ -186,6 +187,41 @@ public class JobExecutionEngineTest {
         } while (System.currentTimeMillis() < deadline);
 
         throw new AssertionError("No trigger state document appeared in index " + index + " within timeout", lastException);
+    }
+
+    /**
+     * Polls the trigger state document until timesTriggered exceeds {@code previousTimesTriggered} - i.e. the (restarted)
+     * scheduler has fired the job at least once more. Replacing a fixed sleep with polling makes the fail-over assertion
+     * robust against a slow scheduler startup on a loaded CI machine.
+     */
+    private static SearchHit awaitTriggeredMoreThan(Client client, String index, long previousTimesTriggered) throws Exception {
+        long deadline = System.currentTimeMillis() + 30_000;
+        SearchHit lastHit = null;
+
+        do {
+            try {
+                client.admin().indices().prepareRefresh(index).get();
+
+                SearchResponse searchResponse = client.search(new SearchRequest(index)).actionGet();
+                SearchHit[] hits = searchResponse.getHits().getHits();
+
+                if (hits.length > 0) {
+                    lastHit = hits[0];
+                    Number timesTriggered = DocNode.wrap(lastHit.getSourceAsMap()).getNumber("timesTriggered");
+
+                    if (timesTriggered != null && timesTriggered.longValue() > previousTimesTriggered) {
+                        return lastHit;
+                    }
+                }
+            } catch (IndexNotFoundException e) {
+                // The scheduler has not written any trigger state yet, so the index does not exist. Keep waiting.
+            }
+
+            Thread.sleep(100);
+        } while (System.currentTimeMillis() < deadline);
+
+        throw new AssertionError("Job was not triggered again after scheduler restart within timeout (previousTimesTriggered="
+                + previousTimesTriggered + ", lastHit=" + (lastHit != null ? lastHit.getSourceAsString() : "none") + ")");
     }
 
     @Ignore("Only for manual testing")

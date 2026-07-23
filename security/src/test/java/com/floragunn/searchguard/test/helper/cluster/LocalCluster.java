@@ -237,16 +237,8 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                     + this.executedRequests.stream().map(r -> r.toString()).collect(Collectors.joining("\n\n\n")));
         }
 
-        if (localEsCluster != null && localEsCluster.isStarted()) {
-            try {
-                Thread.sleep(1234);
-                localEsCluster.destroy();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            } finally {
-                localEsCluster = null;
-            }
-        }
+        sleepQuietly(1234);
+        destroyCluster();
     }
 
     @Override
@@ -255,15 +247,16 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             log.info("Executed requests:\n{}", this.executedRequests.stream().map(r -> r.toString()).collect(Collectors.joining("\n\n\n")));
         }
 
-        if (localEsCluster != null && localEsCluster.isStarted()) {
-            try {
-                Thread.sleep(100);
-                localEsCluster.destroy();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            } finally {
-                localEsCluster = null;
-            }
+        sleepQuietly(100);
+        destroyCluster();
+    }
+
+    // Brief settle time before teardown; interrupt-safe because close() can run on a thread whose async start was cancelled.
+    private static void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -361,17 +354,22 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
     }
 
     /**
-     * Tears down a (possibly only partially started) cluster and clears the reference so it cannot leak into a
-     * reused surefire fork - we run with reuseForks=true, so leaked nodes/threads/ports/temp-dirs would poison every
-     * later test class in the same fork. Safe to call more than once and never throws.
+     * The single teardown path. Tears down a (possibly only partially started) cluster and clears the reference so it
+     * cannot leak into a reused surefire fork - we run with reuseForks=true, so leaked nodes/threads/ports/temp-dirs
+     * would poison every later test class in the same fork.
+     *
+     * synchronized + idempotent + never-throws on purpose: a cluster can be torn down from several triggers at once
+     * (a failed/cancelled async start, try-with-resources close(), and the JUnit rule after()), especially in tests
+     * that start a cluster asynchronously and then cancel it. Serializing here collapses those into exactly one
+     * teardown, and swallowing (logging) cleanup errors keeps a racy teardown from surfacing as a test error.
      */
-    protected void destroyCluster() {
+    protected synchronized void destroyCluster() {
         LocalEsCluster cluster = this.localEsCluster;
         if (cluster != null) {
             try {
                 cluster.destroy();
             } catch (Exception e) {
-                log.warn("Error while destroying cluster after a failed start", e);
+                log.warn("Error while destroying cluster", e);
             } finally {
                 this.localEsCluster = null;
             }
