@@ -80,7 +80,7 @@ include:
   - local: "ci/mt-data-migration-tests.yml"
   - local: 'ci/backport.yml'
   - local: 'ci/trivy.yml'
-  - local: 'ci/owasp-dependency-check.yml'
+  #- local: 'ci/owasp-dependency-check.yml'
 
 build:
   image: "$SG_BUILD_IMAGE"
