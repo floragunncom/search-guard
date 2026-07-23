@@ -354,11 +354,27 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
             waitForComponents();
         } catch (RuntimeException e) {
-            if (this.localEsCluster != null) {
-                this.localEsCluster.destroy();
-            }
+            destroyCluster();
 
             throw e;
+        }
+    }
+
+    /**
+     * Tears down a (possibly only partially started) cluster and clears the reference so it cannot leak into a
+     * reused surefire fork - we run with reuseForks=true, so leaked nodes/threads/ports/temp-dirs would poison every
+     * later test class in the same fork. Safe to call more than once and never throws.
+     */
+    protected void destroyCluster() {
+        LocalEsCluster cluster = this.localEsCluster;
+        if (cluster != null) {
+            try {
+                cluster.destroy();
+            } catch (Exception e) {
+                log.warn("Error while destroying cluster after a failed start", e);
+            } finally {
+                this.localEsCluster = null;
+            }
         }
     }
 
@@ -366,9 +382,10 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         try {
             JvmEmbeddedEsCluster result = new JvmEmbeddedEsCluster(clusterName, clusterConfiguration,
                     minimumSearchGuardSettingsSupplierFactory.minimumSearchGuardSettings(nodeOverride), plugins, testCertificates);
-            result.start();
-
+            // Publish the reference before start() so that a partially started cluster (e.g. nodes up but the cluster
+            // never reaching GREEN) is still torn down by destroyCluster() instead of being leaked into the reused fork.
             this.localEsCluster = result;
+            result.start();
 
             createTemplates();
             Client client = result.clientNode().getInternalNodeClient();
@@ -393,6 +410,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return result;
         } catch (Exception e) {
             log.error("Local ES cluster start failed", e);
+            destroyCluster();
             throw new RuntimeException(e);
         }
 
@@ -402,9 +420,10 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         try {
             ExternalProcessEsCluster result = new ExternalProcessEsCluster(clusterName, clusterConfiguration,
                     minimumSearchGuardSettingsSupplierFactory.minimumSearchGuardSettings(nodeOverride), testCertificates, testSgConfig);
-            result.start();
-
+            // Publish the reference before start() so that a partially started cluster (e.g. a node that times out before
+            // reaching Search Guard initialization) is still torn down by destroyCluster() instead of being leaked.
             this.localEsCluster = result;
+            result.start();
 
             createTemplates();
 
@@ -423,6 +442,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return result;
         } catch (Exception e) {
             log.error("Local ES cluster start failed", e);
+            destroyCluster();
             throw new RuntimeException(e);
         }
     }
@@ -983,8 +1003,16 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
         @Override
         protected void start() {
-            this.jvmEmbeddedEsCluster = startEmbeddedEsCluster();
-            waitForComponents();
+            try {
+                this.jvmEmbeddedEsCluster = startEmbeddedEsCluster();
+                waitForComponents();
+            } catch (RuntimeException e) {
+                // startEmbeddedEsCluster() cleans up after itself; this additionally covers a waitForComponents()
+                // failure, where the cluster is up but a Search Guard component never becomes initialized.
+                destroyCluster();
+                this.jvmEmbeddedEsCluster = null;
+                throw e;
+            }
         }
 
         public Client getInternalNodeClient() {
