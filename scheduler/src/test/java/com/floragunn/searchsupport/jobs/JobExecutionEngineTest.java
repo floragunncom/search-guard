@@ -138,9 +138,9 @@ public class JobExecutionEngineTest {
 
            // Poll until the restarted scheduler has fired the job at least once more, instead of a fixed 2s sleep.
            // On a loaded CI machine the new scheduler can take longer than 2s to pick up and fire the job, which made
-           // the assertNotEquals below flaky ("Job was triggered. Actual: <n>").
-           hit = awaitTriggeredMoreThan(client, "test_job_config_interval_trigger_start_time_trigger_state", timesTriggered);
-           hitSource = DocNode.wrap(hit.getSourceAsMap());
+           // the assertNotEquals below flaky ("Job was triggered. Actual: <n>"). Returns the parsed source directly
+           // because SearchHit.getSourceAsMap() may only be called once per hit.
+           hitSource = awaitTriggeredMoreThan(client, "test_job_config_interval_trigger_start_time_trigger_state", timesTriggered);
 
            long startTime2 = hitSource.getNumber("startTime").longValue();
            long nextFireTime2 = hitSource.getNumber("nextFireTime").longValue();
@@ -194,9 +194,9 @@ public class JobExecutionEngineTest {
      * scheduler has fired the job at least once more. Replacing a fixed sleep with polling makes the fail-over assertion
      * robust against a slow scheduler startup on a loaded CI machine.
      */
-    private static SearchHit awaitTriggeredMoreThan(Client client, String index, long previousTimesTriggered) throws Exception {
+    private static DocNode awaitTriggeredMoreThan(Client client, String index, long previousTimesTriggered) throws Exception {
         long deadline = System.currentTimeMillis() + 30_000;
-        SearchHit lastHit = null;
+        DocNode lastSource = null;
 
         do {
             try {
@@ -206,11 +206,13 @@ public class JobExecutionEngineTest {
                 SearchHit[] hits = searchResponse.getHits().getHits();
 
                 if (hits.length > 0) {
-                    lastHit = hits[0];
-                    Number timesTriggered = DocNode.wrap(lastHit.getSourceAsMap()).getNumber("timesTriggered");
+                    // getSourceAsMap() may only be called once per SearchHit (ES asserts this), so parse here and
+                    // return the DocNode; the caller uses it directly instead of calling getSourceAsMap() again.
+                    lastSource = DocNode.wrap(hits[0].getSourceAsMap());
+                    Number timesTriggered = lastSource.getNumber("timesTriggered");
 
                     if (timesTriggered != null && timesTriggered.longValue() > previousTimesTriggered) {
-                        return lastHit;
+                        return lastSource;
                     }
                 }
             } catch (IndexNotFoundException e) {
@@ -221,7 +223,7 @@ public class JobExecutionEngineTest {
         } while (System.currentTimeMillis() < deadline);
 
         throw new AssertionError("Job was not triggered again after scheduler restart within timeout (previousTimesTriggered="
-                + previousTimesTriggered + ", lastHit=" + (lastHit != null ? lastHit.getSourceAsString() : "none") + ")");
+                + previousTimesTriggered + ", lastSource=" + lastSource + ")");
     }
 
     @Ignore("Only for manual testing")
