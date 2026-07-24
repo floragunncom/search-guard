@@ -2,7 +2,20 @@
 version: 2
 updates:
   - package-ecosystem: maven
+    target-branch: main
     directory: /
+    schedule:
+      interval: daily
+    ignore:
+      - dependency-name: "org.elasticsearch*"
+      - dependency-name: "com.fasterxml.jackson.*"
+      - dependency-name: "org.apache.maven.resolver:maven-resolver-connector-basic"
+      # netty and log4j should match the versions used in elastic
+      - dependency-name: "io.netty*"
+      - dependency-name: "org.apache.logging.log4j*"
+  - package-ecosystem: maven
+    directory: /
+    target-branch: main-es8
     schedule:
       interval: daily
     ignore:
