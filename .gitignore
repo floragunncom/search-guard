@@ -50,3 +50,6 @@ plugin/entitlement-policy.yaml
 
 #gitlab-ci-local
 .gitlab-ci-local/
+
+# CI resource/contention diagnostics written by ci/run_tests.sh
+ci-diagnostics/

@@ -9,6 +9,9 @@
     - when: on_success
   artifacts:
     when: always
+    paths:
+      # Resource/contention diagnostics written by ci/run_tests.sh, kept on both success and failure.
+      - ci-diagnostics/
     reports:
       junit:
         - "*/target/surefire-reports/TEST-*.xml"

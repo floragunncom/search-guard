@@ -36,6 +36,7 @@ package com.floragunn.searchguard.test.helper.log;
 
 import org.junit.rules.ExternalResource;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -90,6 +91,23 @@ public class LogsRule extends ExternalResource {
 
         String reason = reasonMessage(messageFragment, messages, true);
         assertThat(reason, messages, hasItem(containsString(messageFragment)));
+    }
+
+    /**
+    * Check that at least one captured log message contains at least one of the given fragments. Useful when a check can
+    * legitimately be satisfied by more than one message - e.g. an SSL hostname verification failure that may be reported
+    * against the peer IP address or against its reverse-resolved DNS name, depending on the runner's resolver state.
+    * @param messageFragments accepted log message fragments; a single match is sufficient
+    */
+    public void assertThatContainAnyOf(String... messageFragments) {
+        List<String> messages = LogCapturingAppender.getLogMessagesAsString();
+        boolean found = messages.stream().anyMatch(message -> Arrays.stream(messageFragments).anyMatch(message::contains));
+
+        String reason = String.format("Expected at least one of %s in logs. All captured log messages: %s",
+                Arrays.toString(messageFragments),
+                messages.stream().map(message -> String.format("'%s'", message)).collect(Collectors.joining(", ")));
+
+        assertThat(reason, found, is(true));
     }
 
     /**

@@ -29,6 +29,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.SynchronousQueue;
@@ -79,10 +80,12 @@ public class ExternalProcessEsCluster extends LocalEsCluster {
     private boolean started;
     protected final File esDir;
     private EsInstallation esInstallation;
-    private final List<Node> allNodes = new ArrayList<>();
-    private final List<Node> masterNodes = new ArrayList<>();
-    private final List<Node> dataNodes = new ArrayList<>();
-    private final List<Node> clientNodes = new ArrayList<>();
+    // Nodes are added from async start threads, while teardown (stop()) may iterate these lists concurrently when a
+    // start fails - CopyOnWriteArrayList keeps iteration snapshot-safe and avoids ConcurrentModificationException.
+    private final List<Node> allNodes = new CopyOnWriteArrayList<>();
+    private final List<Node> masterNodes = new CopyOnWriteArrayList<>();
+    private final List<Node> dataNodes = new CopyOnWriteArrayList<>();
+    private final List<Node> clientNodes = new CopyOnWriteArrayList<>();
     private final TestSgConfig testSgConfig;
     private TestCertificates installedTestCertificates;
 

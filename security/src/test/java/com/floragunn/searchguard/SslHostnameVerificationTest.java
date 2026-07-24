@@ -44,6 +44,14 @@ public class SslHostnameVerificationTest {
 
     LocalCluster.Builder.Embedded clusterBuilder = new LocalCluster.Builder().embedded().clusterConfiguration(ClusterConfiguration.DEFAULT);
 
+    // Hostname verification can reject the node cert either against the peer IP (127.0.0.1) or against its
+    // reverse-resolved DNS name ("localhost"), depending on the runner's resolver state when resolving is enabled.
+    // Both are valid "cluster was correctly refused" signals, so the shouldNotStartCluster_* tests accept either to
+    // avoid flakiness. This does not weaken them: if verification had wrongly succeeded, neither message would appear
+    // and the await would still time out. (For the resolving-disabled test only the IP form is ever produced.)
+    private static final String SSL_REJECTED_BY_IP = "No subject alternative names matching IP address 127.0.0.1 found";
+    private static final String SSL_REJECTED_BY_DNS = "No subject alternative DNS name matching localhost found";
+
     @Test
     public void shouldStartCluster_invalidSanIpInvalidSanDns_wholeVerificationDisabled() {
         TestCertificates testCertificates = buildTestCertificates("fake", "127.0.0.2");
@@ -98,7 +106,7 @@ public class SslHostnameVerificationTest {
             clusterFuture = executorService.submit(startCluster(cluster));
             await("expect hostname verification error")
                     .pollDelay(10, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> logsRule.assertThatContain("No subject alternative names matching IP address 127.0.0.1 found"));
+                    .untilAsserted(() -> logsRule.assertThatContainAnyOf(SSL_REJECTED_BY_IP, SSL_REJECTED_BY_DNS));
         } finally {
             Assert.assertNotNull("clusterFeature is not null", clusterFuture);
             clusterFuture.cancel(true);
@@ -127,7 +135,7 @@ public class SslHostnameVerificationTest {
             clusterFuture = executorService.submit(startCluster(cluster));
             await("expect hostname verification error")
                     .pollDelay(10, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> logsRule.assertThatContain("No subject alternative names matching IP address 127.0.0.1 found"));
+                    .untilAsserted(() -> logsRule.assertThatContainAnyOf(SSL_REJECTED_BY_IP, SSL_REJECTED_BY_DNS));
         } finally {
             Assert.assertNotNull("clusterFeature is not null", clusterFuture);
             clusterFuture.cancel(true);
@@ -145,7 +153,7 @@ public class SslHostnameVerificationTest {
             clusterFuture = executorService.submit(startCluster(cluster));
             await("expect hostname verification error")
                     .pollDelay(10, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> logsRule.assertThatContain("No subject alternative names matching IP address 127.0.0.1 found"));
+                    .untilAsserted(() -> logsRule.assertThatContainAnyOf(SSL_REJECTED_BY_IP, SSL_REJECTED_BY_DNS));
         } finally {
             Assert.assertNotNull("clusterFeature is not null", clusterFuture);
             clusterFuture.cancel(true);

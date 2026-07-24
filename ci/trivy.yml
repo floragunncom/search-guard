@@ -58,7 +58,7 @@ scan:build:
       # One aggregate SBOM covering every module; a few hundred KB.
       - bom.json
       - plugin/target/releases/search-guard-flx-elasticsearch-plugin-trivy.zip
-    expire_in: 1 hour
+    expire_in: 72 hour
   variables:
     # --- Maven ---
     MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
