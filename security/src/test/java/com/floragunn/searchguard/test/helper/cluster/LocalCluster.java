@@ -237,16 +237,8 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
                     + this.executedRequests.stream().map(r -> r.toString()).collect(Collectors.joining("\n\n\n")));
         }
 
-        if (localEsCluster != null && localEsCluster.isStarted()) {
-            try {
-                Thread.sleep(1234);
-                localEsCluster.destroy();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            } finally {
-                localEsCluster = null;
-            }
-        }
+        sleepQuietly(1234);
+        destroyCluster();
     }
 
     @Override
@@ -255,15 +247,16 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             log.info("Executed requests:\n{}", this.executedRequests.stream().map(r -> r.toString()).collect(Collectors.joining("\n\n\n")));
         }
 
-        if (localEsCluster != null && localEsCluster.isStarted()) {
-            try {
-                Thread.sleep(100);
-                localEsCluster.destroy();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            } finally {
-                localEsCluster = null;
-            }
+        sleepQuietly(100);
+        destroyCluster();
+    }
+
+    // Brief settle time before teardown; interrupt-safe because close() can run on a thread whose async start was cancelled.
+    private static void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -354,11 +347,32 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
             waitForComponents();
         } catch (RuntimeException e) {
-            if (this.localEsCluster != null) {
-                this.localEsCluster.destroy();
-            }
+            destroyCluster();
 
             throw e;
+        }
+    }
+
+    /**
+     * The single teardown path. Tears down a (possibly only partially started) cluster and clears the reference so it
+     * cannot leak into a reused surefire fork - we run with reuseForks=true, so leaked nodes/threads/ports/temp-dirs
+     * would poison every later test class in the same fork.
+     *
+     * synchronized + idempotent + never-throws on purpose: a cluster can be torn down from several triggers at once
+     * (a failed/cancelled async start, try-with-resources close(), and the JUnit rule after()), especially in tests
+     * that start a cluster asynchronously and then cancel it. Serializing here collapses those into exactly one
+     * teardown, and swallowing (logging) cleanup errors keeps a racy teardown from surfacing as a test error.
+     */
+    protected synchronized void destroyCluster() {
+        LocalEsCluster cluster = this.localEsCluster;
+        if (cluster != null) {
+            try {
+                cluster.destroy();
+            } catch (Exception e) {
+                log.warn("Error while destroying cluster", e);
+            } finally {
+                this.localEsCluster = null;
+            }
         }
     }
 
@@ -366,9 +380,10 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         try {
             JvmEmbeddedEsCluster result = new JvmEmbeddedEsCluster(clusterName, clusterConfiguration,
                     minimumSearchGuardSettingsSupplierFactory.minimumSearchGuardSettings(nodeOverride), plugins, testCertificates);
-            result.start();
-
+            // Publish the reference before start() so that a partially started cluster (e.g. nodes up but the cluster
+            // never reaching GREEN) is still torn down by destroyCluster() instead of being leaked into the reused fork.
             this.localEsCluster = result;
+            result.start();
 
             createTemplates();
             Client client = result.clientNode().getInternalNodeClient();
@@ -393,6 +408,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return result;
         } catch (Exception e) {
             log.error("Local ES cluster start failed", e);
+            destroyCluster();
             throw new RuntimeException(e);
         }
 
@@ -402,9 +418,10 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
         try {
             ExternalProcessEsCluster result = new ExternalProcessEsCluster(clusterName, clusterConfiguration,
                     minimumSearchGuardSettingsSupplierFactory.minimumSearchGuardSettings(nodeOverride), testCertificates, testSgConfig);
-            result.start();
-
+            // Publish the reference before start() so that a partially started cluster (e.g. a node that times out before
+            // reaching Search Guard initialization) is still torn down by destroyCluster() instead of being leaked.
             this.localEsCluster = result;
+            result.start();
 
             createTemplates();
 
@@ -423,6 +440,7 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
             return result;
         } catch (Exception e) {
             log.error("Local ES cluster start failed", e);
+            destroyCluster();
             throw new RuntimeException(e);
         }
     }
@@ -983,8 +1001,16 @@ public class LocalCluster extends ExternalResource implements AutoCloseable, EsC
 
         @Override
         protected void start() {
-            this.jvmEmbeddedEsCluster = startEmbeddedEsCluster();
-            waitForComponents();
+            try {
+                this.jvmEmbeddedEsCluster = startEmbeddedEsCluster();
+                waitForComponents();
+            } catch (RuntimeException e) {
+                // startEmbeddedEsCluster() cleans up after itself; this additionally covers a waitForComponents()
+                // failure, where the cluster is up but a Search Guard component never becomes initialized.
+                destroyCluster();
+                this.jvmEmbeddedEsCluster = null;
+                throw e;
+            }
         }
 
         public Client getInternalNodeClient() {

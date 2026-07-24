@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 import org.apache.commons.io.FileUtils;
@@ -65,10 +66,12 @@ public class JvmEmbeddedEsCluster extends LocalEsCluster {
     private static final Logger log = LogManager.getLogger(JvmEmbeddedEsCluster.class);
 
     private final List<Class<? extends Plugin>> additionalPlugins;
-    private final List<Node> allNodes = new ArrayList<>();
-    private final List<Node> masterNodes = new ArrayList<>();
-    private final List<Node> dataNodes = new ArrayList<>();
-    private final List<Node> clientNodes = new ArrayList<>();
+    // Nodes are added from async start threads (see startNode()), while teardown (stop()) may iterate these lists
+    // concurrently when a start fails - CopyOnWriteArrayList keeps iteration snapshot-safe and avoids ConcurrentModificationException.
+    private final List<Node> allNodes = new CopyOnWriteArrayList<>();
+    private final List<Node> masterNodes = new CopyOnWriteArrayList<>();
+    private final List<Node> dataNodes = new CopyOnWriteArrayList<>();
+    private final List<Node> clientNodes = new CopyOnWriteArrayList<>();
 
     public JvmEmbeddedEsCluster(String clusterName, ClusterConfiguration clusterConfiguration, NodeSettingsSupplier nodeSettingsSupplier,
             List<Class<? extends Plugin>> additionalPlugins, TestCertificates testCertificates) {
@@ -156,8 +159,11 @@ public class JvmEmbeddedEsCluster extends LocalEsCluster {
         private final int httpPort;
         private final InetSocketAddress httpAddress;
         private final InetSocketAddress transportAddress;
-        private PluginAwareNode node;
-        private boolean running = false;
+        // node and running are mutated from the async start thread (see start()) and from stop(), and read from other
+        // threads (waitForGreenCluster, teardown) - volatile for visibility, and accessors below tolerate a null node
+        // so a teardown racing an in-flight start yields a clean exception instead of a NullPointerException.
+        private volatile PluginAwareNode node;
+        private volatile boolean running = false;
 
         Node(NodeSettings nodeSettings, int transportPort, int httpPort) {
             this.nodeName = nodeSettings.name;
@@ -222,7 +228,11 @@ public class JvmEmbeddedEsCluster extends LocalEsCluster {
         }
 
         public Client getInternalNodeClient() {
-            return node.client();
+            PluginAwareNode n = node;
+            if (n == null) {
+                throw new IllegalStateException("Node " + nodeName + " is not (or no longer) running");
+            }
+            return n.client();
         }
 
         public PluginAwareNode esNode() {
@@ -230,11 +240,15 @@ public class JvmEmbeddedEsCluster extends LocalEsCluster {
         }
 
         public boolean isRunning() {
-            return running;
+            return running && node != null;
         }
 
         public <X> X getInjectable(Class<X> clazz) {
-            return node.injector().getInstance(clazz);
+            PluginAwareNode n = node;
+            if (n == null) {
+                throw new IllegalStateException("Node " + nodeName + " is not (or no longer) running");
+            }
+            return n.injector().getInstance(clazz);
         }
 
         public void stop() {

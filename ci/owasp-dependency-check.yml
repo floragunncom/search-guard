@@ -1,0 +1,110 @@
+# =============================================================================
+# GitLab CI/CD (include template) — OWASP Dependency-Check
+#
+# Mirrors the Trivy setup (ci/trivy.yml) but is fully REPORT-ONLY: it never
+# fails the pipeline. It scans the built plugin zip (the bundled runtime jars
+# that actually ship), renders an interactive HTML report, and publishes that
+# report to the same SFTP server used for the Trivy reports.
+#
+# Flow (all in "Security Scan Phase 1"):
+#   owasp:scan          -> dependency-check.sh on the plugin jars -> HTML/JSON/JUnit
+#   owasp:publish:sftp  -> upload the HTML report to the SFTP server
+#
+# The NVD database (an H2 store under .owaspcache) is cached across runs so the
+# job only pulls incremental NVD deltas instead of re-downloading the whole feed.
+# An NVD API key ($NVD_API_KEY) is required for reliable, rate-limit-free updates.
+#
+# Expected from the including project: OWASP_DC_VERSION and the stage name.
+# Required CI/CD variable:
+#   NVD_API_KEY                       NVD API key (masked). Speeds up / de-flakes
+#                                     the NVD update; without it updates are
+#                                     heavily rate-limited.
+# SFTP publishing reuses the Trivy SFTP variables (same server):
+#   TRIVY_WEB_SFTP_HOST               target IP / hostname
+#   TRIVY_WEB_SFTP_USER               ssh user
+#   TRIVY_WEB_SFTP_SSH_PRIVATE_KEY    *File*-type variable holding the private key
+#   TRIVY_WEB_SFTP_PORT               optional, default 22
+#   TRIVY_WEB_SFTP_REMOTE_DIR         optional, default /data/upload
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1) Scan the shipped plugin jars with OWASP Dependency-Check.
+#    REPORT-ONLY: --failOnCVSS 11 means the tool never returns a failing exit
+#    code, and allow_failure:true guarantees the pipeline stays green even if the
+#    NVD update or the scan itself hiccups.
+# -----------------------------------------------------------------------------
+owasp:scan:
+  stage: "Security Scan Phase 1"
+  image:
+    name: "owasp/dependency-check:${OWASP_DC_VERSION}"
+    entrypoint: [""]
+  needs: ["scan:build"]
+  allow_failure: true
+  variables:
+    # Persisted, cached NVD data directory (H2 DB + NVD feeds).
+    OWASP_DC_DATA_DIR: "$CI_PROJECT_DIR/.owaspcache"
+    # CVSS score at/above which a finding is reported as a FAILED test in the
+    # JUnit report (surfaced in the pipeline "Tests" tab). Does NOT fail the job.
+    OWASP_JUNIT_FAIL_CVSS: "7"
+  script:
+    - 'test -f plugin/target/releases/search-guard-flx-elasticsearch-plugin-trivy.zip || { echo "ERROR: plugin zip missing - check the scan:build job"; exit 1; }'
+    - mkdir -p "$OWASP_DC_DATA_DIR" public-owasp
+    - 'test -n "$NVD_API_KEY" || echo "WARNING: NVD_API_KEY is not set - NVD updates will be slow / rate-limited"'
+    # Single scan producing all three report formats at once. --failOnCVSS 11
+    # keeps the exit code 0 (report-only); --junitFailOnCVSS marks high findings
+    # as failed tests without failing the job.
+    - >
+      /usr/share/dependency-check/bin/dependency-check.sh
+      --scan "plugin/target/releases/search-guard-flx-elasticsearch-plugin-trivy.zip"
+      --project "${CI_PROJECT_NAME} (ES ${ES_VERSION})"
+      --data "$OWASP_DC_DATA_DIR"
+      --out "public-owasp"
+      --format HTML --format JSON --format JUNIT
+      --prettyPrint
+      --failOnCVSS 11
+      --junitFailOnCVSS "$OWASP_JUNIT_FAIL_CVSS"
+      ${NVD_API_KEY:+--nvdApiKey "$NVD_API_KEY"}
+    # Fixed name for the HTML so the publish job/remote naming is deterministic.
+    - 'if [ -f public-owasp/dependency-check-report.html ]; then cp public-owasp/dependency-check-report.html "public-owasp/${CI_PROJECT_NAME}-owasp.html"; fi'
+    - ls -la public-owasp
+  cache:
+    key: owasp-nvd
+    paths:
+      - .owaspcache
+    policy: pull-push
+  artifacts:
+    when: always
+    reports:
+      junit: public-owasp/dependency-check-junit.xml
+    paths:
+      - public-owasp
+    expire_in: 30 days
+
+# -----------------------------------------------------------------------------
+# 2) Publish the HTML report to the SFTP server (same server/config as Trivy).
+#    The remote name carries a UTC timestamp + branch so runs never overwrite
+#    each other:  yyyy_mm_dd_HH_mm_ss_<repo>_<branch>_owasp.html
+# -----------------------------------------------------------------------------
+owasp:publish:sftp:
+  stage: "Security Scan Phase 1"
+  image: alpine:latest
+  needs: ["owasp:scan"]
+  allow_failure: true
+  variables:
+    TRIVY_WEB_SFTP_PORT: "22"
+    TRIVY_WEB_SFTP_REMOTE_DIR: "/data/upload"
+  rules:
+    - if: '$TRIVY_WEB_SFTP_HOST && $TRIVY_WEB_SFTP_SSH_PRIVATE_KEY'
+      when: on_success
+  script:
+    - apk add --no-cache openssh-client
+    - 'test -f "public-owasp/${CI_PROJECT_NAME}-owasp.html" || { echo "No OWASP report to publish."; exit 0; }'
+    - 'mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"'
+    - 'cp "$TRIVY_WEB_SFTP_SSH_PRIVATE_KEY" "$HOME/.ssh/id_deploy" && chmod 600 "$HOME/.ssh/id_deploy"'
+    - 'REMOTE_NAME="$(date -u +%Y_%m_%d_%H_%M_%S)_${CI_PROJECT_NAME}_${CI_COMMIT_REF_SLUG}_owasp.html"'
+    - 'echo "Remote report name -> $REMOTE_NAME"'
+    # SFTP-subsystem-only server: drive everything through an sftp batch file.
+    # `-mkdir` tolerates a pre-existing directory. accept-new = trust on first use.
+    - 'printf "%s\n" "-mkdir ${TRIVY_WEB_SFTP_REMOTE_DIR}" "put public-owasp/${CI_PROJECT_NAME}-owasp.html ${TRIVY_WEB_SFTP_REMOTE_DIR}/${REMOTE_NAME}" "bye" > sftp_batch.txt'
+    - 'cat sftp_batch.txt'
+    - 'sftp -i "$HOME/.ssh/id_deploy" -o StrictHostKeyChecking=accept-new -o "Port=${TRIVY_WEB_SFTP_PORT}" -b sftp_batch.txt "${TRIVY_WEB_SFTP_USER}@${TRIVY_WEB_SFTP_HOST}"'

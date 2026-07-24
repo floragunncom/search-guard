@@ -261,7 +261,9 @@ public final class ClusterHelper {
     }
 
     public Client nodeClient() {
-        return esNodes.get(0).client();
+        // Delegate to node() so we wait for the (asynchronously registered) node instead of blindly indexing esNodes,
+        // which races on a slow/loaded host and throws an opaque IndexOutOfBoundsException (Index: 0, Size: 0).
+        return node().client();
     }
 
     public PluginAwareNode node() {
