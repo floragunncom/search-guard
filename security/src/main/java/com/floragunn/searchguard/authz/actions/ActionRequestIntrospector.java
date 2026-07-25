@@ -153,9 +153,13 @@ public class ActionRequestIntrospector {
 
                 // We segment all requests implementing AliasesRequest (which is mostly GetAliasRequest) this way:
                 // - The requested indices get into the main ActionRequestInfo object. This can also include data streams.
+                //   Note that the index position of such a request may also contain an alias - like in GET /my_alias/_alias.
+                //   Thus, we need a scope which includes aliases. A scope without aliases would make such an alias resolve to
+                //   nothing, which in turn would let the request pass without any privilege check.
                 // - The requested aliases get into an additional ActionRequestInfo object with role ALIAS
 
-                return new ActionRequestInfo(indicesRequest.indices(), indicesRequest.indicesOptions(), IndicesRequestInfo.Scope.INDICES_DATA_STREAMS)//
+                return new ActionRequestInfo(indicesRequest.indices(), indicesRequest.indicesOptions(),
+                        IndicesRequestInfo.Scope.ANY_NO_COMPONENT_SELECTORS)//
                         .additional(Action.AdditionalDimension.ALIASES, aliasesRequest.aliases(),
                                 aliasesRequest.expandAliasesWildcards() ? IndicesOptions.lenientExpandHidden() : EXACT,
                                 IndicesRequestInfo.Scope.ALIAS);
@@ -323,6 +327,12 @@ public class ActionRequestIntrospector {
                 // AliasesRequest is a sub interface of IndicesRequest.Replaceable
                 AliasesRequest aliasesRequest = (AliasesRequest) request;
 
+                // A null keepIndices means that the user has privileges for all indices of the main dimension. This happens for example if
+                // only an additional dimension - like ALIASES - needs to be reduced. In this case, the indices of the request are left
+                // untouched and the reduction is validated against the originally resolved indices.
+                ImmutableSet<String> effectiveKeepIndices = keepIndices != null ? keepIndices
+                        : actionRequestInfo.getMainResolvedIndices().getLocal().getUnion().map(Meta.IndexLikeObject::name);
+
                 if (keepIndices != null) {
                     ImmutableSet<String> newIndices = ImmutableSet.of(keepIndices).with(actionRequestInfo.getResolvedIndices().getRemoteIndices());
 
@@ -342,7 +352,7 @@ public class ActionRequestIntrospector {
                     }
                 }
 
-                validateIndexReduction(action, replaceableIndicesRequest, keepIndices);
+                validateIndexReduction(action, replaceableIndicesRequest, effectiveKeepIndices);
                 return PrivilegesEvaluationResult.OK;
             } else {
                 // request instanceof IndicesRequest.Replaceable
@@ -350,7 +360,8 @@ public class ActionRequestIntrospector {
                 ResolvedIndices resolvedIndices = actionRequestInfo.getResolvedIndices();
                 ImmutableSet<String> actualIndices = resolvedIndices.getLocal().getUnion().map(Meta.IndexLikeObject::name);
 
-                if (keepIndices.containsAll(actualIndices)) {
+                // A null keepIndices means that the user has privileges for all indices of the main dimension; thus, nothing needs to be reduced.
+                if (keepIndices == null || keepIndices.containsAll(actualIndices)) {
                     return PrivilegesEvaluationResult.OK;
                 }
 
@@ -1028,7 +1039,14 @@ public class ActionRequestIntrospector {
             /**
              * Both indices, aliases and data streams are expected. In contrast to ANY, indices are also contained even if they are members of an alias which is also contained.
              */
-            ANY_DISTINCT(true, true, true);
+            ANY_DISTINCT(true, true, true),
+
+            /**
+             * Like ANY, but objects using component selectors - like the ::failures suffix of data stream failure stores - are not included.
+             * This is used for the index position of alias requests: Such requests can reference indices, data streams and aliases, but they
+             * do not support component selectors. See ResolvedIndices.shouldIncludeIndexLikeForAllLocal().
+             */
+            ANY_NO_COMPONENT_SELECTORS(true, true, true);
 
             final boolean includeIndices;
             final boolean includeAliases;

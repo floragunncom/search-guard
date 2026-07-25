@@ -82,6 +82,19 @@ public class MiscAuthorizationIntTests {
             .roles(new Role("search_template_legacy_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("SGS_READ")
                     .on("resolve_test_*").indexPermissions("indices:data/read/search/template").on("*"));
 
+    private static TestSgConfig.User GET_ALIAS_BY_ALIAS_USER = new TestSgConfig.User("get_alias_by_alias_user")
+            .roles(new Role("get_alias_by_alias_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO")
+                    .indexPermissions("SGS_READ", "indices:admin/aliases/get").on("get_alias_test_index_*")
+                    .aliasPermissions("SGS_READ", "indices:admin/aliases/get").on("get_alias_test_alias"));
+
+    private static TestSgConfig.User ALIAS_ONLY_USER = new TestSgConfig.User("get_alias_alias_only_user")
+            .roles(new Role("get_alias_alias_only_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO")
+                    .aliasPermissions("SGS_READ", "indices:admin/aliases/get").on("get_alias_test_alias"));
+
+    private static TestSgConfig.User INDEX_ONLY_USER = new TestSgConfig.User("get_alias_index_only_user")
+            .roles(new Role("get_alias_index_only_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS_RO")
+                    .indexPermissions("SGS_READ", "indices:admin/aliases/get").on("get_alias_test_index_*"));
+
     private static TestSgConfig.User HIDDEN_TEST_USER = new TestSgConfig.User("hidden_test_user").roles(
             new Role("hidden_test_user_role").clusterPermissions("SGS_CLUSTER_COMPOSITE_OPS").indexPermissions("*").on("hidden_test_not_hidden"));
 
@@ -103,7 +116,8 @@ public class MiscAuthorizationIntTests {
             .user("permssion_rest_api_user", "secret", new Role("permssion_rest_api_user_role").clusterPermissions("indices:data/read/mtv"))//
             .user("limited_test_user_basic", "secret",
                     new Role("role").clusterPermissions("*").indexPermissions("*").on("exclude_test_*"))//
-            .users(SEARCH_TEMPLATE_USER, SEARCH_NO_TEMPLATE_USER, SEARCH_TEMPLATE_LEGACY_USER).embedded().build();
+            .users(SEARCH_TEMPLATE_USER, SEARCH_NO_TEMPLATE_USER, SEARCH_TEMPLATE_LEGACY_USER, GET_ALIAS_BY_ALIAS_USER, ALIAS_ONLY_USER,
+                    INDEX_ONLY_USER).embedded().build();
 
     @ClassRule
     public static LocalCluster.Embedded clusterFof = new LocalCluster.Builder().singleNode().sslEnabled(certificatesContext)
@@ -134,6 +148,13 @@ public class MiscAuthorizationIntTests {
                     .source(XContentType.JSON, "index", "alias_resolve_test_index_allow_aliased_2", "b", "y", "date", "1985/01/01")).actionGet();
             client.admin().indices().aliases(
                     new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT).addAliasAction(AliasActions.add().alias("alias_resolve_test_alias_1").index("alias_resolve_test_*")))
+                    .actionGet();
+
+            client.index(new IndexRequest("get_alias_test_index_1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "index",
+                    "get_alias_test_index_1", "b", "y", "date", "1985/01/01")).actionGet();
+            client.admin().indices()
+                    .aliases(new IndicesAliasesRequest(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT)
+                            .addAliasAction(AliasActions.add().alias("get_alias_test_alias").index("get_alias_test_index_1")))
                     .actionGet();
 
             Client clientFof = clusterFof.getInternalNodeClient();
@@ -191,6 +212,45 @@ public class MiscAuthorizationIntTests {
             assertThat(finalResponse, isForbidden());
             assertThat(finalResponse.getBody(), finalResponse.getBodyAsDocNode(),
                 not(containsFieldPointedByJsonPath("error", "missing_permissions")));
+        }
+    }
+
+    @Test
+    public void getAlias_aliasInIndexPosition_unauthorizedAlias() throws Exception {
+        // The index position of a GetAliasesRequest may contain an alias. Privileges must be checked for such an alias; especially,
+        // the member indices of an alias the user has no privileges for must not be disclosed.
+        for (TestSgConfig.User user : new TestSgConfig.User[] { GET_ALIAS_BY_ALIAS_USER, ALIAS_ONLY_USER, INDEX_ONLY_USER }) {
+            try (GenericRestClient restClient = cluster.getRestClient(user)) {
+                HttpResponse httpResponse = restClient.get("alias_resolve_test_alias_1/_alias");
+                assertThat(httpResponse, isOk());
+                assertThat(httpResponse.getBody(), httpResponse.getBodyAsDocNode(), equalTo(DocNode.EMPTY));
+            }
+        }
+    }
+
+    @Test
+    public void getAlias_indexPositionResolvingToNothing() throws Exception {
+        // The index position resolves to no local index at all. This must not raise an error while reducing the aliases.
+        try (GenericRestClient restClient = cluster.getRestClient(GET_ALIAS_BY_ALIAS_USER)) {
+            HttpResponse httpResponse = restClient.get("nonexistent_xyz*/_alias");
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse.getBody(), httpResponse.getBodyAsDocNode(), equalTo(DocNode.EMPTY));
+        }
+    }
+
+    @Test
+    public void getAlias_aliasInIndexPosition() throws Exception {
+        try (GenericRestClient restClient = cluster.getRestClient(GET_ALIAS_BY_ALIAS_USER)) {
+            HttpResponse httpResponse = restClient.get("get_alias_test_index_*/_alias");
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse.getBodyAsDocNode(),
+                    containsFieldPointedByJsonPath("get_alias_test_index_1.aliases", "get_alias_test_alias"));
+
+            // The alias is used in the index position of the URL. This must work just as well as the request above.
+            httpResponse = restClient.get("get_alias_test_alias/_alias");
+            assertThat(httpResponse, isOk());
+            assertThat(httpResponse.getBodyAsDocNode(),
+                    containsFieldPointedByJsonPath("get_alias_test_index_1.aliases", "get_alias_test_alias"));
         }
     }
 

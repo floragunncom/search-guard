@@ -482,7 +482,8 @@ public class ResolvedIndices {
                             }
 
                             if (!partiallyExcludedObjects.contains(matchedAbstractionWithComponent) || scope == IndicesRequestInfo.Scope.ALIAS
-                                    || scope == IndicesRequestInfo.Scope.DATA_STREAM || scope == IndicesRequestInfo.Scope.INDICES_DATA_STREAMS) {
+                                    || scope == IndicesRequestInfo.Scope.DATA_STREAM || scope == IndicesRequestInfo.Scope.INDICES_DATA_STREAMS
+                                    || scope == IndicesRequestInfo.Scope.ANY_NO_COMPONENT_SELECTORS) {
                                 // This is the happy case, just include the object
                                 IndexAbstraction indexAbstraction = entry.getValue();
 
@@ -687,9 +688,9 @@ public class ResolvedIndices {
                 // only indices related to a failure store should be returned
                 // expressions like "*::failures" or "_all::failures"
                 return indexLike.isFailureStoreRelated();
-            } else if (scope == IndicesRequestInfo.Scope.INDICES_DATA_STREAMS) {
-                // INDICES_DATA_STREAMS scope is used for admin/alias requests that don't support component selectors.
-                // For example, GET _alias/alias_c1 resolves its index part (implicit _all) with this scope.
+            } else if (scope == IndicesRequestInfo.Scope.INDICES_DATA_STREAMS || scope == IndicesRequestInfo.Scope.ANY_NO_COMPONENT_SELECTORS) {
+                // These scopes are used for admin/alias requests that don't support component selectors.
+                // For example, GET _alias/alias_c1 resolves its index part (implicit _all) with ANY_NO_COMPONENT_SELECTORS.
                 // If we included failure-store-related objects like ds_b3::failures here, SG would pass them
                 // to ES when replacing indices for limited users, causing:
                 //   unsupported_selector_exception: "Index component selectors are not supported in this context
