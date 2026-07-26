@@ -110,6 +110,19 @@ public class FlsIntTest {
             new Role("role1").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("~*_ip").on(INDEX_PATTERN).clusterPermissions("*"),
             new Role("role2").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("source_ip").on(INDEX_PATTERN).clusterPermissions("*"));
 
+    static final TestSgConfig.User MULTI_ROLE_SAME_OBJECT_FIELD_USER = new TestSgConfig.User("multi_role_same_object_field").roles(
+            new Role("same_object_field_role1").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("object.integer_field")
+                    .on(INDEX_PATTERN).clusterPermissions("*"),
+            new Role("same_object_field_role2").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("object.integer_field")
+                    .on(INDEX_PATTERN).clusterPermissions("*"));
+
+    static final TestSgConfig.User MULTI_ROLE_OBJECT_FIELD_AND_PARENT_EXCLUSION_USER = new TestSgConfig.User(
+            "multi_role_object_field_and_parent_exclusion").roles(
+                    new Role("object_field_role").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("object.integer_field")
+                            .on(INDEX_PATTERN).clusterPermissions("*"),
+                    new Role("parent_exclusion_role").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("~object*")
+                            .on(INDEX_PATTERN).clusterPermissions("*"));
+
     static final TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db"));
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls();
 
@@ -117,7 +130,8 @@ public class FlsIntTest {
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled() //
             .authc(AUTHC).dlsFls(DLSFLS) //
             .users(ADMIN, EXCLUDE_IP_USER, EXCLUDE_OBJECT_USER, INCLUDE_OBJECT_USER, EXCLUDE_OBJECT_FIELD_USER, //
-                    INCLUDE_OBJECT_FIELD_USER, INCLUDE_LOC_USER, MULTI_ROLE_USER, EXCLUDE_LOC_USER) //
+                    INCLUDE_OBJECT_FIELD_USER, INCLUDE_LOC_USER, MULTI_ROLE_USER, EXCLUDE_LOC_USER, //
+                    MULTI_ROLE_SAME_OBJECT_FIELD_USER, MULTI_ROLE_OBJECT_FIELD_AND_PARENT_EXCLUSION_USER) //
             .resources("dlsfls")
             // An external process cluster is used due to the use of LogsDB indices, which requires an additional native library.
             .useExternalProcessCluster().build();
@@ -424,6 +438,56 @@ public class FlsIntTest {
             GenericRestClient.HttpResponse response = client.get(docUrl);
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("_source").get("source_ip") != null);
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("_source").get("dest_ip") != null);
+        }
+    }
+
+    @Test
+    public void get_multiRole_sameObjectField() throws Exception {
+        String docId = TEST_DATA.anyDocument().getId();
+        String docUrl = "/" + indexName + "/_doc/" + docId + "?pretty";
+
+        try (GenericRestClient client = cluster.getRestClient(MULTI_ROLE_SAME_OBJECT_FIELD_USER)) {
+            GenericRestClient.HttpResponse response = client.get(docUrl);
+
+            assertThat(response, isOk());
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("_source").getAsNode("object").get("integer_field") != null);
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("_source").getAsNode("object").get("dept") == null);
+        }
+    }
+
+    @Test
+    public void get_multiRole_objectFieldAndParentExclusion() throws Exception {
+        String docId = TEST_DATA.anyDocument().getId();
+        String docUrl = "/" + indexName + "/_doc/" + docId + "?pretty";
+
+        try (GenericRestClient client = cluster.getRestClient(MULTI_ROLE_OBJECT_FIELD_AND_PARENT_EXCLUSION_USER)) {
+            GenericRestClient.HttpResponse response = client.get(docUrl);
+
+            assertThat(response, isOk());
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("_source").getAsNode("object").get("integer_field") != null);
+        }
+    }
+
+    @Test
+    public void search_multiRole_sameObjectField() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(MULTI_ROLE_SAME_OBJECT_FIELD_USER)) {
+            GenericRestClient.HttpResponse response = client.get("/" + indexName + "/_search?pretty");
+
+            assertThat(response, isOk());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.object.integer_field)]").size() != 0);
+            Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.object.dept)]").size() == 0);
+        }
+    }
+
+    @Test
+    public void search_multiRole_objectFieldAndParentExclusion() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(MULTI_ROLE_OBJECT_FIELD_AND_PARENT_EXCLUSION_USER)) {
+            GenericRestClient.HttpResponse response = client.get("/" + indexName + "/_search?pretty");
+
+            assertThat(response, isOk());
+            Assert.assertTrue(response.getBody(),
+                    response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[?(@._source.object.integer_field)]").size() != 0);
         }
     }
 
