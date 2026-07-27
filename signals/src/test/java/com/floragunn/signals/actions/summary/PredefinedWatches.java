@@ -19,6 +19,7 @@ import com.floragunn.signals.watch.Watch;
 import com.floragunn.signals.watch.WatchBuilder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 
@@ -74,13 +75,13 @@ class PredefinedWatches {
             Watch watch = new WatchBuilder(watchId)
                     .triggerNow() //
                     .search(inputTemperatureIndex).size(0).aggregation(aggregation).as(maxTemperatureSearch)//
-                    .put(String.format("{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
+                    .put(String.format(Locale.ROOT, "{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
                     .checkCondition(tooHighTemperatureCondition)//
                     .then().index(outputAlarmIndex).name(actionName).build();
             String watchPath = createWatchPath(watchId);
             log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
             HttpResponse response = restClient.putJson(watchPath, watch);
-            assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
             WatchPointer watchPointer = new WatchPointer(watchPath);
             watchesToDelete.add(watchPointer);
             return watchPointer;
@@ -113,7 +114,7 @@ class PredefinedWatches {
             WatchBuilder.ActionBuilder severityMappingBuilder = new WatchBuilder(watchId)
                 .triggerNow() //
                 .search(inputTemperatureIndex).size(0).aggregation(aggregation).as(maxTemperatureSearch)//
-                .put(String.format("{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
+                .put(String.format(Locale.ROOT, "{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
                 .checkCondition(tooHighTemperatureCondition)//
                 .consider("data." + maxTemperatureSearch + ".aggregations." + aggregationNameMaxTemperature + ".value")//
                     .greaterOrEqual(0).as(NONE)//
@@ -133,7 +134,7 @@ class PredefinedWatches {
             String watchPath = createWatchPath(watchId);
             log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
             HttpResponse response = restClient.putJson(watchPath, watch);
-            assertThat(response.getStatusCode(), Matchers.anyOf(equalTo(HttpStatus.SC_CREATED), equalTo(HttpStatus.SC_OK)));
+            assertThat(response.getBody(), response.getStatusCode(), Matchers.anyOf(equalTo(HttpStatus.SC_CREATED), equalTo(HttpStatus.SC_OK)));
             WatchPointer watchPointer = new WatchPointer(watchPath);
             watchesToDelete.add(watchPointer);
             return watchPointer;
@@ -162,7 +163,7 @@ class PredefinedWatches {
             Watch watch = new WatchBuilder(watchId)
                     .triggerNow() //
                     .search(inputTemperatureIndex).size(0).aggregation(aggregation).as(maxTemperatureSearch)//
-                    .put(String.format("{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
+                    .put(String.format(Locale.ROOT, "{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
                     .checkCondition(tooHighTemperatureCondition)//
                     .consider("data." + maxTemperatureSearch + ".aggregations." + aggregationNameMaxTemperature + ".value")//
                     .greaterOrEqual(0).as(NONE)//
@@ -176,7 +177,7 @@ class PredefinedWatches {
             String watchPath = createWatchPath(watchId);
             log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
             HttpResponse response = restClient.putJson(watchPath, watch);
-            assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
             WatchPointer watchPointer = new WatchPointer(watchPath);
             watchesToDelete.add(watchPointer);
             return watchPointer;
@@ -206,7 +207,7 @@ class PredefinedWatches {
             Watch watch = new WatchBuilder(watchId)
                     .cronTrigger(cronExpression) //
                     .search(inputTemperatureIndex).size(0).aggregation(aggregation).as(maxTemperatureSearch)//
-                    .put(String.format("{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
+                    .put(String.format(Locale.ROOT, "{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
                     .checkCondition(tooHighTemperatureCondition)//
                     .consider("data." + maxTemperatureSearch + ".aggregations." + aggregationNameMaxTemperature + ".value")//
                     .greaterOrEqual(0).as(NONE)//
@@ -218,7 +219,7 @@ class PredefinedWatches {
             String watchPath = createWatchPath(watchId);
             log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
             HttpResponse response = restClient.putJson(watchPath, watch);
-            assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
             WatchPointer watchPointer = new WatchPointer(watchPath);
             watchesToDelete.add(watchPointer);
             return watchPointer;
@@ -247,7 +248,7 @@ class PredefinedWatches {
 
             Watch watch = new WatchBuilder(watchId).triggerNow()
                 .search(inputTemperatureIndex).size(0).aggregation(aggregation).as(maxTemperatureSearch)//
-                .put(String.format("{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
+                .put(String.format(Locale.ROOT, "{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
                 .checkCondition(tooHighTemperatureCondition)//
                 .consider("data." + maxTemperatureSearch + ".aggregations." + aggregationNameMaxTemperature + ".value")//
                     .greaterOrEqual(-1000).as(INFO)
@@ -256,7 +257,7 @@ class PredefinedWatches {
             log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
             HttpResponse response = restClient.putJson(watchPath, watch);
             log.info("Watch creation response code '{}' and body '{}'.", response.getStatusCode(), response.getBody());
-            assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
             WatchPointer watchPointer = new WatchPointer(watchPath);
             watchesToDelete.add(watchPointer);
             return watchPointer;
@@ -285,7 +286,7 @@ class PredefinedWatches {
 
             Watch watch = new WatchBuilder(watchId).triggerNow()
                 .search(inputTemperatureIndex).size(0).aggregation(aggregation).as(maxTemperatureSearch)//
-                .put(String.format("{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
+                .put(String.format(Locale.ROOT, "{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
                 .checkCondition(tooHighTemperatureCondition)//
                 .consider("data." + maxTemperatureSearch + ".aggregations." + aggregationNameMaxTemperature + ".value")//
                     .greaterOrEqual(-1000).as(INFO)
@@ -296,7 +297,7 @@ class PredefinedWatches {
             String watchPath = createWatchPath(watchId);
             log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
             HttpResponse response = restClient.putJson(watchPath, watch);
-            assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
             WatchPointer watchPointer = new WatchPointer(watchPath);
             watchesToDelete.add(watchPointer);
             return watchPointer;
@@ -325,7 +326,7 @@ class PredefinedWatches {
 
             Watch watch = new WatchBuilder(watchId).triggerNow()
                 .search(inputTemperatureIndex).size(0).aggregation(aggregation).as(maxTemperatureSearch)//
-                .put(String.format("{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
+                .put(String.format(Locale.ROOT, "{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
                 .checkCondition(tooHighTemperatureCondition)//
                 .consider("data." + maxTemperatureSearch + ".aggregations." + aggregationNameMaxTemperature + ".value")//
                 .greaterOrEqual(0).as(NONE)//
@@ -339,7 +340,7 @@ class PredefinedWatches {
             String watchPath = createWatchPath(watchId);
             log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
             HttpResponse response = restClient.putJson(watchPath, watch);
-            assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
             WatchPointer watchPointer = new WatchPointer(watchPath);
             watchesToDelete.add(watchPointer);
             return watchPointer;
@@ -494,7 +495,7 @@ class PredefinedWatches {
 
             Watch watch = new WatchBuilder(watchId).triggerNow()
                 .search(inputTemperatureIndex).size(0).aggregation(aggregation).as(maxTemperatureSearch)//
-                .put(String.format("{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
+                .put(String.format(Locale.ROOT, "{\"%s\": %.2f}", maxTemperatureLimitName, temperatureLimit)).as(staticLimitsName)//
                 .checkCondition(tooHighTemperatureCondition)//
                 .consider("data." + maxTemperatureSearch + ".aggregations." + aggregationNameMaxTemperature + ".value")//
                 .greaterOrEqual(0).as(NONE)//
@@ -505,7 +506,7 @@ class PredefinedWatches {
             String watchPath = createWatchPath(watchId);
             log.info("Predefined watch will be created using path '{}' and body '{}'", watchPath, watch.toJson());
             HttpResponse response = restClient.putJson(watchPath, watch);
-            assertThat(response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(HttpStatus.SC_CREATED));
             WatchPointer watchPointer = new WatchPointer(watchPath);
             watchesToDelete.add(watchPointer);
             return watchPointer;
