@@ -54,6 +54,9 @@ public class SlackAccount extends Account {
         builder.startObject();
         builder.field("type", "slack");
         builder.field("_name", getId());
+        if (getTenant() != null) {
+            builder.field("_tenant", getTenant());
+        }
         builder.field("url", url != null ? url.toString() : null);
         builder.endObject();
         return builder;

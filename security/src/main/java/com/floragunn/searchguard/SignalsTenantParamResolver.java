@@ -38,6 +38,16 @@ public class SignalsTenantParamResolver {
             return Optional.of(request.uri().split("/")[3]);
         }
 
+        String path = request.path();
+        if (path.startsWith("/_signals/account/")) {
+            String[] pathParts = path.split("/");
+            boolean tenantAccountCrud = pathParts.length == 6;
+            boolean tenantAccountSearch = pathParts.length == 5 && "_search".equals(pathParts[4]);
+            if (tenantAccountCrud || tenantAccountSearch) {
+                return Optional.of(pathParts[3]);
+            }
+        }
+
         return Optional.empty();
     }
 }

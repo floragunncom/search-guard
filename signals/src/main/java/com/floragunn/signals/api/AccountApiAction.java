@@ -26,16 +26,19 @@ import org.elasticsearch.xcontent.XContentType;
 import com.floragunn.signals.actions.account.delete.DeleteAccountAction;
 import com.floragunn.signals.actions.account.delete.DeleteAccountRequest;
 import com.floragunn.signals.actions.account.delete.DeleteAccountResponse;
+import com.floragunn.signals.actions.account.delete.TenantDeleteAccountAction;
 import com.floragunn.signals.actions.account.get.GetAccountAction;
 import com.floragunn.signals.actions.account.get.GetAccountRequest;
 import com.floragunn.signals.actions.account.get.GetAccountResponse;
+import com.floragunn.signals.actions.account.get.TenantGetAccountAction;
 import com.floragunn.signals.actions.account.put.PutAccountAction;
 import com.floragunn.signals.actions.account.put.PutAccountRequest;
 import com.floragunn.signals.actions.account.put.PutAccountResponse;
+import com.floragunn.signals.actions.account.put.TenantPutAccountAction;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
-public class AccountApiAction extends SignalsBaseRestHandler {
+public class AccountApiAction extends SignalsTenantAwareRestHandler {
 
     public AccountApiAction(final Settings settings, final RestController controller) {
         super(settings);
@@ -43,20 +46,32 @@ public class AccountApiAction extends SignalsBaseRestHandler {
 
     @Override
     public List<Route> routes() {
-        return ImmutableList.of(new Route(GET, "/_signals/account/{type}/{id}"), new Route(PUT, "/_signals/account/{type}/{id}"),
-                new Route(DELETE, "/_signals/account/{type}/{id}"));
+        // The two route shapes represent /{accountType}/{accountId} and /{tenant}/{accountType}/{accountId}.
+        // Elasticsearch's PathTrie requires wildcards at the same path position to have the same name across all routes. Thus, the first two
+        // wildcard names deliberately describe both possible meanings instead of using the otherwise misleading names "tenant" and "type".
+        return ImmutableList.of(new Route(GET, "/_signals/account/{tenantOrAccountType}/{accountTypeOrId}"),
+                new Route(PUT, "/_signals/account/{tenantOrAccountType}/{accountTypeOrId}"),
+                new Route(DELETE, "/_signals/account/{tenantOrAccountType}/{accountTypeOrId}"),
+                new Route(GET, "/_signals/account/{tenantOrAccountType}/{accountTypeOrId}/{accountId}"),
+                new Route(PUT, "/_signals/account/{tenantOrAccountType}/{accountTypeOrId}/{accountId}"),
+                new Route(DELETE, "/_signals/account/{tenantOrAccountType}/{accountTypeOrId}/{accountId}"));
     }
 
     @Override
-    protected final RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) throws IOException {
+    protected final RestChannelConsumer getRestChannelConsumer(RestRequest request, NodeClient client) throws IOException {
 
-        String accountType = request.param("type");
+        String tenantOrAccountType = request.param("tenantOrAccountType");
+        String accountTypeOrId = request.param("accountTypeOrId");
+        String accountId = request.param("accountId");
+        // Only the tenant-scoped route has the third positional parameter. The tenant itself is deliberately not copied into the transport
+        // request: SignalsTenantParamResolver puts it into User.requestedTenant, where it is authorized and later resolved by the transport action.
+        boolean tenantScoped = accountId != null;
+        String accountType = tenantScoped ? accountTypeOrId : tenantOrAccountType;
+        String id = tenantScoped ? accountId : accountTypeOrId;
 
         if (accountType == null) {
             return channel -> errorResponse(channel, RestStatus.BAD_REQUEST, "No type specified");
         }
-
-        String id = request.param("id");
 
         if (Strings.isNullOrEmpty(id)) {
             return channel -> errorResponse(channel, RestStatus.BAD_REQUEST, "No id specified");
@@ -64,19 +79,21 @@ public class AccountApiAction extends SignalsBaseRestHandler {
 
         switch (request.method()) {
         case GET:
-            return handleGet(accountType, id, request, client);
+            return handleGet(accountType, id, tenantScoped, request, client);
         case PUT:
-            return handlePut(accountType, id, request, client);
+            return handlePut(accountType, id, tenantScoped, request, client);
         case DELETE:
-            return handleDelete(accountType, id, request, client);
+            return handleDelete(accountType, id, tenantScoped, request, client);
         default:
             throw new IllegalArgumentException(request.method() + " not supported");
         }
     }
 
-    protected RestChannelConsumer handleGet(String accountType, String id, RestRequest request, Client client) throws IOException {
+    protected RestChannelConsumer handleGet(String accountType, String id, boolean tenantScoped, RestRequest request, Client client)
+            throws IOException {
 
-        return channel -> client.execute(GetAccountAction.INSTANCE, new GetAccountRequest(accountType, id), new ActionListener<GetAccountResponse>() {
+        return channel -> client.execute(tenantScoped ? TenantGetAccountAction.INSTANCE : GetAccountAction.INSTANCE,
+                new GetAccountRequest(accountType, id), new ActionListener<GetAccountResponse>() {
 
             @Override
             public void onResponse(GetAccountResponse response) {
@@ -94,9 +111,11 @@ public class AccountApiAction extends SignalsBaseRestHandler {
         });
     }
 
-    protected RestChannelConsumer handleDelete(String accountType, String id, RestRequest request, Client client) throws IOException {
+    protected RestChannelConsumer handleDelete(String accountType, String id, boolean tenantScoped, RestRequest request, Client client)
+            throws IOException {
 
-        return channel -> client.execute(DeleteAccountAction.INSTANCE, new DeleteAccountRequest(accountType, id),
+        return channel -> client.execute(tenantScoped ? TenantDeleteAccountAction.INSTANCE : DeleteAccountAction.INSTANCE,
+                new DeleteAccountRequest(accountType, id),
                 new ActionListener<DeleteAccountResponse>() {
 
                     @Override
@@ -116,7 +135,8 @@ public class AccountApiAction extends SignalsBaseRestHandler {
 
     }
 
-    protected RestChannelConsumer handlePut(String accountType, String id, RestRequest request, Client client) throws IOException {
+    protected RestChannelConsumer handlePut(String accountType, String id, boolean tenantScoped, RestRequest request, Client client)
+            throws IOException {
 
         ReleasableBytesReference content = request.content();
 
@@ -124,7 +144,8 @@ public class AccountApiAction extends SignalsBaseRestHandler {
             return channel -> errorResponse(channel, RestStatus.UNSUPPORTED_MEDIA_TYPE, "Accounts must be of content type application/json");
         }
 
-        return channel -> client.execute(PutAccountAction.INSTANCE, new PutAccountRequest(accountType, id, content, XContentType.JSON),
+        return channel -> client.execute(tenantScoped ? TenantPutAccountAction.INSTANCE : PutAccountAction.INSTANCE,
+                new PutAccountRequest(accountType, id, content, XContentType.JSON),
                 ActionListener.withRef(
                         new ActionListener<PutAccountResponse>() {
                             @Override

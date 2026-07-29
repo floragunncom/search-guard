@@ -27,6 +27,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -46,5 +47,37 @@ public class SignalsTenantParamResolverTest {
 
         String tenant = SignalsTenantParamResolver.getRequestedTenant(restRequest);
         assertThat(tenant, equalTo("admin tenant"));
+    }
+
+    @Test
+    public void getRequestedTenant_shouldReturnTenantFromAccountUri() {
+        when(restRequest.uri()).thenReturn("/_signals/account/admin%20tenant/email/account_1");
+        when(restRequest.path()).thenReturn("/_signals/account/admin%20tenant/email/account_1");
+
+        assertThat(SignalsTenantParamResolver.getRequestedTenant(restRequest), equalTo("admin tenant"));
+    }
+
+    @Test
+    public void getSignalsTenantFrom_shouldNotTreatGlobalAccountRouteAsTenantScoped() {
+        when(restRequest.uri()).thenReturn("/_signals/account/email/account_1");
+        when(restRequest.path()).thenReturn("/_signals/account/email/account_1");
+
+        assertThat(SignalsTenantParamResolver.getSignalsTenantFrom(restRequest).isEmpty(), is(true));
+    }
+
+    @Test
+    public void getSignalsTenantFrom_shouldNotTreatAccountSearchRouteAsTenantScoped() {
+        when(restRequest.uri()).thenReturn("/_signals/account/_search?size=10");
+        when(restRequest.path()).thenReturn("/_signals/account/_search");
+
+        assertThat(SignalsTenantParamResolver.getSignalsTenantFrom(restRequest).isEmpty(), is(true));
+    }
+
+    @Test
+    public void getRequestedTenant_shouldReturnTenantFromAccountSearchUri() {
+        when(restRequest.uri()).thenReturn("/_signals/account/admin%20tenant/_search");
+        when(restRequest.path()).thenReturn("/_signals/account/admin%20tenant/_search");
+
+        assertThat(SignalsTenantParamResolver.getRequestedTenant(restRequest), equalTo("admin tenant"));
     }
 }

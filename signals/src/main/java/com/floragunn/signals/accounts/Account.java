@@ -37,16 +37,18 @@ import com.floragunn.codova.validation.ValidatingDocNode;
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.codova.validation.errors.InvalidAttributeValue;
 import com.floragunn.signals.settings.SignalsSettings;
+import com.floragunn.signals.support.NestedValueMap;
 import com.floragunn.signals.watch.action.handlers.email.EmailAccount;
 import com.floragunn.signals.watch.action.handlers.slack.SlackAccount;
 
 public abstract class Account implements ToXContentObject {
 
     private String id;
+    private String tenant;
 
     public boolean isInUse(Client client, SignalsSettings settings) {
         String indexName = settings.getStaticSettings().getIndexNames().getWatches();
-        SearchRequest request = new SearchRequest(indexName).source(getReferencingWatchesQuery());
+        SearchRequest request = new SearchRequest(indexName).source(getTenantAwareReferencingWatchesQuery());
         SearchResponse searchResponse = client.search(request).actionGet();
         try {
             long hits = searchResponse.getHits().getTotalHits().value();
@@ -58,7 +60,7 @@ public abstract class Account implements ToXContentObject {
     }
 
     public void isInUse(Client client, SignalsSettings settings, ActionListener<Boolean> actionListener) {
-        client.search(new SearchRequest(settings.getStaticSettings().getIndexNames().getWatches()).source(getReferencingWatchesQuery())
+        client.search(new SearchRequest(settings.getStaticSettings().getIndexNames().getWatches()).source(getTenantAwareReferencingWatchesQuery())
                 .indicesOptions(IndicesOptions.LENIENT_EXPAND_OPEN), new ActionListener<SearchResponse>() {
 
                     @Override
@@ -88,10 +90,30 @@ public abstract class Account implements ToXContentObject {
     }
 
     public String getScopedId() {
-        return getType() + "/" + id;
+        return scopedId(tenant, getType(), id);
+    }
+
+    public static String scopedId(String tenant, String type, String id) {
+        return tenant == null ? type + "/" + id : tenant + "/" + type + "/" + id;
+    }
+
+    public String getTenant() {
+        return tenant;
+    }
+
+    public void setTenant(String tenant) {
+        this.tenant = tenant;
     }
 
     public abstract String getType();
+
+    public static Map<String, Object> getIndexMapping() {
+        NestedValueMap result = new NestedValueMap();
+        result.put("dynamic", true);
+        result.put(new NestedValueMap.Path("properties", "_tenant", "type"), "text");
+        result.put(new NestedValueMap.Path("properties", "_tenant", "analyzer"), "keyword");
+        return result;
+    }
 
     public final String toJson() {
         return Strings.toString(this);
@@ -109,7 +131,9 @@ public abstract class Account implements ToXContentObject {
             throw new ConfigValidationException(new InvalidAttributeValue("type", accountType, factoryRegistry.getFactoryNames()));
         }
 
-        return (Account) factory.create(id, jsonNode);
+        Account result = factory.create(id, jsonNode);
+        result.setTenant(jsonNode.getAsString("_tenant"));
+        return result;
     }
 
     public static abstract class Factory<A extends Account> {
@@ -123,7 +147,7 @@ public abstract class Account implements ToXContentObject {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vJsonNode = new ValidatingDocNode(docNode, validationErrors);
 
-            vJsonNode.used("type", "_name");
+            vJsonNode.used("type", "_name", "_tenant");
 
             A result = create(id, vJsonNode, validationErrors);
 
@@ -136,7 +160,7 @@ public abstract class Account implements ToXContentObject {
             ValidationErrors validationErrors = new ValidationErrors();
             vJsonNode = new ValidatingDocNode(vJsonNode, validationErrors);
 
-            vJsonNode.used("type", "_name");
+            vJsonNode.used("type", "_name", "_tenant");
 
             A result = create(id, vJsonNode, validationErrors);
 
@@ -204,5 +228,16 @@ public abstract class Account implements ToXContentObject {
     }
 
     public static final FactoryRegistry factoryRegistry = new FactoryRegistry(new EmailAccount.Factory(), new SlackAccount.Factory());
+
+    private SearchSourceBuilder getTenantAwareReferencingWatchesQuery() {
+        SearchSourceBuilder result = getReferencingWatchesQuery();
+
+        if (tenant != null) {
+            result.query(org.elasticsearch.index.query.QueryBuilders.boolQuery().must(result.query())
+                    .filter(org.elasticsearch.index.query.QueryBuilders.termQuery("_tenant", tenant)));
+        }
+
+        return result;
+    }
 
 }

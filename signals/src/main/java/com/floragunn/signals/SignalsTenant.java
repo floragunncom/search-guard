@@ -198,7 +198,7 @@ public class SignalsTenant implements Closeable {
         tenantState.setState(ComponentState.State.INITIALIZING);
 
         WatchInitializationService initContext = new WatchInitializationService(accountRegistry, scriptService, trustManagerRegistry,
-                httpProxyHostRegistry, new DefaultThrottlePeriodParser(settings), LENIENT);
+                httpProxyHostRegistry, new DefaultThrottlePeriodParser(settings), LENIENT, name);
         int maxThreads = settings.getStaticSettings().getMaxThreads();
         log.debug("Max thread pool size in scope '{}' is equal to {}", scopedName, maxThreads);
         this.scheduler = new SchedulerBuilder<Watch>()//
@@ -359,7 +359,7 @@ public class SignalsTenant implements Closeable {
         Map<String, Object> watchJson = new LinkedHashMap<>(DocReader.json().readObject(watchJsonString));
 
         WatchInitializationService initializationService = new WatchInitializationService(accountRegistry, scriptService,//
-            trustManagerRegistry, httpProxyHostRegistry, new ValidatingThrottlePeriodParser(settings), validationLevel);
+            trustManagerRegistry, httpProxyHostRegistry, new ValidatingThrottlePeriodParser(settings), validationLevel, name);
         Watch watch = Watch.parse(initializationService, getName(), watchId, DocNode.wrap(watchJson), -1);
 
         watch.setTenant(name);
