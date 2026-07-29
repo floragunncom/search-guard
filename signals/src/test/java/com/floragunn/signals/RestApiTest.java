@@ -3339,6 +3339,34 @@ public class RestApiTest {
         HttpResponse response = restClient.putJson("/_signals/settings/" + settingName, DocNode.wrap(settingValue));
 
         Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+
+        // The HTTP 200 only means the setting was written to the index and a cluster-wide refresh was *initiated*:
+        // SignalsSettings.DynamicSettings.update() ends in SettingsUpdateAction.send(), which is fire-and-forget.
+        // Until the node has applied it, request validation still reads the previous value - and because
+        // ValidatingThrottlePeriodParser re-reads the setting for every field it validates, a single response can
+        // even mix the old and the new value. GET reads the same in-memory Settings object that validation reads,
+        // so polling it until it reports the new value is a sound readiness check on this single-node cluster.
+        awaitDynamicSetting(settingName, settingValue, restClient);
+    }
+
+    private void awaitDynamicSetting(String settingName, String expectedValue, GenericRestClient restClient) {
+        Awaitility.await("dynamic setting " + settingName + " to become visible as '" + expectedValue + "'")
+                .atMost(Duration.ofSeconds(10)).pollInterval(Duration.ofMillis(20)).until(() -> {
+                    HttpResponse getResponse = restClient.get("/_signals/settings/" + settingName);
+
+                    if (getResponse.getStatusCode() != HttpStatus.SC_OK) {
+                        return false;
+                    }
+
+                    // A string-valued setting is returned as text/plain; be tolerant of a JSON-quoted body.
+                    String body = getResponse.getBody().trim();
+
+                    if (body.length() > 1 && body.startsWith("\"") && body.endsWith("\"")) {
+                        body = body.substring(1, body.length() - 1);
+                    }
+
+                    return expectedValue.equals(body);
+                });
     }
 
     private void deleteDynamicSetting(String settingName, GenericRestClient restClient) throws Exception {

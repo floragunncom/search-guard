@@ -75,6 +75,10 @@ public class LoadOperatorSummaryActionTest {
     public static LocalCluster.Embedded cluster = new LocalCluster.Builder().singleNode()
         .sslEnabled()
         .enableModule(SignalsModule.class)
+        // Without this, tests start issuing PUT watch requests before Signals has created its tenants. Signals
+        // reports INITIALIZED only after createTenant() has run, so waiting on the component guarantees that
+        // getTenant("_main") resolves; otherwise it fails with 500 (tenant init error) or 404 (no such tenant).
+        .waitForComponents("signals")
         .user(USER_ADMIN)
         .embedded().build();
 
@@ -153,7 +157,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "temperature-alerts-2"));
@@ -194,7 +198,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "temperature-alerts-2"));
@@ -206,7 +210,7 @@ public class LoadOperatorSummaryActionTest {
 
             // Check if deactivated status is reflected in summary (operator view)
             response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "temperature-alerts-2"));
@@ -227,7 +231,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "temperature-alerts-1"));
@@ -266,7 +270,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "high-temp-alerts"));
@@ -300,7 +304,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, EMPTY_JSON_BODY);
 
             log.info("Watch summary of multiple watches response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 2));
             assertThat(body, containsValue("data.watches[0].watch_id", "temperature-alerts"));
@@ -350,7 +354,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", "{}");
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, docNodeSizeEqualTo("data.watches[0].actions", 2));
@@ -375,7 +379,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 3));
             assertThat(body, containsValue("data.watches[0].watch_id", "temp-3"));
@@ -406,7 +410,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 3));
             assertThat(body, containsValue("data.watches[0].watch_id", "temp-1"));
@@ -434,7 +438,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=+severity", EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 5));
             assertThat(body, containsValue("data.watches[0].watch_id", "temp-3"));
@@ -466,7 +470,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=-severity", EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 5));
             assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
@@ -495,7 +499,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=+" + fieldName, EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(400));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(400));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, containSubstring("error.message", "Cannot sort by unknown field"));
             assertThat(body, containSubstring("error.message", fieldName));
@@ -515,7 +519,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "critical-severity-action"));
@@ -554,7 +558,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=+status_code", EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 4));
             assertThat(body, containsAnyValues("data.watches[0].watch_id", "temp-1", "temp-2"));
@@ -587,7 +591,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=-status_code", EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 4));
             assertThat(body, containsAnyValues("data.watches[0].watch_id", "critical-severity-action-1", "critical-severity-action-2"));
@@ -618,7 +622,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 5));
             assertThat(body, containsValue("data.watches[0].watch_id", "temp-1"));
@@ -661,7 +665,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 5));
             assertThat(body, containsValue("data.watches[0].watch_id", "temp-1"));
@@ -703,7 +707,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 2));
             assertThat(body, containsValue("data.watches[0].watch_id", "watch-id-1"));
@@ -732,7 +736,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 2));
             assertThat(body, containsValue("data.watches[0].watch_id", "watch-id-2"));
@@ -760,7 +764,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 3));
             // just verify that errors related to sorting by date/time does not occured
@@ -782,7 +786,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 3));
             // just verify that errors related to sorting by date/time does not occured
@@ -804,7 +808,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 3));
             // just verify that errors related to sorting by date/time does not occured
@@ -829,7 +833,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=+status_code", requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 2));
             assertThat(body, containsAnyValues("data.watches[0].watch_id","critical-severity-action-1", "critical-severity-action-2"));
@@ -857,7 +861,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=+status_code", requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 0));
         } finally {
@@ -883,7 +887,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 4));
             assertThat(body, valueSatisfiesMatcher("data.watches[0].watch_id", String.class, startsWith("critical-severity-action")));
@@ -916,7 +920,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 4));
             assertThat(body, containsValue("data.watches[0].watch_id", "level-critical"));
@@ -947,7 +951,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 2));
             assertThat(body, containsValue("data.watches[0].watch_id","one-and-two"));
@@ -972,7 +976,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id","three"));
@@ -996,7 +1000,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 0));
         } finally {
@@ -1020,7 +1024,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
@@ -1046,7 +1050,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 3));
             assertThat(body, containsValue("data.watches[0].watch_id", "temp-3"));
@@ -1076,7 +1080,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 0));
         } finally {
@@ -1100,7 +1104,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
@@ -1126,7 +1130,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "temp-3"));
@@ -1152,7 +1156,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 2));
             assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
@@ -1180,7 +1184,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 2));
             assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
@@ -1208,7 +1212,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
@@ -1234,7 +1238,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 2));
             assertThat(body, containsAnyValues("data.watches[0].watch_id", "temp-1", "temp-2"));
@@ -1262,7 +1266,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 3));
             assertThat(body, containsAnyValues("data.watches[0].watch_id", "temp-3"));
@@ -1298,7 +1302,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsAnyValues("data.watches[0].watch_id", "temp-3"));
@@ -1326,7 +1330,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(400));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(400));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, containSubstring("error.message", "Incorrect search criteria"));
         } finally {
@@ -1347,7 +1351,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "high-temp-alerts"));
@@ -1365,7 +1369,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 0));
         }
@@ -1386,7 +1390,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 2));
             assertThat(body, containsValue("data.watches[0].watch_id","two"));
@@ -1413,7 +1417,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 0));
         } finally {
@@ -1441,7 +1445,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id","four"));
@@ -1471,7 +1475,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 0));
         } finally {
@@ -1497,7 +1501,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id","one"));
@@ -1527,7 +1531,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id","one"));
@@ -1556,7 +1560,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 0));
         } finally {
@@ -1575,7 +1579,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "watch_with_very_long_name"));
@@ -1596,7 +1600,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 0));
         } finally {
@@ -1615,7 +1619,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "watch_executed_in_distant_future"));
@@ -1643,7 +1647,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 2));
             assertThat(body, containsValue("data.watches[0].watch_id", "watch_executed_in_distant_future"));
@@ -1674,7 +1678,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "watch_with_very_long_name"));
@@ -1694,7 +1698,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "error_in_condition_definition"));
@@ -1726,7 +1730,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 4));
             assertThat(body, containsValue("data.watches[0].watch_id", "error_in_condition_definition"));
@@ -1761,7 +1765,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", requestBody);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "my_unique_name"));
@@ -1780,7 +1784,7 @@ public class LoadOperatorSummaryActionTest {
 
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsFieldPointedByJsonPath("data.watches[0].actions", "action-01"));
@@ -1793,7 +1797,7 @@ public class LoadOperatorSummaryActionTest {
 
             response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
             log.info("Second watch summary response '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             body = response.getBodyAsDocNode();
             assertThat(body, not(containsFieldPointedByJsonPath("data.watches[0].actions", "action-01"))); // removed after watch update
             assertThat(body, containsFieldPointedByJsonPath("data.watches[0].actions", "action-02"));
@@ -1819,7 +1823,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary", EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 1));
             assertThat(body, containsValue("data.watches[0].watch_id", "level-critical"));
@@ -1842,7 +1846,7 @@ public class LoadOperatorSummaryActionTest {
             HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?size=2", EMPTY_JSON_BODY);
 
             log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getStatusCode(), equalTo(200));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
             DocNode body = response.getBodyAsDocNode();
             assertThat(body, docNodeSizeEqualTo("data.watches", 2));
         } finally {
