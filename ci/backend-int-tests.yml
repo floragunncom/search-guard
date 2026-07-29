@@ -80,6 +80,7 @@ signals_2:
 
 .be_integration_test:
   extends: .dind_mirror
+  timeout: 30m
   allow_failure: false
   stage: "Backend Int Tests Core"
   needs:
