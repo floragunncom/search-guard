@@ -10,6 +10,7 @@ import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.injection.guice.Inject;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.tasks.Task;
@@ -19,7 +20,6 @@ import org.elasticsearch.transport.TransportService;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.signals.Signals;
-import com.floragunn.signals.SignalsTenant;
 
 import java.util.List;
 import java.util.Map;
@@ -33,11 +33,25 @@ public class TransportSearchAccountAction extends HandledTransportAction<SearchA
     @Inject
     public TransportSearchAccountAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(SearchAccountAction.NAME, transportService, actionFilters, SearchAccountRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
+        this(SearchAccountAction.NAME, signals, transportService, threadPool, actionFilters, client);
+    }
+
+    protected TransportSearchAccountAction(String actionName, Signals signals, TransportService transportService, ThreadPool threadPool,
+            ActionFilters actionFilters, Client client) {
+        super(actionName, transportService, actionFilters, SearchAccountRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
 
         this.signals = signals;
         this.client = client;
         this.threadPool = threadPool;
+    }
+
+    /**
+     * Determines whether this action operates on accounts belonging to the current user's tenant.
+     * Global account actions return {@code false}; tenant-scoped subclasses are expected to
+     * override this method and return {@code true}.
+     */
+    protected boolean isTenantScoped() {
+        return false;
     }
 
     @Override
@@ -51,11 +65,7 @@ public class TransportSearchAccountAction extends HandledTransportAction<SearchA
                 throw new Exception("No user set");
             }
 
-            SignalsTenant signalsTenant = signals.getTenant(user);
-
-            if (signalsTenant == null) {
-                throw new Exception("Unknown tenant: " + user.getRequestedTenant());
-            }
+            String tenant = isTenantScoped() ? signals.getTenant(user).getName() : null;
 
             Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
             Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
@@ -84,6 +94,14 @@ public class TransportSearchAccountAction extends HandledTransportAction<SearchA
                     searchSourceBuilder = new SearchSourceBuilder();
                     searchSourceBuilder.query(QueryBuilders.matchAllQuery());
                 }
+
+                QueryBuilder requestedQuery = searchSourceBuilder.query() != null ? searchSourceBuilder.query() : QueryBuilders.matchAllQuery();
+                var visibleAccounts = QueryBuilders.boolQuery().should(QueryBuilders.boolQuery().mustNot(QueryBuilders.existsQuery("_tenant")));
+                if (tenant != null) {
+                    visibleAccounts.should(QueryBuilders.termQuery("_tenant", tenant));
+                }
+                visibleAccounts.minimumShouldMatch(1);
+                searchSourceBuilder.query(QueryBuilders.boolQuery().must(requestedQuery).filter(visibleAccounts));
 
                 if (request.getFrom() != -1) {
                     searchSourceBuilder.from(request.getFrom());

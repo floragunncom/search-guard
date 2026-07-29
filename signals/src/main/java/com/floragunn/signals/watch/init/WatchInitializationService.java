@@ -33,6 +33,7 @@ public class WatchInitializationService {
 
     private final ScriptService scriptService;
     private final AccountRegistry accountRegistry;
+    private final String tenant;
     private final ThrottlePeriodParser throttlePeriodParser;
 
     /**
@@ -46,7 +47,14 @@ public class WatchInitializationService {
     public WatchInitializationService(AccountRegistry accountRegistry, ScriptService scriptService,
                                       TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry,
                                       ThrottlePeriodParser throttlePeriodParser, ValidationLevel validationLevel) {
+        this(accountRegistry, scriptService, trustManagerRegistry, httpProxyHostRegistry, throttlePeriodParser, validationLevel, null);
+    }
+
+    public WatchInitializationService(AccountRegistry accountRegistry, ScriptService scriptService,
+                                      TrustManagerRegistry trustManagerRegistry, HttpProxyHostRegistry httpProxyHostRegistry,
+                                      ThrottlePeriodParser throttlePeriodParser, ValidationLevel validationLevel, String tenant) {
         this.accountRegistry = accountRegistry;
+        this.tenant = tenant;
         this.scriptService = scriptService;
         this.trustManagerRegistry = trustManagerRegistry;
         this.httpProxyHostRegistry = httpProxyHostRegistry;
@@ -138,7 +146,7 @@ public class WatchInitializationService {
         }
 
         try {
-            accountRegistry.lookupAccount(id, accountType);
+            accountRegistry.lookupAccount(tenant, id, accountType);
 
             return true;
         } catch (NoSuchAccountException e) {
