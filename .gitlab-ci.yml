@@ -79,8 +79,7 @@ include:
   - local: "ci/frontend-int-tests.yml"
   - local: "ci/mt-data-migration-tests.yml"
   - local: 'ci/backport.yml'
-  - local: 'ci/trivy.yml'
-  #- local: 'ci/owasp-dependency-check.yml'
+  - local: 'ci/security-scan.yml'
 
 build:
   image: "$SG_BUILD_IMAGE"
