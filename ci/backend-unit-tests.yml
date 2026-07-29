@@ -53,8 +53,6 @@ test_ssl:
     - ci/run_tests.sh ssl
 
 test_signals:
-  tags:
-    - isolated
   extends:
     - .be_unit_test
   script:
@@ -80,8 +78,6 @@ test_dlic_security:
     - ci/run_tests.sh dlic-security
     
 test_dlic_dlsfls:
-  tags:
-    - isolated
   extends:
     - .be_unit_test
   script:
