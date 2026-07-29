@@ -195,7 +195,6 @@ scan:owasp:vuln:
     name: "owasp/dependency-check:${OWASP_DC_VERSION}"
     entrypoint: [""]
   needs: ["scan:build"]
-  allow_failure: true
   variables:
     # Persisted, cached NVD data directory (H2 DB + NVD feeds).
     OWASP_DC_DATA_DIR: "$CI_PROJECT_DIR/.owaspcache"
@@ -211,6 +210,7 @@ scan:owasp:vuln:
     # script, so it is captured via if/else. --junitFailOnCVSS marks high findings
     # as failed tests without failing the job.
     - |
+      set +e
       if /usr/share/dependency-check/bin/dependency-check.sh \
         --scan "plugin/target/releases/search-guard-flx-elasticsearch-plugin-trivy.zip" \
         --project "${CI_PROJECT_NAME} (ES ${ES_VERSION})" \
@@ -218,6 +218,7 @@ scan:owasp:vuln:
         --out "public-owasp" \
         --format HTML --format JSON --format JUNIT \
         --prettyPrint \
+        --disableKnownExploited \
         --failOnCVSS "$OWASP_JUNIT_FAIL_CVSS" \
         --junitFailOnCVSS "$OWASP_JUNIT_FAIL_CVSS" \
         ${NVD_API_KEY:+--nvdApiKey "$NVD_API_KEY"}; then
@@ -227,9 +228,9 @@ scan:owasp:vuln:
       fi
       echo "OWASP_EXIT_CODE: $OWASP_EXIT_CODE"
       echo "$OWASP_EXIT_CODE" > "$CI_PROJECT_DIR/exit_code_owasp_vuln.txt"
-    # Fixed name for the HTML so the publish job/remote naming is deterministic.
-    - 'if [ ! -f public-owasp/dependency-check-report.html ]; then echo "No OWASP report found"; exit 1; fi'
+      set -e
     - ls -la public-owasp
+    - 'if [ ! -f public-owasp/dependency-check-report.html ]; then echo "No OWASP report found"; exit 1; fi'
   cache:
     key: owasp-nvd
     paths:
