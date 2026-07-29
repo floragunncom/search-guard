@@ -206,26 +206,30 @@ scan:owasp:vuln:
     - 'test -f plugin/target/releases/search-guard-flx-elasticsearch-plugin-trivy.zip || { echo "ERROR: plugin zip missing - check the scan:build job"; exit 1; }'
     - mkdir -p "$OWASP_DC_DATA_DIR" public-owasp
     - 'test -n "$NVD_API_KEY" || echo "WARNING: NVD_API_KEY is not set - NVD updates will be slow / rate-limited"'
-    # Single scan producing all three report formats at once. --failOnCVSS 11
-    # keeps the exit code 0 (report-only); --junitFailOnCVSS marks high findings
+    # Single scan producing all three report formats at once. --failOnCVSS is the
+    # gate: its exit code is recorded (see scan:vuln) but must not abort the
+    # script, so it is captured via if/else. --junitFailOnCVSS marks high findings
     # as failed tests without failing the job.
-    - >
-      /usr/share/dependency-check/bin/dependency-check.sh
-      --scan "plugin/target/releases/search-guard-flx-elasticsearch-plugin-trivy.zip"
-      --project "${CI_PROJECT_NAME} (ES ${ES_VERSION})"
-      --data "$OWASP_DC_DATA_DIR"
-      --out "public-owasp"
-      --format HTML --format JSON --format JUNIT
-      --prettyPrint
-      --failOnCVSS "$OWASP_JUNIT_FAIL_CVSS"
-      --junitFailOnCVSS "$OWASP_JUNIT_FAIL_CVSS"
-      ${NVD_API_KEY:+--nvdApiKey "$NVD_API_KEY"}
-      OWASP_EXIT_CODE="$?"
-    - echo "OWASP_EXIT_CODE: $OWASP_EXIT_CODE"
+    - |
+      if /usr/share/dependency-check/bin/dependency-check.sh \
+        --scan "plugin/target/releases/search-guard-flx-elasticsearch-plugin-trivy.zip" \
+        --project "${CI_PROJECT_NAME} (ES ${ES_VERSION})" \
+        --data "$OWASP_DC_DATA_DIR" \
+        --out "public-owasp" \
+        --format HTML --format JSON --format JUNIT \
+        --prettyPrint \
+        --failOnCVSS "$OWASP_JUNIT_FAIL_CVSS" \
+        --junitFailOnCVSS "$OWASP_JUNIT_FAIL_CVSS" \
+        ${NVD_API_KEY:+--nvdApiKey "$NVD_API_KEY"}; then
+        OWASP_EXIT_CODE=0
+      else
+        OWASP_EXIT_CODE=$?
+      fi
+      echo "OWASP_EXIT_CODE: $OWASP_EXIT_CODE"
+      echo "$OWASP_EXIT_CODE" > "$CI_PROJECT_DIR/exit_code_owasp_vuln.txt"
     # Fixed name for the HTML so the publish job/remote naming is deterministic.
-    - 'if [ -f public-owasp/dependency-check-report.html ]; then echo "No OWASP report found"; exit 1; fi'
+    - 'if [ ! -f public-owasp/dependency-check-report.html ]; then echo "No OWASP report found"; exit 1; fi'
     - ls -la public-owasp
-    - echo "$OWASP_EXIT_CODE" > $CI_PROJECT_DIR/exit_code_owasp_vuln.txt
   cache:
     key: owasp-nvd
     paths:
