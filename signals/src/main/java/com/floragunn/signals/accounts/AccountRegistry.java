@@ -111,15 +111,14 @@ public class AccountRegistry {
             throw new NoSuchAccountException("Illegal account class: " + accountClass);
         }
 
-        String scopedId = Account.scopedId(tenant, accountFactory.getType(), id);
-        Account result = accounts.get(scopedId);
+        Account result = accounts.get(Account.scopedId(tenant, accountFactory.getType(), id));
 
         if (result == null && tenant != null) {
             result = accounts.get(Account.scopedId(null, accountFactory.getType(), id));
         }
 
         if (result == null) {
-            throw new NoSuchAccountException("Account does not exist: " + scopedId, null);
+            throw new NoSuchAccountException("Account does not exist: " + accountFactory.getType() + "/" + id, null);
         }
 
         if (!accountClass.isAssignableFrom(result.getClass())) {
@@ -143,11 +142,10 @@ public class AccountRegistry {
             id = "default";
         }
 
-        String scopedId = Account.scopedId(tenant, accountType, id);
-        Account result = accounts.get(scopedId);
+        Account result = accounts.get(Account.scopedId(tenant, accountType, id));
 
         if (result == null) {
-            throw new NoSuchAccountException("Account does not exist: " + scopedId, null);
+            throw new NoSuchAccountException("Account does not exist: " + accountType + "/" + id, null);
         }
 
         return result;
