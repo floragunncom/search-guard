@@ -72,8 +72,7 @@ include:
   - local: '.gitlab-ci-branch-specific.yml'
   - local: 'ci/backend-unit-tests.yml'
   - local: 'ci/backend-int-tests.yml'
-  - local: 'ci/trivy.yml'
-  #- local: 'ci/owasp-dependency-check.yml'
+  - local: 'ci/security-scan.yml'
 
 build:
   image: "$SG_BUILD_IMAGE"
