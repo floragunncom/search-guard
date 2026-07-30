@@ -62,7 +62,6 @@ import com.floragunn.searchsupport.cstate.metrics.Meter;
  *   - type: oidc_userinfo
  *     oidc_userinfo.openid_configuration_url: "https://keycloak.example.com/realms/myrealm/.well-known/openid-configuration"
  *     oidc_userinfo.tls.trusted_cas: "#{file:/etc/elasticsearch/certs/keycloak-ca.pem}"
- *     oidc_userinfo.username_from: display_username
  * </pre>
  */
 public class OidcUserInfoBackend implements UserInformationBackend {
@@ -72,7 +71,6 @@ public class OidcUserInfoBackend implements UserInformationBackend {
     public static final String TYPE = "oidc_userinfo";
 
     private final OpenIdProviderClient openIdProviderClient;
-    private final String usernameFrom; // TODO - remove
 
     public OidcUserInfoBackend(Map<String, Object> config, ConfigurationRepository.Context context) throws ConfigValidationException {
         ValidationErrors validationErrors = new ValidationErrors();
@@ -82,14 +80,12 @@ public class OidcUserInfoBackend implements UserInformationBackend {
         TLSConfig tlsConfig = vNode.get("tls").by((Parser<TLSConfig, Parser.Context>) TLSConfig::parse);
         ProxyConfig proxyConfig = vNode.get("proxy").by((ValidatingFunction<DocNode, ProxyConfig>) ProxyConfig::parse);
         int requestTimeoutMs = vNode.get("request_timeout_ms").withDefault(10000).asInt();
-        this.usernameFrom = vNode.get("username_from").asString();
 
         vNode.checkForUnusedAttributes();
         validationErrors.throwExceptionForPresentErrors();
 
-        this.openIdProviderClient = new OpenIdProviderClient(openidConfigurationUrl, tlsConfig, proxyConfig, true);
+        this.openIdProviderClient = new OpenIdProviderClient(openidConfigurationUrl, tlsConfig, proxyConfig, false);
         this.openIdProviderClient.setRequestTimeoutMs(requestTimeoutMs);
-        log.info("OidcUserInfoBackend created with configuration {}", config);
     }
 
     @Override
@@ -107,35 +103,17 @@ public class OidcUserInfoBackend implements UserInformationBackend {
     public CompletableFuture<AuthCredentials> getUserInformation(AuthCredentials authCredentials, Meter meter, AuthenticationDebugLogger debug)
             throws AuthenticatorUnavailableException {
 
-        log.info("OidcUserInfoBackend getting user information");
         Object nativeCredentials = authCredentials.getNativeCredentials();
 
-        if (!(nativeCredentials instanceof String)) {
-            log.warn("oidc_userinfo backend: native credentials are not a JWT string; skipping userinfo call for user {}",
+        if (!(nativeCredentials instanceof String accessToken)) {
+            log.error("oidc_userinfo backend: native credentials are not a JWT string; skipping userinfo call for user {}",
                     authCredentials.getUsername());
             return CompletableFuture.completedFuture(authCredentials);
         }
 
-        String accessToken = (String) nativeCredentials;
-
         Map<String, Object> userInfo = openIdProviderClient.callUserInfoEndpoint(accessToken, null);
-
         debug.success(TYPE, "Fetched userinfo from OIDC endpoint", "oidc_user_info", userInfo);
-
-        authCredentials = authCredentials.userMappingAttribute("oidc_user_info", userInfo);
-        log.info("Get user information for user '{}' from OIDC userinfo endpoint '{}'. Username from '{}'", authCredentials.getUsername(), userInfo, usernameFrom);
-//        if (usernameFrom != null) {
-//            Object usernameValue = userInfo.get(usernameFrom);
-//            log.info("Retrieved username from OIDC userinfo endpoint '{}'", usernameValue);
-//            if (usernameValue instanceof String && !((String) usernameValue).isBlank()) {
-//                authCredentials = authCredentials.userName((String) usernameValue);
-//            } else {
-//                log.warn("oidc_userinfo backend: field '{}' not found or blank in userinfo response for user {}; keeping existing username",
-//                        usernameFrom, authCredentials.getUsername());
-//            }
-//        }
-
-        return CompletableFuture.completedFuture(authCredentials);
+        return CompletableFuture.completedFuture(authCredentials.userMappingAttribute("oidc_user_info", userInfo));
     }
 
     public static TypedComponent.Info<UserInformationBackend> INFO = new TypedComponent.Info<UserInformationBackend>() {
