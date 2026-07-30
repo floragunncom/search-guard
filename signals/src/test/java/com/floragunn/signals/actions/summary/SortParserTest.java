@@ -1,7 +1,9 @@
 package com.floragunn.signals.actions.summary;
 
+import com.floragunn.searchsupport.util.EsLogging;
 import com.floragunn.signals.actions.summary.SortParser.SortByField;
 import org.elasticsearch.ElasticsearchStatusException;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.List;
@@ -11,6 +13,9 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 
 public class SortParserTest {
+
+    @ClassRule
+    public static EsLogging esLogging = new EsLogging();
 
     @Test
     public void shouldHandleEmptySortingParam() {
