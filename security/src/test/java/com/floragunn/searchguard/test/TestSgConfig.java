@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.not;
+import static org.awaitility.Awaitility.await;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -49,12 +50,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.core.TimeValue;
 import org.hamcrest.Matcher;
 
 import com.floragunn.codova.config.temporal.DurationFormat;
@@ -84,6 +88,7 @@ import com.floragunn.searchguard.test.helper.cluster.NestedValueMap.Path;
 
 public class TestSgConfig {
     private static final Logger log = LogManager.getLogger(TestSgConfig.class);
+    private static final String CONFIG_VAR_INDEX = ".searchguard_config_vars";
 
     private String resourceFolder = null;
     private NestedValueMap overrideUserSettings;
@@ -370,6 +375,21 @@ public class TestSgConfig {
             writeConfigToIndex(client, "auth_token_service", authTokenService);
         }
 
+        await("config variable index to become available")
+                .atMost(Duration.ofSeconds(60))
+                .until(() -> {
+                    ClusterHealthResponse response = client.admin().cluster()
+                            .prepareHealth(TimeValue.timeValueSeconds(5), CONFIG_VAR_INDEX)
+                            .setWaitForGreenStatus()
+                            .setTimeout(TimeValue.ZERO)
+                            .execute()
+                            .actionGet();
+
+                    return !response.isTimedOut()
+                            && (response.getStatus() == ClusterHealthStatus.YELLOW
+                                    || response.getStatus() == ClusterHealthStatus.GREEN);
+                });
+
         if (variableSuppliers.size() != 0) {
             writeConfigVars(client, variableSuppliers);
         }
@@ -548,10 +568,10 @@ public class TestSgConfig {
     }
 
     private void writeConfigVars(Client client, Map<String, Supplier<Object>> configVars) {
-        BulkRequest bulkRequest = new BulkRequest(".searchguard_config_vars").setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+        BulkRequest bulkRequest = new BulkRequest(CONFIG_VAR_INDEX).setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
         for (Map.Entry<String, Supplier<Object>> entry : configVars.entrySet()) {
-            bulkRequest.add(new IndexRequest(".searchguard_config_vars").id(entry.getKey()).source("value", entry.getValue().get(), "updated",
+            bulkRequest.add(new IndexRequest(CONFIG_VAR_INDEX).id(entry.getKey()).source("value", entry.getValue().get(), "updated",
                     java.time.Instant.now()));
         }
 
