@@ -88,7 +88,6 @@ import com.floragunn.searchguard.test.helper.cluster.NestedValueMap.Path;
 
 public class TestSgConfig {
     private static final Logger log = LogManager.getLogger(TestSgConfig.class);
-    private static final String CONFIG_VAR_INDEX = ".searchguard_config_vars";
 
     private String resourceFolder = null;
     private NestedValueMap overrideUserSettings;
@@ -379,7 +378,7 @@ public class TestSgConfig {
                 .atMost(Duration.ofSeconds(60))
                 .until(() -> {
                     ClusterHealthResponse response = client.admin().cluster()
-                            .prepareHealth(TimeValue.timeValueSeconds(5), CONFIG_VAR_INDEX)
+                            .prepareHealth(TimeValue.timeValueSeconds(5), ".searchguard_config_vars")
                             .setWaitForGreenStatus()
                             .setTimeout(TimeValue.ZERO)
                             .execute()
@@ -568,10 +567,10 @@ public class TestSgConfig {
     }
 
     private void writeConfigVars(Client client, Map<String, Supplier<Object>> configVars) {
-        BulkRequest bulkRequest = new BulkRequest(CONFIG_VAR_INDEX).setRefreshPolicy(RefreshPolicy.IMMEDIATE);
+        BulkRequest bulkRequest = new BulkRequest(".searchguard_config_vars").setRefreshPolicy(RefreshPolicy.IMMEDIATE);
 
         for (Map.Entry<String, Supplier<Object>> entry : configVars.entrySet()) {
-            bulkRequest.add(new IndexRequest(CONFIG_VAR_INDEX).id(entry.getKey()).source("value", entry.getValue().get(), "updated",
+            bulkRequest.add(new IndexRequest(".searchguard_config_vars").id(entry.getKey()).source("value", entry.getValue().get(), "updated",
                     java.time.Instant.now()));
         }
 
