@@ -266,8 +266,13 @@ public class RestApiTestMultiTenancyOff {
 
             long watchVersion = Long.parseLong(response.getBodyAsDocNode().getAsString("_version"));
 
+            // Logging a watch run that carries a huge runtime document is comparatively slow, so give the log more than
+            // the default 10s to appear; await() returns an empty list on timeout, which would otherwise surface as a
+            // confusing IndexOutOfBounds on get(0) below.
             List<WatchLog> watchLogs = new WatchLogSearch(client).index(SIGNALS_LOGS_INDEX_NAME).watchId(watchId).watchVersion(watchVersion)
-                    .fromTheStart().count(1).await();
+                    .fromTheStart().count(1).timeout(Duration.ofSeconds(30)).await();
+
+            Assert.assertFalse("No watch log found for " + watchId, watchLogs.isEmpty());
 
             int watchSearchResultsCount = DocNode.wrap(watchLogs.get(0).getData()).getAsNode("testsearch") //
                     .getAsNode("hits") //
