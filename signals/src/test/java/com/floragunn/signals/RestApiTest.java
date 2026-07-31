@@ -35,7 +35,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -1291,7 +1293,7 @@ public class RestApiTest {
             client.admin().indices().create(new CreateIndexRequest("testsink_deactivate_watch")).actionGet();
 
             Watch watch = new WatchBuilder(watchId).atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
-                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_deactivate_watch").throttledFor("0").name("testsink")
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index("testsink_deactivate_watch").refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testsink")
                     .build();
             HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
@@ -1307,7 +1309,17 @@ public class RestApiTest {
 
             Assert.assertFalse(updatedWatch.isActive());
 
-            Thread.sleep(1500);
+            // Deactivating a watch propagates to the scheduler asynchronously, so it keeps firing at ~100ms for a short
+            // while after the REST call returns. Wait until execution has actually stopped (the sink count is stable
+            // across an interval longer than the watch period) instead of sampling after a fixed sleep that can race
+            // the still-running scheduler.
+            AtomicLong lastSeenCount = new AtomicLong(-1);
+            Awaitility.await("watch " + watchId + " to stop executing").atMost(Duration.ofSeconds(10))
+                    .pollInterval(Duration.ofMillis(300)).until(() -> {
+                        long current = getCountOfDocuments(client, "testsink_deactivate_watch");
+                        boolean stable = current == lastSeenCount.getAndSet(current);
+                        return stable;
+                    });
 
             long executionCountWhenDeactivated = getCountOfDocuments(client, "testsink_deactivate_watch");
 
@@ -1338,7 +1350,7 @@ public class RestApiTest {
             client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
 
             Watch watch = new WatchBuilder(watchId).atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
-                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index(testSink).throttledFor("0").name("testsink").build();
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index(testSink).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
@@ -1349,7 +1361,17 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            Thread.sleep(210);
+            // Deactivating a tenant propagates to its scheduler asynchronously, so the watch keeps firing at ~100ms for
+            // a short while after the REST call returns. Wait until execution has actually stopped (the sink count is
+            // stable across an interval longer than the watch period) instead of sampling after a fixed 210ms sleep
+            // that can race the still-running scheduler.
+            AtomicLong lastSeenCount = new AtomicLong(-1);
+            Awaitility.await("tenant " + tenant + " watches to stop executing").atMost(Duration.ofSeconds(10))
+                    .pollInterval(Duration.ofMillis(300)).until(() -> {
+                        long current = getCountOfDocuments(client, testSink);
+                        boolean stable = current == lastSeenCount.getAndSet(current);
+                        return stable;
+                    });
 
             long executionCountWhenDeactivated = getCountOfDocuments(client, testSink);
 
@@ -1385,7 +1407,7 @@ public class RestApiTest {
             client.admin().indices().create(new CreateIndexRequest(testSink)).actionGet();
 
             Watch watch = new WatchBuilder(watchId).atMsInterval(100).search("testsource").query("{\"match_all\" : {} }").as("testsearch")
-                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index(testSink).throttledFor("0").name("testsink").build();
+                    .put("{\"bla\": {\"blub\": 42}}").as("teststatic").then().index(testSink).refreshPolicy(RefreshPolicy.IMMEDIATE).throttledFor("0").name("testsink").build();
             HttpResponse response = restClient.putJson(watchPath, watch.toJson());
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
@@ -1396,7 +1418,17 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            Thread.sleep(210);
+            // Deactivating Signals globally propagates to the schedulers asynchronously, so the watch keeps firing at
+            // ~100ms for a short while after the REST call returns. Wait until execution has actually stopped (the sink
+            // count is stable across an interval longer than the watch period) instead of sampling after a fixed 210ms
+            // sleep that can race the still-running scheduler.
+            AtomicLong lastSeenCount = new AtomicLong(-1);
+            Awaitility.await("Signals watches to stop executing globally").atMost(Duration.ofSeconds(10))
+                    .pollInterval(Duration.ofMillis(300)).until(() -> {
+                        long current = getCountOfDocuments(client, testSink);
+                        boolean stable = current == lastSeenCount.getAndSet(current);
+                        return stable;
+                    });
 
             long executionCountWhenDeactivated = getCountOfDocuments(client, testSink);
 
@@ -1436,9 +1468,11 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            Thread.sleep(220);
-
-            response = restClient.put(watchPath + "/_ack/testaction");
+            // Wait for the watch to be scheduled on a node (ack returns 404 "Could not find watch" until then) rather
+            // than relying on a fixed sleep. The watch searches an empty index, so no action has executed yet and the
+            // ack is expected to fail with 412 (ILLEGAL_STATE) once the watch is found.
+            response = awaitWatchScheduled("watch " + watchId + " to be scheduled",
+                    () -> restClient.put(watchPath + "/_ack/testaction"));
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_PRECONDITION_FAILED, response.getStatusCode());
 
@@ -1447,17 +1481,14 @@ public class RestApiTest {
 
             awaitMinCountOfDocuments(client, "testsink_ack_watch", 1);
 
-            response = restClient.put(watchPath + "/_ack/testaction");
+            response = awaitWatchScheduled("watch " + watchId + " to be ackable",
+                    () -> restClient.put(watchPath + "/_ack/testaction"));
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            Thread.sleep(500);
-
-            response = restClient.get(watchPath + "/_state");
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-
-            DocNode statusDoc = response.getBodyAsDocNode();
-            Assert.assertEquals(response.getBody(), "uhura", statusDoc.get("actions", "testaction", "acked", "by").toString());
+            // The ack acknowledges the action in memory and persists the watch state asynchronously; GET _state reads
+            // the persisted state, so poll until the acked state is visible instead of relying on a fixed sleep.
+            awaitAckedBy(restClient, watchPath, "testaction", "uhura");
 
             Thread.sleep(200);
 
@@ -1473,16 +1504,20 @@ public class RestApiTest {
 
             client.delete(new DeleteRequest("testsource_ack_watch", "1").setRefreshPolicy(RefreshPolicy.IMMEDIATE)).actionGet();
 
-            Thread.sleep(310);
+            // Removing the source document makes the watch condition go away; on its next execution the watch clears
+            // the acknowledgement. Poll the state until the ack has been reset instead of reading once after a fixed
+            // sleep, which is racy on a loaded machine where the reset can lag.
+            Awaitility.await("ack of testaction to be reset after the condition cleared").atMost(Duration.ofSeconds(10))
+                    .pollInterval(Duration.ofMillis(50)).untilAsserted(() -> {
+                        HttpResponse stateResponse = restClient.get(watchPath + "/_state");
+                        Assert.assertEquals(stateResponse.getBody(), HttpStatus.SC_OK, stateResponse.getStatusCode());
+                        DocNode stateDoc = stateResponse.getBodyAsDocNode();
+                        Assert.assertFalse(stateResponse.getBody(), stateDoc.getAsNode("actions").getAsNode("testaction").hasNonNull("acked"));
+                    });
 
+            // The acknowledged action must not have executed again while it was acked.
             currentExecutionCount = getCountOfDocuments(client, "testsink_ack_watch");
-
             Assert.assertEquals(executionCountAfterAck, currentExecutionCount);
-
-            response = restClient.get(watchPath + "/_state");
-
-            statusDoc = response.getBodyAsDocNode();
-            Assert.assertFalse(response.getBody(), statusDoc.getAsNode("actions").getAsNode("testaction").hasNonNull("acked"));
 
             // Create condition again
 
@@ -1530,7 +1565,8 @@ public class RestApiTest {
 
             awaitMinCountOfDocuments(client, sinkIndex, 1);
 
-            response = restClient.put(watchPath + "/_ack_and_get/testaction");
+            response = awaitWatchScheduled("watch " + watchId + " to be ackable",
+                    () -> restClient.put(watchPath + "/_ack_and_get/testaction"));
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
             DocNode ackDoc = response.getBodyAsDocNode();
@@ -1596,9 +1632,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            Thread.sleep(220);
-
-            response = restClient.put(watchPath + "/_ack/testactionone");
+            // No action has executed yet (empty source index), so once the watch is scheduled the ack fails with 412.
+            response = awaitWatchScheduled("watch " + watchId + " to be scheduled",
+                    () -> restClient.put(watchPath + "/_ack/testactionone"));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_PRECONDITION_FAILED, response.getStatusCode());
 
             client.index(new IndexRequest(watchedIndex).id("1").setRefreshPolicy(RefreshPolicy.IMMEDIATE).source(XContentType.JSON, "key1",
@@ -1607,7 +1643,8 @@ public class RestApiTest {
             awaitMinCountOfDocuments(client, sinkIndex, 1);
             awaitMinCountOfDocuments(client, additionalSinkIndex, 1);
 
-            response = restClient.put(watchPath + "/_ack_and_get/testactionone");
+            response = awaitWatchScheduled("watch " + watchId + " action testactionone to be ackable",
+                    () -> restClient.put(watchPath + "/_ack_and_get/testactionone"));
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
             DocNode ackDoc = response.getBodyAsDocNode();
@@ -1642,21 +1679,27 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            Thread.sleep(220);
-
-            response = restClient.put(watchPath + "/_ack_and_get/testactionone");
+            // The watch searches an empty index, so its condition never matches and no action is ever executed.
+            // We only need the watch to be scheduled on a node before acking; until then the ack returns 404
+            // (NO_SUCH_WATCH) instead of the expected 412 (ILLEGAL_STATE).
+            response = awaitWatchScheduled("watch " + watchId + " to be scheduled",
+                    () -> restClient.put(watchPath + "/_ack_and_get/testactionone"));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_PRECONDITION_FAILED, response.getStatusCode());
         }
     }
 
     private static void assertThatActionIsNotAcked(GenericRestClient restClient, String watchPath, String actionName) throws Exception {
-        HttpResponse response;
-        Thread.sleep(500);
-        response = restClient.get(watchPath + "/_state");
-        Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-        DocNode statusDoc = response.getBodyAsDocNode();
-        Assert.assertEquals("ACTION_EXECUTED", statusDoc.get("actions", actionName, "last_status", "code"));
-        Assert.assertTrue(statusDoc.getAsNode("actions", actionName, "acked").isNull());
+        // The watch keeps executing at ~100ms intervals and its state is persisted asynchronously, so poll until the
+        // action has executed and is not acked instead of sampling the state once after a fixed sleep (racy on a
+        // loaded machine, where the first read can still show a null last_status).
+        Awaitility.await("action " + actionName + " to be executed and not acked").atMost(Duration.ofSeconds(10))
+                .pollInterval(Duration.ofMillis(50)).untilAsserted(() -> {
+                    HttpResponse response = restClient.get(watchPath + "/_state");
+                    Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+                    DocNode statusDoc = response.getBodyAsDocNode();
+                    Assert.assertEquals(response.getBody(), "ACTION_EXECUTED", statusDoc.get("actions", actionName, "last_status", "code"));
+                    Assert.assertTrue(response.getBody(), statusDoc.getAsNode("actions", actionName, "acked").isNull());
+                });
     }
 
     @Test
@@ -1691,10 +1734,11 @@ public class RestApiTest {
             awaitMinCountOfDocuments(client, sinkIndex, 1);
             awaitMinCountOfDocuments(client, additionalSinkIndex, 1);
 
-            response = restClient.put(watchPath + "/_ack_and_get");
+            response = awaitWatchScheduled("watch " + watchId + " to be ackable",
+                    () -> restClient.put(watchPath + "/_ack_and_get"));
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-            DocNode ackDoc = response.getBodyAsDocNode();           
+            DocNode ackDoc = response.getBodyAsDocNode();
             Assert.assertEquals(2, ackDoc.getAsListOfNodes("acked").size());
             Assert.assertEquals(ImmutableSet.of("testactionone", "testactiontwo"), ImmutableSet.of(ackDoc.findByJsonPath("acked[*].action_id")));
         }
@@ -1732,14 +1776,14 @@ public class RestApiTest {
             awaitMinCountOfDocuments(client, sinkIndex, 1);
             awaitMinCountOfDocuments(client, additionalSinkIndex, 1);
 
-            response = restClient.put(watchPath + "/_ack_and_get");
+            response = awaitWatchScheduled("watch " + watchId + " to be ackable",
+                    () -> restClient.put(watchPath + "/_ack_and_get"));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            Thread.sleep(220);
-
-            response = restClient.delete(watchPath + "/_ack_and_get/testactionone");
+            response = awaitWatchScheduled("watch " + watchId + " action testactionone to be un-ackable",
+                    () -> restClient.delete(watchPath + "/_ack_and_get/testactionone"));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-            DocNode unackDoc = response.getBodyAsDocNode();           
+            DocNode unackDoc = response.getBodyAsDocNode();
 
             Assert.assertEquals(Arrays.asList("testactionone"), unackDoc.findByJsonPath("unacked_action_ids[0]"));
             assertThatActionIsNotAcked(restClient, watchPath, "testactionone");
@@ -1778,10 +1822,9 @@ public class RestApiTest {
             awaitMinCountOfDocuments(client, sinkIndex, 1);
             awaitMinCountOfDocuments(client, additionalSinkIndex, 1);
 
-            response = restClient.put(watchPath + "/_ack_and_get");
+            response = awaitWatchScheduled("watch " + watchId + " to be ackable",
+                    () -> restClient.put(watchPath + "/_ack_and_get"));
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-
-            Thread.sleep(220);
 
             response = restClient.delete(watchPath + "/_ack_and_get/this_action_does_not_exist");
             Assert.assertEquals(response.getBody(), HttpStatus.SC_NOT_FOUND, response.getStatusCode());
@@ -1806,9 +1849,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            Thread.sleep(1000);
-
-            response = restClient.delete(watchPath + "/_ack");
+            // Fresh watch: once it is scheduled the un-ack fails with 412 because nothing has been acked yet.
+            response = awaitWatchScheduled("watch " + watchId + " to be scheduled",
+                    () -> restClient.delete(watchPath + "/_ack"));
 
             Assert.assertEquals(response.getBody(), 412, response.getStatusCode());
             Assert.assertEquals(response.getBody(), "No actions are in an un-acknowlegable state", response.getBodyAsDocNode().get("error"));
@@ -1838,9 +1881,9 @@ public class RestApiTest {
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_CREATED, response.getStatusCode());
 
-            Thread.sleep(220);
-
-            response = restClient.put(watchPath + "/_ack");
+            // No action has executed yet (empty source index), so once the watch is scheduled the ack fails with 412.
+            response = awaitWatchScheduled("watch " + watchId + " to be scheduled",
+                    () -> restClient.put(watchPath + "/_ack"));
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_PRECONDITION_FAILED, response.getStatusCode());
 
@@ -1850,29 +1893,28 @@ public class RestApiTest {
             awaitMinCountOfDocuments(client, testSinkAck, 1);
             awaitMinCountOfDocuments(client, testSinkUnack, 1);
 
-            response = restClient.put(watchPath + "/_ack");
+            response = awaitWatchScheduled("watch " + watchId + " to be ackable",
+                    () -> restClient.put(watchPath + "/_ack"));
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
-            Thread.sleep(500);
+            // The ack acknowledges the action in memory and persists the watch state asynchronously; GET _state reads
+            // the persisted state, so poll until the acked state is visible instead of relying on a fixed sleep.
+            DocNode statusDoc = awaitAckedBy(restClient, watchPath, "testaction_ack", "uhura");
+            Assert.assertTrue(statusDoc.toString(), statusDoc.get("actions", "testaction_unack", "acked") == null);
 
-            response = restClient.get(watchPath + "/_state");
-            Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
-
-            DocNode statusDoc = response.getBodyAsDocNode();
-            Assert.assertEquals(response.getBody(), "uhura", statusDoc.get("actions", "testaction_ack", "acked", "by").toString());
-            Assert.assertTrue(response.getBody(), statusDoc.get("actions", "testaction_unack", "acked") == null);
-
+            // Let any execution that was in flight at ack time settle before sampling the baseline counts.
             Thread.sleep(200);
 
             long testSinkAckExecutionCountAfterAck = getCountOfDocuments(client, testSinkAck);
             long testSinkUnackExecutionCountAfterAck = getCountOfDocuments(client, testSinkUnack);
 
-            Thread.sleep(310);
-
+            // The un-acknowledgeable action keeps running: wait until its sink grows (which also proves the watch kept
+            // ticking) instead of sleeping a fixed 310ms that may span zero executions on a loaded machine. Only then
+            // assert that the acknowledged action did not execute again.
+            awaitMinCountOfDocuments(client, testSinkUnack, testSinkUnackExecutionCountAfterAck + 1);
 
             Assert.assertEquals(testSinkAckExecutionCountAfterAck, getCountOfDocuments(client, testSinkAck));
-            Assert.assertNotEquals(testSinkUnackExecutionCountAfterAck, getCountOfDocuments(client, testSinkUnack));
         }
     }
 
@@ -1904,10 +1946,9 @@ public class RestApiTest {
             awaitMinCountOfDocuments(client, testSinkAck, 1);
             awaitMinCountOfDocuments(client, testSinkUnack, 1);
 
-            response = restClient.put(watchPath + "/_ack/testaction_unack");
+            response = awaitWatchScheduled("watch " + watchId + " to be scheduled",
+                    () -> restClient.put(watchPath + "/_ack/testaction_unack"));
 
-            System.out.println(response.getBody());
-            
             Assert.assertEquals(response.getBody(), HttpStatus.SC_BAD_REQUEST, response.getStatusCode());
             Assert.assertEquals(response.getBody(), "The action 'testaction_unack' is not acknowledgeable", response.getBodyAsDocNode().get("error"));
         }
@@ -2726,10 +2767,15 @@ public class RestApiTest {
 
             long watchVersion = Long.parseLong(response.getBodyAsDocNode().getAsString("_version"));
 
+            // Logging a watch run that carries a huge runtime document is comparatively slow, so give the log more than
+            // the default 10s to appear; await() returns an empty list on timeout, which would otherwise surface as a
+            // confusing IndexOutOfBounds on get(0) below.
             List<WatchLog> watchLogs = new WatchLogSearch(client).index(SIGNALS_LOGS_INDEX_NAME).watchId(watchId).watchVersion(watchVersion)
-                    .fromTheStart().count(1).await();
+                    .fromTheStart().count(1).timeout(Duration.ofSeconds(30)).await();
 
             log.info("Huge watch logs: {}", watchLogs);
+
+            Assert.assertFalse("No watch log found for " + watchId, watchLogs.isEmpty());
 
             int watchSearchResultsCount = DocNode.wrap(watchLogs.get(0).getData()).getAsNode("testsearch") //
                     .getAsNode("hits") //
@@ -3101,7 +3147,8 @@ public class RestApiTest {
 
             awaitMinCountOfDocuments(client, sinkIndex, 2);
 
-            response = restClient.put(watchPath + "/_ack/" + secondAction);
+            response = awaitWatchScheduled("watch " + watchId + " action " + secondAction + " to be ackable",
+                    () -> restClient.put(watchPath + "/_ack/" + secondAction));
 
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
@@ -3109,7 +3156,7 @@ public class RestApiTest {
             AtomicReference<String> secondActionOriginAckTime = new AtomicReference<>();
 
             Awaitility.await("One action should be acked")
-                    .atMost(Duration.ofSeconds(2))
+                    .atMost(Duration.ofSeconds(10))
                     .pollInterval(Duration.ofMillis(200))
                     .untilAsserted(() -> {
                         HttpResponse stateResponse = restClient.get(watchPath + "/_state");
@@ -3127,7 +3174,7 @@ public class RestApiTest {
             Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
             Awaitility.await("Two actions should be acked at different time")
-                    .atMost(Duration.ofSeconds(2))
+                    .atMost(Duration.ofSeconds(10))
                     .pollInterval(Duration.ofMillis(200))
                     .untilAsserted(() -> {
                         HttpResponse stateResponse = restClient.get(watchPath + "/_state");
@@ -3312,6 +3359,47 @@ public class RestApiTest {
         Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
 
         return Watch.parseFromElasticDocument(watchInitializationService, "test", id, response.getBody(), -1);
+    }
+
+    /**
+     * Polls GET {watchPath}/_state until the given action reports {@code acked.by == expectedUser}, then returns the
+     * parsed state document. Acking persists the watch state asynchronously, so the acked flag only becomes visible
+     * on the persisted state after a short, load-dependent delay.
+     */
+    private DocNode awaitAckedBy(GenericRestClient restClient, String watchPath, String actionName, String expectedUser) {
+        AtomicReference<DocNode> lastState = new AtomicReference<>();
+        Awaitility.await("action " + actionName + " to be acked by " + expectedUser).atMost(Duration.ofSeconds(10))
+                .pollInterval(Duration.ofMillis(20)).until(() -> {
+                    HttpResponse response = restClient.get(watchPath + "/_state");
+                    if (response.getStatusCode() != HttpStatus.SC_OK) {
+                        return false;
+                    }
+                    DocNode statusDoc = response.getBodyAsDocNode();
+                    lastState.set(statusDoc);
+                    Object ackedBy = statusDoc.get("actions", actionName, "acked", "by");
+                    return expectedUser.equals(ackedBy);
+                });
+        return lastState.get();
+    }
+
+    /**
+     * Runs an ack-family REST operation ({@code _ack} / {@code _unack} / {@code _ack_and_get}), retrying while the
+     * watch has not been scheduled onto a node yet. A watch is scheduled asynchronously after it is PUT (and may be
+     * transiently re-scheduled), so an ack issued too early is answered with 404 "Could not find watch"
+     * (NO_SUCH_WATCH). This polls the operation until the watch is found and returns that first response, replacing
+     * fixed {@code Thread.sleep()}s that are racy on a loaded machine. A genuine 404 for an unknown action id
+     * (NO_SUCH_ACTION) carries a different message and is returned immediately rather than retried.
+     */
+    private HttpResponse awaitWatchScheduled(String description, Callable<HttpResponse> ackOperation) {
+        AtomicReference<HttpResponse> lastResponse = new AtomicReference<>();
+        Awaitility.await(description).atMost(Duration.ofSeconds(15)).pollInterval(Duration.ofMillis(20)).until(() -> {
+            HttpResponse response = ackOperation.call();
+            lastResponse.set(response);
+            boolean watchNotScheduledYet = response.getStatusCode() == HttpStatus.SC_NOT_FOUND
+                    && response.getBody().contains("Could not find watch");
+            return !watchNotScheduledYet;
+        });
+        return lastResponse.get();
     }
 
     private HttpResponse awaitRestGet(String request, GenericRestClient restClient) throws Exception {

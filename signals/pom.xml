@@ -143,4 +143,20 @@
     </dependency>
     <!-- ##### end painless plugin ##### -->
   </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <!-- Signals tests each spin up a multi-node LocalCluster.Embedded. With the inherited forkCount=3, several
+             such clusters form and recover shards concurrently and starve each other of CPU during startup, causing
+             transient "cluster state is YELLOW" / ConfigVarRefreshAction FailedNodeException flakes. Reduce the fork
+             count to 2 for this module; the rest of the surefire config is inherited from the parent pluginManagement. -->
+        <configuration>
+          <forkCount>2</forkCount>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>
