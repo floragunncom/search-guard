@@ -116,6 +116,7 @@ import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -540,7 +541,7 @@ public class TransportExecuteWatchActionTest {
         )).thenReturn(conditionScriptFactory);
         when(conditionScriptFactory.newInstance(any(), any())).thenReturn(conditionScript);
         when(conditionScript.execute()).thenReturn(true);
-        when(accountRegistry.lookupAccount(eq("test_ack_watch_link"), eq(EmailAccount.class))).thenReturn(emailAccount("localhost", 9999, "test@test"));
+        when(accountRegistry.lookupAccount(nullable(String.class), eq("test_ack_watch_link"), eq(EmailAccount.class))).thenReturn(emailAccount("localhost", 9999, "test@test"));
         Watch watch = new WatchBuilder("ack-watch-link").atMsInterval(100000).put("{\"a\": 42}").as("testdata").checkCondition("data.testdata.a > 0")
                 .then().email("test").account("test_ack_watch_link").body("Watch Link: {{ack_watch_link}}\nAction Link: {{ack_action_link}}")
                 .to("test@test").name("testaction").build();

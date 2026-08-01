@@ -86,6 +86,8 @@ import static com.floragunn.signals.watch.common.ValidationLevel.STRICT;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -1040,7 +1042,7 @@ public class ActionTest {
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
 
-            when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
+            when(accountRegistry.lookupAccount(nullable(String.class), eq("test_destination"), eq(SlackAccount.class))).thenReturn(slackDestination);
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -1073,7 +1075,7 @@ public class ActionTest {
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
 
-            when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
+            when(accountRegistry.lookupAccount(nullable(String.class), eq("test_destination"), eq(SlackAccount.class))).thenReturn(slackDestination);
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -1120,7 +1122,7 @@ public class ActionTest {
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
 
-            when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
+            when(accountRegistry.lookupAccount(nullable(String.class), eq("test_destination"), eq(SlackAccount.class))).thenReturn(slackDestination);
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -1168,7 +1170,7 @@ public class ActionTest {
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
 
-            when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
+            when(accountRegistry.lookupAccount(nullable(String.class), eq("test_destination"), eq(SlackAccount.class))).thenReturn(slackDestination);
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -1232,7 +1234,7 @@ public class ActionTest {
             SlackAccount slackDestination = new SlackAccount();
             slackDestination.setUrl(new URI(webhookProvider.getUri()));
 
-            when(accountRegistry.lookupAccount("test_destination", SlackAccount.class)).thenReturn(slackDestination);
+            when(accountRegistry.lookupAccount(nullable(String.class), eq("test_destination"), eq(SlackAccount.class))).thenReturn(slackDestination);
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("path", "hook");
@@ -1302,7 +1304,7 @@ public class ActionTest {
             emailAccount.setDefaultFrom("from@default.sgtest");
             emailAccount.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
-            when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
+            when(accountRegistry.lookupAccount(nullable(String.class), eq("test_destination"), eq(EmailAccount.class))).thenReturn(emailAccount);
 
             EmailAction emailAction = new EmailAction();
             emailAction.setBody("We searched {{data.x}} shards");
@@ -1366,7 +1368,7 @@ public class ActionTest {
             emailAccount.setDefaultFrom("from@default.sgtest");
             emailAccount.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
-            when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
+            when(accountRegistry.lookupAccount(nullable(String.class), eq("test_destination"), eq(EmailAccount.class))).thenReturn(emailAccount);
 
             EmailAction emailAction = new EmailAction();
             emailAction.setBody("We searched {{data.x}} shards");
@@ -1429,7 +1431,7 @@ public class ActionTest {
             emailDestination.setDefaultFrom("from@default.sgtest");
             emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
-            when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+            when(accountRegistry.lookupAccount(nullable(String.class), eq("test_destination"), eq(EmailAccount.class))).thenReturn(emailDestination);
 
             EmailAction emailAction = new EmailAction();
             emailAction.setHtmlBody("<p>We searched {{data.x}} shards<p/>");
@@ -1489,7 +1491,7 @@ public class ActionTest {
             emailDestination.setDefaultFrom("from@default.sgtest");
             emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
-            when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+            when(accountRegistry.lookupAccount(nullable(String.class), eq("test_destination"), eq(EmailAccount.class))).thenReturn(emailDestination);
 
             EmailAction emailAction = new EmailAction();
             emailAction.setBody("{{data.x}} shards have been searched for");
@@ -1545,7 +1547,7 @@ public class ActionTest {
             emailDestination.setDefaultFrom("from@default.sgtest");
             emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
-            when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+            when(accountRegistry.lookupAccount(nullable(String.class), eq("test_destination"), eq(EmailAccount.class))).thenReturn(emailDestination);
 
             EmailAction emailAction = new EmailAction();
             emailAction.setSubject("Test Subject");
@@ -1593,7 +1595,7 @@ public class ActionTest {
                 emailDestination.setDefaultFrom("from@default.sgtest");
                 emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
-                when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+                when(accountRegistry.lookupAccount(nullable(String.class), eq("test_destination"), eq(EmailAccount.class))).thenReturn(emailDestination);
 
                 EmailAction emailAction = new EmailAction();
                 emailAction.setBody("We searched {{data.x}} shards");
@@ -1668,7 +1670,7 @@ public class ActionTest {
                 emailDestination.setDefaultFrom("from@default.sgtest");
                 emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
-                when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+                when(accountRegistry.lookupAccount(nullable(String.class), eq("test_destination"), eq(EmailAccount.class))).thenReturn(emailDestination);
 
                 EmailAction emailAction = new EmailAction();
                 emailAction.setBody("We searched {{data.x}} shards");
@@ -1743,7 +1745,7 @@ public class ActionTest {
                 emailDestination.setDefaultFrom("from@default.sgtest");
                 emailDestination.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
-                when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailDestination);
+                when(accountRegistry.lookupAccount(nullable(String.class), eq("test_destination"), eq(EmailAccount.class))).thenReturn(emailDestination);
 
                 EmailAction emailAction = new EmailAction();
                 emailAction.setBody("We searched {{data.x}} shards");
@@ -1814,7 +1816,7 @@ public class ActionTest {
             emailAccount.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
 
-            when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
+            when(accountRegistry.lookupAccount(nullable(String.class), eq("test_destination"), eq(EmailAccount.class))).thenReturn(emailAccount);
 
             NestedValueMap runtimeData = new NestedValueMap();
             runtimeData.put("x", "y");
@@ -1882,7 +1884,7 @@ public class ActionTest {
             emailAccount.setDefaultCc(Arrays.asList("cc1@default.sgtest", "cc2@default.sgtest"));
             emailAccount.setDefaultBcc("bcc1@default.sgtest", "bcc2@default.sgtest");
 
-            when(accountRegistry.lookupAccount("test_destination", EmailAccount.class)).thenReturn(emailAccount);
+            when(accountRegistry.lookupAccount(nullable(String.class), eq("test_destination"), eq(EmailAccount.class))).thenReturn(emailAccount);
 
             NestedValueMap runtimeData = new NestedValueMap();
 
