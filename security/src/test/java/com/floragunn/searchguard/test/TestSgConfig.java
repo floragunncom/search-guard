@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.not;
+import static org.awaitility.Awaitility.await;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -49,12 +50,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.core.TimeValue;
 import org.hamcrest.Matcher;
 
 import com.floragunn.codova.config.temporal.DurationFormat;
@@ -369,6 +373,21 @@ public class TestSgConfig {
         if (authTokenService != null) {
             writeConfigToIndex(client, "auth_token_service", authTokenService);
         }
+
+        await("config variable index to become available")
+                .atMost(Duration.ofSeconds(60))
+                .until(() -> {
+                    ClusterHealthResponse response = client.admin().cluster()
+                            .prepareHealth(TimeValue.timeValueSeconds(5), ".searchguard_config_vars")
+                            .setWaitForGreenStatus()
+                            .setTimeout(TimeValue.ZERO)
+                            .execute()
+                            .actionGet();
+
+                    return !response.isTimedOut()
+                            && (response.getStatus() == ClusterHealthStatus.YELLOW
+                                    || response.getStatus() == ClusterHealthStatus.GREEN);
+                });
 
         if (variableSuppliers.size() != 0) {
             writeConfigVars(client, variableSuppliers);
