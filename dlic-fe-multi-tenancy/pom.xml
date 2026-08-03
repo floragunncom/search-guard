@@ -59,11 +59,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.awaitility</groupId>
-      <artifactId>awaitility</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
       <groupId>org.elasticsearch.plugin</groupId>
       <artifactId>elasticsearch-scripting-painless-spi</artifactId>
       <scope>test</scope>

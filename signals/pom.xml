@@ -80,12 +80,6 @@
       <scope>test</scope>
     </dependency>
 
-    <dependency>
-      <groupId>org.awaitility</groupId>
-      <artifactId>awaitility</artifactId>
-      <scope>test</scope>
-    </dependency>
-
     <!-- ##### start painless plugin ##### -->
     <dependency>
       <groupId>org.elasticsearch.plugin</groupId>
