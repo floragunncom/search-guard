@@ -23,6 +23,7 @@ import java.util.List;
 import com.floragunn.searchguard.GuiceDependencies;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.FailedNodeException;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.nodes.TransportNodesAction;
@@ -98,16 +99,34 @@ TransportNodesAction<ConfigUpdateRequest, ConfigUpdateResponse, TransportConfigU
 
     }
 
+    /**
+     * The reload is performed asynchronously on a dedicated thread inside {@link ConfigurationRepository}. This method
+     * therefore does not block the MANAGEMENT thread it is invoked on while waiting for the reload to complete. This
+     * avoids a deadlock on nodes with only a single MANAGEMENT thread, where the reload would otherwise occupy that
+     * thread while, at the same time, waiting for an index/mapping action that Elasticsearch dispatches to the very same
+     * MANAGEMENT pool.
+     */
+    @Override
+    protected void nodeOperationAsync(final NodeConfigUpdateRequest request, Task task, ActionListener<ConfigUpdateNodeResponse> listener) {
+        configurationRepository.reloadConfiguration(CType.fromStringValues(request.configTypes), "Config Update " + request,
+                new ActionListener<ConfigurationRepository.ConfigReloadResponse>() {
+                    @Override
+                    public void onResponse(ConfigurationRepository.ConfigReloadResponse configReloadResponse) {
+                        listener.onResponse(new ConfigUpdateNodeResponse(clusterService.localNode(), request.configTypes, null));
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        logger.error("Error in TransportConfigUpdateAction nodeOperation for " + request, e);
+                        listener.onFailure(e);
+                    }
+                });
+    }
+
     @Override
     protected ConfigUpdateNodeResponse nodeOperation(final NodeConfigUpdateRequest request, Task task) {
-        try {
-            configurationRepository.reloadConfiguration(CType.fromStringValues(request.configTypes), "Config Update " + request);
-           
-            return new ConfigUpdateNodeResponse(clusterService.localNode(), request.configTypes, null);
-        } catch (Exception e) {
-            logger.error("Error in TransportConfigUpdateAction nodeOperation for " + request, e);
-            throw new RuntimeException(e);
-        }
+        // Not used: nodeOperationAsync(...) is overridden and does not delegate to this method.
+        throw new UnsupportedOperationException("nodeOperationAsync is used instead of nodeOperation");
     }
 
     @Override
