@@ -30,6 +30,23 @@ public class AccountRegistry {
         this.settings = settings;
     }
 
+    /**
+     * Creates a pre-populated account registry for tests which do not need the
+     * index-backed initialization performed by {@link #init(Client)}.
+     */
+    public AccountRegistry(Map<String, ? extends Account> accounts) {
+        this.settings = null;
+
+        Map<String, Account> accountsByScopedId = new HashMap<>();
+
+        accounts.forEach((id, account) -> {
+            account.setId(id);
+            accountsByScopedId.put(account.getScopedId(), account);
+        });
+
+        this.accounts = Collections.unmodifiableMap(accountsByScopedId);
+    }
+
     public void init(Client client) throws SignalsInitializationException {
         try {
             if (this.accounts == null) {
