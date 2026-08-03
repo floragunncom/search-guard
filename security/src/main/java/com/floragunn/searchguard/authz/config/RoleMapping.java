@@ -18,8 +18,10 @@
 package com.floragunn.searchguard.authz.config;
 
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -180,9 +182,11 @@ public class RoleMapping implements Document<RoleMapping>, Hideable {
 
         private final ComponentState componentState = new ComponentState("role_mapping_index");
         private final MetricsLevel metricsLevel;
+        private final boolean fromBackendRolesCaseInsensitive;
         private final Measurement<?> evaluations;
 
-        public InvertedIndex(SgDynamicConfiguration<RoleMapping> roleMappings, MetricsLevel metricsLevel) {
+        public InvertedIndex(SgDynamicConfiguration<RoleMapping> roleMappings, MetricsLevel metricsLevel,
+                boolean fromBackendRolesCaseInsensitive) {
 
             PatternMap.Builder<String> users = new PatternMap.Builder<>();
             PatternMap.Builder<String> backendRoles = new PatternMap.Builder<>();
@@ -216,6 +220,7 @@ public class RoleMapping implements Document<RoleMapping>, Hideable {
             this.byIps = ImmutableMap.map(ips.asMap(), (k) -> ip(k), (v) -> ImmutableSet.of(v));
             this.byBackendRolesAnded = ImmutableMap.map(andBackendRoles.asMap(), (k) -> k, (v) -> ImmutableSet.of(v));
             this.metricsLevel = metricsLevel;
+            this.fromBackendRolesCaseInsensitive = fromBackendRolesCaseInsensitive;
 
             if (metricsLevel == MetricsLevel.DETAILED) {
                 evaluations = new TimeAggregation.Milliseconds();
@@ -240,8 +245,12 @@ public class RoleMapping implements Document<RoleMapping>, Hideable {
                 }
 
                 if (((rolesMappingResolution == ResolutionMode.BOTH || rolesMappingResolution == ResolutionMode.MAPPING_ONLY))) {
+                    Set<String> backendRoles = fromBackendRolesCaseInsensitive
+                            ? ImmutableSet.map(user.getRoles(), role -> role.toLowerCase(Locale.ROOT))
+                            : user.getRoles();
+
                     result.addAll(byUsers.get(user.getName()));
-                    result.addAll(byBackendRoles.get(user.getRoles()));
+                    result.addAll(byBackendRoles.get(backendRoles));
 
                     if (transportAddress != null) {
                         if (!byHostNames.isEmpty()) {
@@ -268,7 +277,7 @@ public class RoleMapping implements Document<RoleMapping>, Hideable {
 
                     if (!byBackendRolesAnded.isEmpty()) {
                         for (ImmutableSet<Pattern> patternSet : byBackendRolesAnded.keySet()) {
-                            if (patternSet.forAllApplies((p) -> p.matches(user.getRoles()))) {
+                            if (patternSet.forAllApplies((p) -> p.matches(backendRoles))) {
                                 result.addAll(byBackendRolesAnded.get(patternSet));
                             }
                         }

@@ -74,7 +74,8 @@ public class AuthorizationService implements ComponentStateProvider {
                     }
                 } 
 
-                roleMapping = new RoleMapping.InvertedIndex(configMap.get(CType.ROLESMAPPING), authzConfig.getMetricsLevel());
+                roleMapping = new RoleMapping.InvertedIndex(configMap.get(CType.ROLESMAPPING), authzConfig.getMetricsLevel(),
+                        authzConfig.isFromBackendRolesCaseInsensitive());
 
                 componentState.setConfigVersion(configMap.getVersionsAsString());
                 componentState.replacePart(roleMapping.getComponentState());
