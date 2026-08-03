@@ -180,9 +180,6 @@ public class TransportExecuteWatchActionTest {
     public SignalsTenant signalsTenant;
 
     @Mock
-    public AccountRegistry accountRegistry;
-
-    @Mock
     public TrustManagerRegistry trustManagerRegistry;
 
     @Mock
@@ -214,7 +211,7 @@ public class TransportExecuteWatchActionTest {
         threadContext.putTransient("_sg_user", User.forUser("test-user").requestedTenant(TENANT).build());
         when(threadPool.getThreadContext()).thenReturn(threadContext);
         when(threadPool.generic()).thenReturn(EsExecutors.DIRECT_EXECUTOR_SERVICE);
-        when(signals.getAccountRegistry()).thenReturn(accountRegistry);
+        when(signals.getAccountRegistry()).thenReturn(new AccountRegistry(Collections.emptyMap()));
         when(signals.getTruststoreRegistry()).thenReturn(trustManagerRegistry);
         when(signals.getHttpProxyHostRegistry()).thenReturn(httpProxyHostRegistry);
         when(signals.getSignalsSettings()).thenReturn(new SignalsSettings(Settings.EMPTY));
@@ -540,7 +537,9 @@ public class TransportExecuteWatchActionTest {
         )).thenReturn(conditionScriptFactory);
         when(conditionScriptFactory.newInstance(any(), any())).thenReturn(conditionScript);
         when(conditionScript.execute()).thenReturn(true);
-        when(accountRegistry.lookupAccount(eq("test_ack_watch_link"), eq(EmailAccount.class))).thenReturn(emailAccount("localhost", 9999, "test@test"));
+        AccountRegistry accountRegistry = new AccountRegistry(
+                Collections.singletonMap("test_ack_watch_link", emailAccount("localhost", 9999, "test@test")));
+        when(signals.getAccountRegistry()).thenReturn(accountRegistry);
         Watch watch = new WatchBuilder("ack-watch-link").atMsInterval(100000).put("{\"a\": 42}").as("testdata").checkCondition("data.testdata.a > 0")
                 .then().email("test").account("test_ack_watch_link").body("Watch Link: {{ack_watch_link}}\nAction Link: {{ack_action_link}}")
                 .to("test@test").name("testaction").build();

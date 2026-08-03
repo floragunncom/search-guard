@@ -50,6 +50,7 @@ import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentState.State;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.floragunn.signals.accounts.AccountRegistry;
+import com.floragunn.signals.accounts.Account;
 import com.floragunn.signals.settings.SignalsSettings;
 import com.floragunn.signals.settings.SignalsSettings.SignalsStaticSettings.IndexNames;
 import com.floragunn.signals.watch.Watch;
@@ -188,7 +189,7 @@ public class Signals extends AbstractLifecycleComponent {
         componentState.addPart(
                 protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesState()).mapping(WatchState.getIndexMapping())));
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getWatchesTriggerState())));
-        componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getAccounts())));
+        componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getAccounts()).mapping(Account.getIndexMapping())));
         componentState.addPart(protectedConfigIndexService.createIndex(new ConfigIndex(indexNames.getSettings())));
     }
 

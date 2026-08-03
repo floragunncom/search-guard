@@ -81,7 +81,7 @@ public class SlackAction extends ActionHandler {
     public ActionExecutionResult execute(WatchExecutionContext ctx) throws ActionExecutionException {
 
         try {
-            SlackAccount destination = ctx.getAccountRegistry().lookupAccount(slackActionConf.getAccount(), SlackAccount.class);
+            SlackAccount destination = ctx.lookupAccount(slackActionConf.getAccount(), SlackAccount.class);
 
             // TODO get timeout from destination
             HttpClientConfig httpClientConfig = new HttpClientConfig(null, null, null, null);

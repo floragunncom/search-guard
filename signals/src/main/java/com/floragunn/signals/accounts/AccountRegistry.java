@@ -30,6 +30,23 @@ public class AccountRegistry {
         this.settings = settings;
     }
 
+    /**
+     * Creates a pre-populated account registry for tests which do not need the
+     * index-backed initialization performed by {@link #init(Client)}.
+     */
+    public AccountRegistry(Map<String, ? extends Account> accounts) {
+        this.settings = null;
+
+        Map<String, Account> accountsByScopedId = new HashMap<>();
+
+        accounts.forEach((id, account) -> {
+            account.setId(id);
+            accountsByScopedId.put(account.getScopedId(), account);
+        });
+
+        this.accounts = Collections.unmodifiableMap(accountsByScopedId);
+    }
+
     public void init(Client client) throws SignalsInitializationException {
         try {
             if (this.accounts == null) {
@@ -72,10 +89,13 @@ public class AccountRegistry {
                 for (SearchHit hit : searchResponse.getHits()) {
 
                     try {
-                        String id = unscopeId(hit.getId());
-                        String accountType = getAccountType(hit.getId());
+                        ScopedAccountId scopedAccountId = ScopedAccountId.parse(hit.getId());
+                        String id = scopedAccountId.id;
+                        String accountType = scopedAccountId.type;
 
-                        tmp.put(hit.getId(), Account.parse(accountType, id, hit.getSourceAsString()));
+                        Account account = Account.parse(accountType, id, hit.getSourceAsString());
+                        account.setTenant(scopedAccountId.tenant);
+                        tmp.put(hit.getId(), account);
                     } catch (Exception e) {
                         log.error("Error while parsing " + hit, e);
                     }
@@ -90,6 +110,10 @@ public class AccountRegistry {
     }
 
     public <T extends Account> T lookupAccount(String id, Class<T> accountClass) throws NoSuchAccountException {
+        return lookupAccount(null, id, accountClass);
+    }
+
+    public <T extends Account> T lookupAccount(String tenant, String id, Class<T> accountClass) throws NoSuchAccountException {
         if (this.accounts == null) {
             throw new IllegalStateException("AccountRegistry is not intialized yet");
         }
@@ -104,11 +128,14 @@ public class AccountRegistry {
             throw new NoSuchAccountException("Illegal account class: " + accountClass);
         }
 
-        String scopedId = accountFactory.getType() + "/" + id;
-        Account result = accounts.get(scopedId);
+        Account result = accounts.get(Account.scopedId(tenant, accountFactory.getType(), id));
+
+        if (result == null && tenant != null) {
+            result = accounts.get(Account.scopedId(null, accountFactory.getType(), id));
+        }
 
         if (result == null) {
-            throw new NoSuchAccountException("Account does not exist: " + scopedId, null);
+            throw new NoSuchAccountException("Account does not exist: " + accountFactory.getType() + "/" + id, null);
         }
 
         if (!accountClass.isAssignableFrom(result.getClass())) {
@@ -120,6 +147,10 @@ public class AccountRegistry {
     }
 
     public Account lookupAccount(String id, String accountType) throws NoSuchAccountException {
+        return lookupAccountExact(null, id, accountType);
+    }
+
+    public Account lookupAccountExact(String tenant, String id, String accountType) throws NoSuchAccountException {
         if (this.accounts == null) {
             throw new IllegalStateException("AccountRegistry is not intialized yet");
         }
@@ -128,33 +159,36 @@ public class AccountRegistry {
             id = "default";
         }
 
-        String scopedId = accountType + "/" + id;
-        Account result = accounts.get(scopedId);
+        Account result = accounts.get(Account.scopedId(tenant, accountType, id));
 
         if (result == null) {
-            throw new NoSuchAccountException("Account does not exist: " + scopedId, null);
+            throw new NoSuchAccountException("Account does not exist: " + accountType + "/" + id, null);
         }
 
         return result;
     }
 
-    private static String unscopeId(String scopedId) {
-        int slash = scopedId.indexOf('/');
+    private static class ScopedAccountId {
+        private final String tenant;
+        private final String type;
+        private final String id;
 
-        if (slash != -1) {
-            return scopedId.substring(slash + 1);
-        } else {
-            return scopedId;
+        private ScopedAccountId(String tenant, String type, String id) {
+            this.tenant = tenant;
+            this.type = type;
+            this.id = id;
         }
-    }
 
-    private static String getAccountType(String scopedId) {
-        int slash = scopedId.indexOf('/');
+        private static ScopedAccountId parse(String scopedId) {
+            String[] parts = scopedId.split("/", -1);
 
-        if (slash != -1) {
-            return scopedId.substring(0, slash);
-        } else {
-            throw new IllegalArgumentException("Illegal scopedId: " + scopedId);
+            if (parts.length == 2) {
+                return new ScopedAccountId(null, parts[0], parts[1]);
+            } else if (parts.length == 3) {
+                return new ScopedAccountId(parts[0], parts[1], parts[2]);
+            } else {
+                throw new IllegalArgumentException("Illegal scopedId: " + scopedId);
+            }
         }
     }
 }

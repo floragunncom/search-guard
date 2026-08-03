@@ -231,6 +231,9 @@ public class EmailAccount extends Account {
 
         builder.field("type", "email");
         builder.field("_name", getId());
+        if (getTenant() != null) {
+            builder.field("_tenant", getTenant());
+        }
         builder.field("host", host);
         builder.field("port", port);
 
