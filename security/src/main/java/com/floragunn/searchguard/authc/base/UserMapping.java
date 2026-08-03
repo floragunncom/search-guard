@@ -19,6 +19,7 @@ package com.floragunn.searchguard.authc.base;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -155,7 +156,8 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
     private final ImmutableList<MappingSpecification> roles;
     private final ImmutableList<MapMappingSpecification> attrs;
 
-    public UserMapping(DocNode source, ImmutableList<MappingSpecification> userName, ImmutableList<MappingSpecification> userNameFromBackend, ImmutableList<MappingSpecification> roles, ImmutableList<MapMappingSpecification> attrs) {
+    public UserMapping(DocNode source, ImmutableList<MappingSpecification> userName, ImmutableList<MappingSpecification> userNameFromBackend,
+            ImmutableList<MappingSpecification> roles, ImmutableList<MapMappingSpecification> attrs) {
         this.source = source;
         this.userName = userName;
         this.userNameFromBackend = userNameFromBackend;
@@ -166,16 +168,21 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
     public static class Static extends MappingSpecification {
         private final ImmutableSet<String> valueAsSet;
 
-        Static(String value) {
+        Static(String value, boolean convertToLowerCase) {
+            super(convertToLowerCase);
             this.valueAsSet = ImmutableSet.of(value);
         }
 
-        static Static parse(DocNode docNode, Parser.Context context) throws ConfigValidationException {
-            return new Static(docNode.toString());
+        static Static parse(DocNode docNode, Parser.Context context, boolean convertToLowerCase) throws ConfigValidationException {
+            return new Static(docNode.toString(), convertToLowerCase);
+        }
+
+        static Parser<Static, Parser.Context> parser(boolean convertToLowerCase) {
+            return (docNode, context) -> parse(docNode, context, convertToLowerCase);
         }
 
         @Override
-        ImmutableSet<String> apply(AuthCredentials authCredentials) {
+        ImmutableSet<String> applyWithoutConversion(AuthCredentials authCredentials) {
             return valueAsSet;
         }
     }
@@ -187,16 +194,17 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
         private final static Configuration attributePathConfiguration = BasicJsonPathDefaultConfiguration.listDefaultConfiguration()
                 .addOptions(Option.SUPPRESS_EXCEPTIONS);
 
-        FromAttribute(JsonPath attributePath, java.util.regex.Pattern pattern, String split) {
+        FromAttribute(JsonPath attributePath, java.util.regex.Pattern pattern, String split, boolean convertToLowerCase) {
+            super(convertToLowerCase);
             this.pattern = pattern;
             this.attributePath = attributePath;
             this.splitter = split != null ? Splitter.on(split).trimResults() : null;
         }
 
-        static FromAttribute parse(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+        static FromAttribute parse(DocNode docNode, Parser.Context context, boolean convertToLowerCase) throws ConfigValidationException {
             if (docNode.isString()) {
                 try {
-                    return new FromAttribute(JsonPath.compile(docNode.toString()), null, null);
+                    return new FromAttribute(JsonPath.compile(docNode.toString()), null, null, convertToLowerCase);
                 } catch (InvalidPathException e) {
                     throw new ConfigValidationException(new InvalidAttributeValue(null, docNode, "JSON Path").message(e.getMessage()).cause(e));
                 }
@@ -210,16 +218,17 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
 
                 validationErrors.throwExceptionForPresentErrors();
 
-                return new FromAttribute(path, pattern, split);
+                return new FromAttribute(path, pattern, split, convertToLowerCase);
             } else {
                 throw new ConfigValidationException(new InvalidAttributeValue(null, docNode, "JSON Path"));
             }
         }
         
-        static FromAttribute parseCommaSeparated(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+        static FromAttribute parseCommaSeparated(DocNode docNode, Parser.Context context, boolean convertToLowerCase)
+                throws ConfigValidationException {
             if (docNode.isString()) {
                 try {
-                    return new FromAttribute(JsonPath.compile(docNode.toString()), null, ",");
+                    return new FromAttribute(JsonPath.compile(docNode.toString()), null, ",", convertToLowerCase);
                 } catch (InvalidPathException e) {
                     throw new ConfigValidationException(new InvalidAttributeValue(null, docNode, "JSON Path").message(e.getMessage()).cause(e));
                 }
@@ -228,8 +237,16 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
             }
         }
 
+        static Parser<FromAttribute, Parser.Context> parser(boolean convertToLowerCase) {
+            return (docNode, context) -> parse(docNode, context, convertToLowerCase);
+        }
+
+        static Parser<FromAttribute, Parser.Context> commaSeparatedParser(boolean convertToLowerCase) {
+            return (docNode, context) -> parseCommaSeparated(docNode, context, convertToLowerCase);
+        }
+
         @Override
-        ImmutableSet<String> apply(AuthCredentials authCredentials) {
+        ImmutableSet<String> applyWithoutConversion(AuthCredentials authCredentials) {
             try {
                 List<Object> elements = JsonPath.using(attributePathConfiguration).parse(authCredentials.getAttributesForUserMapping())
                         .read(attributePath);
@@ -284,13 +301,20 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
     }
 
     public static abstract class MappingSpecification {
+        private final boolean convertToLowerCase;
 
-        static ImmutableList<MappingSpecification> parseUserNameMapping(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+        MappingSpecification(boolean convertToLowerCase) {
+            this.convertToLowerCase = convertToLowerCase;
+        }
+
+        static ImmutableList<MappingSpecification> parseUserNameMapping(DocNode docNode, Parser.Context context)
+                throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
-            List<FromAttribute> from = vNode.get("from").asList().withEmptyListAsDefault().ofObjectsParsedBy(FromAttribute::parse);
-            List<Static> staticValues = vNode.get("static").asList().withEmptyListAsDefault().ofObjectsParsedBy(Static::parse);
+            boolean convertToLowerCase = vNode.get("convert_to_lower_case").withDefault(false).asBoolean();
+            List<FromAttribute> from = vNode.get("from").asList().withEmptyListAsDefault().ofObjectsParsedBy(FromAttribute.parser(convertToLowerCase));
+            List<Static> staticValues = vNode.get("static").asList().withEmptyListAsDefault().ofObjectsParsedBy(Static.parser(convertToLowerCase));
 
             vNode.used("from_backend");
             vNode.checkForUnusedAttributes();
@@ -299,24 +323,29 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
             return ImmutableList.concat(from, staticValues);
         }
         
-        static ImmutableList<MappingSpecification> parseUserNameFromBackendMapping(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+        static ImmutableList<MappingSpecification> parseUserNameFromBackendMapping(DocNode docNode, Parser.Context context)
+                throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
-            ImmutableList<MappingSpecification> from = vNode.get("from_backend").asList().withEmptyListAsDefault().ofObjectsParsedBy(FromAttribute::parse);
+            boolean convertToLowerCase = vNode.get("convert_to_lower_case").withDefault(false).asBoolean();
+            List<FromAttribute> from = vNode.get("from_backend").asList().withEmptyListAsDefault()
+                    .ofObjectsParsedBy(FromAttribute.parser(convertToLowerCase));
 
             validationErrors.throwExceptionForPresentErrors();
 
-            return from;
+            return ImmutableList.of(from);
         }
 
         static ImmutableList<MappingSpecification> parseRoleMapping(DocNode docNode, Parser.Context context) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
-            List<FromAttribute> from = vNode.get("from").asList().withEmptyListAsDefault().ofObjectsParsedBy(FromAttribute::parse);
-            List<FromAttribute> fromCsv = vNode.get("from_comma_separated_string").asList().withEmptyListAsDefault().ofObjectsParsedBy(FromAttribute::parseCommaSeparated);
-            List<Static> staticValues = vNode.get("static").asList().withEmptyListAsDefault().ofObjectsParsedBy(Static::parse);
+            boolean convertToLowerCase = vNode.get("convert_to_lower_case").withDefault(false).asBoolean();
+            List<FromAttribute> from = vNode.get("from").asList().withEmptyListAsDefault().ofObjectsParsedBy(FromAttribute.parser(convertToLowerCase));
+            List<FromAttribute> fromCsv = vNode.get("from_comma_separated_string").asList().withEmptyListAsDefault()
+                    .ofObjectsParsedBy(FromAttribute.commaSeparatedParser(convertToLowerCase));
+            List<Static> staticValues = vNode.get("static").asList().withEmptyListAsDefault().ofObjectsParsedBy(Static.parser(convertToLowerCase));
 
             vNode.checkForUnusedAttributes();
             validationErrors.throwExceptionForPresentErrors();
@@ -324,7 +353,12 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
             return ImmutableList.concat(from, fromCsv, staticValues);
         }
 
-        abstract ImmutableSet<String> apply(AuthCredentials authCredentials);
+        final ImmutableSet<String> apply(AuthCredentials authCredentials) {
+            ImmutableSet<String> result = applyWithoutConversion(authCredentials);
+            return convertToLowerCase ? result.map(value -> value.toLowerCase(Locale.ROOT)) : result;
+        }
+
+        abstract ImmutableSet<String> applyWithoutConversion(AuthCredentials authCredentials);
 
         static ImmutableSet<String> apply(Collection<MappingSpecification> mappingSpecifications, AuthCredentials authCredentials) {
             ImmutableSet<String> result = ImmutableSet.empty();
@@ -341,21 +375,29 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
     public static class StaticMap extends MapMappingSpecification {
         private final ImmutableMap<String, Object> map;
 
-        StaticMap(Map<String, Object> map) {
+        StaticMap(Map<String, Object> map, boolean convertKeysToLowerCase) {
+            super(convertKeysToLowerCase);
             this.map = ImmutableMap.of(map);
         }
 
-        static StaticMap parseStatic(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+        static StaticMap parseStatic(DocNode docNode, Parser.Context context, boolean convertKeysToLowerCase)
+                throws ConfigValidationException {
             if (docNode.isMap()) {
-                return new StaticMap(docNode.toMap());
+                return new StaticMap(docNode.toMap(), convertKeysToLowerCase);
             } else {
                 throw new ConfigValidationException(new InvalidAttributeValue(null, docNode, "A mapping from attribute names to values"));
             }
         }
 
+        static Parser<StaticMap, Parser.Context> parser(boolean convertKeysToLowerCase) {
+            return (docNode, context) -> parseStatic(docNode, context, convertKeysToLowerCase);
+        }
+
         @Override
         void apply(AuthCredentials authCredentials, ImmutableMap.Builder<String, Object> result) {
-            result.putAll(map);
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                result.with(convertKey(entry.getKey()), entry.getValue());
+            }
         }
     }
 
@@ -363,11 +405,13 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
         private final Map<String, JsonPath> attributePathMap;
         private final static Configuration attributePathConfiguration = BasicJsonPathDefaultConfiguration.defaultConfiguration();
 
-        FromAttributeMap(Map<String, JsonPath> attributePathMap) {
+        FromAttributeMap(Map<String, JsonPath> attributePathMap, boolean convertKeysToLowerCase) {
+            super(convertKeysToLowerCase);
             this.attributePathMap = attributePathMap;
         }
 
-        static FromAttributeMap parseFrom(DocNode docNode, Parser.Context context) throws ConfigValidationException {
+        static FromAttributeMap parseFrom(DocNode docNode, Parser.Context context, boolean convertKeysToLowerCase)
+                throws ConfigValidationException {
             if (docNode.isMap()) {
                 ValidationErrors validationErrors = new ValidationErrors();
                 ImmutableMap.Builder<String, JsonPath> result = new ImmutableMap.Builder<>();
@@ -383,10 +427,14 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
 
                 validationErrors.throwExceptionForPresentErrors();
 
-                return new FromAttributeMap(result.build());
+                return new FromAttributeMap(result.build(), convertKeysToLowerCase);
             } else {
                 throw new ConfigValidationException(new InvalidAttributeValue(null, docNode, "A mapping from attribute names to JSON Path"));
             }
+        }
+
+        static Parser<FromAttributeMap, Parser.Context> parser(boolean convertKeysToLowerCase) {
+            return (docNode, context) -> parseFrom(docNode, context, convertKeysToLowerCase);
         }
 
         @Override
@@ -397,7 +445,7 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
                     JsonPath jsonPath = entry.getValue();
                     Object value = JsonPath.using(attributePathConfiguration).parse(authCredentials.getAttributesForUserMapping()).read(jsonPath);
 
-                    result.with(entry.getKey(), value);
+                    result.with(convertKey(entry.getKey()), value);
                 } catch (PathNotFoundException e) {
                     if (log.isDebugEnabled()) {
                         log.debug("Attribute mapping path not found: " + entry, e);
@@ -410,13 +458,23 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
     }
 
     public static abstract class MapMappingSpecification {
+        private final boolean convertKeysToLowerCase;
+
+        MapMappingSpecification(boolean convertKeysToLowerCase) {
+            this.convertKeysToLowerCase = convertKeysToLowerCase;
+        }
+
         static ImmutableList<MapMappingSpecification> parse(DocNode docNode, Parser.Context context) throws ConfigValidationException {
             ValidationErrors validationErrors = new ValidationErrors();
             ValidatingDocNode vNode = new ValidatingDocNode(docNode, validationErrors, context);
 
-            List<FromAttributeMap> from = vNode.get("from").asList().withEmptyListAsDefault().ofObjectsParsedBy(FromAttributeMap::parseFrom);
-            List<StaticMap> staticValues = vNode.get("static").asList().withEmptyListAsDefault().ofObjectsParsedBy(StaticMap::parseStatic);
+            boolean convertKeysToLowerCase = vNode.get("convert_keys_to_lower_case").withDefault(false).asBoolean();
+            List<FromAttributeMap> from = vNode.get("from").asList().withEmptyListAsDefault()
+                    .ofObjectsParsedBy(FromAttributeMap.parser(convertKeysToLowerCase));
+            List<StaticMap> staticValues = vNode.get("static").asList().withEmptyListAsDefault()
+                    .ofObjectsParsedBy(StaticMap.parser(convertKeysToLowerCase));
 
+            vNode.checkForUnusedAttributes();
             validationErrors.throwExceptionForPresentErrors();
 
             return ImmutableList.concat(from, staticValues);
@@ -430,6 +488,10 @@ public class UserMapping implements UserMapper, AuthenticationDomain.Credentials
             }
 
             return result.build();
+        }
+
+        String convertKey(String key) {
+            return convertKeysToLowerCase ? key.toLowerCase(Locale.ROOT) : key;
         }
 
         abstract void apply(AuthCredentials authCredentials, ImmutableMap.Builder<String, Object> result);
