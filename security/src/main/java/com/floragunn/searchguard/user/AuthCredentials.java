@@ -62,6 +62,11 @@ public final class AuthCredentials implements UserInformation {
     private final ImmutableSet<String> searchGuardRoles;
     private boolean complete;
     private final boolean authzComplete;
+
+    /**
+     * This is needed as a user cache key after credentials have been cleared. It is either a hash of the password or
+     * a hash of nativeCredentials (such as a JWT or similar).
+     */
     private final byte[] internalPasswordHash;
     private boolean secretsCleared;
     private Exception secretsClearedAt;
@@ -96,76 +101,6 @@ public final class AuthCredentials implements UserInformation {
         this.attributesForUserMapping = attributesForUserMapping;
         this.claims = Collections.unmodifiableMap(claims);
         this.redirectUri = redirectUri;
-    }
-
-    @Deprecated
-    public AuthCredentials(final String username, final Object nativeCredentials) {
-        this(username, null, nativeCredentials);
-
-        if (nativeCredentials == null) {
-            throw new IllegalArgumentException("nativeCredentials must not be null or empty");
-        }
-    }
-
-    @Deprecated
-    public AuthCredentials(final String username, final byte[] password) {
-        this(username, password, null);
-
-        if (password == null || password.length == 0) {
-            throw new IllegalArgumentException("password must not be null or empty");
-        }
-    }
-
-    @Deprecated
-    public AuthCredentials(final String username, String... backendRoles) {
-        this(username, null, null, backendRoles);
-    }
-
-    @Deprecated
-    private AuthCredentials(final String username, byte[] password, Object nativeCredentials, String... backendRoles) {
-        super();
-
-        if (username == null || username.isEmpty()) {
-            throw new IllegalArgumentException("username must not be null or empty");
-        }
-
-        this.username = username;
-        // make defensive copy
-        this.password = password == null ? null : Arrays.copyOf(password, password.length);
-        this.subUserName = null;
-        this.complete = false;
-        this.authzComplete = false;
-        this.authDomainInfo = AuthDomainInfo.UNKNOWN;
-
-        if (this.password != null) {
-            try {
-                MessageDigest digester = MessageDigest.getInstance(DIGEST_ALGORITHM);
-                internalPasswordHash = digester.digest(this.password);
-            } catch (NoSuchAlgorithmException e) {
-                throw new ElasticsearchSecurityException("Unable to digest password", e);
-            }
-        } else {
-            internalPasswordHash = null;
-        }
-
-        if (password != null) {
-            Arrays.fill(password, (byte) '\0');
-            password = null;
-        }
-
-        this.nativeCredentials = nativeCredentials;
-        nativeCredentials = null;
-
-        if (backendRoles != null && backendRoles.length > 0) {
-            this.backendRoles = ImmutableSet.ofArray(backendRoles);
-        } else {
-            this.backendRoles = ImmutableSet.empty();
-        }
-
-        this.searchGuardRoles = ImmutableSet.empty();
-        this.attributesForUserMapping = ImmutableMap.empty();
-        this.structuredAttributes = new HashMap<>();
-        this.claims = new HashMap<>();
     }
 
     /**
@@ -208,6 +143,10 @@ public final class AuthCredentials implements UserInformation {
     }
 
     public Object getNativeCredentials() {
+        if (secretsCleared) {
+            throw new IllegalStateException("Secrets for " + this + " have been already cleared", secretsClearedAt);
+        }
+
         return nativeCredentials;
     }
 
@@ -352,14 +291,7 @@ public final class AuthCredentials implements UserInformation {
             }
 
             this.password = Arrays.copyOf(password, password.length);
-
-            try {
-                MessageDigest digester = MessageDigest.getInstance(DIGEST_ALGORITHM);
-                internalPasswordHash = digester.digest(this.password);
-            } catch (NoSuchAlgorithmException e) {
-                throw new ElasticsearchSecurityException("Unable to digest password", e);
-            }
-
+            setCredentialsHash(this.password);
             Arrays.fill(password, (byte) '\0');
 
             return this;
@@ -374,6 +306,15 @@ public final class AuthCredentials implements UserInformation {
                 throw new IllegalArgumentException("nativeCredentials must not be null or empty");
             }
             this.nativeCredentials = nativeCredentials;
+
+            if (nativeCredentials instanceof String nativeCredentialsString) {
+                setCredentialsHash(nativeCredentialsString.getBytes(StandardCharsets.UTF_8));
+            } else if (nativeCredentials instanceof byte[] nativeCredentialsBytes) {
+                setCredentialsHash(nativeCredentialsBytes);
+            } else {
+                log.debug("nativeCredentials is not a String or byte[], so credentials hash will not be set");
+            }
+
             return this;
         }
 
@@ -483,6 +424,15 @@ public final class AuthCredentials implements UserInformation {
             this.nativeCredentials = null;
             this.internalPasswordHash = null;
             return result;
+        }
+
+        private void setCredentialsHash(byte[] credentials) {
+            try {
+                MessageDigest digester = MessageDigest.getInstance(DIGEST_ALGORITHM);
+                internalPasswordHash = digester.digest(credentials);
+            } catch (NoSuchAlgorithmException e) {
+                throw new ElasticsearchSecurityException("Unable to digest credentials", e);
+            }
         }
     }
 

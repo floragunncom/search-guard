@@ -402,6 +402,10 @@ public class MockIpdServer implements Closeable {
         response.setEntity(new StringEntity(DocWriter.json().writeAsString(userInfo), ContentType.APPLICATION_JSON));
     }
 
+    public void userInfoForAccessToken(String accessToken, Map<String, Object> userInfo) {
+        accessTokenToUserInfoMap.put(accessToken, userInfo);
+    }
+
     private SSLContext createSSLContext() {
         return tlsConfig.getUnrestrictedSslContext();
     }
