@@ -27,7 +27,9 @@ import org.elasticsearch.features.FeatureService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 
+import com.floragunn.signals.accounts.Account;
 import com.floragunn.signals.accounts.AccountRegistry;
+import com.floragunn.signals.accounts.NoSuchAccountException;
 import com.floragunn.signals.truststore.service.TrustManagerRegistry;
 import com.floragunn.signals.watch.action.invokers.ActionInvocationType;
 import com.floragunn.signals.watch.action.invokers.ActionInvoker;
@@ -115,6 +117,10 @@ public class WatchExecutionContext {
 
     public AccountRegistry getAccountRegistry() {
         return accountRegistry;
+    }
+
+    public <T extends Account> T lookupAccount(String id, Class<T> accountClass) throws NoSuchAccountException {
+        return accountRegistry.lookupAccount(contextData.getWatch().getTenant(), id, accountClass);
     }
 
     public TrustManagerRegistry getTrustManagerRegistry() {

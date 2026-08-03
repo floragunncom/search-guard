@@ -415,7 +415,7 @@ SGS_SIGNALS_ACCOUNT_READ:
     - "cluster:admin:searchguard:signals:account/get"
     - "cluster:admin:searchguard:signals:account/search"
   type: "signals"
-  description: "Grants permissions to read Signals Accounts"
+  description: "Grants permissions to read tenant-independent Signals accounts"
 
 SGS_SIGNALS_ACCOUNT_MANAGE:
   reserved: true
@@ -426,7 +426,28 @@ SGS_SIGNALS_ACCOUNT_MANAGE:
     - "cluster:admin:searchguard:signals:account/put"
     - "cluster:admin:searchguard:signals:account/delete"
   type: "signals"
-  description: "Grants permissions to write Signals Accounts"
+  description: "Grants permissions to manage tenant-independent Signals accounts"
+
+SGS_SIGNALS_TENANT_ACCOUNT_READ:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - "cluster:admin:searchguard:tenant:signals:account/get"
+    - "cluster:admin:searchguard:tenant:signals:account/search"
+  type: "signals"
+  description: "Grants permissions to read tenant-specific Signals accounts"
+
+SGS_SIGNALS_TENANT_ACCOUNT_MANAGE:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+    - SGS_SIGNALS_TENANT_ACCOUNT_READ
+    - "cluster:admin:searchguard:tenant:signals:account/put"
+    - "cluster:admin:searchguard:tenant:signals:account/delete"
+  type: "signals"
+  description: "Grants permissions to manage tenant-specific Signals accounts"
 
 ### Proxies
 
@@ -504,4 +525,3 @@ SGS_FAILURE_STORE_ACCESS:
   type: "index"
   allowed_actions:
     - "special:failure_store"
-

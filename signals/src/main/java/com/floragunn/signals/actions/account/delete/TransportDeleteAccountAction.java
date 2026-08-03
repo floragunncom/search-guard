@@ -32,10 +32,24 @@ public class TransportDeleteAccountAction extends HandledTransportAction<DeleteA
     private final Client client;
     private final ThreadPool threadPool;
 
+    /**
+     * Determines whether this action operates on accounts belonging to the current user's tenant.
+     * Global account actions return {@code false}; tenant-scoped subclasses are expected to
+     * override this method and return {@code true}.
+     */
+    protected boolean isTenantScoped() {
+        return false;
+    }
+
     @Inject
     public TransportDeleteAccountAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(DeleteAccountAction.NAME, transportService, actionFilters, DeleteAccountRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
+        this(DeleteAccountAction.NAME, signals, transportService, threadPool, actionFilters, client);
+    }
+
+    protected TransportDeleteAccountAction(String actionName, Signals signals, TransportService transportService, ThreadPool threadPool,
+            ActionFilters actionFilters, Client client) {
+        super(actionName, transportService, actionFilters, DeleteAccountRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
 
         this.signals = signals;
         this.client = client;
@@ -54,7 +68,8 @@ public class TransportDeleteAccountAction extends HandledTransportAction<DeleteA
                 return;
             }
 
-            Account account = signals.getAccountRegistry().lookupAccount(request.getAccountId(), request.getAccountType());
+            String tenant = isTenantScoped() ? signals.getTenant(user).getName() : null;
+            Account account = signals.getAccountRegistry().lookupAccountExact(tenant, request.getAccountId(), request.getAccountType());
 
             Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
             Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);

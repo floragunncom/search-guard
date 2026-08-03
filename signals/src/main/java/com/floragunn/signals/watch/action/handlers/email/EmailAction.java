@@ -136,7 +136,7 @@ public class EmailAction extends ActionHandler {
 
             final String destinationId = getAccount();
 
-            EmailAccount destination = ctx.getAccountRegistry().lookupAccount(destinationId, EmailAccount.class);
+            EmailAccount destination = ctx.lookupAccount(destinationId, EmailAccount.class);
             Email email = renderMail(ctx, destination);
 
             SignalsMailer sm = new SignalsMailer(destination);

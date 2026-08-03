@@ -15,6 +15,7 @@ import org.elasticsearch.transport.TransportService;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.signals.Signals;
+import com.floragunn.signals.accounts.Account;
 
 import java.util.List;
 import java.util.Map;
@@ -28,11 +29,25 @@ public class TransportGetAccountAction extends HandledTransportAction<GetAccount
     @Inject
     public TransportGetAccountAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(GetAccountAction.NAME, transportService, actionFilters, GetAccountRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
+        this(GetAccountAction.NAME, signals, transportService, threadPool, actionFilters, client);
+    }
+
+    protected TransportGetAccountAction(String actionName, Signals signals, TransportService transportService, ThreadPool threadPool,
+            ActionFilters actionFilters, Client client) {
+        super(actionName, transportService, actionFilters, GetAccountRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
 
         this.signals = signals;
         this.client = client;
         this.threadPool = threadPool;
+    }
+
+    /**
+     * Determines whether this action operates on accounts belonging to the current user's tenant.
+     * Global account actions return {@code false}; tenant-scoped subclasses are expected to
+     * override this method and return {@code true}.
+     */
+    protected boolean isTenantScoped() {
+        return false;
     }
 
     @Override
@@ -58,7 +73,8 @@ public class TransportGetAccountAction extends HandledTransportAction<GetAccount
                 );
 
 
-                String scopedId = request.getAccountType() + "/" + request.getAccountId();
+                String tenant = isTenantScoped() ? signals.getTenant(user).getName() : null;
+                String scopedId = Account.scopedId(tenant, request.getAccountType(), request.getAccountId());
 
                 client.prepareGet().setIndex(this.signals.getSignalsSettings().getStaticSettings().getIndexNames().getAccounts()).setId(scopedId)
                         .execute(new ActionListener<GetResponse>() {

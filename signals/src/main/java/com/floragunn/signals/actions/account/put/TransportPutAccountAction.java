@@ -38,17 +38,29 @@ public class TransportPutAccountAction extends HandledTransportAction<PutAccount
     @Inject
     public TransportPutAccountAction(Signals signals, TransportService transportService, ThreadPool threadPool, ActionFilters actionFilters,
             Client client) {
-        super(PutAccountAction.NAME, transportService, actionFilters, PutAccountRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
+        this(PutAccountAction.NAME, signals, transportService, threadPool, actionFilters, client);
+    }
+
+    protected TransportPutAccountAction(String actionName, Signals signals, TransportService transportService, ThreadPool threadPool,
+            ActionFilters actionFilters, Client client) {
+        super(actionName, transportService, actionFilters, PutAccountRequest::new, threadPool.executor(ThreadPool.Names.GENERIC));
 
         this.signals = signals;
         this.client = client;
         this.threadPool = threadPool;
     }
 
+    /**
+     * Determines whether this action operates on accounts belonging to the current user's tenant.
+     * Global account actions return {@code false}; tenant-scoped subclasses are expected to
+     * override this method and return {@code true}.
+     */
+    protected boolean isTenantScoped() {
+        return false;
+    }
+
     @Override
     protected final void doExecute(Task task, PutAccountRequest request, ActionListener<PutAccountResponse> listener) {
-        String scopedId = request.getAccountType() + "/" + request.getAccountId();
-
         try {
 
             ThreadContext threadContext = threadPool.getThreadContext();
@@ -56,7 +68,8 @@ public class TransportPutAccountAction extends HandledTransportAction<PutAccount
             User user = threadContext.getTransient(ConfigConstants.SG_USER);
 
             if (user == null) {
-                listener.onResponse(new PutAccountResponse(scopedId, -1, Result.NOOP, RestStatus.UNAUTHORIZED, "Request did not contain user", null));
+                listener.onResponse(new PutAccountResponse(Account.scopedId(null, request.getAccountType(), request.getAccountId()), -1,
+                        Result.NOOP, RestStatus.UNAUTHORIZED, "Request did not contain user", null));
                 return;
             }
 
@@ -64,7 +77,10 @@ public class TransportPutAccountAction extends HandledTransportAction<PutAccount
             Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
             final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
 
+            String tenant = isTenantScoped() ? signals.getTenant(user).getName() : null;
             Account account = Account.parse(request.getAccountType(), request.getAccountId(), request.getBody().utf8ToString());
+            account.setTenant(tenant);
+            String scopedId = account.getScopedId();
 
             try (StoredContext ctx = threadPool.getThreadContext().stashContext(); XContentBuilder xContentBuilder = XContentFactory.jsonBuilder()) {
 
@@ -99,8 +115,8 @@ public class TransportPutAccountAction extends HandledTransportAction<PutAccount
                         });
             }
         } catch (ConfigValidationException e) {
-            listener.onResponse(new PutAccountResponse(scopedId, -1, Result.NOOP, RestStatus.BAD_REQUEST, e.getMessage(),
-                    e.getValidationErrors().toJsonString()));
+            listener.onResponse(new PutAccountResponse(Account.scopedId(null, request.getAccountType(), request.getAccountId()), -1, Result.NOOP,
+                    RestStatus.BAD_REQUEST, e.getMessage(), e.getValidationErrors().toJsonString()));
         } catch (Exception e) {
             listener.onFailure(e);
         }

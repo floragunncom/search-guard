@@ -43,12 +43,20 @@ import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.signals.actions.account.config_update.DestinationConfigUpdateAction;
 import com.floragunn.signals.actions.account.config_update.TransportDestinationConfigUpdateAction;
 import com.floragunn.signals.actions.account.delete.DeleteAccountAction;
+import com.floragunn.signals.actions.account.delete.TenantDeleteAccountAction;
+import com.floragunn.signals.actions.account.delete.TenantDeleteAccountAction.TransportTenantDeleteAccountAction;
 import com.floragunn.signals.actions.account.delete.TransportDeleteAccountAction;
 import com.floragunn.signals.actions.account.get.GetAccountAction;
+import com.floragunn.signals.actions.account.get.TenantGetAccountAction;
+import com.floragunn.signals.actions.account.get.TenantGetAccountAction.TransportTenantGetAccountAction;
 import com.floragunn.signals.actions.account.get.TransportGetAccountAction;
 import com.floragunn.signals.actions.account.put.PutAccountAction;
+import com.floragunn.signals.actions.account.put.TenantPutAccountAction;
+import com.floragunn.signals.actions.account.put.TenantPutAccountAction.TransportTenantPutAccountAction;
 import com.floragunn.signals.actions.account.put.TransportPutAccountAction;
 import com.floragunn.signals.actions.account.search.SearchAccountAction;
+import com.floragunn.signals.actions.account.search.TenantSearchAccountAction;
+import com.floragunn.signals.actions.account.search.TenantSearchAccountAction.TransportTenantSearchAccountAction;
 import com.floragunn.signals.actions.account.search.TransportSearchAccountAction;
 import com.floragunn.signals.actions.admin.start_stop.StartStopAction;
 import com.floragunn.signals.actions.admin.start_stop.TransportStartStopAction;
@@ -126,7 +134,8 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
             Predicate<NodeFeature> clusterSupportsFeature = restHandlerDependencies.clusterSupportsFeature();
             return Arrays.asList(new WatchApiAction(settings), new ExecuteWatchApiAction(settings, scriptService, this.signals),
                     new DeActivateWatchAction(settings, controller), new AckWatchApiAction(settings, controller), new SearchWatchApiAction(settings, clusterSupportsFeature),
-                    new AccountApiAction(settings, controller), new SearchAccountApiAction(clusterSupportsFeature), new WatchStateApiAction(settings, controller),
+                    new AccountApiAction(settings, controller), new SearchAccountApiAction(settings, clusterSupportsFeature),
+                    new WatchStateApiAction(settings, controller),
                     new SettingsApiAction(settings, controller), new DeActivateTenantAction(settings, controller),
                     new DeActivateGloballyAction(settings, controller), new SearchWatchStateApiAction(settings, clusterSupportsFeature), new ConvertWatchApiAction(settings),
                     new AckAndGetWatchApiAction(settings), CreateOrReplaceTruststoreAction.REST_API, FindOneTruststoreAction.REST_API,
@@ -153,7 +162,11 @@ public class SignalsModule implements SearchGuardModule, ComponentStateProvider 
                     actionHandler(PutAccountAction.INSTANCE, TransportPutAccountAction.class),
                     actionHandler(GetAccountAction.INSTANCE, TransportGetAccountAction.class),
                     actionHandler(DeleteAccountAction.INSTANCE, TransportDeleteAccountAction.class),
+                    actionHandler(TenantPutAccountAction.INSTANCE, TransportTenantPutAccountAction.class),
+                    actionHandler(TenantGetAccountAction.INSTANCE, TransportTenantGetAccountAction.class),
+                    actionHandler(TenantDeleteAccountAction.INSTANCE, TransportTenantDeleteAccountAction.class),
                     actionHandler(SearchAccountAction.INSTANCE, TransportSearchAccountAction.class),
+                    actionHandler(TenantSearchAccountAction.INSTANCE, TransportTenantSearchAccountAction.class),
                     actionHandler(GetWatchStateAction.INSTANCE, TransportGetWatchStateAction.class),
                     actionHandler(SettingsUpdateAction.INSTANCE, TransportSettingsUpdateAction.class),
                     actionHandler(GetSettingsAction.INSTANCE, TransportGetSettingsAction.class),
