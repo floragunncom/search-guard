@@ -71,6 +71,18 @@ public class UserMappingTest {
     }
 
     @Test
+    public void userName_convertToLowerCase() throws Exception {
+        UserMapping userMapping = UserMapping.parse(
+                DocNode.of("user_name.from", "oidc_id_token.sub", "user_name.convert_to_lower_case", true), null);
+        AuthCredentials baseCredentials = AuthCredentials.forUser("n/a")
+                .userMappingAttribute("oidc_id_token", ImmutableMap.of("sub", "MixedCaseUser")).build();
+
+        AuthCredentials mappedCredentials = userMapping.mapCredentials(baseCredentials);
+
+        Assert.assertEquals("mixedcaseuser", mappedCredentials.getUsername());
+    }
+
+    @Test
     public void userName_fromBackend() throws Exception {
         UserMapping userMapping = UserMapping.parse(DocNode.of("user_name.from_backend", "ldap_user_entry.nick_name"), null);
         AuthCredentials baseCredentials = AuthCredentials.forUser("n/a")
@@ -122,6 +134,18 @@ public class UserMappingTest {
     }
 
     @Test
+    public void userName_fromBackend_convertToLowerCase() throws Exception {
+        UserMapping userMapping = UserMapping.parse(
+                DocNode.of("user_name.from_backend", "ldap_user_entry.nick_name", "user_name.convert_to_lower_case", true), null);
+        AuthCredentials credentials = AuthCredentials.forUser("n/a")
+                .userMappingAttribute("ldap_user_entry", ImmutableMap.of("nick_name", "MixedCaseUser")).build();
+
+        User user = userMapping.map(credentials);
+
+        Assert.assertEquals("mixedcaseuser", user.getName());
+    }
+
+    @Test
     public void userWithAttributesMappedFromHeadersIsSerializable() throws Exception {
         UserMapping userMapping = UserMapping.parse(
                 DocNode.of("attrs.from", DocNode.of("accesslog", "$.request.headers[\"x-proxy-attr-accesslog\"]")),
@@ -154,5 +178,47 @@ public class UserMappingTest {
         User user = userMapping.map(baseCredentials);
 
         Assert.assertEquals(ImmutableSet.of("a", "b", "c", "static_role"), user.getRoles());
+    }
+
+    @Test
+    public void roles_convertToLowerCase() throws Exception {
+        UserMapping userMapping = UserMapping.parse(DocNode.of("roles.from", "jwt.roles", "roles.static", "StaticRole",
+                "roles.convert_to_lower_case", true), null);
+        AuthCredentials credentials = AuthCredentials.forUser("user")
+                .userMappingAttribute("jwt", ImmutableMap.of("roles", Arrays.asList("RoleA", "ROLE_B"))).build();
+
+        User user = userMapping.map(credentials);
+
+        Assert.assertEquals(ImmutableSet.of("rolea", "role_b", "staticrole"), user.getRoles());
+    }
+
+    @Test
+    public void attrs_convertKeysToLowerCase() throws Exception {
+        UserMapping userMapping = UserMapping.parse(DocNode.of("attrs.from", DocNode.of("Dept_No", "jwt.department.number"),
+                "attrs.static", DocNode.of("Access_LEVEL", "high"), "attrs.convert_keys_to_lower_case", true), null);
+        AuthCredentials credentials = AuthCredentials.forUser("user")
+                .userMappingAttribute("jwt", ImmutableMap.of("department", ImmutableMap.of("number", 42))).build();
+
+        User user = userMapping.map(credentials);
+
+        Assert.assertEquals(ImmutableMap.of("dept_no", 42, "access_level", "high"), user.getStructuredAttributes());
+    }
+
+    @Test
+    public void lowerCaseConversions_canBeDisabled() throws Exception {
+        UserMapping userMapping = UserMapping.parse(
+                DocNode.of("user_name.from", "jwt.sub", "user_name.convert_to_lower_case", false, "roles.from", "jwt.roles",
+                        "roles.convert_to_lower_case", false, "attrs.from", DocNode.of("Dept_No", "jwt.department.number"),
+                        "attrs.convert_keys_to_lower_case", false),
+                null);
+        AuthCredentials credentials = AuthCredentials.forUser("n/a").userMappingAttribute("jwt",
+                ImmutableMap.of("sub", "MixedCaseUser", "roles", Arrays.asList("RoleA"), "department", ImmutableMap.of("number", 42))).build();
+
+        AuthCredentials mappedCredentials = userMapping.mapCredentials(credentials);
+        User user = userMapping.map(mappedCredentials);
+
+        Assert.assertEquals("MixedCaseUser", user.getName());
+        Assert.assertEquals(ImmutableSet.of("RoleA"), user.getRoles());
+        Assert.assertEquals(ImmutableMap.of("Dept_No", 42), user.getStructuredAttributes());
     }
 }
