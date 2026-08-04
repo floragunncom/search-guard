@@ -15,6 +15,13 @@
  *
  */
 
+/*
+ * Adapted from the OpenSearch Security project (Apache-2.0):
+ * https://github.com/opensearch-project/security/pull/5479
+ *
+ * Modifications Copyright OpenSearch Contributors. See GitHub history for details.
+ */
+
 package com.floragunn.searchguard.configuration;
 
 import java.util.Collections;

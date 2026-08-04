@@ -105,6 +105,11 @@ TransportNodesAction<ConfigUpdateRequest, ConfigUpdateResponse, TransportConfigU
      * avoids a deadlock on nodes with only a single MANAGEMENT thread, where the reload would otherwise occupy that
      * thread while, at the same time, waiting for an index/mapping action that Elasticsearch dispatches to the very same
      * MANAGEMENT pool.
+     * <p>
+     * The approach is adapted from the OpenSearch Security project (Apache-2.0):
+     * <a href="https://github.com/opensearch-project/security/pull/5479">opensearch-project/security#5479</a>. Unlike
+     * that fix, this uses the {@code nodeOperationAsync} hook already provided by Elasticsearch's
+     * {@code TransportNodesAction}, so no custom async transport base class is required.
      */
     @Override
     protected void nodeOperationAsync(final NodeConfigUpdateRequest request, Task task, ActionListener<ConfigUpdateNodeResponse> listener) {

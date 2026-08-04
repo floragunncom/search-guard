@@ -331,9 +331,19 @@ public class ConfigurationRepository implements ComponentStateProvider {
         return getEffectiveSearchGuardIndex() != null;
     }
 
+    /**
+     * Serializes execution of {@link #reloadConfiguration0(Set, String)}. Still required even though config-update
+     * reloads are now funneled through the single-threaded {@link ReloadThread}: the synchronous
+     * {@link #reloadConfiguration(Set, String)} is also invoked directly, on their own threads and at arbitrary times,
+     * by the config-variable change listener and by {@link #delete}, concurrently with the ReloadThread. The lock
+     * prevents these independent callers from entering the reload path simultaneously. (The upstream OpenSearch fix in
+     * PR #5479 could drop its equivalent lock only because it routed every reload through the thread and ran startup
+     * initialization inline before the thread was started - callers that never overlap in time; SG has additional,
+     * genuinely concurrent callers, so the lock stays.)
+     */
     private final Lock LOCK = new ReentrantLock();
 
-    public void reloadConfiguration(Set<CType<?>> configTypes, String reason)
+    private void reloadConfiguration(Set<CType<?>> configTypes, String reason)
             throws ConfigUpdateAlreadyInProgressException, ConfigUnavailableException {
         // Drop user information from thread context to avoid spamming of audit log
         try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
@@ -1424,6 +1434,11 @@ public class ConfigurationRepository implements ComponentStateProvider {
      * After an instance has been created, the thread is not running yet; {@link #start()} must be called explicitly. This
      * allows initialization code to run without the thread interfering, but it also means that {@link #start()} must not
      * be forgotten - otherwise the node will not be able to process config updates.
+     * <p>
+     * Adapted from the OpenSearch Security project (Apache-2.0), which introduced this mechanism to fix the same
+     * single-MANAGEMENT-thread config-update deadlock:
+     * <a href="https://github.com/opensearch-project/security/pull/5479">opensearch-project/security#5479</a>.
+     * Modifications Copyright OpenSearch Contributors. See GitHub history for details.
      */
     static class ReloadThread {
 
