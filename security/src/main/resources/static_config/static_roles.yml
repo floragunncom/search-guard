@@ -203,6 +203,7 @@ SGS_XP_MONITORING:
   - "cluster:monitor/xpack/info"
   - "cluster:monitor/main"
   - "cluster:admin/xpack/monitoring/bulk"
+  - "cluster:admin/desired_balance/get"
   index_permissions:
   - index_patterns:
     - ".monitor*"
