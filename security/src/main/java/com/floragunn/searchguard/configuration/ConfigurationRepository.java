@@ -30,10 +30,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
@@ -228,11 +226,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.reloadThread = new ReloadThread(settings.getPlatformSettings(), this::doReload);
         this.configVarService.addChangeListener(() -> {
             if (currentConfig != null) {
-                try {
-                    reloadConfiguration(CType.all(), "Config variable update");
-                } catch (Exception e) {
-                    LOGGER.error("Error while reloading configuration after config var change", e);
-                }
+                // Fire and forget: the reload is performed asynchronously on the dedicated ReloadThread. Nobody waits
+                // for the config var change to be applied, so we only need to log a potential failure.
+                reloadConfiguration(CType.all(), "Config variable update", loggingReloadListener("config var change"));
             }
         });
     }
@@ -240,9 +236,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
     public void initOnNodeStart() {
         componentState.setState(State.INITIALIZING, "waiting_for_state_recovery");
 
-        // Start the dedicated reload thread so that config update requests arriving on this node can be processed
-        // asynchronously without blocking a MANAGEMENT thread. Initialization itself does not use this thread; it
-        // reloads synchronously via reloadConfiguration(...).
+        // Start the dedicated reload thread. It is the single place where the configuration is actually (re)loaded, so
+        // that no locking is required: config update requests, config variable changes, deletions and even the initial
+        // load during startup are all funneled through this one thread. Because config update requests arriving on a
+        // MANAGEMENT thread are handled asynchronously here, they never block that MANAGEMENT thread. The thread must be
+        // started before initialization, because on nodes that come up suspended the very first config load happens
+        // through a config update request (sgctl) processed by this thread.
         reloadThread.start();
 
         threadPool.generic().execute(() -> {
@@ -332,36 +331,6 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
     /**
-     * Serializes execution of {@link #reloadConfiguration0(Set, String)}. Still required even though config-update
-     * reloads are now funneled through the single-threaded {@link ReloadThread}: the synchronous
-     * {@link #reloadConfiguration(Set, String)} is also invoked directly, on their own threads and at arbitrary times,
-     * by the config-variable change listener and by {@link #delete}, concurrently with the ReloadThread. The lock
-     * prevents these independent callers from entering the reload path simultaneously. (The upstream OpenSearch fix in
-     * PR #5479 could drop its equivalent lock only because it routed every reload through the thread and ran startup
-     * initialization inline before the thread was started - callers that never overlap in time; SG has additional,
-     * genuinely concurrent callers, so the lock stays.)
-     */
-    private final Lock LOCK = new ReentrantLock();
-
-    private void reloadConfiguration(Set<CType<?>> configTypes, String reason)
-            throws ConfigUpdateAlreadyInProgressException, ConfigUnavailableException {
-        // Drop user information from thread context to avoid spamming of audit log
-        try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
-            if (LOCK.tryLock(60, TimeUnit.SECONDS)) {
-                try {
-                    reloadConfiguration0(configTypes, reason);
-                } finally {
-                    LOCK.unlock();
-                }
-            } else {
-                throw new ConfigUpdateAlreadyInProgressException("A config update is already in progress");
-            }
-        } catch (InterruptedException e) {
-            throw new ConfigUpdateAlreadyInProgressException("Interrupted config update", e);
-        }
-    }
-
-    /**
      * Requests an asynchronous configuration reload for the given configuration types. The reload will be performed on a
      * dedicated thread (see {@link ReloadThread}); this method does not block waiting for the reload to complete. If a
      * reload is currently in progress, a further reload will be queued; several queued requests are combined into one.
@@ -379,17 +348,75 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
     /**
-     * Performs a configuration reload. This should only be called by the {@link ReloadThread}, which makes sure that only
-     * one reload triggered by config update requests is active at a time. Other, internal callers (initialization, config
-     * variable changes, deletions) use {@link #reloadConfiguration(Set, String)} directly, as they do not run on a
-     * MANAGEMENT thread and hence cannot cause the deadlock described at {@link #reloadThread}.
+     * Returns a fire-and-forget {@link ActionListener} for asynchronous reloads whose completion nobody waits for: it
+     * ignores the successful result and only logs a failure, using the given context in the log message.
+     */
+    private static ActionListener<ConfigReloadResponse> loggingReloadListener(String context) {
+        return new ActionListener<ConfigReloadResponse>() {
+            @Override
+            public void onResponse(ConfigReloadResponse response) {
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                LOGGER.error("Error while reloading configuration after {}", context, e);
+            }
+        };
+    }
+
+    /**
+     * Requests a configuration reload and blocks until it has finished. The reload itself is still performed on the
+     * dedicated {@link ReloadThread}; this method merely waits for its completion.
+     * <p>
+     * <b>Must not be called from a MANAGEMENT thread.</b> The reload may dispatch index/mapping operations back to the
+     * MANAGEMENT pool, so blocking a MANAGEMENT thread here could deadlock on single-CPU nodes. It is safe to call from
+     * the generic thread pool, which is where node initialization and the config APIs (e.g. {@link #delete}) run.
+     */
+    private void reloadConfigurationSynchronously(Set<CType<?>> configTypes, String reason) throws ConfigUnavailableException {
+        CompletableFuture<ConfigReloadResponse> future = new CompletableFuture<>();
+        reloadConfiguration(configTypes, reason, new ActionListener<ConfigReloadResponse>() {
+            @Override
+            public void onResponse(ConfigReloadResponse response) {
+                future.complete(response);
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+
+        try {
+            future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ConfigUnavailableException("Interrupted while reloading configuration", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof ConfigUnavailableException) {
+                throw (ConfigUnavailableException) cause;
+            }
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            }
+            throw new ConfigUnavailableException("Error while reloading configuration", cause);
+        }
+    }
+
+    /**
+     * Performs a configuration reload. This is the single method that actually (re)loads the configuration. It must only
+     * be called by the {@link ReloadThread}, which guarantees that only one reload is active at any time - which is why
+     * no additional locking is required. Every reload trigger (config update requests, config variable changes,
+     * deletions and the initial load during startup) is funneled through that thread via
+     * {@link #reloadConfiguration(Set, String, ActionListener)} or {@link #reloadConfigurationSynchronously(Set, String)}.
      */
     private void doReload(Set<CType<?>> configTypes, String reason) {
-        try {
-            reloadConfiguration(configTypes, reason);
+        // Drop user information from thread context to avoid spamming of audit log
+        try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
+            reloadConfiguration0(configTypes, reason);
         } catch (ConfigUnavailableException e) {
-            // ConfigUpdateAlreadyInProgressException is already unchecked; wrap the checked ConfigUnavailableException so
-            // it can be propagated to the request's listener by the ReloadThread.
+            // The perform function of the ReloadThread cannot throw checked exceptions; wrap it so it can be propagated
+            // to the request's listener by the ReloadThread.
             throw new ElasticsearchException(e);
         }
     }
@@ -521,7 +548,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 componentState.startNextTry();
                 try {
                     LOGGER.debug("Try to load config ...");
-                    reloadConfiguration(CType.all(), "Initialization");
+                    reloadConfigurationSynchronously(CType.all(), "Initialization");
                     break;
                 } catch (Exception e) {
                     LOGGER.debug("Unable to load configuration due to {}", String.valueOf(ExceptionUtils.getRootCause(e)));
@@ -983,7 +1010,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
             if (response.status() == RestStatus.NOT_FOUND) {
                 return new StandardResponse(404).message(configType.toLCString() + " does not exist");
             }
-            reloadConfiguration(Collections.singleton(configType), "Config deletion");
+            reloadConfigurationSynchronously(Collections.singleton(configType), "Config deletion");
             return new StandardResponse(200).message(configType.toLCString() + " has been deleted");
         } catch (ConfigUpdateException | ConfigUnavailableException e) {
             return new StandardResponse(e);
@@ -1421,9 +1448,11 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
     /**
-     * Manages requests to reload the Search Guard configuration. Its main purpose is to make sure that reloads triggered
-     * by config update requests are performed on a single, dedicated thread and that there is no unbounded queue of
-     * reload requests. It works this way:
+     * Manages requests to reload the Search Guard configuration. It is the single place where the configuration is
+     * actually (re)loaded: all reload triggers - config update requests, config variable changes, deletions and the
+     * initial load during startup - are funneled through this one thread. This is what makes additional locking around
+     * the reload unnecessary. Its second purpose is to make sure that there is no unbounded queue of reload requests. It
+     * works this way:
      * <ul>
      *     <li>If there is no reload activity, the reload is scheduled immediately.</li>
      *     <li>If a reload is currently in progress, a further reload is scheduled right afterwards.</li>
@@ -1432,8 +1461,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
      *     scheduled reload is expanded accordingly.</li>
      * </ul>
      * After an instance has been created, the thread is not running yet; {@link #start()} must be called explicitly. This
-     * allows initialization code to run without the thread interfering, but it also means that {@link #start()} must not
-     * be forgotten - otherwise the node will not be able to process config updates.
+     * means that {@link #start()} must not be forgotten - otherwise the node will not be able to load or process config
+     * updates. Requests that arrive before the thread is started are queued and processed once it has started.
      * <p>
      * Adapted from the OpenSearch Security project (Apache-2.0), which introduced this mechanism to fix the same
      * single-MANAGEMENT-thread config-update deadlock:
