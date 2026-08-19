@@ -1010,9 +1010,29 @@ public class ConfigurationRepository implements ComponentStateProvider {
             if (response.status() == RestStatus.NOT_FOUND) {
                 return new StandardResponse(404).message(configType.toLCString() + " does not exist");
             }
-            reloadConfigurationSynchronously(Collections.singleton(configType), "Config deletion");
+
+            // Broadcast a config update so that every node reloads the deleted config type. A local-only reload would
+            // not be enough: the document was removed from the (cluster-wide) index, but every other node keeps its own
+            // in-memory copy until it is told to reload. On each node the reload runs asynchronously on the dedicated
+            // ReloadThread. This mirrors what update(...) does after writing a config document.
+            try {
+                ConfigUpdateRequest configUpdateRequest = new ConfigUpdateRequest(new String[] { configType.toLCString() });
+
+                ConfigUpdateResponse configUpdateResponse = privilegedConfigClient.execute(ConfigUpdateAction.INSTANCE, configUpdateRequest)
+                        .actionGet();
+
+                if (configUpdateResponse.hasFailures()) {
+                    throw new ConfigUpdateException("Configuration was deleted; however, some nodes reported failures while refreshing.",
+                            configUpdateResponse);
+                }
+            } catch (ConfigUpdateException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new ConfigUpdateException("Configuration was deleted; however, the refresh failed", e);
+            }
+
             return new StandardResponse(200).message(configType.toLCString() + " has been deleted");
-        } catch (ConfigUpdateException | ConfigUnavailableException e) {
+        } catch (ConfigUpdateException e) {
             return new StandardResponse(e);
         }
     }
