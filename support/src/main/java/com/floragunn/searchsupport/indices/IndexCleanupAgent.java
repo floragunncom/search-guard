@@ -33,7 +33,7 @@ import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchResponse;
 import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.index.reindex.DeleteByQueryRequestBuilder;
 import org.elasticsearch.threadpool.Scheduler.Cancellable;
@@ -114,9 +114,9 @@ public class IndexCleanupAgent implements ComponentStateProvider {
             Meter meter = Meter.basic(MetricsLevel.BASIC, deleteActionMetrics);
 
             new DeleteByQueryRequestBuilder(client).filter(cleanupQuery.get()).source(index)
-                    .execute(new ActionListener<BulkByScrollResponse>() {
+                    .execute(new ActionListener<BulkByPaginatedSearchResponse>() {
                         @Override
-                        public void onResponse(BulkByScrollResponse response) {
+                        public void onResponse(BulkByPaginatedSearchResponse response) {
                             cleanupInProgress = false;
                             long deleted = response.getDeleted();
                             meter.count("deleted_documents", deleted);

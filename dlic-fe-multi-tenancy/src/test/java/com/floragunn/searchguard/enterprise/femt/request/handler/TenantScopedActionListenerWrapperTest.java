@@ -19,7 +19,7 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.client.internal.node.NodeClient;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchResponse;
 import org.elasticsearch.index.reindex.UpdateByQueryAction;
 import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 import org.junit.Test;
@@ -44,7 +44,7 @@ public class TenantScopedActionListenerWrapperTest {
     @Mock
     private ThreadContext.StoredContext context;
     @Mock
-    private Unscoper<BulkByScrollResponse> unscoper;
+    private Unscoper<BulkByPaginatedSearchResponse> unscoper;
 
     @Test
     public void shouldCallDelegateOnFailure_whenExecutionFails() {

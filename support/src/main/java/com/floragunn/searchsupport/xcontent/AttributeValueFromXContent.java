@@ -270,6 +270,20 @@ public class AttributeValueFromXContent implements XContent {
         }
 
         @Override
+        public void writeString(Reader reader, int len) throws IOException {
+            char[] text = new char[len];
+            int offset = 0;
+            while (offset < len) {
+                int read = reader.read(text, offset, len - offset);
+                if (read == -1) {
+                    break;
+                }
+                offset += read;
+            }
+            setObject(new String(text, 0, offset));
+        }
+
+        @Override
         public void writeUTF8String(byte[] value, int offset, int length) throws IOException {
             setObject(new String(value, offset, length, "UTF-8"));
         }

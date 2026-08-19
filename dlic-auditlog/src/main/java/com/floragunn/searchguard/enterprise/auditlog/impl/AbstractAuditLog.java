@@ -708,6 +708,9 @@ public abstract class AbstractAuditLog implements AuditLog {
         msg.addComplianceDocVersion(result.getVersion());
         msg.addComplianceOperation(result.isCreated() ? Operation.CREATE : Operation.UPDATE);
 
+        BytesReference currentSourceBytes = currentIndex.source().originalBytes();
+        XContentType currentSourceXContentType = currentIndex.source().xContentType();
+
         if (complianceConfig.logDiffsForWrite() && originalResult != null && originalResult.isExists()
                 && originalResult.internalSourceRef() != null) {
             try {
@@ -727,19 +730,19 @@ public abstract class AbstractAuditLog implements AuditLog {
                     }
 
                     try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY,
-                            DeprecationHandler.THROW_UNSUPPORTED_OPERATION, currentIndex.source(), XContentType.JSON)) {
+                            DeprecationHandler.THROW_UNSUPPORTED_OPERATION, currentSourceBytes, currentSourceXContentType)) {
                         Object base64 = parser.map().values().iterator().next();
                         if (base64 instanceof String) {
                             currentSource = (new String(BaseEncoding.base64().decode((String) base64)));
                         } else {
-                            currentSource = XContentHelper.convertToJson(currentIndex.source(), false, XContentType.JSON);
+                            currentSource = XContentHelper.convertToJson(currentSourceBytes, false, currentSourceXContentType);
                         }
                     } catch (Exception e) {
                         log.error(e);
                     }
                 } else {
                     originalSource = XContentHelper.convertToJson(originalResult.internalSourceRef(), false, XContentType.JSON);
-                    currentSource = XContentHelper.convertToJson(currentIndex.source(), false, XContentType.JSON);
+                    currentSource = XContentHelper.convertToJson(currentSourceBytes, false, currentSourceXContentType);
                 }
                 DocNode originalDocument = DocNode.parse(Format.JSON).from(originalSource);
                 DocNode currentDocument = DocNode.parse(Format.JSON).from(currentSource);
@@ -756,12 +759,12 @@ public abstract class AbstractAuditLog implements AuditLog {
             if (searchguardIndexPattern.matches(shardId.getIndexName())) {
                 //current source, normally not null or empty
                 try (XContentParser parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION,
-                        currentIndex.source(), XContentType.JSON)) {
+                        currentSourceBytes, currentSourceXContentType)) {
                     Object base64 = parser.map().values().iterator().next();
                     if (base64 instanceof String) {
                         msg.addUnescapedJsonToRequestBody(new String(BaseEncoding.base64().decode((String) base64)));
                     } else {
-                        msg.addTupleToRequestBody(new Tuple<XContentType, BytesReference>(XContentType.JSON, currentIndex.source()));
+                        msg.addTupleToRequestBody(new Tuple<XContentType, BytesReference>(currentSourceXContentType, currentSourceBytes));
                     }
                 } catch (Exception e) {
                     log.error(e);
@@ -775,7 +778,7 @@ public abstract class AbstractAuditLog implements AuditLog {
                 //msg.ComplianceWritePreviousSource(new Tuple<XContentType, BytesReference>(XContentType.JSON, originalResult.internalSourceRef()));
 
                 //current source, normally not null or empty
-                msg.addTupleToRequestBody(new Tuple<XContentType, BytesReference>(XContentType.JSON, currentIndex.source()));
+                msg.addTupleToRequestBody(new Tuple<XContentType, BytesReference>(currentSourceXContentType, currentSourceBytes));
             }
 
         }
