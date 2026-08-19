@@ -140,6 +140,7 @@ public class ActionRequestIntrospector {
                     Action.AdditionalDimension additionalDimension = switch (type) {
                         case ADD_BACKING_INDEX -> Action.AdditionalDimension.ADD_INDEX_TO_DATA_STREAM;
                         case REMOVE_BACKING_INDEX -> Action.AdditionalDimension.REMOVE_INDEX_FROM_DATA_STREAM;
+                        case DELETE_BACKING_INDEX -> Action.AdditionalDimension.DELETE_INDEX;
                     };
                     result = result.with(ImmutableSet.of(dataStream), EXACT, Scope.INDICES_DATA_STREAMS)
                             .additional(additionalDimension, ImmutableList.of(index), EXACT, Scope.INDEX);

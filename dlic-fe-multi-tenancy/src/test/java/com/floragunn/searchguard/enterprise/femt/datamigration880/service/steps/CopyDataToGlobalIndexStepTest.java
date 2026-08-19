@@ -18,9 +18,9 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMi
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.index.reindex.BulkByScrollResponse;
-import org.elasticsearch.index.reindex.BulkByScrollTask;
-import org.elasticsearch.index.reindex.BulkByScrollTask.StatusOrException;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchResponse;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchTask;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchTask.StatusOrException;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -67,10 +67,10 @@ public class CopyDataToGlobalIndexStepTest {
     private DataMigrationContext context;
 
     @Mock
-    private BulkByScrollResponse reindexResponse;
+    private BulkByPaginatedSearchResponse reindexResponse;
 
     @Mock
-    private BulkByScrollTask.Status status;
+    private BulkByPaginatedSearchTask.Status status;
 
     private CopyDataToGlobalIndexStep step;
 

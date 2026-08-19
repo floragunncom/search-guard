@@ -40,8 +40,11 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.RealtimeRequest;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
+import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -178,8 +181,14 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
 
             Object request = context.getRequest();
 
-            if (request instanceof RealtimeRequest) {
-                ((RealtimeRequest) request).realtime(Boolean.FALSE);
+            if (request instanceof GetRequest getRequest) {
+                getRequest.realtime(false);
+            } else if (request instanceof MultiGetRequest multiGetRequest) {
+                multiGetRequest.realtime(false);
+            } else if (request instanceof TermVectorsRequest termVectorsRequest) {
+                termVectorsRequest.realtime(false);
+            } else if (request instanceof MultiTermVectorsRequest multiTermVectorsRequest) {
+                multiTermVectorsRequest.realtime(false);
             }
 
             if (request instanceof SearchRequest) {

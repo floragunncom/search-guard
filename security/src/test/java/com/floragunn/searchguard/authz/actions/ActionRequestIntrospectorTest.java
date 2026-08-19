@@ -33,9 +33,12 @@ import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.bulk.BulkItemRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.bulk.TransportShardBulkAction;
+import org.elasticsearch.action.datastreams.ModifyDataStreamsAction;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.cluster.metadata.DataStreamAction;
+import org.elasticsearch.cluster.routing.SplitShardCountSummary;
 import org.hamcrest.Description;
 import org.hamcrest.DiagnosingMatcher;
 import org.junit.Test;
@@ -131,10 +134,22 @@ public class ActionRequestIntrospectorTest {
 
     @Test
     public void bulkShardRequest_create_datastream() {
-        BulkShardRequest request = new BulkShardRequest(null, RefreshPolicy.NONE,
+        BulkShardRequest request = new BulkShardRequest(null, SplitShardCountSummary.UNSET, RefreshPolicy.NONE,
                 new BulkItemRequest[] { new BulkItemRequest(1, new IndexRequest("ds_d11")) });
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(TransportShardBulkAction.ACTION_NAME), request);
         assertThat(requestInfo, main().hasNoIndices().hasNoAliases().hasDataStreams("ds_d11"));
+    }
+
+    @Test
+    public void modifyDataStreamsRequest_deleteBackingIndex() {
+        String backingIndex = ".ds-ds_d11-2024.03.22-000001";
+        ModifyDataStreamsAction.Request request = new ModifyDataStreamsAction.Request(DEFAULT_MASTER_TIMEOUT, DEFAULT_ACK_TIMEOUT,
+                java.util.List.of(DataStreamAction.deleteBackingIndex("ds_d11", backingIndex)));
+        ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(ModifyDataStreamsAction.NAME), request);
+
+        assertThat(requestInfo, resolved(//
+                main().hasNoIndices().hasNoAliases().hasDataStreams("ds_d11"),
+                additional(Action.AdditionalDimension.DELETE_INDEX).hasIndices(backingIndex).hasNoAliases().hasNoDataStreams()));
     }
 
     @Test

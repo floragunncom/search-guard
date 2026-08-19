@@ -50,7 +50,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchResponse;
 import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.index.reindex.DeleteByQueryRequest;
 import org.elasticsearch.index.reindex.ReindexAction;
@@ -240,7 +240,7 @@ class StepRepository {
         }
     }
 
-    public BulkByScrollResponse reindexData(String sourceIndexName, String destinationIndexName) {
+    public BulkByPaginatedSearchResponse reindexData(String sourceIndexName, String destinationIndexName) {
         Strings.requireNonEmpty(sourceIndexName, "Source index name is required");
         Strings.requireNonEmpty(destinationIndexName, "Destination index name is required");
         log.info("Try to reindex data from '{}' to '{}'", sourceIndexName, destinationIndexName);
@@ -252,7 +252,7 @@ class StepRepository {
         reindexRequest.setRefresh(true);
         reindexRequest.setAbortOnVersionConflict(true);
         reindexRequest.setScroll(TimeValue.timeValueMinutes(5));
-        BulkByScrollResponse response = client.execute(ReindexAction.INSTANCE, reindexRequest).actionGet();
+        BulkByPaginatedSearchResponse response = client.execute(ReindexAction.INSTANCE, reindexRequest).actionGet();
         log.debug("Reindex from '{}' to '{}' response '{}'",sourceIndexName, destinationIndexName, response);
         if(!response.getBulkFailures().isEmpty()) {
             String message = "Cannot reindex data from '" + sourceIndexName + "' to '" + destinationIndexName + "' due to bulk failures";
@@ -299,14 +299,14 @@ class StepRepository {
         }
     }
 
-    public BulkByScrollResponse deleteAllDocuments(String indexName) {
+    public BulkByPaginatedSearchResponse deleteAllDocuments(String indexName) {
         Strings.requireNonEmpty(indexName, "Index name is required");
         DeleteByQueryRequest request = new DeleteByQueryRequest(indexName);
         request.setQuery(QueryBuilders.matchAllQuery());
         request.setRefresh(true);
         request.setBatchSize(BATCH_SIZE);
         request.setScroll(TimeValue.timeValueMinutes(5));
-        BulkByScrollResponse response = client.execute(DeleteByQueryAction.INSTANCE, request).actionGet();
+        BulkByPaginatedSearchResponse response = client.execute(DeleteByQueryAction.INSTANCE, request).actionGet();
         if(!response.getBulkFailures().isEmpty()) {
             String message = "Cannot delete all documents from index '" + indexName + "' due to bulk error";
             throw new StepException(message, DELETE_ALL_BULK_ERROR, null);

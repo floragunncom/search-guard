@@ -14,6 +14,7 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.cluster.routing.SplitShardCountSummary;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.shard.ShardId;
@@ -60,7 +61,9 @@ public class IgnoreRequestBodiesTest {
 
     @Test
     public void testIgnoreBulkRequestBodiesDefault() throws Exception {
-        BulkShardRequest bulkShardRequest = new BulkShardRequest(ShardId.fromString("[my_index][0]"), WriteRequest.RefreshPolicy.IMMEDIATE, new BulkItemRequest[] { new BulkItemRequest(0, new IndexRequest("my_index").id("1").source("{\"key\": \"value\"}", XContentType.JSON))});
+        BulkShardRequest bulkShardRequest = new BulkShardRequest(ShardId.fromString("[my_index][0]"), SplitShardCountSummary.UNSET,
+                WriteRequest.RefreshPolicy.IMMEDIATE, new BulkItemRequest[] { new BulkItemRequest(0,
+                        new IndexRequest("my_index").id("1").source("{\"key\": \"value\"}", XContentType.JSON)) });
         try(AbstractAuditLog al = new AuditLogImpl(settingsBuilder.put(SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true).build(), null, null, newThreadPool(), null, cs, configurationRepository)) {
             TestAuditlogImpl.clear();
             al.logGrantedPrivileges("indices:data/write/bulk", bulkShardRequest, null);

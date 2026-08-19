@@ -605,12 +605,16 @@ public class TransportExecuteWatchActionTest {
         BytesReference source = BytesReference.fromByteBuffer(ByteBuffer.wrap(DocNode.of("a", "b").toBytes(Format.JSON)));
         SearchHit[] hits = new SearchHit[] {SearchHit.unpooled(1).sourceRef(source)};
         TotalHits totalHits = new TotalHits(1, TotalHits.Relation.EQUAL_TO);
-        SearchHits searchHits = SearchHits.unpooled(hits, totalHits, 1);
-        return new SearchResponse(
-                searchHits, null, null, false, false, null,
-                0, null, 1, 1, 0, 10,
-                ShardSearchFailure.EMPTY_ARRAY, SearchResponse.Clusters.EMPTY
-        );
+        SearchHits searchHits = new SearchHits(hits, totalHits, 1);
+        try {
+            return new SearchResponse(
+                    searchHits, null, null, false, false, null,
+                    0, null, 1, 1, 0, 10,
+                    ShardSearchFailure.EMPTY_ARRAY, SearchResponse.Clusters.EMPTY
+            );
+        } finally {
+            searchHits.decRef();
+        }
     }
 
     private X509ExtendedTrustManager trustManagerFromPem(String pemContent) throws Exception {

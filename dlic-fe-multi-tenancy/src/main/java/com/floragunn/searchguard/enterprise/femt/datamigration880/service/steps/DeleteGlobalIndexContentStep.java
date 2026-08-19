@@ -18,7 +18,7 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMi
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepExecutionStatus;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
-import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchResponse;
 
 import java.util.Objects;
 
@@ -37,7 +37,7 @@ class DeleteGlobalIndexContentStep implements MigrationStep {
     public StepResult execute(DataMigrationContext context) throws StepException {
         String globalTenantIndexName = context.getGlobalTenantIndexName();
         stepRepository.releaseWriteLock(ImmutableList.of(globalTenantIndexName));
-        BulkByScrollResponse response = stepRepository.deleteAllDocuments(globalTenantIndexName);
+        BulkByPaginatedSearchResponse response = stepRepository.deleteAllDocuments(globalTenantIndexName);
         StringBuilder details = new StringBuilder("Deleted total ").append(response.getTotal()).append(" documents, ") //
             .append("it took ").append(response.getTook()).append(", ") //
             .append("created documents ").append(response.getCreated()).append(", ") //
