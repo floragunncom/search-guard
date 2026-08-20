@@ -1535,8 +1535,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
         void requestReload(Collection<CType<?>> configurationTypes, String reason, ActionListener<ConfigReloadResponse> listener) {
             synchronized (this.requestLock) {
                 if (!this.started) {
-                    LOGGER.info("Cannot reload configuration yet, because the initialization process did not complete yet. "
-                            + "The request will be processed once initialization has finished.");
+                    LOGGER.info("Reload thread has not been started yet; the request is queued and will be processed once it starts.");
                 }
 
                 if (listener != null) {
