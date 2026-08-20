@@ -30,7 +30,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -236,13 +235,16 @@ public class ConfigurationRepository implements ComponentStateProvider {
     public void initOnNodeStart() {
         componentState.setState(State.INITIALIZING, "waiting_for_state_recovery");
 
-        // Start the dedicated reload thread. It is the single place where the configuration is actually (re)loaded, so
-        // that no locking is required: config update requests, config variable changes, deletions and even the initial
-        // load during startup are all funneled through this one thread. Because config update requests arriving on a
-        // MANAGEMENT thread are handled asynchronously here, they never block that MANAGEMENT thread. The thread must be
-        // started before initialization, because on nodes that come up suspended the very first config load happens
-        // through a config update request (sgctl) processed by this thread.
-        reloadThread.start();
+        // The dedicated reload thread is intentionally NOT started here. In the background-init branches the very first
+        // configuration load is performed directly on the startup thread (see loadConfigurationOnStartup), and the
+        // reload thread is started only once that load has been attempted. That way config update requests arriving
+        // during startup are queued by the not-yet-started reload thread and processed against the then-ready config,
+        // instead of being attempted immediately against a not-yet-initialized config index. Only in the suspended
+        // branch, where the first load must come from an incoming config update request (sgctl), is the reload thread
+        // started right away (see checkIndicesNow). This mirrors the OpenSearch Security startup sequencing
+        // (https://github.com/opensearch-project/security/pull/5479). Once started, the reload thread is the single
+        // place where configuration is (re)loaded, so that no locking is required; because config update requests
+        // arriving on a MANAGEMENT thread are handled asynchronously on it, they never block that MANAGEMENT thread.
 
         threadPool.generic().execute(() -> {
             synchronized (ConfigurationRepository.this) {
@@ -292,6 +294,9 @@ public class ConfigurationRepository implements ComponentStateProvider {
                         loadConfigurationOnStartup(configuredSearchguardIndexNew);
                     } catch (Exception e) {
                         LOGGER.error("An error occurred while initializing default config. Initialisation halted.", e);
+                        // Installing the default config failed before the initial load ran; start the reload thread so
+                        // the node can still recover via an external config update (sgctl).
+                        reloadThread.start();
                     }
                 });
             } else if (settings.get(BACKGROUND_INIT_IF_SGINDEX_NOT_EXIST)) {
@@ -301,12 +306,17 @@ public class ConfigurationRepository implements ComponentStateProvider {
             } else {
                 LOGGER.info("{} index does not exist yet, use sgctl to initialize the cluster. We will not perform background initialization",
                         configuredSearchguardIndexNew);
+                // No background initialization: the very first config load will be triggered by an incoming config
+                // update request (sgctl) and must be processed by the reload thread, so it has to be running already.
+                reloadThread.start();
                 componentState.setState(State.SUSPENDED, "waiting_for_config_update");
             }
         } catch (Throwable e2) {
             LOGGER.error("Error during node initialization", e2);
             componentState.addLastException("initOnNodeStart", e2);
             componentState.setFailed(e2);
+            // Start the reload thread even on failure so the node can still recover via an external config update.
+            reloadThread.start();
         }
     }
 
@@ -365,50 +375,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
     }
 
     /**
-     * Requests a configuration reload and blocks until it has finished. The reload itself is still performed on the
-     * dedicated {@link ReloadThread}; this method merely waits for its completion.
-     * <p>
-     * <b>Must not be called from a MANAGEMENT thread.</b> The reload may dispatch index/mapping operations back to the
-     * MANAGEMENT pool, so blocking a MANAGEMENT thread here could deadlock on single-CPU nodes. It is safe to call from
-     * the generic thread pool, which is where node initialization and the config APIs (e.g. {@link #delete}) run.
-     */
-    private void reloadConfigurationSynchronously(Set<CType<?>> configTypes, String reason) throws ConfigUnavailableException {
-        CompletableFuture<ConfigReloadResponse> future = new CompletableFuture<>();
-        reloadConfiguration(configTypes, reason, new ActionListener<ConfigReloadResponse>() {
-            @Override
-            public void onResponse(ConfigReloadResponse response) {
-                future.complete(response);
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-
-        try {
-            future.get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new ConfigUnavailableException("Interrupted while reloading configuration", e);
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof ConfigUnavailableException) {
-                throw (ConfigUnavailableException) cause;
-            }
-            if (cause instanceof RuntimeException) {
-                throw (RuntimeException) cause;
-            }
-            throw new ConfigUnavailableException("Error while reloading configuration", cause);
-        }
-    }
-
-    /**
-     * Performs a configuration reload. This is the single method that actually (re)loads the configuration. It must only
-     * be called by the {@link ReloadThread}, which guarantees that only one reload is active at any time - which is why
-     * no additional locking is required. Every reload trigger (config update requests, config variable changes,
-     * deletions and the initial load during startup) is funneled through that thread via
-     * {@link #reloadConfiguration(Set, String, ActionListener)} or {@link #reloadConfigurationSynchronously(Set, String)}.
+     * Performs a configuration reload. This is the single method that actually (re)loads the configuration. It is called
+     * either by the {@link ReloadThread} - for all reloads once the node is running (config update requests, config
+     * variable changes, deletions) - or directly by the startup thread for the very first load during initialization
+     * (see {@link #loadConfigurationOnStartup}), which happens before the {@link ReloadThread} is started. In both cases
+     * only a single reload is active at any time - the reload thread is not yet running during the initial startup load
+     * - which is why no additional locking is required.
      */
     private void doReload(Set<CType<?>> configTypes, String reason) {
         // Drop user information from thread context to avoid spamming of audit log
@@ -437,6 +409,8 @@ public class ConfigurationRepository implements ComponentStateProvider {
         } catch (Exception e) {
             LOGGER.error("Error while waiting for the configuration index to be created", e);
             componentState.setFailed(e);
+            // Start the reload thread even on failure so the node can still recover via an external config update.
+            reloadThread.start();
         }
     }
 
@@ -548,7 +522,11 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 componentState.startNextTry();
                 try {
                     LOGGER.debug("Try to load config ...");
-                    reloadConfigurationSynchronously(CType.all(), "Initialization");
+                    // The initial load is performed directly here - not via the reload thread, which has not been
+                    // started yet (see below and initOnNodeStart). This runs on the generic startup thread (never a
+                    // MANAGEMENT thread), so the index/mapping operations it may dispatch to the MANAGEMENT pool cannot
+                    // deadlock it, and it is the only reload active at this point, so no locking is required.
+                    doReload(CType.all(), "Initialization");
                     break;
                 } catch (Exception e) {
                     LOGGER.debug("Unable to load configuration due to {}", String.valueOf(ExceptionUtils.getRootCause(e)));
@@ -569,6 +547,12 @@ public class ConfigurationRepository implements ComponentStateProvider {
         } catch (Exception e) {
             LOGGER.error("Unexpected exception while initializing node " + e, e);
             componentState.setFailed(e);
+        } finally {
+            // The initial configuration load has now been attempted directly on this startup thread. Start the reload
+            // thread so it takes over all subsequent reloads (config updates, config variable changes, deletions) and
+            // drains any requests that were queued while startup was in progress. start() is idempotent, so the extra
+            // calls on the failure paths above are harmless.
+            reloadThread.start();
         }
     }
 
