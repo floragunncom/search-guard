@@ -209,6 +209,13 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
             }
 
             @Override
+            public DocValuesSkipper getDocValuesSkipper(String field) throws IOException {
+                // Used by FieldExistsQuery, SortedNumericDocValuesRangeQuery, SortedSetDocValuesRangeQuery and MultiTermQuery's
+                // DocValuesRewriteMethod. The skipper exposes field and value metadata, so it must be hidden along with the doc values.
+                return isMetaField(field) || dlsFlsContext.isAllowed(field) ? in.getDocValuesSkipper(field) : null;
+            }
+
+            @Override
             public NumericDocValues getNumericDocValues(String field) throws IOException {
                 return isMetaField(field) || dlsFlsContext.isAllowed(field) ? in.getNumericDocValues(field) : null;
             }

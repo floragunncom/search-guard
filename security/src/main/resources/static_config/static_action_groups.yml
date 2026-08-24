@@ -63,6 +63,7 @@ SGS_CREATE_INDEX:
   - "indices:admin/mapping/put"
   - "indices:admin/mapping/auto_put"
   - "indices:admin/auto_create"
+  - "indices:admin/data_stream/auto_create_past_tsdb"
   type: "index"
   description: "Allow creating new indices"
 SGS_CREATE_DATA_STREAM:
@@ -184,6 +185,16 @@ SGS_MANAGE_SNAPSHOTS:
   - "cluster:admin/repository/*"
   type: "cluster"
   description: "Allow snapshots"
+SGS_CLUSTER_MANAGE_REINDEX:
+  reserved: true
+  hidden: false
+  static: true
+  allowed_actions:
+  - "indices:data/write/reindex*"
+  - "cluster:admin/reindex/*"
+  - "cluster:monitor/reindex/*"
+  type: "cluster"
+  description: "Manage reindex operations"
 SGS_INDEX:
   reserved: true
   hidden: false

@@ -106,6 +106,15 @@ public class FlsIntTest {
     static final TestSgConfig.User EXCLUDE_LOC_USER = new TestSgConfig.User("exclude_loc").roles(new Role("exclude_loc")
             .indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("~*_loc", "timestamp").on(INDEX_PATTERN).clusterPermissions("*"));
 
+    static final TestSgConfig.User INCLUDE_TIMESTAMP_USER = new TestSgConfig.User("include_timestamp").roles(new Role("include_timestamp")
+            .indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("@timestamp").on(INDEX_PATTERN).clusterPermissions("*"));
+
+    static final TestSgConfig.User EXCLUDE_TIMESTAMP_USER = new TestSgConfig.User("exclude_timestamp").roles(new Role("exclude_timestamp")
+            .indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("~@timestamp").on(INDEX_PATTERN).clusterPermissions("*"));
+
+    static final TestSgConfig.User MASK_TIMESTAMP_USER = new TestSgConfig.User("mask_timestamp").roles(new Role("mask_timestamp")
+            .indexPermissions("SGS_READ", "indices:admin/mappings/get").maskedFields("@timestamp").on(INDEX_PATTERN).clusterPermissions("*"));
+
     static final TestSgConfig.User MULTI_ROLE_USER = new TestSgConfig.User("multi_role").roles(
             new Role("role1").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("~*_ip").on(INDEX_PATTERN).clusterPermissions("*"),
             new Role("role2").indexPermissions("SGS_READ", "indices:admin/mappings/get").fls("source_ip").on(INDEX_PATTERN).clusterPermissions("*"));
@@ -117,7 +126,8 @@ public class FlsIntTest {
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled() //
             .authc(AUTHC).dlsFls(DLSFLS) //
             .users(ADMIN, EXCLUDE_IP_USER, EXCLUDE_OBJECT_USER, INCLUDE_OBJECT_USER, EXCLUDE_OBJECT_FIELD_USER, //
-                    INCLUDE_OBJECT_FIELD_USER, INCLUDE_LOC_USER, MULTI_ROLE_USER, EXCLUDE_LOC_USER) //
+                    INCLUDE_OBJECT_FIELD_USER, INCLUDE_LOC_USER, MULTI_ROLE_USER, EXCLUDE_LOC_USER, INCLUDE_TIMESTAMP_USER, //
+                    EXCLUDE_TIMESTAMP_USER, MASK_TIMESTAMP_USER) //
             .resources("dlsfls")
             // An external process cluster is used due to the use of LogsDB indices, which requires an additional native library.
             .useExternalProcessCluster().build();
@@ -309,6 +319,80 @@ public class FlsIntTest {
             // testDocument.getContent().get("source_ip") returns 1 or 2 for a random IP. The TestData class generates random data, therefore,
             // duplicates may or may not be present.
             Assert.assertTrue(response.getBody(), response.getBodyAsDocNode().getAsNode("hits").getAsNode("total").getNumber("value").intValue() > 0);
+        }
+    }
+
+    @Test
+    public void exists_onIncludedField() throws Exception {
+        int existingTimestampCount;
+        try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_search?pretty", """
+                    {
+                      "size": 0,
+                      "query": {
+                        "exists": {
+                          "field": "@timestamp"
+                        }
+                      }
+                    }
+                    """);
+            assertThat(response, isOk());
+            existingTimestampCount = response.getBodyAsDocNode().getAsNode("hits").getAsNode("total").getNumber("value").intValue();
+            Assert.assertTrue(existingTimestampCount > 0);
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(INCLUDE_TIMESTAMP_USER)) {
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_search?pretty", """
+                    {
+                      "size": 0,
+                      "query": {
+                        "exists": {
+                          "field": "@timestamp"
+                        }
+                      }
+                    }
+                    """);
+            assertThat(response, isOk());
+            Assert.assertEquals(response.getBody(), existingTimestampCount,
+                    response.getBodyAsDocNode().getAsNode("hits").getAsNode("total").getNumber("value").intValue());
+        }
+    }
+
+    @Test
+    public void exists_onExcludedField() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(EXCLUDE_TIMESTAMP_USER)) {
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_search?pretty", """
+                    {
+                      "size": 0,
+                      "query": {
+                        "exists": {
+                          "field": "@timestamp"
+                        }
+                      }
+                    }
+                    """);
+            assertThat(response, isOk());
+            Assert.assertEquals(response.getBody(), 0,
+                    response.getBodyAsDocNode().getAsNode("hits").getAsNode("total").getNumber("value").intValue());
+        }
+    }
+
+    @Test
+    public void exists_onMaskedField() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(MASK_TIMESTAMP_USER)) {
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_search?pretty", """
+                    {
+                      "size": 0,
+                      "query": {
+                        "exists": {
+                          "field": "@timestamp"
+                        }
+                      }
+                    }
+                    """);
+            assertThat(response, isOk());
+            Assert.assertEquals(response.getBody(), 0,
+                    response.getBodyAsDocNode().getAsNode("hits").getAsNode("total").getNumber("value").intValue());
         }
     }
 
