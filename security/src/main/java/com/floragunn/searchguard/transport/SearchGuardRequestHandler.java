@@ -114,8 +114,9 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
            
            if(request instanceof ShardSearchRequest) {
                ShardSearchRequest sr = ((ShardSearchRequest) request);
-               if(sr.source() != null && sr.source().suggest() != null) {
-                   getThreadContext().putTransient("_sg_issuggest", Boolean.TRUE);
+               if(sr.source() != null && sr.source().suggest() != null
+                       && getThreadContext().getHeader(ConfigConstants.SG_IS_SUGGEST_HEADER) == null) {
+                   getThreadContext().putHeader(ConfigConstants.SG_IS_SUGGEST_HEADER, "true");
                }
            }
 

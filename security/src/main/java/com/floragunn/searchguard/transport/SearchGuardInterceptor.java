@@ -32,10 +32,12 @@ import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.Version;
 import org.elasticsearch.action.admin.cluster.shards.ClusterSearchShardsResponse;
 import org.elasticsearch.action.admin.cluster.shards.TransportClusterSearchShardsAction;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchQueryThenFetchAsyncAction;
 import org.elasticsearch.action.search.SearchShardsResponse;
 import org.elasticsearch.action.search.TransportSearchAction;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -109,7 +111,32 @@ public class SearchGuardInterceptor {
 
     public <T extends TransportResponse> void sendRequestDecorate(AsyncSender sender, Connection connection, String action,
             TransportRequest request, TransportRequestOptions options, TransportResponseHandler<T> handler) {
-        
+        Version targetNodeVersion = connection.getNode().getVersionInformation().nodeVersion();
+
+        // Elasticsearch 9.5 enables the batched query phase by default. Although NodeQueryRequest
+        // already exists in Elasticsearch 9.4, Search Guard versions built for 9.4 only recognize
+        // suggest requests when their transport handler receives an individual ShardSearchRequest;
+        // they then store the marker in a local ThreadContext transient. A 9.5 coordinating node
+        // instead sends one NodeQueryRequest per data node and propagates the marker as a header.
+        // An older Search Guard data node neither recognizes that header nor sees a
+        // ShardSearchRequest in its transport handler. It would consequently execute completion
+        // suggestions without applying DLS at the directory-reader level and could expose
+        // suggestions from documents which the user is not allowed to see.
+        //
+        // The transport interceptor runs after Elasticsearch has chosen batched execution and
+        // cannot convert a NodeQueryRequest back into individual shard requests. We therefore fail
+        // this mixed-version request closed. Non-batched requests remain compatible because the
+        // older handler receives ShardSearchRequest and sets its legacy transient marker. During a
+        // rolling upgrade, search.batched_query_phase can be disabled until all data nodes run a
+        // Search Guard version which understands SG_IS_SUGGEST_HEADER.
+        if (isBatchedSuggestRequestToUnsupportedNode(getThreadContext().getHeader(ConfigConstants.SG_IS_SUGGEST_HEADER), action,
+                targetNodeVersion)) {
+            handler.handleException(new TransportException("Cannot execute a batched suggest request protected by DLS on node ["
+                    + connection.getNode().getName() + "] running Elasticsearch [" + targetNodeVersion
+                    + "]; upgrade the target node or disable [search.batched_query_phase] during the rolling upgrade"));
+            return;
+        }
+
         final Map<String, String> origHeaders0 = getThreadContext().getHeaders();
         final User user0 = getThreadContext().getTransient(ConfigConstants.SG_USER);
         final String origin0 = getThreadContext().getTransient(ConfigConstants.SG_ORIGIN);
@@ -141,6 +168,7 @@ public class SearchGuardInterceptor {
                     || k.equals(ConfigConstants.SG_DLS_MODE_HEADER)
                     || k.equals(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER)
                     || k.equals(ConfigConstants.SG_AUTHZ_HASH_THREAD_CONTEXT_HEADER)
+                    || k.equals(ConfigConstants.SG_IS_SUGGEST_HEADER)
                     || (k.equals("_sg_source_field_context") && ! (request instanceof SearchRequest) && !(request instanceof GetRequest))
                     || k.startsWith("_sg_trace")
                     || k.startsWith(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER)
@@ -244,6 +272,11 @@ public class SearchGuardInterceptor {
 
     private ThreadContext getThreadContext() {
         return threadPool.getThreadContext();
+    }
+
+    static boolean isBatchedSuggestRequestToUnsupportedNode(String suggestHeader, String action, Version targetNodeVersion) {
+        return "true".equals(suggestHeader) && SearchQueryThenFetchAsyncAction.NODE_SEARCH_ACTION_NAME.equals(action)
+                && targetNodeVersion.before(Version.V_9_5_0);
     }
 
     private boolean checkCustomAllowedHeader(String headerKey) {        

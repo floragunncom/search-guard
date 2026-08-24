@@ -36,9 +36,10 @@ import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-import com.floragunn.fluent.collections.ImmutableMap;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,6 +48,7 @@ import org.junit.runners.Parameterized.Parameters;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.fluent.collections.ImmutableList;
+import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.GenericRestClient.HttpResponse;
 import com.floragunn.searchguard.test.TestAlias;
@@ -59,9 +61,12 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 
 @RunWith(Parameterized.class)
 public class DlsReadOnlyIntTests {
-    static TestIndex index_1 = TestIndex.name("index_1").documentCount(100).seed(1).attr("prefix", "a").setting("index.number_of_shards", 5).build();
-    static TestIndex index_2 = TestIndex.name("index_2").documentCount(110).seed(2).attr("prefix", "a").setting("index.number_of_shards", 5).build();
-    static TestIndex index_3 = TestIndex.name("index_3").documentCount(51).seed(4).attr("prefix", "b").setting("index.number_of_shards", 5).build();
+    static TestIndex index_1 = TestIndex.name("index_1").documentCount(100).seed(1).attr("prefix", "a").attr("suggest", "suggest_value")
+            .fieldMapping("suggest", DocNode.of("type", "completion")).setting("index.number_of_shards", 5).build();
+    static TestIndex index_2 = TestIndex.name("index_2").documentCount(110).seed(2).attr("prefix", "a").attr("suggest", "suggest_value")
+            .fieldMapping("suggest", DocNode.of("type", "completion")).setting("index.number_of_shards", 5).build();
+    static TestIndex index_3 = TestIndex.name("index_3").documentCount(51).seed(4).attr("prefix", "b").attr("suggest", "suggest_value")
+            .fieldMapping("suggest", DocNode.of("type", "completion")).setting("index.number_of_shards", 5).build();
     static TestIndex index_hidden = TestIndex.name("index_hidden").documentCount(52).hidden().seed(8).attr("prefix", "h").build();
     static TestIndex user_dept_terms_lookup = TestIndex.name("user_dept_terms_lookup").documentCount(0).customDocument("limited_user_index_1_dept_D_terms_lookup", ImmutableMap.of("dept", "dept_d")).hidden().build();
 
@@ -325,6 +330,48 @@ public class DlsReadOnlyIntTests {
         try (GenericRestClient restClient = cluster.getRestClient(user)) {
             HttpResponse httpResponse = restClient.get("index_*/_search?size=1000");
             assertThat(httpResponse, containsExactly(index_1, index_2, index_3).at("hits.hits[*]").but(user.indexMatcher("read")).whenEmpty(200));
+        }
+    }
+
+    @Test
+    public void search_suggest() throws Exception {
+        Set<String> expectedDocumentIds = new HashSet<>();
+
+        for (TestIndex index : List.of(index_1, index_2, index_3)) {
+            for (String documentId : index.getDocumentIds()) {
+                if (user.indexMatcher("read").containsDocument(documentId)) {
+                    expectedDocumentIds.add(documentId);
+                }
+            }
+        }
+
+        DocNode query = DocNode.of(//
+                "suggest.suggestion.prefix", "suggest", //
+                "suggest.suggestion.completion.field", "suggest", //
+                "suggest.suggestion.completion.size", 1000, //
+                "suggest.suggestion.completion.skip_duplicates", false);
+
+        try (GenericRestClient restClient = cluster.getRestClient(user)) {
+            HttpResponse response = restClient.postJson("/_search", query);
+
+            if (user == LIMITED_USER_INDEX_1_DEPT_D_TERMS_LOOKUP) {
+                assertThat(response, isForbidden());
+                assertEquals(response.getBody(), "Suggest is not supported with filter-level DLS",
+                        response.getBodyAsDocNode().get("error", "reason_detail"));
+                return;
+            }
+
+            assertThat(response, isOk());
+
+            List<DocNode> options = response.getBodyAsDocNode().getAsNode("suggest").getAsListOfNodes("suggestion").get(0)
+                    .getAsListOfNodes("options");
+            Set<String> actualDocumentIds = new HashSet<>();
+
+            for (DocNode option : options) {
+                actualDocumentIds.add(option.getAsString("_id"));
+            }
+
+            assertEquals(response.getBody(), expectedDocumentIds, actualDocumentIds);
         }
     }
 
