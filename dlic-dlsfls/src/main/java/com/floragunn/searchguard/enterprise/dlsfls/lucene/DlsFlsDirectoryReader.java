@@ -493,7 +493,8 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
             }
 
             private boolean isSuggest() {
-                return dlsFlsContext.getThreadContext().getTransient("_sg_issuggest") == Boolean.TRUE;
+                return dlsFlsContext.getThreadContext().getTransient(ConfigConstants.SG_IS_SUGGEST_HEADER) == Boolean.TRUE
+                        || "true".equals(dlsFlsContext.getThreadContext().getHeader(ConfigConstants.SG_IS_SUGGEST_HEADER));
             }
 
             private boolean isMetaField(String field) {

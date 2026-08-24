@@ -103,6 +103,8 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
 
     @Override
     public SyncAuthorizationFilter.Result apply(PrivilegesEvaluationContext context, ActionListener<?> listener) {
+        Object request = context.getRequest();
+
         if (threadContext.getHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE) != null) {
             if (log.isDebugEnabled()) {
                 log.debug("DLS is already done for: " + threadContext.getHeader(ConfigConstants.SG_FILTER_LEVEL_DLS_DONE));
@@ -145,6 +147,13 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
                 return SyncAuthorizationFilter.Result.OK;
             }
 
+            // Batched query execution transports a node-level request which does not expose the
+            // original SearchRequest. Preserve the suggest marker in the thread context instead.
+            if (hasDlsRestrictions && request instanceof SearchRequest searchRequest && searchRequest.source() != null
+                    && searchRequest.source().suggest() != null && threadContext.getHeader(ConfigConstants.SG_IS_SUGGEST_HEADER) == null) {
+                threadContext.putHeader(ConfigConstants.SG_IS_SUGGEST_HEADER, "true");
+            }
+
             DlsRestriction.IndexMap restrictionMap = DlsRestriction.IndexMap.NONE;
 
             boolean doFilterLevelDls;
@@ -178,8 +187,6 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
             }
 
             authzHashProvider.restrictions(context, config);
-
-            Object request = context.getRequest();
 
             if (request instanceof GetRequest getRequest) {
                 getRequest.realtime(false);
@@ -246,6 +253,11 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
                         }
                     }
                 }
+            }
+
+            if (doFilterLevelDls && !restrictionMap.isUnrestricted() && request instanceof SearchRequest searchRequest
+                    && searchRequest.source() != null && searchRequest.source().suggest() != null) {
+                return SyncAuthorizationFilter.Result.DENIED.reason("Suggest is not supported with filter-level DLS");
             }
 
             if (doFilterLevelDls && !restrictionMap.isUnrestricted()) {
