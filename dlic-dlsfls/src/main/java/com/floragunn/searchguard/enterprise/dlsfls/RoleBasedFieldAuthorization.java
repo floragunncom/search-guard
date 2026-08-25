@@ -413,8 +413,10 @@ public class RoleBasedFieldAuthorization
             }
 
             private boolean internalIsObjectAllowedAssumingParentsAreAllowed(String field) {
+                field = stripKeywordSuffix(field);
+
                 for (SingleRole entry : this.entries) {
-                    if (entry.isAllowedAssumingParentsAreAllowed(field)) {
+                    if (entry.isObjectAllowedAssumingParentsAreAllowed(field)) {
                         return true;
                     }
                 }
