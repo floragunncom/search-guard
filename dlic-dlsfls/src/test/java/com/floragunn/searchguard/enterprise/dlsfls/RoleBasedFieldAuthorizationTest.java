@@ -327,6 +327,47 @@ public class RoleBasedFieldAuthorizationTest {
             assertFalse(subject.toString(), subject.isAllowedRecursive("a12"));
         }
 
+        @Test
+        public void multiRole_subobjects_not_grant_parent_access() throws Exception {
+            // Both roles include the same sub-object field. The implicit object-only inclusions of the parent
+            // objects must survive the merge, otherwise the document filter never descends into "object".
+            Role role1 = new TestSgConfig.Role("role1").indexPermissions("*").fls("object.child.grandchild").on("*").toActualRole();
+            Role role2 = new TestSgConfig.Role("role2").indexPermissions("*").fls("object.child.grandchild").on("*").toActualRole();
+
+            RoleBasedFieldAuthorization.FlsRule.MultiRole subject = new RoleBasedFieldAuthorization.FlsRule.MultiRole(ImmutableList.of(//
+                    new RoleBasedFieldAuthorization.FlsRule.SingleRole(role1.getIndexPermissions().get(0)), //
+                    new RoleBasedFieldAuthorization.FlsRule.SingleRole(role2.getIndexPermissions().get(0)) //
+            ));
+
+            assertFalse(subject.toString(), subject.isAllowAll());
+            assertTrue(subject.toString(), subject.isAllowedRecursive("object.child.grandchild"));
+
+            assertTrue(subject.toString(), subject.isAllowedAssumingParentsAreAllowed("object.child.grandchild"));
+            assertFalse(subject.toString(), subject.isAllowedAssumingParentsAreAllowed("object"));
+            assertFalse(subject.toString(), subject.isAllowedAssumingParentsAreAllowed("object.child"));
+            assertTrue(subject.toString(), subject.isObjectAllowedAssumingParentsAreAllowed("object"));
+            assertTrue(subject.toString(), subject.isObjectAllowedAssumingParentsAreAllowed("object.child"));
+            assertFalse(subject.toString(), subject.isObjectAllowedAssumingParentsAreAllowed("text_field"));
+        }
+
+        @Test
+        public void multiRole_subobjects_inclusion_and_parent_exclusion() throws Exception {
+            // One role includes a sub-object field, the other excludes the whole parent object. The inclusion
+            // must still make the document filter descend into "object".
+            Role role1 = new TestSgConfig.Role("role1").indexPermissions("*").fls("object.child").on("*").toActualRole();
+            Role role2 = new TestSgConfig.Role("role2").indexPermissions("*").fls("~object*").on("*").toActualRole();
+
+            RoleBasedFieldAuthorization.FlsRule.MultiRole subject = new RoleBasedFieldAuthorization.FlsRule.MultiRole(ImmutableList.of(//
+                    new RoleBasedFieldAuthorization.FlsRule.SingleRole(role1.getIndexPermissions().get(0)), //
+                    new RoleBasedFieldAuthorization.FlsRule.SingleRole(role2.getIndexPermissions().get(0)) //
+            ));
+
+            assertFalse(subject.toString(), subject.isAllowAll());
+            assertTrue(subject.toString(), subject.isAllowedAssumingParentsAreAllowed("object.child"));
+            assertFalse(subject.toString(), subject.isAllowedAssumingParentsAreAllowed("object"));
+            assertTrue(subject.toString(), subject.isObjectAllowedAssumingParentsAreAllowed("object"));
+        }
+
     }
 
     public static class IndicesAndAliases_getRestriction {
