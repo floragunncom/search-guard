@@ -10,26 +10,9 @@
       <password>${env.ARTIFACTORY_PASSWORD}</password>
     </server>
     <server>
-      <id>staging</id>
-      <username>${env.ARTIFACTORY_USER}</username>
-      <password>${env.ARTIFACTORY_PASSWORD}</password>
-    </server>
-    <server>
       <id>snapshot</id>
       <username>${env.ARTIFACTORY_USER}</username>
       <password>${env.ARTIFACTORY_PASSWORD}</password>
-    </server>
-    <server>
-      <id>third-party</id>
-      <username>${env.ARTIFACTORY_USER}</username>
-      <password>${env.ARTIFACTORY_PASSWORD}</password>
-      <configuration>
-        <httpConfiguration>
-          <all>
-            <usePreemptive>true</usePreemptive>
-          </all>
-        </httpConfiguration>
-      </configuration>
     </server>
   </servers>
 </settings>

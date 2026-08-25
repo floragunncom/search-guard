@@ -61,7 +61,7 @@ SGCTL_LINK="https://maven.search-guard.com/search-guard-flx-release/com/floragun
 
 TLS_TOOL="search-guard-tlstool"
 TLS_TOOL_ARCHIVE="$TLS_TOOL-${TLS_TOOL_VERSION}.tar.gz"
-TLS_TOOL_LINK="https://maven.search-guard.com/artifactory/list/search-guard-tlstool/com/floragunn/search-guard-tlstool/${TLS_TOOL_VERSION}/$TLS_TOOL_ARCHIVE"
+TLS_TOOL_LINK="https://maven.search-guard.com/search-guard-tlstool/com/floragunn/search-guard-tlstool/${TLS_TOOL_VERSION}/$TLS_TOOL_ARCHIVE"
 
 # ------------------------------------------------------------------------
 # Download all necessary components
