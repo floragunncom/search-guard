@@ -44,6 +44,7 @@ import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.search.SearchService;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -69,6 +70,12 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
                 .put("searchguard.audit.threadpool.size", 0)
+                // Elasticsearch 9.5.2 enables the chunked fetch phase by default. It routes the fetch through
+                // TransportFetchPhaseCoordinationAction, which stashes the thread context and restores only headers,
+                // so the data node used to run the fetch without a user and emitted no COMPLIANCE_DOC_READ at all.
+                // The setting is pinned here so that this test keeps covering that code path if the Elasticsearch
+                // default changes again.
+                .put(SearchService.FETCH_PHASE_CHUNKED_ENABLED.getKey(), true)
                 .build();
 
         setup(additionalSettings);
@@ -122,6 +129,12 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
                 .put("searchguard.audit.threadpool.size", 0)
+                // Elasticsearch 9.5.2 enables the chunked fetch phase by default. It routes the fetch through
+                // TransportFetchPhaseCoordinationAction, which stashes the thread context and restores only headers,
+                // so the data node used to run the fetch without a user and emitted no COMPLIANCE_DOC_READ at all.
+                // The setting is pinned here so that this test keeps covering that code path if the Elasticsearch
+                // default changes again.
+                .put(SearchService.FETCH_PHASE_CHUNKED_ENABLED.getKey(), true)
                 .build();
 
         setup(additionalSettings);
