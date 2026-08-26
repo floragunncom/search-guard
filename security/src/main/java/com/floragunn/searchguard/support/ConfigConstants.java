@@ -30,17 +30,14 @@ public class ConfigConstants {
     public static final String SG_DLS_QUERY_HEADER = SG_CONFIG_PREFIX+"dls_query";
 
     public static final String SG_DLS_FILTER_LEVEL_QUERY_HEADER = SG_CONFIG_PREFIX+"dls_filter_level_query";
-    public static final String SG_DLS_FILTER_LEVEL_QUERY_TRANSIENT = SG_CONFIG_PREFIX+"dls_filter_level_query_t";
 
     public static final String SG_DLS_MODE_HEADER = SG_CONFIG_PREFIX+"dls_mode";
-    public static final String SG_DLS_MODE_TRANSIENT = SG_CONFIG_PREFIX+"dls_mode_t";
 
     public static final String SG_FLS_FIELDS_HEADER = SG_CONFIG_PREFIX+"fls_fields";
 
     public static final String SG_MASKED_FIELD_HEADER = SG_CONFIG_PREFIX+"masked_fields";
 
     public static final String SG_DOC_WHITELST_HEADER = SG_CONFIG_PREFIX+"doc_whitelist";
-    public static final String SG_DOC_WHITELST_TRANSIENT = SG_CONFIG_PREFIX+"doc_whitelist_t";
 
     public static final String SG_FILTER_LEVEL_DLS_DONE = SG_CONFIG_PREFIX+"filter_level_dls_done";
 

@@ -47,6 +47,7 @@ import com.floragunn.searchguard.license.SearchGuardLicense.Feature;
 import com.floragunn.searchsupport.StaticSettings;
 import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
+import com.floragunn.searchsupport.cstate.metrics.CountAggregation;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
 import com.floragunn.searchsupport.meta.Meta;
 
@@ -68,6 +69,11 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
             DlsFlsDirectoryReaderWrapper.class).initialized();
 
     private final TimeAggregation directoryReaderWrapperApplyAggregation = new TimeAggregation.Nanoseconds();
+    /**
+     * Counts how often a reader was wrapped without a user being available. See
+     * DlsFlsDirectoryReaderWrapper#apply(DirectoryReader) for why this must not go unnoticed.
+     */
+    private final CountAggregation noPrivilegesEvaluationContextCount = new CountAggregation();
 
     private DlsFlsBaseContext dlsFlsBaseContext;
     private DlsFlsValve dlsFlsValve;
@@ -82,7 +88,8 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
 
     public DlsFlsModule() {
         this.componentState.addPart(directoryReaderWrapperComponentState);
-        this.directoryReaderWrapperComponentState.addMetrics("wrap_reader", directoryReaderWrapperApplyAggregation);
+        this.directoryReaderWrapperComponentState.addMetrics("wrap_reader", directoryReaderWrapperApplyAggregation,
+                "wrap_reader_without_privileges_evaluation_context", noPrivilegesEvaluationContextCount);
     }
 
     @Override
@@ -105,7 +112,8 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
         this.flsQueryCacheWeightProvider = new FlsQueryCacheWeightProvider(this.dlsFlsBaseContext, config);
 
         this.directoryReaderWrapperFactory = (indexService) -> new DlsFlsDirectoryReaderWrapper(indexService, baseDependencies.getAuditLog(),
-                this.dlsFlsBaseContext, config, this.licenseInfo, directoryReaderWrapperComponentState, directoryReaderWrapperApplyAggregation);
+                this.dlsFlsBaseContext, config, this.licenseInfo, directoryReaderWrapperComponentState, directoryReaderWrapperApplyAggregation,
+                noPrivilegesEvaluationContextCount);
 
         this.componentState.addParts(this.dlsFlsValve.getComponentState(), this.dlsFlsSearchOperationListener.getComponentState(),
                 this.flsFieldFilter.getComponentState(), this.flsQueryCacheWeightProvider.getComponentState());

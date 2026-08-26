@@ -44,6 +44,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
@@ -91,6 +92,9 @@ import org.elasticsearch.xcontent.json.JsonXContent;
 public abstract class AbstractAuditLog implements AuditLog {
 
     protected final Logger log = LogManager.getLogger(this.getClass());
+    private static final long COMPLIANCE_SKIPPED_LOG_INTERVAL = 60_000;
+    private final AtomicLong complianceEventsSkippedBecauseOfMissingUser = new AtomicLong();
+    private final AtomicLong complianceSkippedLastLogged = new AtomicLong();
     protected final ThreadPool threadPool;
     protected final IndexNameExpressionResolver resolver;
 
@@ -1178,15 +1182,40 @@ public abstract class AbstractAuditLog implements AuditLog {
 
     }
 
+    /**
+     * Compliance events are dropped when no user is available, so a code path which loses the security context makes
+     * the read history silently incomplete instead of failing. That is how the chunked fetch phase of Elasticsearch
+     * 9.5.2 stopped COMPLIANCE_DOC_READ from being written at all. Internal reads legitimately have no user, hence a
+     * counter which is always maintained and a log message which is throttled.
+     */
+    private void reportSkippedBecauseOfMissingUser(Category category) {
+        long skipped = complianceEventsSkippedBecauseOfMissingUser.incrementAndGet();
+
+        // Only COMPLIANCE_DOC_READ is worth a log message. Skipping it means the read history of the documents of a
+        // user is incomplete, which is what the chunked fetch phase of Elasticsearch 9.5.2 caused. The other categories
+        // are skipped routinely while Search Guard reads and writes its own configuration, so logging them would only
+        // train everybody to ignore the message. The counter covers all categories.
+        if (category != Category.COMPLIANCE_DOC_READ) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        long lastLogged = complianceSkippedLastLogged.get();
+
+        if (now - lastLogged >= COMPLIANCE_SKIPPED_LOG_INTERVAL && complianceSkippedLastLogged.compareAndSet(lastLogged, now)) {
+            log.warn("Skipped {} compliance log message(s) so far because no user was available and the origin is LOCAL, "
+                    + "most recently for category {}. This is expected for internal reads. If it is logged while normal "
+                    + "users read watched fields, the read history is incomplete.", skipped, category);
+        }
+    }
+
     private boolean checkComplianceFilter(final Category category, final UserInformation effectiveUser, Origin origin) {
         if (log.isTraceEnabled()) {
             log.trace("Check for COMPLIANCE category:{}, effectiveUser:{}, origin: {}", category, effectiveUser, origin);
         }
 
         if (origin == Origin.LOCAL && effectiveUser == null && category != Category.COMPLIANCE_EXTERNAL_CONFIG) {
-            if (log.isTraceEnabled()) {
-                log.trace("Skipped compliance log message because of null user and local origin");
-            }
+            reportSkippedBecauseOfMissingUser(category);
             return false;
         }
 
