@@ -190,6 +190,19 @@ public class SearchGuardFilter implements ActionFilter {
                 }
             }
 
+            // Elasticsearch 9.5.2 enables the chunked fetch phase by default. On that path the fetch is not sent to
+            // the data node by the search phase itself. It is routed through the node local
+            // TransportFetchPhaseCoordinationAction, which stashes the thread context and afterwards restores only
+            // the plain string headers which Elasticsearch captured in SearchTransportService#sendExecuteFetch.
+            // Search Guard keeps the authenticated user in a thread context transient, which does not survive that
+            // stash. The data node would consequently execute the fetch without a user and thus without DLS, FLS,
+            // field masking and read history auditing. As Elasticsearch only captures headers, the user has to be
+            // present as a header while the search is coordinated on this node. The header is the same one which
+            // SearchGuardInterceptor would add to an outgoing request anyway.
+            if (user != null && request instanceof SearchRequest && threadContext.getHeader(ConfigConstants.SG_USER_HEADER) == null) {
+                threadContext.putHeader(ConfigConstants.SG_USER_HEADER, Base64Helper.serializeObject(user));
+            }
+
             org.apache.logging.log4j.ThreadContext.put("user", user != null ? user.getName() : "n/a");
 
             if (actionTrace.isTraceEnabled()) {
