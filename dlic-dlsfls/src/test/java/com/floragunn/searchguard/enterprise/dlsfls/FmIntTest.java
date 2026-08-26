@@ -34,6 +34,7 @@ import com.google.common.net.InetAddresses;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.search.SearchService;
 import org.hamcrest.Matcher;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -215,6 +216,12 @@ public class FmIntTest {
         .indexTemplates(new TestIndexTemplate("ds_test", TEST_DATA_STREAM.getName() + "*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
         .dataStreams(TEST_DATA_STREAM)
         .resources("dlsfls")
+        // Elasticsearch 9.5.2 enables the chunked fetch phase by default. It routes the fetch through
+        // TransportFetchPhaseCoordinationAction, which stashes the thread context and restores only headers, so the
+        // data node used to run the fetch without a user and skipped DLS, FLS and field masking. The setting is
+        // pinned here so that the assertions of this test keep covering that code path if the Elasticsearch default
+        // changes again.
+        .nodeSettings(SearchService.FETCH_PHASE_CHUNKED_ENABLED.getKey(), true)
         .useExternalProcessCluster().build();
 
     private final TestIndexLike testIndexLike;
