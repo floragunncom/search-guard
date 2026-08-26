@@ -392,6 +392,11 @@ public class AttributeValueFromXContent implements XContent {
             return false;
         }
 
+        @Override
+        public void closeAllowIllFormed() throws IOException {
+            close();
+        }
+
         private Object setObject(Object key, Object object) throws IOException {
             if (depth == 1 && attributeName.equals(key)) {
                 attributeValue = object;
