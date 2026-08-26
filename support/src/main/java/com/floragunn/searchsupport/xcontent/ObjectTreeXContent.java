@@ -351,7 +351,7 @@ public class ObjectTreeXContent implements XContent {
         public void writeBinary(byte[] value, int offset, int length) throws IOException {
             byte[] valueSection = new byte[length];
             System.arraycopy(value, offset, valueSection, 0, length);
-            addObject(value);
+            addObject(valueSection);
         }
 
         @SuppressWarnings("deprecation")
