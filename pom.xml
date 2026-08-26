@@ -46,7 +46,7 @@
   </distributionManagement>
 
   <properties>
-    <elasticsearch.version>9.5.0</elasticsearch.version>
+    <elasticsearch.version>9.5.2</elasticsearch.version>
     <sg-suite.version>master-SNAPSHOT</sg-suite.version>
     <revision>${sg-suite.version}-es-${elasticsearch.version}</revision>
 
@@ -56,7 +56,7 @@
     <maven.compiler.release>17</maven.compiler.release>
 
     <bc.version>1.84</bc.version>
-    <log4j.version>2.26.0</log4j.version>
+    <log4j.version>2.26.1</log4j.version>
     <jackson.version>2.18.9</jackson.version>
     <cxf.version>4.2.2</cxf.version>
     <http.commons.version>4.5.14</http.commons.version>
