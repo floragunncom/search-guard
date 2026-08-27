@@ -18,8 +18,10 @@
 
 package com.floragunn.searchguard.enterprise.dlsfls;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import com.floragunn.codova.documents.DocNode;
@@ -39,7 +41,6 @@ import org.hamcrest.Matcher;
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestData;
 import com.floragunn.searchguard.test.TestSgConfig;
@@ -208,49 +209,80 @@ public class FmIntTest {
     // https://git.floragunn.com/search-guard/confidential/search-guard-suite-enterprise/-/merge_requests/13#note_34253
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls().fieldAnonymizationPrefix("anonymized_");
 
+    /**
+     * Elasticsearch 9.5.2 enables the chunked fetch phase by default. It routes the fetch through
+     * TransportFetchPhaseCoordinationAction, which stashes the thread context and restores only headers, so the data
+     * node used to run the fetch without a user and skipped DLS, FLS and field masking. Every test case therefore runs
+     * twice: once against a cluster which uses whatever Elasticsearch has as default and once against a cluster which
+     * pins the chunked fetch phase. That keeps both code paths covered no matter which way the Elasticsearch default
+     * moves.
+     */
+    public enum FetchPhase {
+        ES_DEFAULT, CHUNKED;
+
+        LocalCluster cluster() {
+            return this == CHUNKED ? CLUSTER_CHUNKED_FETCH_PHASE : CLUSTER_ES_DEFAULTS;
+        }
+    }
+
+    private static LocalCluster.Builder clusterBuilder() {
+        return new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
+                .users(ADMIN, HASHED_IP_INDEX_USER, HASHED_LOC_USER, HASHED_IP_ALIAS_USER, HASHED_IP_DATA_STREAM_USER, SUPER_UNLIMITED_USER,
+                        HASHED_GEO_POINT_USER)
+                .indices(TEST_INDEX)
+                .aliases(TEST_ALIAS)
+                .indexTemplates(new TestIndexTemplate("ds_test", TEST_DATA_STREAM.getName() + "*").dataStream()
+                        .composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
+                .dataStreams(TEST_DATA_STREAM)
+                .resources("dlsfls");
+    }
+
     @ClassRule
-    public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
-            .users(ADMIN, HASHED_IP_INDEX_USER, HASHED_LOC_USER, HASHED_IP_ALIAS_USER, HASHED_IP_DATA_STREAM_USER, SUPER_UNLIMITED_USER, HASHED_GEO_POINT_USER)
-        .indices(TEST_INDEX)
-        .aliases(TEST_ALIAS)
-        .indexTemplates(new TestIndexTemplate("ds_test", TEST_DATA_STREAM.getName() + "*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
-        .dataStreams(TEST_DATA_STREAM)
-        .resources("dlsfls")
-        // Elasticsearch 9.5.2 enables the chunked fetch phase by default. It routes the fetch through
-        // TransportFetchPhaseCoordinationAction, which stashes the thread context and restores only headers, so the
-        // data node used to run the fetch without a user and skipped DLS, FLS and field masking. The setting is
-        // pinned here so that the assertions of this test keep covering that code path if the Elasticsearch default
-        // changes again.
-        .nodeSettings(SearchService.FETCH_PHASE_CHUNKED_ENABLED.getKey(), true)
-        .useExternalProcessCluster().build();
+    public static LocalCluster CLUSTER_ES_DEFAULTS = clusterBuilder().useExternalProcessCluster().build();
+
+    @ClassRule
+    public static LocalCluster CLUSTER_CHUNKED_FETCH_PHASE = clusterBuilder()
+            .nodeSettings(SearchService.FETCH_PHASE_CHUNKED_ENABLED.getKey(), true).useExternalProcessCluster().build();
+
+    static final Object[][] INDEX_AND_USER = new Object[][] { //
+            { TEST_INDEX, HASHED_IP_INDEX_USER }, //
+            { TEST_INDEX, ADMIN }, //
+            { TEST_INDEX, SUPER_UNLIMITED_USER }, //
+            { TEST_INDEX, HASHED_LOC_USER }, //
+            { TEST_DATA_STREAM, HASHED_IP_DATA_STREAM_USER }, //
+            { TEST_DATA_STREAM, ADMIN }, //
+            { TEST_DATA_STREAM, SUPER_UNLIMITED_USER }, //
+            { TEST_DATA_STREAM, HASHED_LOC_USER }, //
+            { TEST_ALIAS, HASHED_IP_ALIAS_USER }, //
+            { TEST_ALIAS, ADMIN }, //
+            { TEST_ALIAS, SUPER_UNLIMITED_USER }, //
+            { TEST_ALIAS, HASHED_LOC_USER }, //
+            { TEST_INDEX, HASHED_GEO_POINT_USER }, //
+            { TEST_ALIAS, HASHED_GEO_POINT_USER }, //
+            { TEST_DATA_STREAM, HASHED_GEO_POINT_USER } //
+    };
 
     private final TestIndexLike testIndexLike;
     private final TestSgConfig.User user;
+    private final LocalCluster cluster;
 
-    @Parameterized.Parameters(name = "{0} {1}")
+    @Parameterized.Parameters(name = "{0} {1} {2}")
     public static Collection<Object[]> params() {
-        return ImmutableList.of(
-            new Object[] {TEST_INDEX, HASHED_IP_INDEX_USER},
-            new Object[] {TEST_INDEX, ADMIN },
-            new Object[] {TEST_INDEX, SUPER_UNLIMITED_USER },
-            new Object[] {TEST_INDEX, HASHED_LOC_USER },
-            new Object[] {TEST_DATA_STREAM, HASHED_IP_DATA_STREAM_USER},
-            new Object[] {TEST_DATA_STREAM, ADMIN },
-            new Object[] {TEST_DATA_STREAM, SUPER_UNLIMITED_USER },
-            new Object[] {TEST_DATA_STREAM, HASHED_LOC_USER },
-            new Object[] {TEST_ALIAS, HASHED_IP_ALIAS_USER },
-            new Object[] {TEST_ALIAS, ADMIN },
-            new Object[] {TEST_ALIAS, SUPER_UNLIMITED_USER },
-            new Object[] {TEST_ALIAS, HASHED_LOC_USER },
-            new Object[] {TEST_INDEX, HASHED_GEO_POINT_USER },
-            new Object[] {TEST_ALIAS, HASHED_GEO_POINT_USER },
-            new Object[] {TEST_DATA_STREAM, HASHED_GEO_POINT_USER }
-        );
+        List<Object[]> result = new ArrayList<>(INDEX_AND_USER.length * FetchPhase.values().length);
+
+        for (FetchPhase fetchPhase : FetchPhase.values()) {
+            for (Object[] indexAndUser : INDEX_AND_USER) {
+                result.add(new Object[] { indexAndUser[0], indexAndUser[1], fetchPhase });
+            }
+        }
+
+        return result;
     }
 
-    public FmIntTest(TestIndexLike testIndexLike, TestSgConfig.User user) {
+    public FmIntTest(TestIndexLike testIndexLike, TestSgConfig.User user, FetchPhase fetchPhase) {
         this.testIndexLike = testIndexLike;
         this.user = user;
+        this.cluster = fetchPhase.cluster();
     }
 
     @Test

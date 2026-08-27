@@ -57,10 +57,26 @@ import java.util.Map;
 
 public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
     
+    /**
+     * Elasticsearch 9.5.2 enables the chunked fetch phase by default. It routes the fetch through
+     * TransportFetchPhaseCoordinationAction, which stashes the thread context and restores only headers, so the data
+     * node used to run the fetch without a user and emitted no COMPLIANCE_DOC_READ at all. The test is therefore run
+     * both with whatever Elasticsearch has as default and with the chunked fetch phase pinned, so that both code paths
+     * stay covered no matter which way the Elasticsearch default moves.
+     */
     @Test
     public void testSourceFilter() throws Exception {
+        testSourceFilter(null);
+    }
 
-        Settings additionalSettings = Settings.builder()
+    @Test
+    public void testSourceFilterWithChunkedFetchPhase() throws Exception {
+        testSourceFilter(Boolean.TRUE);
+    }
+
+    private void testSourceFilter(Boolean chunkedFetchPhase) throws Exception {
+
+        Settings.Builder additionalSettings = Settings.builder()
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
@@ -69,16 +85,13 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS, "emp")
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
-                .put("searchguard.audit.threadpool.size", 0)
-                // Elasticsearch 9.5.2 enables the chunked fetch phase by default. It routes the fetch through
-                // TransportFetchPhaseCoordinationAction, which stashes the thread context and restores only headers,
-                // so the data node used to run the fetch without a user and emitted no COMPLIANCE_DOC_READ at all.
-                // The setting is pinned here so that this test keeps covering that code path if the Elasticsearch
-                // default changes again.
-                .put(SearchService.FETCH_PHASE_CHUNKED_ENABLED.getKey(), true)
-                .build();
+                .put("searchguard.audit.threadpool.size", 0);
 
-        setup(additionalSettings);
+        if (chunkedFetchPhase != null) {
+            additionalSettings.put(SearchService.FETCH_PHASE_CHUNKED_ENABLED.getKey(), chunkedFetchPhase.booleanValue());
+        }
+
+        setup(additionalSettings.build());
         final boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;
         final String keystore = rh.keystore;
         rh.sendHTTPClientCertificate = true;
@@ -116,10 +129,26 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
     
+    /**
+     * Elasticsearch 9.5.2 enables the chunked fetch phase by default. It routes the fetch through
+     * TransportFetchPhaseCoordinationAction, which stashes the thread context and restores only headers, so the data
+     * node used to run the fetch without a user and emitted no COMPLIANCE_DOC_READ at all. The test is therefore run
+     * both with whatever Elasticsearch has as default and with the chunked fetch phase pinned, so that both code paths
+     * stay covered no matter which way the Elasticsearch default moves.
+     */
     @Test
     public void testSourceFilterMsearch() throws Exception {
+        testSourceFilterMsearch(null);
+    }
 
-        Settings additionalSettings = Settings.builder()
+    @Test
+    public void testSourceFilterMsearchWithChunkedFetchPhase() throws Exception {
+        testSourceFilterMsearch(Boolean.TRUE);
+    }
+
+    private void testSourceFilterMsearch(Boolean chunkedFetchPhase) throws Exception {
+
+        Settings.Builder additionalSettings = Settings.builder()
                 .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true)
@@ -128,16 +157,13 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
                 .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS, "emp")
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
                 .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
-                .put("searchguard.audit.threadpool.size", 0)
-                // Elasticsearch 9.5.2 enables the chunked fetch phase by default. It routes the fetch through
-                // TransportFetchPhaseCoordinationAction, which stashes the thread context and restores only headers,
-                // so the data node used to run the fetch without a user and emitted no COMPLIANCE_DOC_READ at all.
-                // The setting is pinned here so that this test keeps covering that code path if the Elasticsearch
-                // default changes again.
-                .put(SearchService.FETCH_PHASE_CHUNKED_ENABLED.getKey(), true)
-                .build();
+                .put("searchguard.audit.threadpool.size", 0);
 
-        setup(additionalSettings);
+        if (chunkedFetchPhase != null) {
+            additionalSettings.put(SearchService.FETCH_PHASE_CHUNKED_ENABLED.getKey(), chunkedFetchPhase.booleanValue());
+        }
+
+        setup(additionalSettings.build());
         final boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;
         final String keystore = rh.keystore;
         rh.sendHTTPClientCertificate = true;
