@@ -53,6 +53,7 @@ import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.metrics.CountAggregation;
 import com.floragunn.searchsupport.cstate.metrics.Meter;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import com.floragunn.searchsupport.diag.MissingUserReporting;
 import com.floragunn.searchsupport.meta.Meta;
 import com.floragunn.searchsupport.cstate.metrics.MetricsLevel;
 
@@ -70,15 +71,17 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
     private final ComponentState componentState;
     private final TimeAggregation directoryReaderWrapperApplyAggregation;
     private final CountAggregation noPrivilegesEvaluationContextCount;
+    private final MissingUserReporting missingUserReporting;
     private final AtomicLong noPrivilegesEvaluationContextLastLogged = new AtomicLong();
 
     public DlsFlsDirectoryReaderWrapper(IndexService indexService, AuditLog auditlog, DlsFlsBaseContext dlsFlsBaseContext,
             AtomicReference<DlsFlsProcessedConfig> config, AtomicReference<DlsFlsLicenseInfo> licenseInfo,
             ComponentState directoryReaderWrapperComponentState, TimeAggregation directoryReaderWrapperApplyAggregation,
-            CountAggregation noPrivilegesEvaluationContextCount) {
+            CountAggregation noPrivilegesEvaluationContextCount, MissingUserReporting missingUserReporting) {
         this.componentState = directoryReaderWrapperComponentState;
         this.directoryReaderWrapperApplyAggregation = directoryReaderWrapperApplyAggregation;
         this.noPrivilegesEvaluationContextCount = noPrivilegesEvaluationContextCount;
+        this.missingUserReporting = missingUserReporting;
         this.indexService = indexService;
         this.index = indexService.index();
         this.auditlog = auditlog;
@@ -170,10 +173,16 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
      * all, so this must not pass unnoticed: it is how a search reaches the shard without the security context, which
      * happens when Elasticsearch introduces a code path that does not carry the thread context transients along (see
      * the chunked fetch phase of Elasticsearch 9.5.2). Legitimate causes are internal reads which never carry a user.
-     * The counter is always maintained, the log message is throttled because this is on the search hot path.
+     * The counter is always maintained. The log message is off by default because internal reads produce it during
+     * normal operation; it is enabled with searchguard.diagnosis.report_missing_user.enabled, which is a dynamic
+     * cluster setting. It is additionally throttled because this is on the search hot path.
      */
     private void reportNoPrivilegesEvaluationContext() {
         noPrivilegesEvaluationContextCount.increment();
+
+        if (!missingUserReporting.isEnabled()) {
+            return;
+        }
 
         long now = System.currentTimeMillis();
         long lastLogged = noPrivilegesEvaluationContextLastLogged.get();

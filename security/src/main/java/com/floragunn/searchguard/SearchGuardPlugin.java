@@ -191,6 +191,7 @@ import com.floragunn.searchguard.transport.InterClusterRequestEvaluator;
 import com.floragunn.searchguard.transport.SearchGuardInterceptor;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
+import com.floragunn.searchsupport.diag.MissingUserReporting;
 import com.floragunn.searchsupport.meta.Meta;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
@@ -1129,6 +1130,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             settings.addAll(ConfigurationRepository.STATIC_SETTINGS.toPlatform());
             settings.addAll(moduleRegistry.getSettings());
             settings.addAll(DiagnosticContext.SETTINGS);
+            settings.add(MissingUserReporting.ENABLED);
             settings.addAll(PrivilegesEvaluator.STATIC_SETTINGS.toPlatform());
             settings.addAll(AuthorizationService.STATIC_SETTINGS.toPlatform());
 

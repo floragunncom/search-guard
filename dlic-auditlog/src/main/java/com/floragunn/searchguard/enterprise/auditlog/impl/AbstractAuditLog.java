@@ -31,6 +31,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchguard.user.UserInformation;
 import com.floragunn.searchsupport.PrivilegedCode;
+import com.floragunn.searchsupport.diag.MissingUserReporting;
 import com.google.common.io.BaseEncoding;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -95,6 +96,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     private static final long COMPLIANCE_SKIPPED_LOG_INTERVAL = 60_000;
     private final AtomicLong complianceEventsSkippedBecauseOfMissingUser = new AtomicLong();
     private final AtomicLong complianceSkippedLastLogged = new AtomicLong();
+    private final MissingUserReporting missingUserReporting;
     protected final ThreadPool threadPool;
     protected final IndexNameExpressionResolver resolver;
 
@@ -150,6 +152,8 @@ public abstract class AbstractAuditLog implements AuditLog {
                 }
             });
         }
+
+        this.missingUserReporting = new MissingUserReporting(settings, clusterService);
 
         this.configurationRepository = configurationRepository;
         this.searchguardIndexPattern = configurationRepository != null ? configurationRepository.getConfiguredSearchguardIndices() : Pattern.blank();
@@ -1186,10 +1190,15 @@ public abstract class AbstractAuditLog implements AuditLog {
      * Compliance events are dropped when no user is available, so a code path which loses the security context makes
      * the read history silently incomplete instead of failing. That is how the chunked fetch phase of Elasticsearch
      * 9.5.2 stopped COMPLIANCE_DOC_READ from being written at all. Internal reads legitimately have no user, hence a
-     * counter which is always maintained and a log message which is throttled.
+     * counter which is always maintained and a log message which is off by default and throttled when it is enabled
+     * with the dynamic cluster setting searchguard.diagnosis.report_missing_user.enabled.
      */
     private void reportSkippedBecauseOfMissingUser(Category category) {
         long skipped = complianceEventsSkippedBecauseOfMissingUser.incrementAndGet();
+
+        if (!missingUserReporting.isEnabled()) {
+            return;
+        }
 
         // Only COMPLIANCE_DOC_READ is worth a log message. Skipping it means the read history of the documents of a
         // user is incomplete, which is what the chunked fetch phase of Elasticsearch 9.5.2 caused. The other categories

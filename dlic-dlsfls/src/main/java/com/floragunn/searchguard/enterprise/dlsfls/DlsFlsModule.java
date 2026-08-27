@@ -49,6 +49,7 @@ import com.floragunn.searchsupport.cstate.ComponentState;
 import com.floragunn.searchsupport.cstate.ComponentStateProvider;
 import com.floragunn.searchsupport.cstate.metrics.CountAggregation;
 import com.floragunn.searchsupport.cstate.metrics.TimeAggregation;
+import com.floragunn.searchsupport.diag.MissingUserReporting;
 import com.floragunn.searchsupport.meta.Meta;
 
 public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
@@ -83,6 +84,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     private AtomicReference<DlsFlsLicenseInfo> licenseInfo = new AtomicReference<>(new DlsFlsLicenseInfo(false));
     private FlsQueryCacheWeightProvider flsQueryCacheWeightProvider;
     private ClusterService clusterService;
+    private MissingUserReporting missingUserReporting = MissingUserReporting.DISABLED;
     private Function<IndexService, CheckedFunction<DirectoryReader, DirectoryReader, IOException>> directoryReaderWrapperFactory;
     private ThreadPool threadPool;
 
@@ -96,6 +98,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
     public Collection<Object> createComponents(BaseDependencies baseDependencies) {
 
         this.clusterService = baseDependencies.getClusterService();
+        this.missingUserReporting = new MissingUserReporting(baseDependencies.getSettings(), this.clusterService);
 
         Supplier<Meta> metaSupplier = () -> Meta.from(baseDependencies.getClusterService());
         this.dlsFlsBaseContext = new DlsFlsBaseContext(baseDependencies.getAuthInfoService(), baseDependencies.getAuthorizationService(),
@@ -113,7 +116,7 @@ public class DlsFlsModule implements SearchGuardModule, ComponentStateProvider {
 
         this.directoryReaderWrapperFactory = (indexService) -> new DlsFlsDirectoryReaderWrapper(indexService, baseDependencies.getAuditLog(),
                 this.dlsFlsBaseContext, config, this.licenseInfo, directoryReaderWrapperComponentState, directoryReaderWrapperApplyAggregation,
-                noPrivilegesEvaluationContextCount);
+                noPrivilegesEvaluationContextCount, missingUserReporting);
 
         this.componentState.addParts(this.dlsFlsValve.getComponentState(), this.dlsFlsSearchOperationListener.getComponentState(),
                 this.flsFieldFilter.getComponentState(), this.flsQueryCacheWeightProvider.getComponentState());
