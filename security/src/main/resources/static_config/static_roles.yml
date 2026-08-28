@@ -333,8 +333,17 @@ SGS_KIBANA_SERVER:
     - ".internal.cases*"
     - ".workflows-*"
     - ".significant_events-*"
+    - ".cases"
+    - ".cases-*"
+    - ".slo-observability.composite-summary-v*"
     allowed_actions:
     - "SGS_INDICES_ALL"
+  - index_patterns:
+    - "$.alert-actions"
+    - "$.alert-episodes"
+    - "$.rule-events"
+    allowed_actions:
+    - "indices:admin/esql/view/*"
   - index_patterns:
       - "security_solution-cloud_security_posture.*"
     allowed_actions:
@@ -379,6 +388,10 @@ SGS_KIBANA_SERVER:
         - "logs*"
         - ".slo-observability.*"
         - ".workflows-events"
+        - ".significant_events-*"
+        - ".kibana_change_history"
+        - ".alert-actions"
+        - ".rule-events"
       allowed_actions:
         - "*"
 
