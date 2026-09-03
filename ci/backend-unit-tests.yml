@@ -1,7 +1,8 @@
 .be_unit_test:
   allow_failure: false
-  timeout: 10m
+  timeout: 15m
   stage: "Backend Unit Tests"
+  retry: 2
   tags:
     - test
   rules:

@@ -393,17 +393,59 @@ public class TestSgConfig {
             writeConfigVars(client, variableSuppliers);
         }
 
-        ConfigVarRefreshAction.Response configVarRefreshResponse = client.execute(ConfigVarRefreshAction.INSTANCE, new ConfigVarRefreshAction.Request()).actionGet();
-        if (configVarRefreshResponse.hasFailures()) {
-            throw new RuntimeException("ConfigVarRefreshAction.Response produced failures: " + configVarRefreshResponse.failures());
+        executeWithRetryOnNodeFailures("ConfigVarRefreshAction", () -> {
+            ConfigVarRefreshAction.Response response = client.execute(ConfigVarRefreshAction.INSTANCE, new ConfigVarRefreshAction.Request())
+                    .actionGet();
+            return response.hasFailures() ? String.valueOf(response.failures()) : null;
+        });
+
+        executeWithRetryOnNodeFailures("ConfigUpdateResponse", () -> {
+            ConfigUpdateResponse response = client
+                    .execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]))).actionGet();
+            return response.hasFailures() ? String.valueOf(response.failures()) : null;
+        });
+    }
+
+    /**
+     * Executes an idempotent broadcast nodes action and retries it on transient node failures. Immediately after the
+     * cluster has formed, a node can still be joining/initializing, so the action can come back with a transient
+     * {@code FailedNodeException} (e.g. the node is not connected yet) - or the call can throw outright. Retrying a
+     * few times avoids failing the whole test cluster start over a startup race.
+     *
+     * @param actionName label used in log/exception messages
+     * @param action     runs the action, returning {@code null} on success or a description of the failures otherwise
+     */
+    private static void executeWithRetryOnNodeFailures(String actionName, Supplier<String> action) {
+        // Budget ~20s of retries: on a heavily loaded machine a node can still be joining well after the cluster went
+        // green, and a too-short budget (a few hundred ms) lets a transient FailedNodeException fail the whole cluster
+        // start. This is idempotent startup work, so retrying generously is safe.
+        int maxAttempts = 20;
+        long backoffMillis = 1000;
+        String lastFailure = null;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                lastFailure = action.get();
+                if (lastFailure == null) {
+                    return;
+                }
+            } catch (RuntimeException e) {
+                lastFailure = e.toString();
+            }
+
+            log.info("{} produced failures (attempt {}/{}), retrying: {}", actionName, attempt, maxAttempts, lastFailure);
+
+            if (attempt < maxAttempts) {
+                try {
+                    Thread.sleep(backoffMillis);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
         }
 
-        ConfigUpdateResponse configUpdateResponse = client
-                .execute(ConfigUpdateAction.INSTANCE, new ConfigUpdateRequest(CType.lcStringValues().toArray(new String[0]))).actionGet();
-
-        if (configUpdateResponse.hasFailures()) {
-            throw new RuntimeException("ConfigUpdateResponse produced failures: " + configUpdateResponse.failures());
-        }
+        throw new RuntimeException(actionName + " produced failures: " + lastFailure);
     }
 
     public void initByConfigRestApi(GenericRestClient client) throws Exception {

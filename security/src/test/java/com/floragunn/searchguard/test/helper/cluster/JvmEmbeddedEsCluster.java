@@ -108,9 +108,11 @@ public class JvmEmbeddedEsCluster extends LocalEsCluster {
 
     public void waitForGreenCluster() throws Exception {
         ClusterHealthStatus status = ClusterHealthStatus.GREEN;
-        // Generous ceiling: on a loaded CI machine, allocating the replica shards of the Search Guard/system indices can take well over 10s,
-        // leaving the cluster transiently YELLOW even though all nodes have joined. Aligned with the external process cluster (30s).
-        TimeValue timeout = TimeValue.timeValueSeconds(30);
+        // Generous ceiling: allocating the replica shards of the Search Guard/system indices can take a while, leaving
+        // the cluster transiently YELLOW even though all nodes have joined. Surefire runs forkCount=3, so several
+        // multi-node embedded clusters may be recovering shards at the same time and starving each other of CPU;
+        // 30s proved too tight under that load (seen even on a well-resourced developer machine), so allow 60s.
+        TimeValue timeout = TimeValue.timeValueSeconds(60);
         int expectedNodeCount = allNodes.size();
         Client client = clientNode().getInternalNodeClient();
 

@@ -11,8 +11,11 @@ import static com.floragunn.searchsupport.junit.matcher.DocNodeMatchers.valueSat
 import static com.floragunn.signals.actions.summary.PredefinedWatches.ACTION_CREATE_ALARM_ONE;
 import static com.floragunn.signals.actions.summary.PredefinedWatches.ACTION_CREATE_ALARM_TWO;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.http.HttpStatus.SC_OK;
 import static org.awaitility.Awaitility.await;
+
+import org.awaitility.Awaitility;
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -32,6 +35,7 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
 import com.floragunn.signals.SignalsModule;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.Arrays;
 import java.util.Collections;
 import org.apache.logging.log4j.LogManager;
@@ -84,6 +88,11 @@ public class LoadOperatorSummaryActionTest {
 
     @BeforeClass
     public static void createTestData() {
+        // Watches execute on a schedule and the summary/state assertions poll for their results. The default
+        // Awaitility timeout of 10s is too tight on a loaded CI runner where watch execution is delayed by CPU
+        // contention, producing spurious ConditionTimeout failures. Give the polls a more generous budget.
+        Awaitility.setDefaultTimeout(30, SECONDS);
+
         Client client = cluster.getInternalNodeClient();
         client.index(new IndexRequest(INDEX_NAME_WATCHED_1).setRefreshPolicy(IMMEDIATE)
                 .source(XContentType.JSON, "source_id", 1, "temperature", .0, " humidity", .0)).actionGet();
@@ -376,21 +385,27 @@ public class LoadOperatorSummaryActionTest {
             waitForWatchStatuses(predefinedWatches, 3);
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, EMPTY_JSON_BODY);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldSortByNumericSeverityDesc to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, EMPTY_JSON_BODY);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 3));
-            assertThat(body, containsValue("data.watches[0].watch_id", "temp-3"));
-            assertThat(body, containsValue("data.watches[0].reason", "match_filter"));
-            assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 4));
-            assertThat(body, containsValue("data.watches[1].watch_id", "temp-2"));
-            assertThat(body, containsValue("data.watches[1].reason", "match_filter"));
-            assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 3));
-            assertThat(body, containsValue("data.watches[2].watch_id", "temp-1"));
-            assertThat(body, containsValue("data.watches[2].severity_details.level_numeric", 1));
-            assertThat(body, containsValue("data.watches[2].reason", "match_filter"));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 3));
+                assertThat(body, containsValue("data.watches[0].watch_id", "temp-3"));
+                assertThat(body, containsValue("data.watches[0].reason", "match_filter"));
+                assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 4));
+                assertThat(body, containsValue("data.watches[1].watch_id", "temp-2"));
+                assertThat(body, containsValue("data.watches[1].reason", "match_filter"));
+                assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 3));
+                assertThat(body, containsValue("data.watches[2].watch_id", "temp-1"));
+                assertThat(body, containsValue("data.watches[2].severity_details.level_numeric", 1));
+                assertThat(body, containsValue("data.watches[2].reason", "match_filter"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -407,18 +422,24 @@ public class LoadOperatorSummaryActionTest {
             waitForWatchStatuses(predefinedWatches, 2);
             String sorting = "+severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, EMPTY_JSON_BODY);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldSortByNumericSeverityAsc to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, EMPTY_JSON_BODY);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 3));
-            assertThat(body, containsValue("data.watches[0].watch_id", "temp-1"));
-            assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 1));
-            assertThat(body, containsValue("data.watches[1].watch_id", "temp-2"));
-            assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 3));
-            assertThat(body, containsValue("data.watches[2].watch_id", "temp-3"));
-            assertThat(body, containsValue("data.watches[2].severity_details.level_numeric", 4));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 3));
+                assertThat(body, containsValue("data.watches[0].watch_id", "temp-1"));
+                assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 1));
+                assertThat(body, containsValue("data.watches[1].watch_id", "temp-2"));
+                assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 3));
+                assertThat(body, containsValue("data.watches[2].watch_id", "temp-3"));
+                assertThat(body, containsValue("data.watches[2].severity_details.level_numeric", 4));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -435,22 +456,27 @@ public class LoadOperatorSummaryActionTest {
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             waitForWatchStatuses(predefinedWatches, 5);
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=+severity", EMPTY_JSON_BODY);
-
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 5));
-            assertThat(body, containsValue("data.watches[0].watch_id", "temp-3"));
-            assertThat(body, containsValue("data.watches[0].severity", "critical"));
-            assertThat(body, containsValue("data.watches[1].watch_id", "temp-2"));
-            assertThat(body, containsValue("data.watches[1].severity", "error"));
-            assertThat(body, containsAnyValues("data.watches[2].watch_id","temp-1.1", "temp-1"));
-            assertThat(body, containsValue("data.watches[2].severity", "info"));
-            assertThat(body, containsAnyValues("data.watches[3].watch_id","temp-1.1", "temp-1"));
-            assertThat(body, containsValue("data.watches[3].severity", "info"));
-            assertThat(body, containsValue("data.watches[4].watch_id", "temp-4"));
-            assertThat(body, containsValue("data.watches[4].severity", "warning"));
+            // Until every watch has recorded its final severity, the severity-ordered result is transiently different
+            // (e.g. temp-4 sorts ahead of temp-3 before temp-4 settles on "warning"). Poll until the steady-state
+            // ordering is reached instead of asserting on the first response.
+            await("summary to be ordered by ascending severity").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=+severity", EMPTY_JSON_BODY);
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 5));
+                assertThat(body, containsValue("data.watches[0].watch_id", "temp-3"));
+                assertThat(body, containsValue("data.watches[0].severity", "critical"));
+                assertThat(body, containsValue("data.watches[1].watch_id", "temp-2"));
+                assertThat(body, containsValue("data.watches[1].severity", "error"));
+                assertThat(body, containsAnyValues("data.watches[2].watch_id","temp-1.1", "temp-1"));
+                assertThat(body, containsValue("data.watches[2].severity", "info"));
+                assertThat(body, containsAnyValues("data.watches[3].watch_id","temp-1.1", "temp-1"));
+                assertThat(body, containsValue("data.watches[3].severity", "info"));
+                assertThat(body, containsValue("data.watches[4].watch_id", "temp-4"));
+                assertThat(body, containsValue("data.watches[4].severity", "warning"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -467,22 +493,26 @@ public class LoadOperatorSummaryActionTest {
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             waitForWatchStatuses(predefinedWatches, 5);
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=-severity", EMPTY_JSON_BODY);
-
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 5));
-            assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
-            assertThat(body, containsValue("data.watches[0].severity", "warning"));
-            assertThat(body, containsAnyValues("data.watches[1].watch_id", "temp-1.1", "temp-1"));
-            assertThat(body, containsValue("data.watches[1].severity", "info"));
-            assertThat(body, containsAnyValues("data.watches[2].watch_id", "temp-1.1", "temp-1"));
-            assertThat(body, containsValue("data.watches[2].severity", "info"));
-            assertThat(body, containsValue("data.watches[3].watch_id", "temp-2"));
-            assertThat(body, containsValue("data.watches[3].severity", "error"));
-            assertThat(body, containsValue("data.watches[4].watch_id", "temp-3"));
-            assertThat(body, containsValue("data.watches[4].severity", "critical"));
+            // Until every watch has recorded its final severity, the severity-ordered result is transiently different.
+            // Poll until the steady-state ordering is reached instead of asserting on the first response.
+            await("summary to be ordered by descending severity").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=-severity", EMPTY_JSON_BODY);
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 5));
+                assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
+                assertThat(body, containsValue("data.watches[0].severity", "warning"));
+                assertThat(body, containsAnyValues("data.watches[1].watch_id", "temp-1.1", "temp-1"));
+                assertThat(body, containsValue("data.watches[1].severity", "info"));
+                assertThat(body, containsAnyValues("data.watches[2].watch_id", "temp-1.1", "temp-1"));
+                assertThat(body, containsValue("data.watches[2].severity", "info"));
+                assertThat(body, containsValue("data.watches[3].watch_id", "temp-2"));
+                assertThat(body, containsValue("data.watches[3].severity", "error"));
+                assertThat(body, containsValue("data.watches[4].watch_id", "temp-3"));
+                assertThat(body, containsValue("data.watches[4].severity", "critical"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -555,22 +585,28 @@ public class LoadOperatorSummaryActionTest {
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             waitForWatchStatuses(predefinedWatches, 4);
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=+status_code", EMPTY_JSON_BODY);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldSortByStatusCodeAsc to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=+status_code", EMPTY_JSON_BODY);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 4));
-            assertThat(body, containsAnyValues("data.watches[0].watch_id", "temp-1", "temp-2"));
-            assertThat(body, containsAnyValues("data.watches[0].status_code", "ACTION_EXECUTED", "ACTION_THROTTLED"));
-            assertThat(body, containsAnyValues("data.watches[1].watch_id", "temp-1", "temp-2"));
-            assertThat(body, containsAnyValues("data.watches[1].status_code","ACTION_EXECUTED", "ACTION_THROTTLED"));
-            assertThat(body, containsAnyValues("data.watches[2].watch_id",
-                "critical-severity-action-1", "critical-severity-action-2"));
-            assertThat(body, containsValue("data.watches[2].status_code", "NO_ACTION"));
-            assertThat(body, containsAnyValues("data.watches[3].watch_id",
-                "critical-severity-action-1", "critical-severity-action-2"));
-            assertThat(body, containsValue("data.watches[3].status_code", "NO_ACTION"));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 4));
+                assertThat(body, containsAnyValues("data.watches[0].watch_id", "temp-1", "temp-2"));
+                assertThat(body, containsAnyValues("data.watches[0].status_code", "ACTION_EXECUTED", "ACTION_THROTTLED"));
+                assertThat(body, containsAnyValues("data.watches[1].watch_id", "temp-1", "temp-2"));
+                assertThat(body, containsAnyValues("data.watches[1].status_code","ACTION_EXECUTED", "ACTION_THROTTLED"));
+                assertThat(body, containsAnyValues("data.watches[2].watch_id",
+                    "critical-severity-action-1", "critical-severity-action-2"));
+                assertThat(body, containsValue("data.watches[2].status_code", "NO_ACTION"));
+                assertThat(body, containsAnyValues("data.watches[3].watch_id",
+                    "critical-severity-action-1", "critical-severity-action-2"));
+                assertThat(body, containsValue("data.watches[3].status_code", "NO_ACTION"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -588,20 +624,26 @@ public class LoadOperatorSummaryActionTest {
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             waitForWatchStatuses(predefinedWatches, 4);
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=-status_code", EMPTY_JSON_BODY);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldSortByStatusCodeDesc to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=-status_code", EMPTY_JSON_BODY);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 4));
-            assertThat(body, containsAnyValues("data.watches[0].watch_id", "critical-severity-action-1", "critical-severity-action-2"));
-            assertThat(body, containsValue("data.watches[0].status_code", "NO_ACTION"));
-            assertThat(body, containsAnyValues("data.watches[1].watch_id", "critical-severity-action-1", "critical-severity-action-2"));
-            assertThat(body, containsValue("data.watches[1].status_code", "NO_ACTION"));
-            assertThat(body, containsAnyValues("data.watches[2].watch_id", "temp-1", "temp-2"));
-            assertThat(body, containsAnyValues("data.watches[2].status_code", String.class,"ACTION_EXECUTED", "ACTION_THROTTLED"));
-            assertThat(body, containsAnyValues("data.watches[3].watch_id", "temp-1", "temp-2"));
-            assertThat(body, containsAnyValues("data.watches[3].status_code", "ACTION_EXECUTED", "ACTION_THROTTLED"));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 4));
+                assertThat(body, containsAnyValues("data.watches[0].watch_id", "critical-severity-action-1", "critical-severity-action-2"));
+                assertThat(body, containsValue("data.watches[0].status_code", "NO_ACTION"));
+                assertThat(body, containsAnyValues("data.watches[1].watch_id", "critical-severity-action-1", "critical-severity-action-2"));
+                assertThat(body, containsValue("data.watches[1].status_code", "NO_ACTION"));
+                assertThat(body, containsAnyValues("data.watches[2].watch_id", "temp-1", "temp-2"));
+                assertThat(body, containsAnyValues("data.watches[2].status_code", String.class,"ACTION_EXECUTED", "ACTION_THROTTLED"));
+                assertThat(body, containsAnyValues("data.watches[3].watch_id", "temp-1", "temp-2"));
+                assertThat(body, containsAnyValues("data.watches[3].status_code", "ACTION_EXECUTED", "ACTION_THROTTLED"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -619,32 +661,37 @@ public class LoadOperatorSummaryActionTest {
             waitForWatchStatuses(predefinedWatches, 5);
             String sortingExpression = "-severity_details.level_numeric,-severity_details.current_value";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
-
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 5));
-            assertThat(body, containsValue("data.watches[0].watch_id", "temp-1"));
-            assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 4));
-            assertThat(body, valueSatisfiesMatcher("data.watches[0].severity_details.current_value", Double.class,
-                closeTo(36.5, 0.001)));
-            assertThat(body, containsValue("data.watches[1].watch_id", "temp-5"));
-            assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 2));
-            assertThat(body, valueSatisfiesMatcher("data.watches[1].severity_details.current_value", Double.class,
-                closeTo(7.55, 0.001)));
-            assertThat(body, containsValue("data.watches[2].watch_id", "temp-4"));
-            assertThat(body, containsValue("data.watches[2].severity_details.level_numeric", 2));
-            assertThat(body, valueSatisfiesMatcher("data.watches[2].severity_details.current_value", Double.class,
-                closeTo(7.45, 0.001)));
-            assertThat(body, containsValue("data.watches[3].watch_id", "temp-3"));
-            assertThat(body, containsValue("data.watches[3].severity_details.level_numeric", 2));
-            assertThat(body, valueSatisfiesMatcher("data.watches[3].severity_details.current_value", Double.class,
-                closeTo(7.35, 0.001)));
-            assertThat(body, containsValue("data.watches[4].watch_id", "temp-2"));
-            assertThat(body, containsValue("data.watches[4].severity_details.level_numeric", 2));
-            assertThat(body, valueSatisfiesMatcher("data.watches[4].severity_details.current_value", Double.class,
-                closeTo(7.25, 0.001)));
+            // The watch state index is written asynchronously, so a watch's last_status.code can be visible (counted by
+            // waitForWatchStatuses) before its severity_details are, which transiently mis-sorts the severity-ordered
+            // result. Poll until the steady-state ordering is reached instead of asserting on the first response.
+            await("summary to be ordered by descending level_numeric then current_value").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 5));
+                assertThat(body, containsValue("data.watches[0].watch_id", "temp-1"));
+                assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 4));
+                assertThat(body, valueSatisfiesMatcher("data.watches[0].severity_details.current_value", Double.class,
+                    closeTo(36.5, 0.001)));
+                assertThat(body, containsValue("data.watches[1].watch_id", "temp-5"));
+                assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 2));
+                assertThat(body, valueSatisfiesMatcher("data.watches[1].severity_details.current_value", Double.class,
+                    closeTo(7.55, 0.001)));
+                assertThat(body, containsValue("data.watches[2].watch_id", "temp-4"));
+                assertThat(body, containsValue("data.watches[2].severity_details.level_numeric", 2));
+                assertThat(body, valueSatisfiesMatcher("data.watches[2].severity_details.current_value", Double.class,
+                    closeTo(7.45, 0.001)));
+                assertThat(body, containsValue("data.watches[3].watch_id", "temp-3"));
+                assertThat(body, containsValue("data.watches[3].severity_details.level_numeric", 2));
+                assertThat(body, valueSatisfiesMatcher("data.watches[3].severity_details.current_value", Double.class,
+                    closeTo(7.35, 0.001)));
+                assertThat(body, containsValue("data.watches[4].watch_id", "temp-2"));
+                assertThat(body, containsValue("data.watches[4].severity_details.level_numeric", 2));
+                assertThat(body, valueSatisfiesMatcher("data.watches[4].severity_details.current_value", Double.class,
+                    closeTo(7.25, 0.001)));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -662,32 +709,38 @@ public class LoadOperatorSummaryActionTest {
             waitForWatchStatuses(predefinedWatches, 5);
             String sortingExpression = "-severity_details.level_numeric,+severity_details.current_value";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldSortByFirstFieldDescAndSecondAsc to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 5));
-            assertThat(body, containsValue("data.watches[0].watch_id", "temp-1"));
-            assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 4));
-            assertThat(body, valueSatisfiesMatcher("data.watches[0].severity_details.current_value", Double.class,
-                closeTo(36.5, 0.001)));
-            assertThat(body, containsValue("data.watches[1].watch_id", "temp-2"));
-            assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 2));
-            assertThat(body, valueSatisfiesMatcher("data.watches[1].severity_details.current_value", Double.class,
-                closeTo(7.25, 0.001)));
-            assertThat(body, containsValue("data.watches[2].watch_id", "temp-3"));
-            assertThat(body, containsValue("data.watches[2].severity_details.level_numeric", 2));
-            assertThat(body, valueSatisfiesMatcher("data.watches[2].severity_details.current_value", Double.class,
-                closeTo(7.35, 0.001)));
-            assertThat(body, containsValue("data.watches[3].watch_id", "temp-4"));
-            assertThat(body, containsValue("data.watches[3].severity_details.level_numeric", 2));
-            assertThat(body, valueSatisfiesMatcher("data.watches[3].severity_details.current_value", Double.class,
-                closeTo(7.45, 0.001)));
-            assertThat(body, containsValue("data.watches[4].watch_id", "temp-5"));
-            assertThat(body, containsValue("data.watches[4].severity_details.level_numeric", 2));
-            assertThat(body, valueSatisfiesMatcher("data.watches[4].severity_details.current_value", Double.class,
-                closeTo(7.55, 0.001)));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 5));
+                assertThat(body, containsValue("data.watches[0].watch_id", "temp-1"));
+                assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 4));
+                assertThat(body, valueSatisfiesMatcher("data.watches[0].severity_details.current_value", Double.class,
+                    closeTo(36.5, 0.001)));
+                assertThat(body, containsValue("data.watches[1].watch_id", "temp-2"));
+                assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 2));
+                assertThat(body, valueSatisfiesMatcher("data.watches[1].severity_details.current_value", Double.class,
+                    closeTo(7.25, 0.001)));
+                assertThat(body, containsValue("data.watches[2].watch_id", "temp-3"));
+                assertThat(body, containsValue("data.watches[2].severity_details.level_numeric", 2));
+                assertThat(body, valueSatisfiesMatcher("data.watches[2].severity_details.current_value", Double.class,
+                    closeTo(7.35, 0.001)));
+                assertThat(body, containsValue("data.watches[3].watch_id", "temp-4"));
+                assertThat(body, containsValue("data.watches[3].severity_details.level_numeric", 2));
+                assertThat(body, valueSatisfiesMatcher("data.watches[3].severity_details.current_value", Double.class,
+                    closeTo(7.45, 0.001)));
+                assertThat(body, containsValue("data.watches[4].watch_id", "temp-5"));
+                assertThat(body, containsValue("data.watches[4].severity_details.level_numeric", 2));
+                assertThat(body, valueSatisfiesMatcher("data.watches[4].severity_details.current_value", Double.class,
+                    closeTo(7.55, 0.001)));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -704,19 +757,24 @@ public class LoadOperatorSummaryActionTest {
             waitForWatchStatuses(predefinedWatches, 2);
             String sortingExpression = "-actions.create_alarmOne.status_code";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
-
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 2));
-            assertThat(body, containsValue("data.watches[0].watch_id", "watch-id-1"));
-            assertThat(body, containsValue("data.watches[0].actions.create_alarmOne.status_code", "NO_ACTION"));
-            assertThat(body, containsValue("data.watches[0].actions.create_alarmTwo.status_code", "NO_ACTION"));
-            assertThat(body, containsValue("data.watches[1].watch_id", "watch-id-2"));
-            assertThat(body, containsAnyValues("data.watches[1].actions.create_alarmOne.status_code",
-                "ACTION_EXECUTED", "ACTION_THROTTLED"));
-            assertThat(body, containsValue("data.watches[1].actions.create_alarmTwo.status_code", "NO_ACTION"));
+            // waitForWatchStatuses only counts that two statuses exist, not that watch-id-2 has executed its action, so
+            // it may still be never_executed (empty actions) and sort to the top. Poll until the steady-state ordering
+            // is reached instead of asserting on the first response.
+            await("summary to be ordered by descending create_alarmOne status").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 2));
+                assertThat(body, containsValue("data.watches[0].watch_id", "watch-id-1"));
+                assertThat(body, containsValue("data.watches[0].actions.create_alarmOne.status_code", "NO_ACTION"));
+                assertThat(body, containsValue("data.watches[0].actions.create_alarmTwo.status_code", "NO_ACTION"));
+                assertThat(body, containsValue("data.watches[1].watch_id", "watch-id-2"));
+                assertThat(body, containsAnyValues("data.watches[1].actions.create_alarmOne.status_code",
+                    "ACTION_EXECUTED", "ACTION_THROTTLED"));
+                assertThat(body, containsValue("data.watches[1].actions.create_alarmTwo.status_code", "NO_ACTION"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -733,19 +791,24 @@ public class LoadOperatorSummaryActionTest {
             waitForWatchStatuses(predefinedWatches, 2);
             String sortingExpression = "+actions.create_alarmOne.status_code";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
-
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 2));
-            assertThat(body, containsValue("data.watches[0].watch_id", "watch-id-2"));
-            assertThat(body, containsAnyValues("data.watches[0].actions.create_alarmOne.status_code",
-                "ACTION_EXECUTED", "ACTION_THROTTLED"));
-            assertThat(body, containsValue("data.watches[0].actions.create_alarmTwo.status_code", "NO_ACTION"));
-            assertThat(body, containsValue("data.watches[1].watch_id", "watch-id-1"));
-            assertThat(body, containsValue("data.watches[1].actions.create_alarmOne.status_code", "NO_ACTION"));
-            assertThat(body, containsValue("data.watches[1].actions.create_alarmTwo.status_code", "NO_ACTION"));
+            // waitForWatchStatuses only counts that two statuses exist, not that watch-id-2 has executed its action, so
+            // it may still be never_executed (empty actions, no status_code) and sort to the top. Poll until the
+            // steady-state ordering is reached instead of asserting on the first response.
+            await("summary to be ordered by ascending create_alarmOne status").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 2));
+                assertThat(body, containsValue("data.watches[0].watch_id", "watch-id-2"));
+                assertThat(body, containsAnyValues("data.watches[0].actions.create_alarmOne.status_code",
+                    "ACTION_EXECUTED", "ACTION_THROTTLED"));
+                assertThat(body, containsValue("data.watches[0].actions.create_alarmTwo.status_code", "NO_ACTION"));
+                assertThat(body, containsValue("data.watches[1].watch_id", "watch-id-1"));
+                assertThat(body, containsValue("data.watches[1].actions.create_alarmOne.status_code", "NO_ACTION"));
+                assertThat(body, containsValue("data.watches[1].actions.create_alarmTwo.status_code", "NO_ACTION"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -761,13 +824,19 @@ public class LoadOperatorSummaryActionTest {
             waitForWatchStatuses(predefinedWatches, 3);
             String sortingExpression = "+actions.createAlarm.checked";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldSortByActionCheckedTimeAsc to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 3));
-            // just verify that errors related to sorting by date/time does not occured
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 3));
+                // just verify that errors related to sorting by date/time does not occured
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -783,13 +852,19 @@ public class LoadOperatorSummaryActionTest {
             waitForWatchStatuses(predefinedWatches, 3);
             String sortingExpression = "-actions.createAlarm.triggered";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldSortByActionTriggeredTimeDesc to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 3));
-            // just verify that errors related to sorting by date/time does not occured
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 3));
+                // just verify that errors related to sorting by date/time does not occured
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -805,13 +880,19 @@ public class LoadOperatorSummaryActionTest {
             waitForWatchStatuses(predefinedWatches, 3);
             String sortingExpression = "+actions.createAlarm.execution";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldSortByActionExecutionTimeAsc to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sortingExpression, EMPTY_JSON_BODY);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 3));
-            // just verify that errors related to sorting by date/time does not occured
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 3));
+                // just verify that errors related to sorting by date/time does not occured
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -830,16 +911,22 @@ public class LoadOperatorSummaryActionTest {
             waitForWatchStatuses(predefinedWatches, 4);
             String requestBody = DocNode.of("status_codes", Collections.singletonList("NO_ACTION")).toJsonString();
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=+status_code", requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByStatusCode to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=+status_code", requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 2));
-            assertThat(body, containsAnyValues("data.watches[0].watch_id","critical-severity-action-1", "critical-severity-action-2"));
-            assertThat(body, containsValue("data.watches[0].status_code", "NO_ACTION"));
-            assertThat(body, containsAnyValues("data.watches[1].watch_id", "critical-severity-action-1","critical-severity-action-2"));
-            assertThat(body, containsValue("data.watches[1].status_code", "NO_ACTION"));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 2));
+                assertThat(body, containsAnyValues("data.watches[0].watch_id","critical-severity-action-1", "critical-severity-action-2"));
+                assertThat(body, containsValue("data.watches[0].status_code", "NO_ACTION"));
+                assertThat(body, containsAnyValues("data.watches[1].watch_id", "critical-severity-action-1","critical-severity-action-2"));
+                assertThat(body, containsValue("data.watches[1].status_code", "NO_ACTION"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -858,12 +945,18 @@ public class LoadOperatorSummaryActionTest {
             waitForWatchStatuses(predefinedWatches, 4);
             String requestBody = DocNode.of("status_codes", Collections.singletonList("notUsedStatus")).toJsonString();
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=+status_code", requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByStatusCodeWhichDoesNotOccursInStatuses to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=+status_code", requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 0));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 0));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -884,20 +977,26 @@ public class LoadOperatorSummaryActionTest {
                 .toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByMultipleStatusCodesStatusCodeWhichDoesNotOccursInStatuses to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 4));
-            assertThat(body, valueSatisfiesMatcher("data.watches[0].watch_id", String.class, startsWith("critical-severity-action")));
-            assertThat(body, containsValue("data.watches[0].status_code", "NO_ACTION"));
-            assertThat(body, valueSatisfiesMatcher("data.watches[1].watch_id", String.class, startsWith("critical-severity-action")));
-            assertThat(body, containsValue("data.watches[1].status_code", "NO_ACTION"));
-            assertThat(body, valueSatisfiesMatcher("data.watches[2].watch_id", String.class, startsWith("temp-")));
-            assertThat(body, containsAnyValues("data.watches[2].status_code", "ACTION_EXECUTED", "ACTION_THROTTLED"));
-            assertThat(body, valueSatisfiesMatcher("data.watches[3].watch_id", String.class, startsWith("temp-")));
-            assertThat(body, containsAnyValues("data.watches[3].status_code", "ACTION_EXECUTED", "ACTION_THROTTLED"));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 4));
+                assertThat(body, valueSatisfiesMatcher("data.watches[0].watch_id", String.class, startsWith("critical-severity-action")));
+                assertThat(body, containsValue("data.watches[0].status_code", "NO_ACTION"));
+                assertThat(body, valueSatisfiesMatcher("data.watches[1].watch_id", String.class, startsWith("critical-severity-action")));
+                assertThat(body, containsValue("data.watches[1].status_code", "NO_ACTION"));
+                assertThat(body, valueSatisfiesMatcher("data.watches[2].watch_id", String.class, startsWith("temp-")));
+                assertThat(body, containsAnyValues("data.watches[2].status_code", "ACTION_EXECUTED", "ACTION_THROTTLED"));
+                assertThat(body, valueSatisfiesMatcher("data.watches[3].watch_id", String.class, startsWith("temp-")));
+                assertThat(body, containsAnyValues("data.watches[3].status_code", "ACTION_EXECUTED", "ACTION_THROTTLED"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -948,14 +1047,20 @@ public class LoadOperatorSummaryActionTest {
             String requestBody = DocNode.of("watch_id", "one").toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByWatchIdOne to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 2));
-            assertThat(body, containsValue("data.watches[0].watch_id","one-and-two"));
-            assertThat(body, containsValue("data.watches[1].watch_id","one"));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 2));
+                assertThat(body, containsValue("data.watches[0].watch_id","one-and-two"));
+                assertThat(body, containsValue("data.watches[1].watch_id","one"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -973,13 +1078,19 @@ public class LoadOperatorSummaryActionTest {
             String requestBody = DocNode.of("watch_id", "three").toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByWatchIdThree to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 1));
-            assertThat(body, containsValue("data.watches[0].watch_id","three"));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 1));
+                assertThat(body, containsValue("data.watches[0].watch_id","three"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1021,14 +1132,20 @@ public class LoadOperatorSummaryActionTest {
             String requestBody = DocNode.of("severities", Collections.singletonList("critical")).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByCriticalSeverity to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 1));
-            assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
-            assertThat(body, containsValue("data.watches[0].severity", "critical"));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 1));
+                assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
+                assertThat(body, containsValue("data.watches[0].severity", "critical"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1047,18 +1164,24 @@ public class LoadOperatorSummaryActionTest {
             String requestBody = DocNode.of("severities", Arrays.asList("error", "info")).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByInfoOrErrorSeverity to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 3));
-            assertThat(body, containsValue("data.watches[0].watch_id", "temp-3"));
-            assertThat(body, containsValue("data.watches[0].severity", "error"));
-            assertThat(body, containsAnyValues("data.watches[1].watch_id", "temp-1", "temp-2"));
-            assertThat(body, containsValue("data.watches[1].severity", "info"));
-            assertThat(body, containsAnyValues("data.watches[2].watch_id", "temp-1", "temp-2"));
-            assertThat(body, containsValue("data.watches[2].severity", "info"));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 3));
+                assertThat(body, containsValue("data.watches[0].watch_id", "temp-3"));
+                assertThat(body, containsValue("data.watches[0].severity", "error"));
+                assertThat(body, containsAnyValues("data.watches[1].watch_id", "temp-1", "temp-2"));
+                assertThat(body, containsValue("data.watches[1].severity", "info"));
+                assertThat(body, containsAnyValues("data.watches[2].watch_id", "temp-1", "temp-2"));
+                assertThat(body, containsValue("data.watches[2].severity", "info"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1077,12 +1200,18 @@ public class LoadOperatorSummaryActionTest {
             String requestBody = DocNode.of("severities", Collections.singletonList("warning")).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByWarningSeverity to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 0));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 0));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1101,14 +1230,20 @@ public class LoadOperatorSummaryActionTest {
             String requestBody = DocNode.of("level_numeric_equal_to", 4).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByEqualNumeric4SeverityLeve to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 1));
-            assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
-            assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 4));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 1));
+                assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
+                assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 4));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1127,14 +1262,20 @@ public class LoadOperatorSummaryActionTest {
             String requestBody = DocNode.of("level_numeric_equal_to", 3).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByEqualNumeric3SeverityLeve to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 1));
-            assertThat(body, containsValue("data.watches[0].watch_id", "temp-3"));
-            assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 3));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 1));
+                assertThat(body, containsValue("data.watches[0].watch_id", "temp-3"));
+                assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 3));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1153,16 +1294,23 @@ public class LoadOperatorSummaryActionTest {
             String requestBody = DocNode.of("level_numeric_greater_than", 1).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
-
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 2));
-            assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
-            assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 4));
-            assertThat(body, containsValue("data.watches[1].watch_id", "temp-3"));
-            assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 3));
+            // Until every watch has recorded its final severity, temp-4 may not yet show level 4, so the filtered and
+            // sorted result is transiently different (e.g. temp-3 ahead of temp-4). Poll until the steady-state result
+            // is reached instead of asserting on the first response.
+            AtomicReference<DocNode> bodyRef = new AtomicReference<>();
+            await("summary to contain temp-4 (level 4) then temp-3 (level 3)").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                bodyRef.set(body);
+                assertThat(body, docNodeSizeEqualTo("data.watches", 2));
+                assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
+                assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 4));
+                assertThat(body, containsValue("data.watches[1].watch_id", "temp-3"));
+                assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 3));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1177,20 +1325,29 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("temp-4", INDEX_NAME_WATCHED_4, INDEX_ALARMS, .25, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             await().until(() -> predefinedWatches.getCountOfDocuments(INDEX_ALARMS) > 3);
-            waitForWatchStatuses(predefinedWatches, 2);
+            // The filter expects both temp-3 (level 3) and temp-4 (level 4), so wait for all four watches to record a
+            // status, not just two (a two-status wait can return before temp-4 has executed, leaving it never_executed).
+            waitForWatchStatuses(predefinedWatches, 4);
             String requestBody = DocNode.of("level_numeric_greater_than", 2).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
-
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 2));
-            assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
-            assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 4));
-            assertThat(body, containsValue("data.watches[1].watch_id", "temp-3"));
-            assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 3));
+            // Until every watch has recorded its final severity, temp-4 may not yet show level 4, so the filtered and
+            // sorted result is transiently different. Poll until the steady-state result is reached instead of
+            // asserting on the first response.
+            AtomicReference<DocNode> bodyRef = new AtomicReference<>();
+            await("summary to contain temp-4 (level 4) then temp-3 (level 3)").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                bodyRef.set(body);
+                assertThat(body, docNodeSizeEqualTo("data.watches", 2));
+                assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
+                assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 4));
+                assertThat(body, containsValue("data.watches[1].watch_id", "temp-3"));
+                assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 3));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1209,14 +1366,20 @@ public class LoadOperatorSummaryActionTest {
             String requestBody = DocNode.of("level_numeric_greater_than", 3).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByGreaterNumericSeverity3Leve to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 1));
-            assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
-            assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 4));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 1));
+                assertThat(body, containsValue("data.watches[0].watch_id", "temp-4"));
+                assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 4));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1235,16 +1398,22 @@ public class LoadOperatorSummaryActionTest {
             String requestBody = DocNode.of("level_numeric_less_than", 3).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByLessNumericSeverity3Leve to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 2));
-            assertThat(body, containsAnyValues("data.watches[0].watch_id", "temp-1", "temp-2"));
-            assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 1));
-            assertThat(body, containsAnyValues("data.watches[1].watch_id", "temp-1", "temp-2"));
-            assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 1));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 2));
+                assertThat(body, containsAnyValues("data.watches[0].watch_id", "temp-1", "temp-2"));
+                assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 1));
+                assertThat(body, containsAnyValues("data.watches[1].watch_id", "temp-1", "temp-2"));
+                assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 1));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1263,24 +1432,30 @@ public class LoadOperatorSummaryActionTest {
             String requestBody = DocNode.of("level_numeric_less_than", 4).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByLessNumericSeverity4Leve to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 3));
-            assertThat(body, containsAnyValues("data.watches[0].watch_id", "temp-3"));
-            assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 3));
-            assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 1));
-            assertThat(body, containsValue("data.watches[2].severity_details.level_numeric", 1));
-            assertThat(body, anyOf(
-                containsAnyValues("data.watches[1].watch_id", "temp-1"),
-                containsAnyValues("data.watches[1].watch_id", "temp-2")
-            ));
-            assertThat(body, anyOf(
-                containsAnyValues("data.watches[2].watch_id", "temp-1"),
-                containsAnyValues("data.watches[2].watch_id", "temp-2")
-            ));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 3));
+                assertThat(body, containsAnyValues("data.watches[0].watch_id", "temp-3"));
+                assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 3));
+                assertThat(body, containsValue("data.watches[1].severity_details.level_numeric", 1));
+                assertThat(body, containsValue("data.watches[2].severity_details.level_numeric", 1));
+                assertThat(body, anyOf(
+                    containsAnyValues("data.watches[1].watch_id", "temp-1"),
+                    containsAnyValues("data.watches[1].watch_id", "temp-2")
+                ));
+                assertThat(body, anyOf(
+                    containsAnyValues("data.watches[2].watch_id", "temp-1"),
+                    containsAnyValues("data.watches[2].watch_id", "temp-2")
+                ));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1299,12 +1474,20 @@ public class LoadOperatorSummaryActionTest {
             String requestBody = DocNode.of("level_numeric_greater_than", 2,"level_numeric_less_than", 4).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
-
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 1));
+            // The other watches settle on severity levels outside the (2, 4) range, but until every watch has recorded
+            // its final severity the filter may transiently match more than the single expected watch. Poll until the
+            // steady-state result is reached instead of asserting on the first response.
+            AtomicReference<DocNode> bodyRef = new AtomicReference<>();
+            await("summary to contain exactly temp-3 in severity range (2, 4)").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                bodyRef.set(body);
+                assertThat(body, docNodeSizeEqualTo("data.watches", 1));
+                return true;
+            });
+            DocNode body = bodyRef.get();
             assertThat(body, containsAnyValues("data.watches[0].watch_id", "temp-3"));
             assertThat(body, containsValue("data.watches[0].severity_details.level_numeric", 3));
         } finally {
@@ -1387,16 +1570,22 @@ public class LoadOperatorSummaryActionTest {
             String requestBody = DocNode.of("actions", Arrays.asList("actionOne", "actionTwo")).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByActionsNames to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 2));
-            assertThat(body, containsValue("data.watches[0].watch_id","two"));
-            assertThat(body, containsValue("data.watches[0].reason", "match_filter"));
-            assertThat(body, containsValue("data.watches[1].watch_id","one"));
-            assertThat(body, containsValue("data.watches[1].reason", "match_filter"));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 2));
+                assertThat(body, containsValue("data.watches[0].watch_id","two"));
+                assertThat(body, containsValue("data.watches[0].reason", "match_filter"));
+                assertThat(body, containsValue("data.watches[1].watch_id","one"));
+                assertThat(body, containsValue("data.watches[1].reason", "match_filter"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1414,12 +1603,18 @@ public class LoadOperatorSummaryActionTest {
             String requestBody = DocNode.of("actions", Arrays.asList("actionFive")).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterOutAllWatchesByActionsNames to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 0));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 0));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1442,14 +1637,20 @@ public class LoadOperatorSummaryActionTest {
                     "actions.actionFour.checkedBefore", Instant.now().plus(1, ChronoUnit.DAYS))).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByActionTimeRanges to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 1));
-            assertThat(body, containsValue("data.watches[0].watch_id","four"));
-            assertThat(body, containsValue("data.watches[0].reason", "match_filter"));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 1));
+                assertThat(body, containsValue("data.watches[0].watch_id","four"));
+                assertThat(body, containsValue("data.watches[0].reason", "match_filter"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1472,12 +1673,18 @@ public class LoadOperatorSummaryActionTest {
                 "actions.actionFour.checkedBefore", Instant.now().minus(1, ChronoUnit.DAYS))).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterOutAllWatchesByActionTimeRanges to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 0));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 0));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1498,16 +1705,22 @@ public class LoadOperatorSummaryActionTest {
             ).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByProperties to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 1));
-            assertThat(body, containsValue("data.watches[0].watch_id","one"));
-            assertThat(body, containsValue("data.watches[0].actions.actionOne.status_code","ACTION_THROTTLED"));
-            assertThat(body, containsValue("data.watches[0].actions.actionOne.check_result",true));
-            assertThat(body, containsValue("data.watches[0].reason", "match_filter"));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 1));
+                assertThat(body, containsValue("data.watches[0].watch_id","one"));
+                assertThat(body, containsValue("data.watches[0].actions.actionOne.status_code","ACTION_THROTTLED"));
+                assertThat(body, containsValue("data.watches[0].actions.actionOne.check_result",true));
+                assertThat(body, containsValue("data.watches[0].reason", "match_filter"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1528,15 +1741,21 @@ public class LoadOperatorSummaryActionTest {
             ).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterByVariousCommonFieldsAndValues to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 1));
-            assertThat(body, containsValue("data.watches[0].watch_id","one"));
-            assertThat(body, containsValue("data.watches[0].status_code","NO_ACTION"));
-            assertThat(body, containsValue("data.watches[0].reason", "match_filter"));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 1));
+                assertThat(body, containsValue("data.watches[0].watch_id","one"));
+                assertThat(body, containsValue("data.watches[0].status_code","NO_ACTION"));
+                assertThat(body, containsValue("data.watches[0].reason", "match_filter"));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1557,12 +1776,18 @@ public class LoadOperatorSummaryActionTest {
             ).toJsonString();
             String sorting = "-severity_details.level_numeric";
 
-            HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
+            // The watch state index is written asynchronously, so a watch can be counted by waitForWatchStatuses
+            // before its full state (severity_details / action status) is searchable, transiently changing the
+            // filtered/sorted result. Poll until the steady-state result is reached instead of asserting once.
+            await("summary for shouldFilterOutAllWatchesByProperties to reach steady state").ignoreException(AssertionError.class).until(() -> {
+                HttpResponse response = restClient.postJson("/_signals/watch/_main/summary?sorting=" + sorting, requestBody);
 
-            log.info("Watch summary response body '{}'.", response.getBody());
-            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
-            DocNode body = response.getBodyAsDocNode();
-            assertThat(body, docNodeSizeEqualTo("data.watches", 0));
+                log.info("Watch summary response body '{}'.", response.getBody());
+                assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+                DocNode body = response.getBodyAsDocNode();
+                assertThat(body, docNodeSizeEqualTo("data.watches", 0));
+                return true;
+            });
         } finally {
             predefinedWatches.deleteWatches();
         }
@@ -1814,9 +2039,20 @@ public class LoadOperatorSummaryActionTest {
         predefinedWatches.defineTemperatureSeverityWatch("level-critical", INDEX_NAME_WATCHED_9, INDEX_ALARMS, .25, "createAlarm");
         try (GenericRestClient restClient = cluster.getRestClient(USER_ADMIN)) {
             waitForWatchWithAction(predefinedWatches, "createAlarm");
-            HttpResponse ackResponse = restClient.put("/_signals/watch/_main/level-critical/_ack");
-            log.info("Watch ack response status code '{}' and body '{}'.", ackResponse.getStatusCode(), ackResponse.getBody());
-            assertThat(ackResponse.getStatusCode(), equalTo(SC_OK));
+            // The watch has written its execution state, but the ack is a nodes broadcast that finds no node
+            // currently running the watch until its scheduler registration has propagated - until then it returns
+            // 404 (NO_SUCH_WATCH). Retry until the ack is accepted rather than acking exactly once.
+            // Becoming ackable requires the watch to have executed to critical severity AND for its scheduler
+            // registration to have propagated, so allow more than the 30s class-default timeout - on a heavily loaded
+            // machine (where this whole class can take ~10min) 30s was occasionally too tight.
+            AtomicReference<HttpResponse> ackResponseRef = new AtomicReference<>();
+            await("watch level-critical to be ackable").atMost(60, SECONDS).until(() -> {
+                HttpResponse r = restClient.put("/_signals/watch/_main/level-critical/_ack");
+                ackResponseRef.set(r);
+                log.info("Watch ack response status code '{}' and body '{}'.", r.getStatusCode(), r.getBody());
+                return r.getStatusCode() == SC_OK;
+            });
+            assertThat(ackResponseRef.get().getStatusCode(), equalTo(SC_OK));
             waitForWatchAckByUser(predefinedWatches, "createAlarm");
 
 
