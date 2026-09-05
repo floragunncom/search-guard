@@ -183,6 +183,11 @@
           <artifactId>httpclient5</artifactId>
         </exclusion>
         <exclusion>
+          <!-- Version overridden explicitly below to stay aligned with httpclient5 -->
+          <groupId>org.apache.httpcomponents.client5</groupId>
+          <artifactId>httpclient5-cache</artifactId>
+        </exclusion>
+        <exclusion>
           <!-- Version overridden explicitly below to satisfy WireMock 3.13.2 -->
           <groupId>org.apache.httpcomponents.core5</groupId>
           <artifactId>httpcore5</artifactId>
@@ -276,11 +281,17 @@
         - NoClassDefFoundError on ManagedHttpClientConnectionFactory initialization
           (httpclient5 5.5.1 classes depend on httpcore5 5.3.6 APIs)
 
-      Fix: declare httpclient5 5.6.4, httpcore5 5.4.3, and httpcore5-h2 5.4.3 as
-      direct compile-scope dependencies so they win version mediation at depth 1.
-      Compile scope is required because SamlHTTPMetadataResolver uses httpclient5
-      classes in production code — a test-scoped override would suppress the transitive
-      versions but leave the compile classpath without them.
+      Fix: declare httpclient5 5.6.4, httpclient5-cache 5.6.4, httpcore5 5.4.3, and
+      httpcore5-h2 5.4.3 as direct compile-scope dependencies so they win version
+      mediation at depth 1. Compile scope is required because SamlHTTPMetadataResolver
+      uses httpclient5 classes in production code — a test-scoped override would
+      suppress the transitive versions but leave the compile classpath without them.
+
+      httpclient5-cache is not used by Search Guard code directly (OpenIdProviderClient
+      uses the HttpClient 4 cache), but net.shibboleth:shib-networking pulls it in at
+      5.3.1 and it is compiled against the httpclient5 of its own release, so it has to
+      move in lockstep with the httpclient5 pin above — otherwise the plugin zip ships a
+      5.3.1 cache on top of a 5.6.4 client.
 
       Note: the version numbers differ (5.6.4 vs 5.4.3) because httpclient5 and
       httpcore5 are separate Apache projects with independent version schemes.
@@ -290,6 +301,12 @@
     <dependency>
       <groupId>org.apache.httpcomponents.client5</groupId>
       <artifactId>httpclient5</artifactId>
+      <version>5.6.4</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents.client5</groupId>
+      <artifactId>httpclient5-cache</artifactId>
       <version>5.6.4</version>
       <scope>compile</scope>
     </dependency>
