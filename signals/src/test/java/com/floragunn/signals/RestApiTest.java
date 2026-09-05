@@ -2223,8 +2223,10 @@ public class RestApiTest {
                     String message = GreenMailUtil.getWholeMessage(greenMail.getReceivedMessages()[0]);
 
                     //Check mail to contain resolved subject line
-                    Assert.assertTrue(message, message.contains("Content-Type: application/json; filename=runtime.txt; name=runtime"));
-                    Assert.assertTrue(message, message.contains("Content-Type: text/plain; filename=some_response.txt; name=some_response"));
+                    Assert.assertTrue(message, message.contains("Content-Type: application/json; name=runtime.txt"));
+                    Assert.assertTrue(message, message.contains("Content-Disposition: attachment; filename=runtime.txt"));
+                    Assert.assertTrue(message, message.contains("Content-Type: text/plain; name=some_response.txt"));
+                    Assert.assertTrue(message, message.contains("Content-Disposition: attachment; filename=some_response.txt"));
                     Assert.assertTrue(message, message.contains("Mockery"));
                     Assert.assertTrue(message, message.contains("Test Mail Subject"));
                 }
