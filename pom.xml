@@ -55,9 +55,9 @@
     <dependency.locations.enabled>false</dependency.locations.enabled>
     <maven.compiler.release>17</maven.compiler.release>
 
-    <bc.version>1.84</bc.version>
+    <bc.version>1.85</bc.version>
     <log4j.version>2.26.0</log4j.version>
-    <jackson.version>2.18.9</jackson.version>
+    <jackson.version>2.18.10</jackson.version>
     <cxf.version>4.2.3</cxf.version>
     <http.commons.version>4.5.14</http.commons.version>
     <opensaml.version>5.2.3</opensaml.version>
@@ -152,13 +152,13 @@
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>33.6.0-jre</version>
+        <version>33.7.1-jre</version>
       </dependency>
 
       <dependency>
         <groupId>com.icegreen</groupId>
         <artifactId>greenmail</artifactId>
-        <version>2.1.9</version>
+        <version>2.1.13</version>
       </dependency>
       <dependency>
         <groupId>com.jayway.jsonpath</groupId>
@@ -169,7 +169,7 @@
       <dependency>
         <groupId>commons-codec</groupId>
         <artifactId>commons-codec</artifactId>
-        <version>1.22.0</version>
+        <version>1.22.1</version>
       </dependency>
 
       <dependency>
@@ -186,19 +186,19 @@
       <dependency>
         <groupId>commons-validator</groupId>
         <artifactId>commons-validator</artifactId>
-        <version>1.10.1</version>
+        <version>1.11.0</version>
       </dependency>
 
       <dependency>
         <groupId>joda-time</groupId>
         <artifactId>joda-time</artifactId>
-        <version>2.14.2</version>
+        <version>2.14.3</version>
       </dependency>
 
       <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
-        <version>4.13.1</version>
+        <version>4.13.2</version>
       </dependency>
 
       <dependency>
@@ -461,7 +461,7 @@
     <dependency>
       <groupId>org.yaml</groupId>
       <artifactId>snakeyaml</artifactId>
-      <version>2.6</version>
+      <version>2.7</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
