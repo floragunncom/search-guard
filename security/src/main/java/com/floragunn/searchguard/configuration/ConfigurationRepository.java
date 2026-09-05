@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import com.floragunn.codova.config.templates.PipeExpression;
@@ -39,7 +38,6 @@ import com.floragunn.searchguard.configuration.validation.ConfigModificationVali
 import com.floragunn.searchsupport.Constants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.ResourceAlreadyExistsException;
 import org.elasticsearch.action.ActionListener;
@@ -382,14 +380,10 @@ public class ConfigurationRepository implements ComponentStateProvider {
      * only a single reload is active at any time - the reload thread is not yet running during the initial startup load
      * - which is why no additional locking is required.
      */
-    private void doReload(Set<CType<?>> configTypes, String reason) {
+    private void doReload(Set<CType<?>> configTypes, String reason) throws ConfigUnavailableException {
         // Drop user information from thread context to avoid spamming of audit log
         try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
             reloadConfiguration0(configTypes, reason);
-        } catch (ConfigUnavailableException e) {
-            // The perform function of the ReloadThread cannot throw checked exceptions; wrap it so it can be propagated
-            // to the request's listener by the ReloadThread.
-            throw new ElasticsearchException(e);
         }
     }
 
@@ -1475,7 +1469,19 @@ public class ConfigurationRepository implements ComponentStateProvider {
      */
     static class ReloadThread {
 
-        private final BiConsumer<Set<CType<?>>, String> performFunction;
+        /**
+         * The operation that actually performs a reload. This is a dedicated functional interface - and not a plain
+         * {@link java.util.function.BiConsumer} - so that the implementation ({@link ConfigurationRepository#doReload(Set, String)}) can throw
+         * the checked {@link ConfigUnavailableException} instead of having to wrap it into an unchecked exception. The
+         * {@link #run()} loop catches it like any other failure and passes it on to the listeners of the request, so
+         * they see the original exception.
+         */
+        @FunctionalInterface
+        interface ReloadFunction {
+            void perform(Set<CType<?>> configTypes, String reason) throws ConfigUnavailableException;
+        }
+
+        private final ReloadFunction performFunction;
         private final Thread thread;
         private final Object requestLock = new Object();
         private boolean started = false;
@@ -1507,7 +1513,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
          */
         private ImmutableSet<CType<?>> reloadInProgressFor = ImmutableSet.empty();
 
-        ReloadThread(Settings settings, BiConsumer<Set<CType<?>>, String> performFunction) {
+        ReloadThread(Settings settings, ReloadFunction performFunction) {
             this.performFunction = performFunction;
             this.thread = EsExecutors.daemonThreadFactory(settings, "ConfigurationRepository#ReloadThread").newThread(this::run);
         }
@@ -1610,7 +1616,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                         this.reloadInProgressFor = localReloadRequestedFor;
                     }
 
-                    this.performFunction.accept(localReloadRequestedFor, localReloadRequestedReason);
+                    this.performFunction.perform(localReloadRequestedFor, localReloadRequestedReason);
 
                     ConfigReloadResponse response = new ConfigReloadResponse(localReloadRequestedFor);
                     for (ActionListener<ConfigReloadResponse> listener : localReloadRequestedForListeners) {
