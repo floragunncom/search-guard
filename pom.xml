@@ -58,9 +58,9 @@
     <bc.version>1.84</bc.version>
     <log4j.version>2.26.0</log4j.version>
     <jackson.version>2.18.9</jackson.version>
-    <cxf.version>4.2.2</cxf.version>
+    <cxf.version>4.2.3</cxf.version>
     <http.commons.version>4.5.14</http.commons.version>
-    <opensaml.version>5.2.2</opensaml.version>
+    <opensaml.version>5.2.3</opensaml.version>
     <mockito.version>5.23.0</mockito.version>
     <org.ow2.asm.version>9.10.1</org.ow2.asm.version>
 
