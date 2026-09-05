@@ -21,16 +21,18 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import com.floragunn.codova.config.templates.PipeExpression;
@@ -38,8 +40,10 @@ import com.floragunn.searchguard.configuration.validation.ConfigModificationVali
 import com.floragunn.searchsupport.Constants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.ResourceAlreadyExistsException;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
@@ -68,6 +72,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.core.TimeValue;
@@ -180,6 +185,16 @@ public class ConfigurationRepository implements ComponentStateProvider {
     private final ConfigModificationValidators configModificationValidators;
     private final ConfigVarService configVarService;
 
+    /**
+     * Dedicated single-threaded worker that performs all configuration reloads triggered by config update requests.
+     * Reloading on a dedicated thread (instead of on the caller's thread, which for a config update request is a thread
+     * of the MANAGEMENT pool) avoids a deadlock: on a node with only a single MANAGEMENT thread, the reload would
+     * otherwise occupy that thread while, at the same time, waiting for an index/mapping action which - since
+     * Elasticsearch dispatches these to the MANAGEMENT pool as well - would be queued behind the very thread that is
+     * waiting for it. See https://github.com/opensearch-project/security/pull/5479 for the equivalent OpenSearch change.
+     */
+    private final ReloadThread reloadThread;
+
     public ConfigurationRepository(StaticSettings settings, ThreadPool threadPool, Client client, ClusterService clusterService,
                                    ConfigVarService configVarService, SearchGuardModulesRegistry modulesRegistry, StaticSgConfig staticSgConfig,
                                    NamedXContentRegistry xContentRegistry, Environment environment, IndexNameExpressionResolver resolver, ConfigModificationValidators configModificationValidators) {
@@ -208,19 +223,26 @@ public class ConfigurationRepository implements ComponentStateProvider {
         this.resolver = resolver;
         this.configModificationValidators = configModificationValidators;
         this.configVarService = configVarService;
+        this.reloadThread = new ReloadThread(settings.getPlatformSettings(), this::doReload);
         this.configVarService.addChangeListener(() -> {
             if (currentConfig != null) {
-                try {
-                    reloadConfiguration(CType.all(), "Config variable update");
-                } catch (Exception e) {
-                    LOGGER.error("Error while reloading configuration after config var change", e);
-                }
+                // Fire and forget: the reload is performed asynchronously on the dedicated ReloadThread. Nobody waits
+                // for the config var change to be applied, so we only need to log a potential failure.
+                reloadConfiguration(CType.all(), "Config variable update", loggingReloadListener("config var change"));
             }
         });
     }
 
     public void initOnNodeStart() {
         componentState.setState(State.INITIALIZING, "waiting_for_state_recovery");
+
+        // Start the dedicated reload thread. It is the single place where the configuration is actually (re)loaded, so
+        // that no locking is required: config update requests, config variable changes, deletions and even the initial
+        // load during startup are all funneled through this one thread. Because config update requests arriving on a
+        // MANAGEMENT thread are handled asynchronously here, they never block that MANAGEMENT thread. The thread must be
+        // started before initialization, because on nodes that come up suspended the very first config load happens
+        // through a config update request (sgctl) processed by this thread.
+        reloadThread.start();
 
         threadPool.generic().execute(() -> {
             synchronized (ConfigurationRepository.this) {
@@ -308,23 +330,94 @@ public class ConfigurationRepository implements ComponentStateProvider {
         return getEffectiveSearchGuardIndex() != null;
     }
 
-    private final Lock LOCK = new ReentrantLock();
+    /**
+     * Requests an asynchronous configuration reload for the given configuration types. The reload will be performed on a
+     * dedicated thread (see {@link ReloadThread}); this method does not block waiting for the reload to complete. If a
+     * reload is currently in progress, a further reload will be queued; several queued requests are combined into one.
+     * <p>
+     * This is the entry point that must be used from the config update transport action: it makes sure that the reload
+     * (which may perform blocking index/mapping operations) does not run on - and does not block - the MANAGEMENT thread
+     * that received the config update request.
+     *
+     * @param configTypes the configuration types to be reloaded.
+     * @param reason a human-readable reason for the reload, used for logging.
+     * @param listener a listener that is notified once the reload has finished (or failed). May be {@code null}.
+     */
+    public void reloadConfiguration(Set<CType<?>> configTypes, String reason, ActionListener<ConfigReloadResponse> listener) {
+        this.reloadThread.requestReload(configTypes, reason, listener);
+    }
 
-    public void reloadConfiguration(Set<CType<?>> configTypes, String reason)
-            throws ConfigUpdateAlreadyInProgressException, ConfigUnavailableException {
+    /**
+     * Returns a fire-and-forget {@link ActionListener} for asynchronous reloads whose completion nobody waits for: it
+     * ignores the successful result and only logs a failure, using the given context in the log message.
+     */
+    private static ActionListener<ConfigReloadResponse> loggingReloadListener(String context) {
+        return new ActionListener<ConfigReloadResponse>() {
+            @Override
+            public void onResponse(ConfigReloadResponse response) {
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                LOGGER.error("Error while reloading configuration after {}", context, e);
+            }
+        };
+    }
+
+    /**
+     * Requests a configuration reload and blocks until it has finished. The reload itself is still performed on the
+     * dedicated {@link ReloadThread}; this method merely waits for its completion.
+     * <p>
+     * <b>Must not be called from a MANAGEMENT thread.</b> The reload may dispatch index/mapping operations back to the
+     * MANAGEMENT pool, so blocking a MANAGEMENT thread here could deadlock on single-CPU nodes. It is safe to call from
+     * the generic thread pool, which is where node initialization and the config APIs (e.g. {@link #delete}) run.
+     */
+    private void reloadConfigurationSynchronously(Set<CType<?>> configTypes, String reason) throws ConfigUnavailableException {
+        CompletableFuture<ConfigReloadResponse> future = new CompletableFuture<>();
+        reloadConfiguration(configTypes, reason, new ActionListener<ConfigReloadResponse>() {
+            @Override
+            public void onResponse(ConfigReloadResponse response) {
+                future.complete(response);
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+
+        try {
+            future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ConfigUnavailableException("Interrupted while reloading configuration", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof ConfigUnavailableException) {
+                throw (ConfigUnavailableException) cause;
+            }
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            }
+            throw new ConfigUnavailableException("Error while reloading configuration", cause);
+        }
+    }
+
+    /**
+     * Performs a configuration reload. This is the single method that actually (re)loads the configuration. It must only
+     * be called by the {@link ReloadThread}, which guarantees that only one reload is active at any time - which is why
+     * no additional locking is required. Every reload trigger (config update requests, config variable changes,
+     * deletions and the initial load during startup) is funneled through that thread via
+     * {@link #reloadConfiguration(Set, String, ActionListener)} or {@link #reloadConfigurationSynchronously(Set, String)}.
+     */
+    private void doReload(Set<CType<?>> configTypes, String reason) {
         // Drop user information from thread context to avoid spamming of audit log
         try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
-            if (LOCK.tryLock(60, TimeUnit.SECONDS)) {
-                try {
-                    reloadConfiguration0(configTypes, reason);
-                } finally {
-                    LOCK.unlock();
-                }
-            } else {
-                throw new ConfigUpdateAlreadyInProgressException("A config update is already in progress");
-            }
-        } catch (InterruptedException e) {
-            throw new ConfigUpdateAlreadyInProgressException("Interrupted config update", e);
+            reloadConfiguration0(configTypes, reason);
+        } catch (ConfigUnavailableException e) {
+            // The perform function of the ReloadThread cannot throw checked exceptions; wrap it so it can be propagated
+            // to the request's listener by the ReloadThread.
+            throw new ElasticsearchException(e);
         }
     }
 
@@ -455,7 +548,7 @@ public class ConfigurationRepository implements ComponentStateProvider {
                 componentState.startNextTry();
                 try {
                     LOGGER.debug("Try to load config ...");
-                    reloadConfiguration(CType.all(), "Initialization");
+                    reloadConfigurationSynchronously(CType.all(), "Initialization");
                     break;
                 } catch (Exception e) {
                     LOGGER.debug("Unable to load configuration due to {}", String.valueOf(ExceptionUtils.getRootCause(e)));
@@ -917,9 +1010,29 @@ public class ConfigurationRepository implements ComponentStateProvider {
             if (response.status() == RestStatus.NOT_FOUND) {
                 return new StandardResponse(404).message(configType.toLCString() + " does not exist");
             }
-            reloadConfiguration(Collections.singleton(configType), "Config deletion");
+
+            // Broadcast a config update so that every node reloads the deleted config type. A local-only reload would
+            // not be enough: the document was removed from the (cluster-wide) index, but every other node keeps its own
+            // in-memory copy until it is told to reload. On each node the reload runs asynchronously on the dedicated
+            // ReloadThread. This mirrors what update(...) does after writing a config document.
+            try {
+                ConfigUpdateRequest configUpdateRequest = new ConfigUpdateRequest(new String[] { configType.toLCString() });
+
+                ConfigUpdateResponse configUpdateResponse = privilegedConfigClient.execute(ConfigUpdateAction.INSTANCE, configUpdateRequest)
+                        .actionGet();
+
+                if (configUpdateResponse.hasFailures()) {
+                    throw new ConfigUpdateException("Configuration was deleted; however, some nodes reported failures while refreshing.",
+                            configUpdateResponse);
+                }
+            } catch (ConfigUpdateException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new ConfigUpdateException("Configuration was deleted; however, the refresh failed", e);
+            }
+
             return new StandardResponse(200).message(configType.toLCString() + " has been deleted");
-        } catch (ConfigUpdateException | ConfigUnavailableException e) {
+        } catch (ConfigUpdateException e) {
             return new StandardResponse(e);
         }
     }
@@ -1352,5 +1465,198 @@ public class ConfigurationRepository implements ComponentStateProvider {
 
     public enum PatchDefaultHandling {
         FAIL_ON_MISSING_DOCUMENT, TREAT_MISSING_DOCUMENT_AS_EMPTY_DOCUMENT
+    }
+
+    /**
+     * Manages requests to reload the Search Guard configuration. It is the single place where the configuration is
+     * actually (re)loaded: all reload triggers - config update requests, config variable changes, deletions and the
+     * initial load during startup - are funneled through this one thread. This is what makes additional locking around
+     * the reload unnecessary. Its second purpose is to make sure that there is no unbounded queue of reload requests. It
+     * works this way:
+     * <ul>
+     *     <li>If there is no reload activity, the reload is scheduled immediately.</li>
+     *     <li>If a reload is currently in progress, a further reload is scheduled right afterwards.</li>
+     *     <li>If a reload is currently in progress and a further reload is already scheduled, the already scheduled reload
+     *     is relied upon. If configuration types are requested which are not yet part of the scheduled reload, the
+     *     scheduled reload is expanded accordingly.</li>
+     * </ul>
+     * After an instance has been created, the thread is not running yet; {@link #start()} must be called explicitly. This
+     * means that {@link #start()} must not be forgotten - otherwise the node will not be able to load or process config
+     * updates. Requests that arrive before the thread is started are queued and processed once it has started.
+     * <p>
+     * Adapted from the OpenSearch Security project (Apache-2.0), which introduced this mechanism to fix the same
+     * single-MANAGEMENT-thread config-update deadlock:
+     * <a href="https://github.com/opensearch-project/security/pull/5479">opensearch-project/security#5479</a>.
+     * Modifications Copyright OpenSearch Contributors. See GitHub history for details.
+     */
+    static class ReloadThread {
+
+        private final BiConsumer<Set<CType<?>>, String> performFunction;
+        private final Thread thread;
+        private final Object requestLock = new Object();
+        private boolean started = false;
+
+        /**
+         * The "request queue" - even though it is not actually a queue. We collect here the configuration types for which
+         * a reload was requested but not yet performed. Several consecutive requests just extend this collection.
+         */
+        private ImmutableSet<CType<?>> reloadRequestedFor = ImmutableSet.empty();
+
+        /**
+         * A human-readable, combined reason for the currently queued reload request. Used for logging only.
+         */
+        private String reloadRequestedReason;
+
+        /**
+         * Listeners to be notified once the currently queued reload has finished. Collected until the reload actually
+         * starts, then handed over to the worker.
+         */
+        private List<ActionListener<ConfigReloadResponse>> reloadRequestedForListeners = new ArrayList<>();
+
+        /**
+         * The time we got the first currently queued reload request.
+         */
+        private Instant reloadRequestedAt;
+
+        /**
+         * The configuration types for which a reload is in progress right now.
+         */
+        private ImmutableSet<CType<?>> reloadInProgressFor = ImmutableSet.empty();
+
+        ReloadThread(Settings settings, BiConsumer<Set<CType<?>>, String> performFunction) {
+            this.performFunction = performFunction;
+            this.thread = EsExecutors.daemonThreadFactory(settings, "ConfigurationRepository#ReloadThread").newThread(this::run);
+        }
+
+        /**
+         * Requests an async configuration reload for the given configuration types. This method does not wait for the
+         * reload to complete; the given listener (if any) is notified once it has.
+         */
+        void requestReload(Collection<CType<?>> configurationTypes, String reason, ActionListener<ConfigReloadResponse> listener) {
+            synchronized (this.requestLock) {
+                if (!this.started) {
+                    LOGGER.info("Reload thread has not been started yet; the request is queued and will be processed once it starts.");
+                }
+
+                if (listener != null) {
+                    this.reloadRequestedForListeners.add(listener);
+                }
+
+                if (this.reloadRequestedFor.isEmpty()) {
+                    LOGGER.debug("Configuration reload request received for {} ({}); notifying reload thread", configurationTypes, reason);
+                    this.reloadRequestedAt = Instant.now();
+                    this.reloadRequestedFor = ImmutableSet.of(configurationTypes);
+                    this.reloadRequestedReason = reason;
+                    this.requestLock.notifyAll();
+                } else if (!this.reloadRequestedFor.containsAll(configurationTypes)) {
+                    LOGGER.debug("Configuration reload request received for {} ({}); adding new configuration types to already requested {}",
+                            configurationTypes, reason, this.reloadRequestedFor);
+                    this.reloadRequestedFor = this.reloadRequestedFor.with(configurationTypes);
+                    this.reloadRequestedReason = this.reloadRequestedReason + "; " + reason;
+                } else {
+                    if (this.reloadRequestedAt != null && Duration.between(this.reloadRequestedAt, Instant.now()).toMillis() > 30000) {
+                        // Reload request is queued for more than 30 seconds; let us log a warning about that
+                        LOGGER.warn("Configuration reload request received ({}); another update request is already queued since {}", reason,
+                                this.reloadRequestedAt);
+                    } else {
+                        LOGGER.debug("Configuration reload request received ({}); another update request is already queued since {}", reason,
+                                this.reloadRequestedAt);
+                    }
+                }
+            }
+        }
+
+        /**
+         * Starts the reload thread. Calling this method after the thread was already started has no further effect.
+         */
+        void start() {
+            synchronized (this.requestLock) {
+                if (!this.started) {
+                    this.thread.start();
+                    this.started = true;
+                }
+            }
+        }
+
+        /**
+         * Returns true if no reload is in progress and no reload has been queued.
+         */
+        boolean isIdle() {
+            synchronized (this.requestLock) {
+                return this.reloadRequestedFor.isEmpty() && this.reloadInProgressFor.isEmpty();
+            }
+        }
+
+        /**
+         * Returns true if nothing is queued. Still, an active reload might be in progress.
+         */
+        boolean queueIsEmpty() {
+            synchronized (this.requestLock) {
+                return this.reloadRequestedFor.isEmpty();
+            }
+        }
+
+        private void run() {
+            for (;;) {
+                ImmutableSet<CType<?>> localReloadRequestedFor;
+                String localReloadRequestedReason;
+                List<ActionListener<ConfigReloadResponse>> localReloadRequestedForListeners = null;
+                try {
+                    synchronized (this.requestLock) {
+                        this.reloadInProgressFor = ImmutableSet.empty();
+
+                        while (this.reloadRequestedFor.isEmpty()) {
+                            this.requestLock.wait();
+                        }
+
+                        // Save the requested configuration types in order to pass them to the perform function later
+                        localReloadRequestedFor = this.reloadRequestedFor;
+                        localReloadRequestedReason = this.reloadRequestedReason;
+                        localReloadRequestedForListeners = new ArrayList<>(this.reloadRequestedForListeners);
+
+                        LOGGER.info("Performing configuration reload for request at {} on {} ({})", this.reloadRequestedAt,
+                                localReloadRequestedFor, localReloadRequestedReason);
+
+                        // Reset the queue now. Thus, any further updates that come in during the following reload process will
+                        // be recognized again and queued.
+                        this.reloadRequestedAt = null;
+                        this.reloadRequestedFor = ImmutableSet.empty();
+                        this.reloadRequestedReason = null;
+                        this.reloadRequestedForListeners.clear();
+                        this.reloadInProgressFor = localReloadRequestedFor;
+                    }
+
+                    this.performFunction.accept(localReloadRequestedFor, localReloadRequestedReason);
+
+                    ConfigReloadResponse response = new ConfigReloadResponse(localReloadRequestedFor);
+                    for (ActionListener<ConfigReloadResponse> listener : localReloadRequestedForListeners) {
+                        listener.onResponse(response);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    LOGGER.info("{} was interrupted; stopping", this.thread.getName());
+                    return;
+                } catch (Exception e) {
+                    LOGGER.error("Error in {}", this.thread.getName(), e);
+                    if (localReloadRequestedForListeners != null) {
+                        for (ActionListener<ConfigReloadResponse> listener : localReloadRequestedForListeners) {
+                            listener.onFailure(e);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public static class ConfigReloadResponse {
+        private final Set<CType<?>> reloadedConfigTypes;
+
+        ConfigReloadResponse(Set<CType<?>> reloadedConfigTypes) {
+            this.reloadedConfigTypes = reloadedConfigTypes;
+        }
+
+        public Set<CType<?>> getReloadedConfigTypes() {
+            return reloadedConfigTypes;
+        }
     }
 }
