@@ -800,7 +800,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>3.5.0</version>
+          <version>3.5.1</version>
           <configuration>
             <excludes>
               <exclude>**/*cobertura*</exclude>
@@ -828,7 +828,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.15.0</version>
+          <version>3.16.0</version>
           <configuration>
             <showDeprecation>true</showDeprecation>
             <showWarnings>true</showWarnings>
@@ -838,7 +838,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.5.6</version>
+          <version>3.6.0</version>
           <configuration>
             <!-- add-opens is necessary for powermock on Java 17 -->
             <!-- java.xml/jdk.xml.internal=ALL-UNNAMED required after wiremock bump to 3.5.4-->
@@ -904,8 +904,8 @@
             <configuration>
               <rules>
                 <requireMavenVersion>
-                  <version>[3.5.4,)</version>
-                  <message>Maven 3.5.4 or later required</message>
+                  <version>[3.8.1,)</version>
+                  <message>Maven 3.8.1 or later required</message>
                 </requireMavenVersion>
               </rules>
             </configuration>
@@ -941,7 +941,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>flatten-maven-plugin</artifactId>
-        <version>1.7.3</version>
+        <version>1.8.0</version>
         <configuration>
           <updatePomFile>true</updatePomFile>
           <flattenMode>resolveCiFriendliesOnly</flattenMode>
@@ -975,7 +975,7 @@
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
-        <version>3.7.0</version>
+        <version>3.10.2</version>
         <configuration>
           <pom>
             <includes>
