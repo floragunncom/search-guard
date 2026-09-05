@@ -25,6 +25,7 @@ import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -37,6 +38,7 @@ import java.util.Optional;
 
 
 import jakarta.mail.Address;
+import jakarta.mail.Message.RecipientType;
 import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
 import jakarta.mail.internet.AddressException;
@@ -58,6 +60,7 @@ import org.simplejavamail.api.email.Email;
 import org.simplejavamail.api.email.EmailPopulatingBuilder;
 import org.simplejavamail.api.email.Recipient;
 import org.simplejavamail.email.EmailBuilder;
+import org.simplejavamail.recipient.RecipientsBuilder;
 
 
 import com.floragunn.codova.documents.DocNode;
@@ -171,21 +174,21 @@ public class EmailAction extends ActionHandler {
             }
 
             if (toScript != null) {
-                emailBuilder.toMultipleAddresses(emailsToInternetAddresses(render(ctx, toScript)));
+                emailBuilder.withRecipients(toRecipients(emailsToInternetAddresses(render(ctx, toScript)), RecipientType.TO));
             } else if (destination.getDefaultTo() != null) {
-                emailBuilder.toMultipleAddresses(emailsToInternetAddresses(destination.getDefaultTo()));
+                emailBuilder.withRecipients(toRecipients(emailsToInternetAddresses(destination.getDefaultTo()), RecipientType.TO));
             }
 
             if (ccScript != null) {
-                emailBuilder.ccMultipleAddresses(emailsToInternetAddresses(render(ctx, ccScript)));
+                emailBuilder.withRecipients(toRecipients(emailsToInternetAddresses(render(ctx, ccScript)), RecipientType.CC));
             } else if (destination.getDefaultCc() != null) {
-                emailBuilder.ccMultipleAddresses(emailsToInternetAddresses(destination.getDefaultCc()));
+                emailBuilder.withRecipients(toRecipients(emailsToInternetAddresses(destination.getDefaultCc()), RecipientType.CC));
             }
 
             if (bccScript != null) {
-                emailBuilder.bccMultipleAddresses(emailsToInternetAddresses(render(ctx, bccScript)));
-            } else if (destination.getDefaultCc() != null) {
-                emailBuilder.bccMultipleAddresses(emailsToInternetAddresses(destination.getDefaultBcc()));
+                emailBuilder.withRecipients(toRecipients(emailsToInternetAddresses(render(ctx, bccScript)), RecipientType.BCC));
+            } else if (destination.getDefaultBcc() != null) {
+                emailBuilder.withRecipients(toRecipients(emailsToInternetAddresses(destination.getDefaultBcc()), RecipientType.BCC));
             }
 
             if (replyToScript != null) {
@@ -574,7 +577,7 @@ public class EmailAction extends ActionHandler {
 
             if (email.getRecipients() != null) {
                 for (Recipient recipient : email.getRecipients()) {
-                    message.setRecipient(recipient.getType(), toInternetAddress(recipient));
+                    message.addRecipient(recipient.getType(), toInternetAddress(recipient));
                 }
             }
 
@@ -620,6 +623,10 @@ public class EmailAction extends ActionHandler {
             internedAddresses.add(emailToInternetAddress(namedEmail));
         }
         return internedAddresses;
+    }
+
+    private static Collection<Recipient> toRecipients(List<InternetAddress> addresses, RecipientType type) {
+        return new RecipientsBuilder().withRecipientsFromAddressesWithDefaultName(null, addresses, type).buildRecipients();
     }
 
     private static Address[] toInternetAddressArray(Recipient recipient) {
