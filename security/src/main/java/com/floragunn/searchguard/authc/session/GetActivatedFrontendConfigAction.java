@@ -20,6 +20,7 @@ package com.floragunn.searchguard.authc.session;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -47,8 +48,8 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
 
     public static final RestApi REST_API = new RestApi()//
             .handlesGet("/_searchguard/auth/config")
-            .with(GetActivatedFrontendConfigAction.INSTANCE,
-                    (params, body) -> new Request(params.get("config_id"), params.get("next_url"), params.get("frontend_base_url"), params.get("dynamic_frontend_base_url")))//
+            .with(GetActivatedFrontendConfigAction.INSTANCE, (params, body) -> new Request(params.get("config_id"), params.get("next_url"),
+                    params.get("frontend_base_url"), params.get("dynamic_frontend_base_url"), params.get("dynamic_host")))//
             .handlesPost("/_searchguard/auth/config")//
             .with(GetActivatedFrontendConfigAction.INSTANCE)//
             .name("Search Guard Frontend Auth Config");
@@ -64,13 +65,19 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
         private final String configId;
         private final String frontendBaseUrl;
         private final String dynamicFrontendBaseUrl;
+        private final String dynamicHost;
 
         public Request(String configId, String nextURL, String frontendBaseUrl, String dynamicFrontendBaseUrl) {
+            this(configId, nextURL, frontendBaseUrl, dynamicFrontendBaseUrl, null);
+        }
+
+        public Request(String configId, String nextURL, String frontendBaseUrl, String dynamicFrontendBaseUrl, String dynamicHost) {
             super();
             this.configId = configId;
             this.nextURL = nextURL;
             this.frontendBaseUrl = frontendBaseUrl;
             this.dynamicFrontendBaseUrl = dynamicFrontendBaseUrl;
+            this.dynamicHost = dynamicHost;
         }
 
         public Request(UnparsedMessage message) throws ConfigValidationException {
@@ -79,11 +86,18 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
             this.nextURL = docNode.getAsString("next_url");
             this.frontendBaseUrl = docNode.getAsString("frontend_base_url");
             this.dynamicFrontendBaseUrl = docNode.getAsString("dynamic_frontend_base_url");
+            this.dynamicHost = docNode.getAsString("dynamic_host");
         }
 
         @Override
         public Object toBasicObject() {
-            return ImmutableMap.of("config_id", configId, "next_url", nextURL, "frontend_base_url", frontendBaseUrl);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("config_id", configId);
+            result.put("next_url", nextURL);
+            result.put("frontend_base_url", frontendBaseUrl);
+            result.put("dynamic_frontend_base_url", dynamicFrontendBaseUrl);
+            result.put("dynamic_host", dynamicHost);
+            return result;
         }
 
         public String getNextURL() {
@@ -102,6 +116,10 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
             return dynamicFrontendBaseUrl;
         }
 
+        public String getDynamicHost() {
+            return dynamicHost;
+        }
+
     }
 
     public static class Response extends Action.Response {
@@ -116,6 +134,10 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
             this.authMethods = authMethods;
             this.loginPage = loginPage;
 
+        }
+
+        List<AuthMethod> getAuthMethods() {
+            return authMethods;
         }
 
         public Response(UnparsedMessage message) throws ConfigValidationException {
@@ -156,11 +178,23 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
                 throw notFound("No such frontend config: " + configId);
             }
 
+            return CompletableFuture.completedFuture(createResponse(frontendConfig, request));
+        }
+
+        static Response createResponse(FrontendAuthcConfig frontendConfig, Request request) {
             List<FrontendAuthcConfig.FrontendAuthenticationDomain> authMethods = frontendConfig.getAuthDomains();
             List<AuthMethod> result = new ArrayList<>(authMethods.size());
 
             for (FrontendAuthcConfig.FrontendAuthenticationDomain authMethod : authMethods) {
                 if (!authMethod.isEnabled()) {
+                    continue;
+                }
+
+                // A dynamic host restricts activation to explicitly matching domains. This guard intentionally runs before
+                // activateFrontendConfig(), because activation can perform network requests, for example OIDC discovery.
+                if (!authMethod.isEnabledForDynamicHost(request.getDynamicHost())) {
+                    log.trace("Skipping frontend authentication domain {} because dynamic host '{}' does not match enable_by_host", authMethod,
+                            request.getDynamicHost());
                     continue;
                 }
 
@@ -211,7 +245,7 @@ public class GetActivatedFrontendConfigAction extends Action<GetActivatedFronten
                 result.add(activatedAuthMethod);
             }
 
-            return CompletableFuture.completedFuture(new Response(result, frontendConfig.getLoginPage()));
+            return new Response(result, frontendConfig.getLoginPage());
         }
 
         private FrontendAuthcConfig getFallbackFrontendConfig() {

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.floragunn.codova.config.text.Pattern;
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.Document;
 import com.floragunn.codova.documents.Parser.Context;
@@ -112,6 +113,7 @@ public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfi
         private Map<String, Object> parsedJson;
         private boolean captureUrlFragment;
         private boolean autoSelect = false;
+        private Pattern enableByHost;
 
         public FrontendAuthenticationDomain() {
 
@@ -148,6 +150,7 @@ public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfi
                 result.message = vNode.get("message").asString();
                 result.captureUrlFragment = vNode.get("capture_url_fragment").withDefault(false).asBoolean();
                 result.autoSelect = vNode.get("auto_select").withDefault(false).asBoolean();
+                result.enableByHost = vNode.get("enable_by_host").by(Pattern::parse);
 
                 if ("basic".equals(result.type)) {
                     if (result.message == null) {
@@ -215,6 +218,10 @@ public class FrontendAuthcConfig implements PatchableDocument<FrontendAuthcConfi
 
         public boolean isAutoSelect() {
             return autoSelect;
+        }
+
+        public boolean isEnabledForDynamicHost(String dynamicHost) {
+            return dynamicHost == null || enableByHost == null || enableByHost.matches(dynamicHost);
         }
 
         @Override

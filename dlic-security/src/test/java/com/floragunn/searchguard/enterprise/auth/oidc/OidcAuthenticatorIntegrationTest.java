@@ -13,7 +13,15 @@
  */
 package com.floragunn.searchguard.enterprise.auth.oidc;
 
+import static com.floragunn.searchguard.test.RestMatchers.isOk;
+import static com.floragunn.searchguard.test.RestMatchers.json;
+import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.empty;
+
 import java.io.FileNotFoundException;
+import java.util.Arrays;
 
 import com.floragunn.searchguard.test.helper.certificate.TestCertificates;
 import com.floragunn.searchsupport.proxy.wiremock.WireMockRequestHeaderAddingFilter;
@@ -79,12 +87,80 @@ public class OidcAuthenticatorIntegrationTest {
                 .acceptOnlyRequestsWithHeader(REQUEST_HEADER_ADDING_FILTER.getHeader())
                 .useCustomTlsConfig(IDP_TLS_CONFIG).start();
 
-        TestSgConfig testSgConfig = new TestSgConfig().resources("oidc").frontendAuthc(new TestSgConfig.FrontendAuthc()
+        TestSgConfig.FrontendAuthc defaultConfig = new TestSgConfig.FrontendAuthc()
                 .authDomain(new TestSgConfig.FrontendAuthDomain("oidc").label("Label").config(
-                        "oidc.idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(), "oidc.client_id", "Der Klient", "oidc.client_secret",
-                        "Das Geheimnis", "user_mapping.roles.from", ImmutableMap.of("json_path", "jwt.roles", "split", ","), "oidc.idp.proxy.host",
-                        "127.0.0.8", "oidc.idp.proxy.port", wireMockProxy.port(), "oidc.idp.proxy.scheme", "http", "oidc.idp.tls.trusted_cas",
-                        "#{file:" + testCertificates.getCaCertificate().getCertificateFile().getAbsolutePath() + "}", "oidc.idp.tls.verify_hostnames", false)));
+                        "oidc.idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(),
+                        "oidc.client_id", "Der Klient",
+                        "oidc.client_secret", "Das Geheimnis",
+                        "user_mapping.roles.from", ImmutableMap.of("json_path", "jwt.roles", "split", ","),
+                        "oidc.idp.proxy.host", "127.0.0.8",
+                        "oidc.idp.proxy.port", wireMockProxy.port(),
+                        "oidc.idp.proxy.scheme", "http",
+                        "oidc.idp.tls.trusted_cas", "#{file:" + testCertificates.getCaCertificate().getCertificateFile().getAbsolutePath() + "}",
+                        "oidc.idp.tls.verify_hostnames", false));
+
+        TestSgConfig.FrontendAuthc hostFilteredConfig = new TestSgConfig.FrontendAuthc()
+                .authDomain(new TestSgConfig.FrontendAuthDomain("oidc").label("Tenant 1").config(
+                        "oidc.idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(),
+                        "oidc.client_id", "tenant-1-client",
+                        "oidc.client_secret", "Das Geheimnis",
+                        "user_mapping.roles.from", ImmutableMap.of("json_path", "jwt.roles", "split", ","),
+                        "oidc.idp.proxy.host", "127.0.0.8",
+                        "oidc.idp.proxy.port", wireMockProxy.port(),
+                        "oidc.idp.proxy.scheme", "http",
+                        "oidc.idp.tls.trusted_cas", "#{file:" + testCertificates.getCaCertificate().getCertificateFile().getAbsolutePath() + "}",
+                        "oidc.idp.tls.verify_hostnames", false,
+                        "enable_by_host", Arrays.asList("tenant1-kibana", "tenant1-*.customername.com")))
+                .authDomain(new TestSgConfig.FrontendAuthDomain("oidc").label("Tenant 2").config(
+                        "oidc.idp.openid_configuration_url", mockIdpServer.getUri() + "/tenant2-discover",
+                        "oidc.client_id", "tenant-2-client",
+                        "oidc.client_secret", "Das Geheimnis",
+                        "user_mapping.roles.from", ImmutableMap.of("json_path", "jwt.roles", "split", ","),
+                        "oidc.idp.proxy.host", "127.0.0.8",
+                        "oidc.idp.proxy.port", wireMockProxy.port(),
+                        "oidc.idp.proxy.scheme", "http",
+                        "oidc.idp.tls.trusted_cas", "#{file:" + testCertificates.getCaCertificate().getCertificateFile().getAbsolutePath() + "}",
+                        "oidc.idp.tls.verify_hostnames", false,
+                        "enable_by_host", Arrays.asList("tenant2-kibana", "tenant2-kibana.customername.com")));
+
+        TestSgConfig.FrontendAuthc hostFilteredWithDefaultConfig = new TestSgConfig.FrontendAuthc()
+                .authDomain(new TestSgConfig.FrontendAuthDomain("oidc").label("Tenant 1").config(
+                        "oidc.idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(),
+                        "oidc.client_id", "tenant-1-client",
+                        "oidc.client_secret", "Das Geheimnis",
+                        "user_mapping.roles.from", ImmutableMap.of("json_path", "jwt.roles", "split", ","),
+                        "oidc.idp.proxy.host", "127.0.0.8",
+                        "oidc.idp.proxy.port", wireMockProxy.port(),
+                        "oidc.idp.proxy.scheme", "http",
+                        "oidc.idp.tls.trusted_cas", "#{file:" + testCertificates.getCaCertificate().getCertificateFile().getAbsolutePath() + "}",
+                        "oidc.idp.tls.verify_hostnames", false,
+                        "enable_by_host", Arrays.asList("tenant1-kibana")))
+                .authDomain(new TestSgConfig.FrontendAuthDomain("oidc").label("Tenant 2").config(
+                        "oidc.idp.openid_configuration_url", mockIdpServer.getUri() + "/tenant2-discover",
+                        "oidc.client_id", "tenant-2-client",
+                        "oidc.client_secret", "Das Geheimnis",
+                        "user_mapping.roles.from", ImmutableMap.of("json_path", "jwt.roles", "split", ","),
+                        "oidc.idp.proxy.host", "127.0.0.8",
+                        "oidc.idp.proxy.port", wireMockProxy.port(),
+                        "oidc.idp.proxy.scheme", "http",
+                        "oidc.idp.tls.trusted_cas", "#{file:" + testCertificates.getCaCertificate().getCertificateFile().getAbsolutePath() + "}",
+                        "oidc.idp.tls.verify_hostnames", false,
+                        "enable_by_host", Arrays.asList("tenant2-kibana")))
+                .authDomain(new TestSgConfig.FrontendAuthDomain("oidc").label("Always available").config(
+                        "oidc.idp.openid_configuration_url", mockIdpServer.getDiscoverUri().toString(),
+                        "oidc.client_id", "default-client",
+                        "oidc.client_secret", "Das Geheimnis",
+                        "user_mapping.roles.from", ImmutableMap.of("json_path", "jwt.roles", "split", ","),
+                        "oidc.idp.proxy.host", "127.0.0.8",
+                        "oidc.idp.proxy.port", wireMockProxy.port(),
+                        "oidc.idp.proxy.scheme", "http",
+                        "oidc.idp.tls.trusted_cas", "#{file:" + testCertificates.getCaCertificate().getCertificateFile().getAbsolutePath() + "}",
+                        "oidc.idp.tls.verify_hostnames", false));
+
+        TestSgConfig testSgConfig = new TestSgConfig().resources("oidc")
+                .frontendAuthc(defaultConfig)
+                .frontendAuthc("host_filtered", hostFilteredConfig)
+                .frontendAuthc("host_filtered_with_default", hostFilteredWithDefaultConfig);
 
         cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().singleNode().resources("oidc").sgConfig(testSgConfig).embedded().start();
     }
@@ -154,4 +230,57 @@ public class OidcAuthenticatorIntegrationTest {
             }
         }
     }
+
+    @Test
+    public void authConfigIsFilteredByExactDynamicHostWithoutActivatingOtherOidcDomains() throws Exception {
+        wireMockProxy.resetRequests();
+
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            HttpResponse response = client.get("/_searchguard/auth/config?config_id=host_filtered&dynamic_host=tenant1-kibana&frontend_base_url="
+                    + FRONTEND_BASE_URL);
+
+            assertThat(response, isOk());
+            assertThat(response, json(nodeAt("auth_methods[*].label", contains("Tenant 1"))));
+            assertThat("The excluded OIDC domain must not retrieve its discovery document",
+                    wireMockProxy.getAllServeEvents().stream()
+                            .filter(event -> String.valueOf(event.getRequest().getAbsoluteUrl()).contains("/tenant2-discover")).toList(),
+                    empty());
+        }
+    }
+
+    @Test
+    public void authConfigIsFilteredByDynamicHostPattern() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            HttpResponse response = client.get(
+                    "/_searchguard/auth/config?config_id=host_filtered&dynamic_host=tenant1-eu.customername.com&frontend_base_url="
+                            + FRONTEND_BASE_URL);
+
+            assertThat(response, isOk());
+            assertThat(response, json(nodeAt("auth_methods[*].label", contains("Tenant 1"))));
+        }
+    }
+
+    @Test
+    public void authConfigIncludesDomainsWithoutEnableByHost() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            HttpResponse response = client.get(
+                    "/_searchguard/auth/config?config_id=host_filtered_with_default&dynamic_host=unknown-kibana&frontend_base_url="
+                            + FRONTEND_BASE_URL);
+
+            assertThat(response, isOk());
+            assertThat(response, json(nodeAt("auth_methods[*].label", contains("Always available"))));
+        }
+    }
+
+    @Test
+    public void authConfigWithoutDynamicHostIncludesAllDomains() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient("kibanaserver", "kibanaserver")) {
+            HttpResponse response = client.get("/_searchguard/auth/config?config_id=host_filtered&frontend_base_url="
+                    + FRONTEND_BASE_URL);
+
+            assertThat(response, isOk());
+            assertThat(response, json(nodeAt("auth_methods[*].label", contains("Tenant 1", "Tenant 2"))));
+        }
+    }
+
 }
