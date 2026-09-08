@@ -12,7 +12,7 @@ variables:
   # OWASP Dependency-Check image tag (pin for reproducibility; bump as needed)
   OWASP_DC_VERSION: "12.2.2"
   SG_BUILD_IMAGE: "floragunncom/ubuntu-openjdk25:251126"
-  SG_DIND_IMAGE: "floragunncom/ubuntu-dind:260209"
+  SG_DIND_IMAGE: "floragunncom/ubuntu-dind:260908-041641"
   MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   MAVEN_CLI_OPTS: "--batch-mode -s settings.xml -U"
   DOCKER_TLS_CERTDIR: "/certs"
