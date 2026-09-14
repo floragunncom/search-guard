@@ -11,7 +11,7 @@ single ES plugin zip at `plugin/target/releases/search-guard-flx-elasticsearch-p
 
 The repo mixes two licenses, which matters when adding files:
 
-- **Apache 2** — `security`, `security-legacy`, `scheduler`, `signals`, `ssl`, `support`, `plugin`, `dev`, `ci`, root
+- **Apache 2** — `security`, `scheduler`, `signals`, `ssl`, `support`, `plugin`, `dev`, `ci`, root
 - **Proprietary** (floragunn "DLIC") — `dlic-security`, `dlic-signals`, `dlic-auditlog`, `dlic-dlsfls`,
   `dlic-fe-multi-tenancy`
 
@@ -189,9 +189,10 @@ even though neither is itself readable. That is what `objectOnlyPatterns` /
 
 ### Other modules
 
-- `security-legacy` — artifact `search-guard-flx-legacy-test-framework`: **test sources only**, no `src/main`. The
-  older `SingleClusterTest` / `AbstractSGUnitTest` / `DynamicSgConfig` harness, still used by tests that predate
-  `LocalCluster`. Write new tests against `LocalCluster`/`TestSgConfig` instead.
+- `security/src/test/java/com/floragunn/searchguard/legacy/test/` — the older `SingleClusterTest` /
+  `AbstractSGUnitTest` / `DynamicSgConfig` harness (shipped in the `search-guard-flx-security:tests` jar), still
+  used by tests in `dlic-auditlog` and `dlic-security` that predate `LocalCluster`. Write new tests against
+  `LocalCluster`/`TestSgConfig` instead.
 - `support` — `com.floragunn.searchsupport`: shared utilities, `Meta` (index metadata abstraction used throughout
   authz), component state, metrics (`MetricsLevel`, `Meter`)
 - `scheduler` / `signals` / `dlic-signals` — Quartz-based job scheduling and the Signals alerting feature
