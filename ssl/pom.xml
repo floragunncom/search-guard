@@ -53,10 +53,14 @@
     </dependency>
 
     <dependency>
+      <!-- Needed for the test keystores (node-*-keystore.jks, kirk-keystore.jks, truststore.jks) in
+           support/src/test/resources, which the ssl tests load from the classpath. No classes are used from it,
+           so dependency:analyze reports it as unused. -->
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-support</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
+
   </dependencies>
 </project>
