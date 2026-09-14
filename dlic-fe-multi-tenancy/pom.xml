@@ -46,7 +46,7 @@
     <dependency>
       <groupId>org.antlr</groupId>
       <artifactId>antlr4-runtime</artifactId>
-      <version>4.11.1</version>
+      <version>4.13.2</version>
       <scope>test</scope>
     </dependency>
 
@@ -88,11 +88,5 @@
       <scope>test</scope>
     </dependency>
     
-    <dependency>
-      <groupId>com.floragunn</groupId>
-      <artifactId>search-guard-flx-legacy-test-framework</artifactId>
-      <classifier>tests</classifier>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 </project>
