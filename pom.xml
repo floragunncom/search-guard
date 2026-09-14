@@ -19,7 +19,6 @@
 
   <modules>
     <module>security</module>
-    <module>security-legacy</module>    
     <module>scheduler</module>
     <module>signals</module>
     <module>support</module>
@@ -117,12 +116,6 @@
       <dependency>
         <groupId>com.floragunn</groupId>
         <artifactId>search-guard-flx-security</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>search-guard-flx-legacy-test-framework</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -332,13 +325,6 @@
       <dependency>
         <groupId>com.floragunn</groupId>
         <artifactId>search-guard-flx-security</artifactId>
-        <version>${project.version}</version>
-        <classifier>tests</classifier>
-      </dependency>
-
-      <dependency>
-        <groupId>com.floragunn</groupId>
-        <artifactId>search-guard-flx-legacy-test-framework</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
       </dependency>
@@ -987,7 +973,6 @@
       </activation>
       <modules>
         <module>security</module>
-        <module>security-legacy</module>            
         <module>scheduler</module>
         <module>signals</module>
         <module>support</module>
