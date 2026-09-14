@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
@@ -112,7 +113,7 @@ public class InternalUsersAuthenticationBackend implements AuthenticationBackend
                 .backendRoles(internalUser.getBackendRoles())//
                 .searchGuardRoles(internalUser.getSearchGuardRoles())//
                 .userMappingAttribute(UserMappingAttributes.USER_ENTRY,
-                        internalUser.toRedactedBasicObject().with("name", authCredentials.getUsername()))//
+                        Map.copyOf(internalUser.toRedactedBasicObject().with("name", authCredentials.getUsername())))//
                 .build());
 
     }
