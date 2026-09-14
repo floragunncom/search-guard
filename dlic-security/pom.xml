@@ -25,21 +25,6 @@
 
   <dependencies>
 
-    <dependency>
-      <groupId>com.flipkart.zjsonpatch</groupId>
-      <artifactId>zjsonpatch</artifactId>
-      <version>0.4.16</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-core</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-databind</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
 
     <dependency>
       <groupId>com.jayway.jsonpath</groupId>
@@ -57,8 +42,10 @@
     </dependency>
 
     <dependency>
+      <!-- java-saml itself only adds the servlet-based Auth/ServletUtils classes, which are not used; everything
+           Search Guard imports lives in java-saml-core -->
       <groupId>com.onelogin</groupId>
-      <artifactId>java-saml</artifactId>
+      <artifactId>java-saml-core</artifactId>
       <version>2.9.0</version>
 
       <exclusions>
@@ -98,12 +85,9 @@
       <groupId>commons-codec</groupId>
       <artifactId>commons-codec</artifactId>
     </dependency>
-    <dependency>
-      <groupId>commons-collections</groupId>
-      <artifactId>commons-collections</artifactId>
-    </dependency>
 
     <dependency>
+      <!-- Runtime dependency of java-saml-core (excluded above so this pinned version wins). Not visible to dependency:analyze. -->
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
     </dependency>
@@ -230,6 +214,7 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- jjwt-impl and jjwt-jackson are loaded reflectively / via ServiceLoader by jjwt-api at runtime. Not visible to dependency:analyze. -->
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-impl</artifactId>
@@ -251,12 +236,7 @@
     </dependency>
 
     <dependency>
-      <groupId>javax.servlet</groupId>
-      <artifactId>servlet-api</artifactId>
-      <version>2.5</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
+      <!-- Runtime JSON provider for the json-path used by WireMock (json-smart is excluded from our own json-path). Not visible to dependency:analyze. -->
       <groupId>net.minidev</groupId>
       <artifactId>json-smart</artifactId>
       <version>2.6.0</version>

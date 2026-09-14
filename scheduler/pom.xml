@@ -39,6 +39,8 @@
     </dependency>
 
     <dependency>
+      <!-- Needed at test runtime: SgAwarePluginsService (security tests jar) instantiates SearchGuardPlugin, which
+           extends SearchGuardSSLPlugin, and security declares ssl as provided (non-transitive). Not visible to dependency:analyze. -->
       <groupId>com.floragunn</groupId>
       <artifactId>search-guard-flx-ssl</artifactId>
       <scope>provided</scope>
@@ -50,11 +52,6 @@
       <scope>provided</scope>
     </dependency>
 
-    <dependency>
-      <groupId>com.github.stephenc.jcip</groupId>
-      <artifactId>jcip-annotations</artifactId>
-      <scope>test</scope>
-    </dependency>
 
     <dependency>
       <groupId>com.floragunn</groupId>

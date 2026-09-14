@@ -197,8 +197,6 @@ even though neither is itself readable. That is what `objectOnlyPatterns` /
 - `scheduler` / `signals` / `dlic-signals` — Quartz-based job scheduling and the Signals alerting feature
 - `ssl` — transport and HTTP TLS (`SearchGuardSSLPlugin`, keystore handling)
 - `plugin` — assembly only; `plugin/src/main/assemblies/plugin.xml` defines what lands in the zip
-- `dlic-security-legacy` — **orphan**: a `pom.xml` and nothing else, listed in no reactor and referenced by no CI
-  job. Don't add code there; it will not be built.
 - `docker` — not a Maven module. `Dockerfile` installs a *released* plugin zip from `maven.search-guard.com` into
   the `floragunncom/es-mirror` base image; `build_and_push.sh` drives the multi-arch build. In CI these jobs run
   only when the `DOCKER_ONLY` variable is set, which switches every other job off.
