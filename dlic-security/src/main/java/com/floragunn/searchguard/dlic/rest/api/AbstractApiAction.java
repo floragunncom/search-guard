@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import com.floragunn.codova.validation.ValidationErrors;
 import com.floragunn.searchguard.configuration.AdminDNs;
@@ -72,6 +73,7 @@ import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValid
 import com.floragunn.searchguard.dlic.rest.validation.AbstractConfigurationValidator.ErrorType;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.PrivilegedConfigContext;
 import com.floragunn.searchguard.user.User;
 import com.google.common.collect.ImmutableMap;
 
@@ -453,10 +455,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
             return channel -> forbidden(channel, "No permission to access REST API: " + authError);
         }
 
-        final Object originalUser = threadContext.getTransient(ConfigConstants.SG_USER);
-        final Object originalRemoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-        final Object originalOrigin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
-		final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
+        Supplier<StoredContext> callerContext = threadContext.newRestorableContext(false);
 
 		final ReleasableBytesReference content = request.content();
 		content.mustIncRef();
@@ -464,20 +463,7 @@ public abstract class AbstractApiAction extends BaseRestHandler {
 
             threadPool.generic().submit(() -> {
 
-                try (StoredContext ctx = threadContext.stashContext()) {
-
-                    threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-                    threadContext.putTransient(ConfigConstants.SG_USER, originalUser);
-                    threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
-                    threadContext.putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
-
-                    originalResponseHeaders.entrySet().forEach(
-
-                            h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
-
-                    );
-
-
+                try (StoredContext caller = callerContext.get(); StoredContext config = PrivilegedConfigContext.initPrivilegedContext(threadContext)) {
                     handleApiRequest(channel, request, client, content);
 
                 } catch (Exception e) {

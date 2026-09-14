@@ -13,6 +13,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.PrivilegedConfigContext;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.accounts.Account;
@@ -57,20 +58,7 @@ public class TransportGetAccountAction extends HandledTransportAction<GetAccount
             ThreadContext threadContext = threadPool.getThreadContext();
 
             User user = threadContext.getTransient(ConfigConstants.SG_USER);
-            Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-            Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
-            final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
-
-            try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
-
-                threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-                threadContext.putTransient(ConfigConstants.SG_USER, user);
-                threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
-                threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
-
-                originalResponseHeaders.entrySet().forEach(
-                        h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
-                );
+            try (StoredContext ctx = PrivilegedConfigContext.initPrivilegedContext(threadContext)) {
 
 
                 String tenant = isTenantScoped() ? signals.getTenant(user).getName() : null;

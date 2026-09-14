@@ -50,26 +50,9 @@ public final class PrivilegedConfigClient extends FilterClient {
         ThreadContext threadContext = threadPool().getThreadContext();
         LogContextPreservingActionListener<Response> wrappedListener = LogContextPreservingActionListener.wrapPreservingContext(listener, threadContext);
         String actionStack = DiagnosticContext.getActionStack(threadContext);
-        Object user = threadContext.getTransient(ConfigConstants.SG_USER);
-        Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-        Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
-
-        try (StoredContext ctx = threadContext.stashContext()) {
-            threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
+        try (StoredContext ctx = PrivilegedConfigContext.initPrivilegedContext(threadContext)) {
             threadContext.putHeader(InternalAuthTokenProvider.TOKEN_HEADER, "");
             threadContext.putHeader(InternalAuthTokenProvider.AUDIENCE_HEADER, "");
-
-            if (user != null) {
-                threadContext.putTransient(ConfigConstants.SG_USER, user);
-            }
-
-            if (remoteAddress != null) {
-                threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
-            }
-            
-            if (origin != null) {
-                threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
-            }
 
             if (actionStack != null) {
                 threadContext.putHeader(DiagnosticContext.ACTION_STACK_HEADER, actionStack);

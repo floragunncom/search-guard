@@ -29,6 +29,7 @@ import org.joda.time.format.DateTimeFormatter;
 
 import com.floragunn.searchguard.enterprise.auditlog.impl.AuditMessage;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.PrivilegedConfigContext;
 import com.floragunn.searchguard.support.HeaderHelper;
 
 public final class InternalESSink extends AuditLogSink {
@@ -67,12 +68,11 @@ public final class InternalESSink extends AuditLogSink {
 			return true;
 		}
 
-		try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
+		try (StoredContext ctx = PrivilegedConfigContext.initPrivilegedContext(threadPool.getThreadContext())) {
 			try {
 
 				final IndexRequestBuilder irb = clientProvider.prepareIndex(getExpandedIndexName(indexPattern, index)).setRefreshPolicy(RefreshPolicy.IMMEDIATE).setSource(msg.getAsMap());
 
-				threadPool.getThreadContext().putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
 				irb.setTimeout(TimeValue.timeValueMinutes(1));
 				irb.execute().actionGet();
 				return true;
