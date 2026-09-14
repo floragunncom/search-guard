@@ -1,5 +1,7 @@
 package com.floragunn.signals.actions.watch.delete;
 
+import java.util.function.Supplier;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
@@ -19,15 +21,13 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.PrivilegedConfigContext;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.jobs.actions.SchedulerConfigUpdateAction;
 import com.floragunn.signals.NoSuchTenantException;
 import com.floragunn.signals.Signals;
 import com.floragunn.signals.SignalsTenant;
 import com.floragunn.signals.SignalsUnavailableException;
-
-import java.util.List;
-import java.util.Map;
 
 public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWatchRequest, DeleteWatchResponse> {
     private static final Logger log = LogManager.getLogger(TransportDeleteWatchAction.class);
@@ -60,22 +60,9 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
             }
 
             SignalsTenant signalsTenant = signals.getTenant(user);
-            Object originalRemoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-            Object originalOrigin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
-            final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
+            Supplier<StoredContext> callerContext = threadContext.newRestorableContext(false);
 
-
-            try (StoredContext ctx = threadContext.stashContext()) {
-
-                threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-                threadContext.putTransient(ConfigConstants.SG_USER, user);
-                threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
-                threadContext.putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
-
-                originalResponseHeaders.entrySet().forEach(
-                        h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
-                );
-
+            try (StoredContext ctx = PrivilegedConfigContext.initPrivilegedContext(threadContext)) {
                 String idInIndex = signalsTenant.getWatchIdForConfigIndex(request.getWatchId());
 
                 client.prepareDelete().setIndex(signalsTenant.getConfigIndexName()).setId(idInIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE)
@@ -87,18 +74,7 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
                                     SchedulerConfigUpdateAction.send(client, signalsTenant.getScopedName());
                                 }
 
-                                try (StoredContext ctx = threadContext.stashContext()) {
-
-                                    threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-                                    threadContext.putTransient(ConfigConstants.SG_USER, user);
-                                    threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, originalRemoteAddress);
-                                    threadContext.putTransient(ConfigConstants.SG_ORIGIN, originalOrigin);
-
-                                    originalResponseHeaders.entrySet().forEach(
-                                            h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
-                                    );
-
-                                    client.prepareDelete().setIndex(signalsTenant.getSettings().getStaticSettings().getIndexNames().getWatchesState())
+                                client.prepareDelete().setIndex(signalsTenant.getSettings().getStaticSettings().getIndexNames().getWatchesState())
                                             .setId(idInIndex).setRefreshPolicy(RefreshPolicy.IMMEDIATE).execute(new ActionListener<DeleteResponse>() {
 
                                                 @Override
@@ -114,15 +90,18 @@ public class TransportDeleteWatchAction extends HandledTransportAction<DeleteWat
                                                 }
 
                                             });
-                                }
 
-                                listener.onResponse(new DeleteWatchResponse(request.getWatchId(), response.getVersion(), response.getResult(),
-                                        response.status(), null));
+                                try (StoredContext ctx = callerContext.get()) {
+                                    listener.onResponse(new DeleteWatchResponse(request.getWatchId(), response.getVersion(), response.getResult(),
+                                            response.status(), null));
+                                }
                             }
 
                             @Override
                             public void onFailure(Exception e) {
-                                listener.onFailure(e);
+                                try (StoredContext ctx = callerContext.get()) {
+                                    listener.onFailure(e);
+                                }
                             }
                         });
             }

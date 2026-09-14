@@ -43,7 +43,6 @@ import org.elasticsearch.action.search.TransportSearchAction;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -59,14 +58,11 @@ import org.elasticsearch.transport.TransportResponseHandler;
 
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
-import com.floragunn.searchguard.auditlog.AuditLog.Origin;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
-import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
-import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.google.common.collect.Maps;
 
@@ -138,9 +134,6 @@ public class SearchGuardInterceptor {
         }
 
         final Map<String, String> origHeaders0 = getThreadContext().getHeaders();
-        final User user0 = getThreadContext().getTransient(ConfigConstants.SG_USER);
-        final String origin0 = getThreadContext().getTransient(ConfigConstants.SG_ORIGIN);
-        final TransportAddress remoteAdress0 = getThreadContext().getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
         final String origCCSTransientDls = getThreadContext().getTransient(ConfigConstants.SG_DLS_QUERY_CCS);
         final String origCCSTransientFls = getThreadContext().getTransient(ConfigConstants.SG_FLS_FIELDS_CCS);
         final String origCCSTransientMf = getThreadContext().getTransient(ConfigConstants.SG_MASKED_FIELD_CCS);
@@ -220,8 +213,6 @@ public class SearchGuardInterceptor {
             
             getThreadContext().putHeader(headerMap);
 
-            ensureCorrectHeaders(remoteAdress0, user0, origin0);
-
             if(actionTrace.isTraceEnabled()) {
                 getThreadContext().putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread.currentThread().getName()+" IC -> "+action+" "+getThreadContext().getHeaders().entrySet().stream().filter(p->!p.getKey().startsWith("_sg_trace")).collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue())));
             }
@@ -237,35 +228,6 @@ public class SearchGuardInterceptor {
                 for (String value : headerValues) {
                     getThreadContext().addResponseHeader(entry.getKey(), value);
                 }
-            }
-        }
-    }
-
-    private void ensureCorrectHeaders(final TransportAddress remoteAdr, final User origUser, final String origin) {
-        // keep original address
-
-        if(origin != null && !origin.isEmpty() /*&& !Origin.LOCAL.toString().equalsIgnoreCase(origin)*/ && getThreadContext().getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
-            getThreadContext().putHeader(ConfigConstants.SG_ORIGIN_HEADER, origin);
-        }
-
-        if(origin == null && getThreadContext().getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
-            getThreadContext().putHeader(ConfigConstants.SG_ORIGIN_HEADER, Origin.LOCAL.toString());
-        }
-
-        if (remoteAdr != null) {
-
-            String remoteAddressHeader = getThreadContext().getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER);
-
-            if(remoteAddressHeader == null) {
-                getThreadContext().putHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER, Base64Helper.serializeObject(remoteAdr.address()));
-            }
-        }
-
-        if(origUser != null) {
-            String userHeader = getThreadContext().getHeader(ConfigConstants.SG_USER_HEADER);
-
-            if(userHeader == null) {
-                getThreadContext().putHeader(ConfigConstants.SG_USER_HEADER, Base64Helper.serializeObject(origUser));
             }
         }
     }

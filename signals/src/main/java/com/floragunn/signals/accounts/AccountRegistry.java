@@ -16,6 +16,7 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.PrivilegedConfigContext;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.signals.SignalsInitializationException;
 import com.floragunn.signals.settings.SignalsSettings;
@@ -61,22 +62,7 @@ public class AccountRegistry {
     public void updateAtomic(Client client) throws IOException {
         ThreadContext threadContext = client.threadPool().getThreadContext();
 
-        User user = threadContext.getTransient(ConfigConstants.SG_USER);
-        Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-        Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
-        final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
-
-
-        try (StoredContext ctx = threadContext.stashContext()) {
-
-            threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-            threadContext.putTransient(ConfigConstants.SG_USER, user);
-            threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
-            threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
-
-            originalResponseHeaders.entrySet().forEach(
-                    h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
-            );
+        try (StoredContext ctx = PrivilegedConfigContext.initPrivilegedContext(threadContext)) {
 
             Map<String, Account> tmp = new HashMap<>();
 

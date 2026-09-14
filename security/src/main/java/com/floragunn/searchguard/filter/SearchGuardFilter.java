@@ -77,6 +77,7 @@ import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextPr
 import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedActionHandlingService;
 import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.SearchGuardContext;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SourceFieldsContext;
 import com.floragunn.searchguard.user.User;
@@ -133,7 +134,8 @@ public class SearchGuardFilter implements ActionFilter {
     public <Request extends ActionRequest, Response extends ActionResponse> void apply(Task task, final String action, Request request,
             ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
 
-        specialPrivilegesEvaluationContextProviderRegistry.provide(threadContext.getTransient(ConfigConstants.SG_USER), threadContext,
+        SearchGuardContext.initializeTransientCaches(threadContext);
+        specialPrivilegesEvaluationContextProviderRegistry.provide(SearchGuardContext.getUser(threadContext), threadContext,
                 (specialPrivilegesEvaluationContext) -> {
                     try (StoredContext ctx = threadContext.newStoredContext()) {
                         apply0(task, action, request, listener, chain, specialPrivilegesEvaluationContext);
@@ -153,8 +155,8 @@ public class SearchGuardFilter implements ActionFilter {
 
         try {
 
-            if (threadContext.getTransient(ConfigConstants.SG_ORIGIN) == null) {
-                threadContext.putTransient(ConfigConstants.SG_ORIGIN, Origin.LOCAL.toString());
+            if (SearchGuardContext.getOrigin(threadContext) == null) {
+                SearchGuardContext.setOrigin(threadContext, Origin.LOCAL.toString());
             }
 
             if (complianceConfig != null && complianceConfig.isEnabled()) {
@@ -185,22 +187,9 @@ public class SearchGuardFilter implements ActionFilter {
 
                 user = specialPrivilegesEvaluationContext.getUser();
 
-                if (user != null && threadContext.getTransient(ConfigConstants.SG_USER) == null) {
-                    threadContext.putTransient(ConfigConstants.SG_USER, user);
+                if (user != null && SearchGuardContext.getUser(threadContext) == null) {
+                    SearchGuardContext.setUser(threadContext, user);
                 }
-            }
-
-            // Elasticsearch 9.5.2 enables the chunked fetch phase by default. On that path the fetch is not sent to
-            // the data node by the search phase itself. It is routed through the node local
-            // TransportFetchPhaseCoordinationAction, which stashes the thread context and afterwards restores only
-            // the plain string headers which Elasticsearch captured in SearchTransportService#sendExecuteFetch.
-            // Search Guard keeps the authenticated user in a thread context transient, which does not survive that
-            // stash. The data node would consequently execute the fetch without a user and thus without DLS, FLS,
-            // field masking and read history auditing. As Elasticsearch only captures headers, the user has to be
-            // present as a header while the search is coordinated on this node. The header is the same one which
-            // SearchGuardInterceptor would add to an outgoing request anyway.
-            if (user != null && request instanceof SearchRequest && threadContext.getHeader(ConfigConstants.SG_USER_HEADER) == null) {
-                threadContext.putHeader(ConfigConstants.SG_USER_HEADER, Base64Helper.serializeObject(user));
             }
 
             org.apache.logging.log4j.ThreadContext.put("user", user != null ? user.getName() : "n/a");
