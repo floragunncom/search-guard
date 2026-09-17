@@ -18,10 +18,10 @@
 package com.floragunn.searchguard.authc.rest;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.Consumer;
 
 import com.floragunn.searchguard.SignalsTenantParamResolver;
@@ -142,12 +142,14 @@ public class RestRequestAuthenticationProcessor extends RequestAuthenticationPro
             // 2. Null slots in ImmutableMap: Netty's HttpHeadersMap.size() counts every header entry individually,
             //    including duplicates (e.g. two "x-proxy-roles" lines = size 2). Its entrySet(), however, follows
             //    httpHeaders.names() which yields only unique keys and merges duplicates into a single list entry.
-            //    ImmutableMap.of(source) allocates its internal array using source.size() but populates it from
-            //    source.entrySet(), leaving trailing null slots for any duplicate headers. Calling mapValues() on such
-            //    a map passes those null slots to List.copyOf(), causing NullPointerException. Copying into a HashMap
-            //    first normalises the map so that size() == entrySet().size() before ImmutableMap wraps it.
-            ImmutableMap<String, List<String>> headers = ImmutableMap.of(new HashMap<>(request.getHeaders())).mapValues(List::copyOf);
-            ac = ac.userMappingAttributes(ImmutableMap.of("request", ImmutableMap.of("headers", ImmutableMap.of(headers), "direct_ip_address",
+            //    Copying entrySet() into a JDK map first normalises the map so that size() == entrySet().size().
+            //
+            // 3. Case-insensitive lookup: Netty's HttpHeadersMap provides case-insensitive key access. Preserve that
+            //    behavior for user-mapping JSONPath expressions by keeping the normalized headers in a TreeMap with
+            //    String.CASE_INSENSITIVE_ORDER.
+            Map<String, List<String>> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+            request.getHeaders().forEach((key, value) -> headers.put(key, List.copyOf(value)));
+            ac = ac.userMappingAttributes(ImmutableMap.of("request", ImmutableMap.of("headers", headers, "direct_ip_address",
                     String.valueOf(request.getDirectIpAddress()), "originating_ip_address", String.valueOf(request.getOriginatingIpAddress()))));
             return proceed(ac, authenticationDomain, onResult, onFailure);
         }
