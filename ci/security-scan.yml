@@ -83,7 +83,9 @@ scan:trivy:vuln:
     # from this JSON via `trivy convert` (no re-scan, no DB access).
     # NOTE: --ignore-unfixed must be applied HERE at scan time -- `trivy convert`
     # does not support that flag (it only supports --severity / --exit-code).
-    - trivy sbom bom.json --ignore-unfixed --format json --output trivy-vuln.json
+    # Package-level exclusions (e.g. io.netty) live in ci/trivy-ignore-policy.rego;
+    # applying them here means every derived report and the gate inherit them.
+    - trivy sbom bom.json --ignore-unfixed --ignore-policy ci/trivy-ignore-policy.rego --format json --output trivy-vuln.json
     # GitLab-native dependency-scanning report (MR Security widget; Ultimate only).
     - trivy convert --format template --template "@/contrib/gitlab.tpl" --output gl-dependency-scanning-report.json trivy-vuln.json
     # JUnit report so each finding shows in the pipeline "Tests" tab (all tiers, incl. CE). Non-failing.
@@ -219,6 +221,7 @@ scan:owasp:vuln:
         --format HTML --format JSON --format JUNIT \
         --prettyPrint \
         --disableKnownExploited \
+        --suppression "ci/owasp-suppressions.xml" \
         --failOnCVSS "$OWASP_JUNIT_FAIL_CVSS" \
         --junitFailOnCVSS "$OWASP_JUNIT_FAIL_CVSS" \
         ${NVD_API_KEY:+--nvdApiKey "$NVD_API_KEY"}; then

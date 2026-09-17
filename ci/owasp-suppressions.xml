@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Suppression file for the scan:owasp:vuln job (ci/security-scan.yml), passed to
+  dependency-check.sh with the "suppression" argument. Suppressed findings are listed
+  as suppressed in the HTML report and count neither towards the failOnCVSS gate
+  (verify:security) nor towards junitFailOnCVSS.
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.4.xsd">
+
+    <suppress>
+        <notes><![CDATA[
+        io.netty is provided and version-managed by Elasticsearch itself; Netty CVEs are
+        resolved by moving to the ES version that fixes them, not by anything in this
+        repository.
+
+        The two catch-all patterns drop every finding of an io.netty artifact, regardless
+        of score or source: the cpe rule removes the matched vulnerable-software
+        identifiers, the vulnerabilityName rule removes the vulnerabilities themselves.
+        (cvssBelow is not usable as a catch-all here - the schema caps it at 10 and the
+        comparison is "strictly below", so a 10.0 finding would slip through.)
+
+        The equivalent Trivy exclusion lives in ci/trivy-ignore-policy.rego.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/io\.netty/.*@.*$</packageUrl>
+        <cpe regex="true">.*</cpe>
+        <vulnerabilityName regex="true">.*</vulnerabilityName>
+    </suppress>
+
+    <suppress>
+        <notes><![CDATA[
+        file name: search-guard-flx-elasticsearch-plugin-trivy.zip: search-guard-lpg-1.0.0.jar
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/com\.floragunn/search-guard-lpg@.*$</packageUrl>
+        <cpe>cpe:/a:search-guard:search_guard</cpe>
+    </suppress>
+
+</suppressions>
