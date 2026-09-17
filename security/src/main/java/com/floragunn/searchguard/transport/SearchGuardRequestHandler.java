@@ -17,9 +17,7 @@
 
 package com.floragunn.searchguard.transport;
 
-import java.net.InetSocketAddress;
 import java.security.cert.X509Certificate;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -43,13 +41,12 @@ import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.ssl.transport.SearchGuardSSLRequestHandler;
-import com.floragunn.searchguard.support.Base64Helper;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.SearchGuardContext;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
-import com.google.common.base.Strings;
 import org.elasticsearch.transport.TransportChannel;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestHandler;
@@ -97,11 +94,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
         
         final ThreadContext.StoredContext sgContext = getThreadContext().newStoredContext();
 
-        final String originHeader = getThreadContext().getHeader(ConfigConstants.SG_ORIGIN_HEADER);
-
-        if(!Strings.isNullOrEmpty(originHeader)) {
-            getThreadContext().putTransient(ConfigConstants.SG_ORIGIN, originHeader);
-        }
+        SearchGuardContext.getOrigin(getThreadContext());
 
         DiagnosticContext.fixupLoggingContext(getThreadContext());        
         
@@ -121,17 +114,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
 
             //bypass non-netty requests
             if(isDirectChannel) {
-                final String userHeader = getThreadContext().getHeader(ConfigConstants.SG_USER_HEADER);
-
-                if(!Strings.isNullOrEmpty(userHeader)) {
-                    getThreadContext().putTransient(ConfigConstants.SG_USER, Objects.requireNonNull((User) Base64Helper.deserializeObject(userHeader)));
-                }
-
-                final String originalRemoteAddress = getThreadContext().getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER);
-
-                if(!Strings.isNullOrEmpty(originalRemoteAddress)) {
-                    getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, new TransportAddress((InetSocketAddress) Base64Helper.deserializeObject(originalRemoteAddress)));
-                }
+                SearchGuardContext.initializeTransientCaches(getThreadContext());
 
                 if(actionTrace.isTraceEnabled()) {
                     getThreadContext().putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID(), Thread.currentThread().getName()+" DIR -> "+transportChannel+" "+getThreadContext().getHeaders());
@@ -170,29 +153,18 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                 return;
             } else {
 
-                if(getThreadContext().getTransient(ConfigConstants.SG_ORIGIN) == null) {
-                    getThreadContext().putTransient(ConfigConstants.SG_ORIGIN, Origin.TRANSPORT.toString());
+                if(SearchGuardContext.getOrigin(getThreadContext()) == null) {
+                    SearchGuardContext.setOrigin(getThreadContext(), Origin.TRANSPORT.toString());
                 }
 
                 //network intercluster request or cross search cluster request
                 if(HeaderHelper.isInterClusterRequest(getThreadContext())
                         || HeaderHelper.isTrustedClusterRequest(getThreadContext())) {
 
-                    final String userHeader = getThreadContext().getHeader(ConfigConstants.SG_USER_HEADER);
+                    SearchGuardContext.initializeTransientCaches(getThreadContext());
 
-                    if(Strings.isNullOrEmpty(userHeader)) {
-                        //user can be null when a node client wants connect
-                        //getThreadContext().putTransient(ConfigConstants.SG_USER, User.SG_INTERNAL);
-                    } else {
-                        getThreadContext().putTransient(ConfigConstants.SG_USER, Objects.requireNonNull((User) Base64Helper.deserializeObject(userHeader)));
-                    }
-
-                    String originalRemoteAddress = getThreadContext().getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER);
-
-                    if(!Strings.isNullOrEmpty(originalRemoteAddress)) {
-                        getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, new TransportAddress((InetSocketAddress) Base64Helper.deserializeObject(originalRemoteAddress)));
-                    } else {
-                        getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, new TransportAddress(request.remoteAddress()));
+                    if(SearchGuardContext.getRemoteAddress(getThreadContext()) == null) {
+                        SearchGuardContext.setRemoteAddress(getThreadContext(), new TransportAddress(request.remoteAddress()));
                     }
 
                 } else {
@@ -205,8 +177,8 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                     if (adminDns.isAdmin(origPKIUser)) {
                         auditLog.logSucceededLogin(origPKIUser, true, null, request, task.getAction(), task);
                         org.apache.logging.log4j.ThreadContext.put("user", origPKIUser.getName());
-                        getThreadContext().putTransient(ConfigConstants.SG_USER, origPKIUser);
-                        getThreadContext().putTransient(ConfigConstants.SG_REMOTE_ADDRESS, new TransportAddress(request.remoteAddress()));
+                        SearchGuardContext.setUser(getThreadContext(), origPKIUser);
+                        SearchGuardContext.setRemoteAddress(getThreadContext(), new TransportAddress(request.remoteAddress()));
                     } else {
                         Exception e = new ElasticsearchSecurityException("Transport request from untrusted node denied", RestStatus.FORBIDDEN);
                         log.warn("Transport request from untrusted node denied. Check your trusted node configuration.", e);
