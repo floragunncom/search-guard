@@ -183,6 +183,9 @@ public class LoadOperatorSummaryRequest extends Request {
     }
 
     String getTenant() {
+        if ("SGS_GLOBAL_TENANT".equals(tenant)) {
+            return "_main";
+        }
         return tenant;
     }
 
