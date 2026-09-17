@@ -393,10 +393,10 @@ public interface Action {
 
         public static class NewResource {
             private final String type;
-            private final Function<ActionResponse, Object> id;
+            private final BiFunction<ActionRequest, ActionResponse, Object> id;
             private final BiFunction<ActionRequest, ActionResponse, Instant> expiresAfter;
 
-            public NewResource(String type, Function<ActionResponse, Object> id, BiFunction<ActionRequest, ActionResponse, Instant> expiresAfter) {
+            public NewResource(String type, BiFunction<ActionRequest, ActionResponse, Object> id, BiFunction<ActionRequest, ActionResponse, Instant> expiresAfter) {
                 this.type = type;
                 this.id = id;
                 this.expiresAfter = expiresAfter;
@@ -406,7 +406,7 @@ public interface Action {
                 return type;
             }
 
-            public Function<ActionResponse, Object> getId() {
+            public BiFunction<ActionRequest, ActionResponse, Object> getId() {
                 return id;
             }
 
@@ -612,6 +612,8 @@ public interface Action {
                 ImmutableSet.ofArray("indices:admin/data_stream/modify"));
         public static final AdditionalDimension REMOVE_INDEX_FROM_DATA_STREAM = new AdditionalDimension("remove_index_from_data_stream", Scope.INDEX,
                 ImmutableSet.ofArray("indices:admin/data_stream/modify"));
+        public static final AdditionalDimension TRANSFORM_DESTINATION = new AdditionalDimension("transform_destination", Scope.INDEX_LIKE,
+                ImmutableSet.of("indices:data/write/index"));
 
         private final String id;
         private final ImmutableSet<String> requiredPrivileges;
