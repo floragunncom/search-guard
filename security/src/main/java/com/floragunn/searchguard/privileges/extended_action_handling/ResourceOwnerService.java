@@ -245,7 +245,7 @@ public class ResourceOwnerService implements ComponentStateProvider, ProtectedCo
             @Override
             public void onResponse(Response actionResponse) {
                 NewResource newResource = actionConfig.getResources().getCreatesResource();
-                Object id = newResource.getId().apply(actionResponse);
+                Object id = newResource.getId().apply(request, actionResponse);
 
                 if (log.isTraceEnabled()) {
                     log.trace("Id for new resource " + newResource + ": " + id);

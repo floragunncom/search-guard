@@ -53,6 +53,7 @@ import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilde
 import org.elasticsearch.search.aggregations.metrics.CardinalityAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
 import com.floragunn.searchguard.authz.PrivilegesEvaluationException;
@@ -74,6 +75,7 @@ import com.floragunn.searchsupport.meta.Meta;
 public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvider {
     private static final String MAP_EXECUTION_HINT = "map";
     private static final String DIRECT_EXECUTION_HINT = "direct";
+    private static final ImmutableSet<String> TRANSFORM_ACTIONS = ImmutableSet.of("cluster:admin/transform/preview", "cluster:admin/transform/put");
     private static final Logger log = LogManager.getLogger(DlsFlsValve.class);
 
     private final Client nodeClient;
@@ -136,6 +138,12 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
             boolean hasDlsRestrictions = documentAuthorization.hasRestrictions(context, resolvedIndices, meter);
             boolean hasFlsRestrictions = fieldAuthorization.hasRestrictions(context, resolvedIndices, meter);
             boolean hasFieldMasking = fieldMasking.hasRestrictions(context, resolvedIndices, meter);
+
+            if (TRANSFORM_ACTIONS.contains(context.getAction().name())
+                    && (hasDlsRestrictions || hasFlsRestrictions || hasFieldMasking)) {
+                return SyncAuthorizationFilter.Result.DENIED
+                        .reason("Transform is not available when DLS, FLS, or field masking is active");
+            }
 
             if (!hasDlsRestrictions && !hasFlsRestrictions && !hasFieldMasking) {
                 authzHashProvider.noRestrictions();

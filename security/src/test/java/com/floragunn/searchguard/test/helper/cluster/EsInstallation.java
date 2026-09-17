@@ -166,11 +166,11 @@ class EsInstallation {
             }
 
             if (nodeSettings.masterNode && nodeSettings.dataNode) {
-                command.add("-Enode.roles=master,data,remote_cluster_client");
+                command.add("-Enode.roles=master,data,remote_cluster_client,ingest,transform");
             } else if (nodeSettings.masterNode) {
-                command.add("-Enode.roles=master,remote_cluster_client");
+                command.add("-Enode.roles=master,remote_cluster_client,ingest,transform");
             } else if (nodeSettings.dataNode) {
-                command.add("-Enode.roles=data,remote_cluster_client");
+                command.add("-Enode.roles=data,remote_cluster_client,ingest,transform");
             }
 
             command.add("-Epath.data=" + dataDir.getAbsolutePath());

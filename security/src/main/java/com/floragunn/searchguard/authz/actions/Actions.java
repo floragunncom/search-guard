@@ -19,8 +19,11 @@ package com.floragunn.searchguard.authz.actions;
 
 import static com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors.objectAttr;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
+import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -81,6 +84,7 @@ public class Actions {
     private static final Logger log = LogManager.getLogger(Actions.class);
 
     public static final String ASYNC_SEARCH_RESOURCE_TYPE = "async_search";
+    public static final String TRANSFORM_RESOURCE_TYPE = "transform";
 
     private final ImmutableMap<String, Action> actionMap;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActions;
@@ -109,6 +113,18 @@ public class Actions {
         indexLike("indices:data/read/explain").performanceCritical();
         indexLike("indices:admin/resolve/index").performanceCritical();
         indexLike("indices:admin/resolve/cluster").performanceCritical();
+
+        indexLike("cluster:admin/transform/put")
+            .createsResource(TRANSFORM_RESOURCE_TYPE, (ActionRequest request, ActionResponse response) -> objectAttr("id").apply(objectAttr("config").apply(request)), (actionRequest, actionResponse) -> null);
+        cluster("cluster:admin/transform/start").uses(new Resource(TRANSFORM_RESOURCE_TYPE, objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:transform/_all_owners"));
+        cluster("cluster:admin/transform/stop").uses(new Resource(TRANSFORM_RESOURCE_TYPE, objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:transform/_all_owners"));
+        cluster("cluster:admin/transform/delete").deletes(new Resource(TRANSFORM_RESOURCE_TYPE, objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:transform/_all_owners"));
+        cluster("cluster:monitor/transform/get").uses(new Resource(TRANSFORM_RESOURCE_TYPE, objectAttr("resourceId")).ownerCheckBypassPermission("indices:searchguard:transform/_all_owners"));
+        cluster("cluster:admin/transform/reset").uses(new Resource(TRANSFORM_RESOURCE_TYPE, objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:transform/_all_owners"));
+        cluster("cluster:admin/transform/update").uses(new Resource(TRANSFORM_RESOURCE_TYPE, objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:transform/_all_owners"));
+        cluster("cluster:monitor/transform/stats/get").uses(new Resource(TRANSFORM_RESOURCE_TYPE, objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:transform/_all_owners"));
+        cluster("cluster:admin/transform/schedule_now").uses(new Resource(TRANSFORM_RESOURCE_TYPE, objectAttr("id")).ownerCheckBypassPermission("indices:searchguard:transform/_all_owners"));
+        indexLike("cluster:admin/transform/preview");
 
         index("indices:data/write/update/byquery").performanceCritical();;
         index("indices:data/write/delete/byquery").performanceCritical();;
@@ -661,6 +677,12 @@ public class Actions {
         }
 
         ActionBuilder<RequestType, RequestItem, RequestItemType> createsResource(String type, Function<ActionResponse, Object> id,
+                BiFunction<ActionRequest, ActionResponse, Instant> expiresAfter) {
+            createsResource = new NewResource(type, (request, response) -> id.apply(response), expiresAfter);
+            return this;
+        }
+
+        ActionBuilder<RequestType, RequestItem, RequestItemType> createsResource(String type, BiFunction<ActionRequest, ActionResponse, Object> id,
                 BiFunction<ActionRequest, ActionResponse, Instant> expiresAfter) {
             createsResource = new NewResource(type, id, expiresAfter);
             return this;

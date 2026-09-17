@@ -78,6 +78,7 @@ import com.floragunn.searchsupport.action.IndicesOptionsSupport;
 import com.floragunn.searchguard.authz.SystemIndexAccess;
 import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector.IndicesRequestInfo.Scope;
 import com.floragunn.searchsupport.meta.Meta;
+import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 
 public class ActionRequestIntrospector {
 
@@ -110,7 +111,34 @@ public class ActionRequestIntrospector {
         if (NAME_BASED_SHORTCUTS_FOR_CLUSTER_ACTIONS.contains(action.name())) {
             return CLUSTER_REQUEST;
         }
-        if (request instanceof SearchRequest searchRequest && (searchRequest.pointInTimeBuilder() != null)) {
+        if ("cluster:admin/transform/preview".equals(action.name()) || "cluster:admin/transform/put".equals(action.name())) {
+            Object config = ReflectiveAttributeAccessors.objectAttr("config").apply(request);
+            Object source = ReflectiveAttributeAccessors.objectAttr("source").apply(config);
+            Object dest = ReflectiveAttributeAccessors.objectAttr("destination").apply(config);
+
+            String[] sourceIndices = ReflectiveAttributeAccessors.objectAttr("index", String[].class).apply(source);
+
+            ActionRequestInfo result = new ActionRequestInfo(ImmutableList.ofArray(sourceIndices), IndicesOptions.lenientExpandOpenHidden(), Scope.ANY);
+
+            if (dest != null) {
+                String destIndex = ReflectiveAttributeAccessors.objectAttr("index", String.class).apply(dest);
+                List<?> destAliases = ReflectiveAttributeAccessors.objectAttr("aliases", List.class).apply(dest);
+
+                if (destIndex != null) {
+                    result = result.additional(Action.AdditionalDimension.TRANSFORM_DESTINATION, ImmutableList.of(destIndex), EXACT, Scope.INDEX);
+                }
+
+                if (destAliases != null && !destAliases.isEmpty()) {
+                    ImmutableList.Builder<String> aliasNamesBuilder = new ImmutableList.Builder<>();
+                    for (Object alias : destAliases) {
+                        aliasNamesBuilder.with(ReflectiveAttributeAccessors.objectAttr("alias", String.class).apply(alias));
+                    }
+                    result = result.additional(Action.AdditionalDimension.TRANSFORM_DESTINATION, aliasNamesBuilder.build(), EXACT, Scope.ALIAS);
+                }
+            }
+
+            return result;
+        } else if (request instanceof SearchRequest searchRequest && (searchRequest.pointInTimeBuilder() != null)) {
             // In point-in-time queries, wildcards in index names are expanded when the open point-in-time request
             // is sent. Therefore, a list of indices in search requests with PIT can be treated literally.
             BytesReference pointInTimeId = searchRequest.pointInTimeBuilder().getEncodedId();
