@@ -115,6 +115,8 @@ public class RestRequestAuthenticationProcessorTest {
 
         Object headerValue = headers.get("x-proxy-attr-accesslog");
         Assert.assertNotNull("header value must be present in user mapping attributes", headerValue);
+        Assert.assertSame("headers must support case-insensitive lookup like Netty's HttpHeadersMap",
+                headerValue, headers.get("X-Proxy-Attr-AccessLog"));
         Assert.assertTrue("header list value must be Serializable", headerValue instanceof Serializable);
         Assert.assertNotSame("header list value must be a defensive copy, not the original Netty-backed list",
                 nonSerializableList, headerValue);
