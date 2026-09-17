@@ -50,6 +50,7 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.SearchGuardContext;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.action.RestApi;
@@ -150,7 +151,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                     // PKI authenticated REST call
 
                     User user = new User(sslPrincipal, AuthDomainInfo.TLS_CERT);
-                    threadContext.putTransient(ConfigConstants.SG_USER, user);
+                    SearchGuardContext.setUser(threadContext, user);
                     auditLog.logSucceededLogin(user, true, null, request);
                     original.dispatchRequest(request, channel, threadContext);
                     return;
@@ -171,7 +172,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
                     if (result.getStatus() == AuthcResult.Status.PASS) {
                         // make it possible to filter logs by username
-                        threadContext.putTransient(ConfigConstants.SG_USER, result.getUser());
+                        SearchGuardContext.setUser(threadContext, result.getUser());
                         org.apache.logging.log4j.ThreadContext.clearAll();
                         org.apache.logging.log4j.ThreadContext.put("user", result.getUser() != null ? result.getUser().getName() : null);
 
@@ -218,8 +219,6 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
         }
 
         private boolean checkRequest(RestRequest request, RestChannel channel) {
-            threadContext.putTransient(ConfigConstants.SG_ORIGIN, Origin.REST.toString());
-
             if (containsBadHeader(request, threadContext)) {
                 final ElasticsearchException exception = ExceptionUtils.createBadHeaderException();
                 log.error(exception);
@@ -232,6 +231,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                 }
                 return false;
             }
+            SearchGuardContext.setOrigin(threadContext, Origin.REST.toString());
             return true;
         }
 

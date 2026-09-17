@@ -106,6 +106,7 @@ import com.floragunn.searchguard.configuration.ProtectedConfigIndexService;
 import com.floragunn.searchguard.configuration.ProtectedConfigIndexService.ConfigIndex;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.SearchGuardContext;
 import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchguard.user.Attributes;
 import com.floragunn.searchguard.user.User;
@@ -363,7 +364,7 @@ public class SessionService {
             threadContext.putTransient(ConfigConstants.SG_XFF_DONE, Boolean.TRUE);
         }
 
-        threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, clientInfo.getOriginatingTransportAddress());
+        SearchGuardContext.setRemoteAddress(threadContext, clientInfo.getOriginatingTransportAddress());
 
         if (blockedIpRegistry.isIpBlocked(remoteIpAddress)) {
             if (log.isDebugEnabled()) {

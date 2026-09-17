@@ -1,8 +1,7 @@
 package com.floragunn.signals.actions.watch.execute;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
+import java.util.function.Supplier;
 
 import com.floragunn.signals.watch.common.throttle.ValidatingThrottlePeriodParser;
 import org.apache.logging.log4j.LogManager;
@@ -32,6 +31,7 @@ import com.floragunn.codova.documents.DocumentParseException;
 import com.floragunn.codova.documents.UnexpectedDocumentStructureException;
 import com.floragunn.codova.validation.ConfigValidationException;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.PrivilegedConfigContext;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
 import com.floragunn.signals.NoSuchTenantException;
@@ -112,28 +112,15 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
     private void fetchAndExecuteWatch(User user, SignalsTenant signalsTenant, Task task, ExecuteWatchRequest request,
             ActionListener<ExecuteWatchResponse> listener) {
         ThreadContext threadContext = threadPool.getThreadContext();
+        Supplier<StoredContext> callerContext = threadContext.newRestorableContext(false);
 
-        Object remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
-        Object origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
-        final Map<String, List<String>> originalResponseHeaders = threadContext.getResponseHeaders();
-
-        try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
-            threadContext.putHeader(ConfigConstants.SG_CONF_REQUEST_HEADER, "true");
-            threadContext.putTransient(ConfigConstants.SG_USER, user);
-            threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
-            threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
-
-            originalResponseHeaders.entrySet().forEach(
-                    h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
-            );
-
+        try (StoredContext ctx = PrivilegedConfigContext.initPrivilegedContext(threadContext)) {
             client.prepareGet().setIndex(signalsTenant.getConfigIndexName()).setId(signalsTenant.getWatchIdForConfigIndex(request.getWatchId()))
                     .execute(new ActionListener<GetResponse>() {
 
                         @Override
                         public void onResponse(GetResponse response) {
-
-                            try {
+                            try (StoredContext ctx = callerContext.get()) {
                                 if (!response.isExists()) {
                                     listener.onResponse(new ExecuteWatchResponse(user != null ? user.getRequestedTenant() : null,
                                             request.getWatchId(), ExecuteWatchResponse.Status.NOT_FOUND, null));
@@ -145,19 +132,7 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
                                 );
                                 Watch watch = Watch.parse(initService, signalsTenant.getName(), request.getWatchId(),//
                                     response.getSourceAsString(), response.getVersion());
-
-                                try (StoredContext ctx = threadPool.getThreadContext().stashContext()) {
-                                    threadContext.putTransient(ConfigConstants.SG_USER, user);
-                                    threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, remoteAddress);
-                                    threadContext.putTransient(ConfigConstants.SG_ORIGIN, origin);
-
-                                    originalResponseHeaders.entrySet().forEach(
-                                            h ->  h.getValue().forEach(v -> threadContext.addResponseHeader(h.getKey(), v))
-                                    );
-
-                                    listener.onResponse(executeWatch(watch, request, signalsTenant));
-
-                                }
+                                listener.onResponse(executeWatch(watch, request, signalsTenant));
 
                             } catch (ConfigValidationException e) {
                                 log.error("Invalid watch definition in fetchAndExecuteWatch(). This should not happen\n"
@@ -172,7 +147,9 @@ public class TransportExecuteWatchAction extends HandledTransportAction<ExecuteW
 
                         @Override
                         public void onFailure(Exception e) {
-                            listener.onFailure(e);
+                            try (StoredContext ctx = callerContext.get()) {
+                                listener.onFailure(e);
+                            }
                         }
 
                     });

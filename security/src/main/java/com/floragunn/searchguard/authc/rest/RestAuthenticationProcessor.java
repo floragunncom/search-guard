@@ -46,6 +46,7 @@ import com.floragunn.searchguard.authc.rest.ClientAddressAscertainer.ClientIpInf
 import com.floragunn.searchguard.authz.PrivilegesEvaluator;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.SearchGuardContext;
 import com.floragunn.searchguard.user.AuthCredentials;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.cstate.ComponentState;
@@ -162,7 +163,7 @@ public interface RestAuthenticationProcessor extends ComponentStateProvider {
                 threadContext.putTransient(ConfigConstants.SG_XFF_DONE, Boolean.TRUE);
             }
 
-            threadContext.putTransient(ConfigConstants.SG_REMOTE_ADDRESS, clientInfo.getOriginatingTransportAddress());
+            SearchGuardContext.setRemoteAddress(threadContext, clientInfo.getOriginatingTransportAddress());
 
             if (blockedIpRegistry.isIpBlocked(remoteIpAddress)) {
                 if (log.isDebugEnabled()) {
