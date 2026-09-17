@@ -175,6 +175,11 @@ public class TestIndex implements TestIndexLike {
             return this;
         }
 
+        public Builder fieldMapping(String name, DocNode mapping) {
+            testDataBuilder.fieldMapping(name, mapping);
+            return this;
+        }
+
         public Builder customDocument(String id, Map<String, Object> source) {
             testDataBuilder.customDocument(id, source);
             return this;

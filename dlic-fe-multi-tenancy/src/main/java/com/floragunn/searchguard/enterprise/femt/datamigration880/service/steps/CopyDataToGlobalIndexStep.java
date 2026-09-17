@@ -17,8 +17,8 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMi
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.google.common.base.Throwables;
-import org.elasticsearch.index.reindex.BulkByScrollResponse;
-import org.elasticsearch.index.reindex.BulkByScrollTask;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchResponse;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchTask;
 
 import java.util.List;
 import java.util.Objects;
@@ -41,7 +41,7 @@ public class CopyDataToGlobalIndexStep implements MigrationStep {
         String source = context.getTempIndexName();
         long numberOfDocumentsInSourceIndex = stepRepository.countDocuments(source);
         String destination = context.getGlobalTenantIndexName();
-        BulkByScrollResponse response = stepRepository.reindexData(source, destination);
+        BulkByPaginatedSearchResponse response = stepRepository.reindexData(source, destination);
         StringBuilder details = new StringBuilder("Reindexing ").append(response.getTotal()).append(" documents, ") //
             .append("took ").append(response.getTook()).append(", ") //
             .append("created documents ").append(response.getCreated()).append(", ") //
@@ -52,10 +52,10 @@ public class CopyDataToGlobalIndexStep implements MigrationStep {
             .append("batch retries ").append(response.getBulkRetries()).append(", ") //
             .append("search retries ").append(response.getSearchRetries()).append(".");
         String message = "Documents copied from '" + source + "' to '" + destination + "' index";
-        List<BulkByScrollTask.StatusOrException> sliceStatuses = response.getStatus().getSliceStatuses();
+        List<BulkByPaginatedSearchTask.StatusOrException> sliceStatuses = response.getStatus().getSliceStatuses();
         boolean errorDetected = false;
         for(int i = 0; i < sliceStatuses.size(); ++i) {
-            BulkByScrollTask.StatusOrException currentStatus = sliceStatuses.get(i);
+            BulkByPaginatedSearchTask.StatusOrException currentStatus = sliceStatuses.get(i);
             Exception exception = currentStatus.getException();
             if(exception != null) {
                 errorDetected = true;

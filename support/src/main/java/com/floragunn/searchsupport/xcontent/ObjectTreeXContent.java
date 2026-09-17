@@ -319,6 +319,20 @@ public class ObjectTreeXContent implements XContent {
         }
 
         @Override
+        public void writeString(Reader reader, int len) throws IOException {
+            char[] text = new char[len];
+            int offset = 0;
+            while (offset < len) {
+                int read = reader.read(text, offset, len - offset);
+                if (read == -1) {
+                    break;
+                }
+                offset += read;
+            }
+            addObject(new String(text, 0, offset));
+        }
+
+        @Override
         public void writeUTF8String(byte[] value, int offset, int length) throws IOException {
             addObject(new String(value, offset, length, "UTF-8"));
         }
@@ -337,7 +351,7 @@ public class ObjectTreeXContent implements XContent {
         public void writeBinary(byte[] value, int offset, int length) throws IOException {
             byte[] valueSection = new byte[length];
             System.arraycopy(value, offset, valueSection, 0, length);
-            addObject(value);
+            addObject(valueSection);
         }
 
         @SuppressWarnings("deprecation")
@@ -425,7 +439,12 @@ public class ObjectTreeXContent implements XContent {
         public boolean isClosed() {
             return false;
         }
-        
+
+        @Override
+        public void closeAllowIllFormed() throws IOException {
+            close();
+        }
+
         Object getTopLevelObject() {
             if (topLevelObjects.size() == 0) {
                 return null;

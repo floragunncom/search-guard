@@ -20,13 +20,13 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchResponse;
 import org.elasticsearch.index.reindex.UpdateByQueryRequest;
 
 import java.util.List;
 import java.util.Objects;
 
-public class UpdateByQueryMapper implements Unscoper<BulkByScrollResponse> {
+public class UpdateByQueryMapper implements Unscoper<BulkByPaginatedSearchResponse> {
 
     private final BulkMapper bulkMapper;
 
@@ -61,14 +61,14 @@ public class UpdateByQueryMapper implements Unscoper<BulkByScrollResponse> {
     }
 
     @Override
-    public BulkByScrollResponse unscopeResponse(BulkByScrollResponse response) {
-        log.debug("Rewriting bulk by scroll response - removing tenant scope");
+    public BulkByPaginatedSearchResponse unscopeResponse(BulkByPaginatedSearchResponse response) {
+        log.debug("Rewriting bulk by paginated search response - removing tenant scope");
 
         List<BulkItemResponse.Failure> unscopedFailures = response.getBulkFailures()
                 .stream()
                 .map(this.bulkMapper::toUnscopedFailure)
                 .toList();
-          return new BulkByScrollResponse(
+          return new BulkByPaginatedSearchResponse(
                   response.getTook(), response.getStatus(), unscopedFailures,
                   response.getSearchFailures(), response.isTimedOut()
           );

@@ -88,12 +88,20 @@ public class TestData {
     private Map<String, Map<String, ?>> retainedDocuments;
     private Map<String, Map<String, Map<String, ?>>> documentsByDepartment;
     private ImmutableMap<String, Object> additionalAttributes;
+    private ImmutableMap<String, Map<String, Object>> additionalFieldMappings;
     private Set<String> deletedDocuments;
     private long subRandomSeed;
     private final String timestampColumn;
 
     public TestData(int seed, int size, int deletedDocumentCount, int refreshAfter, int rolloverAfter,
-                    ImmutableMap<String, Object> additionalAttributes, String timestampColumn, Map<String, Map<String, Object>> customDocuments) {
+            ImmutableMap<String, Object> additionalAttributes, String timestampColumn, Map<String, Map<String, Object>> customDocuments) {
+        this(seed, size, deletedDocumentCount, refreshAfter, rolloverAfter, additionalAttributes, ImmutableMap.empty(), timestampColumn,
+                customDocuments);
+    }
+
+    public TestData(int seed, int size, int deletedDocumentCount, int refreshAfter, int rolloverAfter,
+            ImmutableMap<String, Object> additionalAttributes, ImmutableMap<String, Map<String, Object>> additionalFieldMappings,
+            String timestampColumn, Map<String, Map<String, Object>> customDocuments) {
         Random random = new Random(seed);
         this.ipAddresses = createRandomIpAddresses(random);
         this.locationNames = createRandomLocationNames(random);
@@ -102,6 +110,7 @@ public class TestData {
         this.refreshAfter = refreshAfter;
         this.rolloverAfter = rolloverAfter;
         this.additionalAttributes = additionalAttributes;
+        this.additionalFieldMappings = additionalFieldMappings;
         this.timestampColumn = Objects.requireNonNull(timestampColumn, "Timestamp column name must not be null");
         createTestDocuments(random, customDocuments);
         this.subRandomSeed = random.nextLong();
@@ -110,7 +119,8 @@ public class TestData {
     private TestData(String[] ipAddresses, String[] locationNames, String[] departments, int size, int deletedDocumentCount, int refreshAfter,
             int rolloverAfter, Map<String, Map<String, ?>> allDocuments, Map<String, Map<String, ?>> retainedDocuments,
             Map<String, Map<String, Map<String, ?>>> documentsByDepartment, ImmutableMap<String, Object> additionalAttributes,
-            Set<String> deletedDocuments, long subRandomSeed, String timestampColumn) {
+            ImmutableMap<String, Map<String, Object>> additionalFieldMappings, Set<String> deletedDocuments, long subRandomSeed,
+            String timestampColumn) {
         super();
         this.ipAddresses = ipAddresses;
         this.locationNames = locationNames;
@@ -123,6 +133,7 @@ public class TestData {
         this.retainedDocuments = retainedDocuments;
         this.documentsByDepartment = documentsByDepartment;
         this.additionalAttributes = additionalAttributes;
+        this.additionalFieldMappings = additionalFieldMappings;
         this.deletedDocuments = deletedDocuments;
         this.subRandomSeed = subRandomSeed;
         this.timestampColumn = timestampColumn;
@@ -131,7 +142,7 @@ public class TestData {
     public TestData withAdditionalDocument(String id, Map<String, Object> content) {
         return new TestData(ipAddresses, locationNames, departments, size, deletedDocumentCount, refreshAfter, rolloverAfter,
                 ImmutableMap.of(allDocuments).with(id, content), ImmutableMap.of(retainedDocuments).with(id, content), documentsByDepartment,
-                additionalAttributes, deletedDocuments, subRandomSeed, timestampColumn);
+                additionalAttributes, additionalFieldMappings, deletedDocuments, subRandomSeed, timestampColumn);
     }
 
     public String createIndex(Client client, String name, Settings settings) {
@@ -454,17 +465,20 @@ public class TestData {
         private final int deletedDocumentCount;
         private final int refreshAfter;
         private final ImmutableMap<String, Object> additionalAttributes;
+        private final ImmutableMap<String, Map<String, Object>> additionalFieldMappings;
         private final String timestampColumnName;
         private final ImmutableMap<String, Map<String, Object>> customDocuments;
 
         public Key(int seed, int size, int deletedDocumentCount, int refreshAfter, ImmutableMap<String, Object> additionalAttributes,
-                String timestampColumnName, ImmutableMap<String, Map<String, Object>> customDocuments) {
+                ImmutableMap<String, Map<String, Object>> additionalFieldMappings, String timestampColumnName,
+                ImmutableMap<String, Map<String, Object>> customDocuments) {
             super();
             this.seed = seed;
             this.size = size;
             this.deletedDocumentCount = deletedDocumentCount;
             this.refreshAfter = refreshAfter;
             this.additionalAttributes = additionalAttributes;
+            this.additionalFieldMappings = additionalFieldMappings;
             this.timestampColumnName = Objects.requireNonNull(timestampColumnName);
             this.customDocuments = customDocuments;
         }
@@ -478,6 +492,7 @@ public class TestData {
             result = prime * result + seed;
             result = prime * result + size;
             result = prime * result + additionalAttributes.hashCode();
+            result = prime * result + additionalFieldMappings.hashCode();
             result = prime * result + timestampColumnName.hashCode();
             result = prime * result + customDocuments.hashCode();
             return result;
@@ -511,6 +526,10 @@ public class TestData {
                 return false;
             }
 
+            if (!additionalFieldMappings.equals(other.additionalFieldMappings)) {
+                return false;
+            }
+
             if (!timestampColumnName.equals(other.timestampColumnName)) {
                 return false;
             }
@@ -533,6 +552,7 @@ public class TestData {
         private int rolloverAfter = -1;
         private int segmentCount = 17;
         private Map<String, Object> additionalAttributes = new HashMap<>();
+        private Map<String, Map<String, Object>> additionalFieldMappings = new HashMap<>();
         private String timestampColumnName = DEFAULT_TIMESTAMP_COLUMN;
         private Map<String, Map<String, Object>> customDocuments = new HashMap<>();
 
@@ -580,6 +600,11 @@ public class TestData {
             return this;
         }
 
+        public Builder fieldMapping(String name, DocNode mapping) {
+            additionalFieldMappings.put(name, mapping.toMap());
+            return this;
+        }
+
         public Builder timestampColumnName(String timestampColumnName) {
             this.timestampColumnName = timestampColumnName;
             return this;
@@ -599,8 +624,8 @@ public class TestData {
                 this.refreshAfter = this.size / this.segmentCount;
             }
 
-            return new Key(seed, size, deletedDocumentCount, refreshAfter, ImmutableMap.of(additionalAttributes), timestampColumnName,
-                    ImmutableMap.of(customDocuments));
+            return new Key(seed, size, deletedDocumentCount, refreshAfter, ImmutableMap.of(additionalAttributes),
+                    ImmutableMap.of(additionalFieldMappings), timestampColumnName, ImmutableMap.of(customDocuments));
         }
 
         public TestData get() {
@@ -608,7 +633,8 @@ public class TestData {
 
             try {
                 return cache.get(key, () -> new TestData(seed, size, deletedDocumentCount, refreshAfter, rolloverAfter,
-                        ImmutableMap.of(additionalAttributes), key.timestampColumnName, ImmutableMap.of(customDocuments)));
+                        ImmutableMap.of(additionalAttributes), ImmutableMap.of(additionalFieldMappings), key.timestampColumnName,
+                        ImmutableMap.of(customDocuments)));
             } catch (ExecutionException e) {
                 throw new RuntimeException(e);
             }
@@ -642,7 +668,8 @@ public class TestData {
         DocNode geoPointMappings = DocNode.of("geo_point.type", "geo_point");
         return DocNode.of(timestampColumn, DocNode.of("type", "date", "format", "date_optional_time"), "source_ip.type", "ip",
                 "dest_ip.type", "ip", "source_loc.type", "text", "source_loc.fields.keyword.type", "keyword", "dest_loc.type", "text",
-                "dest_loc.fields.keyword.type", "keyword", "dept.type", "text", "dept.fields.keyword.type", "keyword").with(objectMappings).with(geoPointMappings);
+                "dest_loc.fields.keyword.type", "keyword", "dept.type", "text", "dept.fields.keyword.type", "keyword").with(objectMappings)
+                        .with(geoPointMappings).with(DocNode.wrap(additionalFieldMappings));
     }
 
     DocNode getFieldMappingsWithoutTimestamp() {
