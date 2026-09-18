@@ -34,6 +34,7 @@
       policy: pull-push
 
 test_security:
+  timeout: 30m
   extends:
     - .be_unit_test
   script:
