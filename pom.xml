@@ -56,7 +56,7 @@
     <maven.compiler.release>17</maven.compiler.release>
 
     <bc.version>1.86</bc.version>
-    <log4j.version>2.26.0</log4j.version>
+    <log4j.version>2.26.1</log4j.version>
     <jackson.version>2.18.10</jackson.version>
     <cxf.version>4.2.3</cxf.version>
     <http.commons.version>4.5.14</http.commons.version>
