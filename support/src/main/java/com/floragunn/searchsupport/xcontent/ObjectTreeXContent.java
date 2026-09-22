@@ -420,7 +420,12 @@ public class ObjectTreeXContent implements XContent {
         public boolean isClosed() {
             return false;
         }
-        
+
+        @Override
+        public void closeAllowIllFormed() throws IOException {
+            close();
+        }
+
         Object getTopLevelObject() {
             if (topLevelObjects.size() == 0) {
                 return null;
