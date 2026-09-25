@@ -49,9 +49,14 @@ public class SearchGuardLicenseInfoAction extends Action<EmptyRequest, SearchGua
 
     public static class Response extends Action.Response {
 
-        private SearchGuardLicense license;
-        private Map<String, Set<String>> licensesRequired;
+        static final String NO_LICENSE_REQUIRED_MESSAGE = "No license required because enterprise modules are not enabled";
 
+        private final SearchGuardLicense license;
+        private final Map<String, Set<String>> licensesRequired;
+
+        /**
+         * @param license the effective license; may be null if no license is needed (enterprise modules disabled)
+         */
         public Response(SearchGuardLicense license, Map<String, Set<String>> licensesRequired) {
             this.license = license;
             this.licensesRequired = licensesRequired;
@@ -60,21 +65,44 @@ public class SearchGuardLicenseInfoAction extends Action<EmptyRequest, SearchGua
         public Response(UnparsedMessage message) throws ConfigValidationException {
             super(message);
             DocNode docNode = message.requiredDocNode();
-            this.license = new SearchGuardLicense(docNode.getAsNode("license"));
-            this.licensesRequired = toMultiMap(docNode.getAsNode("licenses_required").toMap());
+            this.license = docNode.hasNonNull("license") ? new SearchGuardLicense(docNode.getAsNode("license")) : null;
+            this.licensesRequired = docNode.hasNonNull("licenses_required") ? toMultiMap(docNode.getAsNode("licenses_required").toMap())
+                    : new LinkedHashMap<>();
         }
 
         @Override
         public Object toBasicObject() {
             Map<String, Object> result = new LinkedHashMap<>();
 
-            result.put("license", license.toBasicObject());
+            // license is null if no license is needed, i.e. if enterprise modules are disabled (community mode)
+            result.put("license", license != null ? license.toBasicObject() : null);
+            result.put("license_required", license != null);
+
+            if (license == null) {
+                result.put("message", NO_LICENSE_REQUIRED_MESSAGE);
+            }
+
             result.put("licenses_required", licensesRequired);
 
             return result;
         }
 
-        private Map<String, Set<String>> toMultiMap(Map<String, Object> map) {
+        /**
+         * @return the effective license; null if no license is needed (enterprise modules disabled)
+         */
+        public SearchGuardLicense getLicense() {
+            return license;
+        }
+
+        public boolean isLicenseRequired() {
+            return license != null;
+        }
+
+        public Map<String, Set<String>> getLicensesRequired() {
+            return licensesRequired;
+        }
+
+        private static Map<String, Set<String>> toMultiMap(Map<String, Object> map) {
             LinkedHashMap<String, Set<String>> result = new LinkedHashMap<String, Set<String>>();
 
             for (Map.Entry<String, Object> entry : map.entrySet()) {

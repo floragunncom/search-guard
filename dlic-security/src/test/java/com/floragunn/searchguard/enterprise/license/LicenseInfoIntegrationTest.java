@@ -44,7 +44,29 @@ public class LicenseInfoIntegrationTest {
     public void basicTest() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
             HttpResponse response = client.get("/_searchguard/license/info");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
             Assert.assertEquals(response.getBody(), ImmutableSet.of("authentication_backend/ldap", "dlsfls"), ImmutableSet.of(response.getBodyAsDocNode().getAsNode("licenses_required").getAsNode("enterprise").toListOfStrings()));
+        }
+    }
+
+    /**
+     * With enterprise modules enabled and no license key uploaded, a trial license is in effect. The endpoint must report it.
+     */
+    @Test
+    public void licenseInfo_enterpriseMode_reportsTrialLicense() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
+            HttpResponse response = client.get("/_searchguard/license/info");
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+
+            DocNode body = response.getBodyAsDocNode();
+            Assert.assertEquals(response.getBody(), Boolean.TRUE, body.get("license_required"));
+            Assert.assertFalse(response.getBody(), body.hasNonNull("message"));
+
+            DocNode license = body.getAsNode("license");
+            Assert.assertNotNull(response.getBody(), license);
+            Assert.assertEquals(response.getBody(), "TRIAL", license.getAsString("type"));
+            Assert.assertNotNull(response.getBody(), license.get("is_valid"));
+            Assert.assertNotNull(response.getBody(), license.get("expiry_in_days"));
         }
     }
 }
