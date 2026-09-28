@@ -39,6 +39,11 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -173,6 +178,35 @@ public class FeMultiTenancyTenantAccessMapperTest {
         Map<String, Boolean> accessToTenants = mapper.mapTenantsAccess(user, ADMIN_IS_USER, ImmutableSet.of("access_to_global_tenant"));
         assertThat(accessToTenants, Matchers.aMapWithSize(1));
         assertThat(accessToTenants, Matchers.hasEntry(user.getName(), true));
+    }
+
+    @Test
+    public void shouldNotEvaluateGlobalTenantPermissionsWhenGlobalTenantIsDisabled() throws Exception {
+        SgDynamicConfiguration<Role> roles = SgDynamicConfiguration
+                .fromMap(
+                        DocNode.of("access_to_some_tenants",
+                                DocNode.of("tenant_permissions",
+                                        List.of(
+                                                ImmutableMap.of("tenant_patterns", List.of("write_tenant"), "allowed_actions", List.of(KibanaActionsProvider.getKibanaWriteAction(actions).name()))
+                                        ))),
+                        CType.ROLES, null)
+                .get();
+
+        ImmutableSet<String> tenants = ImmutableSet.of("write_tenant", "another_tenant");
+
+        when(multiTenancyConfigurationProvider.isGlobalTenantEnabled()).thenReturn(false);
+
+        TenantManager tenantManager = new TenantManager(tenants, multiTenancyConfigurationProvider);
+        RoleBasedTenantAuthorization tenantAuthorization = spy(new RoleBasedTenantAuthorization(roles, emptyActionGroups, actions, tenantManager, MetricsLevel.NONE));
+        FeMultiTenancyTenantAccessMapper mapper = new FeMultiTenancyTenantAccessMapper(tenantManager, tenantAuthorization, actions);
+
+        User user = User.forUser("user_name").searchGuardRoles("access_to_some_tenants").build();
+
+        Map<String, Boolean> accessToTenants = mapper.mapTenantsAccess(user, ADMIN_IS_USER, ImmutableSet.of("access_to_some_tenants"));
+        assertThat(accessToTenants, Matchers.aMapWithSize(2));
+        assertThat(accessToTenants, Matchers.hasEntry("write_tenant", true));
+        assertThat(accessToTenants, Matchers.hasEntry(user.getName(), true));
+        verify(tenantAuthorization, never()).hasTenantPermission(any(), any(), eq(Tenant.GLOBAL_TENANT_ID));
     }
 
 }
