@@ -52,7 +52,13 @@ public class FeMultiTenancyTenantAccessMapper  implements TenantAccessMapper {
 
         PrivilegesEvaluationContext context = new PrivilegesEvaluationContext(user, adminUser, ImmutableSet.of(roles), null, null, false, null, null);
 
+        boolean globalTenantValid = tenantManager.isTenantHeaderValid(Tenant.GLOBAL_TENANT_ID);
+
         for (String tenant : tenantManager.getAllKnownTenantNames()) {
+            if (!globalTenantValid && tenantManager.isGlobalTenantHeader(tenant)) {
+                continue;
+            }
+
             try {
                 boolean hasReadPermission = tenantAuthorization.hasTenantPermission(context, KibanaActionsProvider.getKibanaReadAction(actions), tenant).isOk();
                 boolean hasWritePermission = tenantAuthorization.hasTenantPermission(context, KibanaActionsProvider.getKibanaWriteAction(actions), tenant).isOk();
@@ -65,10 +71,6 @@ public class FeMultiTenancyTenantAccessMapper  implements TenantAccessMapper {
             } catch (PrivilegesEvaluationException e) {
                 log.error("Error while evaluating privileges for " + user + " " + tenant, e);
             }
-        }
-
-        if (! tenantManager.isTenantHeaderValid(Tenant.GLOBAL_TENANT_ID)) {
-            result.remove(Tenant.GLOBAL_TENANT_ID);
         }
 
         if (! tenantManager.isTenantHeaderValid(User.USER_TENANT)) {
