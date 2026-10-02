@@ -129,13 +129,45 @@ public final class SearchGuardLicense implements Writeable, Document<SearchGuard
 
     }
 
+    /**
+     * Parses a license from a map. Accepts both the format of the signed license key (issued_date, numeric
+     * allowed_node_count_per_cluster) and the format produced by toBasicObject() (issue_date, allowed_node_count_per_cluster
+     * as a string, possibly "unlimited").
+     */
     public SearchGuardLicense(final Map<String, Object> map) {
-        this((String) (map == null ? null : map.get("uid")), (Type) (map == null ? null : Type.valueOf(((String) map.get("type")).toUpperCase())),
-                (map == null ? null : parseFeatures((List<?>) map.get("features"))), (String) (map == null ? null : map.get("issued_date")),
+        this((String) (map == null ? null : map.get("uid")), (map == null ? null : parseType(map.get("type"))),
+                (map == null ? null : parseFeatures((List<?>) map.get("features"))),
+                (String) (map == null ? null : map.containsKey("issued_date") ? map.get("issued_date") : map.get("issue_date")),
                 (String) (map == null ? null : map.get("expiry_date")), (String) (map == null ? null : map.get("issued_to")),
                 (String) (map == null ? null : map.get("issuer")), (String) (map == null ? null : map.get("start_date")),
-                (Integer) (map == null ? null : map.get("major_version")), (String) (map == null ? null : map.get("cluster_name")),
-                (Integer) (map == null ? 0 : map.get("allowed_node_count_per_cluster")));
+                (map == null ? null : parseInteger(map.get("major_version"))), (String) (map == null ? null : map.get("cluster_name")),
+                (map == null ? 0 : parseAllowedNodeCount(map.get("allowed_node_count_per_cluster"))));
+    }
+
+    private static Type parseType(Object type) {
+        return type != null ? Type.valueOf(String.valueOf(type).toUpperCase()) : null;
+    }
+
+    private static Integer parseInteger(Object value) {
+        if (value == null) {
+            return null;
+        } else if (value instanceof Number) {
+            return ((Number) value).intValue();
+        } else {
+            return Integer.parseInt(String.valueOf(value).trim());
+        }
+    }
+
+    private static int parseAllowedNodeCount(Object value) {
+        if (value == null) {
+            return 0;
+        } else if (value instanceof Number) {
+            return ((Number) value).intValue();
+        } else if ("unlimited".equalsIgnoreCase(String.valueOf(value).trim())) {
+            return Integer.MAX_VALUE;
+        } else {
+            return Integer.parseInt(String.valueOf(value).trim());
+        }
     }
 
     private final static Feature[] parseFeatures(List<?> featuresAsString) {
