@@ -1,0 +1,3485 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.72.0"
+  },
+  "ReportID": "01a0fb9f-9e80-72f1-b715-865624d00940",
+  "CreatedAt": "2026-10-02T07:58:57.152195732Z",
+  "ArtifactName": "bom.json",
+  "ArtifactType": "cyclonedx",
+  "Results": [
+    {
+      "Target": "Java",
+      "Class": "lang-pkgs",
+      "Type": "jar",
+      "Packages": [
+        {
+          "ID": "at.yawk.lz4:lz4-java:1.11.1",
+          "Name": "at.yawk.lz4:lz4-java",
+          "Identifier": {
+            "PURL": "pkg:maven/at.yawk.lz4/lz4-java@1.11.1?type=jar",
+            "UID": "a13c81db07e2b553",
+            "BOMRef": "pkg:maven/at.yawk.lz4/lz4-java@1.11.1?type=jar"
+          },
+          "Version": "1.11.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:cf0bae47489d940ad5d5420cfe4f9ebf"
+        },
+        {
+          "ID": "co.elastic.logging:ecs-logging-core:1.7.0",
+          "Name": "co.elastic.logging:ecs-logging-core",
+          "Identifier": {
+            "PURL": "pkg:maven/co.elastic.logging/ecs-logging-core@1.7.0?type=jar",
+            "UID": "3c1fb5d081dbf697",
+            "BOMRef": "pkg:maven/co.elastic.logging/ecs-logging-core@1.7.0?type=jar"
+          },
+          "Version": "1.7.0",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:1c4f0c04951211750ff47bd4c19a821f"
+        },
+        {
+          "ID": "co.elastic.logging:log4j2-ecs-layout:1.7.0",
+          "Name": "co.elastic.logging:log4j2-ecs-layout",
+          "Identifier": {
+            "PURL": "pkg:maven/co.elastic.logging/log4j2-ecs-layout@1.7.0?type=jar",
+            "UID": "906f69634a076fea",
+            "BOMRef": "pkg:maven/co.elastic.logging/log4j2-ecs-layout@1.7.0?type=jar"
+          },
+          "Version": "1.7.0",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "co.elastic.logging:ecs-logging-core:1.7.0"
+          ],
+          "Digest": "md5:92a68b47a602939549a85d933ef0e79b"
+        },
+        {
+          "ID": "com.carrotsearch:hppc:0.8.1",
+          "Name": "com.carrotsearch:hppc",
+          "Identifier": {
+            "PURL": "pkg:maven/com.carrotsearch/hppc@0.8.1?type=jar",
+            "UID": "d8983625df40b01b",
+            "BOMRef": "pkg:maven/com.carrotsearch/hppc@0.8.1?type=jar"
+          },
+          "Version": "0.8.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:4b142532e325286944292cd65448afc3"
+        },
+        {
+          "ID": "com.fasterxml.jackson.core:jackson-annotations:2.18.10",
+          "Name": "com.fasterxml.jackson.core:jackson-annotations",
+          "Identifier": {
+            "PURL": "pkg:maven/com.fasterxml.jackson.core/jackson-annotations@2.18.10?type=jar",
+            "UID": "281da8d1affb2411",
+            "BOMRef": "pkg:maven/com.fasterxml.jackson.core/jackson-annotations@2.18.10?type=jar"
+          },
+          "Version": "2.18.10",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:fb60883c57e404bc4372562888c816df"
+        },
+        {
+          "ID": "com.fasterxml.jackson.core:jackson-annotations:2.20",
+          "Name": "com.fasterxml.jackson.core:jackson-annotations",
+          "Identifier": {
+            "PURL": "pkg:maven/com.fasterxml.jackson.core/jackson-annotations@2.20?type=jar",
+            "UID": "5f38f25081e34e80",
+            "BOMRef": "pkg:maven/com.fasterxml.jackson.core/jackson-annotations@2.20?type=jar"
+          },
+          "Version": "2.20",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:b901def3c20752817f27130e4b8d6640"
+        },
+        {
+          "ID": "com.fasterxml.jackson.core:jackson-core:2.18.10",
+          "Name": "com.fasterxml.jackson.core:jackson-core",
+          "Identifier": {
+            "PURL": "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.18.10?type=jar",
+            "UID": "828f73652c8fcd12",
+            "BOMRef": "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.18.10?type=jar"
+          },
+          "Version": "2.18.10",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:02851c0a1653cc7fcbf7ffe4a1859682"
+        },
+        {
+          "ID": "com.fasterxml.jackson.core:jackson-databind:2.18.10",
+          "Name": "com.fasterxml.jackson.core:jackson-databind",
+          "Identifier": {
+            "PURL": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.18.10?type=jar",
+            "UID": "a3429c79517a047b",
+            "BOMRef": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.18.10?type=jar"
+          },
+          "Version": "2.18.10",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "com.fasterxml.jackson.core:jackson-annotations:2.18.10"
+          ],
+          "Digest": "md5:e087544a016b692ea1c7d723c8929db3"
+        },
+        {
+          "ID": "com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.18.10",
+          "Name": "com.fasterxml.jackson.dataformat:jackson-dataformat-smile",
+          "Identifier": {
+            "PURL": "pkg:maven/com.fasterxml.jackson.dataformat/jackson-dataformat-smile@2.18.10?type=jar",
+            "UID": "4aaf55fbb1dd3288",
+            "BOMRef": "pkg:maven/com.fasterxml.jackson.dataformat/jackson-dataformat-smile@2.18.10?type=jar"
+          },
+          "Version": "2.18.10",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "com.fasterxml.jackson.core:jackson-databind:2.18.10",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10"
+          ],
+          "Digest": "md5:b0e2d0dd022ea5c0ace953470a0c17e0"
+        },
+        {
+          "ID": "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.10",
+          "Name": "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml",
+          "Identifier": {
+            "PURL": "pkg:maven/com.fasterxml.jackson.dataformat/jackson-dataformat-yaml@2.18.10?type=jar",
+            "UID": "18685a1cf354ee2e",
+            "BOMRef": "pkg:maven/com.fasterxml.jackson.dataformat/jackson-dataformat-yaml@2.18.10?type=jar"
+          },
+          "Version": "2.18.10",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "com.fasterxml.jackson.core:jackson-databind:2.18.10",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10"
+          ],
+          "Digest": "md5:bfa9a4783229586d21536affe024fb36"
+        },
+        {
+          "ID": "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.20.1",
+          "Name": "com.fasterxml.jackson.datatype:jackson-datatype-jsr310",
+          "Identifier": {
+            "PURL": "pkg:maven/com.fasterxml.jackson.datatype/jackson-datatype-jsr310@2.20.1?type=jar",
+            "UID": "1ff0eb0752aa8fd2",
+            "BOMRef": "pkg:maven/com.fasterxml.jackson.datatype/jackson-datatype-jsr310@2.20.1?type=jar"
+          },
+          "Version": "2.20.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "com.fasterxml.jackson.core:jackson-annotations:2.20",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.core:jackson-databind:2.18.10"
+          ],
+          "Digest": "md5:1ebd4e254f641f0cadf0ffdc1f662fea"
+        },
+        {
+          "ID": "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.4",
+          "Name": "com.fasterxml.jackson.datatype:jackson-datatype-jsr310",
+          "Identifier": {
+            "PURL": "pkg:maven/com.fasterxml.jackson.datatype/jackson-datatype-jsr310@2.21.4?type=jar",
+            "UID": "25aafc1120b87559",
+            "BOMRef": "pkg:maven/com.fasterxml.jackson.datatype/jackson-datatype-jsr310@2.21.4?type=jar"
+          },
+          "Version": "2.21.4",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "com.fasterxml.jackson.core:jackson-annotations:2.18.10",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.core:jackson-databind:2.18.10"
+          ],
+          "Digest": "md5:8d64e799458e78f5d46765da252270fa"
+        },
+        {
+          "ID": "com.fasterxml.woodstox:woodstox-core:7.1.0",
+          "Name": "com.fasterxml.woodstox:woodstox-core",
+          "Identifier": {
+            "PURL": "pkg:maven/com.fasterxml.woodstox/woodstox-core@7.1.0?type=jar",
+            "UID": "469f26850f77fbd6",
+            "BOMRef": "pkg:maven/com.fasterxml.woodstox/woodstox-core@7.1.0?type=jar"
+          },
+          "Version": "7.1.0",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.codehaus.woodstox:stax2-api:4.2.2"
+          ],
+          "Digest": "md5:f8b70141712cd2ac67800ba036f0aa13"
+        },
+        {
+          "ID": "com.flipkart.zjsonpatch:zjsonpatch:0.4.16",
+          "Name": "com.flipkart.zjsonpatch:zjsonpatch",
+          "Identifier": {
+            "PURL": "pkg:maven/com.flipkart.zjsonpatch/zjsonpatch@0.4.16?type=jar",
+            "UID": "5df51216a7749d24",
+            "BOMRef": "pkg:maven/com.flipkart.zjsonpatch/zjsonpatch@0.4.16?type=jar"
+          },
+          "Version": "0.4.16",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.commons:commons-collections4:4.4"
+          ],
+          "Digest": "md5:11cc5d21a464f237e2e4a298064c496e"
+        },
+        {
+          "ID": "com.floragunn:codova:1.10.1",
+          "Name": "com.floragunn:codova",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/codova@1.10.1?type=jar",
+            "UID": "ac157adb46eab970",
+            "BOMRef": "pkg:maven/com.floragunn/codova@1.10.1?type=jar"
+          },
+          "Version": "1.10.1",
+          "DependsOn": [
+            "com.jayway.jsonpath:json-path:3.0.0",
+            "com.floragunn:fluent-collections:1.3.0",
+            "org.slf4j:slf4j-api:2.1.0-alpha1"
+          ],
+          "Digest": "md5:615214146bd251af381ea6c909f42009"
+        },
+        {
+          "ID": "com.floragunn:dlic-search-guard-flx-auditlog:trivy",
+          "Name": "com.floragunn:dlic-search-guard-flx-auditlog",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/dlic-search-guard-flx-auditlog@trivy?type=jar",
+            "UID": "6b8a89b7b77731f3",
+            "BOMRef": "pkg:maven/com.floragunn/dlic-search-guard-flx-auditlog@trivy?type=jar"
+          },
+          "Version": "trivy",
+          "DependsOn": [
+            "joda-time:joda-time:2.14.3",
+            "org.elasticsearch.client:elasticsearch-rest-client:9.5.2",
+            "com.floragunn:dlic-search-guard-flx-security:trivy",
+            "com.floragunn:search-guard-flx-security:trivy",
+            "com.floragunn:search-guard-flx-ssl:trivy",
+            "com.floragunn:search-guard-flx-support:trivy",
+            "org.apache.logging.log4j:log4j-slf4j-impl:2.26.1",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.10",
+            "com.floragunn:codova:1.10.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "com.sun.activation:jakarta.activation:1.2.2",
+            "org.elasticsearch:elasticsearch:9.5.2",
+            "org.yaml:snakeyaml:2.7",
+            "jakarta.activation:jakarta.activation-api:2.1.1",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+            "org.apache.logging.log4j:log4j-core:2.26.1"
+          ]
+        },
+        {
+          "ID": "com.floragunn:dlic-search-guard-flx-dlsfls:trivy",
+          "Name": "com.floragunn:dlic-search-guard-flx-dlsfls",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/dlic-search-guard-flx-dlsfls@trivy?type=jar",
+            "UID": "216dafc193432b06",
+            "BOMRef": "pkg:maven/com.floragunn/dlic-search-guard-flx-dlsfls@trivy?type=jar"
+          },
+          "Version": "trivy",
+          "DependsOn": [
+            "com.floragunn:search-guard-flx-security:trivy",
+            "com.floragunn:search-guard-flx-support:trivy",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.10",
+            "com.floragunn:codova:1.10.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "com.sun.activation:jakarta.activation:1.2.2",
+            "org.elasticsearch:elasticsearch:9.5.2",
+            "org.yaml:snakeyaml:2.7",
+            "jakarta.activation:jakarta.activation-api:2.1.1",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+            "org.apache.logging.log4j:log4j-core:2.26.1"
+          ]
+        },
+        {
+          "ID": "com.floragunn:dlic-search-guard-flx-fe-multi-tenancy:trivy",
+          "Name": "com.floragunn:dlic-search-guard-flx-fe-multi-tenancy",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/dlic-search-guard-flx-fe-multi-tenancy@trivy?type=jar",
+            "UID": "5cf317a25427fd36",
+            "BOMRef": "pkg:maven/com.floragunn/dlic-search-guard-flx-fe-multi-tenancy@trivy?type=jar"
+          },
+          "Version": "trivy",
+          "DependsOn": [
+            "com.floragunn:search-guard-flx-security:trivy",
+            "com.floragunn:search-guard-flx-ssl:trivy",
+            "com.floragunn:search-guard-flx-support:trivy",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.10",
+            "com.floragunn:codova:1.10.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "com.sun.activation:jakarta.activation:1.2.2",
+            "org.elasticsearch:elasticsearch:9.5.2",
+            "org.yaml:snakeyaml:2.7",
+            "jakarta.activation:jakarta.activation-api:2.1.1",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+            "org.apache.logging.log4j:log4j-core:2.26.1"
+          ]
+        },
+        {
+          "ID": "com.floragunn:dlic-search-guard-flx-security:trivy",
+          "Name": "com.floragunn:dlic-search-guard-flx-security",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/dlic-search-guard-flx-security@trivy?type=jar",
+            "UID": "564d25eeb314bd67",
+            "BOMRef": "pkg:maven/com.floragunn/dlic-search-guard-flx-security@trivy?type=jar"
+          },
+          "Version": "trivy",
+          "DependsOn": [
+            "com.flipkart.zjsonpatch:zjsonpatch:0.4.16",
+            "com.jayway.jsonpath:json-path:3.0.0",
+            "com.onelogin:java-saml:2.9.0",
+            "org.apache.commons:commons-lang3:3.20.0",
+            "com.unboundid:unboundid-ldapsdk:7.0.5",
+            "commons-codec:commons-codec:1.22.1",
+            "commons-collections:commons-collections:3.2.2",
+            "joda-time:joda-time:2.14.3",
+            "org.apache.cxf:cxf-rt-rs-security-jose:4.2.3",
+            "org.apache.httpcomponents:httpclient-cache:4.5.14",
+            "org.apache.santuario:xmlsec:4.0.4",
+            "org.bouncycastle:bcpkix-jdk18on:1.86",
+            "org.opensaml:opensaml-saml-impl:5.2.3",
+            "com.floragunn:search-guard-flx-security:trivy",
+            "com.floragunn:search-guard-flx-ssl:trivy",
+            "com.floragunn:search-guard-flx-support:trivy",
+            "org.apache.httpcomponents.client5:httpclient5:5.6.4",
+            "org.apache.httpcomponents.client5:httpclient5-cache:5.6.4",
+            "org.apache.httpcomponents.core5:httpcore5:5.4.3",
+            "org.apache.httpcomponents.core5:httpcore5-h2:5.4.3",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.10",
+            "com.floragunn:codova:1.10.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "com.sun.activation:jakarta.activation:1.2.2",
+            "org.elasticsearch:elasticsearch:9.5.2",
+            "org.yaml:snakeyaml:2.7",
+            "jakarta.activation:jakarta.activation-api:2.1.1",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+            "org.apache.logging.log4j:log4j-core:2.26.1"
+          ]
+        },
+        {
+          "ID": "com.floragunn:dlic-search-guard-flx-signals:trivy",
+          "Name": "com.floragunn:dlic-search-guard-flx-signals",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/dlic-search-guard-flx-signals@trivy?type=jar",
+            "UID": "ec55ad3ef05c30f1",
+            "BOMRef": "pkg:maven/com.floragunn/dlic-search-guard-flx-signals@trivy?type=jar"
+          },
+          "Version": "trivy",
+          "DependsOn": [
+            "com.floragunn:dlic-search-guard-flx-security:trivy",
+            "com.floragunn:search-guard-flx-scheduler:trivy",
+            "com.floragunn:search-guard-flx-security:trivy",
+            "com.floragunn:search-guard-flx-signals:trivy",
+            "com.floragunn:search-guard-flx-support:trivy",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.10",
+            "com.floragunn:codova:1.10.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "com.sun.activation:jakarta.activation:1.2.2",
+            "org.elasticsearch:elasticsearch:9.5.2",
+            "org.yaml:snakeyaml:2.7",
+            "jakarta.activation:jakarta.activation-api:2.1.1",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+            "org.apache.logging.log4j:log4j-core:2.26.1"
+          ]
+        },
+        {
+          "ID": "com.floragunn:fluent-collections:1.3.0",
+          "Name": "com.floragunn:fluent-collections",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/fluent-collections@1.3.0?type=jar",
+            "UID": "3d32a2179c6e9a0e",
+            "BOMRef": "pkg:maven/com.floragunn/fluent-collections@1.3.0?type=jar"
+          },
+          "Version": "1.3.0",
+          "Digest": "md5:76082babb0a924a4e37dda22640b6c40"
+        },
+        {
+          "ID": "com.floragunn:search-guard-flx-elasticsearch-plugin:trivy",
+          "Name": "com.floragunn:search-guard-flx-elasticsearch-plugin",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/search-guard-flx-elasticsearch-plugin@trivy?type=pom",
+            "UID": "adc0d25ef4cc1dd",
+            "BOMRef": "pkg:maven/com.floragunn/search-guard-flx-elasticsearch-plugin@trivy?type=pom"
+          },
+          "Version": "trivy",
+          "DependsOn": [
+            "com.floragunn:dlic-search-guard-flx-auditlog:trivy",
+            "com.floragunn:dlic-search-guard-flx-dlsfls:trivy",
+            "com.floragunn:dlic-search-guard-flx-fe-multi-tenancy:trivy",
+            "com.floragunn:dlic-search-guard-flx-security:trivy",
+            "com.floragunn:dlic-search-guard-flx-signals:trivy",
+            "com.floragunn:search-guard-flx-scheduler:trivy",
+            "com.floragunn:search-guard-flx-security:trivy",
+            "com.floragunn:search-guard-flx-signals:trivy",
+            "com.floragunn:search-guard-flx-ssl:trivy",
+            "com.floragunn:search-guard-flx-support:trivy",
+            "org.opensaml:opensaml-xmlsec-impl:5.2.3",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.10",
+            "com.floragunn:codova:1.10.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "com.sun.activation:jakarta.activation:1.2.2",
+            "org.elasticsearch:elasticsearch:9.5.2",
+            "org.yaml:snakeyaml:2.7",
+            "jakarta.activation:jakarta.activation-api:2.1.1",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+            "org.apache.logging.log4j:log4j-core:2.26.1"
+          ]
+        },
+        {
+          "ID": "com.floragunn:search-guard-flx-legacy-test-framework:trivy",
+          "Name": "com.floragunn:search-guard-flx-legacy-test-framework",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/search-guard-flx-legacy-test-framework@trivy?type=jar",
+            "UID": "5da91415c8514d86",
+            "BOMRef": "pkg:maven/com.floragunn/search-guard-flx-legacy-test-framework@trivy?type=jar"
+          },
+          "Version": "trivy",
+          "DependsOn": [
+            "com.jayway.jsonpath:json-path:3.0.0",
+            "com.floragunn:search-guard-lpg:1.0.0",
+            "org.bouncycastle:bcpkix-jdk18on:1.86",
+            "com.floragunn:search-guard-flx-security:trivy",
+            "com.floragunn:search-guard-flx-ssl:trivy",
+            "com.floragunn:search-guard-flx-support:trivy",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.10",
+            "com.floragunn:codova:1.10.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "com.sun.activation:jakarta.activation:1.2.2",
+            "org.elasticsearch:elasticsearch:9.5.2",
+            "org.yaml:snakeyaml:2.7",
+            "jakarta.activation:jakarta.activation-api:2.1.1",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+            "org.apache.logging.log4j:log4j-core:2.26.1"
+          ]
+        },
+        {
+          "ID": "com.floragunn:search-guard-flx-parent:trivy",
+          "Name": "com.floragunn:search-guard-flx-parent",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/search-guard-flx-parent@trivy?type=pom",
+            "UID": "eb4fc0fe000c74f8",
+            "BOMRef": "pkg:maven/com.floragunn/search-guard-flx-parent@trivy?type=pom"
+          },
+          "Version": "trivy",
+          "DependsOn": [
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.10",
+            "com.floragunn:codova:1.10.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "com.sun.activation:jakarta.activation:1.2.2",
+            "org.elasticsearch:elasticsearch:9.5.2",
+            "org.yaml:snakeyaml:2.7",
+            "jakarta.activation:jakarta.activation-api:2.1.1",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+            "org.apache.logging.log4j:log4j-core:2.26.1",
+            "com.floragunn:search-guard-flx-support:trivy",
+            "com.floragunn:search-guard-flx-ssl:trivy",
+            "com.floragunn:search-guard-flx-security:trivy",
+            "com.floragunn:search-guard-flx-legacy-test-framework:trivy",
+            "com.floragunn:search-guard-flx-scheduler:trivy",
+            "com.floragunn:dlic-search-guard-flx-dlsfls:trivy",
+            "com.floragunn:dlic-search-guard-flx-security:trivy",
+            "com.floragunn:dlic-search-guard-flx-fe-multi-tenancy:trivy",
+            "com.floragunn:search-guard-flx-signals:trivy",
+            "com.floragunn:dlic-search-guard-flx-auditlog:trivy",
+            "com.floragunn:dlic-search-guard-flx-signals:trivy",
+            "com.floragunn:search-guard-flx-elasticsearch-plugin:trivy"
+          ]
+        },
+        {
+          "ID": "com.floragunn:search-guard-flx-scheduler:trivy",
+          "Name": "com.floragunn:search-guard-flx-scheduler",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/search-guard-flx-scheduler@trivy?type=jar",
+            "UID": "22247b9f9bfd1191",
+            "BOMRef": "pkg:maven/com.floragunn/search-guard-flx-scheduler@trivy?type=jar"
+          },
+          "Version": "trivy",
+          "DependsOn": [
+            "commons-codec:commons-codec:1.22.1",
+            "org.quartz-scheduler:quartz:2.5.2",
+            "com.floragunn:search-guard-flx-security:trivy",
+            "com.floragunn:search-guard-flx-ssl:trivy",
+            "com.floragunn:search-guard-flx-support:trivy",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.10",
+            "com.floragunn:codova:1.10.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "com.sun.activation:jakarta.activation:1.2.2",
+            "org.elasticsearch:elasticsearch:9.5.2",
+            "org.yaml:snakeyaml:2.7",
+            "jakarta.activation:jakarta.activation-api:2.1.1",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+            "org.apache.logging.log4j:log4j-core:2.26.1"
+          ]
+        },
+        {
+          "ID": "com.floragunn:search-guard-flx-security:trivy",
+          "Name": "com.floragunn:search-guard-flx-security",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/search-guard-flx-security@trivy?type=jar",
+            "UID": "4a0fa226f19d5045",
+            "BOMRef": "pkg:maven/com.floragunn/search-guard-flx-security@trivy?type=jar"
+          },
+          "Version": "trivy",
+          "DependsOn": [
+            "com.floragunn:fluent-collections:1.3.0",
+            "com.github.seancfoley:ipaddress:5.6.2",
+            "com.jayway.jsonpath:json-path:3.0.0",
+            "org.apache.cxf:cxf-rt-rs-security-jose:4.2.3",
+            "com.nimbusds:nimbus-jose-jwt:10.10",
+            "com.floragunn:search-guard-lpg:1.0.0",
+            "org.bouncycastle:bcpkix-jdk18on:1.86",
+            "com.selectivem.collections:special-collections-complete:1.4.0",
+            "com.floragunn:search-guard-flx-ssl:trivy",
+            "com.floragunn:search-guard-flx-support:trivy",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.10",
+            "com.floragunn:codova:1.10.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "com.sun.activation:jakarta.activation:1.2.2",
+            "org.elasticsearch:elasticsearch:9.5.2",
+            "org.yaml:snakeyaml:2.7",
+            "jakarta.activation:jakarta.activation-api:2.1.1",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+            "org.apache.logging.log4j:log4j-core:2.26.1"
+          ]
+        },
+        {
+          "ID": "com.floragunn:search-guard-flx-signals:trivy",
+          "Name": "com.floragunn:search-guard-flx-signals",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/search-guard-flx-signals@trivy?type=jar",
+            "UID": "d96b0a18b087946a",
+            "BOMRef": "pkg:maven/com.floragunn/search-guard-flx-signals@trivy?type=jar"
+          },
+          "Version": "trivy",
+          "DependsOn": [
+            "org.apache.httpcomponents:httpclient:4.5.14",
+            "org.simplejavamail:simple-java-mail:9.3.5",
+            "com.floragunn:search-guard-flx-scheduler:trivy",
+            "com.floragunn:search-guard-flx-security:trivy",
+            "com.floragunn:search-guard-flx-ssl:trivy",
+            "com.floragunn:search-guard-flx-support:trivy",
+            "org.elasticsearch.plugin:elasticsearch-scripting-painless-spi:9.5.2",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.10",
+            "com.floragunn:codova:1.10.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "com.sun.activation:jakarta.activation:1.2.2",
+            "org.elasticsearch:elasticsearch:9.5.2",
+            "org.yaml:snakeyaml:2.7",
+            "jakarta.activation:jakarta.activation-api:2.1.1",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+            "org.apache.logging.log4j:log4j-core:2.26.1"
+          ]
+        },
+        {
+          "ID": "com.floragunn:search-guard-flx-ssl:trivy",
+          "Name": "com.floragunn:search-guard-flx-ssl",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/search-guard-flx-ssl@trivy?type=jar",
+            "UID": "eb6e2c37b525463e",
+            "BOMRef": "pkg:maven/com.floragunn/search-guard-flx-ssl@trivy?type=jar"
+          },
+          "Version": "trivy",
+          "DependsOn": [
+            "org.apache.httpcomponents:httpasyncclient:4.1.5",
+            "org.bouncycastle:bcpkix-jdk18on:1.86",
+            "org.elasticsearch.plugin:transport-netty4:9.5.2",
+            "com.floragunn:search-guard-flx-support:trivy",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.10",
+            "com.floragunn:codova:1.10.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "com.sun.activation:jakarta.activation:1.2.2",
+            "org.elasticsearch:elasticsearch:9.5.2",
+            "org.yaml:snakeyaml:2.7",
+            "jakarta.activation:jakarta.activation-api:2.1.1",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+            "org.apache.logging.log4j:log4j-core:2.26.1"
+          ]
+        },
+        {
+          "ID": "com.floragunn:search-guard-flx-support:trivy",
+          "Name": "com.floragunn:search-guard-flx-support",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/search-guard-flx-support@trivy?type=jar",
+            "UID": "beacf2cd31d08e54",
+            "BOMRef": "pkg:maven/com.floragunn/search-guard-flx-support@trivy?type=jar"
+          },
+          "Version": "trivy",
+          "DependsOn": [
+            "org.elasticsearch:elasticsearch:9.5.2",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.18.10",
+            "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.10",
+            "com.floragunn:codova:1.10.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "com.sun.activation:jakarta.activation:1.2.2",
+            "org.yaml:snakeyaml:2.7",
+            "jakarta.activation:jakarta.activation-api:2.1.1",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+            "org.apache.logging.log4j:log4j-core:2.26.1"
+          ]
+        },
+        {
+          "ID": "com.floragunn:search-guard-lpg:1.0.0",
+          "Name": "com.floragunn:search-guard-lpg",
+          "Identifier": {
+            "PURL": "pkg:maven/com.floragunn/search-guard-lpg@1.0.0?type=jar",
+            "UID": "5c93c9fc446172be",
+            "BOMRef": "pkg:maven/com.floragunn/search-guard-lpg@1.0.0?type=jar"
+          },
+          "Version": "1.0.0",
+          "Digest": "md5:d835d900306d96dfb7185ff612481b4c"
+        },
+        {
+          "ID": "com.github.seancfoley:ipaddress:5.6.2",
+          "Name": "com.github.seancfoley:ipaddress",
+          "Identifier": {
+            "PURL": "pkg:maven/com.github.seancfoley/ipaddress@5.6.2?type=jar",
+            "UID": "afd0297c6b7d80a1",
+            "BOMRef": "pkg:maven/com.github.seancfoley/ipaddress@5.6.2?type=jar"
+          },
+          "Version": "5.6.2",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:f161b347f6e211502d21dcfa171cd7b5"
+        },
+        {
+          "ID": "com.google.code.findbugs:jsr305:3.0.2",
+          "Name": "com.google.code.findbugs:jsr305",
+          "Identifier": {
+            "PURL": "pkg:maven/com.google.code.findbugs/jsr305@3.0.2?type=jar",
+            "UID": "80256e5fcae71a31",
+            "BOMRef": "pkg:maven/com.google.code.findbugs/jsr305@3.0.2?type=jar"
+          },
+          "Version": "3.0.2",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:dd83accb899363c32b07d7a1b2e4ce40"
+        },
+        {
+          "ID": "com.google.errorprone:error_prone_annotations:2.50.0",
+          "Name": "com.google.errorprone:error_prone_annotations",
+          "Identifier": {
+            "PURL": "pkg:maven/com.google.errorprone/error_prone_annotations@2.50.0?type=jar",
+            "UID": "89bb6571a0d7b83f",
+            "BOMRef": "pkg:maven/com.google.errorprone/error_prone_annotations@2.50.0?type=jar"
+          },
+          "Version": "2.50.0",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:1ded1848cfd4f5167e00824faf9c4d3b"
+        },
+        {
+          "ID": "com.google.guava:failureaccess:1.0.3",
+          "Name": "com.google.guava:failureaccess",
+          "Identifier": {
+            "PURL": "pkg:maven/com.google.guava/failureaccess@1.0.3?type=jar",
+            "UID": "ce98c83ff9f16c3",
+            "BOMRef": "pkg:maven/com.google.guava/failureaccess@1.0.3?type=jar"
+          },
+          "Version": "1.0.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:29a782e90f6b37218b18bb880d2a8f4a"
+        },
+        {
+          "ID": "com.google.guava:guava:33.7.1-jre",
+          "Name": "com.google.guava:guava",
+          "Identifier": {
+            "PURL": "pkg:maven/com.google.guava/guava@33.7.1-jre?type=jar",
+            "UID": "5dcb95c1c1249202",
+            "BOMRef": "pkg:maven/com.google.guava/guava@33.7.1-jre?type=jar"
+          },
+          "Version": "33.7.1-jre",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "com.google.guava:failureaccess:1.0.3",
+            "com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava",
+            "org.jspecify:jspecify:1.0.1",
+            "com.google.errorprone:error_prone_annotations:2.50.0",
+            "com.google.j2objc:j2objc-annotations:3.1"
+          ],
+          "Digest": "md5:1a86f411821e4ba79f2747f301b7e2ba"
+        },
+        {
+          "ID": "com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava",
+          "Name": "com.google.guava:listenablefuture",
+          "Identifier": {
+            "PURL": "pkg:maven/com.google.guava/listenablefuture@9999.0-empty-to-avoid-conflict-with-guava?type=jar",
+            "UID": "928a9d44bb4f0a2f",
+            "BOMRef": "pkg:maven/com.google.guava/listenablefuture@9999.0-empty-to-avoid-conflict-with-guava?type=jar"
+          },
+          "Version": "9999.0-empty-to-avoid-conflict-with-guava",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:d094c22570d65e132c19cea5d352e381"
+        },
+        {
+          "ID": "com.google.j2objc:j2objc-annotations:3.1",
+          "Name": "com.google.j2objc:j2objc-annotations",
+          "Identifier": {
+            "PURL": "pkg:maven/com.google.j2objc/j2objc-annotations@3.1?type=jar",
+            "UID": "8c594bffa74000d1",
+            "BOMRef": "pkg:maven/com.google.j2objc/j2objc-annotations@3.1?type=jar"
+          },
+          "Version": "3.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:abe8bd3abff622b9a8b15c3a737aa741"
+        },
+        {
+          "ID": "com.jayway.jsonpath:json-path:3.0.0",
+          "Name": "com.jayway.jsonpath:json-path",
+          "Identifier": {
+            "PURL": "pkg:maven/com.jayway.jsonpath/json-path@3.0.0?type=jar",
+            "UID": "2e510b682404bbcd",
+            "BOMRef": "pkg:maven/com.jayway.jsonpath/json-path@3.0.0?type=jar"
+          },
+          "Version": "3.0.0",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.slf4j:slf4j-api:2.1.0-alpha1"
+          ],
+          "Digest": "md5:2ab4381a6e940ad027e976902fc42474"
+        },
+        {
+          "ID": "com.nimbusds:nimbus-jose-jwt:10.10",
+          "Name": "com.nimbusds:nimbus-jose-jwt",
+          "Identifier": {
+            "PURL": "pkg:maven/com.nimbusds/nimbus-jose-jwt@10.10?type=jar",
+            "UID": "8df68830972abaf8",
+            "BOMRef": "pkg:maven/com.nimbusds/nimbus-jose-jwt@10.10?type=jar"
+          },
+          "Version": "10.10",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:d5c8eaafa3ab21717eaa5f25c7abfdda"
+        },
+        {
+          "ID": "com.onelogin:java-saml:2.9.0",
+          "Name": "com.onelogin:java-saml",
+          "Identifier": {
+            "PURL": "pkg:maven/com.onelogin/java-saml@2.9.0?type=jar",
+            "UID": "360588231e24d2f2",
+            "BOMRef": "pkg:maven/com.onelogin/java-saml@2.9.0?type=jar"
+          },
+          "Version": "2.9.0",
+          "Licenses": [
+            "MIT"
+          ],
+          "DependsOn": [
+            "com.onelogin:java-saml-core:2.9.0",
+            "org.slf4j:slf4j-api:2.0.17",
+            "commons-codec:commons-codec:1.22.1"
+          ],
+          "Digest": "md5:78ab152c7a2de7cdc9fed73452641129"
+        },
+        {
+          "ID": "com.onelogin:java-saml-core:2.9.0",
+          "Name": "com.onelogin:java-saml-core",
+          "Identifier": {
+            "PURL": "pkg:maven/com.onelogin/java-saml-core@2.9.0?type=jar",
+            "UID": "5117a492cd86f58e",
+            "BOMRef": "pkg:maven/com.onelogin/java-saml-core@2.9.0?type=jar"
+          },
+          "Version": "2.9.0",
+          "Licenses": [
+            "MIT"
+          ],
+          "DependsOn": [
+            "org.slf4j:slf4j-api:2.0.17",
+            "commons-codec:commons-codec:1.22.1"
+          ],
+          "Digest": "md5:a9e33a00ac2b9b5ccbaa104a5ca6aec4"
+        },
+        {
+          "ID": "com.pivovarit:throwing-function:1.6.1",
+          "Name": "com.pivovarit:throwing-function",
+          "Identifier": {
+            "PURL": "pkg:maven/com.pivovarit/throwing-function@1.6.1?type=jar",
+            "UID": "31b94366f1146b24",
+            "BOMRef": "pkg:maven/com.pivovarit/throwing-function@1.6.1?type=jar"
+          },
+          "Version": "1.6.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:f9144b8522c43fded48d9ffa564a38f8"
+        },
+        {
+          "ID": "com.sanctionco.jmail:jmail:2.2.2",
+          "Name": "com.sanctionco.jmail:jmail",
+          "Identifier": {
+            "PURL": "pkg:maven/com.sanctionco.jmail/jmail@2.2.2?type=jar",
+            "UID": "28022b2222079d6b",
+            "BOMRef": "pkg:maven/com.sanctionco.jmail/jmail@2.2.2?type=jar"
+          },
+          "Version": "2.2.2",
+          "Licenses": [
+            "MIT"
+          ],
+          "Digest": "md5:7f55421e7ed3311e138fe98718c8cffa"
+        },
+        {
+          "ID": "com.selectivem.collections:special-collections-complete:1.4.0",
+          "Name": "com.selectivem.collections:special-collections-complete",
+          "Identifier": {
+            "PURL": "pkg:maven/com.selectivem.collections/special-collections-complete@1.4.0?type=jar",
+            "UID": "706e0ca596234a50",
+            "BOMRef": "pkg:maven/com.selectivem.collections/special-collections-complete@1.4.0?type=jar"
+          },
+          "Version": "1.4.0",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:3f4621277e19284f9bd1bd739a656d1d"
+        },
+        {
+          "ID": "com.sun.activation:jakarta.activation:1.2.2",
+          "Name": "com.sun.activation:jakarta.activation",
+          "Identifier": {
+            "PURL": "pkg:maven/com.sun.activation/jakarta.activation@1.2.2?type=jar",
+            "UID": "159c1392f8d7e8c",
+            "BOMRef": "pkg:maven/com.sun.activation/jakarta.activation@1.2.2?type=jar"
+          },
+          "Version": "1.2.2",
+          "Licenses": [
+            "BSD-3-Clause"
+          ],
+          "Digest": "md5:0b8bee3bf29b9a015f8b992035581a7c"
+        },
+        {
+          "ID": "com.unboundid:unboundid-ldapsdk:7.0.5",
+          "Name": "com.unboundid:unboundid-ldapsdk",
+          "Identifier": {
+            "PURL": "pkg:maven/com.unboundid/unboundid-ldapsdk@7.0.5?type=jar",
+            "UID": "b9f2a9b2fb2d27e",
+            "BOMRef": "pkg:maven/com.unboundid/unboundid-ldapsdk@7.0.5?type=jar"
+          },
+          "Version": "7.0.5",
+          "Licenses": [
+            "Apache-2.0",
+            "GNU General Public License version 2 (GPLv2)",
+            "GNU Lesser General Public License version 2.1 (LGPLv2.1)",
+            "UnboundID LDAP SDK Free Use License"
+          ],
+          "Digest": "md5:ddb876e766af6e41b0d4db7392538ff9"
+        },
+        {
+          "ID": "commons-codec:commons-codec:1.22.1",
+          "Name": "commons-codec:commons-codec",
+          "Identifier": {
+            "PURL": "pkg:maven/commons-codec/commons-codec@1.22.1?type=jar",
+            "UID": "a9d5a31f002288e9",
+            "BOMRef": "pkg:maven/commons-codec/commons-codec@1.22.1?type=jar"
+          },
+          "Version": "1.22.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:7bfd10447817907ffd7f14fbc6493940"
+        },
+        {
+          "ID": "commons-collections:commons-collections:3.2.2",
+          "Name": "commons-collections:commons-collections",
+          "Identifier": {
+            "PURL": "pkg:maven/commons-collections/commons-collections@3.2.2?type=jar",
+            "UID": "cfcf75857728a15a",
+            "BOMRef": "pkg:maven/commons-collections/commons-collections@3.2.2?type=jar"
+          },
+          "Version": "3.2.2",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:f54a8510f834a1a57166970bfc982e94"
+        },
+        {
+          "ID": "commons-logging:commons-logging:1.2",
+          "Name": "commons-logging:commons-logging",
+          "Identifier": {
+            "PURL": "pkg:maven/commons-logging/commons-logging@1.2?type=jar",
+            "UID": "c5f1c2c57976c40c",
+            "BOMRef": "pkg:maven/commons-logging/commons-logging@1.2?type=jar"
+          },
+          "Version": "1.2",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:040b4b4d8eac886f6b4a2a3bd2f31b00"
+        },
+        {
+          "ID": "io.dropwizard.metrics:metrics-core:4.2.39",
+          "Name": "io.dropwizard.metrics:metrics-core",
+          "Identifier": {
+            "PURL": "pkg:maven/io.dropwizard.metrics/metrics-core@4.2.39?type=jar",
+            "UID": "bf87e3f0c59c507a",
+            "BOMRef": "pkg:maven/io.dropwizard.metrics/metrics-core@4.2.39?type=jar"
+          },
+          "Version": "4.2.39",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.slf4j:slf4j-api:2.0.17"
+          ],
+          "Digest": "md5:a75d268adf6da5837529d39d5d69c673"
+        },
+        {
+          "ID": "io.dropwizard.metrics:metrics-json:4.2.39",
+          "Name": "io.dropwizard.metrics:metrics-json",
+          "Identifier": {
+            "PURL": "pkg:maven/io.dropwizard.metrics/metrics-json@4.2.39?type=jar",
+            "UID": "22095fd17bb3d4b9",
+            "BOMRef": "pkg:maven/io.dropwizard.metrics/metrics-json@4.2.39?type=jar"
+          },
+          "Version": "4.2.39",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "io.dropwizard.metrics:metrics-core:4.2.39",
+            "com.fasterxml.jackson.core:jackson-core:2.18.10",
+            "com.fasterxml.jackson.core:jackson-databind:2.18.10"
+          ],
+          "Digest": "md5:61ae3dde475c4fdbb26052dff321dd78"
+        },
+        {
+          "ID": "io.netty:netty-buffer:4.1.135.Final",
+          "Name": "io.netty:netty-buffer",
+          "Identifier": {
+            "PURL": "pkg:maven/io.netty/netty-buffer@4.1.135.Final?type=jar",
+            "UID": "401b7802e300bbb6",
+            "BOMRef": "pkg:maven/io.netty/netty-buffer@4.1.135.Final?type=jar"
+          },
+          "Version": "4.1.135.Final",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "io.netty:netty-common:4.1.135.Final"
+          ],
+          "Digest": "md5:fcd9f423d78592d1ca785b68ee9b16ee"
+        },
+        {
+          "ID": "io.netty:netty-codec:4.1.135.Final",
+          "Name": "io.netty:netty-codec",
+          "Identifier": {
+            "PURL": "pkg:maven/io.netty/netty-codec@4.1.135.Final?type=jar",
+            "UID": "2768e114090343fc",
+            "BOMRef": "pkg:maven/io.netty/netty-codec@4.1.135.Final?type=jar"
+          },
+          "Version": "4.1.135.Final",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "io.netty:netty-common:4.1.135.Final",
+            "io.netty:netty-buffer:4.1.135.Final",
+            "io.netty:netty-transport:4.1.135.Final"
+          ],
+          "Digest": "md5:d4c7467d989f3fce353fde66eb1b4bdf"
+        },
+        {
+          "ID": "io.netty:netty-codec-http:4.1.135.Final",
+          "Name": "io.netty:netty-codec-http",
+          "Identifier": {
+            "PURL": "pkg:maven/io.netty/netty-codec-http@4.1.135.Final?type=jar",
+            "UID": "e21bee2fd99a1398",
+            "BOMRef": "pkg:maven/io.netty/netty-codec-http@4.1.135.Final?type=jar"
+          },
+          "Version": "4.1.135.Final",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "io.netty:netty-common:4.1.135.Final",
+            "io.netty:netty-buffer:4.1.135.Final",
+            "io.netty:netty-transport:4.1.135.Final",
+            "io.netty:netty-codec:4.1.135.Final",
+            "io.netty:netty-handler:4.1.135.Final"
+          ],
+          "Digest": "md5:17647f3dcda67916dac602de8c8f2ca5"
+        },
+        {
+          "ID": "io.netty:netty-common:4.1.135.Final",
+          "Name": "io.netty:netty-common",
+          "Identifier": {
+            "PURL": "pkg:maven/io.netty/netty-common@4.1.135.Final?type=jar",
+            "UID": "da72b67da6a57e08",
+            "BOMRef": "pkg:maven/io.netty/netty-common@4.1.135.Final?type=jar"
+          },
+          "Version": "4.1.135.Final",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:bfa2258e927ec224143136eda472297c"
+        },
+        {
+          "ID": "io.netty:netty-handler:4.1.135.Final",
+          "Name": "io.netty:netty-handler",
+          "Identifier": {
+            "PURL": "pkg:maven/io.netty/netty-handler@4.1.135.Final?type=jar",
+            "UID": "80ad2391d73863e6",
+            "BOMRef": "pkg:maven/io.netty/netty-handler@4.1.135.Final?type=jar"
+          },
+          "Version": "4.1.135.Final",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "io.netty:netty-common:4.1.135.Final",
+            "io.netty:netty-resolver:4.1.135.Final",
+            "io.netty:netty-buffer:4.1.135.Final",
+            "io.netty:netty-transport:4.1.135.Final",
+            "io.netty:netty-transport-native-unix-common:4.1.135.Final",
+            "io.netty:netty-codec:4.1.135.Final"
+          ],
+          "Digest": "md5:3ac32114d15dc2b284571f5d35c6b790"
+        },
+        {
+          "ID": "io.netty:netty-resolver:4.1.135.Final",
+          "Name": "io.netty:netty-resolver",
+          "Identifier": {
+            "PURL": "pkg:maven/io.netty/netty-resolver@4.1.135.Final?type=jar",
+            "UID": "7d90ab4a930cfe91",
+            "BOMRef": "pkg:maven/io.netty/netty-resolver@4.1.135.Final?type=jar"
+          },
+          "Version": "4.1.135.Final",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "io.netty:netty-common:4.1.135.Final"
+          ],
+          "Digest": "md5:129c1aa96462490d58a358aceaba0553"
+        },
+        {
+          "ID": "io.netty:netty-transport:4.1.135.Final",
+          "Name": "io.netty:netty-transport",
+          "Identifier": {
+            "PURL": "pkg:maven/io.netty/netty-transport@4.1.135.Final?type=jar",
+            "UID": "c8098ce9d14994ec",
+            "BOMRef": "pkg:maven/io.netty/netty-transport@4.1.135.Final?type=jar"
+          },
+          "Version": "4.1.135.Final",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "io.netty:netty-common:4.1.135.Final",
+            "io.netty:netty-buffer:4.1.135.Final",
+            "io.netty:netty-resolver:4.1.135.Final"
+          ],
+          "Digest": "md5:06b22eaac4fad8e22753969b96b2c36a"
+        },
+        {
+          "ID": "io.netty:netty-transport-native-unix-common:4.1.135.Final",
+          "Name": "io.netty:netty-transport-native-unix-common",
+          "Identifier": {
+            "PURL": "pkg:maven/io.netty/netty-transport-native-unix-common@4.1.135.Final?type=jar",
+            "UID": "276620cd68bd3aaa",
+            "BOMRef": "pkg:maven/io.netty/netty-transport-native-unix-common@4.1.135.Final?type=jar"
+          },
+          "Version": "4.1.135.Final",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "io.netty:netty-common:4.1.135.Final",
+            "io.netty:netty-buffer:4.1.135.Final",
+            "io.netty:netty-transport:4.1.135.Final"
+          ],
+          "Digest": "md5:1e2845ca46311605e0a5e1623bc22e47"
+        },
+        {
+          "ID": "jakarta.activation:jakarta.activation-api:2.1.1",
+          "Name": "jakarta.activation:jakarta.activation-api",
+          "Identifier": {
+            "PURL": "pkg:maven/jakarta.activation/jakarta.activation-api@2.1.1?type=jar",
+            "UID": "67a9292e10c7786f",
+            "BOMRef": "pkg:maven/jakarta.activation/jakarta.activation-api@2.1.1?type=jar"
+          },
+          "Version": "2.1.1",
+          "Licenses": [
+            "BSD-3-Clause"
+          ],
+          "Digest": "md5:6f9bbce7c06f8805baa3fa87ebe3059f"
+        },
+        {
+          "ID": "jakarta.annotation:jakarta.annotation-api:3.0.0",
+          "Name": "jakarta.annotation:jakarta.annotation-api",
+          "Identifier": {
+            "PURL": "pkg:maven/jakarta.annotation/jakarta.annotation-api@3.0.0?type=jar",
+            "UID": "c21b4d8ce82abbe5",
+            "BOMRef": "pkg:maven/jakarta.annotation/jakarta.annotation-api@3.0.0?type=jar"
+          },
+          "Version": "3.0.0",
+          "Licenses": [
+            "EPL-2.0",
+            "GPL-2.0-with-classpath-exception"
+          ],
+          "Digest": "md5:7faffaab962918da4cf5ddfd76609dd2"
+        },
+        {
+          "ID": "jakarta.mail:jakarta.mail-api:2.1.5",
+          "Name": "jakarta.mail:jakarta.mail-api",
+          "Identifier": {
+            "PURL": "pkg:maven/jakarta.mail/jakarta.mail-api@2.1.5?type=jar",
+            "UID": "17601d291d2ab86b",
+            "BOMRef": "pkg:maven/jakarta.mail/jakarta.mail-api@2.1.5?type=jar"
+          },
+          "Version": "2.1.5",
+          "Licenses": [
+            "EPL-2.0",
+            "GPL-2.0-with-classpath-exception",
+            "BSD-3-Clause"
+          ],
+          "DependsOn": [
+            "jakarta.activation:jakarta.activation-api:2.1.1"
+          ],
+          "Digest": "md5:a1872951f46b87594806bb01e342a468"
+        },
+        {
+          "ID": "jakarta.xml.bind:jakarta.xml.bind-api:4.0.4",
+          "Name": "jakarta.xml.bind:jakarta.xml.bind-api",
+          "Identifier": {
+            "PURL": "pkg:maven/jakarta.xml.bind/jakarta.xml.bind-api@4.0.4?type=jar",
+            "UID": "8659cd25daceca6c",
+            "BOMRef": "pkg:maven/jakarta.xml.bind/jakarta.xml.bind-api@4.0.4?type=jar"
+          },
+          "Version": "4.0.4",
+          "Licenses": [
+            "BSD-3-Clause"
+          ],
+          "DependsOn": [
+            "jakarta.activation:jakarta.activation-api:2.1.1"
+          ],
+          "Digest": "md5:6dd465a232e545193ab8ab77cc4fbdb9"
+        },
+        {
+          "ID": "joda-time:joda-time:2.14.3",
+          "Name": "joda-time:joda-time",
+          "Identifier": {
+            "PURL": "pkg:maven/joda-time/joda-time@2.14.3?type=jar",
+            "UID": "61998193c711ffe6",
+            "BOMRef": "pkg:maven/joda-time/joda-time@2.14.3?type=jar"
+          },
+          "Version": "2.14.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:2895193bdd32515f8ac4328af23761fb"
+        },
+        {
+          "ID": "net.minidev:accessors-smart:2.6.0",
+          "Name": "net.minidev:accessors-smart",
+          "Identifier": {
+            "PURL": "pkg:maven/net.minidev/accessors-smart@2.6.0?type=jar",
+            "UID": "beba5cf15762f9c",
+            "BOMRef": "pkg:maven/net.minidev/accessors-smart@2.6.0?type=jar"
+          },
+          "Version": "2.6.0",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:0ad72639eea293193f68898da9b0b902"
+        },
+        {
+          "ID": "net.minidev:json-smart:2.6.0",
+          "Name": "net.minidev:json-smart",
+          "Identifier": {
+            "PURL": "pkg:maven/net.minidev/json-smart@2.6.0?type=jar",
+            "UID": "634eac890694ae37",
+            "BOMRef": "pkg:maven/net.minidev/json-smart@2.6.0?type=jar"
+          },
+          "Version": "2.6.0",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "net.minidev:accessors-smart:2.6.0"
+          ],
+          "Digest": "md5:fde8981f31c3b972355a5adf26a9ec65"
+        },
+        {
+          "ID": "net.sf.jopt-simple:jopt-simple:5.0.2",
+          "Name": "net.sf.jopt-simple:jopt-simple",
+          "Identifier": {
+            "PURL": "pkg:maven/net.sf.jopt-simple/jopt-simple@5.0.2?type=jar",
+            "UID": "4d3f5c4f5fbb5f2f",
+            "BOMRef": "pkg:maven/net.sf.jopt-simple/jopt-simple@5.0.2?type=jar"
+          },
+          "Version": "5.0.2",
+          "Licenses": [
+            "MIT"
+          ],
+          "Digest": "md5:22d04887411554d11534653a40ea325a"
+        },
+        {
+          "ID": "net.sf.jopt-simple:jopt-simple:5.0.4",
+          "Name": "net.sf.jopt-simple:jopt-simple",
+          "Identifier": {
+            "PURL": "pkg:maven/net.sf.jopt-simple/jopt-simple@5.0.4?type=jar",
+            "UID": "f5be7fcebe427756",
+            "BOMRef": "pkg:maven/net.sf.jopt-simple/jopt-simple@5.0.4?type=jar"
+          },
+          "Version": "5.0.4",
+          "Licenses": [
+            "MIT"
+          ],
+          "Digest": "md5:eb0d9dffe9b0eddead68fe678be76c49"
+        },
+        {
+          "ID": "net.shibboleth:shib-networking:9.2.3",
+          "Name": "net.shibboleth:shib-networking",
+          "Identifier": {
+            "PURL": "pkg:maven/net.shibboleth/shib-networking@9.2.3?type=jar",
+            "UID": "75125e35f2d7f894",
+            "BOMRef": "pkg:maven/net.shibboleth/shib-networking@9.2.3?type=jar"
+          },
+          "Version": "9.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "net.shibboleth:shib-support:9.2.3",
+            "com.google.guava:guava:33.7.1-jre",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2"
+          ],
+          "Digest": "md5:c561943bd6a784c7c49552b249b79a55"
+        },
+        {
+          "ID": "net.shibboleth:shib-security:9.2.3",
+          "Name": "net.shibboleth:shib-security",
+          "Identifier": {
+            "PURL": "pkg:maven/net.shibboleth/shib-security@9.2.3?type=jar",
+            "UID": "71da04f4bafcb135",
+            "BOMRef": "pkg:maven/net.shibboleth/shib-security@9.2.3?type=jar"
+          },
+          "Version": "9.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "net.shibboleth:shib-support:9.2.3",
+            "net.shibboleth:shib-networking:9.2.3",
+            "com.google.guava:guava:33.7.1-jre",
+            "commons-codec:commons-codec:1.22.1",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2"
+          ],
+          "Digest": "md5:427e31802b31d3d8948450f4379119f1"
+        },
+        {
+          "ID": "net.shibboleth:shib-support:9.2.3",
+          "Name": "net.shibboleth:shib-support",
+          "Identifier": {
+            "PURL": "pkg:maven/net.shibboleth/shib-support@9.2.3?type=jar",
+            "UID": "e7f712e78d63a706",
+            "BOMRef": "pkg:maven/net.shibboleth/shib-support@9.2.3?type=jar"
+          },
+          "Version": "9.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "commons-codec:commons-codec:1.22.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2"
+          ],
+          "Digest": "md5:79837bda8bee70163c9e7db4cb2b8d78"
+        },
+        {
+          "ID": "net.shibboleth:shib-velocity:9.2.3",
+          "Name": "net.shibboleth:shib-velocity",
+          "Identifier": {
+            "PURL": "pkg:maven/net.shibboleth/shib-velocity@9.2.3?type=jar",
+            "UID": "d3672396315f2369",
+            "BOMRef": "pkg:maven/net.shibboleth/shib-velocity@9.2.3?type=jar"
+          },
+          "Version": "9.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "net.shibboleth:shib-support:9.2.3",
+            "com.google.guava:guava:33.7.1-jre",
+            "org.apache.velocity:velocity-engine-core:2.4.1",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2"
+          ],
+          "Digest": "md5:2b6f8571bdcf668f68704bd4fc6d50e4"
+        },
+        {
+          "ID": "org.apache.commons:commons-collections4:4.4",
+          "Name": "org.apache.commons:commons-collections4",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.commons/commons-collections4@4.4?type=jar",
+            "UID": "64d393bdb5748559",
+            "BOMRef": "pkg:maven/org.apache.commons/commons-collections4@4.4?type=jar"
+          },
+          "Version": "4.4",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:4a37023740719b391f10030362c86be6"
+        },
+        {
+          "ID": "org.apache.commons:commons-lang3:3.20.0",
+          "Name": "org.apache.commons:commons-lang3",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.commons/commons-lang3@3.20.0?type=jar",
+            "UID": "8ebd4e9582e9326",
+            "BOMRef": "pkg:maven/org.apache.commons/commons-lang3@3.20.0?type=jar"
+          },
+          "Version": "3.20.0",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:4b29562ded527aa074e1d44f8646dac5"
+        },
+        {
+          "ID": "org.apache.cxf:cxf-core:4.2.3",
+          "Name": "org.apache.cxf:cxf-core",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.cxf/cxf-core@4.2.3?type=jar",
+            "UID": "61a4e84f151679d5",
+            "BOMRef": "pkg:maven/org.apache.cxf/cxf-core@4.2.3?type=jar"
+          },
+          "Version": "4.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "jakarta.annotation:jakarta.annotation-api:3.0.0",
+            "org.apache.ws.xmlschema:xmlschema-core:2.3.2",
+            "org.eclipse.angus:angus-activation:2.0.3"
+          ],
+          "Digest": "md5:19415a4d508d12571ccee20a404a5d23"
+        },
+        {
+          "ID": "org.apache.cxf:cxf-rt-rs-json-basic:4.2.3",
+          "Name": "org.apache.cxf:cxf-rt-rs-json-basic",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.cxf/cxf-rt-rs-json-basic@4.2.3?type=jar",
+            "UID": "a8769fbbe3dde6ba",
+            "BOMRef": "pkg:maven/org.apache.cxf/cxf-rt-rs-json-basic@4.2.3?type=jar"
+          },
+          "Version": "4.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.cxf:cxf-core:4.2.3"
+          ],
+          "Digest": "md5:fdeb20d02443fd87926ed5804f3f2321"
+        },
+        {
+          "ID": "org.apache.cxf:cxf-rt-rs-security-jose:4.2.3",
+          "Name": "org.apache.cxf:cxf-rt-rs-security-jose",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.cxf/cxf-rt-rs-security-jose@4.2.3?type=jar",
+            "UID": "f9d9c81879f0dadb",
+            "BOMRef": "pkg:maven/org.apache.cxf/cxf-rt-rs-security-jose@4.2.3?type=jar"
+          },
+          "Version": "4.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.cxf:cxf-core:4.2.3",
+            "org.apache.cxf:cxf-rt-security:4.2.3",
+            "org.apache.cxf:cxf-rt-rs-json-basic:4.2.3"
+          ],
+          "Digest": "md5:9bdefd0a0a77f922f5c42d4e8b82c92b"
+        },
+        {
+          "ID": "org.apache.cxf:cxf-rt-security:4.2.3",
+          "Name": "org.apache.cxf:cxf-rt-security",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.cxf/cxf-rt-security@4.2.3?type=jar",
+            "UID": "5486aebb1de1b77d",
+            "BOMRef": "pkg:maven/org.apache.cxf/cxf-rt-security@4.2.3?type=jar"
+          },
+          "Version": "4.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.cxf:cxf-core:4.2.3"
+          ],
+          "Digest": "md5:b57496c88116cffba386201002dd3ce1"
+        },
+        {
+          "ID": "org.apache.httpcomponents.client5:httpclient5:5.6.4",
+          "Name": "org.apache.httpcomponents.client5:httpclient5",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.httpcomponents.client5/httpclient5@5.6.4?type=jar",
+            "UID": "a6bb04d3960454d7",
+            "BOMRef": "pkg:maven/org.apache.httpcomponents.client5/httpclient5@5.6.4?type=jar"
+          },
+          "Version": "5.6.4",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.httpcomponents.core5:httpcore5:5.4.3",
+            "org.apache.httpcomponents.core5:httpcore5-h2:5.4.3",
+            "org.slf4j:slf4j-api:2.0.17"
+          ],
+          "Digest": "md5:42f90ff32bc3f72cb8bdfdf235e28328"
+        },
+        {
+          "ID": "org.apache.httpcomponents.client5:httpclient5-cache:5.6.4",
+          "Name": "org.apache.httpcomponents.client5:httpclient5-cache",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.httpcomponents.client5/httpclient5-cache@5.6.4?type=jar",
+            "UID": "4761af48fb34835a",
+            "BOMRef": "pkg:maven/org.apache.httpcomponents.client5/httpclient5-cache@5.6.4?type=jar"
+          },
+          "Version": "5.6.4",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.httpcomponents.client5:httpclient5:5.6.4",
+            "org.slf4j:slf4j-api:2.0.17"
+          ],
+          "Digest": "md5:46daa09dd78f02573160870e6d86576e"
+        },
+        {
+          "ID": "org.apache.httpcomponents.core5:httpcore5:5.4.3",
+          "Name": "org.apache.httpcomponents.core5:httpcore5",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.httpcomponents.core5/httpcore5@5.4.3?type=jar",
+            "UID": "a4ab689135de5671",
+            "BOMRef": "pkg:maven/org.apache.httpcomponents.core5/httpcore5@5.4.3?type=jar"
+          },
+          "Version": "5.4.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:40cba87d4704bc9e1691f340fb8042cf"
+        },
+        {
+          "ID": "org.apache.httpcomponents.core5:httpcore5-h2:5.4.3",
+          "Name": "org.apache.httpcomponents.core5:httpcore5-h2",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.httpcomponents.core5/httpcore5-h2@5.4.3?type=jar",
+            "UID": "94dfa52cc1d54f3e",
+            "BOMRef": "pkg:maven/org.apache.httpcomponents.core5/httpcore5-h2@5.4.3?type=jar"
+          },
+          "Version": "5.4.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.httpcomponents.core5:httpcore5:5.4.3"
+          ],
+          "Digest": "md5:4b9da0d3e87ed769ef6a162223f2265c"
+        },
+        {
+          "ID": "org.apache.httpcomponents:httpasyncclient:4.1.5",
+          "Name": "org.apache.httpcomponents:httpasyncclient",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.httpcomponents/httpasyncclient@4.1.5?type=jar",
+            "UID": "4cf8a10ce0667e5f",
+            "BOMRef": "pkg:maven/org.apache.httpcomponents/httpasyncclient@4.1.5?type=jar"
+          },
+          "Version": "4.1.5",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.httpcomponents:httpcore:4.4.16",
+            "org.apache.httpcomponents:httpcore-nio:4.4.15",
+            "org.apache.httpcomponents:httpclient:4.5.14",
+            "commons-logging:commons-logging:1.2"
+          ],
+          "Digest": "md5:5346c547bfd0da64eb3dc54be9380d65"
+        },
+        {
+          "ID": "org.apache.httpcomponents:httpclient:4.5.14",
+          "Name": "org.apache.httpcomponents:httpclient",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.httpcomponents/httpclient@4.5.14?type=jar",
+            "UID": "33d301a06aa3bf05",
+            "BOMRef": "pkg:maven/org.apache.httpcomponents/httpclient@4.5.14?type=jar"
+          },
+          "Version": "4.5.14",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.httpcomponents:httpcore:4.4.16",
+            "commons-logging:commons-logging:1.2",
+            "commons-codec:commons-codec:1.22.1"
+          ],
+          "Digest": "md5:2cb357c4b763f47e58af6cad47df6ba3"
+        },
+        {
+          "ID": "org.apache.httpcomponents:httpclient-cache:4.5.14",
+          "Name": "org.apache.httpcomponents:httpclient-cache",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.httpcomponents/httpclient-cache@4.5.14?type=jar",
+            "UID": "76fc71eb437197ef",
+            "BOMRef": "pkg:maven/org.apache.httpcomponents/httpclient-cache@4.5.14?type=jar"
+          },
+          "Version": "4.5.14",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.httpcomponents:httpclient:4.5.14",
+            "commons-logging:commons-logging:1.2"
+          ],
+          "Digest": "md5:87617651f0293bdfe5203e710a20ca21"
+        },
+        {
+          "ID": "org.apache.httpcomponents:httpcore:4.4.16",
+          "Name": "org.apache.httpcomponents:httpcore",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.httpcomponents/httpcore@4.4.16?type=jar",
+            "UID": "5e319f249e7001b0",
+            "BOMRef": "pkg:maven/org.apache.httpcomponents/httpcore@4.4.16?type=jar"
+          },
+          "Version": "4.4.16",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:28d2cd9bf8789fd2ec774fb88436ebd1"
+        },
+        {
+          "ID": "org.apache.httpcomponents:httpcore-nio:4.4.15",
+          "Name": "org.apache.httpcomponents:httpcore-nio",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.httpcomponents/httpcore-nio@4.4.15?type=jar",
+            "UID": "ebb73bdf6794c572",
+            "BOMRef": "pkg:maven/org.apache.httpcomponents/httpcore-nio@4.4.15?type=jar"
+          },
+          "Version": "4.4.15",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.httpcomponents:httpcore:4.4.16"
+          ],
+          "Digest": "md5:295da715492b1f7d4e38711f820e42a0"
+        },
+        {
+          "ID": "org.apache.httpcomponents:httpcore-nio:4.4.16",
+          "Name": "org.apache.httpcomponents:httpcore-nio",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.httpcomponents/httpcore-nio@4.4.16?type=jar",
+            "UID": "7d5031a0efe9050d",
+            "BOMRef": "pkg:maven/org.apache.httpcomponents/httpcore-nio@4.4.16?type=jar"
+          },
+          "Version": "4.4.16",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.httpcomponents:httpcore:4.4.16"
+          ],
+          "Digest": "md5:597c450f3401e98103e835824ab43e77"
+        },
+        {
+          "ID": "org.apache.logging.log4j:log4j-api:2.26.1",
+          "Name": "org.apache.logging.log4j:log4j-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.logging.log4j/log4j-api@2.26.1?type=jar",
+            "UID": "f73403e618067378",
+            "BOMRef": "pkg:maven/org.apache.logging.log4j/log4j-api@2.26.1?type=jar"
+          },
+          "Version": "2.26.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:8ed35fc9ea449bc9e21a8139842d6233"
+        },
+        {
+          "ID": "org.apache.logging.log4j:log4j-core:2.26.1",
+          "Name": "org.apache.logging.log4j:log4j-core",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.logging.log4j/log4j-core@2.26.1?type=jar",
+            "UID": "1e6d615bb561ca82",
+            "BOMRef": "pkg:maven/org.apache.logging.log4j/log4j-core@2.26.1?type=jar"
+          },
+          "Version": "2.26.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.logging.log4j:log4j-api:2.26.1"
+          ],
+          "Digest": "md5:915f6e01608f3d5d61b8725ce226b30a"
+        },
+        {
+          "ID": "org.apache.logging.log4j:log4j-slf4j-impl:2.26.1",
+          "Name": "org.apache.logging.log4j:log4j-slf4j-impl",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.logging.log4j/log4j-slf4j-impl@2.26.1?type=jar",
+            "UID": "29d12b8a5b14d9ec",
+            "BOMRef": "pkg:maven/org.apache.logging.log4j/log4j-slf4j-impl@2.26.1?type=jar"
+          },
+          "Version": "2.26.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.slf4j:slf4j-api:1.7.36",
+            "org.apache.logging.log4j:log4j-core:2.26.1"
+          ],
+          "Digest": "md5:e175677fb3c827a80ba2f46ede1cfada"
+        },
+        {
+          "ID": "org.apache.lucene:lucene-analysis-common:10.5.1",
+          "Name": "org.apache.lucene:lucene-analysis-common",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.lucene/lucene-analysis-common@10.5.1?type=jar",
+            "UID": "a02373081515fd18",
+            "BOMRef": "pkg:maven/org.apache.lucene/lucene-analysis-common@10.5.1?type=jar"
+          },
+          "Version": "10.5.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.lucene:lucene-core:10.5.1"
+          ],
+          "Digest": "md5:5fbaa99a8f365f0e89ba3cb8709edfdf"
+        },
+        {
+          "ID": "org.apache.lucene:lucene-backward-codecs:10.5.1",
+          "Name": "org.apache.lucene:lucene-backward-codecs",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.lucene/lucene-backward-codecs@10.5.1?type=jar",
+            "UID": "b2f933c44fbfee0",
+            "BOMRef": "pkg:maven/org.apache.lucene/lucene-backward-codecs@10.5.1?type=jar"
+          },
+          "Version": "10.5.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.lucene:lucene-core:10.5.1"
+          ],
+          "Digest": "md5:c8341467631fde430c4202f0d1ed6656"
+        },
+        {
+          "ID": "org.apache.lucene:lucene-core:10.5.1",
+          "Name": "org.apache.lucene:lucene-core",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.lucene/lucene-core@10.5.1?type=jar",
+            "UID": "8b0819628f487ac4",
+            "BOMRef": "pkg:maven/org.apache.lucene/lucene-core@10.5.1?type=jar"
+          },
+          "Version": "10.5.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:22e6913601099e42641e80199b3f2876"
+        },
+        {
+          "ID": "org.apache.lucene:lucene-facet:10.5.1",
+          "Name": "org.apache.lucene:lucene-facet",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.lucene/lucene-facet@10.5.1?type=jar",
+            "UID": "f7131b6424f409d9",
+            "BOMRef": "pkg:maven/org.apache.lucene/lucene-facet@10.5.1?type=jar"
+          },
+          "Version": "10.5.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.lucene:lucene-core:10.5.1"
+          ],
+          "Digest": "md5:b6adc785e93ade0301b065021ac9845b"
+        },
+        {
+          "ID": "org.apache.lucene:lucene-grouping:10.5.1",
+          "Name": "org.apache.lucene:lucene-grouping",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.lucene/lucene-grouping@10.5.1?type=jar",
+            "UID": "2bcf57de11b068f1",
+            "BOMRef": "pkg:maven/org.apache.lucene/lucene-grouping@10.5.1?type=jar"
+          },
+          "Version": "10.5.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.lucene:lucene-core:10.5.1",
+            "org.apache.lucene:lucene-queries:10.5.1"
+          ],
+          "Digest": "md5:c672d0123151dbb01ade1c6815fbdc5f"
+        },
+        {
+          "ID": "org.apache.lucene:lucene-highlighter:10.5.1",
+          "Name": "org.apache.lucene:lucene-highlighter",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.lucene/lucene-highlighter@10.5.1?type=jar",
+            "UID": "1c9821fe0147c8b4",
+            "BOMRef": "pkg:maven/org.apache.lucene/lucene-highlighter@10.5.1?type=jar"
+          },
+          "Version": "10.5.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.lucene:lucene-core:10.5.1",
+            "org.apache.lucene:lucene-queries:10.5.1",
+            "org.apache.lucene:lucene-memory:10.5.1"
+          ],
+          "Digest": "md5:297a93b7edb318029e87def14b0ebd7e"
+        },
+        {
+          "ID": "org.apache.lucene:lucene-join:10.5.1",
+          "Name": "org.apache.lucene:lucene-join",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.lucene/lucene-join@10.5.1?type=jar",
+            "UID": "85acf9d4ef1acaf1",
+            "BOMRef": "pkg:maven/org.apache.lucene/lucene-join@10.5.1?type=jar"
+          },
+          "Version": "10.5.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.lucene:lucene-core:10.5.1"
+          ],
+          "Digest": "md5:a932416a77083c584f0286f99d3237cf"
+        },
+        {
+          "ID": "org.apache.lucene:lucene-memory:10.5.1",
+          "Name": "org.apache.lucene:lucene-memory",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.lucene/lucene-memory@10.5.1?type=jar",
+            "UID": "f6b58b7f16f4bd4b",
+            "BOMRef": "pkg:maven/org.apache.lucene/lucene-memory@10.5.1?type=jar"
+          },
+          "Version": "10.5.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.lucene:lucene-core:10.5.1"
+          ],
+          "Digest": "md5:72082584c12b95fea2e70db0c1e2ac8e"
+        },
+        {
+          "ID": "org.apache.lucene:lucene-misc:10.5.1",
+          "Name": "org.apache.lucene:lucene-misc",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.lucene/lucene-misc@10.5.1?type=jar",
+            "UID": "6fd8c1a1b07d806f",
+            "BOMRef": "pkg:maven/org.apache.lucene/lucene-misc@10.5.1?type=jar"
+          },
+          "Version": "10.5.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.lucene:lucene-core:10.5.1"
+          ],
+          "Digest": "md5:dc04ab4d44ceb53b97dc73cebb0faceb"
+        },
+        {
+          "ID": "org.apache.lucene:lucene-queries:10.5.1",
+          "Name": "org.apache.lucene:lucene-queries",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.lucene/lucene-queries@10.5.1?type=jar",
+            "UID": "60d2187ca853623",
+            "BOMRef": "pkg:maven/org.apache.lucene/lucene-queries@10.5.1?type=jar"
+          },
+          "Version": "10.5.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.lucene:lucene-core:10.5.1"
+          ],
+          "Digest": "md5:1e2ef146e51867756dc3885a79b3c0e0"
+        },
+        {
+          "ID": "org.apache.lucene:lucene-queryparser:10.5.1",
+          "Name": "org.apache.lucene:lucene-queryparser",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.lucene/lucene-queryparser@10.5.1?type=jar",
+            "UID": "f3a8efd5b6bbdd82",
+            "BOMRef": "pkg:maven/org.apache.lucene/lucene-queryparser@10.5.1?type=jar"
+          },
+          "Version": "10.5.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.lucene:lucene-core:10.5.1",
+            "org.apache.lucene:lucene-queries:10.5.1",
+            "org.apache.lucene:lucene-sandbox:10.5.1"
+          ],
+          "Digest": "md5:5bcaed69b0071ec5b1de7df74f11a236"
+        },
+        {
+          "ID": "org.apache.lucene:lucene-sandbox:10.5.1",
+          "Name": "org.apache.lucene:lucene-sandbox",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.lucene/lucene-sandbox@10.5.1?type=jar",
+            "UID": "25dc5663a36d7821",
+            "BOMRef": "pkg:maven/org.apache.lucene/lucene-sandbox@10.5.1?type=jar"
+          },
+          "Version": "10.5.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.lucene:lucene-core:10.5.1",
+            "org.apache.lucene:lucene-queries:10.5.1",
+            "org.apache.lucene:lucene-facet:10.5.1"
+          ],
+          "Digest": "md5:de2c9e0b81781cddbfa921f592fa434c"
+        },
+        {
+          "ID": "org.apache.lucene:lucene-suggest:10.5.1",
+          "Name": "org.apache.lucene:lucene-suggest",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.lucene/lucene-suggest@10.5.1?type=jar",
+            "UID": "98514a459c55484e",
+            "BOMRef": "pkg:maven/org.apache.lucene/lucene-suggest@10.5.1?type=jar"
+          },
+          "Version": "10.5.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.lucene:lucene-core:10.5.1",
+            "org.apache.lucene:lucene-analysis-common:10.5.1"
+          ],
+          "Digest": "md5:da29363b4b170be8980cd068f2d65834"
+        },
+        {
+          "ID": "org.apache.santuario:xmlsec:4.0.4",
+          "Name": "org.apache.santuario:xmlsec",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.santuario/xmlsec@4.0.4?type=jar",
+            "UID": "509edc21bc090f2",
+            "BOMRef": "pkg:maven/org.apache.santuario/xmlsec@4.0.4?type=jar"
+          },
+          "Version": "4.0.4",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "commons-codec:commons-codec:1.22.1",
+            "com.fasterxml.woodstox:woodstox-core:7.1.0"
+          ],
+          "Digest": "md5:7344e57494b9fff766012489fa1bda07"
+        },
+        {
+          "ID": "org.apache.velocity:velocity-engine-core:2.4.1",
+          "Name": "org.apache.velocity:velocity-engine-core",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.velocity/velocity-engine-core@2.4.1?type=jar",
+            "UID": "61737469cea5f81b",
+            "BOMRef": "pkg:maven/org.apache.velocity/velocity-engine-core@2.4.1?type=jar"
+          },
+          "Version": "2.4.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.commons:commons-lang3:3.20.0",
+            "org.slf4j:slf4j-api:2.0.17"
+          ],
+          "Digest": "md5:41a3757dc9d701590be703d1f2bd2462"
+        },
+        {
+          "ID": "org.apache.ws.xmlschema:xmlschema-core:2.3.2",
+          "Name": "org.apache.ws.xmlschema:xmlschema-core",
+          "Identifier": {
+            "PURL": "pkg:maven/org.apache.ws.xmlschema/xmlschema-core@2.3.2?type=jar",
+            "UID": "259c5e44ed485f3e",
+            "BOMRef": "pkg:maven/org.apache.ws.xmlschema/xmlschema-core@2.3.2?type=jar"
+          },
+          "Version": "2.3.2",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:67a17743abad9de9b18ee4b491ac976e"
+        },
+        {
+          "ID": "org.bouncycastle:bcpkix-jdk18on:1.86",
+          "Name": "org.bouncycastle:bcpkix-jdk18on",
+          "Identifier": {
+            "PURL": "pkg:maven/org.bouncycastle/bcpkix-jdk18on@1.86?type=jar",
+            "UID": "bd5fb117a678f173",
+            "BOMRef": "pkg:maven/org.bouncycastle/bcpkix-jdk18on@1.86?type=jar"
+          },
+          "Version": "1.86",
+          "Licenses": [
+            "Bouncy Castle Licence"
+          ],
+          "DependsOn": [
+            "org.bouncycastle:bcutil-jdk18on:1.86"
+          ],
+          "Digest": "md5:f99f3ee0907b890a9c87411fd5a696db"
+        },
+        {
+          "ID": "org.bouncycastle:bcprov-jdk18on:1.84",
+          "Name": "org.bouncycastle:bcprov-jdk18on",
+          "Identifier": {
+            "PURL": "pkg:maven/org.bouncycastle/bcprov-jdk18on@1.84?type=jar",
+            "UID": "29221b8a83f5763",
+            "BOMRef": "pkg:maven/org.bouncycastle/bcprov-jdk18on@1.84?type=jar"
+          },
+          "Version": "1.84",
+          "Licenses": [
+            "Bouncy Castle Licence"
+          ],
+          "Digest": "md5:19523b0cbcbce2fdeb98e3eaf68f602e"
+        },
+        {
+          "ID": "org.bouncycastle:bcprov-jdk18on:1.86",
+          "Name": "org.bouncycastle:bcprov-jdk18on",
+          "Identifier": {
+            "PURL": "pkg:maven/org.bouncycastle/bcprov-jdk18on@1.86?type=jar",
+            "UID": "11ef376c753e04df",
+            "BOMRef": "pkg:maven/org.bouncycastle/bcprov-jdk18on@1.86?type=jar"
+          },
+          "Version": "1.86",
+          "Licenses": [
+            "Bouncy Castle Licence"
+          ],
+          "Digest": "md5:be1401108af4f440b82b47194c72506b"
+        },
+        {
+          "ID": "org.bouncycastle:bcutil-jdk18on:1.86",
+          "Name": "org.bouncycastle:bcutil-jdk18on",
+          "Identifier": {
+            "PURL": "pkg:maven/org.bouncycastle/bcutil-jdk18on@1.86?type=jar",
+            "UID": "b5fe0daa98122a66",
+            "BOMRef": "pkg:maven/org.bouncycastle/bcutil-jdk18on@1.86?type=jar"
+          },
+          "Version": "1.86",
+          "Licenses": [
+            "Bouncy Castle Licence"
+          ],
+          "DependsOn": [
+            "org.bouncycastle:bcprov-jdk18on:1.86"
+          ],
+          "Digest": "md5:c409099f16278109e7545aad128cc029"
+        },
+        {
+          "ID": "org.codehaus.woodstox:stax2-api:4.2.2",
+          "Name": "org.codehaus.woodstox:stax2-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.codehaus.woodstox/stax2-api@4.2.2?type=jar",
+            "UID": "e89dfddc3a3efced",
+            "BOMRef": "pkg:maven/org.codehaus.woodstox/stax2-api@4.2.2?type=jar"
+          },
+          "Version": "4.2.2",
+          "Licenses": [
+            "BSD-2-Clause"
+          ],
+          "Digest": "md5:6949cace015c0f408f0b846e3735d301"
+        },
+        {
+          "ID": "org.cryptacular:cryptacular:1.3.0",
+          "Name": "org.cryptacular:cryptacular",
+          "Identifier": {
+            "PURL": "pkg:maven/org.cryptacular/cryptacular@1.3.0?type=jar",
+            "UID": "fac05a332a2d3b6e",
+            "BOMRef": "pkg:maven/org.cryptacular/cryptacular@1.3.0?type=jar"
+          },
+          "Version": "1.3.0",
+          "Licenses": [
+            "Apache-2.0",
+            "GNU Lesser General Public License"
+          ],
+          "Digest": "md5:e99d8cebcc9315dfcace8032fb9f61c8"
+        },
+        {
+          "ID": "org.eclipse.angus:angus-activation:2.0.3",
+          "Name": "org.eclipse.angus:angus-activation",
+          "Identifier": {
+            "PURL": "pkg:maven/org.eclipse.angus/angus-activation@2.0.3?type=jar",
+            "UID": "ed4be6d059f5d632",
+            "BOMRef": "pkg:maven/org.eclipse.angus/angus-activation@2.0.3?type=jar"
+          },
+          "Version": "2.0.3",
+          "Licenses": [
+            "BSD-3-Clause"
+          ],
+          "DependsOn": [
+            "jakarta.activation:jakarta.activation-api:2.1.1"
+          ],
+          "Digest": "md5:ad20392145690b36b4f950fe31a31a2a"
+        },
+        {
+          "ID": "org.eclipse.angus:angus-mail:2.0.5",
+          "Name": "org.eclipse.angus:angus-mail",
+          "Identifier": {
+            "PURL": "pkg:maven/org.eclipse.angus/angus-mail@2.0.5?type=jar",
+            "UID": "529103ce0920a611",
+            "BOMRef": "pkg:maven/org.eclipse.angus/angus-mail@2.0.5?type=jar"
+          },
+          "Version": "2.0.5",
+          "Licenses": [
+            "EPL-2.0",
+            "GPL-2.0-with-classpath-exception",
+            "BSD-3-Clause"
+          ],
+          "DependsOn": [
+            "jakarta.activation:jakarta.activation-api:2.1.1",
+            "jakarta.mail:jakarta.mail-api:2.1.5",
+            "org.eclipse.angus:angus-activation:2.0.3"
+          ],
+          "Digest": "md5:e965a2653568c0138457b4c6fc9e5d77"
+        },
+        {
+          "ID": "org.elasticsearch.client:elasticsearch-rest-client:9.5.2",
+          "Name": "org.elasticsearch.client:elasticsearch-rest-client",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch.client/elasticsearch-rest-client@9.5.2?type=jar",
+            "UID": "1013251a541c6bf4",
+            "BOMRef": "pkg:maven/org.elasticsearch.client/elasticsearch-rest-client@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.apache.httpcomponents:httpclient:4.5.14",
+            "org.apache.httpcomponents:httpcore:4.4.16",
+            "org.apache.httpcomponents:httpasyncclient:4.1.5",
+            "org.apache.httpcomponents:httpcore-nio:4.4.16",
+            "commons-codec:commons-codec:1.22.1",
+            "commons-logging:commons-logging:1.2"
+          ],
+          "Digest": "md5:094b3c6fa974c2cc60fc5d6d008cab6b"
+        },
+        {
+          "ID": "org.elasticsearch.plugin:elasticsearch-plugin-analysis-api:9.5.2",
+          "Name": "org.elasticsearch.plugin:elasticsearch-plugin-analysis-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch.plugin/elasticsearch-plugin-analysis-api@9.5.2?type=jar",
+            "UID": "34a6bf148d51e720",
+            "BOMRef": "pkg:maven/org.elasticsearch.plugin/elasticsearch-plugin-analysis-api@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "DependsOn": [
+            "org.apache.lucene:lucene-core:10.5.1",
+            "org.elasticsearch.plugin:elasticsearch-plugin-api:9.5.2"
+          ],
+          "Digest": "md5:61fecf1031c90edbe75b20aea7fe6044"
+        },
+        {
+          "ID": "org.elasticsearch.plugin:elasticsearch-plugin-api:9.5.2",
+          "Name": "org.elasticsearch.plugin:elasticsearch-plugin-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch.plugin/elasticsearch-plugin-api@9.5.2?type=jar",
+            "UID": "341c381c73574016",
+            "BOMRef": "pkg:maven/org.elasticsearch.plugin/elasticsearch-plugin-api@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "Digest": "md5:22e63417d8e0f9f8e10064037aa4a301"
+        },
+        {
+          "ID": "org.elasticsearch.plugin:elasticsearch-scripting-painless-spi:9.5.2",
+          "Name": "org.elasticsearch.plugin:elasticsearch-scripting-painless-spi",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch.plugin/elasticsearch-scripting-painless-spi@9.5.2?type=jar",
+            "UID": "73b52c01a12f44bd",
+            "BOMRef": "pkg:maven/org.elasticsearch.plugin/elasticsearch-scripting-painless-spi@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "Digest": "md5:11e840b12dc383539868cc259dd4053c"
+        },
+        {
+          "ID": "org.elasticsearch.plugin:transport-netty4:9.5.2",
+          "Name": "org.elasticsearch.plugin:transport-netty4",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch.plugin/transport-netty4@9.5.2?type=jar",
+            "UID": "539542622d6dadb",
+            "BOMRef": "pkg:maven/org.elasticsearch.plugin/transport-netty4@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "DependsOn": [
+            "io.netty:netty-buffer:4.1.135.Final",
+            "io.netty:netty-codec:4.1.135.Final",
+            "io.netty:netty-codec-http:4.1.135.Final",
+            "io.netty:netty-common:4.1.135.Final",
+            "io.netty:netty-handler:4.1.135.Final",
+            "io.netty:netty-resolver:4.1.135.Final",
+            "io.netty:netty-transport:4.1.135.Final",
+            "io.netty:netty-transport-native-unix-common:4.1.135.Final"
+          ],
+          "Digest": "md5:9ff6025581ccaa2cb059ac9cf80f2c41"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch@9.5.2?type=jar",
+            "UID": "d2a114a2244f0b09",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "DependsOn": [
+            "org.elasticsearch:elasticsearch-core:9.5.2",
+            "org.elasticsearch:elasticsearch-logging:9.5.2",
+            "org.elasticsearch:elasticsearch-x-content:9.5.2",
+            "org.elasticsearch:elasticsearch-geo:9.5.2",
+            "org.elasticsearch:elasticsearch-lz4:9.5.2",
+            "org.elasticsearch.plugin:elasticsearch-plugin-api:9.5.2",
+            "org.elasticsearch.plugin:elasticsearch-plugin-analysis-api:9.5.2",
+            "org.elasticsearch:elasticsearch-grok:9.5.2",
+            "org.elasticsearch:elasticsearch-user-agent-api:9.5.2",
+            "org.elasticsearch:elasticsearch-ip-location-api:9.5.2",
+            "org.elasticsearch:elasticsearch-tdigest:9.5.2",
+            "org.elasticsearch:elasticsearch-exponential-histogram:9.5.2",
+            "org.apache.lucene:lucene-core:10.5.1",
+            "org.apache.lucene:lucene-analysis-common:10.5.1",
+            "org.apache.lucene:lucene-backward-codecs:10.5.1",
+            "org.apache.lucene:lucene-facet:10.5.1",
+            "org.apache.lucene:lucene-grouping:10.5.1",
+            "org.apache.lucene:lucene-highlighter:10.5.1",
+            "org.apache.lucene:lucene-join:10.5.1",
+            "org.apache.lucene:lucene-memory:10.5.1",
+            "org.apache.lucene:lucene-misc:10.5.1",
+            "org.apache.lucene:lucene-queries:10.5.1",
+            "org.apache.lucene:lucene-queryparser:10.5.1",
+            "org.apache.lucene:lucene-sandbox:10.5.1",
+            "org.apache.lucene:lucene-suggest:10.5.1",
+            "org.elasticsearch:elasticsearch-cli:9.5.2",
+            "org.hdrhistogram:HdrHistogram:2.1.9",
+            "org.apache.logging.log4j:log4j-api:2.26.1",
+            "org.apache.logging.log4j:log4j-core:2.26.1",
+            "co.elastic.logging:log4j2-ecs-layout:1.7.0",
+            "co.elastic.logging:ecs-logging-core:1.7.0",
+            "org.elasticsearch:elasticsearch-simdvec:9.5.2",
+            "org.elasticsearch:elasticsearch-entitlement:9.5.2",
+            "com.carrotsearch:hppc:0.8.1",
+            "org.elasticsearch:elasticsearch-native:9.5.2"
+          ],
+          "Digest": "md5:d4b439261d755d6efe2f272e09f93d53"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-cli:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-cli",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-cli@9.5.2?type=jar",
+            "UID": "93c8ad7526d2adfc",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-cli@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "DependsOn": [
+            "net.sf.jopt-simple:jopt-simple:5.0.2",
+            "org.elasticsearch:elasticsearch-core:9.5.2",
+            "org.elasticsearch:elasticsearch-cli-terminal:9.5.2",
+            "org.elasticsearch:elasticsearch-logging:9.5.2"
+          ],
+          "Digest": "md5:0b0b412bb9d2ca5fb55a98071632713b"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-cli-terminal:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-cli-terminal",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-cli-terminal@9.5.2?type=jar",
+            "UID": "235870559aae8a18",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-cli-terminal@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "Digest": "md5:290fe6a7ec7962f257956a9b309c636d"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-core:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-core",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-core@9.5.2?type=jar",
+            "UID": "a34effb531e08512",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-core@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "Digest": "md5:af0d3e8ae5678d53e089e3e65977dd7a"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-entitlement:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-entitlement",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-entitlement@9.5.2?type=jar",
+            "UID": "b74713dec8af38a6",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-entitlement@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "Digest": "md5:829876c5577738085190872d8d6b5c5a"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-exponential-histogram:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-exponential-histogram",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-exponential-histogram@9.5.2?type=jar",
+            "UID": "ca7f385e7e5fc87a",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-exponential-histogram@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.elasticsearch:elasticsearch-core:9.5.2",
+            "org.elasticsearch:elasticsearch-x-content:9.5.2",
+            "org.apache.lucene:lucene-core:10.5.1"
+          ],
+          "Digest": "md5:7c5f617c3889a3684ae79377ec295ae1"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-foreign-adapter:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-foreign-adapter",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-foreign-adapter@9.5.2?type=jar",
+            "UID": "cc89c7bda9142fce",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-foreign-adapter@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "Digest": "md5:1cf2c261163027a645c0d6bb8be21268"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-foreign-library:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-foreign-library",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-foreign-library@9.5.2?type=jar",
+            "UID": "cbb51d81b4a40f16",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-foreign-library@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "DependsOn": [
+            "org.elasticsearch:elasticsearch-core:9.5.2",
+            "org.elasticsearch:elasticsearch-logging:9.5.2",
+            "org.elasticsearch:elasticsearch-foreign-adapter:9.5.2"
+          ],
+          "Digest": "md5:20eff694f9e255cf50c0980fd4f916d6"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-geo:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-geo",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-geo@9.5.2?type=jar",
+            "UID": "b6df1e2a4db1260c",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-geo@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "Digest": "md5:99ec74ada0a79f4ee87791074017ff58"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-grok:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-grok",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-grok@9.5.2?type=jar",
+            "UID": "a0184da3286bc163",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-grok@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "DependsOn": [
+            "org.jruby.joni:joni:2.2.6",
+            "org.jruby.jcodings:jcodings:1.0.63"
+          ],
+          "Digest": "md5:4626eede2d3bb78247177b2311a0933f"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-ip-location-api:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-ip-location-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-ip-location-api@9.5.2?type=jar",
+            "UID": "da75fb6376bf3966",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-ip-location-api@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "DependsOn": [
+            "org.elasticsearch:elasticsearch-core:9.5.2"
+          ],
+          "Digest": "md5:de290b5e178b2f293134cc22f15fb952"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-logging:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-logging",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-logging@9.5.2?type=jar",
+            "UID": "486f8d26eefc85b0",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-logging@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "Digest": "md5:d67fa2a2342ee4efd5fbafccb8361b11"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-lz4:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-lz4",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-lz4@9.5.2?type=jar",
+            "UID": "6bb6c5f2f254d3ac",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-lz4@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "DependsOn": [
+            "at.yawk.lz4:lz4-java:1.11.1",
+            "org.elasticsearch:elasticsearch-core:9.5.2"
+          ],
+          "Digest": "md5:b52092c3f465ea0799ec1aa57f60e0dd"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-native:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-native",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-native@9.5.2?type=jar",
+            "UID": "8a4733c2aee6a362",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-native@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "DependsOn": [
+            "org.elasticsearch:elasticsearch-foreign-library:9.5.2",
+            "org.elasticsearch:elasticsearch-core:9.5.2",
+            "org.elasticsearch:elasticsearch-logging:9.5.2",
+            "org.elasticsearch:elasticsearch-foreign-adapter:9.5.2"
+          ],
+          "Digest": "md5:3b7e482b1e61bd19e20bda30064d7445"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-simdvec:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-simdvec",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-simdvec@9.5.2?type=jar",
+            "UID": "dc0d74ea3ebb606b",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-simdvec@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "DependsOn": [
+            "org.elasticsearch:elasticsearch-native:9.5.2",
+            "org.elasticsearch:elasticsearch-logging:9.5.2",
+            "org.apache.lucene:lucene-core:10.5.1"
+          ],
+          "Digest": "md5:0eb1e038f42318689d98fdfee19109b4"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-tdigest:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-tdigest",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-tdigest@9.5.2?type=jar",
+            "UID": "72cc3b533342b104",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-tdigest@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.elasticsearch:elasticsearch-core:9.5.2",
+            "org.elasticsearch:elasticsearch-x-content:9.5.2",
+            "org.apache.lucene:lucene-core:10.5.1"
+          ],
+          "Digest": "md5:19b55d4bd0533625529223b9dbf5d4dc"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-user-agent-api:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-user-agent-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-user-agent-api@9.5.2?type=jar",
+            "UID": "a27e7b491093be3b",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-user-agent-api@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "DependsOn": [
+            "org.elasticsearch:elasticsearch-core:9.5.2"
+          ],
+          "Digest": "md5:6446d6fa1cb2bb0dbe6feceab8c492fa"
+        },
+        {
+          "ID": "org.elasticsearch:elasticsearch-x-content:9.5.2",
+          "Name": "org.elasticsearch:elasticsearch-x-content",
+          "Identifier": {
+            "PURL": "pkg:maven/org.elasticsearch/elasticsearch-x-content@9.5.2?type=jar",
+            "UID": "f0d0a25b4520eb26",
+            "BOMRef": "pkg:maven/org.elasticsearch/elasticsearch-x-content@9.5.2?type=jar"
+          },
+          "Version": "9.5.2",
+          "Licenses": [
+            "Elastic-2.0",
+            "GNU Affero General Public License Version 3",
+            "SSPL-1.0"
+          ],
+          "DependsOn": [
+            "org.elasticsearch:elasticsearch-core:9.5.2"
+          ],
+          "Digest": "md5:05e6a6576749994d8656c677a5fd363d"
+        },
+        {
+          "ID": "org.hdrhistogram:HdrHistogram:2.1.9",
+          "Name": "org.hdrhistogram:HdrHistogram",
+          "Identifier": {
+            "PURL": "pkg:maven/org.hdrhistogram/HdrHistogram@2.1.9?type=jar",
+            "UID": "98b3402b03045c7a",
+            "BOMRef": "pkg:maven/org.hdrhistogram/HdrHistogram@2.1.9?type=jar"
+          },
+          "Version": "2.1.9",
+          "Licenses": [
+            "CC0-1.0"
+          ],
+          "Digest": "md5:ee302e5e7489719991aa0ca2dd67febd"
+        },
+        {
+          "ID": "org.jetbrains:annotations:26.1.0",
+          "Name": "org.jetbrains:annotations",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jetbrains/annotations@26.1.0?type=jar",
+            "UID": "c0a0ed0704129f8d",
+            "BOMRef": "pkg:maven/org.jetbrains/annotations@26.1.0?type=jar"
+          },
+          "Version": "26.1.0",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:29c6b7959db13e3ac50ef35cf815368e"
+        },
+        {
+          "ID": "org.jruby.jcodings:jcodings:1.0.63",
+          "Name": "org.jruby.jcodings:jcodings",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jruby.jcodings/jcodings@1.0.63?type=jar",
+            "UID": "a6856abebb14721d",
+            "BOMRef": "pkg:maven/org.jruby.jcodings/jcodings@1.0.63?type=jar"
+          },
+          "Version": "1.0.63",
+          "Licenses": [
+            "MIT"
+          ],
+          "Digest": "md5:0fefedfbeb1c154ef5e33f8c7cfcbde1"
+        },
+        {
+          "ID": "org.jruby.joni:joni:2.2.6",
+          "Name": "org.jruby.joni:joni",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jruby.joni/joni@2.2.6?type=jar",
+            "UID": "ceb8ca6e952af348",
+            "BOMRef": "pkg:maven/org.jruby.joni/joni@2.2.6?type=jar"
+          },
+          "Version": "2.2.6",
+          "Licenses": [
+            "MIT"
+          ],
+          "DependsOn": [
+            "org.jruby.jcodings:jcodings:1.0.63"
+          ],
+          "Digest": "md5:e69c0fa9a909525fb017f9c321d23406"
+        },
+        {
+          "ID": "org.jspecify:jspecify:1.0.1",
+          "Name": "org.jspecify:jspecify",
+          "Identifier": {
+            "PURL": "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar",
+            "UID": "a6b6650aecbf40cc",
+            "BOMRef": "pkg:maven/org.jspecify/jspecify@1.0.1?type=jar"
+          },
+          "Version": "1.0.1",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:d4fe1ea4d953b66fcb1d6043c22bffcf"
+        },
+        {
+          "ID": "org.opensaml:opensaml-core-api:5.2.3",
+          "Name": "org.opensaml:opensaml-core-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.opensaml/opensaml-core-api@5.2.3?type=jar",
+            "UID": "71f6446d0a7554d9",
+            "BOMRef": "pkg:maven/org.opensaml/opensaml-core-api@5.2.3?type=jar"
+          },
+          "Version": "5.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "commons-codec:commons-codec:1.22.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "io.dropwizard.metrics:metrics-core:4.2.39",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2",
+            "net.shibboleth:shib-support:9.2.3"
+          ],
+          "Digest": "md5:b7f29d01280944a33985f94ffe846ca9"
+        },
+        {
+          "ID": "org.opensaml:opensaml-core-impl:5.2.3",
+          "Name": "org.opensaml:opensaml-core-impl",
+          "Identifier": {
+            "PURL": "pkg:maven/org.opensaml/opensaml-core-impl@5.2.3?type=jar",
+            "UID": "fa431f100f8695ff",
+            "BOMRef": "pkg:maven/org.opensaml/opensaml-core-impl@5.2.3?type=jar"
+          },
+          "Version": "5.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.opensaml:opensaml-core-api:5.2.3",
+            "org.opensaml:opensaml-security-api:5.2.3",
+            "net.shibboleth:shib-networking:9.2.3",
+            "io.dropwizard.metrics:metrics-core:4.2.39",
+            "io.dropwizard.metrics:metrics-json:4.2.39",
+            "com.fasterxml.jackson.core:jackson-databind:2.18.10",
+            "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.20.1",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2",
+            "net.shibboleth:shib-support:9.2.3"
+          ],
+          "Digest": "md5:13097b2a8d095ded2b48e1444031db4b"
+        },
+        {
+          "ID": "org.opensaml:opensaml-messaging-api:5.2.3",
+          "Name": "org.opensaml:opensaml-messaging-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.opensaml/opensaml-messaging-api@5.2.3?type=jar",
+            "UID": "56bc665adfb3ce3f",
+            "BOMRef": "pkg:maven/org.opensaml/opensaml-messaging-api@5.2.3?type=jar"
+          },
+          "Version": "5.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.opensaml:opensaml-core-api:5.2.3",
+            "net.shibboleth:shib-security:9.2.3",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2",
+            "net.shibboleth:shib-support:9.2.3"
+          ],
+          "Digest": "md5:80ebc2829dca1d3ed25064c4b409b9b1"
+        },
+        {
+          "ID": "org.opensaml:opensaml-profile-api:5.2.3",
+          "Name": "org.opensaml:opensaml-profile-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.opensaml/opensaml-profile-api@5.2.3?type=jar",
+            "UID": "31aacb07e0b4f90c",
+            "BOMRef": "pkg:maven/org.opensaml/opensaml-profile-api@5.2.3?type=jar"
+          },
+          "Version": "5.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.opensaml:opensaml-core-api:5.2.3",
+            "org.opensaml:opensaml-messaging-api:5.2.3",
+            "net.shibboleth:shib-security:9.2.3",
+            "net.shibboleth:shib-networking:9.2.3",
+            "com.google.guava:guava:33.7.1-jre",
+            "io.dropwizard.metrics:metrics-core:4.2.39",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2",
+            "net.shibboleth:shib-support:9.2.3"
+          ],
+          "Digest": "md5:d3c42be054e9161d28ab9c7db7ae96e4"
+        },
+        {
+          "ID": "org.opensaml:opensaml-saml-api:5.2.3",
+          "Name": "org.opensaml:opensaml-saml-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.opensaml/opensaml-saml-api@5.2.3?type=jar",
+            "UID": "70be40e43da2489d",
+            "BOMRef": "pkg:maven/org.opensaml/opensaml-saml-api@5.2.3?type=jar"
+          },
+          "Version": "5.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.opensaml:opensaml-core-api:5.2.3",
+            "org.opensaml:opensaml-messaging-api:5.2.3",
+            "org.opensaml:opensaml-profile-api:5.2.3",
+            "org.opensaml:opensaml-security-api:5.2.3",
+            "org.opensaml:opensaml-soap-api:5.2.3",
+            "org.opensaml:opensaml-xmlsec-api:5.2.3",
+            "net.shibboleth:shib-support:9.2.3",
+            "net.shibboleth:shib-security:9.2.3",
+            "commons-codec:commons-codec:1.22.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "org.apache.santuario:xmlsec:4.0.4",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2"
+          ],
+          "Digest": "md5:df46ebfe2ba48912eedd03084e21afc8"
+        },
+        {
+          "ID": "org.opensaml:opensaml-saml-impl:5.2.3",
+          "Name": "org.opensaml:opensaml-saml-impl",
+          "Identifier": {
+            "PURL": "pkg:maven/org.opensaml/opensaml-saml-impl@5.2.3?type=jar",
+            "UID": "95758e5f5bc7cba4",
+            "BOMRef": "pkg:maven/org.opensaml/opensaml-saml-impl@5.2.3?type=jar"
+          },
+          "Version": "5.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.opensaml:opensaml-core-api:5.2.3",
+            "org.opensaml:opensaml-core-impl:5.2.3",
+            "org.opensaml:opensaml-messaging-api:5.2.3",
+            "org.opensaml:opensaml-profile-api:5.2.3",
+            "org.opensaml:opensaml-saml-api:5.2.3",
+            "org.opensaml:opensaml-security-api:5.2.3",
+            "org.opensaml:opensaml-security-impl:5.2.3",
+            "org.opensaml:opensaml-soap-api:5.2.3",
+            "org.opensaml:opensaml-soap-impl:5.2.3",
+            "org.opensaml:opensaml-storage-api:5.2.3",
+            "org.opensaml:opensaml-xmlsec-api:5.2.3",
+            "org.opensaml:opensaml-xmlsec-impl:5.2.3",
+            "net.shibboleth:shib-security:9.2.3",
+            "net.shibboleth:shib-networking:9.2.3",
+            "net.shibboleth:shib-velocity:9.2.3",
+            "commons-codec:commons-codec:1.22.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "io.dropwizard.metrics:metrics-core:4.2.39",
+            "org.apache.santuario:xmlsec:4.0.4",
+            "org.apache.velocity:velocity-engine-core:2.4.1",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2",
+            "net.shibboleth:shib-support:9.2.3"
+          ],
+          "Digest": "md5:b08b93e65d9ca823145ccdd13eca58bb"
+        },
+        {
+          "ID": "org.opensaml:opensaml-security-api:5.2.3",
+          "Name": "org.opensaml:opensaml-security-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.opensaml/opensaml-security-api@5.2.3?type=jar",
+            "UID": "c79477a8b7221c03",
+            "BOMRef": "pkg:maven/org.opensaml/opensaml-security-api@5.2.3?type=jar"
+          },
+          "Version": "5.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.opensaml:opensaml-core-api:5.2.3",
+            "org.opensaml:opensaml-messaging-api:5.2.3",
+            "net.shibboleth:shib-networking:9.2.3",
+            "net.shibboleth:shib-security:9.2.3",
+            "commons-codec:commons-codec:1.22.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "org.cryptacular:cryptacular:1.3.0",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2",
+            "net.shibboleth:shib-support:9.2.3"
+          ],
+          "Digest": "md5:5d125eb918714dc01f8e9999dc0053dc"
+        },
+        {
+          "ID": "org.opensaml:opensaml-security-impl:5.2.3",
+          "Name": "org.opensaml:opensaml-security-impl",
+          "Identifier": {
+            "PURL": "pkg:maven/org.opensaml/opensaml-security-impl@5.2.3?type=jar",
+            "UID": "ec9fae97b5b28ad8",
+            "BOMRef": "pkg:maven/org.opensaml/opensaml-security-impl@5.2.3?type=jar"
+          },
+          "Version": "5.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.opensaml:opensaml-core-api:5.2.3",
+            "org.opensaml:opensaml-messaging-api:5.2.3",
+            "org.opensaml:opensaml-security-api:5.2.3",
+            "net.shibboleth:shib-networking:9.2.3",
+            "commons-codec:commons-codec:1.22.1",
+            "com.google.guava:guava:33.7.1-jre",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2",
+            "net.shibboleth:shib-support:9.2.3"
+          ],
+          "Digest": "md5:ef5be14e5aed84ee65b6a99b9558bd3a"
+        },
+        {
+          "ID": "org.opensaml:opensaml-soap-api:5.2.3",
+          "Name": "org.opensaml:opensaml-soap-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.opensaml/opensaml-soap-api@5.2.3?type=jar",
+            "UID": "1c1c5b3e2a1a996a",
+            "BOMRef": "pkg:maven/org.opensaml/opensaml-soap-api@5.2.3?type=jar"
+          },
+          "Version": "5.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.opensaml:opensaml-core-api:5.2.3",
+            "org.opensaml:opensaml-messaging-api:5.2.3",
+            "org.opensaml:opensaml-security-api:5.2.3",
+            "org.opensaml:opensaml-xmlsec-api:5.2.3",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2",
+            "net.shibboleth:shib-support:9.2.3"
+          ],
+          "Digest": "md5:e35365f0b1c3d8301203a9f8befea039"
+        },
+        {
+          "ID": "org.opensaml:opensaml-soap-impl:5.2.3",
+          "Name": "org.opensaml:opensaml-soap-impl",
+          "Identifier": {
+            "PURL": "pkg:maven/org.opensaml/opensaml-soap-impl@5.2.3?type=jar",
+            "UID": "13850b79e74a722a",
+            "BOMRef": "pkg:maven/org.opensaml/opensaml-soap-impl@5.2.3?type=jar"
+          },
+          "Version": "5.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.opensaml:opensaml-core-api:5.2.3",
+            "org.opensaml:opensaml-core-impl:5.2.3",
+            "org.opensaml:opensaml-messaging-api:5.2.3",
+            "org.opensaml:opensaml-profile-api:5.2.3",
+            "org.opensaml:opensaml-soap-api:5.2.3",
+            "org.opensaml:opensaml-xmlsec-api:5.2.3",
+            "net.shibboleth:shib-networking:9.2.3",
+            "net.shibboleth:shib-security:9.2.3",
+            "com.google.guava:guava:33.7.1-jre",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2",
+            "net.shibboleth:shib-support:9.2.3"
+          ],
+          "Digest": "md5:70d70ec6c5bfc5e00847b62a212563bf"
+        },
+        {
+          "ID": "org.opensaml:opensaml-storage-api:5.2.3",
+          "Name": "org.opensaml:opensaml-storage-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.opensaml/opensaml-storage-api@5.2.3?type=jar",
+            "UID": "c96fbe6d4aac60ed",
+            "BOMRef": "pkg:maven/org.opensaml/opensaml-storage-api@5.2.3?type=jar"
+          },
+          "Version": "5.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.opensaml:opensaml-core-api:5.2.3",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2",
+            "net.shibboleth:shib-support:9.2.3"
+          ],
+          "Digest": "md5:6e9bd5ffe1ca5a2cd49fb209a229c54a"
+        },
+        {
+          "ID": "org.opensaml:opensaml-xmlsec-api:5.2.3",
+          "Name": "org.opensaml:opensaml-xmlsec-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.opensaml/opensaml-xmlsec-api@5.2.3?type=jar",
+            "UID": "96b7ea6c68855cfe",
+            "BOMRef": "pkg:maven/org.opensaml/opensaml-xmlsec-api@5.2.3?type=jar"
+          },
+          "Version": "5.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.opensaml:opensaml-core-api:5.2.3",
+            "org.opensaml:opensaml-messaging-api:5.2.3",
+            "org.opensaml:opensaml-security-api:5.2.3",
+            "net.shibboleth:shib-security:9.2.3",
+            "com.google.guava:guava:33.7.1-jre",
+            "org.apache.santuario:xmlsec:4.0.4",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2",
+            "net.shibboleth:shib-support:9.2.3"
+          ],
+          "Digest": "md5:ef73e2cac90e4f083396be6e2edea9a6"
+        },
+        {
+          "ID": "org.opensaml:opensaml-xmlsec-impl:5.2.3",
+          "Name": "org.opensaml:opensaml-xmlsec-impl",
+          "Identifier": {
+            "PURL": "pkg:maven/org.opensaml/opensaml-xmlsec-impl@5.2.3?type=jar",
+            "UID": "848c117d92bdedc5",
+            "BOMRef": "pkg:maven/org.opensaml/opensaml-xmlsec-impl@5.2.3?type=jar"
+          },
+          "Version": "5.2.3",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.opensaml:opensaml-core-api:5.2.3",
+            "org.opensaml:opensaml-core-impl:5.2.3",
+            "org.opensaml:opensaml-messaging-api:5.2.3",
+            "org.opensaml:opensaml-security-api:5.2.3",
+            "org.opensaml:opensaml-xmlsec-api:5.2.3",
+            "net.shibboleth:shib-support:9.2.3",
+            "com.google.guava:guava:33.7.1-jre",
+            "commons-codec:commons-codec:1.22.1",
+            "org.apache.santuario:xmlsec:4.0.4",
+            "org.opensaml:opensaml-security-impl:5.2.3",
+            "org.slf4j:slf4j-api:2.0.17",
+            "com.google.code.findbugs:jsr305:3.0.2"
+          ],
+          "Digest": "md5:a7d382b804d8d92ca9ca83e68e02516b"
+        },
+        {
+          "ID": "org.quartz-scheduler:quartz:2.5.2",
+          "Name": "org.quartz-scheduler:quartz",
+          "Identifier": {
+            "PURL": "pkg:maven/org.quartz-scheduler/quartz@2.5.2?type=jar",
+            "UID": "5a4162bf7089622",
+            "BOMRef": "pkg:maven/org.quartz-scheduler/quartz@2.5.2?type=jar"
+          },
+          "Version": "2.5.2",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.slf4j:slf4j-api:2.0.16",
+            "jakarta.xml.bind:jakarta.xml.bind-api:4.0.4"
+          ],
+          "Digest": "md5:b8ed3623018a763841145b5afce13230"
+        },
+        {
+          "ID": "org.simplejavamail:core-module:9.3.5",
+          "Name": "org.simplejavamail:core-module",
+          "Identifier": {
+            "PURL": "pkg:maven/org.simplejavamail/core-module@9.3.5?type=jar",
+            "UID": "61877d4acef498ba",
+            "BOMRef": "pkg:maven/org.simplejavamail/core-module@9.3.5?type=jar"
+          },
+          "Version": "9.3.5",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "jakarta.mail:jakarta.mail-api:2.1.5",
+            "org.eclipse.angus:angus-mail:2.0.5",
+            "com.sanctionco.jmail:jmail:2.2.2",
+            "com.pivovarit:throwing-function:1.6.1",
+            "org.jetbrains:annotations:26.1.0",
+            "org.slf4j:slf4j-api:2.0.19"
+          ],
+          "Digest": "md5:625035df4dbe1ea51a21283bfb8cdb8c"
+        },
+        {
+          "ID": "org.simplejavamail:simple-java-mail:9.3.5",
+          "Name": "org.simplejavamail:simple-java-mail",
+          "Identifier": {
+            "PURL": "pkg:maven/org.simplejavamail/simple-java-mail@9.3.5?type=jar",
+            "UID": "493a00a3419163e6",
+            "BOMRef": "pkg:maven/org.simplejavamail/simple-java-mail@9.3.5?type=jar"
+          },
+          "Version": "9.3.5",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "DependsOn": [
+            "org.simplejavamail:core-module:9.3.5",
+            "org.eclipse.angus:angus-mail:2.0.5",
+            "com.pivovarit:throwing-function:1.6.1",
+            "org.jetbrains:annotations:26.1.0",
+            "org.slf4j:slf4j-api:2.0.19"
+          ],
+          "Digest": "md5:cba5a6a5bab10235c15b11c8fb91ad0e"
+        },
+        {
+          "ID": "org.slf4j:slf4j-api:1.7.36",
+          "Name": "org.slf4j:slf4j-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.slf4j/slf4j-api@1.7.36?type=jar",
+            "UID": "db2d8b89c326336d",
+            "BOMRef": "pkg:maven/org.slf4j/slf4j-api@1.7.36?type=jar"
+          },
+          "Version": "1.7.36",
+          "Licenses": [
+            "MIT"
+          ],
+          "Digest": "md5:872da51f5de7f3923da4de871d57fd85"
+        },
+        {
+          "ID": "org.slf4j:slf4j-api:2.0.13",
+          "Name": "org.slf4j:slf4j-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.slf4j/slf4j-api@2.0.13?type=jar",
+            "UID": "21482a4cf7bf6524",
+            "BOMRef": "pkg:maven/org.slf4j/slf4j-api@2.0.13?type=jar"
+          },
+          "Version": "2.0.13",
+          "Licenses": [
+            "MIT"
+          ],
+          "Digest": "md5:7f4028aa04f75427327f3f30cd62ba4e"
+        },
+        {
+          "ID": "org.slf4j:slf4j-api:2.0.16",
+          "Name": "org.slf4j:slf4j-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.slf4j/slf4j-api@2.0.16?type=jar",
+            "UID": "131f9cc1f5e2b951",
+            "BOMRef": "pkg:maven/org.slf4j/slf4j-api@2.0.16?type=jar"
+          },
+          "Version": "2.0.16",
+          "Licenses": [
+            "MIT"
+          ],
+          "Digest": "md5:c8de8f5d740584cb24b5652cfba8b3c4"
+        },
+        {
+          "ID": "org.slf4j:slf4j-api:2.0.17",
+          "Name": "org.slf4j:slf4j-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.slf4j/slf4j-api@2.0.17?type=jar",
+            "UID": "be594b2f48542a59",
+            "BOMRef": "pkg:maven/org.slf4j/slf4j-api@2.0.17?type=jar"
+          },
+          "Version": "2.0.17",
+          "Licenses": [
+            "MIT"
+          ],
+          "Digest": "md5:b6480d114a23683498ac3f746f959d2f"
+        },
+        {
+          "ID": "org.slf4j:slf4j-api:2.0.19",
+          "Name": "org.slf4j:slf4j-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.slf4j/slf4j-api@2.0.19?type=jar",
+            "UID": "8b15602e456ab6bf",
+            "BOMRef": "pkg:maven/org.slf4j/slf4j-api@2.0.19?type=jar"
+          },
+          "Version": "2.0.19",
+          "Licenses": [
+            "MIT"
+          ],
+          "Digest": "md5:1ca3a2acac3d5947b37d9b5536c55829"
+        },
+        {
+          "ID": "org.slf4j:slf4j-api:2.1.0-alpha1",
+          "Name": "org.slf4j:slf4j-api",
+          "Identifier": {
+            "PURL": "pkg:maven/org.slf4j/slf4j-api@2.1.0-alpha1?type=jar",
+            "UID": "aa04033aacf22e82",
+            "BOMRef": "pkg:maven/org.slf4j/slf4j-api@2.1.0-alpha1?type=jar"
+          },
+          "Version": "2.1.0-alpha1",
+          "Licenses": [
+            "MIT"
+          ],
+          "Digest": "md5:22d0512f94f321721b28b3365b2d7ea1"
+        },
+        {
+          "ID": "org.yaml:snakeyaml:2.7",
+          "Name": "org.yaml:snakeyaml",
+          "Identifier": {
+            "PURL": "pkg:maven/org.yaml/snakeyaml@2.7?type=jar",
+            "UID": "a33a630916c168b1",
+            "BOMRef": "pkg:maven/org.yaml/snakeyaml@2.7?type=jar"
+          },
+          "Version": "2.7",
+          "Licenses": [
+            "Apache-2.0"
+          ],
+          "Digest": "md5:179e0dcff5597d5fde6e343bec228d96"
+        }
+      ],
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2026-89407",
+          "VendorIDs": [
+            "GHSA-p6pp-m3f8-5c89"
+          ],
+          "PkgID": "com.fasterxml.jackson.core:jackson-core:2.18.10",
+          "PkgName": "com.fasterxml.jackson.core:jackson-core",
+          "PkgIdentifier": {
+            "PURL": "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.18.10?type=jar",
+            "UID": "828f73652c8fcd12",
+            "BOMRef": "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.18.10?type=jar"
+          },
+          "InstalledVersion": "2.18.10",
+          "FixedVersion": "2.18.11, 2.21.7, 2.22.3",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-89407",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory Maven",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Amaven"
+          },
+          "Fingerprint": "sha256:9bd473f3f53b68e2778cc2ca8b7640bb26840a77da1d69a5bf1fd2cf0a4cdcb8",
+          "Title": "com.fasterxml.jackson/jackson-core: tools.jackson.core/jackson-core: Jackson-core: Denial of Service via regular expression backtracking",
+          "Description": "NumberInput.looksLikeValidNumber() in FasterXML jackson-core pre-validates \"stringified numbers\" with two regular expressions: PATTERN_FLOAT ([+-]?[0-9]*[\\.]?[0-9]+([eE][+-]?[0-9]+)?), present since 2.17.0, and PATTERN_FLOAT_TRAILING_DOT, added in 2.17.2. PATTERN_FLOAT places adjacent quantifiers over the same character class -- an optional [0-9]* run, an optional dot, then a required [0-9]+ run -- so input that ultimately fails to match forces Java's backtracking engine to retry every possible split point of the digit run. \n\n\n\nMatching cost therefore grows with the square of the input length. \n\n\n\nAn attacker who can supply JSON that an application deserializes into a numeric target type reaches this method through jackson-databind's default String-to-number coercion (StdDeserializer and NumberDeserializers for BigDecimal, BigInteger, Double and Float). \n\n\n\nBecause StreamReadConstraints.maxStringLength defaults to 20,000,000 characters, no constraint bounds the input before it reaches the regex. \n\n\n\nTesting by the reporter confirmed O(n^2) growth across five consecutive input-size doublings, with a single 160,000-character string consuming roughly 74 seconds in one call; a small number of concurrent requests of ordinary body size can therefore exhaust a server's request-handling thread pool. \n\n\n\nThe affected method does not exist before 2.17.0, so 2.16.x and earlier releases are not affected. \n\n\n\nThe fix replaces both regular expressions with a hand-rolled single-pass scan.",
+          "Severity": "HIGH",
+          "CweIDs": [
+            "CWE-400",
+            "CWE-1333"
+          ],
+          "VendorSeverity": {
+            "ghsa": 3,
+            "redhat": 2
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V3Score": 7.5
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V3Score": 5.9
+            }
+          },
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2026-89407",
+            "https://github.com/FasterXML/jackson-core",
+            "https://github.com/FasterXML/jackson-core/commit/731e794f62623aa0d86ced52490166be903fbb1d",
+            "https://github.com/FasterXML/jackson-core/commit/e7acd64cc99bd346704423dc2bfea1ab0a08ddff",
+            "https://github.com/FasterXML/jackson-core/issues/1649",
+            "https://github.com/FasterXML/jackson-core/pull/1650",
+            "https://github.com/FasterXML/jackson-core/pull/1701",
+            "https://github.com/FasterXML/jackson-core/security/advisories/GHSA-p6pp-m3f8-5c89",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-89407",
+            "https://www.cve.org/CVERecord?id=CVE-2026-89407"
+          ],
+          "PublishedDate": "2026-09-22T15:17:21.053Z",
+          "LastModifiedDate": "2026-09-22T20:00:03.713Z"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-89425",
+          "VendorIDs": [
+            "GHSA-7hhh-6rmp-j9qf"
+          ],
+          "PkgID": "com.fasterxml.jackson.core:jackson-core:2.18.10",
+          "PkgName": "com.fasterxml.jackson.core:jackson-core",
+          "PkgIdentifier": {
+            "PURL": "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.18.10?type=jar",
+            "UID": "828f73652c8fcd12",
+            "BOMRef": "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.18.10?type=jar"
+          },
+          "InstalledVersion": "2.18.10",
+          "FixedVersion": "2.21.7, 2.22.3, 2.18.11",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-89425",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory Maven",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Amaven"
+          },
+          "Fingerprint": "sha256:1c4abb8f6b629b8377a100c54e89b0609b16ef278d2533f09f98477f693df2a2",
+          "Title": "com.fasterxml.jackson.core/jackson-core: Jackson-core: Denial of Service via unbounded StringBuilder growth during malformed token processing",
+          "Description": "UTF8DataInputJsonParser._reportInvalidToken() in FasterXML jackson-core builds the offending-token text for its error message by appending Java identifier characters to a StringBuilder in a loop that has no upper bound. Unlike the three sibling parser implementations, including UTF8StreamJsonParser, it never consults ErrorReportConfiguration.getMaxErrorTokenLength() (default 256). A malformed token supplied to a parser created through JsonFactory.createParser(DataInput) is therefore accumulated in full. No StreamReadConstraints setting mitigates this: maxDocumentLength cannot be applied to DataInput sources at all, and maxStringLength does not cover this path because the accumulation bypasses ReadConstrainedTextBuffer. The reporter measured a 20,000,109-character exception message from a 20-million-character malformed token on the DataInput path, against 367 characters for identical input on the InputStream path. Scaling the payload drives the StringBuilder, which also incurs byte-to-char expansion and internal array doubling, to many times the raw payload size and can trigger OutOfMemoryError for the whole JVM. UTF8DataInputJsonParser was introduced in 2.8.0 together with createParser(DataInput); releases before 2.8.0 do not contain the affected class.",
+          "Severity": "HIGH",
+          "CweIDs": [
+            "CWE-400",
+            "CWE-770"
+          ],
+          "VendorSeverity": {
+            "ghsa": 3,
+            "redhat": 3
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V3Score": 7.5
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V3Score": 7.5
+            }
+          },
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2026-89425",
+            "https://github.com/FasterXML/jackson-core",
+            "https://github.com/FasterXML/jackson-core/commit/211cf2c5d91abbec38067f37efc1363cd4e88ee3",
+            "https://github.com/FasterXML/jackson-core/pull/1698",
+            "https://github.com/FasterXML/jackson-core/releases/tag/jackson-core-2.18.11",
+            "https://github.com/FasterXML/jackson-core/releases/tag/jackson-core-3.2.3",
+            "https://github.com/FasterXML/jackson-core/security/advisories/GHSA-7hhh-6rmp-j9qf",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-89425",
+            "https://www.cve.org/CVERecord?id=CVE-2026-89425"
+          ],
+          "PublishedDate": "2026-09-23T03:17:04.357Z",
+          "LastModifiedDate": "2026-09-24T20:43:32.537Z"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-91776",
+          "VendorIDs": [
+            "GHSA-wv8q-qhhj-9h54"
+          ],
+          "PkgID": "com.fasterxml.jackson.core:jackson-databind:2.18.10",
+          "PkgName": "com.fasterxml.jackson.core:jackson-databind",
+          "PkgIdentifier": {
+            "PURL": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.18.10?type=jar",
+            "UID": "a3429c79517a047b",
+            "BOMRef": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.18.10?type=jar"
+          },
+          "InstalledVersion": "2.18.10",
+          "FixedVersion": "2.18.11, 2.21.7, 2.22.3",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-91776",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory Maven",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Amaven"
+          },
+          "Fingerprint": "sha256:3152bedd31eb7a295ff9c86fcbb0f72f876daedaac57854cf0474f929b850e14",
+          "Title": "TypeDeserializerBase._findDeserializer() in FasterXML jackson-databind ...",
+          "Description": "TypeDeserializerBase._findDeserializer() in FasterXML jackson-databind caches the resolved deserializer under the raw, attacker-supplied type ID. When name-based polymorphism is configured with a fallback, for example @JsonTypeInfo(use = Id.NAME, defaultImpl = ...), every distinct unrecognized type ID resolves to the same fallback deserializer but is retained as its own key in the _deserializers map. That map has no configurable bound and lives for the lifetime of the type deserializer, so an attacker who can repeatedly supply fresh unknown type IDs causes monotonic memory retention across requests. The reporter observed 10,000 retained entries from 10,000 distinct unknown IDs, against a single entry for a control that repeated one unknown ID the same number of times, isolating attacker-controlled key cardinality from request volume. Exploitation requires an application that enables name-based polymorphism with a defaultImpl or equivalent fallback, accepts attacker-influenced type IDs, and reuses a long-lived ObjectMapper across requests. The fix stops caching fallback resolutions for unrecognized IDs and bounds both the number of cached entries and the length of a cacheable type ID.",
+          "Severity": "HIGH",
+          "CweIDs": [
+            "CWE-400"
+          ],
+          "VendorSeverity": {
+            "ghsa": 3
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V3Score": 7.5
+            }
+          },
+          "References": [
+            "https://github.com/FasterXML/jackson-databind",
+            "https://github.com/FasterXML/jackson-databind/commit/2870d1d6dc1b7e1c07ee11dd5b04ab71cddbb577",
+            "https://github.com/FasterXML/jackson-databind/issues/6203",
+            "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-2.18.11",
+            "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-2.21.7",
+            "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-2.22.3",
+            "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-3.1.7",
+            "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-3.2.3",
+            "https://github.com/FasterXML/jackson-databind/security/advisories/GHSA-wv8q-qhhj-9h54",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-91776"
+          ],
+          "PublishedDate": "2026-09-23T03:17:04.62Z",
+          "LastModifiedDate": "2026-09-24T20:43:32.537Z"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-91777",
+          "VendorIDs": [
+            "GHSA-cxp5-3px4-pw24"
+          ],
+          "PkgID": "com.fasterxml.jackson.core:jackson-databind:2.18.10",
+          "PkgName": "com.fasterxml.jackson.core:jackson-databind",
+          "PkgIdentifier": {
+            "PURL": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.18.10?type=jar",
+            "UID": "a3429c79517a047b",
+            "BOMRef": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.18.10?type=jar"
+          },
+          "InstalledVersion": "2.18.10",
+          "FixedVersion": "2.21.7, 2.18.11, 2.22.3",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-91777",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory Maven",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Amaven"
+          },
+          "Fingerprint": "sha256:4360463d480fc81178492885bfc46cd8b83e8b31146d2b860ab4e4f068a3017e",
+          "Title": "Forward-reference completion for @JsonIdentityInfo object IDs in Faste ...",
+          "Description": "Forward-reference completion for @JsonIdentityInfo object IDs in FasterXML jackson-databind performs a linear scan of the pending-reference accumulator for every resolved ID. The affected paths are CollectionDeserializer.CollectionReferringAccumulator.resolveForwardReference() and the equivalent implementation in MapDeserializer. When a document first creates N unresolved object-ID references in an identity-enabled collection or map and then defines those same IDs in reverse order, completion performs on the order of N * (N + 1) / 2 identity comparisons, so a shallow document whose size grows linearly causes quadratic CPU work during deserialization. The reporter instrumented equals() calls on the ID class and measured exactly 2,003,000 comparisons at N = 2,000, against zero comparisons in the pending-reference lookup path for an equally sized control in which every reference was already resolved. The input requires no deep nesting and no syntactically unusual JSON. Exploitation requires an application that deserializes attacker-influenced JSON into an identity-enabled collection or map. The fix replaces the repeated linear lookup with a keyed pending-reference structure.",
+          "Severity": "HIGH",
+          "CweIDs": [
+            "CWE-400"
+          ],
+          "VendorSeverity": {
+            "ghsa": 3
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V3Score": 7.5
+            }
+          },
+          "References": [
+            "https://github.com/FasterXML/jackson-databind",
+            "https://github.com/FasterXML/jackson-databind/commit/37ad9b81712cbb9fb62c2d2c1813593252a24b67",
+            "https://github.com/FasterXML/jackson-databind/issues/6204",
+            "https://github.com/FasterXML/jackson-databind/pull/6204",
+            "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-2.18.11",
+            "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-2.21.7",
+            "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-2.22.3",
+            "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-3.1.7",
+            "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-3.2.3",
+            "https://github.com/FasterXML/jackson-databind/security/advisories/GHSA-cxp5-3px4-pw24",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-91777"
+          ],
+          "PublishedDate": "2026-09-23T03:17:04.783Z",
+          "LastModifiedDate": "2026-09-24T20:43:32.537Z"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-8763",
+          "VendorIDs": [
+            "GHSA-9pwp-9qqc-pr26"
+          ],
+          "PkgID": "org.bouncycastle:bcprov-jdk18on:1.84",
+          "PkgName": "org.bouncycastle:bcprov-jdk18on",
+          "PkgIdentifier": {
+            "PURL": "pkg:maven/org.bouncycastle/bcprov-jdk18on@1.84?type=jar",
+            "UID": "29221b8a83f5763",
+            "BOMRef": "pkg:maven/org.bouncycastle/bcprov-jdk18on@1.84?type=jar"
+          },
+          "InstalledVersion": "1.84",
+          "FixedVersion": "1.85",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-8763",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory Maven",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Amaven"
+          },
+          "Fingerprint": "sha256:7fcbeef9d493a80cf0ffcd7c47d00b6d27ab450379325b3bd3c33215ebad17ce",
+          "Title": "org.bouncycastle/bcprov-jdk15on: org.bouncycastle/bcpkix-jdk15on: Bouncy Castle for Java: Name Constraints bypass via trailing dot in rfc822Name and URI",
+          "Description": "In Bouncy Castle for Java before 1.85, Name Constraints bypass via trailing dot in rfc822Name and URI. This issue also affects Bouncy Castle for Java LTS before 2.73.12, and Bouncy Castle for Java FIPS (BC-FJA) before bc-fips 1.0.2.7 (1.0.X series), 2.0.2 (2.0.X series) and 2.1.3 (2.1.X series).",
+          "Severity": "CRITICAL",
+          "CweIDs": [
+            "CWE-295"
+          ],
+          "VendorSeverity": {
+            "amazon": 3,
+            "ghsa": 4,
+            "nvd": 4,
+            "redhat": 3
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+              "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N/U:Amber",
+              "V3Score": 9.1,
+              "V40Score": 9.3
+            },
+            "nvd": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+              "V3Score": 9.1
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N",
+              "V3Score": 7.4
+            }
+          },
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2026-8763",
+            "https://github.com/bcgit/bc-java",
+            "https://github.com/bcgit/bc-java/commit/2c28b253a44681fbbc562561eab6ad383d2ae558",
+            "https://github.com/bcgit/bc-java/releases/tag/r1rv85v2",
+            "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902026%E2%80%908763",
+            "https://github.com/bcgit/bc-java/wiki/CVE-2026-8763",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-8763",
+            "https://www.cve.org/CVERecord?id=CVE-2026-8763"
+          ],
+          "PublishedDate": "2026-08-03T01:16:45.807Z",
+          "LastModifiedDate": "2026-09-02T14:28:48.94Z"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-13506",
+          "VendorIDs": [
+            "GHSA-qp49-qgx5-5m26"
+          ],
+          "PkgID": "org.bouncycastle:bcprov-jdk18on:1.84",
+          "PkgName": "org.bouncycastle:bcprov-jdk18on",
+          "PkgIdentifier": {
+            "PURL": "pkg:maven/org.bouncycastle/bcprov-jdk18on@1.84?type=jar",
+            "UID": "29221b8a83f5763",
+            "BOMRef": "pkg:maven/org.bouncycastle/bcprov-jdk18on@1.84?type=jar"
+          },
+          "InstalledVersion": "1.84",
+          "FixedVersion": "1.85",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-13506",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory Maven",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Amaven"
+          },
+          "Fingerprint": "sha256:f31c01eb5785738e7335e9de97dacd956cc87bf1398018b74d6d8c71ada43aee",
+          "Title": "bouncycastle: Bouncy Castle for Java: Denial of Service via lazy ASN.1 sequence processing",
+          "Description": "In Bouncy Castle for Java before 1.85, Lazy ASN.1 sequence forcing resets nesting-depth guard. This issue also affects Bouncy Castle for Java LTS before 2.73.12, and Bouncy Castle for Java FIPS (BC-FJA) before bc-fips 1.0.2.7 (1.0.X series), 2.0.2 (2.0.X series) and 2.1.3 (2.1.X series).",
+          "Severity": "HIGH",
+          "CweIDs": [
+            "CWE-674"
+          ],
+          "VendorSeverity": {
+            "amazon": 3,
+            "ghsa": 3,
+            "nvd": 3,
+            "redhat": 3
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N/U:Amber",
+              "V3Score": 7.5,
+              "V40Score": 8.7
+            },
+            "nvd": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V3Score": 7.5
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V3Score": 7.5
+            }
+          },
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2026-13506",
+            "https://github.com/bcgit/bc-java",
+            "https://github.com/bcgit/bc-java/commit/77454da9b3dcaaa2991412d1c3c1a6e1a338ff84",
+            "https://github.com/bcgit/bc-java/wiki/CVE-2026-13506",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-13506",
+            "https://www.cve.org/CVERecord?id=CVE-2026-13506"
+          ],
+          "PublishedDate": "2026-08-03T04:16:39.957Z",
+          "LastModifiedDate": "2026-08-28T16:41:22.84Z"
+        }
+      ]
+    }
+  ]
+}

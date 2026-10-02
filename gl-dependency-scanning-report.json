@@ -1,0 +1,353 @@
+{
+  "version": "15.0.7",
+  "scan": {
+    "analyzer": {
+      "id": "trivy",
+      "name": "Trivy",
+      "vendor": {
+        "name": "Aqua Security"
+      },
+      "version": "0.72.0"
+    },
+    "end_time": "2026-10-02T07:58:57",
+    "scanner": {
+      "id": "trivy",
+      "name": "Trivy",
+      "url": "https://github.com/aquasecurity/trivy/",
+      "vendor": {
+        "name": "Aqua Security"
+      },
+      "version": "0.72.0"
+    },
+    "start_time": "2026-10-02T07:58:57",
+    "status": "success",
+    "type": "container_scanning"
+  },
+  "vulnerabilities": [
+    {
+      "id": "CVE-2026-89407",
+      "name": "com.fasterxml.jackson/jackson-core: tools.jackson.core/jackson-core: Jackson-core: Denial of Service via regular expression backtracking",
+      "description": "NumberInput.looksLikeValidNumber() in FasterXML jackson-core pre-validates \"stringified numbers\" with two regular expressions: PATTERN_FLOAT ([+-]?[0-9]*[\\.]?[0-9]+([eE][+-]?[0-9]+)?), present since 2.17.0, and PATTERN_FLOAT_TRAILING_DOT, added in 2.17.2. PATTERN_FLOAT places adjacent quantifiers over the same character class -- an optional [0-9]* run, an optional dot, then a required [0-9]+ run -- so input that ultimately fails to match forces Java's backtracking engine to retry every possible split point of the digit run.\u00a0\n\n\n\nMatching cost therefore grows with the square of the input length.\u00a0\n\n\n\nAn attacker who can supply JSON that an application deserializes into a numeric target type reaches this method through jackson-databind's default String-to-number coercion (StdDeserializer and NumberDeserializers for BigDecimal, BigInteger, Double and Float).\u00a0\n\n\n\nBecause StreamReadConstraints.maxStringLength defaults to 20,000,000 characters, no constraint bounds the input before it reaches the regex.\u00a0\n\n\n\nTesting by the reporter confirmed O(n^2) growth across five consecutive input-size doublings, with a single 160,000-character string consuming roughly 74 seconds in one call; a small number of concurrent requests of ordinary body size can therefore exhaust a server's request-handling thread pool.\u00a0\n\n\n\nThe affected method does not exist before 2.17.0, so 2.16.x and earlier releases are not affected.\u00a0\n\n\n\nThe fix replaces both regular expressions with a hand-rolled single-pass scan.",
+      "severity": "High",
+      "solution": "Upgrade com.fasterxml.jackson.core:jackson-core to 2.18.11, 2.21.7, 2.22.3",
+      "location": {
+        "dependency": {
+          "package": {
+            "name": "com.fasterxml.jackson.core:jackson-core"
+          },
+          "version": "2.18.10"
+        },
+        "operating_system": "Unknown",
+        "image": "Unknown"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "name": "CVE-2026-89407",
+          "value": "CVE-2026-89407",
+          "url": "https://avd.aquasec.com/nvd/cve-2026-89407"
+        }
+      ],
+      "links": [
+        {
+          "url": "https://access.redhat.com/security/cve/CVE-2026-89407"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-core"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-core/commit/731e794f62623aa0d86ced52490166be903fbb1d"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-core/commit/e7acd64cc99bd346704423dc2bfea1ab0a08ddff"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-core/issues/1649"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-core/pull/1650"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-core/pull/1701"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-core/security/advisories/GHSA-p6pp-m3f8-5c89"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-89407"
+        },
+        {
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-89407"
+        }
+      ]
+    },
+    {
+      "id": "CVE-2026-89425",
+      "name": "com.fasterxml.jackson.core/jackson-core: Jackson-core: Denial of Service via unbounded StringBuilder growth during malformed token processing",
+      "description": "UTF8DataInputJsonParser._reportInvalidToken() in FasterXML jackson-core builds the offending-token text for its error message by appending Java identifier characters to a StringBuilder in a loop that has no upper bound. Unlike the three sibling parser implementations, including UTF8StreamJsonParser, it never consults ErrorReportConfiguration.getMaxErrorTokenLength() (default 256). A malformed token supplied to a parser created through JsonFactory.createParser(DataInput) is therefore accumulated in full. No StreamReadConstraints setting mitigates this: maxDocumentLength cannot be applied to DataInput sources at all, and maxStringLength does not cover this path because the accumulation bypasses ReadConstrainedTextBuffer. The reporter measured a 20,000,109-character exception message from a 20-million-character malformed token on the DataInput path, against 367 characters for identical input on the InputStream path. Scaling the payload drives the StringBuilder, which also incurs byte-to-char expansion and internal array doubling, to many times the raw payload size and can trigger OutOfMemoryError for the whole JVM. UTF8DataInputJsonParser was introduced in 2.8.0 together with createParser(DataInput); releases before 2.8.0 do not contain the affected class.",
+      "severity": "High",
+      "solution": "Upgrade com.fasterxml.jackson.core:jackson-core to 2.21.7, 2.22.3, 2.18.11",
+      "location": {
+        "dependency": {
+          "package": {
+            "name": "com.fasterxml.jackson.core:jackson-core"
+          },
+          "version": "2.18.10"
+        },
+        "operating_system": "Unknown",
+        "image": "Unknown"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "name": "CVE-2026-89425",
+          "value": "CVE-2026-89425",
+          "url": "https://avd.aquasec.com/nvd/cve-2026-89425"
+        }
+      ],
+      "links": [
+        {
+          "url": "https://access.redhat.com/security/cve/CVE-2026-89425"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-core"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-core/commit/211cf2c5d91abbec38067f37efc1363cd4e88ee3"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-core/pull/1698"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-core/releases/tag/jackson-core-2.18.11"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-core/releases/tag/jackson-core-3.2.3"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-core/security/advisories/GHSA-7hhh-6rmp-j9qf"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-89425"
+        },
+        {
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-89425"
+        }
+      ]
+    },
+    {
+      "id": "CVE-2026-91776",
+      "name": "TypeDeserializerBase._findDeserializer() in FasterXML jackson-databind ...",
+      "description": "TypeDeserializerBase._findDeserializer() in FasterXML jackson-databind caches the resolved deserializer under the raw, attacker-supplied type ID. When name-based polymorphism is configured with a fallback, for example @JsonTypeInfo(use = Id.NAME, defaultImpl = ...), every distinct unrecognized type ID resolves to the same fallback deserializer but is retained as its own key in the _deserializers map. That map has no configurable bound and lives for the lifetime of the type deserializer, so an attacker who can repeatedly supply fresh unknown type IDs causes monotonic memory retention across requests. The reporter observed 10,000 retained entries from 10,000 distinct unknown IDs, against a single entry for a control that repeated one unknown ID the same number of times, isolating attacker-controlled key cardinality from request volume. Exploitation requires an application that enables name-based polymorphism with a defaultImpl or equivalent fallback, accepts attacker-influenced type IDs, and reuses a long-lived ObjectMapper across requests. The fix stops caching fallback resolutions for unrecognized IDs and bounds both the number of cached entries and the length of a cacheable type ID.",
+      "severity": "High",
+      "solution": "Upgrade com.fasterxml.jackson.core:jackson-databind to 2.18.11, 2.21.7, 2.22.3",
+      "location": {
+        "dependency": {
+          "package": {
+            "name": "com.fasterxml.jackson.core:jackson-databind"
+          },
+          "version": "2.18.10"
+        },
+        "operating_system": "Unknown",
+        "image": "Unknown"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "name": "CVE-2026-91776",
+          "value": "CVE-2026-91776",
+          "url": "https://avd.aquasec.com/nvd/cve-2026-91776"
+        }
+      ],
+      "links": [
+        {
+          "url": "https://github.com/FasterXML/jackson-databind"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/commit/2870d1d6dc1b7e1c07ee11dd5b04ab71cddbb577"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/issues/6203"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-2.18.11"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-2.21.7"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-2.22.3"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-3.1.7"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-3.2.3"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/security/advisories/GHSA-wv8q-qhhj-9h54"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-91776"
+        }
+      ]
+    },
+    {
+      "id": "CVE-2026-91777",
+      "name": "Forward-reference completion for @JsonIdentityInfo object IDs in Faste ...",
+      "description": "Forward-reference completion for @JsonIdentityInfo object IDs in FasterXML jackson-databind performs a linear scan of the pending-reference accumulator for every resolved ID. The affected paths are CollectionDeserializer.CollectionReferringAccumulator.resolveForwardReference() and the equivalent implementation in MapDeserializer. When a document first creates N unresolved object-ID references in an identity-enabled collection or map and then defines those same IDs in reverse order, completion performs on the order of N * (N + 1) / 2 identity comparisons, so a shallow document whose size grows linearly causes quadratic CPU work during deserialization. The reporter instrumented equals() calls on the ID class and measured exactly 2,003,000 comparisons at N = 2,000, against zero comparisons in the pending-reference lookup path for an equally sized control in which every reference was already resolved. The input requires no deep nesting and no syntactically unusual JSON. Exploitation requires an application that deserializes attacker-influenced JSON into an identity-enabled collection or map. The fix replaces the repeated linear lookup with a keyed pending-reference structure.",
+      "severity": "High",
+      "solution": "Upgrade com.fasterxml.jackson.core:jackson-databind to 2.21.7, 2.18.11, 2.22.3",
+      "location": {
+        "dependency": {
+          "package": {
+            "name": "com.fasterxml.jackson.core:jackson-databind"
+          },
+          "version": "2.18.10"
+        },
+        "operating_system": "Unknown",
+        "image": "Unknown"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "name": "CVE-2026-91777",
+          "value": "CVE-2026-91777",
+          "url": "https://avd.aquasec.com/nvd/cve-2026-91777"
+        }
+      ],
+      "links": [
+        {
+          "url": "https://github.com/FasterXML/jackson-databind"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/commit/37ad9b81712cbb9fb62c2d2c1813593252a24b67"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/issues/6204"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/pull/6204"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-2.18.11"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-2.21.7"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-2.22.3"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-3.1.7"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/releases/tag/jackson-databind-3.2.3"
+        },
+        {
+          "url": "https://github.com/FasterXML/jackson-databind/security/advisories/GHSA-cxp5-3px4-pw24"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-91777"
+        }
+      ]
+    },
+    {
+      "id": "CVE-2026-8763",
+      "name": "org.bouncycastle/bcprov-jdk15on: org.bouncycastle/bcpkix-jdk15on: Bouncy Castle for Java: Name Constraints bypass via trailing dot in rfc822Name and URI",
+      "description": "In Bouncy Castle for Java before 1.85, Name Constraints bypass via trailing dot in rfc822Name and URI. This issue also affects Bouncy Castle for Java LTS before 2.73.12, and Bouncy Castle for Java FIPS (BC-FJA) before bc-fips 1.0.2.7 (1.0.X series), 2.0.2 (2.0.X series) and 2.1.3 (2.1.X series).",
+      "severity": "Critical",
+      "solution": "Upgrade org.bouncycastle:bcprov-jdk18on to 1.85",
+      "location": {
+        "dependency": {
+          "package": {
+            "name": "org.bouncycastle:bcprov-jdk18on"
+          },
+          "version": "1.84"
+        },
+        "operating_system": "Unknown",
+        "image": "Unknown"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "name": "CVE-2026-8763",
+          "value": "CVE-2026-8763",
+          "url": "https://avd.aquasec.com/nvd/cve-2026-8763"
+        }
+      ],
+      "links": [
+        {
+          "url": "https://access.redhat.com/security/cve/CVE-2026-8763"
+        },
+        {
+          "url": "https://github.com/bcgit/bc-java"
+        },
+        {
+          "url": "https://github.com/bcgit/bc-java/commit/2c28b253a44681fbbc562561eab6ad383d2ae558"
+        },
+        {
+          "url": "https://github.com/bcgit/bc-java/releases/tag/r1rv85v2"
+        },
+        {
+          "url": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902026%E2%80%908763"
+        },
+        {
+          "url": "https://github.com/bcgit/bc-java/wiki/CVE-2026-8763"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-8763"
+        },
+        {
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-8763"
+        }
+      ]
+    },
+    {
+      "id": "CVE-2026-13506",
+      "name": "bouncycastle: Bouncy Castle for Java: Denial of Service via lazy ASN.1 sequence processing",
+      "description": "In Bouncy Castle for Java before 1.85, Lazy ASN.1 sequence forcing resets nesting-depth guard. This issue also affects Bouncy Castle for Java LTS before 2.73.12, and Bouncy Castle for Java FIPS (BC-FJA) before bc-fips 1.0.2.7 (1.0.X series), 2.0.2 (2.0.X series) and 2.1.3 (2.1.X series).",
+      "severity": "High",
+      "solution": "Upgrade org.bouncycastle:bcprov-jdk18on to 1.85",
+      "location": {
+        "dependency": {
+          "package": {
+            "name": "org.bouncycastle:bcprov-jdk18on"
+          },
+          "version": "1.84"
+        },
+        "operating_system": "Unknown",
+        "image": "Unknown"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "name": "CVE-2026-13506",
+          "value": "CVE-2026-13506",
+          "url": "https://avd.aquasec.com/nvd/cve-2026-13506"
+        }
+      ],
+      "links": [
+        {
+          "url": "https://access.redhat.com/security/cve/CVE-2026-13506"
+        },
+        {
+          "url": "https://github.com/bcgit/bc-java"
+        },
+        {
+          "url": "https://github.com/bcgit/bc-java/commit/77454da9b3dcaaa2991412d1c3c1a6e1a338ff84"
+        },
+        {
+          "url": "https://github.com/bcgit/bc-java/wiki/CVE-2026-13506"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-13506"
+        },
+        {
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-13506"
+        }
+      ]
+    }
+  ],
+  "remediations": []
+}
