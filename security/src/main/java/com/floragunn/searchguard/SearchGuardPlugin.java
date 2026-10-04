@@ -847,7 +847,8 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
 
         sgi = new SearchGuardInterceptor(settings, services.threadPool(), auditLog, principalExtractor, interClusterRequestEvaluator,
             services.clusterService(),
-                Objects.requireNonNull(sslExceptionHandler), Objects.requireNonNull(cih), guiceDependencies, diagnosticContext, adminDns);
+                Objects.requireNonNull(sslExceptionHandler), Objects.requireNonNull(cih), guiceDependencies, diagnosticContext, adminDns,
+                evaluator, authorizationService, actions, actionRequestIntrospector, authInfoService);
         components.add(principalExtractor);
         components.add(adminDns);
         components.add(cr);
