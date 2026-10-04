@@ -91,7 +91,10 @@ class DlsGetEvaluator {
                 }
 
                 liveBits = bits;
-                numDocs = in.numDocs();
+                // numDocs() must reflect the documents visible through getLiveDocs(). Lucene's Weight.count() shortcut for
+                // match-all queries returns numDocs() of the leaf; ES|QL (LuceneCountOperator) and the search query phase use
+                // that shortcut. Reporting the unfiltered count would leak the number of documents hidden by DLS.
+                numDocs = bits.cardinality();
                 readerCacheHelper = null;
                 hasDeletions = true;
 
