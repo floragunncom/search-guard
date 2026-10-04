@@ -35,6 +35,8 @@ import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.test.GenericRestClient;
+import com.floragunn.searchguard.test.TestDataStream;
+import com.floragunn.searchguard.test.TestIndexTemplate;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -59,7 +61,15 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
  *
  * - sales_eu: 3 documents, sales_us: 2 documents, hr_data: 2 documents, alias sales -> sales_eu, sales_us
  * - views: view_sales_all (FROM sales_eu,sales_us), view_sales_eu_big (FROM sales_eu | WHERE amount > 100),
- *   view_hr (FROM hr_data), view_mixed (FROM sales_eu,hr_data)
+ *   view_hr (FROM hr_data), view_mixed (FROM sales_eu,hr_data), view_ds (FROM ds_sales)
+ * - products: lookup index (index.mode: lookup) for LOOKUP JOIN
+ * - product_info + enrich policy product_policy for ENRICH
+ * - ds_sales: data stream
+ *
+ * LOOKUP JOIN reads the lookup index via indices:data/read/esql/lookup_from_index, a transport-only request which is
+ * authorized in SearchGuardRequestHandler; additionally, the lookup index is resolved via resolve_fields on the coordinator.
+ * ENRICH resolves the policy via cluster:monitor/xpack/enrich/esql/resolve_policy (transport-only, authorized as cluster
+ * privilege in SearchGuardRequestHandler); the lookup in the .enrich-* index is then done by Elasticsearch as internal user.
  */
 public class EsqlAuthorizationIntTest {
 
@@ -72,6 +82,26 @@ public class EsqlAuthorizationIntTest {
     static final TestSgConfig.User ALL_READ_USER = new TestSgConfig.User("all_read")
             .roles(new Role("all_read").clusterPermissions().indexPermissions("SGS_READ").on("*"));
 
+    static final TestSgConfig.User LOOKUP_USER = new TestSgConfig.User("lookup")
+            .roles(new Role("lookup").clusterPermissions().indexPermissions("SGS_READ").on("sales_*", "products"));
+
+    static final TestSgConfig.User ENRICH_USER = new TestSgConfig.User("enrich").roles(new Role("enrich")
+            .clusterPermissions("cluster:monitor/xpack/enrich/esql/resolve_policy").indexPermissions("SGS_READ").on("sales_*"));
+
+    /**
+     * Passes all coordinator level checks for a LOOKUP JOIN, but lacks the privilege for indices:data/read/esql/lookup_from_index
+     * on the lookup index. The query must be denied by the transport level check in SearchGuardRequestHandler.
+     */
+    static final TestSgConfig.User LOOKUP_DATA_NODE_CHECK_USER = new TestSgConfig.User("lookup_data_node_check")
+            .roles(new Role("lookup_data_node_check").clusterPermissions()
+                    .indexPermissions("indices:data/read/esql", "indices:data/read/esql/resolve_*", "indices:data/read/esql/search_shards").on("*")
+                    .indexPermissions("indices:data/read/esql/data").on("sales_*"));
+
+    static final TestSgConfig.User DS_USER = new TestSgConfig.User("ds").roles(new Role("ds").clusterPermissions()
+            .dataStreamPermissions("SGS_READ").on("ds_*").indexPermissions("SGS_READ").on("view_ds*"));
+
+    static final TestDataStream DS_SALES = TestDataStream.name("ds_sales").documentCount(10).seed(5).build();
+
     /**
      * Only has privileges on the alias sales, but not on its member indices or on any view
      */
@@ -80,7 +110,8 @@ public class EsqlAuthorizationIntTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
-            .users(SALES_USER, HR_USER, ALL_READ_USER, SALES_ALIAS_USER).authzDebug(true).enterpriseModulesEnabled()
+            .users(SALES_USER, HR_USER, ALL_READ_USER, SALES_ALIAS_USER, LOOKUP_USER, ENRICH_USER, LOOKUP_DATA_NODE_CHECK_USER, DS_USER)
+            .indexTemplates(TestIndexTemplate.DATA_STREAM_MINIMAL).dataStreams(DS_SALES).authzDebug(true).enterpriseModulesEnabled()
             .useExternalProcessCluster().build();
 
     @BeforeClass
@@ -113,6 +144,28 @@ public class EsqlAuthorizationIntTest {
             createView(client, "view_sales_eu_big", "FROM sales_eu | WHERE amount > 100");
             createView(client, "view_hr", "FROM hr_data");
             createView(client, "view_mixed", "FROM sales_eu,hr_data");
+            createView(client, "view_ds", "FROM ds_sales");
+
+            // Lookup index for LOOKUP JOIN
+            response = client.putJson("/products", DocNode.of("settings.index.mode", "lookup", "mappings.properties.product.type", "keyword",
+                    "mappings.properties.price.type", "integer"));
+            assertThat(response, isOk());
+            indexDoc(client, "products", "1", DocNode.of("product", "apple", "price", 1));
+            indexDoc(client, "products", "2", DocNode.of("product", "pear", "price", 2));
+            indexDoc(client, "products", "3", DocNode.of("product", "plum", "price", 3));
+
+            // Source index and policy for ENRICH
+            response = client.putJson("/product_info", DocNode.of("mappings.properties.product.type", "keyword",
+                    "mappings.properties.category.type", "keyword"));
+            assertThat(response, isOk());
+            indexDoc(client, "product_info", "1", DocNode.of("product", "apple", "category", "pome"));
+            indexDoc(client, "product_info", "2", DocNode.of("product", "pear", "category", "pome"));
+            indexDoc(client, "product_info", "3", DocNode.of("product", "plum", "category", "drupe"));
+            response = client.putJson("/_enrich/policy/product_policy",
+                    DocNode.of("match", DocNode.of("indices", "product_info", "match_field", "product", "enrich_fields", List.of("category"))));
+            assertThat(response, isOk());
+            response = client.put("/_enrich/policy/product_policy/_execute");
+            assertThat(response, isOk());
         }
     }
 
@@ -248,6 +301,70 @@ public class EsqlAuthorizationIntTest {
         assertThat(count(SALES_ALIAS_USER, "FROM hr_data"), isForbidden());
         assertThat(count(SALES_ALIAS_USER, "FROM view_sales_all"), isForbidden());
         assertThat(count(SALES_ALIAS_USER, "FROM view_hr"), isForbidden());
+    }
+
+    // --- LOOKUP JOIN
+
+    @Test
+    public void lookupJoin_withPermission() throws Exception {
+        GenericRestClient.HttpResponse response = query(LOOKUP_USER,
+                "FROM sales_eu | LOOKUP JOIN products ON product | STATS total = SUM(amount * price)");
+        assertThat(response, isOk());
+        assertThat(response, json(nodeAt("values", equalTo(List.of(List.of(50 + 300 + 750))))));
+    }
+
+    @Test
+    public void lookupJoin_withoutPermissionOnLookupIndex() throws Exception {
+        assertThat(query(SALES_USER, "FROM sales_eu | LOOKUP JOIN products ON product | KEEP product, price"), isForbidden());
+    }
+
+    @Test
+    public void lookupJoin_withoutPermissionOnSourceIndex() throws Exception {
+        assertThat(query(LOOKUP_USER, "FROM hr_data | LOOKUP JOIN products ON product | KEEP product, price"), isForbidden());
+    }
+
+    @Test
+    public void lookupJoin_dataNodeCheck() throws Exception {
+        assertThat(query(LOOKUP_DATA_NODE_CHECK_USER, "FROM sales_eu | KEEP product"), isOk());
+        assertThat(query(LOOKUP_DATA_NODE_CHECK_USER, "FROM sales_eu | LOOKUP JOIN products ON product | KEEP product, price"), isForbidden());
+    }
+
+    // --- ENRICH
+
+    @Test
+    public void enrich_withPermission() throws Exception {
+        GenericRestClient.HttpResponse response = query(ENRICH_USER,
+                "FROM sales_eu | ENRICH product_policy ON product | STATS c = COUNT(*) BY category | SORT category");
+        assertThat(response, isOk());
+        assertThat(response, json(nodeAt("values", equalTo(List.of(List.of(1, "drupe"), List.of(2, "pome"))))));
+    }
+
+    @Test
+    public void enrich_withoutClusterPermission() throws Exception {
+        assertThat(query(SALES_USER, "FROM sales_eu | ENRICH product_policy ON product | KEEP product, category"), isForbidden());
+    }
+
+    @Test
+    public void enrich_withoutPermissionOnSourceIndex() throws Exception {
+        assertThat(query(ENRICH_USER, "FROM hr_data | ENRICH product_policy ON product | KEEP product, category"), isForbidden());
+    }
+
+    // --- data streams
+
+    @Test
+    public void dataStream_withPermission() throws Exception {
+        int expectedCount = DS_SALES.getTestData().getRetainedDocuments().size();
+        assertThat(count(DS_USER, "FROM ds_sales"), json(nodeAt("values", equalTo(List.of(List.of(expectedCount))))));
+        assertThat(count(DS_USER, "FROM ds_*"), json(nodeAt("values", equalTo(List.of(List.of(expectedCount))))));
+        assertThat(count(DS_USER, "FROM view_ds"), json(nodeAt("values", equalTo(List.of(List.of(expectedCount))))));
+        assertThat(count(ALL_READ_USER, "FROM ds_sales"), json(nodeAt("values", equalTo(List.of(List.of(expectedCount))))));
+    }
+
+    @Test
+    public void dataStream_withoutPermission() throws Exception {
+        assertThat(count(SALES_USER, "FROM ds_sales"), isForbidden());
+        assertThat(count(SALES_USER, "FROM view_ds"), isForbidden());
+        assertThat(count(DS_USER, "FROM sales_eu"), isForbidden());
     }
 
     @Test

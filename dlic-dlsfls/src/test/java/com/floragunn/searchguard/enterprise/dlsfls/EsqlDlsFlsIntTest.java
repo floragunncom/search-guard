@@ -15,6 +15,7 @@
 package com.floragunn.searchguard.enterprise.dlsfls;
 
 import static com.floragunn.searchguard.test.RestMatchers.isBadRequest;
+import static com.floragunn.searchguard.test.RestMatchers.isCreated;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static com.floragunn.searchguard.test.RestMatchers.json;
 import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
@@ -28,6 +29,7 @@ import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -35,12 +37,13 @@ import java.util.stream.Collectors;
 import org.elasticsearch.common.settings.Settings;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.test.GenericRestClient;
 import com.floragunn.searchguard.test.TestData;
+import com.floragunn.searchguard.test.TestDataStream;
+import com.floragunn.searchguard.test.TestIndexTemplate;
 import com.floragunn.searchguard.test.TestSgConfig;
 import com.floragunn.searchguard.test.TestSgConfig.Role;
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
@@ -52,6 +55,11 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
  * enforced there by the DLS/FLS DirectoryReader wrapper, independently of the query (direct FROM or view). FLS
  * additionally hides the fields from the field capabilities ES|QL uses to resolve columns, thus a query referencing a
  * hidden column fails with "Unknown column".
+ *
+ * Covered: index logs, data stream ds_logs, views over both, LOOKUP JOIN with a DLS restricted lookup index.
+ *
+ * Field masking of ip typed fields: ES|QL reads the masked (hashed) doc values into an ip typed column, which cannot be
+ * decoded. Search Guard rejects such queries with HTTP 400 (see fm_hashedIp).
  */
 public class EsqlDlsFlsIntTest {
 
@@ -59,6 +67,9 @@ public class EsqlDlsFlsIntTest {
     static final TestData TEST_DATA = TestData.documentCount(DOC_COUNT).seed(1).get();
 
     static final String INDEX_NAME = "logs";
+    static final TestData TEST_DATA_DS = TestData.documentCount(100).seed(2).timestampColumnName("@timestamp").deletedDocumentFraction(0).get();
+    static final TestDataStream DS_LOGS = new TestDataStream("ds_logs", TEST_DATA_DS);
+    static final String LOOKUP_INDEX = "dept_info";
     static final String VIEW_COUNT_BY_DEPT = "view_logs_count_by_dept";
     static final String VIEW_IPS = "view_logs_ips";
     static final String VIEW_LOCS = "view_logs_locs";
@@ -70,13 +81,23 @@ public class EsqlDlsFlsIntTest {
             .roles(new Role("all_access").indexPermissions("*").on("*").clusterPermissions("*"));
 
     static final TestSgConfig.User DEPT_A_USER = new TestSgConfig.User("dept_a").roles(
-            new Role("dept_a").indexPermissions("SGS_READ").dls(DocNode.of("prefix.dept.value", "dept_a")).on("logs*", "view_*").clusterPermissions("*"));
+            new Role("dept_a").indexPermissions("SGS_READ").dls(DocNode.of("prefix.dept.value", "dept_a")).on("logs*", "view_*")
+                    .indexPermissions("SGS_READ").on(LOOKUP_INDEX).dataStreamPermissions("SGS_READ").dls(DocNode.of("prefix.dept.value", "dept_a"))
+                    .on("ds_*").clusterPermissions("*"));
+
+    /**
+     * Unrestricted on logs, but DLS on the lookup index: only the row for dept_a_1 is visible
+     */
+    static final TestSgConfig.User LOOKUP_DLS_USER = new TestSgConfig.User("lookup_dls").roles(new Role("lookup_dls")
+            .indexPermissions("SGS_READ").on("logs*").indexPermissions("SGS_READ").dls(DocNode.of("term.dept_key.value", "dept_a_1")).on(LOOKUP_INDEX)
+            .clusterPermissions("*"));
 
     static final TestSgConfig.User DEPT_D_USER = new TestSgConfig.User("dept_d").roles(
             new Role("dept_d").indexPermissions("SGS_READ").dls(DocNode.of("term.dept.value", "dept_d")).on("logs*", "view_*").clusterPermissions("*"));
 
     static final TestSgConfig.User EXCLUDE_IP_USER = new TestSgConfig.User("exclude_ip").roles(
-            new Role("exclude_ip").indexPermissions("SGS_READ").fls("~*_ip").on("logs*", "view_*").clusterPermissions("*"));
+            new Role("exclude_ip").indexPermissions("SGS_READ").fls("~*_ip").on("logs*", "view_*").dataStreamPermissions("SGS_READ").fls("~*_ip")
+                    .on("ds_*").clusterPermissions("*"));
 
     static final TestSgConfig.User INCLUDE_LOC_USER = new TestSgConfig.User("include_loc").roles(
             new Role("include_loc").indexPermissions("SGS_READ").fls("*_loc", "dept").on("logs*", "view_*").clusterPermissions("*"));
@@ -85,7 +106,8 @@ public class EsqlDlsFlsIntTest {
             new Role("hashed_ip").indexPermissions("SGS_READ").maskedFields("*_ip").on("logs*", "view_*").clusterPermissions("*"));
 
     static final TestSgConfig.User HASHED_LOC_USER = new TestSgConfig.User("hashed_loc").roles(
-            new Role("hashed_loc").indexPermissions("SGS_READ").maskedFields("*_loc").on("logs*", "view_*").clusterPermissions("*"));
+            new Role("hashed_loc").indexPermissions("SGS_READ").maskedFields("*_loc").on("logs*", "view_*").dataStreamPermissions("SGS_READ")
+                    .maskedFields("*_loc").on("ds_*").clusterPermissions("*"));
 
     /**
      * DLS, FLS and field masking combined in one role
@@ -98,8 +120,9 @@ public class EsqlDlsFlsIntTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
-            .users(ADMIN, DEPT_A_USER, DEPT_D_USER, EXCLUDE_IP_USER, INCLUDE_LOC_USER, HASHED_IP_USER, HASHED_LOC_USER, COMBINED_USER)
-            .resources("dlsfls")
+            .users(ADMIN, DEPT_A_USER, DEPT_D_USER, EXCLUDE_IP_USER, INCLUDE_LOC_USER, HASHED_IP_USER, HASHED_LOC_USER, COMBINED_USER,
+                    LOOKUP_DLS_USER)
+            .indexTemplates(TestIndexTemplate.DATA_STREAM_MINIMAL).dataStreams(DS_LOGS).resources("dlsfls")
             // ES|QL is only available with a real ES distribution
             .useExternalProcessCluster().build();
 
@@ -114,6 +137,16 @@ public class EsqlDlsFlsIntTest {
                     isOk());
             assertThat(client.putJson("/_query/view/" + VIEW_LOCS,
                     DocNode.of("query", "FROM " + INDEX_NAME + " | KEEP source_loc.keyword, dest_loc.keyword, dept.keyword")), isOk());
+            assertThat(client.putJson("/_query/view/view_ds_count_by_dept",
+                    DocNode.of("query", "FROM " + DS_LOGS.getName() + " | STATS c = COUNT(*) BY dept.keyword | SORT dept.keyword")), isOk());
+
+            // Lookup index with one row per department
+            assertThat(client.putJson("/" + LOOKUP_INDEX, DocNode.of("settings.index.mode", "lookup", "mappings.properties.dept_key.type", "keyword",
+                    "mappings.properties.dept_name.type", "keyword")), isOk());
+            for (String dept : new String[] { "dept_a_1", "dept_a_2", "dept_a_3", "dept_b_1", "dept_b_2", "dept_c", "dept_d" }) {
+                assertThat(client.putJson("/" + LOOKUP_INDEX + "/_doc/" + dept + "?refresh=true", DocNode.of("dept_key", dept, "dept_name", "Department " + dept)),
+                        isCreated());
+            }
         }
     }
 
@@ -134,7 +167,12 @@ public class EsqlDlsFlsIntTest {
     }
 
     private static List<List<Object>> expectedCountByDept(String deptPrefix) {
-        return docCountByDept().entrySet().stream().filter((e) -> e.getKey().startsWith(deptPrefix)).sorted(Map.Entry.comparingByKey())
+        return expectedCountByDept(TEST_DATA, deptPrefix);
+    }
+
+    private static List<List<Object>> expectedCountByDept(TestData testData, String deptPrefix) {
+        return testData.getRetainedDocuments().values().stream().collect(Collectors.groupingBy((doc) -> (String) doc.get("dept"), Collectors.counting()))
+                .entrySet().stream().filter((e) -> e.getKey().startsWith(deptPrefix)).sorted(Map.Entry.comparingByKey())
                 .map((e) -> List.<Object>of(e.getValue().intValue(), e.getKey())).collect(Collectors.toList());
     }
 
@@ -229,13 +267,11 @@ public class EsqlDlsFlsIntTest {
     // --- Field masking
 
     /**
-     * Known limitation: Field masking replaces the doc values of a field by a hash. For fields of type ip, ES|QL hands the
-     * doc values to its IP column type; the hash cannot be decoded as an IP address and Elasticsearch aborts the response
-     * ("Failed trying to format bytes as IP address", the HTTP connection is closed). Field masking must produce a valid
-     * (16 byte) IP address for such fields to be usable with ES|QL (and with doc value based features of _search, like
-     * terms aggregations). Masking of keyword fields works, see fm_hashedLoc.
+     * Field masking replaces the doc values of a field by a hash. For fields of type ip, ES|QL hands the doc values to its ip
+     * column type; the hash cannot be decoded as an IP address. Search Guard rejects such queries with HTTP 400 (otherwise,
+     * Elasticsearch would abort the response while writing it and close the connection). Masking of keyword fields works,
+     * see fm_hashedLoc. Queries which do not touch the masked ip field are not affected.
      */
-    @Ignore("Field masking of ip typed fields is not compatible with ES|QL; see comment")
     @Test
     public void fm_hashedIp() throws Exception {
         GenericRestClient.HttpResponse response = query(ADMIN, "FROM logs | KEEP source_ip | LIMIT 20");
@@ -243,10 +279,20 @@ public class EsqlDlsFlsIntTest {
         assertThat(response, json(nodeAt("values[*][0]", everyItem(matchesPattern(IP_ADDRESS)))));
 
         response = query(HASHED_IP_USER, "FROM logs | KEEP source_ip | LIMIT 20");
+        assertThat(response, isBadRequest("error.reason", "*Field masking for fields of type ip is currently not supported for ES|QL*"));
+
+        response = query(HASHED_IP_USER, "FROM logs | STATS c = COUNT(*) BY source_ip");
+        assertThat(response, isBadRequest("error.reason", "*Field masking for fields of type ip is currently not supported for ES|QL*"));
+
+        response = query(HASHED_IP_USER, "FROM " + VIEW_IPS + " | LIMIT 20");
+        assertThat(response, isBadRequest("error.reason", "*Field masking for fields of type ip is currently not supported for ES|QL*"));
+
+        // Queries which do not use the masked field work
+        assertThat(query(HASHED_IP_USER, "FROM logs | STATS c = COUNT(*) BY dept.keyword | SORT dept.keyword"),
+                json(nodeAt("values", equalTo(expectedCountByDept("")))));
+        response = query(HASHED_IP_USER, "FROM logs | KEEP source_loc.keyword | LIMIT 20");
         assertThat(response, isOk());
-        assertThat(response.getBody(), response.getBodyAsDocNode().findNodesByJsonPath("values[*][0]").size(), equalTo(20));
-        assertThat(response, json(nodeAt("values[*][0]", everyItem(matchesPattern(HEX_HASH)))));
-        assertThat(response, json(nodeAt("values[*][0]", everyItem(not(matchesPattern(IP_ADDRESS))))));
+        assertThat(response, json(nodeAt("values[*][0]", everyItem(not(matchesPattern(HEX_HASH))))));
     }
 
     @Test
@@ -276,6 +322,64 @@ public class EsqlDlsFlsIntTest {
         assertThat(response, json(nodeAt("values[*][0]", everyItem(matchesPattern(HEX_HASH)))));
         assertThat(response, json(nodeAt("values[*][1]", everyItem(matchesPattern(HEX_HASH)))));
         assertThat(response, json(nodeAt("values[*][2]", everyItem(startsWith("dept_")))));
+    }
+
+    // --- Data streams
+
+    @Test
+    public void dataStream_dls() throws Exception {
+        String esql = "FROM " + DS_LOGS.getName() + " | STATS c = COUNT(*) BY dept.keyword | SORT dept.keyword";
+        assertThat(query(ADMIN, esql), json(nodeAt("values", equalTo(expectedCountByDept(TEST_DATA_DS, "")))));
+        assertThat(query(DEPT_A_USER, esql), json(nodeAt("values", equalTo(expectedCountByDept(TEST_DATA_DS, "dept_a")))));
+        assertThat(query(DEPT_A_USER, "FROM view_ds_count_by_dept"), json(nodeAt("values", equalTo(expectedCountByDept(TEST_DATA_DS, "dept_a")))));
+        assertThat(query(DEPT_A_USER, "FROM " + DS_LOGS.getName() + " | STATS c = COUNT(*)"),
+                json(nodeAt("values", equalTo(List.of(List.of(expectedCountByDept(TEST_DATA_DS, "dept_a").stream().mapToInt((r) -> (Integer) r.get(0)).sum()))))));
+    }
+
+    @Test
+    public void dataStream_fls() throws Exception {
+        GenericRestClient.HttpResponse response = query(EXCLUDE_IP_USER, "FROM " + DS_LOGS.getName() + " | LIMIT 1");
+        assertThat(response, isOk());
+        assertThat(response, json(nodeAt("columns[*].name", not(hasItem("source_ip")))));
+        assertThat(response, json(nodeAt("columns[*].name", hasItems("source_loc", "dept", "@timestamp"))));
+        assertThat(query(EXCLUDE_IP_USER, "FROM " + DS_LOGS.getName() + " | KEEP source_ip"), isBadRequest());
+    }
+
+    @Test
+    public void dataStream_fm() throws Exception {
+        GenericRestClient.HttpResponse response = query(HASHED_LOC_USER, "FROM " + DS_LOGS.getName() + " | KEEP source_loc.keyword | LIMIT 20");
+        assertThat(response, isOk());
+        assertThat(response, json(nodeAt("values[*][0]", everyItem(matchesPattern(HEX_HASH)))));
+    }
+
+    // --- LOOKUP JOIN
+
+    @Test
+    public void lookupJoin_dlsOnLookupIndex() throws Exception {
+        String esql = "FROM logs | RENAME dept.keyword AS dept_key | LOOKUP JOIN " + LOOKUP_INDEX
+                + " ON dept_key | STATS c = COUNT(*) BY dept_name | SORT dept_name";
+
+        GenericRestClient.HttpResponse response = query(ADMIN, esql);
+        assertThat(response, isOk());
+        assertThat(response, json(nodeAt("values.length()", equalTo(docCountByDept().size()))));
+        assertThat(response, json(nodeAt("values[*][1]", everyItem(startsWith("Department dept_")))));
+
+        // Only the lookup row for dept_a_1 is visible; all other documents get a null dept_name
+        response = query(LOOKUP_DLS_USER, esql);
+        assertThat(response, isOk());
+        int deptA1 = docCountByDept().get("dept_a_1").intValue();
+        int others = TEST_DATA.getRetainedDocuments().size() - deptA1;
+        assertThat(response, json(nodeAt("values", equalTo(List.of(List.of(deptA1, "Department dept_a_1"), Arrays.asList(others, null))))));
+    }
+
+    @Test
+    public void lookupJoin_dlsOnSourceIndex() throws Exception {
+        String esql = "FROM logs | RENAME dept.keyword AS dept_key | LOOKUP JOIN " + LOOKUP_INDEX
+                + " ON dept_key | STATS c = COUNT(*) BY dept_name | SORT dept_name";
+        List<List<Object>> expected = expectedCountByDept("dept_a").stream()
+                .map((r) -> List.<Object>of(r.get(0), "Department " + r.get(1))).collect(Collectors.toList());
+
+        assertThat(query(DEPT_A_USER, esql), json(nodeAt("values", equalTo(expected))));
     }
 
     // --- Combined
