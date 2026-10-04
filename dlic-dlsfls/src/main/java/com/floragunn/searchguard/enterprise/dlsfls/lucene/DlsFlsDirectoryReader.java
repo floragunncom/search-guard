@@ -31,8 +31,11 @@ import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IOBooleanSupplier;
 import org.apache.lucene.util.automaton.CompiledAutomaton;
+import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.common.lucene.index.SequentialStoredFieldsLeafReader;
 import org.elasticsearch.index.mapper.FieldNamesFieldMapper;
+import org.elasticsearch.index.mapper.MappedFieldType;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.indices.IndicesModule;
 
 import com.floragunn.fluent.collections.ImmutableSet;
@@ -242,6 +245,8 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                     return binaryDocValues;
                 }
 
+                checkMaskedDocValuesSupported(field);
+
                 return new BinaryDocValues() {
 
                     @Override
@@ -298,6 +303,8 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                 if (fieldMasking == null) {
                     return sortedDocValues;
                 }
+
+                checkMaskedDocValuesSupported(field);
 
                 return new SortedDocValues() {
 
@@ -385,6 +392,8 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                 if (fieldMasking == null) {
                     return sortedSetDocValues;
                 }
+
+                checkMaskedDocValuesSupported(field);
 
                 return new SortedSetDocValues() {
 
@@ -478,6 +487,29 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                 }
             }
             
+            /**
+             * Field masking replaces values by a hash. ES|QL reads field values from doc values and hands them to typed
+             * columns; for fields of type ip, the hash cannot be decoded as IP address and Elasticsearch would abort the
+             * response while writing it, which closes the HTTP connection without any response. Thus, we fail early with a
+             * meaningful error. Regular searches are not affected as they read masked values from _source.
+             */
+            private void checkMaskedDocValuesSupported(String field) {
+                String action = getRuntimeActionName();
+
+                if (action == null || !action.startsWith("indices:data/read/esql")) {
+                    return;
+                }
+
+                MappedFieldType fieldType = dlsFlsContext.getIndexService().mapperService().fieldType(field);
+
+                if (fieldType != null && "ip".equals(fieldType.typeName())) {
+                    throw new ElasticsearchStatusException(
+                            "Field masking for fields of type ip is currently not supported for ES|QL queries; field: " + field
+                                    + ", index: " + dlsFlsContext.getIndexService().index().getName(),
+                            RestStatus.BAD_REQUEST);
+                }
+            }
+
             private boolean applyDlsHere() {
                 if (isSuggest()) {
                     return true;
