@@ -45,10 +45,17 @@ public class AuthorizationConfig implements PatchableDocument<AuthorizationConfi
             "indices:admin/data_stream/get", "indices:admin/data_stream/delete", "indices:monitor/data_stream/stats", "indices:admin/get",
             AnalyzeAction.NAME, "indices:admin/close", OpenIndexAction.NAME, DeleteByQueryAction.NAME, "indices:admin/data_stream/get", "indices:admin/resolve/cluster");
 
+    /**
+     * ES|QL (indices:data/read/esql*) is excluded here: The ES|QL coordinator resolves the indices referenced by a query using
+     * indices:data/read/esql/resolve_views and indices:data/read/esql/resolve_fields with ignore_unavailable=true. If these were
+     * reduced to an empty result for a forbidden index, ES|QL would report "Unknown index" (HTTP 400) instead of denying access
+     * (HTTP 403). Partially authorized wildcard expressions are still reduced to the authorized indices.
+     */
     static final Pattern DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT = Pattern.createUnchecked("indices:data/read/*",
             "indices:admin/mappings/fields/get", "indices:admin/shards/search_shards", "indices:admin/search/search_shards", "indices:admin/resolve/index", "indices:monitor/settings/get",
             "indices:monitor/stats", "indices:admin/refresh", "indices:admin/synced_flush", "indices:admin/aliases/get",
-            "indices:admin/data_stream/get", "indices:monitor/data_stream/stats", "indices:admin/get", "indices:admin/data_stream/get", "indices:admin/resolve/cluster");
+            "indices:admin/data_stream/get", "indices:monitor/data_stream/stats", "indices:admin/get", "indices:admin/data_stream/get", "indices:admin/resolve/cluster")
+            .excluding(Pattern.createUnchecked("indices:data/read/esql*"));
 
     public static final AuthorizationConfig DEFAULT = new AuthorizationConfig(DocNode.EMPTY, true, DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS,
             DEFAULT_IGNORE_UNAUTHORIZED_INDICES_ACTIONS_ALLOWING_EMPTY_RESULT, null, RoleMapping.ResolutionMode.MAPPING_ONLY, false,

@@ -58,6 +58,11 @@ import org.elasticsearch.transport.TransportResponseHandler;
 
 import com.floragunn.searchguard.GuiceDependencies;
 import com.floragunn.searchguard.auditlog.AuditLog;
+import com.floragunn.searchguard.authc.AuthInfoService;
+import com.floragunn.searchguard.authz.AuthorizationService;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
+import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.configuration.AdminDNs;
 import com.floragunn.searchguard.configuration.ClusterInfoHolder;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
@@ -81,11 +86,18 @@ public class SearchGuardInterceptor {
     private final DiagnosticContext diagnosticContext;
     private final GuiceDependencies guiceDependencies;
     private final AdminDNs adminDns;
+    private final PrivilegesEvaluator privilegesEvaluator;
+    private final AuthorizationService authorizationService;
+    private final Actions actions;
+    private final ActionRequestIntrospector actionRequestIntrospector;
+    private final AuthInfoService authInfoService;
 
     public SearchGuardInterceptor(Settings settings, ThreadPool threadPool,AuditLog auditLog,
             PrincipalExtractor principalExtractor, InterClusterRequestEvaluator requestEvalProvider, ClusterService cs,
             SslExceptionHandler sslExceptionHandler, ClusterInfoHolder clusterInfoHolder, GuiceDependencies guiceDependencies,
-            DiagnosticContext diagnosticContext, AdminDNs adminDns) {
+            DiagnosticContext diagnosticContext, AdminDNs adminDns, PrivilegesEvaluator privilegesEvaluator,
+            AuthorizationService authorizationService, Actions actions, ActionRequestIntrospector actionRequestIntrospector,
+            AuthInfoService authInfoService) {
         this.auditLog = auditLog;
         this.threadPool = threadPool;
         this.principalExtractor = principalExtractor;
@@ -97,12 +109,18 @@ public class SearchGuardInterceptor {
         this.diagnosticContext = diagnosticContext;
         this.guiceDependencies = guiceDependencies;
         this.adminDns = adminDns;
+        this.privilegesEvaluator = privilegesEvaluator;
+        this.authorizationService = authorizationService;
+        this.actions = actions;
+        this.actionRequestIntrospector = actionRequestIntrospector;
+        this.authInfoService = authInfoService;
     }
 
     public <T extends TransportRequest> SearchGuardRequestHandler<T> getHandler(String action,
             TransportRequestHandler<T> actualHandler) {
         return new SearchGuardRequestHandler<T>(action, actualHandler, threadPool, auditLog,
-                principalExtractor, requestEvalProvider, cs, sslExceptionHandler, adminDns);
+                principalExtractor, requestEvalProvider, cs, sslExceptionHandler, adminDns, privilegesEvaluator, authorizationService, actions,
+                actionRequestIntrospector, authInfoService);
     }
 
     public <T extends TransportResponse> void sendRequestDecorate(AsyncSender sender, Connection connection, String action,

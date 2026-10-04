@@ -20,7 +20,7 @@ import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
 import org.elasticsearch.tasks.Task;
 
@@ -44,7 +44,7 @@ public class SnapshotRestoreEvaluator {
         this.guiceDependencies = guiceDependencies;
     }
 
-    public PrivilegesEvaluationResult evaluate(final ActionRequest request, final Task task, final Action action,
+    public PrivilegesEvaluationResult evaluate(final TransportRequest request, final Task task, final Action action,
             final ClusterInfoHolder clusterInfoHolder) {
 
         if (!(request instanceof RestoreSnapshotRequest)) {
