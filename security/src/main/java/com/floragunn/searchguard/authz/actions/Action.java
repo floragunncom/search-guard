@@ -30,6 +30,7 @@ import java.util.function.Predicate;
 
 import com.floragunn.searchsupport.reflection.ReflectiveAttributeAccessors;
 import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.action.ActionResponse;
 
 import com.floragunn.fluent.collections.ImmutableList;
@@ -53,12 +54,12 @@ public interface Action {
 
     Scope scope();
 
-    ImmutableSet<Action> getAdditionalPrivileges(ActionRequest request);
+    ImmutableSet<Action> getAdditionalPrivileges(TransportRequest request);
 
     /**
      * Same as getAdditionalPrivileges(), with the difference that the original action is included in the result
      */
-    ImmutableSet<Action> expandPrivileges(ActionRequest request);
+    ImmutableSet<Action> expandPrivileges(TransportRequest request);
 
     boolean requiresSpecialProcessing();
 
@@ -188,7 +189,7 @@ public interface Action {
         }
 
         @Override
-        public ImmutableSet<Action> getAdditionalPrivileges(ActionRequest request) {
+        public ImmutableSet<Action> getAdditionalPrivileges(TransportRequest request) {
             RequestType typedRequest = cast(request);
 
             ImmutableSet<Action> result = ImmutableSet.empty();
@@ -207,7 +208,7 @@ public interface Action {
         }
 
         @Override
-        public ImmutableSet<Action> expandPrivileges(ActionRequest request) {
+        public ImmutableSet<Action> expandPrivileges(TransportRequest request) {
             RequestType typedRequest = cast(request);
 
             ImmutableSet<Action> result = asImmutableSet;
@@ -225,7 +226,7 @@ public interface Action {
             return result;
         }
 
-        public RequestType cast(ActionRequest request) {
+        public RequestType cast(TransportRequest request) {
             if (requestType != null) {
                 return requestType.cast(request);
             } else {
@@ -534,12 +535,12 @@ public interface Action {
         }
 
         @Override
-        public ImmutableSet<Action> getAdditionalPrivileges(ActionRequest request) {
+        public ImmutableSet<Action> getAdditionalPrivileges(TransportRequest request) {
             return ImmutableSet.empty();
         }
 
         @Override
-        public ImmutableSet<Action> expandPrivileges(ActionRequest request) {
+        public ImmutableSet<Action> expandPrivileges(TransportRequest request) {
             return ImmutableSet.of(this);
         }
 

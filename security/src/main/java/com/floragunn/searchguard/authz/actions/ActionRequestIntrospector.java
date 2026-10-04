@@ -276,6 +276,18 @@ public class ActionRequestIntrospector {
                 return new ActionRequestInfo(((MultiTermVectorsRequest) request).getRequests(), IndicesRequestInfo.Scope.ANY);
             } else if (request instanceof ReindexRequest) {
                 return CLUSTER_REQUEST;
+            } else if (ESQL_QUERY_REQUEST_CLASS_NAME.equals(request.getClass().getName())) {
+                // ES|QL query requests (indices:data/read/esql) do not expose the indices they are going to read. These are
+                // only known after the query has been parsed and views have been resolved. Thus, index privileges are not
+                // evaluated for this request. Instead, they are evaluated for the sub-requests the ES|QL coordinator
+                // issues for the actually targeted indices: indices:data/read/esql/resolve_views,
+                // indices:data/read/esql/resolve_fields, indices:data/read/esql/search_shards and, as the final gate on
+                // the data nodes, indices:data/read/esql/data (see SearchGuardRequestHandler).
+                // Note: An ActionRequestInfo without any IndicesRequestInfo would be treated as a request for all indices.
+                // Thus, we use one IndicesRequestInfo with an empty index list and without wildcard expansion; this resolves to
+                // no indices at all and thus passes the index privilege evaluation.
+                return new ActionRequestInfo(Collections.<String>emptyList(), IndicesOptions.strictSingleIndexNoExpandForbidClosed(),
+                        IndicesRequestInfo.Scope.ANY);
             } else {
                 log.warn("Unknown action request: {} ", request.getClass().getName());
                 return unknownActionRequest();
@@ -1097,6 +1109,12 @@ public class ActionRequestIntrospector {
     }
 
     private final ActionRequestInfo CLUSTER_REQUEST = new ActionRequestInfo(false, false, null);
+
+    /**
+     * org.elasticsearch.xpack.esql.action.EsqlQueryRequest is a CompositeIndicesRequest without sub-requests. It is referenced
+     * by name because the ES|QL plugin is not a compile time dependency.
+     */
+    private static final String ESQL_QUERY_REQUEST_CLASS_NAME = "org.elasticsearch.xpack.esql.action.EsqlQueryRequest";
 
     private ImmutableSet<IndicesRequestInfo> from(Collection<? extends IndicesRequest> indicesRequests, IndicesRequestInfo.Scope scope) {
         if (indicesRequests.isEmpty()) {
