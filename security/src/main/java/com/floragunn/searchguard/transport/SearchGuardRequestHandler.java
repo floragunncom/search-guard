@@ -26,6 +26,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
 import org.elasticsearch.action.IndicesRequest;
+import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.support.replication.TransportReplicationAction.ConcreteShardRequest;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -58,6 +59,7 @@ import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.diag.DiagnosticContext;
+import org.elasticsearch.transport.AbstractTransportRequest;
 import org.elasticsearch.transport.TransportChannel;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestHandler;
@@ -69,10 +71,22 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
      * SearchGuardFilter (which is an ActionFilter), so privileges are evaluated here, on the receiving node.
      *
      * ES|QL sends the shard-level data requests this way. The top-level indices:data/read/esql request does not know
-     * which indices it is going to read (the query might reference views), thus the request which actually reads the
-     * shards is the one which has to be authorized.
+     * which indices it is going to read (the query might reference views), thus the requests which actually read the
+     * shards are the ones which have to be authorized:
+     *
+     * - indices:data/read/esql/data: Reads the shards of the referenced indices on the data nodes.
+     * - indices:data/read/esql/cluster: Received by a remote cluster for the remote part of a cross cluster query. The remote
+     *   cluster then sends indices:data/read/esql/data requests to its own data nodes, which are checked as well.
+     * - indices:data/read/esql/lookup_from_index: Reads the lookup index of a LOOKUP JOIN on the node holding its shard.
+     * - cluster:monitor/xpack/enrich/esql/resolve_policy: Resolves the enrich policies referenced by ENRICH. This is the only
+     *   request of the ENRICH flow which is executed in the context of the user; the actual lookup in the .enrich-* indices
+     *   is executed by Elasticsearch as internal user (like with X-Pack security, which requires the monitor_enrich cluster
+     *   privilege for the policy resolution).
      */
-    static final ImmutableSet<String> TRANSPORT_LEVEL_AUTHORIZED_ACTIONS = ImmutableSet.of("indices:data/read/esql/data");
+    private static final String ESQL_CLUSTER_ACTION = "indices:data/read/esql/cluster";
+
+    static final ImmutableSet<String> TRANSPORT_LEVEL_AUTHORIZED_ACTIONS = ImmutableSet.of("indices:data/read/esql/data",
+            ESQL_CLUSTER_ACTION, "indices:data/read/esql/lookup_from_index", "cluster:monitor/xpack/enrich/esql/resolve_policy");
 
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
     private final AuditLog auditLog;
@@ -301,13 +315,21 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                 return true;
             }
 
+            TransportRequest requestToEvaluate = request;
+
+            if (ESQL_CLUSTER_ACTION.equals(actionName) && request instanceof IndicesRequest.Replaceable replaceableRequest) {
+                // ClusterComputeRequest does not declare includeDataStreams(), but cross cluster ES|QL queries can address
+                // data streams. Thus, we evaluate the request as if it would include data streams.
+                requestToEvaluate = new IndicesRequestIncludingDataStreams(replaceableRequest);
+            }
+
             SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = authInfoService.getSpecialPrivilegesEvaluationContext();
             ImmutableSet<String> mappedRoles = authorizationService.getMappedRoles(user, specialPrivilegesEvaluationContext);
             Action action = actions.get(actionName);
             PrivilegesEvaluationContext privilegesEvaluationContext = new PrivilegesEvaluationContext(user, false, mappedRoles, action,
-                    request, privilegesEvaluator.isDebugEnabled(), actionRequestIntrospector, specialPrivilegesEvaluationContext);
+                    requestToEvaluate, privilegesEvaluator.isDebugEnabled(), actionRequestIntrospector, specialPrivilegesEvaluationContext);
 
-            PrivilegesEvaluationResult result = privilegesEvaluator.evaluate(user, mappedRoles, actionName, request, task,
+            PrivilegesEvaluationResult result = privilegesEvaluator.evaluate(user, mappedRoles, actionName, requestToEvaluate, task,
                     privilegesEvaluationContext, specialPrivilegesEvaluationContext);
 
             if (result.isOk()) {
@@ -323,6 +345,49 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
             transportChannel.sendResponse(new ElasticsearchSecurityException(
                     "Unexpected exception while evaluating privileges for " + actionName, RestStatus.INTERNAL_SERVER_ERROR));
             return false;
+        }
+    }
+
+    /**
+     * Wraps an IndicesRequest.Replaceable for privilege evaluation in order to let it include data streams. Index reductions
+     * (ignore_unauthorized_indices) are passed on to the wrapped request.
+     */
+    static class IndicesRequestIncludingDataStreams extends AbstractTransportRequest implements IndicesRequest.Replaceable {
+        private final IndicesRequest.Replaceable delegate;
+
+        IndicesRequestIncludingDataStreams(IndicesRequest.Replaceable delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public String[] indices() {
+            return delegate.indices();
+        }
+
+        @Override
+        public IndicesRequest indices(String... indices) {
+            delegate.indices(indices);
+            return this;
+        }
+
+        @Override
+        public IndicesOptions indicesOptions() {
+            return delegate.indicesOptions();
+        }
+
+        @Override
+        public boolean includeDataStreams() {
+            return true;
+        }
+
+        @Override
+        public boolean allowsRemoteIndices() {
+            return delegate.allowsRemoteIndices();
+        }
+
+        @Override
+        public String toString() {
+            return "IndicesRequestIncludingDataStreams[" + delegate + "]";
         }
     }
 
