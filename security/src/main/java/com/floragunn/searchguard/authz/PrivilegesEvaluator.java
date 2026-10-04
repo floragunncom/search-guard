@@ -29,7 +29,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
-import org.elasticsearch.action.ActionRequest;
+import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
@@ -208,7 +208,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
         return actionAuthorization.get() != null;
     }
 
-    public PrivilegesEvaluationResult evaluate(User user, ImmutableSet<String> mappedRoles, String action0, ActionRequest request, Task task,
+    public PrivilegesEvaluationResult evaluate(User user, ImmutableSet<String> mappedRoles, String action0, TransportRequest request, Task task,
             PrivilegesEvaluationContext context, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
 
         if (!isInitialized()) {
@@ -357,7 +357,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     }
 
     private PrivilegesEvaluationResult evaluateIndexPrivileges(User user, Action action, ImmutableSet<Action> requiredPermissions,
-            ActionRequest request, Task task, ActionRequestInfo actionRequestInfo, ImmutableSet<String> mappedRoles, AuthorizationConfig authzConfig,
+            TransportRequest request, Task task, ActionRequestInfo actionRequestInfo, ImmutableSet<String> mappedRoles, AuthorizationConfig authzConfig,
             ActionAuthorization actionAuthorization, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext,
             PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
 
@@ -512,7 +512,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
     }
 
     private PrivilegesEvaluationResult evaluateAdditionalPrivileges(User user, Action action, ImmutableSet<Action> additionalPrivileges,
-            ActionRequest request, Task task, ActionRequestInfo actionRequestInfo, ImmutableSet<String> mappedRoles, AuthorizationConfig authzConfig,
+            TransportRequest request, Task task, ActionRequestInfo actionRequestInfo, ImmutableSet<String> mappedRoles, AuthorizationConfig authzConfig,
             ActionAuthorization actionAuthorization, SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext,
             PrivilegesEvaluationContext context) throws PrivilegesEvaluationException {
 
@@ -719,7 +719,7 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
 
     }
 
-    private boolean checkDocWhitelistHeader(User user, String action, ActionRequest request) {
+    private boolean checkDocWhitelistHeader(User user, String action, TransportRequest request) {
         String docWhitelistHeader = threadContext.getHeader(ConfigConstants.SG_DOC_WHITELST_HEADER);
 
         if (docWhitelistHeader == null) {

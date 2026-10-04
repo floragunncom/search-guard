@@ -25,6 +25,7 @@ import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchSecurityException;
+import org.elasticsearch.action.IndicesRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.support.replication.TransportReplicationAction.ConcreteShardRequest;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -35,9 +36,19 @@ import org.elasticsearch.search.internal.ShardSearchRequest;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import com.floragunn.fluent.collections.ImmutableSet;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
+import com.floragunn.searchguard.authc.AuthInfoService;
+import com.floragunn.searchguard.authz.AuthorizationService;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
+import com.floragunn.searchguard.authz.PrivilegesEvaluationResult;
+import com.floragunn.searchguard.authz.PrivilegesEvaluator;
+import com.floragunn.searchguard.authz.actions.Action;
+import com.floragunn.searchguard.authz.actions.ActionRequestIntrospector;
+import com.floragunn.searchguard.authz.actions.Actions;
 import com.floragunn.searchguard.configuration.AdminDNs;
+import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.ssl.SslExceptionHandler;
 import com.floragunn.searchguard.ssl.transport.PrincipalExtractor;
 import com.floragunn.searchguard.ssl.transport.SearchGuardSSLRequestHandler;
@@ -53,11 +64,26 @@ import org.elasticsearch.transport.TransportRequestHandler;
 
 public class SearchGuardRequestHandler<T extends TransportRequest> extends SearchGuardSSLRequestHandler<T> {
 
+    /**
+     * Actions which are handled by plain transport request handlers instead of TransportActions. Such requests never pass
+     * SearchGuardFilter (which is an ActionFilter), so privileges are evaluated here, on the receiving node.
+     *
+     * ES|QL sends the shard-level data requests this way. The top-level indices:data/read/esql request does not know
+     * which indices it is going to read (the query might reference views), thus the request which actually reads the
+     * shards is the one which has to be authorized.
+     */
+    static final ImmutableSet<String> TRANSPORT_LEVEL_AUTHORIZED_ACTIONS = ImmutableSet.of("indices:data/read/esql/data");
+
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
     private final AuditLog auditLog;
     private final InterClusterRequestEvaluator requestEvalProvider;
     private final ClusterService cs;
     private final AdminDNs adminDns;
+    private final PrivilegesEvaluator privilegesEvaluator;
+    private final AuthorizationService authorizationService;
+    private final Actions actions;
+    private final ActionRequestIntrospector actionRequestIntrospector;
+    private final AuthInfoService authInfoService;
 
     SearchGuardRequestHandler(String action,
             final TransportRequestHandler<T> actualHandler,
@@ -66,12 +92,22 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
             final PrincipalExtractor principalExtractor,
             final InterClusterRequestEvaluator requestEvalProvider,
             final ClusterService cs,
-            final SslExceptionHandler sslExceptionHandler,  AdminDNs adminDns) {
+            final SslExceptionHandler sslExceptionHandler,  AdminDNs adminDns,
+            final PrivilegesEvaluator privilegesEvaluator,
+            final AuthorizationService authorizationService,
+            final Actions actions,
+            final ActionRequestIntrospector actionRequestIntrospector,
+            final AuthInfoService authInfoService) {
         super(action, actualHandler, threadPool, principalExtractor, sslExceptionHandler);
         this.auditLog = auditLog;
         this.requestEvalProvider = requestEvalProvider;
         this.cs = cs;
         this.adminDns = adminDns;
+        this.privilegesEvaluator = privilegesEvaluator;
+        this.authorizationService = authorizationService;
+        this.actions = actions;
+        this.actionRequestIntrospector = actionRequestIntrospector;
+        this.authInfoService = authInfoService;
     }
 
     @Override
@@ -122,6 +158,10 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                 }
                 
                 putInitialActionClassHeader(initialActionClassValue, resolvedActionClass);
+
+                if (!authorizeTransportLevel(request, transportChannel, task)) {
+                    return;
+                }
 
                 super.messageReceivedDecorate(request, handler, transportChannel, task);
                 return;
@@ -196,6 +236,10 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                 
                 putInitialActionClassHeader(initialActionClassValue, resolvedActionClass);
                              
+                if (!authorizeTransportLevel(request, transportChannel, task)) {
+                    return;
+                }
+
                 super.messageReceivedDecorate(request, handler, transportChannel, task);
             }
         } finally {
@@ -210,6 +254,78 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
         }
     }
     
+    /**
+     * Evaluates privileges for the actions listed in TRANSPORT_LEVEL_AUTHORIZED_ACTIONS. Returns true if the request may
+     * proceed. If false is returned, a response has already been sent to the transport channel.
+     *
+     * Note: The SyncAuthorizationFilters provided by modules are intentionally not applied here. DLS/FLS for the ES|QL
+     * data requests is enforced on shard level by the DLS/FLS DirectoryReader wrapper.
+     */
+    private boolean authorizeTransportLevel(T request, TransportChannel transportChannel, Task task) {
+        String actionName = task.getAction();
+
+        if (!TRANSPORT_LEVEL_AUTHORIZED_ACTIONS.contains(actionName)) {
+            return true;
+        }
+
+        try {
+            User user = SearchGuardContext.getUser(getThreadContext());
+
+            if (user == null) {
+                log.error("No user found for {} from {} via {}", actionName, request.remoteAddress(), transportChannel);
+                auditLog.logMissingPrivileges(actionName, request, task);
+                transportChannel.sendResponse(new ElasticsearchSecurityException("No user found for " + actionName, RestStatus.FORBIDDEN));
+                return false;
+            }
+
+            if (adminDns.isAdmin(user)) {
+                auditLog.logGrantedPrivileges(actionName, request, task);
+                return true;
+            }
+
+            if (!privilegesEvaluator.isInitialized()) {
+                log.error("Search Guard not initialized (SG11) for {}", actionName);
+                transportChannel.sendResponse(new ElasticsearchSecurityException(
+                        "Search Guard not initialized (SG11) for " + actionName + ". See https://docs.search-guard.com/latest/sgctl",
+                        RestStatus.SERVICE_UNAVAILABLE));
+                return false;
+            }
+
+            if (request instanceof IndicesRequest indicesRequest && indicesRequest.indices() != null && indicesRequest.indices().length == 0) {
+                // ES|QL sends data node requests without indices (and without shards) when reading from external data sources.
+                // There are no indices to protect in this case. Without this check, an empty indices array would be
+                // interpreted as a request for all indices.
+                if (log.isDebugEnabled()) {
+                    log.debug("{} does not target any indices; skipping index privilege evaluation", actionName);
+                }
+                return true;
+            }
+
+            SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext = authInfoService.getSpecialPrivilegesEvaluationContext();
+            ImmutableSet<String> mappedRoles = authorizationService.getMappedRoles(user, specialPrivilegesEvaluationContext);
+            Action action = actions.get(actionName);
+            PrivilegesEvaluationContext privilegesEvaluationContext = new PrivilegesEvaluationContext(user, false, mappedRoles, action,
+                    request, privilegesEvaluator.isDebugEnabled(), actionRequestIntrospector, specialPrivilegesEvaluationContext);
+
+            PrivilegesEvaluationResult result = privilegesEvaluator.evaluate(user, mappedRoles, actionName, request, task,
+                    privilegesEvaluationContext, specialPrivilegesEvaluationContext);
+
+            if (result.isOk()) {
+                auditLog.logGrantedPrivileges(actionName, request, task);
+                return true;
+            } else {
+                auditLog.logMissingPrivileges(actionName, request, task);
+                transportChannel.sendResponse(result.toSecurityException(privilegesEvaluationContext));
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("Unexpected exception while evaluating privileges for " + actionName, e);
+            transportChannel.sendResponse(new ElasticsearchSecurityException(
+                    "Unexpected exception while evaluating privileges for " + actionName, RestStatus.INTERNAL_SERVER_ERROR));
+            return false;
+        }
+    }
+
     private void putInitialActionClassHeader(String initialActionClassValue, String resolvedActionClass) {
         if(initialActionClassValue == null) {
             if(getThreadContext().getHeader(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER) == null) {
