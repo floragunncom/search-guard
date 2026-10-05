@@ -175,6 +175,11 @@ public class DlsFlsProcessedConfig {
 
                     synchronized (DlsFlsProcessedConfig.this) {
                         if (indexMetadata.version() <= DlsFlsProcessedConfig.this.metadataVersionEffective) {
+                            // We are done. Clear the future while holding the lock, so that updateIndicesAsync() can see that
+                            // a new update task needs to be submitted if a cluster state change arrives from now on. Otherwise,
+                            // a cluster state change between this check and the actual end of this task would be lost until
+                            // the next cluster state change.
+                            DlsFlsProcessedConfig.this.updateFuture = null;
                             return;
                         }
                     }
@@ -187,7 +192,7 @@ public class DlsFlsProcessedConfig {
                     } finally {
                         synchronized (DlsFlsProcessedConfig.this) {
                             DlsFlsProcessedConfig.this.metadataVersionEffective = indexMetadata.version();
-                            if (DlsFlsProcessedConfig.this.updateFuture.isCancelled()) {
+                            if (DlsFlsProcessedConfig.this.updateFuture == null || DlsFlsProcessedConfig.this.updateFuture.isCancelled()) {
                                 return;
                             }
                         }

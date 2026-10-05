@@ -351,8 +351,11 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
         Map<String, SingleRule> roleToQueryForIndex = null;
         Map<String, SingleRule> roleToQueryForDataStream = null;
         
-        if (statefulRules != null && !statefulRules.covers(index)) {
-            // if the stateful rules do not cover the index, we won't use it. Slower static rules will be used as fallback instead.
+        if (statefulRules != null && (!statefulRules.covers(index) || !statefulRules.coversParents(index))) {
+            // if the stateful rules do not cover the index or one of its parent aliases or data streams, we won't use it.
+            // Slower static rules will be used as fallback instead. This is necessary because the stateful rules materialize
+            // privileges granted via aliases or data streams into the index rules; if the stateful rules do not know the
+            // parent, these privileges would be missing. The hasRestrictions() methods behave the same way.
             statefulRules = null;
         }
 
@@ -913,6 +916,34 @@ public abstract class RoleBasedAuthorizationBase<SingleRule, JoinedRule> impleme
 
         boolean covers(Meta.IndexLikeObject indexLike) {
             return this.indexMetadata.getIndexOrLike(indexLike.name()) != null;
+        }
+
+        /**
+         * Returns true if all parent aliases and the parent data stream (including its parent aliases) of the given index are known
+         * to these stateful rules.
+         */
+        boolean coversParents(Meta.Index index) {
+            for (Meta.Alias alias : index.parentAliases()) {
+                if (!covers(alias)) {
+                    return false;
+                }
+            }
+
+            Meta.DataStream parentDataStream = index.parentDataStream();
+
+            if (parentDataStream != null) {
+                if (!covers(parentDataStream)) {
+                    return false;
+                }
+
+                for (Meta.Alias alias : parentDataStream.parentAliases()) {
+                    if (!covers(alias)) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
         }
 
         static class Index<SingleRule> implements ComponentStateProvider {

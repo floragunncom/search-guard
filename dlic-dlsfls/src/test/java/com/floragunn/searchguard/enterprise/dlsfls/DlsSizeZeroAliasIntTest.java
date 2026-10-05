@@ -45,10 +45,10 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
  * The literal sequence of the issue report (a user whose access is granted via the alias searches with size=0, then admin
  * searches with size=0) is aliasUser_then_admin_alias_size0.
  *
- * Expected to fail today: all aliasUser_* tests (the write index of the alias is not visible to the alias grant on the shard
- * level, see DlsStaleAliasSnapshotInvariantTest) and aliasUser_then_admin_alias_size0 (the alias user's size=0 search writes
- * the restricted result of the write index shard into the shard request cache, admin reads it). The mechanism is covered in
- * detail by DlsRequestCachePoisoningIntTest.
+ * Before the fix, all aliasUser_* tests failed (the write index of the alias was not visible to the alias grant on the shard
+ * level, see DlsStaleAliasSnapshotInvariantTest) as well as aliasUser_then_admin_alias_size0 (the alias user's size=0 search
+ * wrote the restricted result of the write index shard into the shard request cache, admin read it). The mechanism is covered
+ * in detail by DlsRequestCachePoisoningIntTest.
  */
 public class DlsSizeZeroAliasIntTest {
 

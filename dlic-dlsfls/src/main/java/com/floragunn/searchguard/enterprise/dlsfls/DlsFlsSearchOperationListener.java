@@ -88,6 +88,8 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
         try (Meter meter = Meter.detail(config.getMetricsLevel(), onPreQueryPhaseAggregation)) {
 
             RoleBasedDocumentAuthorization documentAuthorization = config.getDocumentAuthorization();
+            RoleBasedFieldAuthorization fieldAuthorization = config.getFieldAuthorization();
+            RoleBasedFieldMasking fieldMasking = config.getFieldMasking();
 
             if (documentAuthorization == null) {
                 throw new IllegalStateException("Authorization configuration is not yet initialized");
@@ -101,11 +103,26 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
                     && privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig() != null) {
                 SgDynamicConfiguration<Role> roles = privilegesEvaluationContext.getSpecialPrivilegesEvaluationContext().getRolesConfig();
                 documentAuthorization = new RoleBasedDocumentAuthorization(roles, null, MetricsLevel.NONE);
+                fieldAuthorization = new RoleBasedFieldAuthorization(roles, null, MetricsLevel.NONE);
+                fieldMasking = fieldMasking != null ? new RoleBasedFieldMasking(roles, fieldMasking.getFieldMaskingConfig(), null, MetricsLevel.NONE)
+                        : null;
             }
 
             DlsRestriction dlsRestriction = documentAuthorization.getRestriction(privilegesEvaluationContext, index, meter);
 
             log.trace("DlsRestriction for {}: {}", index, dlsRestriction);
+
+            boolean hasFlsOrFieldMaskingRestrictions = (fieldAuthorization != null
+                    && fieldAuthorization.hasRestrictions(privilegesEvaluationContext, index, meter))
+                    || (fieldMasking != null && fieldMasking.hasRestrictions(privilegesEvaluationContext, index, meter));
+
+            if (!dlsRestriction.isUnrestricted() || hasFlsOrFieldMaskingRestrictions) {
+                // The key of the shard request cache does not contain any information about the user or their privileges.
+                // Thus, we must make sure that restricted results never end up in the cache, regardless of what the
+                // coordinator-side DlsFlsValve decided. Otherwise, the restricted results would be served to other users.
+                // Note: This must happen before ES evaluates IndicesService.canCache(), which is the case for onPreQueryPhase().
+                searchContext.request().requestCache(Boolean.FALSE);
+            }
 
             if (!dlsRestriction.isUnrestricted()) {
                 if (config.getDlsFlsConfig().getDlsMode() == DlsFlsConfig.Mode.ADAPTIVE && dlsRestriction.containsTermLookupQuery()) {
