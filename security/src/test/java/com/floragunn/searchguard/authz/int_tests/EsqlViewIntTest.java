@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.floragunn.codova.documents.DocNode;
@@ -189,8 +190,16 @@ public class EsqlViewIntTest {
         }
     }
 
+    /**
+     * Listing views: GET /_query/view (indices:admin/esql/view/get) is sent with the index expression *. Search Guard
+     * resolves this expression against indices, aliases and data streams; views are not part of Search Guard's index
+     * metadata model yet. Thus, * is only permitted for users with privileges on all indices; a user with privileges on
+     * some indices is denied (the action is not reduced by ignore_unauthorized_indices, and a reduction would yield index
+     * names, not view names). Listing views by a name pattern within the user's privileges works, see
+     * listViews_byPatternWithinPrivileges.
+     */
     @Test
-    public void listViews_returnsOnlyPermittedViews() throws Exception {
+    public void listViews_allViewsRequiresPrivilegesOnAllIndices() throws Exception {
         String allowedViewName = "index_allowed_list";
         String forbiddenViewName = "index_forbidden_list";
         try (GenericRestClient adminClient = cluster.getAdminCertRestClient()) {
@@ -204,8 +213,50 @@ public class EsqlViewIntTest {
         try (GenericRestClient client = cluster.getRestClient(USER_WITH_PERMISSIONS)) {
             GenericRestClient.HttpResponse response = client.get("/_query/view");
 
-            // At the moment, the request cannot be resolved, so the request is rejected
             assertThat(response, isForbidden());
+        }
+    }
+
+    @Test
+    public void listViews_byPatternWithinPrivileges() throws Exception {
+        String allowedViewName = "index_allowed_list_pattern";
+        String forbiddenViewName = "index_forbidden_list_pattern";
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient()) {
+            GenericRestClient.HttpResponse response = adminClient.putJson("/_query/view/" + allowedViewName,
+                    DocNode.of("query", "FROM index_allowed"));
+            assertThat(response, isOk());
+            response = adminClient.putJson("/_query/view/" + forbiddenViewName, DocNode.of("query", "FROM index_forbidden"));
+            assertThat(response, isOk());
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(USER_WITH_PERMISSIONS)) {
+            GenericRestClient.HttpResponse response = client.get("/_query/view/index_allowed_list_pattern*");
+
+            assertThat(response, isOk());
+            assertThat(response, json(nodeAt("views[*].name", equalTo(List.of(allowedViewName)))));
+
+            // index_* matches index_forbidden, for which the user has no privileges
+            assertThat(client.get("/_query/view/index_*"), isForbidden());
+        }
+    }
+
+    /**
+     * Known gap: A name pattern which matches no index, alias or data stream (but a view) resolves to nothing in Search
+     * Guard's index metadata model, as views are not part of it. Such a request is thus permitted and Elasticsearch returns
+     * the matching views, including their queries. The data behind the views remains protected: Running a query on such a
+     * view is denied by the checks on the view's source indices. Closing this gap requires views in Search Guard's metadata
+     * model (Meta); see IndexAbstraction.Type.VIEW.
+     */
+    @Ignore("Views are not part of Search Guard's index metadata model yet; see comment")
+    @Test
+    public void listViews_byPatternOutsidePrivileges_isDenied() throws Exception {
+        String forbiddenViewName = "index_forbidden_list_outside";
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient()) {
+            assertThat(adminClient.putJson("/_query/view/" + forbiddenViewName, DocNode.of("query", "FROM index_forbidden")), isOk());
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(USER_WITH_PERMISSIONS)) {
+            assertThat(client.get("/_query/view/index_forbidden_list_outside*"), isForbidden());
         }
     }
 
