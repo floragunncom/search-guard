@@ -148,6 +148,8 @@ SGS_CLUSTER_COMPOSITE_OPS_RO:
   - "cluster:monitor/async_search/status"
   - "indices:data/read/close_point_in_time"
   - "indices:data/read/sql/async/get"
+  - "indices:data/read/esql/async/get"
+  - "indices:data/read/esql/async/stop"
   type: "cluster"
   description: "Allow readonly bulk and m* operations"
 SGS_GET:
