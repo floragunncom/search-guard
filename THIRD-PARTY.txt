@@ -1,5 +1,5 @@
 
-Lists of 104 third-party dependencies.
+Lists of 99 third-party dependencies.
      (The Apache Software License, Version 2.0) Jackson-annotations (com.fasterxml.jackson.core:jackson-annotations:2.18.10 - https://github.com/FasterXML/jackson)
      (The Apache Software License, Version 2.0) Jackson-annotations (com.fasterxml.jackson.core:jackson-annotations:2.20 - https://github.com/FasterXML/jackson)
      (The Apache Software License, Version 2.0) Jackson-core (com.fasterxml.jackson.core:jackson-core:2.18.10 - https://github.com/FasterXML/jackson-core)
@@ -19,7 +19,6 @@ Lists of 104 third-party dependencies.
      (Apache License, Version 2.0) J2ObjC Annotations (com.google.j2objc:j2objc-annotations:3.1 - https://github.com/google/j2objc/)
      (The Apache Software License, Version 2.0) json-path (com.jayway.jsonpath:json-path:3.0.0 - https://github.com/jayway/JsonPath)
      (The Apache Software License, Version 2.0) Nimbus JOSE+JWT (com.nimbusds:nimbus-jose-jwt:10.10 - https://bitbucket.org/connect2id/nimbus-jose-jwt)
-     (MIT License) OneLogin java-saml Toolkit (com.onelogin:java-saml:2.9.0 - https://github.com/onelogin/java-saml/java-saml)
      (MIT License) OneLogin java-saml Toolkit Core (com.onelogin:java-saml-core:2.9.0 - https://github.com/onelogin/java-saml/java-saml-core)
      (The Apache License, Version 2.0) throwing-function (com.pivovarit:throwing-function:1.6.1 - https://github.com/pivovarit/throwing-function)
      (MIT License) jmail (com.sanctionco.jmail:jmail:2.2.2 - https://github.com/RohanNagar/jmail)
@@ -48,7 +47,6 @@ Lists of 104 third-party dependencies.
      (The Apache Software License, Version 2.0) Shibboleth Shared :: Security Support (net.shibboleth:shib-security:9.2.3 - https://shibboleth.net/shib-shared-parent/shib-security/)
      (The Apache Software License, Version 2.0) Shibboleth Shared :: Generic Support Classes (net.shibboleth:shib-support:9.2.3 - https://shibboleth.net/shib-shared-parent/shib-support/)
      (The Apache Software License, Version 2.0) Shibboleth Shared :: Velocity Support (net.shibboleth:shib-velocity:9.2.3 - https://shibboleth.net/shib-shared-parent/shib-velocity/)
-     (Apache License, Version 2.0) Apache Commons Collections (org.apache.commons:commons-collections4:4.4 - https://commons.apache.org/proper/commons-collections/)
      (Apache-2.0) Apache Commons Lang (org.apache.commons:commons-lang3:3.20.0 - https://commons.apache.org/proper/commons-lang/)
      (Apache-2.0) Apache CXF Core (org.apache.cxf:cxf-core:4.2.3 - https://cxf.apache.org)
      (Apache-2.0) Apache CXF JAX-RS Extensions: JSON Basic (org.apache.cxf:cxf-rt-rs-json-basic:4.2.3 - https://cxf.apache.org)
@@ -95,7 +93,6 @@ Lists of 104 third-party dependencies.
      (The Apache License, Version 2.0) quartz (org.quartz-scheduler:quartz:2.5.2 - https://www.quartz-scheduler.org/)
      (The Apache Software License, Version 2.0) Simple Java Mail - Core module (org.simplejavamail:core-module:9.3.5 - https://www.simplejavamail.org/modules/core-module/)
      (The Apache Software License, Version 2.0) Simple Java Mail (org.simplejavamail:simple-java-mail:9.3.5 - https://www.simplejavamail.org/modules/simple-java-mail/)
-     (MIT License) SLF4J API Module (org.slf4j:slf4j-api:1.7.36 - http://www.slf4j.org)
      (MIT License) SLF4J API Module (org.slf4j:slf4j-api:2.0.13 - http://www.slf4j.org)
      (MIT License) SLF4J API Module (org.slf4j:slf4j-api:2.0.16 - http://www.slf4j.org)
      (MIT) SLF4J API Module (org.slf4j:slf4j-api:2.0.17 - http://www.slf4j.org)
