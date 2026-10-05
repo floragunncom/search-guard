@@ -293,6 +293,8 @@ SGS_KIBANA_SERVER:
   - "cluster:admin:searchguard:authtoken/info"
   - "cluster:admin:searchguard:auth/frontend/config/get"
   - "indices:searchguard:async_search/_all_owners"
+  - "indices:data/read/esql/async/get"
+  - "indices:data/read/esql/async/stop"
   - "cluster:admin/ingest/pipeline/put"
   - "cluster:admin/transform/put"
   - "cluster:admin/transform/start"

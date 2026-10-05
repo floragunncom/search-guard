@@ -30,6 +30,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -219,6 +220,21 @@ public class Actions {
         cluster("cluster:monitor/xpack/sql/async/status").uses(new Resource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id")));
         cluster("indices:data/read/sql/translate");
         cluster("indices:data/read/sql/close_cursor");
+
+        // indices:data/read/esql is used for synchronous (POST /_query) as well as for asynchronous queries
+        // (POST /_query/async). A synchronous query returns no async id; in that case, no owner is recorded.
+        // The scope stays index-like, as roles grant this action as index permission (see SGS_READ).
+        // The resource type is ASYNC_SEARCH_RESOURCE_TYPE because the deletion of an async ES|QL result is done by
+        // the shared action indices:data/read/async_search/delete.
+        indexLike("indices:data/read/esql") //
+                .createsResource(ASYNC_SEARCH_RESOURCE_TYPE, optionalObjectAttr("asyncExecutionId", "asyncExecutionId"),
+                        xContentInstantFromMillisFromRequest("keepAlive", "keepAlive"));
+        cluster("indices:data/read/esql/async/get") //
+                .uses(new Resource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id"))
+                        .ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
+        cluster("indices:data/read/esql/async/stop") //
+                .uses(new Resource(ASYNC_SEARCH_RESOURCE_TYPE, objectAttr("id"))
+                        .ownerCheckBypassPermission("indices:searchguard:async_search/_all_owners"));
 
         cluster("cluster:monitor/main");
         cluster("cluster:monitor/nodes/info");
@@ -743,6 +759,19 @@ public class Actions {
 
     static <O> Function<O, Object> xContentAttr(String name) {
         return (actionResponse) -> AttributeValueFromXContent.get(XContentObjectConverter.convertOrNull(actionResponse), name);
+    }
+
+    /**
+     * Like ReflectiveAttributeAccessors.objectAttr(), but unwraps Optional values. Necessary for attributes like
+     * EsqlQueryResponse.asyncExecutionId(), which return an Optional.
+     */
+    static <O> Function<O, Object> optionalObjectAttr(String name, String methodName) {
+        Function<O, Object> accessor = ReflectiveAttributeAccessors.objectAttr(name, methodName);
+
+        return (object) -> {
+            Object value = accessor.apply(object);
+            return value instanceof Optional<?> optional ? optional.orElse(null) : value;
+        };
     }
 
     static BiFunction<ActionRequest, ActionResponse, Instant> xContentInstantFromMillisFromResponse(String name) {
