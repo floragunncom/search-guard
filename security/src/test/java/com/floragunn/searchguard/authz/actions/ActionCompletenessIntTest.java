@@ -274,6 +274,9 @@ public class ActionCompletenessIntTest {
             "cluster:admin/snapshot/status[nodes]", //
             "cluster:admin/indices/dangling/list", //
             "indices:data/read/async_search/get", //
+            "indices:data/read/esql", //
+            "indices:data/read/esql/async/get", //
+            "indices:data/read/esql/async/stop", //
             "cluster:monitor/nodes/stats", //
             "cluster:monitor/main", //
             "cluster:admin:searchguard:config_vars/refresh", //
