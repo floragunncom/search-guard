@@ -67,18 +67,19 @@ import com.floragunn.searchsupport.meta.Meta;
  * admin.</li>
  * </ul>
  *
- * Two situations make the decisions diverge; both are covered here with separate index sets:
+ * Two situations made the decisions diverge; both are covered here with separate index sets:
  *
  * <ul>
  * <li>Index set old-000001..3 with alias "new", old-000003 being the write index (exactly like in the issue report). The
- * metadata model does not see the write index as a member of the alias, so the alias grant does not reach old-000003 on the
- * shard level. Nothing else is needed; this happens with an up-to-date "stateful rules" snapshot.</li>
+ * metadata model did not see the write index as a member of the alias, so the alias grant did not reach old-000003 on the
+ * shard level. This happened with an up-to-date "stateful rules" snapshot.</li>
  * <li>Index set plain-000001..3 with alias "plain" (no write index). Here the test makes the stateful rules snapshot stale by
  * replacing it with one which does not know the alias. This is the state between an alias change and the asynchronous rebuild
  * of the snapshot.</li>
  * </ul>
  *
- * The *_poisonsCache_* tests are expected to FAIL on the current code base. The control tests pass.
+ * Additionally, DlsFlsSearchOperationListener now disables the shard request cache whenever it applies a restriction, so that
+ * even a future divergence cannot poison the cache. These tests are regression tests for all of this.
  */
 public class DlsRequestCachePoisoningIntTest {
 
@@ -179,10 +180,10 @@ public class DlsRequestCachePoisoningIntTest {
         RoleBasedDocumentAuthorization documentAuthorization = liveDocumentAuthorization();
         documentAuthorization.updateIndices(freshMeta());
 
-        // Only checked for the alias without write index; for the alias with write index the shard side is inconsistent even
-        // with a fresh snapshot (see DlsStaleAliasSnapshotInvariantTest)
-        Awaitility.await("stateful DLS rules consistent with cluster state").atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertConsistent(documentAuthorization, ALIAS_PLAIN_USER_CONTEXT, PLAIN_ALIAS, PLAIN_INDICES));
+        Awaitility.await("stateful DLS rules consistent with cluster state").atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertConsistent(documentAuthorization, ALIAS_PLAIN_USER_CONTEXT, PLAIN_ALIAS, PLAIN_INDICES);
+            assertConsistent(documentAuthorization, ALIAS_USER_CONTEXT, ALIAS, INDICES);
+        });
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -191,7 +192,7 @@ public class DlsRequestCachePoisoningIntTest {
 
     @Test
     public void writeIndexAlias_aliasUser_poisonsCache_adminSize0GetsWrongTotal() throws Exception {
-        assertDivergence(ALIAS_USER_CONTEXT, ALIAS, INDICES[2]);
+        assertValveAndShardAgree(ALIAS_USER_CONTEXT, ALIAS, INDICES[2]);
         String statsBefore = requestCacheStats("old-*");
 
         // This request is evaluated as unrestricted by the valve (cache stays on) but as fully restricted on the write index shard.
@@ -235,7 +236,7 @@ public class DlsRequestCachePoisoningIntTest {
      */
     @Test
     public void writeIndexAlias_aliasUser_poisonsCache_requestCacheTrue_adminLosesHits() throws Exception {
-        assertDivergence(ALIAS_USER_CONTEXT, ALIAS, INDICES[2]);
+        assertValveAndShardAgree(ALIAS_USER_CONTEXT, ALIAS, INDICES[2]);
 
         // Note: the request_cache flag is part of the cache key, so the poisoning request and the admin request must use the same value
         SearchResult poisoner = search(ALIAS_USER, "/" + ALIAS + "/_search?size=5&request_cache=true");
@@ -256,7 +257,7 @@ public class DlsRequestCachePoisoningIntTest {
      */
     @Test
     public void writeIndexAlias_adminFirst_aliasUserSize0ServedFromCache() throws Exception {
-        assertDivergence(ALIAS_USER_CONTEXT, ALIAS, INDICES[2]);
+        assertValveAndShardAgree(ALIAS_USER_CONTEXT, ALIAS, INDICES[2]);
 
         SearchResult admin = search(ADMIN, "/" + ALIAS + "/_search?size=0");
         collector.checkThat("admin GET /new/_search?size=0 on a cleared cache; response: " + admin.body, admin.total, is(TOTAL_DOCS));
@@ -396,28 +397,29 @@ public class DlsRequestCachePoisoningIntTest {
     /**
      * Replaces the stateful rules snapshot of the live RoleBasedDocumentAuthorization with one which knows the member indices
      * but no alias. This is the state between an alias change and the asynchronous rebuild of the snapshot. Searches do not
-     * change the cluster metadata, so the asynchronous updater does not undo this during the test.
+     * change the cluster metadata, so the asynchronous updater does not undo this during the test. With the stale snapshot,
+     * the authorization must fall back to the static rules for the member indices and still agree with the valve.
      */
     private static void forceStaleSnapshot(PrivilegesEvaluationContext context, String alias, String memberIndex) throws Exception {
         liveDocumentAuthorization().updateIndices(STALE_META);
-        assertDivergence(context, alias, memberIndex);
+        assertValveAndShardAgree(context, alias, memberIndex);
     }
 
     /**
-     * Asserts the precondition of the poisoning tests: the valve reports no restrictions for the alias while the shard side
-     * reports a restriction for the member index.
+     * Asserts that the coordinator-side decision (valve) and the shard-side decision agree for the given alias and member index.
+     * Before the fix, this was exactly the divergence which caused the cache poisoning: the valve reported no restrictions
+     * while the shard side reported a restriction for the member index.
      */
-    private static void assertDivergence(PrivilegesEvaluationContext context, String alias, String memberIndex) throws Exception {
+    private static void assertValveAndShardAgree(PrivilegesEvaluationContext context, String alias, String memberIndex) throws Exception {
         RoleBasedDocumentAuthorization documentAuthorization = liveDocumentAuthorization();
         Meta freshMeta = freshMeta();
         boolean valveDecision = documentAuthorization.hasRestrictions(context, ResolvedIndices.of(freshMeta, alias), Meter.NO_OP);
         DlsRestriction shardDecision = documentAuthorization.getRestriction(context, (Meta.Index) freshMeta.getIndexOrLike(memberIndex),
                 Meter.NO_OP);
 
-        assertFalse("Precondition: the valve must report no restrictions for " + context.getMappedRoles() + " on alias " + alias, valveDecision);
-        assertFalse("Precondition: the shard side must report a restriction for " + context.getMappedRoles() + " on " + memberIndex
-                + ". If this fails, valve and shard side no longer diverge and this test needs to be revisited. Shard decision: "
-                + shardDecision, shardDecision.isUnrestricted());
+        assertFalse("Valve: no restrictions expected for " + context.getMappedRoles() + " on alias " + alias, valveDecision);
+        assertTrue("Shard: no restrictions expected for " + context.getMappedRoles() + " on " + memberIndex + "; got: " + shardDecision,
+                shardDecision.isUnrestricted());
     }
 
     private static void assertConsistent(RoleBasedDocumentAuthorization documentAuthorization, PrivilegesEvaluationContext context,

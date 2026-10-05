@@ -111,8 +111,8 @@ public class Actions {
         indexLike("indices:data/write/index").performanceCritical().aliasesResolveToWriteTarget();
         indexLike("indices:data/read/get").performanceCritical();
         indexLike("indices:data/read/tv").performanceCritical();
-        indexLike("indices:data/write/delete").performanceCritical();
-        indexLike("indices:data/write/update").performanceCritical();
+        indexLike("indices:data/write/delete").performanceCritical().aliasesResolveToWriteTarget();
+        indexLike("indices:data/write/update").performanceCritical().aliasesResolveToWriteTarget();
         indexLike("indices:data/read/search").performanceCritical();
         indexLike("indices:data/read/explain").performanceCritical();
         indexLike("indices:admin/resolve/index").performanceCritical();
@@ -135,6 +135,8 @@ public class Actions {
 
         index("indices:data/write/bulk[s]")//
                 .performanceCritical()//
+                // Single document write operations on an alias always go to the write index of the alias
+                .aliasesResolveToWriteTarget()//
                 .requestType(BulkShardRequest.class)//
                 .requestItemsA(BulkShardRequest::items, (item) -> item.request().opType())
                 .requiresAdditionalPrivilegesForItemType(DocWriteRequest.OpType.DELETE, "indices:data/write/delete")

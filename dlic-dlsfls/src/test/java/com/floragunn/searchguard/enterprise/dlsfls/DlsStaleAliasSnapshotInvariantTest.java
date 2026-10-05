@@ -58,18 +58,17 @@ import com.floragunn.searchsupport.meta.Meta;
  * request cache and served to every other user afterwards.
  *
  * This test encodes the invariant both decisions must satisfy: if a request on alias A is reported as unrestricted,
- * then every member index of A must be unrestricted as well. Two situations violate it today:
+ * then every member index of A must be unrestricted as well. Two situations used to violate it:
  *
  * <ul>
  * <li>writeIndexAlias: the alias is defined with is_write_index=true on one member (exactly like in the issue report). The
- * metadata model groups alias members by the Elasticsearch AliasMetadata object, whose equality includes the write index
- * flag. The alias thus falls apart into two alias objects of the same name; the name-based alias set keeps only one of them,
- * and the stateful rules never see the write index as a member of the alias. No staleness is needed for this.</li>
+ * metadata model grouped alias members by the Elasticsearch AliasMetadata object, whose equality includes the write index
+ * flag. The alias thus fell apart into two alias objects of the same name; the name-based alias set kept only one of them,
+ * and the stateful rules never saw the write index as a member of the alias. No staleness was needed for this.</li>
  * <li>staleSnapshot: the "stateful rules" snapshot knows the member indices but not yet the alias (the snapshot is rebuilt
- * asynchronously on cluster state changes, so this is the state between an alias change and the rebuild).</li>
+ * asynchronously on cluster state changes, so this is the state between an alias change and the rebuild). The shard side
+ * must then fall back to the static rules, like the valve does.</li>
  * </ul>
- *
- * The writeIndexAlias and staleSnapshot tests are expected to FAIL on the current code base. The controls pass.
  */
 public class DlsStaleAliasSnapshotInvariantTest {
 

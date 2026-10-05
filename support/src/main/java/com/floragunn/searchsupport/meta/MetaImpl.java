@@ -566,9 +566,13 @@ public abstract class MetaImpl implements Meta {
             ImmutableSet.Builder<Index> indices = new ImmutableSet.Builder<>(project.indices().size());
             ImmutableMap.Builder<String, Meta.IndexLikeObject> nameMap = new ImmutableMap.Builder<>(project.indices().size());
             ImmutableSet.Builder<Index> indicesWithoutParents = new ImmutableSet.Builder<>(project.indices().size());
-            ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, ImmutableList.Builder<IndexLikeObject>> aliasToIndicesMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, ImmutableList.Builder<IndexLikeObject>>()
+            // Aliases are grouped by name. Note: AliasMetadata must not be used as key, as its equality also covers the per-index
+            // attributes (write index flag, filter, routing). An alias with differing per-index attributes would then fall apart
+            // into several alias objects of the same name.
+            ImmutableMap.Builder<String, ImmutableList.Builder<IndexLikeObject>> aliasToIndicesMap = new ImmutableMap.Builder<String, ImmutableList.Builder<IndexLikeObject>>()
                     .defaultValue((k) -> new ImmutableList.Builder<IndexLikeObject>());
-            ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, IndexLikeObject> aliasToWriteIndexMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.AliasMetadata, IndexLikeObject>();
+            ImmutableMap.Builder<String, IndexLikeObject> aliasToWriteIndexMap = new ImmutableMap.Builder<String, IndexLikeObject>();
+            ImmutableMap.Builder<String, Boolean> aliasToHiddenMap = new ImmutableMap.Builder<String, Boolean>();
 
             ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>> dataStreamDataComponentAliasToIndicesMap = new ImmutableMap.Builder<org.elasticsearch.cluster.metadata.DataStreamAlias, List<IndexLikeObject>>()
                     .defaultValue((k) -> new ArrayList<IndexLikeObject>());
@@ -657,16 +661,19 @@ public abstract class MetaImpl implements Meta {
                 }
 
                 for (org.elasticsearch.cluster.metadata.AliasMetadata esAliasMetadata : esIndexMetadata.getAliases().values()) {
-                    aliasToIndicesMap.get(esAliasMetadata).add(index);
+                    String aliasName = esAliasMetadata.alias();
+                    aliasToIndicesMap.get(aliasName).add(index);
                     if (esAliasMetadata.writeIndex() != null && esAliasMetadata.writeIndex().booleanValue()) {
-                        aliasToWriteIndexMap.put(esAliasMetadata, index);
+                        aliasToWriteIndexMap.put(aliasName, index);
+                    }
+                    if (esAliasMetadata.isHidden() != null && esAliasMetadata.isHidden().booleanValue()) {
+                        aliasToHiddenMap.put(aliasName, Boolean.TRUE);
                     }
                 }
             }
 
             // aliases to indices (by ES semantics alias cannot point to both data streams and indices)
-            for (Map.Entry<org.elasticsearch.cluster.metadata.AliasMetadata, ImmutableList.Builder<IndexLikeObject>> entry : aliasToIndicesMap.build()
-                    .entrySet()) {
+            for (Map.Entry<String, ImmutableList.Builder<IndexLikeObject>> entry : aliasToIndicesMap.build().entrySet()) {
                 ImmutableList<IndexLikeObject> members = entry.getValue().build();
 
                 IndexLikeObject writeTarget = aliasToWriteIndexMap.get(entry.getKey());
@@ -675,8 +682,7 @@ public abstract class MetaImpl implements Meta {
                     writeTarget = members.only();
                 }
 
-                Alias alias = new AliasImpl(this, entry.getKey().alias(), members,
-                        entry.getKey().isHidden() != null ? entry.getKey().isHidden() : false, writeTarget);
+                Alias alias = new AliasImpl(this, entry.getKey(), members, aliasToHiddenMap.get(entry.getKey()) != null, writeTarget);
                 aliases.add(alias);
                 nameMap.put(alias.name(), alias);
             }
