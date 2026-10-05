@@ -324,6 +324,40 @@ public class EsqlDlsFlsIntTest {
         assertThat(response, json(nodeAt("values[*][2]", everyItem(startsWith("dept_")))));
     }
 
+    // --- Async queries
+
+    /**
+     * DLS, FLS and field masking are applied while the query is running, i.e. at submit time. The GET request only reads
+     * the stored result. See EsqlAsyncIntTest for the authorization of the async requests themselves.
+     */
+    @Test
+    public void async_dlsAndFieldMasking() throws Exception {
+        String asyncId = submitAsync(DEPT_A_USER, "FROM logs | STATS c = COUNT(*)");
+        GenericRestClient.HttpResponse response = getAsyncResult(DEPT_A_USER, asyncId);
+        assertThat(response, isOk());
+        assertThat(response, json(nodeAt("values", equalTo(List.of(List.of((int) docCountForDeptPrefix("dept_a")))))));
+
+        asyncId = submitAsync(HASHED_LOC_USER, "FROM logs | KEEP source_loc.keyword | LIMIT 20");
+        response = getAsyncResult(HASHED_LOC_USER, asyncId);
+        assertThat(response, isOk());
+        assertThat(response, json(nodeAt("values[*][0]", everyItem(matchesPattern(HEX_HASH)))));
+    }
+
+    private static String submitAsync(TestSgConfig.User user, String query) throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(user)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_query/async",
+                    DocNode.of("query", query, "wait_for_completion_timeout", "0s", "keep_on_completion", true));
+            assertThat(response, isOk());
+            return response.getBodyAsDocNode().getAsString("id");
+        }
+    }
+
+    private static GenericRestClient.HttpResponse getAsyncResult(TestSgConfig.User user, String asyncId) throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(user)) {
+            return client.get("/_query/async/" + asyncId + "?wait_for_completion_timeout=30s");
+        }
+    }
+
     // --- Data streams
 
     @Test

@@ -25,6 +25,7 @@ import static com.floragunn.searchguard.test.RestMatchers.nodeAt;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
 
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -74,8 +75,9 @@ public class EsqlCcsIntTest {
      * On the coordinating cluster, the user has privileges on the local indices l_* and on all views. On the remote
      * cluster, the user has privileges on r_sales and on the data stream ds_remote, but not on r_hr.
      */
-    static final TestSgConfig.User CCS_USER_COORD = new TestSgConfig.User("ccs_user")
-            .roles(new Role("ccs_user").clusterPermissions().indexPermissions("SGS_READ").on("l_*", "view_*"));
+    static final TestSgConfig.User CCS_USER_COORD = new TestSgConfig.User("ccs_user").roles(new Role("ccs_user")
+            .clusterPermissions("indices:data/read/esql/async/get", "indices:data/read/esql/async/stop").indexPermissions("SGS_READ")
+            .on("l_*", "view_*"));
     static final TestSgConfig.User CCS_USER_REMOTE = new TestSgConfig.User("ccs_user").roles(new Role("ccs_user").clusterPermissions()
             .indexPermissions("SGS_READ").on("r_sales").dataStreamPermissions("SGS_READ").on("ds_*"));
 
@@ -231,6 +233,44 @@ public class EsqlCcsIntTest {
     public void localViewOverRemoteIndex() throws Exception {
         assertThat(count(CCS_USER_COORD, "FROM view_remote"), json(nodeAt("values", equalTo(List.of(List.of(3))))));
         assertThat(count(CCS_USER_COORD, "FROM view_both"), json(nodeAt("values", equalTo(List.of(List.of(5))))));
+    }
+
+    /**
+     * An asynchronous cross cluster query. The remote part is authorized in the same way as for a synchronous query; the
+     * async result is owned by the submitting user (see EsqlAsyncIntTest).
+     */
+    @Test
+    public void asyncRemoteQuery() throws Exception {
+        setSkipUnavailable(true);
+        String asyncId;
+
+        try (GenericRestClient client = cluster.getRestClient(CCS_USER_COORD)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_query/async",
+                    DocNode.of("query", "FROM l_sales,my_remote:r_sales | STATS c = COUNT(*)", "wait_for_completion_timeout", "0s",
+                            "keep_on_completion", true, "include_ccs_metadata", true));
+            assertThat(response, isOk());
+            asyncId = response.getBodyAsDocNode().getAsString("id");
+            assertThat(response.getBody(), asyncId, notNullValue());
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(CCS_USER_COORD)) {
+            GenericRestClient.HttpResponse response = client.get("/_query/async/" + asyncId + "?wait_for_completion_timeout=30s");
+            assertThat(response, isOk());
+            assertThat(response, json(nodeAt("values", equalTo(List.of(List.of(5))))));
+            assertThat(response, json(nodeAt("_clusters.details.my_remote.status", equalTo("successful"))));
+        }
+    }
+
+    @Test
+    public void asyncRemoteQuery_forbiddenRemoteIndex() throws Exception {
+        setSkipUnavailable(true);
+
+        try (GenericRestClient client = cluster.getRestClient(CCS_USER_COORD)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_query/async",
+                    DocNode.of("query", "FROM my_remote:r_hr | STATS c = COUNT(*)", "wait_for_completion_timeout", "30s", "keep_on_completion",
+                            true, "include_ccs_metadata", true));
+            assertThat(response, isForbidden());
+        }
     }
 
     @Test
