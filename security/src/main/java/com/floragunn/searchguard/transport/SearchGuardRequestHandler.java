@@ -164,6 +164,11 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
            }
 
             //bypass non-netty requests
+            //Note: Requests which a node sends to itself arrive here as well. TransportService.sendLocalRequest() does not
+            //bypass the request handlers; it dispatches the request to the registered (and thus intercepted) handler, just
+            //with a DirectResponseChannel instead of a TcpTransportChannel and without serialization. Shard level requests
+            //for shards located on the coordinating node take this path, which is why authorizeTransportLevel() must be
+            //called here, too.
             if(isDirectChannel) {
                 SearchGuardContext.initializeTransientCaches(getThreadContext());
 
@@ -271,6 +276,11 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
     /**
      * Evaluates privileges for the actions listed in TRANSPORT_LEVEL_AUTHORIZED_ACTIONS. Returns true if the request may
      * proceed. If false is returned, a response has already been sent to the transport channel.
+     *
+     * Note: This method only sees requests which are sent via TransportService.sendRequest()/sendChildRequest(), as only
+     * those are dispatched to a TransportRequestHandler. Requests of TransportActions executed via the node client do not
+     * use the transport layer at all; these are authorized by SearchGuardFilter. This is why the top level action
+     * indices:data/read/esql is not listed in TRANSPORT_LEVEL_AUTHORIZED_ACTIONS.
      *
      * Note: The SyncAuthorizationFilters provided by modules are intentionally not applied here. DLS/FLS for the ES|QL
      * data requests is enforced on shard level by the DLS/FLS DirectoryReader wrapper.
