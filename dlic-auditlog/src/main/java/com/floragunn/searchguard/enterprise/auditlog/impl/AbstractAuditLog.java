@@ -1315,7 +1315,7 @@ public abstract class AbstractAuditLog implements AuditLog {
     private String serializeRequestContent(PutMappingRequest request) {
         return DocNode.of(
                 "indices", request.indices(),
-                "source", Utils.convertJsonToxToStructuredMap(request.source()),
+                "source", Utils.convertToStructuredMap(request.source(), request.xContentType()),
                 "write_index_only", request.writeIndexOnly(),
                 "origin", request.origin()
         ).toJsonString();

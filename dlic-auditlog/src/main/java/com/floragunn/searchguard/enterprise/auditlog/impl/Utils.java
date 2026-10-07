@@ -52,6 +52,10 @@ public class Utils {
         }
     }
 
+    public static Map<String, Object> convertToStructuredMap(BytesReference bytes, XContentType xContentType) {
+        return XContentHelper.convertToMap(bytes, false, xContentType == null ? XContentType.JSON : xContentType).v2();
+    }
+
     public static BytesReference convertStructuredMapToBytes(Map<String, Object> structuredMap) {
         try {
             return BytesReference.bytes(JsonXContent.contentBuilder().map(structuredMap));

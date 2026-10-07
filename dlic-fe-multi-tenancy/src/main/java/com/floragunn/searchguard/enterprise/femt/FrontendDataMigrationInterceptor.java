@@ -40,8 +40,10 @@ import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.XContentHelper;
+import org.elasticsearch.xcontent.XContentType;
 import org.elasticsearch.rest.RestStatus;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
@@ -139,9 +141,10 @@ class FrontendDataMigrationInterceptor {
 
     private SyncAuthorizationFilter.Result extendIndexMappingWithMultiTenancyData(PutMappingRequest request,
                                                                                   ActionListener<AcknowledgedResponse> listener) {
-        String source = request.source().utf8ToString();
-        log.debug("Extend put mappings request for '{}' to support multi tenancy, current mappings '{}'", request.indices(), source);
         try (ThreadContext.StoredContext ctx = threadContext.newStoredContext()) {
+            XContentType xContentType = request.xContentType() == null ? XContentType.JSON : request.xContentType();
+            String source = XContentHelper.convertToJson(request.source(), false, xContentType);
+            log.debug("Extend put mappings request for '{}' to support multi tenancy, current mappings '{}'", request.indices(), source);
             Optional<PutMappingRequest> newRequest =  extendMappingsWithMultitenancy(source)
                     .map(docNode -> createExtendedPutMappingRequest(request, docNode));
             if(newRequest.isPresent()) {
@@ -154,7 +157,7 @@ class FrontendDataMigrationInterceptor {
                 log.debug("Extend put mappings request - mappings not extended");
                 return SyncAuthorizationFilter.Result.OK;
             }
-        } catch (DocumentParseException e) {
+        } catch (DocumentParseException | IOException e) {
             String message = "Cannot extend put mappings request with information related to multi tenancy";
             log.error(message, e);
             listener.onFailure(new ElasticsearchStatusException(message, RestStatus.INTERNAL_SERVER_ERROR, e));

@@ -34,6 +34,7 @@ import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.user.UserInformation;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -45,13 +46,16 @@ import com.floragunn.searchsupport.util.EsLogging;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.TransportCreateIndexAction;
+import org.elasticsearch.action.admin.indices.mapping.put.TransportPutMappingAction;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.xcontent.XContentType;
 import org.elasticsearch.core.TimeValue;
 import org.junit.Assert;
 import org.junit.Before;
@@ -479,6 +483,29 @@ public class AuditlogTest {
             Assert.assertEquals(indexMappings.toJsonString(), requestBody.getAsNode("source").toJsonString());
             Assert.assertEquals(request.writeIndexOnly(), requestBody.getBoolean("write_index_only"));
             Assert.assertEquals(origin, requestBody.getAsString("origin"));
+        }
+    }
+
+    @Test
+    public void testPutMappingRequest_nonJsonSourceIsConvertedToJsonInRequestBody() throws Exception {
+        Settings settings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .build();
+        String indexName = "test-index";
+        String yamlMappings = "properties:\n  field1:\n    type: text\n";
+        DocNode expectedMappings = DocNode.of("properties", DocNode.of("field1", DocNode.of("type", "text")));
+        PutMappingRequest request = new PutMappingRequest(indexName)
+                .source(new BytesArray(yamlMappings), XContentType.YAML);
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logIndexMappingsUpdated(Collections.singletonList(indexName), TransportPutMappingAction.TYPE.name(), request);
+            Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+            DocNode message = DocNode.wrap(TestAuditlogImpl.messages.get(0).getAsMap());
+            DocNode requestBody = DocNode.parse(Format.JSON).from(message.getAsString(AuditMessage.REQUEST_BODY));
+
+            Assert.assertEquals("Request body contains expected no of fields, " + requestBody.toJsonString(), 4, requestBody.size());
+            Assert.assertEquals(DocNode.array(indexName).toJsonString(), requestBody.getAsNode("indices").toJsonString());
+            Assert.assertEquals(expectedMappings.toJsonString(), requestBody.getAsNode("source").toJsonString());
         }
     }
 
