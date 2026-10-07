@@ -385,6 +385,7 @@ SGS_SIGNALS_WATCH_MANAGE:
     - "cluster:admin:searchguard:tenant:signals:watch/execute"
     - "cluster:admin:searchguard:tenant:signals:watch/activate_deactivate"
     - "cluster:admin:searchguard:tenant:signals:watch/ack"
+    - SGS_SIGNALS_PROXY_CONFIG_READ
   type: "signals"
   description: "Grants permissions to write Signals Alerting watches"
 
