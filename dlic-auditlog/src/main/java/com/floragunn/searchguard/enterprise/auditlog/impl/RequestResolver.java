@@ -259,7 +259,7 @@ public final class RequestResolver {
             }
 
             if (addSource) {
-                msg.addUnescapedJsonToRequestBody(pr.source());
+                msg.addUnescapedJsonToRequestBody(pr.source().utf8ToString());
             }
 
             if (resolveIndices) {

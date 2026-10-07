@@ -139,7 +139,7 @@ class FrontendDataMigrationInterceptor {
 
     private SyncAuthorizationFilter.Result extendIndexMappingWithMultiTenancyData(PutMappingRequest request,
                                                                                   ActionListener<AcknowledgedResponse> listener) {
-        String source = request.source();
+        String source = request.source().utf8ToString();
         log.debug("Extend put mappings request for '{}' to support multi tenancy, current mappings '{}'", request.indices(), source);
         try (ThreadContext.StoredContext ctx = threadContext.newStoredContext()) {
             Optional<PutMappingRequest> newRequest =  extendMappingsWithMultitenancy(source)
@@ -148,7 +148,7 @@ class FrontendDataMigrationInterceptor {
                 PutMappingRequest putMappingRequest = newRequest.get();
                 threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, putMappingRequest.toString());
                 nodeClient.admin().indices().putMapping(putMappingRequest, listener);
-                log.debug("Extend put mappings request - mappings extended: '{}'", putMappingRequest.source());
+                log.debug("Extend put mappings request - mappings extended: '{}'", putMappingRequest.source().utf8ToString());
                 return SyncAuthorizationFilter.Result.INTERCEPTED;
             } else {
                 log.debug("Extend put mappings request - mappings not extended");
