@@ -258,8 +258,8 @@ public final class RequestResolver {
                 indices = new String[] { ci.getName() };
             }
 
-            if (addSource) {
-                msg.addUnescapedJsonToRequestBody(pr.source());
+            if (addSource && pr.source() != null) {
+                msg.addTupleToRequestBody(convertSource(pr.xContentType(), pr.source()));
             }
 
             if (resolveIndices) {
