@@ -259,7 +259,7 @@ public final class RequestResolver {
             }
 
             if (addSource) {
-                msg.addUnescapedJsonToRequestBody(pr.source());
+                msg.addTupleToRequestBody(new Tuple<XContentType, BytesReference>(pr.xContentType(), pr.source()));
             }
 
             if (resolveIndices) {

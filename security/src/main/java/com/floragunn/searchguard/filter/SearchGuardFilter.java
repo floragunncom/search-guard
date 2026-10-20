@@ -44,6 +44,7 @@ import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.core.Tuple;
@@ -189,6 +190,8 @@ public class SearchGuardFilter implements ActionFilter {
                     threadContext.putTransient(ConfigConstants.SG_USER, user);
                 }
             }
+
+            attachUserContextHeadersForSearch(request);
 
             org.apache.logging.log4j.ThreadContext.put("user", user != null ? user.getName() : "n/a");
 
@@ -373,6 +376,42 @@ public class SearchGuardFilter implements ActionFilter {
         }
 
         return false;
+    }
+
+    /**
+     * Since ES 9.5, the fetch phase of a search is not sent directly to the data nodes. Instead, ES sends a
+     * TransportFetchPhaseCoordinationAction.Request to the local node. The handler of that action stashes the thread context and
+     * forwards the actual ShardFetchSearchRequest to the data node from a thread context which only contains the headers which ES
+     * captured from the thread context before sending the coordination request. Search Guard keeps the user, origin and remote address
+     * as transients and converts them into headers only when sending transport requests. Thus, this information would get lost on the
+     * way to the data node. Without the user, DLS/FLS and field masking would not be applied in the fetch phase and the compliance read
+     * history would not be logged.
+     * <p>
+     * Thus, we make sure that these headers are already present in the thread context when ES executes a search. This is
+     * equivalent to what SearchGuardInterceptor.ensureCorrectHeaders() does when sending a transport request.
+     */
+    private void attachUserContextHeadersForSearch(ActionRequest request) {
+        if (!(request instanceof SearchRequest)) {
+            return;
+        }
+
+        User user = threadContext.getTransient(ConfigConstants.SG_USER);
+
+        if (user != null && threadContext.getHeader(ConfigConstants.SG_USER_HEADER) == null) {
+            threadContext.putHeader(ConfigConstants.SG_USER_HEADER, Base64Helper.serializeObject(user));
+        }
+
+        String origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
+
+        if (origin != null && !origin.isEmpty() && threadContext.getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
+            threadContext.putHeader(ConfigConstants.SG_ORIGIN_HEADER, origin);
+        }
+
+        TransportAddress remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+
+        if (remoteAddress != null && threadContext.getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER) == null) {
+            threadContext.putHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER, Base64Helper.serializeObject(remoteAddress.address()));
+        }
     }
 
     private void attachSourceFieldContext(ActionRequest request) {

@@ -36,6 +36,7 @@ import org.elasticsearch.action.bulk.TransportShardBulkAction;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.WriteRequest.RefreshPolicy;
+import org.elasticsearch.cluster.routing.SplitShardCountSummary;
 import org.hamcrest.Description;
 import org.hamcrest.DiagnosingMatcher;
 import org.junit.Test;
@@ -131,7 +132,7 @@ public class ActionRequestIntrospectorTest {
 
     @Test
     public void bulkShardRequest_create_datastream() {
-        BulkShardRequest request = new BulkShardRequest(null, RefreshPolicy.NONE,
+        BulkShardRequest request = new BulkShardRequest(null, SplitShardCountSummary.UNSET, RefreshPolicy.NONE,
                 new BulkItemRequest[] { new BulkItemRequest(1, new IndexRequest("ds_d11")) });
         ActionRequestInfo requestInfo = simple().getActionRequestInfo(ACTIONS.get(TransportShardBulkAction.ACTION_NAME), request);
         assertThat(requestInfo, main().hasNoIndices().hasNoAliases().hasDataStreams("ds_d11"));

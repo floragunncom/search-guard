@@ -137,12 +137,22 @@ public class ActionRequestIntrospector {
                     String dataStream = dataStreamAction.getDataStream();
                     String index = dataStreamAction.getIndex(); // todo how this is working for failure stores?
                     DataStreamAction.Type type = dataStreamAction.getType();
-                    Action.AdditionalDimension additionalDimension = switch (type) {
-                        case ADD_BACKING_INDEX -> Action.AdditionalDimension.ADD_INDEX_TO_DATA_STREAM;
-                        case REMOVE_BACKING_INDEX -> Action.AdditionalDimension.REMOVE_INDEX_FROM_DATA_STREAM;
-                    };
-                    result = result.with(ImmutableSet.of(dataStream), EXACT, Scope.INDICES_DATA_STREAMS)
-                            .additional(additionalDimension, ImmutableList.of(index), EXACT, Scope.INDEX);
+                    result = result.with(ImmutableSet.of(dataStream), EXACT, Scope.INDICES_DATA_STREAMS);
+                    switch (type) {
+                    case ADD_BACKING_INDEX:
+                        result = result.additional(Action.AdditionalDimension.ADD_INDEX_TO_DATA_STREAM, ImmutableList.of(index), EXACT, Scope.INDEX);
+                        break;
+                    case REMOVE_BACKING_INDEX:
+                        result = result.additional(Action.AdditionalDimension.REMOVE_INDEX_FROM_DATA_STREAM, ImmutableList.of(index), EXACT,
+                                Scope.INDEX);
+                        break;
+                    case DELETE_BACKING_INDEX:
+                        // Removes the index from the data stream and deletes it afterwards. Thus, we require both privileges.
+                        result = result
+                                .additional(Action.AdditionalDimension.REMOVE_INDEX_FROM_DATA_STREAM, ImmutableList.of(index), EXACT, Scope.INDEX)
+                                .additional(Action.AdditionalDimension.DELETE_INDEX, ImmutableList.of(index), EXACT, Scope.INDEX);
+                        break;
+                    }
                 }
                 return result;
             } else if (action.scope() == Action.Scope.DATA_STREAM) {

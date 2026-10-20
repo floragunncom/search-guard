@@ -42,7 +42,7 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchResponse;
 import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.index.reindex.DeleteByQueryRequest;
 import org.junit.After;
@@ -110,7 +110,7 @@ public class ProxyApiTest {
     @After
     public void removeProxies()  {
         Client client = cluster.getPrivilegedInternalNodeClient();
-        BulkByScrollResponse deleteResponse = client.execute(DeleteByQueryAction.INSTANCE, new DeleteByQueryRequest(SIGNALS_PROXIES_INDEX_NAME)
+        BulkByPaginatedSearchResponse deleteResponse = client.execute(DeleteByQueryAction.INSTANCE, new DeleteByQueryRequest(SIGNALS_PROXIES_INDEX_NAME)
                 .setRefresh(true)
                 .setQuery(QueryBuilders.matchAllQuery())
         ).actionGet();

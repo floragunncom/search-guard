@@ -43,6 +43,14 @@ public class Utils {
         return map;
     }
 
+    /**
+     * Note: BytesReference implements ToXContent, but its toXContent() implementation writes the bytes as a binary value.
+     * Thus, we need to handle this type separately.
+     */
+    public static Map<String, Object> convertJsonToxToStructuredMap(BytesReference content, XContentType xContentType) {
+        return XContentHelper.convertToMap(content, false, xContentType).v2();
+    }
+
     public static Map<String, Object> convertJsonToxToStructuredMap(String jsonContent) {
         try (XContentParser parser = XContentType.JSON.xContent().createParser(XContentParserConfiguration.EMPTY.withDeprecationHandler(
                 DeprecationHandler.THROW_UNSUPPORTED_OPERATION), jsonContent)) {

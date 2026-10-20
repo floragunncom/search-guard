@@ -25,6 +25,7 @@ import com.floragunn.searchguard.user.User;
 import com.google.common.base.Strings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.elasticsearch.ElasticsearchParseException;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.DocWriteRequest;
@@ -38,9 +39,11 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.internal.Client;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.xcontent.XContentType;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -139,10 +142,10 @@ class FrontendDataMigrationInterceptor {
 
     private SyncAuthorizationFilter.Result extendIndexMappingWithMultiTenancyData(PutMappingRequest request,
                                                                                   ActionListener<AcknowledgedResponse> listener) {
-        String source = request.source();
+        BytesReference source = request.source();
         log.debug("Extend put mappings request for '{}' to support multi tenancy, current mappings '{}'", request.indices(), source);
         try (ThreadContext.StoredContext ctx = threadContext.newStoredContext()) {
-            Optional<PutMappingRequest> newRequest =  extendMappingsWithMultitenancy(source)
+            Optional<PutMappingRequest> newRequest =  extendMappingsWithMultitenancy(source, request.xContentType())
                     .map(docNode -> createExtendedPutMappingRequest(request, docNode));
             if(newRequest.isPresent()) {
                 PutMappingRequest putMappingRequest = newRequest.get();
@@ -154,7 +157,7 @@ class FrontendDataMigrationInterceptor {
                 log.debug("Extend put mappings request - mappings not extended");
                 return SyncAuthorizationFilter.Result.OK;
             }
-        } catch (DocumentParseException e) {
+        } catch (ElasticsearchParseException e) {
             String message = "Cannot extend put mappings request with information related to multi tenancy";
             log.error(message, e);
             listener.onFailure(new ElasticsearchStatusException(message, RestStatus.INTERNAL_SERVER_ERROR, e));
@@ -202,10 +205,10 @@ class FrontendDataMigrationInterceptor {
         return SyncAuthorizationFilter.Result.OK;
     }
 
-    private Optional<DocNode> extendMappingsWithMultitenancy(String sourceMappings) throws DocumentParseException {
-        UnparsedDocument<?> mappings = UnparsedDocument.from(sourceMappings, Format.JSON);
-        DocNode node = mappings.parseAsDocNode();
-        return extendMappingsWithMultitenancy(node);
+    private Optional<DocNode> extendMappingsWithMultitenancy(BytesReference sourceMappings, XContentType xContentType) throws ElasticsearchParseException {
+        // The mapping source may be in any XContent type (JSON, YAML, CBOR, SMILE), so we let ES parse it
+        Map<String, Object> mappings = XContentHelper.convertToMap(sourceMappings, true, xContentType).v2();
+        return extendMappingsWithMultitenancy(DocNode.wrap(mappings));
     }
 
     private PutMappingRequest createExtendedPutMappingRequest(PutMappingRequest request, DocNode docNode) {
