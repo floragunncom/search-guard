@@ -77,3 +77,27 @@ Format:
 - **Why:** _pending_
 - **Constrains:** the REST route catalogue in `inventory/rest-surface.md` §1.3 and §1.1; sgctl releases.
 - **Raised by:** `inventory/rest-surface.md`, open questions 1 and 7.
+
+## D-5: CType ord 10011 collision (`authz_dlsfls` and `sessions`)
+
+- **Date:** _pending_
+- **Status:** draft
+- **Decision:** _pending_ (renumber one of the two types with a migration note for `ConfigVersion` consumers, or
+  declare the collision harmless and document why)
+- **Why:** _pending_
+- **Constrains:** `dlic-dlsfls/.../DlsFlsConfig.java#TYPE`, `security/.../SessionServiceConfig.java`,
+  `dlic-security/.../sgconf/history/ConfigVersion.java`; auth-token snapshots that carry config versions.
+- **Raised by:** `inventory/persisted-schemas.md` open question 1; `dlic-dlsfls.md` section 9.
+
+## D-6: Rule-semantics changes in DLS/FLS/FM during rolling upgrades
+
+- **Date:** _pending_
+- **Status:** draft
+- **Decision:** _pending_ (accept that a change to how roles are compiled into DLS/FLS/FM rules yields per-shard
+  divergence while nodes run different plugin versions, or require such changes to be gated on a cluster-wide
+  minimum plugin version, or require a full cluster restart for them)
+- **Why:** Restrictions are recomputed on every data node from the user header and the node's local `roles`; nothing
+  about the computed rule travels between nodes (`dlic-dlsfls.md` M-1).
+- **Constrains:** `RoleBasedAuthorizationBase`, `RoleBasedFieldAuthorization.FlsRule`,
+  `RoleBasedFieldMasking.FieldMaskingRule`, `Role.Index` parsing; the halt list in `dlic-dlsfls/CLAUDE.md`.
+- **Raised by:** `dlic-dlsfls.md` section 6, row M-1.

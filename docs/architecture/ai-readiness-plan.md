@@ -161,3 +161,5 @@ for routine use.
 - `.gitlab/issue_templates/new_release_*.md`: the current release process; stale names (`master`, ES 7.17) to be
   fixed in phase 4.
 - `docs/architecture/inventory/`: phase 1 output.
+- `docs/architecture/dlic-dlsfls.md` and `dlic-dlsfls/CLAUDE.md`: phase 2 pilot on one module (2026-10-20), to be
+  reviewed with the team before the template is applied to the other modules.
