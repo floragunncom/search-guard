@@ -17,7 +17,7 @@ import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMigrationContext;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchResponse;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,7 +41,7 @@ public class DeleteGlobalIndexContentStepTest {
     private StepRepository stepRepository;
     private DataMigrationContext context;
 
-    private BulkByScrollResponse deletionResponse;
+    private BulkByPaginatedSearchResponse deletionResponse;
 
     // under tests
     private DeleteGlobalIndexContentStep step;
@@ -75,7 +75,7 @@ public class DeleteGlobalIndexContentStepTest {
     public void before() {
         this.stepRepository = mock(StepRepository.class);
         this.context = mock(DataMigrationContext.class);
-        this.deletionResponse = mock(BulkByScrollResponse.class);
+        this.deletionResponse = mock(BulkByPaginatedSearchResponse.class);
         this.step = new DeleteGlobalIndexContentStep(stepRepository);
     }
 

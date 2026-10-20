@@ -20,9 +20,9 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepRe
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.TenantIndex;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.elasticsearch.index.reindex.BulkByScrollResponse;
-import org.elasticsearch.index.reindex.BulkByScrollTask;
-import org.elasticsearch.index.reindex.BulkByScrollTask.StatusOrException;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchResponse;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchTask;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchTask.StatusOrException;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -63,10 +63,10 @@ public class CreateBackupOfGlobalIndexStepTest {
     private IndexSettingsManager indexSettingsManager;
 
     @Mock
-    private BulkByScrollResponse response;
+    private BulkByPaginatedSearchResponse response;
 
     @Mock
-    private BulkByScrollTask.Status responseStatus;
+    private BulkByPaginatedSearchTask.Status responseStatus;
 
     private DataMigrationContext context;
 

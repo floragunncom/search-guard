@@ -115,6 +115,11 @@ public class AttributeValueFromXContent implements XContent {
         }
 
         @Override
+        public void closeAllowIllFormed() throws IOException {
+
+        }
+
+        @Override
         public void flush() throws IOException {
 
         }
@@ -267,6 +272,21 @@ public class AttributeValueFromXContent implements XContent {
         @Override
         public void writeString(char[] text, int offset, int len) throws IOException {
             setObject(new String(text, offset, len));
+        }
+
+        @Override
+        public void writeString(Reader reader, int len) throws IOException {
+            StringBuilder result = new StringBuilder();
+            char[] buffer = new char[1024];
+            int remaining = len < 0 ? Integer.MAX_VALUE : len;
+            int read;
+
+            while (remaining > 0 && (read = reader.read(buffer, 0, Math.min(buffer.length, remaining))) != -1) {
+                result.append(buffer, 0, read);
+                remaining -= read;
+            }
+
+            setObject(result.toString());
         }
 
         @Override

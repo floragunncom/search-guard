@@ -139,7 +139,7 @@ class FrontendDataMigrationInterceptor {
 
     private SyncAuthorizationFilter.Result extendIndexMappingWithMultiTenancyData(PutMappingRequest request,
                                                                                   ActionListener<AcknowledgedResponse> listener) {
-        String source = request.source();
+        String source = request.source() != null ? request.source().utf8ToString() : null;
         log.debug("Extend put mappings request for '{}' to support multi tenancy, current mappings '{}'", request.indices(), source);
         try (ThreadContext.StoredContext ctx = threadContext.newStoredContext()) {
             Optional<PutMappingRequest> newRequest =  extendMappingsWithMultitenancy(source)

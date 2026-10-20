@@ -6,6 +6,9 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchResponseSections;
+import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.bytes.BytesReference;
+import org.elasticsearch.core.RefCounted;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
@@ -39,15 +42,19 @@ public class SearchMapper implements Unscoper<SearchResponse> {
     @Override
     public SearchResponse unscopeResponse(SearchResponse response) {
         log.debug("Rewriting search response - removing tenant scope");
-        // the below line creates unpooled source object in SearchHit by intermediate invocation
-        // of org.elasticsearch.search.SearchHit.asUnpooled
-        SearchHits originalSearchHits = response.getHits().asUnpooled();
+        SearchHits originalSearchHits = response.getHits();
         SearchHit[] originalSearchHitArray = originalSearchHits.getHits();
         SearchHit [] rewrittenSearchHitArray = new SearchHit[originalSearchHitArray.length];
 
         for (int i = 0; i < originalSearchHitArray.length; i++) {
             rewrittenSearchHitArray[i] = SearchHit.unpooled(originalSearchHitArray[i].docId(), RequestResponseTenantData.unscopedId(originalSearchHitArray[i].getId()), originalSearchHitArray[i].getNestedIdentity());
-            rewrittenSearchHitArray[i].sourceRef(originalSearchHitArray[i].getSourceRef());
+            // ES 9.5 removed SearchHits.asUnpooled(). The source of a pooled hit may be backed by ref-counted memory which is
+            // released together with the original response. Thus, we need to copy it here, like asUnpooled() did before.
+            BytesReference source = originalSearchHitArray[i].getSourceRef();
+            if (source instanceof RefCounted) {
+                source = new BytesArray(source.toBytesRef(), true);
+            }
+            rewrittenSearchHitArray[i].sourceRef(source);
             rewrittenSearchHitArray[i].addDocumentFields(originalSearchHitArray[i].getDocumentFields(), originalSearchHitArray[i].getMetadataFields());
             rewrittenSearchHitArray[i].setPrimaryTerm(originalSearchHitArray[i].getPrimaryTerm());
             rewrittenSearchHitArray[i].setSeqNo(originalSearchHitArray[i].getSeqNo());
@@ -58,8 +65,8 @@ public class SearchMapper implements Unscoper<SearchResponse> {
             rewrittenSearchHitArray[i].explanation(originalSearchHitArray[i].getExplanation());
         }
 
-        // Creates an unpooled version
-        SearchHits rewrittenSearchHits = SearchHits.unpooled(rewrittenSearchHitArray, originalSearchHits.getTotalHits(), originalSearchHits.getMaxScore());
+        // The rewritten hits are unpooled, thus releasing the SearchHits container is a no-op for the contained hits
+        SearchHits rewrittenSearchHits = new SearchHits(rewrittenSearchHitArray, originalSearchHits.getTotalHits(), originalSearchHits.getMaxScore());
         // SearchResponseSections is still pooled
         SearchResponseSections rewrittenSections = new SearchResponseSections(rewrittenSearchHits, response.getAggregations(), response.getSuggest(),
                 response.isTimedOut(), response.isTerminatedEarly(), null, response.getNumReducePhases(), response.getTimeRangeFilterFromMillis());
@@ -73,7 +80,9 @@ public class SearchMapper implements Unscoper<SearchResponse> {
             response.getTook().millis(),
             response.getShardFailures(),
             response.getClusters(),
-            response.pointInTimeId());
+            response.pointInTimeId(),
+            null, // original search source; only used for profile results which are not copied here
+            null); // request indices; only used for profile results which are not copied here
         return pooledSearchResponse;
     }
 
