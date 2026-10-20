@@ -156,6 +156,11 @@ public class ObjectTreeXContent implements XContent {
         }
 
         @Override
+        public void closeAllowIllFormed() throws IOException {
+
+        }
+
+        @Override
         public void flush() throws IOException {
 
         }
@@ -316,6 +321,20 @@ public class ObjectTreeXContent implements XContent {
         @Override
         public void writeString(char[] text, int offset, int len) throws IOException {
             addObject(new String(text, offset, len));
+        }
+
+        @Override
+        public void writeString(Reader reader, int len) throws IOException {
+            char[] buffer = new char[len];
+            int read = 0;
+            while (read < len) {
+                int n = reader.read(buffer, read, len - read);
+                if (n < 0) {
+                    break;
+                }
+                read += n;
+            }
+            addObject(new String(buffer, 0, read));
         }
 
         @Override

@@ -31,6 +31,7 @@ import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequ
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.action.bulk.BulkItemRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -259,7 +260,11 @@ public final class RequestResolver {
             }
 
             if (addSource) {
-                msg.addUnescapedJsonToRequestBody(pr.source());
+                try {
+                    msg.addUnescapedJsonToRequestBody(XContentHelper.convertToJson(pr.source(), false, pr.xContentType()));
+                } catch (IOException e) {
+                    log.error("Cannot convert put mapping source to JSON", e);
+                }
             }
 
             if (resolveIndices) {

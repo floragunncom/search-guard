@@ -40,10 +40,12 @@ import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.MultiSearchRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.TransportSearchAction;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.core.Tuple;
@@ -147,6 +149,38 @@ public class SearchGuardFilter implements ActionFilter {
                 });
     }
 
+    /**
+     * Since ES 9.5, the fetch phase of a search request is routed through TransportFetchPhaseCoordinationAction. That action
+     * captures only the request headers of the thread context on the coordinating node, stashes the thread context and sends
+     * the shard fetch request to the data node with just these captured headers. The transient thread context values, which
+     * Search Guard uses to carry the user, origin and remote address on the coordinating node, do not survive that hop.
+     * Without the user, the data node would treat the fetch request as an anonymous internal request and would not apply
+     * DLS/FLS/field masking (the query phase is unaffected, because its requests are sent directly from the search context).
+     * <p>
+     * Thus, we make the identity additionally available as request headers before the search action is executed. These are the
+     * same headers SearchGuardInterceptor adds when sending a request to another node, so the receiving side handles them
+     * as usual. Existing headers are never overwritten; for requests which arrived via transport, they are already present.
+     */
+    private void ensureIdentityHeaders() {
+        User user = threadContext.getTransient(ConfigConstants.SG_USER);
+
+        if (user != null && threadContext.getHeader(ConfigConstants.SG_USER_HEADER) == null) {
+            threadContext.putHeader(ConfigConstants.SG_USER_HEADER, Base64Helper.serializeObject(user));
+        }
+
+        String origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
+
+        if (origin != null && !origin.isEmpty() && threadContext.getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
+            threadContext.putHeader(ConfigConstants.SG_ORIGIN_HEADER, origin);
+        }
+
+        TransportAddress remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+
+        if (remoteAddress != null && threadContext.getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER) == null) {
+            threadContext.putHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER, Base64Helper.serializeObject(remoteAddress.address()));
+        }
+    }
+
     private <Request extends ActionRequest, Response extends ActionResponse> void apply0(Task task, String actionName, Request request,
             ActionListener<Response> listener, ActionFilterChain<Request, Response> chain,
             SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
@@ -191,6 +225,10 @@ public class SearchGuardFilter implements ActionFilter {
             }
 
             org.apache.logging.log4j.ThreadContext.put("user", user != null ? user.getName() : "n/a");
+
+            if (TransportSearchAction.NAME.equals(actionName)) {
+                ensureIdentityHeaders();
+            }
 
             if (actionTrace.isTraceEnabled()) {
 
