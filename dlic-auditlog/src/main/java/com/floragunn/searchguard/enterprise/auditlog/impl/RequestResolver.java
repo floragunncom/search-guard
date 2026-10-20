@@ -15,6 +15,7 @@
 package com.floragunn.searchguard.enterprise.auditlog.impl;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,6 +32,7 @@ import org.elasticsearch.action.admin.cluster.settings.ClusterUpdateSettingsRequ
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
+import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.action.bulk.BulkItemRequest;
 import org.elasticsearch.action.bulk.BulkShardRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -259,7 +261,7 @@ public final class RequestResolver {
             }
 
             if (addSource) {
-                msg.addUnescapedJsonToRequestBody(pr.source());
+                msg.addUnescapedJsonToRequestBody(putMappingSourceAsJson(pr));
             }
 
             if (resolveIndices) {
@@ -326,6 +328,20 @@ public final class RequestResolver {
         }
 
         return new Tuple<XContentType, BytesReference>(type, bytes);
+    }
+
+    /**
+     * Since ES 9.5, PutMappingRequest.source() returns the raw bytes in the original content type instead of a JSON string
+     */
+    private static String putMappingSourceAsJson(PutMappingRequest request) {
+        if (request.source() == null) {
+            return null;
+        }
+        try {
+            return XContentHelper.convertToJson(request.source(), false, request.xContentType());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private static String[] arrayOrEmpty(String[] array) {

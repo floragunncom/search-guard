@@ -18,11 +18,15 @@
 package com.floragunn.searchguard.user;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -77,12 +81,12 @@ public class User implements Serializable, UserInformation, AttributeSource {
         this.subName = subName;
         this.authDomain = authDomainInfo != null ? authDomainInfo.toInfoString() : null;
         this.type = type;
-        this.roles = roles;
-        this.searchGuardRoles = searchGuardRoles;
+        this.roles = roles != null ? new HashSet<>(roles) : null;
+        this.searchGuardRoles = searchGuardRoles != null ? new HashSet<>(searchGuardRoles) : null;
         this.specialAuthzConfig = specialAuthzConfig;
         this.requestedTenant = requestedTenant;
-        this.structuredAttributes = structuredAttributes;
-        this.attributes = attributes;
+        this.structuredAttributes = toSerializableMap(structuredAttributes);
+        this.attributes = attributes != null ? new HashMap<>(attributes) : null;
         this.authzComplete = authzComplete;
     }
 
@@ -115,7 +119,7 @@ public class User implements Serializable, UserInformation, AttributeSource {
         }
 
         if (customAttributes != null) {
-            this.structuredAttributes.putAll(customAttributes.getStructuredAttributes());
+            this.structuredAttributes.putAll(toSerializableMap(customAttributes.getStructuredAttributes()));
         }
 
     }
@@ -346,11 +350,67 @@ public class User implements Serializable, UserInformation, AttributeSource {
     }
 
     public void addStructuredAttribute(String key, Object value) {
-        structuredAttributes.put(key, value);
+        structuredAttributes.put(key, toSerializable(value));
     }
 
     public void addStructuredAttributesByJsonPath(Map<String, JsonPath> jsonPathMap, Object source) {
         Attributes.addAttributesByJsonPath(jsonPathMap, source, this.structuredAttributes);
+        this.structuredAttributes.replaceAll((key, value) -> toSerializable(value));
+    }
+
+    /**
+     * Converts the given attribute map into a mutable map which only contains standard Java collections. See toSerializable().
+     * Returns null if the given map is null.
+     */
+    static Map<String, Object> toSerializableMap(Map<String, Object> map) {
+        if (map == null) {
+            return null;
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>(map.size());
+
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            result.put(entry.getKey(), toSerializable(entry.getValue()));
+        }
+
+        return result;
+    }
+
+    /**
+     * User objects get Java-serialized when they are passed to other nodes (see SearchGuardInterceptor) and since ES 9.5 also right after
+     * authentication (see HeaderHelper.mirrorUserContextIntoHeaders()). Attribute values, however, may be backed by collection implementations
+     * which are not serializable (for example com.floragunn.fluent.collections.ImmutableMap or DocNode). This method recursively copies
+     * maps and collections into standard Java collections. Other values are returned unchanged.
+     */
+    static Object toSerializable(Object value) {
+        if (value instanceof Map) {
+            Map<?, ?> map = (Map<?, ?>) value;
+            Map<Object, Object> result = new LinkedHashMap<>(map.size());
+
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                result.put(toSerializable(entry.getKey()), toSerializable(entry.getValue()));
+            }
+
+            return result;
+        } else if (value instanceof Set) {
+            Set<Object> result = new LinkedHashSet<>(((Set<?>) value).size());
+
+            for (Object element : (Set<?>) value) {
+                result.add(toSerializable(element));
+            }
+
+            return result;
+        } else if (value instanceof Collection) {
+            List<Object> result = new ArrayList<>(((Collection<?>) value).size());
+
+            for (Object element : (Collection<?>) value) {
+                result.add(toSerializable(element));
+            }
+
+            return result;
+        } else {
+            return value;
+        }
     }
 
     public final void addSearchGuardRoles(final Collection<String> sgRoles) {

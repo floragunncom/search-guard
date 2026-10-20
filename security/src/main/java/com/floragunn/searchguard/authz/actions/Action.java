@@ -612,6 +612,12 @@ public interface Action {
                 ImmutableSet.ofArray("indices:admin/data_stream/modify"));
         public static final AdditionalDimension REMOVE_INDEX_FROM_DATA_STREAM = new AdditionalDimension("remove_index_from_data_stream", Scope.INDEX,
                 ImmutableSet.ofArray("indices:admin/data_stream/modify"));
+        /**
+         * Used for the DELETE_BACKING_INDEX action of ModifyDataStreamsAction (added in ES 9.5): The index is removed from the data stream and deleted afterwards.
+         * Thus, the user needs both the modify privilege and the delete privilege on the index.
+         */
+        public static final AdditionalDimension DELETE_INDEX_FROM_DATA_STREAM = new AdditionalDimension("delete_index_from_data_stream", Scope.INDEX,
+                ImmutableSet.ofArray("indices:admin/data_stream/modify", "indices:admin/delete"));
 
         private final String id;
         private final ImmutableSet<String> requiredPrivileges;

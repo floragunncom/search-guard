@@ -187,6 +187,7 @@ public class SearchGuardFilter implements ActionFilter {
 
                 if (user != null && threadContext.getTransient(ConfigConstants.SG_USER) == null) {
                     threadContext.putTransient(ConfigConstants.SG_USER, user);
+                    HeaderHelper.mirrorUserContextIntoHeaders(threadContext);
                 }
             }
 

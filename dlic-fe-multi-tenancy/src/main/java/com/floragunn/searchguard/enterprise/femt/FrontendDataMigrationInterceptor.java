@@ -44,6 +44,7 @@ import org.elasticsearch.rest.RestStatus;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.io.IOException;
 import java.util.Optional;
 import java.util.Set;
 
@@ -139,9 +140,10 @@ class FrontendDataMigrationInterceptor {
 
     private SyncAuthorizationFilter.Result extendIndexMappingWithMultiTenancyData(PutMappingRequest request,
                                                                                   ActionListener<AcknowledgedResponse> listener) {
-        String source = request.source();
-        log.debug("Extend put mappings request for '{}' to support multi tenancy, current mappings '{}'", request.indices(), source);
         try (ThreadContext.StoredContext ctx = threadContext.newStoredContext()) {
+            // Since ES 9.5, PutMappingRequest.source() returns the raw bytes in the original content type instead of a JSON string
+            String source = request.source() != null ? XContentHelper.convertToJson(request.source(), false, request.xContentType()) : null;
+            log.debug("Extend put mappings request for '{}' to support multi tenancy, current mappings '{}'", request.indices(), source);
             Optional<PutMappingRequest> newRequest =  extendMappingsWithMultitenancy(source)
                     .map(docNode -> createExtendedPutMappingRequest(request, docNode));
             if(newRequest.isPresent()) {
@@ -154,7 +156,7 @@ class FrontendDataMigrationInterceptor {
                 log.debug("Extend put mappings request - mappings not extended");
                 return SyncAuthorizationFilter.Result.OK;
             }
-        } catch (DocumentParseException e) {
+        } catch (DocumentParseException | IOException e) {
             String message = "Cannot extend put mappings request with information related to multi tenancy";
             log.error(message, e);
             listener.onFailure(new ElasticsearchStatusException(message, RestStatus.INTERNAL_SERVER_ERROR, e));

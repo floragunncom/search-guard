@@ -50,6 +50,7 @@ import com.floragunn.searchguard.configuration.ConfigurationRepository;
 import com.floragunn.searchguard.configuration.SgDynamicConfiguration;
 import com.floragunn.searchguard.ssl.util.ExceptionUtils;
 import com.floragunn.searchguard.support.ConfigConstants;
+import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.user.AuthDomainInfo;
 import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.action.RestApi;
@@ -151,6 +152,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
 
                     User user = new User(sslPrincipal, AuthDomainInfo.TLS_CERT);
                     threadContext.putTransient(ConfigConstants.SG_USER, user);
+                    HeaderHelper.mirrorUserContextIntoHeaders(threadContext);
                     auditLog.logSucceededLogin(user, true, null, request);
                     original.dispatchRequest(request, channel, threadContext);
                     return;
@@ -172,6 +174,7 @@ public class AuthenticatingRestFilter implements ComponentStateProvider {
                     if (result.getStatus() == AuthcResult.Status.PASS) {
                         // make it possible to filter logs by username
                         threadContext.putTransient(ConfigConstants.SG_USER, result.getUser());
+                        HeaderHelper.mirrorUserContextIntoHeaders(threadContext);
                         org.apache.logging.log4j.ThreadContext.clearAll();
                         org.apache.logging.log4j.ThreadContext.put("user", result.getUser() != null ? result.getUser().getName() : null);
 

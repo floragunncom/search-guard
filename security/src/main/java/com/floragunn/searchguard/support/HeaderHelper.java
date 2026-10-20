@@ -21,6 +21,8 @@ import java.io.Serializable;
 import java.util.Map;
 
 import com.floragunn.searchguard.ssl.util.SSLConfigConstants;
+import com.floragunn.searchguard.user.User;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
 import com.google.common.base.Strings;
@@ -71,5 +73,37 @@ public class HeaderHelper {
     
     public static boolean isTrustedClusterRequest(final ThreadContext context) {
         return context.getTransient(SSLConfigConstants.SG_SSL_TRANSPORT_TRUSTED_CLUSTER_REQUEST) == Boolean.TRUE;
+    }
+
+    /**
+     * Mirrors the user context (user, origin, remote address), which Search Guard keeps in thread context transients, into thread context headers.
+     * <p>
+     * These are the same headers which SearchGuardInterceptor attaches to outgoing transport requests and which SearchGuardRequestHandler
+     * restores into transients on the receiving node. Making them available as thread context headers right from the start is necessary
+     * because Elasticsearch (since 9.5, for example in the chunked fetch phase, see TransportFetchPhaseCoordinationAction) captures
+     * ThreadContext.getHeaders(), stashes the context and later re-applies only the captured headers before sending further transport
+     * requests. Transients do not survive this; without the headers, the receiving node would execute the request without a user
+     * and thus without DLS/FLS/field masking and without audit logging of the user.
+     * <p>
+     * Headers which are already present are not overwritten.
+     */
+    public static void mirrorUserContextIntoHeaders(final ThreadContext context) {
+        User user = context.getTransient(ConfigConstants.SG_USER);
+
+        if (user != null && context.getHeader(ConfigConstants.SG_USER_HEADER) == null) {
+            context.putHeader(ConfigConstants.SG_USER_HEADER, Base64Helper.serializeObject(user));
+        }
+
+        String origin = context.getTransient(ConfigConstants.SG_ORIGIN);
+
+        if (!Strings.isNullOrEmpty(origin) && context.getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
+            context.putHeader(ConfigConstants.SG_ORIGIN_HEADER, origin);
+        }
+
+        TransportAddress remoteAddress = context.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+
+        if (remoteAddress != null && context.getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER) == null) {
+            context.putHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER, Base64Helper.serializeObject(remoteAddress.address()));
+        }
     }
 }
