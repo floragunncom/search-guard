@@ -44,6 +44,7 @@ import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.core.Tuple;
@@ -147,6 +148,24 @@ public class SearchGuardFilter implements ActionFilter {
                 });
     }
 
+    private void ensureUserHeaders(User user) {
+        if (user != null && threadContext.getHeader(ConfigConstants.SG_USER_HEADER) == null) {
+            threadContext.putHeader(ConfigConstants.SG_USER_HEADER, Base64Helper.serializeObject(user));
+        }
+
+        TransportAddress remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+
+        if (remoteAddress != null && threadContext.getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER) == null) {
+            threadContext.putHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER, Base64Helper.serializeObject(remoteAddress.address()));
+        }
+
+        String origin = threadContext.getTransient(ConfigConstants.SG_ORIGIN);
+
+        if (origin != null && threadContext.getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
+            threadContext.putHeader(ConfigConstants.SG_ORIGIN_HEADER, origin);
+        }
+    }
+
     private <Request extends ActionRequest, Response extends ActionResponse> void apply0(Task task, String actionName, Request request,
             ActionListener<Response> listener, ActionFilterChain<Request, Response> chain,
             SpecialPrivilegesEvaluationContext specialPrivilegesEvaluationContext) {
@@ -189,6 +208,14 @@ public class SearchGuardFilter implements ActionFilter {
                     threadContext.putTransient(ConfigConstants.SG_USER, user);
                 }
             }
+
+            // Since ES 9.5, the fetch phase is by default executed via TransportFetchPhaseCoordinationAction ("chunked fetch phase").
+            // That action stashes the thread context and restores only the request *headers* which were captured on the coordinating
+            // node before it sends the actual shard fetch request to the data node. Transients - such as the user - are lost at this
+            // point. Then, the fetch phase would be executed without a user, i.e., without DLS/FLS/FM and without compliance read logging.
+            // Thus, we make sure that the user and related information is also available as headers. This is anyway the representation
+            // used for transport requests (see SearchGuardInterceptor.ensureCorrectHeaders()), so this does not change the semantics.
+            ensureUserHeaders(user);
 
             org.apache.logging.log4j.ThreadContext.put("user", user != null ? user.getName() : "n/a");
 

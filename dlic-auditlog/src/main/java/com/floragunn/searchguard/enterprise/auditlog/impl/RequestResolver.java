@@ -55,6 +55,7 @@ import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.xcontent.XContentType;
 
 import com.floragunn.codova.config.text.Pattern;
@@ -259,7 +260,13 @@ public final class RequestResolver {
             }
 
             if (addSource) {
-                msg.addUnescapedJsonToRequestBody(pr.source() != null ? pr.source().utf8ToString() : null);
+                if (pr.source() != null) {
+                    try {
+                        msg.addUnescapedJsonToRequestBody(XContentHelper.convertToJson(pr.source(), false, pr.xContentType()));
+                    } catch (IOException e) {
+                        log.error("Cannot convert put mapping source to JSON", e);
+                    }
+                }
             }
 
             if (resolveIndices) {
