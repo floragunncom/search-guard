@@ -46,9 +46,11 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
  *
  * The test runs against two indices with identical content:
  * <ul>
- * <li>"suggest" with a single shard, as in the sgi8 test suite.</li>
- * <li>"suggest_multi_shard" with five shards. Elasticsearch only uses batched query execution (one NodeQueryRequest per data
- * node instead of one ShardSearchRequest per shard) when a data node holds at least two shards of the search. DLS on suggest
+ * <li>"suggest" with a single shard, which is the Elasticsearch default for an index created without settings.</li>
+ * <li>"suggest_multi_shard" with five shards and one replica. This is the shape of the index in the sgi8 test suite: the sgi8
+ * post-init installs a legacy index template "default" for all indices with number_of_shards 5 and number_of_replicas 1 (see
+ * sgi8 server/tmpl/docker-compose.tmpl). Elasticsearch only uses batched query execution (one NodeQueryRequest per data node
+ * instead of one ShardSearchRequest per shard) when a data node holds at least two shards of the search. DLS on suggest
  * requests must also work on that path, which the single shard index never exercises.</li>
  * </ul>
  */
