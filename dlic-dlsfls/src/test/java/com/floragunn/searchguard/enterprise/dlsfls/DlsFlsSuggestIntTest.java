@@ -28,6 +28,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.searchguard.test.GenericRestClient;
@@ -41,23 +43,34 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
  *
  * Java port of the sgi8 integration test test_dls_fls_suggest.sh (test suite enterprise_1): same index mapping, same sample
  * documents, same role definition and the same assertions. Uses an external process cluster to run against a real ES.
+ *
+ * The test runs against two indices with identical content:
+ * <ul>
+ * <li>"suggest" with a single shard, as in the sgi8 test suite.</li>
+ * <li>"suggest_multi_shard" with five shards. Elasticsearch only uses batched query execution (one NodeQueryRequest per data
+ * node instead of one ShardSearchRequest per shard) when a data node holds at least two shards of the search. DLS on suggest
+ * requests must also work on that path, which the single shard index never exercises.</li>
+ * </ul>
  */
+@RunWith(Parameterized.class)
 public class DlsFlsSuggestIntTest {
 
-    static final String INDEX = "suggest";
+    static final String INDEX_SINGLE_SHARD = "suggest";
+    static final String INDEX_MULTI_SHARD = "suggest_multi_shard";
+    static final String INDEX_PATTERN = "suggest*";
     static final String SUGGESTION_NAME = "example-suggest";
 
     static final TestSgConfig.User ADMIN = new TestSgConfig.User("admin")
             .roles(new Role("all_access").indexPermissions("*").on("*").clusterPermissions("*"));
 
     /**
-     * Mirrors the sgi8 role sg_suggest_dls: unlimited on the index "suggest", DLS restricts to country US, FLS hides the name field.
+     * Mirrors the sgi8 role sg_suggest_dls: unlimited on the suggest index, DLS restricts to country US, FLS hides the name field.
      */
     static final TestSgConfig.User SUGGEST_DLS_USER = new TestSgConfig.User("suggest_dls").roles(//
             new Role("sg_suggest_dls").indexPermissions("SGS_UNLIMITED")//
                     .dls("{ \"bool\": { \"must\": { \"match\": { \"country\": \"US\" }}}}")//
                     .fls("~name")//
-                    .on(INDEX));
+                    .on(INDEX_PATTERN));
 
     static final TestSgConfig.Authc AUTHC = new TestSgConfig.Authc(new TestSgConfig.Authc.Domain("basic/internal_users_db"));
     static final TestSgConfig.DlsFls DLSFLS = new TestSgConfig.DlsFls();
@@ -74,30 +87,34 @@ public class DlsFlsSuggestIntTest {
     @BeforeClass
     public static void setupTestData() throws Exception {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
-            // Same mapping as sgi8 shared/sampledata/mappings_suggest.json. A single shard keeps the option order deterministic,
-            // which the "first option is Jane Doe" assertion below depends on.
-            HttpResponse response = client.putJson("/" + INDEX, DocNode.of(//
-                    "settings.index.number_of_shards", 1, //
-                    "mappings.properties.country.type", "text", //
-                    "mappings.properties.name.type", "text", //
-                    "mappings.properties.suggest.type", "completion"));
-            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-
-            // Same documents as sgi8 shared/sampledata/suggest.json
-            List<DocNode> bulk = new ArrayList<>();
-            addDocument(bulk, "1", "John Doe", "US", "511 Church St, Richmond, Vic 3121");
-            addDocument(bulk, "2", "Jane Doe", "US", "511 Church Avenue, Washington, Vic 3121");
-            addDocument(bulk, "3", "Hans Meier", "DE", "511 Church Strasse, Bamberg");
-            addDocument(bulk, "4", "Helene Meier", "DE", "511 Church Platz, München");
-            addDocument(bulk, "5", "Herman Miller", "US", "Church Avenue, Washington, Vic 3121");
-            addDocument(bulk, "6", "Paul Smith", "US", "The Church Avenue, Washington, Vic 3121");
-            addDocument(bulk, "7", "Peter Schmidt", "DE", "The Church Avenue, Berlin");
-            addDocument(bulk, "8", "Mark Hamilton", "US", "Totally different address");
-
-            response = client.putNdJson("/" + INDEX + "/_bulk?refresh=true", bulk.toArray(new DocNode[0]));
-            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
-            Assert.assertEquals(response.getBody(), Boolean.FALSE, response.getBodyAsDocNode().get("errors"));
+            createIndex(client, INDEX_SINGLE_SHARD, 1);
+            createIndex(client, INDEX_MULTI_SHARD, 5);
         }
+    }
+
+    private static void createIndex(GenericRestClient client, String index, int shards) throws Exception {
+        // Same mapping as sgi8 shared/sampledata/mappings_suggest.json
+        HttpResponse response = client.putJson("/" + index, DocNode.of(//
+                "settings.index.number_of_shards", shards, //
+                "mappings.properties.country.type", "text", //
+                "mappings.properties.name.type", "text", //
+                "mappings.properties.suggest.type", "completion"));
+        Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+
+        // Same documents as sgi8 shared/sampledata/suggest.json
+        List<DocNode> bulk = new ArrayList<>();
+        addDocument(bulk, "1", "John Doe", "US", "511 Church St, Richmond, Vic 3121");
+        addDocument(bulk, "2", "Jane Doe", "US", "511 Church Avenue, Washington, Vic 3121");
+        addDocument(bulk, "3", "Hans Meier", "DE", "511 Church Strasse, Bamberg");
+        addDocument(bulk, "4", "Helene Meier", "DE", "511 Church Platz, München");
+        addDocument(bulk, "5", "Herman Miller", "US", "Church Avenue, Washington, Vic 3121");
+        addDocument(bulk, "6", "Paul Smith", "US", "The Church Avenue, Washington, Vic 3121");
+        addDocument(bulk, "7", "Peter Schmidt", "DE", "The Church Avenue, Berlin");
+        addDocument(bulk, "8", "Mark Hamilton", "US", "Totally different address");
+
+        response = client.putNdJson("/" + index + "/_bulk?refresh=true", bulk.toArray(new DocNode[0]));
+        Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+        Assert.assertEquals(response.getBody(), Boolean.FALSE, response.getBodyAsDocNode().get("errors"));
     }
 
     private static void addDocument(List<DocNode> bulk, String id, String name, String country, String suggest) {
@@ -105,10 +122,21 @@ public class DlsFlsSuggestIntTest {
         bulk.add(DocNode.of("name", name, "country", country, "suggest", suggest));
     }
 
+    private final String index;
+
+    public DlsFlsSuggestIntTest(String index) {
+        this.index = index;
+    }
+
+    @Parameterized.Parameters(name = "{0}")
+    public static Object[] parameters() {
+        return new Object[] { INDEX_SINGLE_SHARD, INDEX_MULTI_SHARD };
+    }
+
     @Test
     public void admin_seesAllCountriesAndNames() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
-            HttpResponse response = client.postJson("/" + INDEX + "/_search?pretty=true", SUGGEST_QUERY);
+            HttpResponse response = client.postJson("/" + index + "/_search?pretty=true", SUGGEST_QUERY);
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
             List<DocNode> options = getOptions(response);
@@ -121,7 +149,7 @@ public class DlsFlsSuggestIntTest {
     @Test
     public void suggestDlsUser_seesOnlyUsAndNoName() throws Exception {
         try (GenericRestClient client = cluster.getRestClient(SUGGEST_DLS_USER)) {
-            HttpResponse response = client.postJson("/" + INDEX + "/_search?pretty=true", SUGGEST_QUERY);
+            HttpResponse response = client.postJson("/" + index + "/_search?pretty=true", SUGGEST_QUERY);
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
 
             List<DocNode> options = getOptions(response);
