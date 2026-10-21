@@ -22,6 +22,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.core.CheckedConsumer;
+import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.xcontent.DeprecationHandler;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.ToXContent;
@@ -152,6 +153,11 @@ public class ObjectTreeXContent implements XContent {
 
         @Override
         public void close() throws IOException {
+
+        }
+
+        @Override
+        public void closeAllowIllFormed() throws IOException {
 
         }
 
@@ -316,6 +322,12 @@ public class ObjectTreeXContent implements XContent {
         @Override
         public void writeString(char[] text, int offset, int len) throws IOException {
             addObject(new String(text, offset, len));
+        }
+
+        @Override
+        public void writeString(Reader reader, int len) throws IOException {
+            // len may be -1 (unknown length); ES callers always pass the reader's full length anyway
+            writeString(Streams.copyToString(reader));
         }
 
         @Override

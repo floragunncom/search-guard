@@ -1,0 +1,1914 @@
+ ▐▛███▛█   Claude Code v2.1.306
+▝▜██████▀  Fable 5.1 · Claude API
+ ▝▝   ▝▝   /work
+
+  Get to finished work sooner with Opus 5.5. Switch anytime with /model.
+  ⎿  SessionStart:startup hook error
+  ⎿  Failed with non-blocking status code: bash: 
+     /work/.claude/hooks/session-start.sh: No such file or directory
+
+❯ /model                                                                        
+  ⎿  Set model to Fable 5.1 and saved as your default for new sessions
+          ANTHROPIC_MODEL is set to Opus 5 — new sessions use that while it is 
+     set
+
+● Auto mode lets Claude handle permission prompts automatically — Claude
+  checks each tool call for risky actions and prompt injection before 
+  executing. Actions Claude identifies as safe are executed, while 
+  actions Claude identifies as risky are blocked and Claude may try a 
+  different approach. Ideal for long-running tasks. Sessions are 
+  slightly more expensive. Claude can make mistakes that allow harmful 
+  commands to run, it's recommended to only use in isolated 
+  environments. Shift+Tab to change mode.
+
+❯ /version-bump 9.5.5                                                           
+
+● I'll run the version bump to Elasticsearch 9.5.5, starting with preflight
+  checks.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Preflight checks pass—9.4.3 is only referenced in the root pom and the target
+  version exists on Maven Central, with notable dependency changes including
+  Lucene, log4j, netty updates, and a new elasticsearch-ip-location-api
+  dependency. Now bumping the pom version and starting the compile. · summary
+
+● Bash(sed -i 's#<elasticsearch.version>9.4.3</elasticsearch.version>#<elasticse
+      arch.version>9.5.5</elasticsearch.version>#' pom.xml && grep -n
+      "elasticsearch.version>…)
+  ⎿  49:    <elasticsearch.version>9.5.5</elasticsearch.version>
+     MAVEN_ARGS=-Dmaven.repo.local=/home/node/.cache/maven
+     Apache Maven 3.9.16 (2bdd9fddda4b155ebf8000e807eb73fd829a51d5)
+     … +49 lines (ctrl+o to expand)
+  ⎿  Updated pom.xml (+1 -1)
+      46    </distributionManagement>
+      47  
+      48    <properties>
+      49 -    <elasticsearch.version>9.4.3</elasticsearch.version>       
+      49 +    <elasticsearch.version>9.5.5</elasticsearch.version>       
+      50      <sg-suite.version>master-SNAPSHOT</sg-suite.version>
+      51      <revision>${sg-suite.version}-es-${elasticsearch.version}</
+          revision>
+      52  
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● While that compiles, I'll pull the ES release notes for 9.5.x and the server
+  module-info from the ES source tag.
+
+● Fetch(https://www.elastic.co/docs/release-notes/elasticsearch)
+  ⎿  Received 576.2KB (200 OK)
+
+● Fetch(https://www.elastic.co/docs/release-notes/elasticsearch/breaking-changes
+       )
+  ⎿  Received 23.4KB (200 OK)
+
+● Fetch(https://discuss.elastic.co/c/announcements/security-announcements/31)
+  ⎿  Received 59KB (200 OK)
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Background command "Run full install with tests skipped (compiles main and
+test sources)" completed (exit code 0)
+
+  Read 1 file (ctrl+o to expand)
+
+● First compile errors in the support module: BulkByScrollResponse moved and
+  XContentGenerator gained an abstract closeAllowIllFormed(). Looking at the
+  real new API.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● ES renamed the whole BulkByScroll* family to BulkByPaginatedSearch* (reindex
+  moved from scroll to point-in-time). Let me map every reindex symbol Search
+  Guard uses against the new jar.
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● ResumeReindexAction already existed in 9.4.3, so the reindex change is a pure
+  rename. Applying the renames and the generator fix, then resuming the build.
+
+● Bash(FILES=$(grep -rl "BulkByScroll" --include=*.java
+      dlic-fe-multi-tenancy/src signals/src support/src) && echo "$FILES" && sed
+      -i 's/BulkByScrollResponse/BulkByPag…)
+  ⎿  dlic-fe-multi-tenancy/src/test/java/com/floragunn/searchguard/enterpri
+     se/femt/datamigration880/service/steps/DeleteGlobalIndexContentStepTes
+     t.java
+     … +37 lines (ctrl+o to expand)
+  ⎿  Updated dlic-fe-multi-tenancy/src/test/java/com/floragunn/searchguard/
+     enterprise/femt/datamigration880/service/steps/DeleteGlobalIndexConten
+     tStepTest.java (+3 -3)
+      17  import com.floragunn.searchguard.enterprise.femt.datamigration8
+          80.service.DataMigrationContext;
+      18  import com.floragunn.searchguard.enterprise.femt.datamigration8
+          80.service.StepResult;
+      19  import org.elasticsearch.common.Strings;
+      20 -import org.elasticsearch.index.reindex.BulkByScrollResponse;   
+      20 +import org.elasticsearch.index.reindex.BulkByPaginatedSearchRes
+         +ponse;                                                         
+      21  import org.junit.Before;
+      22  import org.junit.Test;
+      23  import org.junit.runner.RunWith;
+     ...
+      41      private StepRepository stepRepository;
+      42      private DataMigrationContext context;
+      43  
+      44 -    private BulkByScrollResponse deletionResponse;             
+      44 +    private BulkByPaginatedSearchResponse deletionResponse;    
+      45  
+      46      // under tests
+      47      private DeleteGlobalIndexContentStep step;
+     ...
+      75      public void before() {
+      76          this.stepRepository = mock(StepRepository.class);
+      77          this.context = mock(DataMigrationContext.class);
+      78 -        this.deletionResponse = mock(BulkByScrollResponse.class
+         -);                                                             
+      78 +        this.deletionResponse = mock(BulkByPaginatedSearchRespo
+         +nse.class);                                                    
+      79          this.step = new DeleteGlobalIndexContentStep(stepReposi
+          tory);
+      80      }
+      81  
+  ⎿  Updated dlic-fe-multi-tenancy/src/test/java/com/floragunn/searchguard/
+     enterprise/femt/datamigration880/service/steps/CopyDataToGlobalIndexSt
+     epTest.java (+5 -5)
+      18  import com.floragunn.searchguard.enterprise.femt.datamigration8
+          80.service.StepResult;
+      19  import org.apache.logging.log4j.LogManager;
+      20  import org.apache.logging.log4j.Logger;
+      21 -import org.elasticsearch.index.reindex.BulkByScrollResponse;   
+      22 -import org.elasticsearch.index.reindex.BulkByScrollTask;       
+      23 -import org.elasticsearch.index.reindex.BulkByScrollTask.StatusO
+         -rException;                                                    
+      21 +import org.elasticsearch.index.reindex.BulkByPaginatedSearchRes
+         +ponse;                                                         
+      22 +import org.elasticsearch.index.reindex.BulkByPaginatedSearchTas
+         +k;                                                             
+      23 +import org.elasticsearch.index.reindex.BulkByPaginatedSearchTas
+         +k.StatusOrException;                                           
+      24  import org.junit.Before;
+      25  import org.junit.Test;
+      26  import org.junit.runner.RunWith;
+     ...
+      67      private DataMigrationContext context;
+      68  
+      69      @Mock
+      70 -    private BulkByScrollResponse reindexResponse;              
+      70 +    private BulkByPaginatedSearchResponse reindexResponse;     
+      71  
+      72      @Mock
+      73 -    private BulkByScrollTask.Status status;                    
+      73 +    private BulkByPaginatedSearchTask.Status status;           
+      74  
+      75      private CopyDataToGlobalIndexStep step;
+      76  
+  ⎿  Updated dlic-fe-multi-tenancy/src/test/java/com/floragunn/searchguard/
+     enterprise/femt/datamigration880/service/steps/CreateBackupOfGlobalInd
+     exStepTest.java (+5 -5)
+      20  import com.floragunn.searchguard.enterprise.femt.datamigration8
+          80.service.TenantIndex;
+      21  import org.apache.logging.log4j.LogManager;
+      22  import org.apache.logging.log4j.Logger;
+      23 -import org.elasticsearch.index.reindex.BulkByScrollResponse;   
+      24 -import org.elasticsearch.index.reindex.BulkByScrollTask;       
+      25 -import org.elasticsearch.index.reindex.BulkByScrollTask.StatusO
+         -rException;                                                    
+      23 +import org.elasticsearch.index.reindex.BulkByPaginatedSearchRes
+         +ponse;                                                         
+      24 +import org.elasticsearch.index.reindex.BulkByPaginatedSearchTas
+         +k;                                                             
+      25 +import org.elasticsearch.index.reindex.BulkByPaginatedSearchTas
+         +k.StatusOrException;                                           
+      26  import org.junit.Before;
+      27  import org.junit.Test;
+      28  import org.junit.runner.RunWith;
+     ...
+      63      private IndexSettingsManager indexSettingsManager;
+      64  
+      65      @Mock
+      66 -    private BulkByScrollResponse response;                     
+      66 +    private BulkByPaginatedSearchResponse response;            
+      67  
+      68      @Mock
+      69 -    private BulkByScrollTask.Status responseStatus;            
+      69 +    private BulkByPaginatedSearchTask.Status responseStatus;   
+      70  
+      71      private DataMigrationContext context;
+      72  
+  ⎿  Updated
+     dlic-fe-multi-tenancy/src/test/java/com/floragunn/searchguard/enterpri
+     se/femt/request/handler/TenantScopedActionListenerWrapperTest.java (+2
+     -2)
+      19  import org.elasticsearch.action.ActionResponse;
+      20  import org.elasticsearch.client.internal.node.NodeClient;
+      21  import org.elasticsearch.common.util.concurrent.ThreadContext;
+      22 -import org.elasticsearch.index.reindex.BulkByScrollResponse;   
+      22 +import org.elasticsearch.index.reindex.BulkByPaginatedSearchRes
+         +ponse;                                                         
+      23  import org.elasticsearch.index.reindex.UpdateByQueryAction;
+      24  import org.elasticsearch.index.reindex.UpdateByQueryRequest;
+      25  import org.junit.Test;
+     ...
+      44      @Mock
+      45      private ThreadContext.StoredContext context;
+      46      @Mock
+      47 -    private Unscoper<BulkByScrollResponse> unscoper;           
+      47 +    private Unscoper<BulkByPaginatedSearchResponse> unscoper;  
+      48  
+      49      @Test
+      50      public void shouldCallDelegateOnFailure_whenExecutionFails(
+          ) {
+  ⎿  Updated dlic-fe-multi-tenancy/src/main/java/com/floragunn/searchguard/
+     enterprise/femt/datamigration880/service/steps/CreateBackupOfGlobalInd
+     exStep.java (+3 -3)
+      18  import com.floragunn.searchguard.enterprise.femt.datamigration8
+          80.service.MigrationStep;
+      19  import com.floragunn.searchguard.enterprise.femt.datamigration8
+          80.service.StepResult;
+      20  import com.google.common.base.Throwables;
+      21 -import org.elasticsearch.index.reindex.BulkByScrollResponse;   
+      22 -import org.elasticsearch.index.reindex.BulkByScrollTask.StatusO
+         -rException;                                                    
+      21 +import org.elasticsearch.index.reindex.BulkByPaginatedSearchRes
+         +ponse;                                                         
+      22 +import org.elasticsearch.index.reindex.BulkByPaginatedSearchTas
+         +k.StatusOrException;                                           
+      23  
+      24  import java.util.List;
+      25  import java.util.Objects;
+     ...
+      48          }
+      49          String backupDestination = context.getBackupIndexName()
+          ;
+      50          indexSettingsManager.createIndexWithClonedSettings(back
+          upSource, backupDestination, false);
+      51 -        BulkByScrollResponse response = repository.reindexData(
+         -backupSource, backupDestination);                              
+      51 +        BulkByPaginatedSearchResponse response = repository.rei
+         +ndexData(backupSource, backupDestination);                     
+      52          StringBuilder details = new StringBuilder("Backup of ")
+          .append(response.getTotal()).append( " documents ")//
+      53              .append("from index '").append(backupSource).append
+          ("' placed in '").append(backupDestination).append("'. ")
+      54              .append("It took ").append(response.getTook()).appe
+          nd(", ") //
+  ⎿  … 8 more files changed
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● While the build runs, I'll diff the ES action and plugin packages between
+  9.4.3 and 9.5.5 to find new transport actions or extension points Search Guard
+  would need to cover.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Background command "Resume install build from the support module" completed
+(exit code 0)
+
+  Read 1 file (ctrl+o to expand)
+
+● Another new abstract method, writeString(Reader, int). Let me list all
+  abstract methods on the new interface against what our two stub generators
+  implement, so I fix everything at once.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Adding writeString(Reader, int) to both stub generators by reading the chars
+  and delegating to the existing char[] overload, then resuming the build.
+
+  Searched for 1 pattern, ran 3 shell commands (ctrl+o to expand)
+● Background command "Add writeString(Reader,int) to both generators and resume
+the install build" completed (exit code 0)
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● The build now fails in security at a switch over data stream modify actions
+  due to the new DELETE_BACKING_INDEX type — the first genuinely
+  security-relevant change found. I'll examine that code and check how Search
+  Guard handles the new DATASET index abstraction type and whether ES
+  feature-flags it. · summary
+
+  Searched for 1 pattern, listed 1 directory, ran 11 shell commands (ctrl+o to expand)
+
+● Fetch(https://www.elastic.co/docs/release-notes/elasticsearch)
+  ⎿  Received 576.2KB (200 OK)
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+● Bash(SP=/tmp/claude-1000/-work/e66402b3-6a77-4276-977c-a03a8de10951/scratchpad
+      /es-src; cd $SP; echo "=== reindex management action names (9.5.5
+      modules/reindex)"; gr…)
+  ⎿  === reindex management action names (9.5.5 modules/reindex)
+     es955/modules/reindex/src/main/java/org/elasticsearch/reindex/ReindexP
+     lugin.java:46:    public static final ActionType<ListTasksResponse> RE
+     … +70 lines (ctrl+o to expand)
+  ⎿  Shell cwd was reset to /work
+  ⎿  Updated security/src/main/java/com/floragunn/searchguard/authz/actions
+     /ActionRequestIntrospector.java (+1 -0)
+      140                      Action.AdditionalDimension additionalDimen
+           sion = switch (type) {
+      141                          case ADD_BACKING_INDEX -> Action.Addit
+           ionalDimension.ADD_INDEX_TO_DATA_STREAM;
+      142                          case REMOVE_BACKING_INDEX -> Action.Ad
+           ditionalDimension.REMOVE_INDEX_FROM_DATA_STREAM;
+      143 +                        case DELETE_BACKING_INDEX -> Action.Ad
+          +ditionalDimension.DELETE_INDEX;                               
+      144                      };
+      145                      result = result.with(ImmutableSet.of(dataS
+           tream), EXACT, Scope.INDICES_DATA_STREAMS)
+      146                              .additional(additionalDimension, I
+           mmutableList.of(index), EXACT, Scope.INDEX);
+  ⎿  Updated security/src/main/java/com/floragunn/searchguard/authz/actions
+     /Actions.java (+1 -0)
+      319          open(WhoAmIAction.INSTANCE);
+      320  
+      321          dataStream("indices:admin/data_stream/create");
+      322 +        dataStream("indices:admin/data_stream/auto_create_past
+          +_tsdb");                                                      
+      323          dataStream("indices:admin/data_stream/get");
+      324          dataStream("indices:admin/data_stream/migrate");
+      325          dataStream("indices:admin/data_stream/modify");
+  ⎿  Updated
+     security/src/main/resources/static_config/static_action_groups.yml (+1
+     -0)
+      63    - "indices:admin/mapping/put"
+      64    - "indices:admin/mapping/auto_put"
+      65    - "indices:admin/auto_create"
+      66 +  - "indices:admin/data_stream/auto_create_past_tsdb"          
+      67    type: "index"
+      68    description: "Allow creating new indices"
+      69  SGS_CREATE_DATA_STREAM:
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● While the build runs in the background, I'm reviewing how ES triggers the
+  past-TSDB index action and how X-Pack handles the resume/OTLP actions to
+  determine what Search Guard needs to cover and plan the tests. · summary
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● Background command "Port DELETE_BACKING_INDEX, register the past-TSDB action
+and resume the install build from security" completed (exit code 0)
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Main code of security compiles now. A test uses a BulkShardRequest constructor
+  that gained a SplitShardCountSummary parameter. Checking the new API and the
+  test line.
+
+  Searched for 1 pattern, ran 4 shell commands (ctrl+o to expand)
+
+● Background command "Fix BulkShardRequest constructor calls in two tests and
+resume the install build" completed (exit code 0)
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● The RealtimeRequest interface was removed upstream, but the four request
+  classes still have their realtime(boolean) setter—I'll check those concrete
+  classes, confirm the semantics are unchanged, then resume the build. · summary
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+● Web Search("Elasticsearch 9.5.5 security advisory ESA-2026-199 ESA-2026-198
+            ESA-2026-195 ESA-2026-190 ESA-2026-189 ESA-2026-185 CVE")
+  ⎿  Did 1 search in 11s
+
+● Background command "Replace RealtimeRequest usage with concrete request
+classes and resume the build from dlsfls" completed (exit code 0)
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● The build has moved to dlic-fe-multi-tenancy with three more API breaks in
+  SearchHits and SearchResponse. Looking at the real new signatures and the call
+  sites.
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+● Bash(python3 -I - <<'EOF'
+      f = "security/src/test/java/com/floragunn/searchguard/authz/int_tests/Data
+      StreamAddRemoveIndicesTest.java"…)
+  ⎿  test patched
+      .../auditlog/impl/IgnoreRequestBodiesTest.java     |  3 +-
+      .../searchguard/enterprise/dlsfls/DlsFlsValve.java | 15 +++-
+     … +20 lines (ctrl+o to expand)
+  ⎿  Updated security/src/test/java/com/floragunn/searchguard/authz/int_tes
+     ts/DataStreamAddRemoveIndicesTest.java (+83 -1)
+      27      public static final String INDEX_DS_ADDITION_POSITIVE = "in
+          dex_ds_addition_positive";
+      28      public static final String DS_TEST_REMOVE_INDEX_POSITIVE = 
+          "ds_test_remove_index_positive";
+      29      public static final String DS_TEST_MIXED_OPERATIONS = "ds_t
+          est_mixed_operations";
+      30 +    public static final String DS_TEST_DELETE_INDEX_POSITIVE = 
+         +"ds_test_delete_index_positive";                               
+      31 +    public static final String DS_TEST_DELETE_INDEX_MODIFY_ONLY
+         + = "ds_test_delete_index_modify_only";                         
+      32  
+      33      static TestSgConfig.User USER_NO_PERMISSIONS = new TestSgCo
+          nfig.User("no_permissions")
+      34              .roles(new TestSgConfig.Role("no_permissions").clus
+          terPermissions().indexPermissions().on().aliasPermissions().on(
+          ).dataStreamPermissions().on());
+     ...
+      51                      .aliasPermissions().on()
+      52                      .dataStreamPermissions("indices:admin/data_
+          stream/modify").on(DS_TEST_REMOVE_INDEX_POSITIVE));
+      53  
+      54 +    static TestSgConfig.User USER_WITH_PERMISSIONS_TO_DELETE = 
+         +new TestSgConfig.User("with_permissions_to_delete")            
+      55 +            .roles(new TestSgConfig.Role("with_permissions_to_d
+         +elete").clusterPermissions()                                   
+      56 +                    .indexPermissions("indices:admin/data_strea
+         +m/modify").on(".ds-ds_test_delete_index*")                     
+      57 +                    .indexPermissions("indices:admin/delete").o
+         +n(".ds-" + DS_TEST_DELETE_INDEX_POSITIVE + "*")                
+      58 +                    .aliasPermissions().on()                   
+      59 +                    .dataStreamPermissions("indices:admin/data_
+         +stream/modify").on("ds_test_delete_index*"));                  
+      60 +                                                               
+      61      @ClassRule
+      62      public static LocalCluster cluster = new LocalCluster.Build
+          er().singleNode().sslEnabled()
+      54 -            .users(USER_NO_PERMISSIONS, USER_WITH_PERMISSIONS_T
+         -O_ADD, USER_WITH_PERMISSIONS_TO_REMOVE, USER_WITH_MIXED_PERMISS
+         -IONS)//                                                        
+      63 +            .users(USER_NO_PERMISSIONS, USER_WITH_PERMISSIONS_T
+         +O_ADD, USER_WITH_PERMISSIONS_TO_REMOVE, USER_WITH_MIXED_PERMISS
+         +IONS,                                                          
+      64 +                    USER_WITH_PERMISSIONS_TO_DELETE)//         
+      65              .indexTemplates(new TestIndexTemplate("ds_test", "d
+          s_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM
+          _MINIMAL))//
+      66              .authzDebug(true)//
+      67              .enterpriseModulesEnabled()
+     ...
+      251          }
+      252      }
+      253  
+      254 +    @Test                                                     
+      255 +    public void deleteIndexFromDataStream_noPermission() throw
+          +s Exception {                                                 
+      256 +        try (GenericRestClient client = cluster.getRestClient(
+          +USER_NO_PERMISSIONS)) {                                       
+      257 +            String dsName = "ds_test_delete_index";           
+      258 +            createDataStream(dsName);                         
+      259 +            rolloverDataStream(dsName);                       
+      260 +            List<String> dsBackingIndexNames = getDsBackingInd
+          +exNames(dsName);                                              
+      261 +            assertThat(dsBackingIndexNames, hasSize(2));      
+      262 +            String dsBackingIndexToDelete = dsBackingIndexName
+          +s.get(0);                                                     
+      263 +                                                              
+      264 +            GenericRestClient.HttpResponse response = client.p
+          +ostJson("/_data_stream/_modify", deleteBackingIndexRequest(dsN
+          +ame, dsBackingIndexToDelete));                                
+     … 64 more lines (ctrl+o to expand)
+
+  Ran 6 shell commands (ctrl+o to expand)
+
+● Background command "Port SearchMapper, the migration interceptor and the
+Signals test to the new ES APIs, then resume the build" completed (exit code 0)
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Continuing the module-by-module compile fixes, I'm now in the audit log module
+  where SourceToParse.source() and PutMappingRequest.source() have changed
+  return types. Checking both call sites against the new type before updating
+  them. · summary
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+● The audit log edit did not apply because the file has six, not five, call
+  sites. Applying it now with the right count.
+
+● Bash(python3 -I - <<'EOF'
+      f = "dlic-auditlog/src/main/java/com/floragunn/searchguard/enterprise/audi
+      tlog/impl/AbstractAuditLog.java"…)
+  ⎿  patched
+     -                            DeprecationHandler.THROW_UNSUPPORTED_OPER
+     ATION, currentIndex.source(), XContentType.JSON)) {
+     … +21 lines (ctrl+o to expand)
+  ⎿  Updated dlic-auditlog/src/main/java/com/floragunn/searchguard/enterpri
+     se/auditlog/impl/AbstractAuditLog.java (+6 -6)
+      727                      }
+      728  
+      729                      try (XContentParser parser = XContentHelpe
+           r.createParser(NamedXContentRegistry.EMPTY,
+      730 -                            DeprecationHandler.THROW_UNSUPPORT
+          -ED_OPERATION, currentIndex.source(), XContentType.JSON)) {    
+      730 +                            DeprecationHandler.THROW_UNSUPPORT
+          +ED_OPERATION, currentIndex.source().originalBytes(), XContentT
+          +ype.JSON)) {                                                  
+      731                          Object base64 = parser.map().values().
+           iterator().next();
+      732                          if (base64 instanceof String) {
+      733                              currentSource = (new String(BaseEn
+           coding.base64().decode((String) base64)));
+      734                          } else {
+      735 -                            currentSource = XContentHelper.con
+          -vertToJson(currentIndex.source(), false, XContentType.JSON);  
+      735 +                            currentSource = XContentHelper.con
+          +vertToJson(currentIndex.source().originalBytes(), false, XCont
+          +entType.JSON);                                                
+      736                          }
+      737                      } catch (Exception e) {
+      738                          log.error(e);
+      739                      }
+      740                  } else {
+      741                      originalSource = XContentHelper.convertToJ
+           son(originalResult.internalSourceRef(), false, XContentType.JS
+           ON);
+      742 -                    currentSource = XContentHelper.convertToJs
+          -on(currentIndex.source(), false, XContentType.JSON);          
+      742 +                    currentSource = XContentHelper.convertToJs
+          +on(currentIndex.source().originalBytes(), false, XContentType.
+          +JSON);                                                        
+      743                  }
+      744                  DocNode originalDocument = DocNode.parse(Forma
+           t.JSON).from(originalSource);
+      745                  DocNode currentDocument = DocNode.parse(Format
+           .JSON).from(currentSource);
+     ...
+      756              if (searchguardIndexPattern.matches(shardId.getInd
+           exName())) {
+      757                  //current source, normally not null or empty
+      758                  try (XContentParser parser = XContentHelper.cr
+           eateParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THR
+           OW_UNSUPPORTED_OPERATION,
+      759 -                        currentIndex.source(), XContentType.JS
+          -ON)) {                                                        
+      759 +                        currentIndex.source().originalBytes(),
+          + XContentType.JSON)) {                                        
+      760                      Object base64 = parser.map().values().iter
+           ator().next();
+      761                      if (base64 instanceof String) {
+      762                          msg.addUnescapedJsonToRequestBody(new 
+           String(BaseEncoding.base64().decode((String) base64)));
+      763                      } else {
+      764 -                        msg.addTupleToRequestBody(new Tuple<XC
+          -ontentType, BytesReference>(XContentType.JSON, currentIndex.so
+          -urce()));                                                     
+      764 +                        msg.addTupleToRequestBody(new Tuple<XC
+          +ontentType, BytesReference>(XContentType.JSON, currentIndex.so
+          +urce().originalBytes()));                                     
+      765                      }
+      766                  } catch (Exception e) {
+      767                      log.error(e);
+     ...
+      775                  //msg.ComplianceWritePreviousSource(new Tuple<
+           XContentType, BytesReference>(XContentType.JSON, originalResul
+           t.internalSourceRef()));
+      776  
+      777                  //current source, normally not null or empty
+      778 -                msg.addTupleToRequestBody(new Tuple<XContentTy
+          -pe, BytesReference>(XContentType.JSON, currentIndex.source()))
+          -;                                                             
+     … 4 more lines (ctrl+o to expand)
+  ⎿  Updated dlic-auditlog/src/main/java/com/floragunn/searchguard/enterpri
+     se/auditlog/impl/RequestResolver.java (+1 -1)
+      259              }
+      260  
+      261              if (addSource) {
+      262 -                msg.addUnescapedJsonToRequestBody(pr.source())
+          -;                                                             
+      262 +                msg.addUnescapedJsonToRequestBody(pr.source().
+          +utf8ToString());                                              
+      263              }
+      264  
+      265              if (resolveIndices) {
+
+● Background command "Resume the install build from the audit log module"
+completed (exit code 0)
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● The whole project now compiles against ES 9.5.5. Next I'm adding the
+  integration test for the new past-TSDB index creation action, and looking up
+  the exact test class names for the targeted test run.
+
+  Ran 1 shell command (ctrl+o to expand)
+● Write(security/src/test/java/com/floragunn/searchguard/authz/int_tests/DataStr
+       eamPastTsdbIndexCreationIntTest.java)
+  ⎿  Wrote 140 lines to security/src/test/java/com/floragunn/searchguard/au
+     thz/int_tests/DataStreamPastTsdbIndexCreationIntTest.java
+       1 /*
+       2  * Copyright 2026 floragunn GmbH
+       4  * Licensed under the Apache License, Version 2.0 (the "License"
+         );
+       5  * you may not use this file except in compliance with the Licen
+       6  * You may obtain a copy of the License at
+       7  *
+       8  *     http://www.apache.org/licenses/LICENSE-2.0
+      10  * Unless required by applicable law or agreed to in writing, so
+         ftware
+     … +182 lines (ctrl+o to expand)
+  ⎿  Loaded .claude/rules/testing.md
+
+● Compile is green across all modules. Now running the targeted tests for every
+  touched class in the background, and in parallel getting independent
+  compatibility and simplicity reviews of the diff.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● 2 background agents launched (↓ to manage)
+   ├ compat-reviewer (Compat review of ES 9.5.5 bump)
+   └ simplicity-reviewer (Simplicity review of ES bump diff)
+
+  Ran 5 shell commands, wrote 1 memory (ctrl+o to expand)
+
+● Waiting on the targeted test run and the two review agents. Meanwhile,
+  checking how the full-suite run must be recorded for the stop hook and which
+  tests mvn test includes.
+
+  Listed 1 directory (ctrl+o to expand)
+
+● Nothing else can proceed until the targeted tests and the two reviews come
+  back, so I'm waiting on those notifications.
+
+● Ran 1 stop hook (ctrl+o to expand)
+  ⎿  Stop hook error: [bash
+  "$CLAUDE_PROJECT_DIR"/.claude/hooks/stop-check.sh]: Before you finish:
+  - No completed full unit-test suite run in .ai-runs/full-suite/ (about
+  10 minutes; if one is running, wait for ALL_DONE). See CLAUDE.md
+  "Tests".
+  If you skipped this on purpose (you only re-ran the tests that failed
+  in the last full run, or you are
+  stopping to ask the user for a decision), say so in one line and stop.
+
+
+● The targeted test run is still in progress; the full suite comes after it.
+  Checking progress of the targeted run.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● The support module passed. The security module tests (including the two
+  external-process cluster tests) are running now. I'm skipping the full suite
+  for the moment on purpose: it must not run concurrently with the targeted run,
+  and I will start it as soon as the targeted run and the reviews report back.
+
+✻ Baked for 20m 59s · done 3:23 PM
+
+› Message from simplicity-reviewer
+  Size/simplicity review of the ES 9.4.3 -> 9.5.5 bump in /work (read-only, no
+  files modified).
+
+  - /work/support/src/main/java/com/floragunn/searchsupport/xcontent/AttributeVa
+  lueFromXContent.java:278-289 and /work/support/src/main/java/com/floragunn/sea
+  rchsupport/xcontent/ObjectTreeXContent.java:327-338 — replace the hand-written
+  11-line read loop in `writeString(Reader reader, int len)` with a single
+  `writeString(Streams.copyToString(reader));`
+  (`org.elasticsearch.common.io.Streams`, already on the `support` classpath via
+  its `elasticsearch` dependency) — the only ES caller
+  (`XContentBuilder.value(CharSequence)` through `CharSequenceReader`) passes
+  the reader's full length, so reading to end is equivalent; it also avoids `new
+  char[-1]` for Jackson's "-1 = unknown length" convention, on which the
+  current loop would throw — ~9 lines saved per file, ~18 total.
+  - /work/security/src/test/java/com/floragunn/searchguard/authz/int_tests/DataS
+  treamAddRemoveIndicesTest.java:254-269 (optional, test only) —
+  `deleteIndexFromDataStream_noPermission` asserts the same observable outcome
+  (403, index untouched) as
+  `deleteIndexFromDataStream_withOnlyModifyPermission`; it does follow the
+  existing `addIndexToDataStream_noPermission` pattern in this class, so keep
+  for symmetry or drop — ~16 test lines.
+
+  Verified against the 9.5.5 jars that everything else is the minimum port:
+  - `org.elasticsearch.action.RealtimeRequest` no longer exists and
+  `GetRequest`/`MultiGetRequest`/`TermVectorsRequest`/`MultiTermVectorsRequest`
+  share no common `realtime` interface, so the four `instanceof` branches in
+  `DlsFlsValve` are the shortest faithful replacement.
+  - `SearchHits.asUnpooled()` / `SearchHits.unpooled(...)` are gone while
+  `SearchHit` is still `RefCounted`, so the per-hit source copy in
+  `SearchMapper` is needed; the `source == null` guard mirrors what ES's removed
+  `asUnpooled` did and covers `_source: false` hits, so it is not redundant.
+  - `Engine.Index.source()` now returns `SourceToParse.Source`, whose only byte
+  accessor is `originalBytes()`; `PutMappingRequest.source()` returns
+  `BytesReference`, so `.utf8ToString()` is the shortest route into the existing
+  `AuditMessage.addUnescapedJsonToRequestBody(String)`.
+  - `closeAllowIllFormed()` and `writeString(Reader,int)` are new abstract
+  methods on `XContentGenerator`; `BulkByScroll*` -> `BulkByPaginatedSearch*`,
+  `SplitShardCountSummary.UNSET` in `BulkShardRequest`, `new SearchHits(...)`
+  and the two extra `null` args to the `SearchResponse` constructor are pure
+  rename/signature ports.
+  - The `DELETE_BACKING_INDEX` switch arm (`ActionRequestIntrospector`), the
+  `indices:admin/data_stream/auto_create_past_tsdb` registration (`Actions`) and
+  its `SGS_CREATE_INDEX` entry are each one line.
+  - The new `DataStreamPastTsdbIndexCreationIntTest` justifiably is its own
+  class: it needs an external-process cluster with
+  `data_stream.past_tsdb_index_creation_enabled`, and its private
+  `createDataStream`/`getBackingIndexNames` helpers cannot reuse the private
+  ones in `DataStreamAddRemoveIndicesTest` without a refactor outside the task.
+  Its javadoc explains why the action must be covered (not what the code does),
+  so it is fine.
+
+  Net: the production diff could shrink from ~91 to ~73 lines.
+
+● The simplicity review suggests replacing my hand-written read loop in the two
+  stub generators with ES's Streams.copyToString, which also handles Jackson's
+  "unknown length" convention. Applying that after confirming the helper exists
+  in the 9.5.5 jar.
+
+● Bash(javap -cp /home/node/.cache/maven/org/elasticsearch/elasticsearch/9.5.5/e
+      lasticsearch-9.5.5.jar org.elasticsearch.common.io.Streams | grep
+      "copyToString" && pyt…)
+  ⎿    public static java.lang.String copyToString(java.io.Reader) throws j
+     ava.io.IOException;
+     patched support/src/main/java/com/floragunn/searchsupport/xcontent/Att
+     … +14 lines (ctrl+o to expand)
+  ⎿  Updated support/src/main/java/com/floragunn/searchsupport/xcontent/Att
+     ributeValueFromXContent.java (+3 -10)
+      12  
+      13  import org.elasticsearch.common.xcontent.LoggingDeprecationHand
+          ler;
+      14  import org.elasticsearch.core.CheckedConsumer;
+      15 +import org.elasticsearch.common.io.Streams;                    
+      16  import org.elasticsearch.xcontent.NamedXContentRegistry;
+      17  import org.elasticsearch.xcontent.ToXContent;
+      18  import org.elasticsearch.xcontent.XContent;
+     ...
+      277  
+      278          @Override
+      279          public void writeString(Reader reader, int len) throws
+            IOException {
+      279 -            char[] buffer = new char[len];                    
+      280 -            int read = 0;                                     
+      281 -            while (read < len) {                              
+      282 -                int n = reader.read(buffer, read, len - read);
+      283 -                if (n < 0) {                                  
+      284 -                    break;                                    
+      285 -                }                                             
+      286 -                read += n;                                    
+      287 -            }                                                 
+      288 -            writeString(buffer, 0, read);                     
+      280 +            // len may be -1 (unknown length); ES callers alwa
+          +ys pass the reader's full length anyway                       
+      281 +            writeString(Streams.copyToString(reader));        
+      282          }
+      283  
+      284          @Override
+  ⎿  Updated support/src/main/java/com/floragunn/searchsupport/xcontent/Obj
+     ectTreeXContent.java (+3 -10)
+      22  import org.apache.logging.log4j.Logger;
+      23  import org.elasticsearch.common.xcontent.LoggingDeprecationHand
+          ler;
+      24  import org.elasticsearch.core.CheckedConsumer;
+      25 +import org.elasticsearch.common.io.Streams;                    
+      26  import org.elasticsearch.xcontent.DeprecationHandler;
+      27  import org.elasticsearch.xcontent.NamedXContentRegistry;
+      28  import org.elasticsearch.xcontent.ToXContent;
+     ...
+      326  
+      327          @Override
+      328          public void writeString(Reader reader, int len) throws
+            IOException {
+      328 -            char[] buffer = new char[len];                    
+      329 -            int read = 0;                                     
+      330 -            while (read < len) {                              
+      331 -                int n = reader.read(buffer, read, len - read);
+      332 -                if (n < 0) {                                  
+      333 -                    break;                                    
+      334 -                }                                             
+      335 -                read += n;                                    
+      336 -            }                                                 
+      337 -            writeString(buffer, 0, read);                     
+      329 +            // len may be -1 (unknown length); ES callers alwa
+          +ys pass the reader's full length anyway                       
+      330 +            writeString(Streams.copyToString(reader));        
+      331          }
+      332  
+      333          @Override
+
+● Agent "Simplicity review of ES bump diff" finished · 3m 11s
+
+● Simplification applied and compiles. Still waiting for the security module
+  targeted tests and the compatibility review.
+
+● Ran 1 stop hook (ctrl+o to expand)
+  ⎿  Stop hook error: [bash
+  "$CLAUDE_PROJECT_DIR"/.claude/hooks/stop-check.sh]: Before you finish:
+  - No completed full unit-test suite run in .ai-runs/full-suite/ (about
+  10 minutes; if one is running, wait for ALL_DONE). See CLAUDE.md
+  "Tests".
+  If you skipped this on purpose (you only re-ran the tests that failed
+  in the last full run, or you are
+  stopping to ask the user for a decision), say so in one line and stop.
+
+
+● Skipping the full suite for now on purpose: the targeted test run is still
+  executing in the background and the full mvn clean test must not run
+  concurrently with it. I will start the full suite as soon as the targeted run
+  reports back.
+
+✻ Worked for 30s · done 3:25 PM
+
+● Background command "Run the test classes covering every touched file, module
+by module" completed (exit code 0)
+
+  Searched for 1 pattern, read 1 file, ran 5 shell commands (ctrl+o to expand)
+
+● Found the real cause of the audit-log test failure: ES now preserves the
+  put-mapping source in its original content type instead of converting it to
+  JSON, so the three places reading it need to convert using the request's
+  content type. Checking the audit message helpers next to keep the port
+  behaviour-identical. · summary
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Bash(sed -n 139,160p dlic-fe-multi-tenancy/src/main/java/com/floragunn/searchg
+      uard/enterprise/femt/FrontendDataMigrationInterceptor.java; grep -n "catch
+      (DocumentPar…)
+  ⎿      private SyncAuthorizationFilter.Result extendIndexMappingWithMulti
+     TenancyData(PutMappingRequest request,
+     … +27 lines (ctrl+o to expand)
+  ⎿  Updated dlic-auditlog/src/main/java/com/floragunn/searchguard/enterpri
+     se/auditlog/impl/RequestResolver.java (+1 -1)
+      259              }
+      260  
+      261              if (addSource) {
+      262 -                msg.addUnescapedJsonToRequestBody(pr.source().
+          -utf8ToString());                                              
+      262 +                msg.addTupleToRequestBody(new Tuple<>(pr.xCont
+          +entType(), pr.source()));                                     
+      263              }
+      264  
+      265              if (resolveIndices) {
+  ⎿  Updated dlic-auditlog/src/main/java/com/floragunn/searchguard/enterpri
+     se/auditlog/impl/AbstractAuditLog.java (+1 -1)
+      1312      private String serializeRequestContent(PutMappingRequest 
+            request) {
+      1313          return DocNode.of(
+      1314                  "indices", request.indices(),
+      1315 -                "source", Utils.convertJsonToxToStructuredMap
+           -(request.source()),                                          
+      1315 +                "source", XContentHelper.convertToMap(request
+           +.source(), false, request.xContentType()).v2(),              
+      1316                  "write_index_only", request.writeIndexOnly(),
+      1317                  "origin", request.origin()
+      1318          ).toJsonString();
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Edits are in. Now re-running the affected audit log and multi-tenancy tests,
+  after reinstalling the changed support module.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+› Message from compat-reviewer
+  Verdict: COMPATIBLE
+
+  Reviewed the working tree as it stands now (note: it changed while I was
+  reading; see "mid-review note" below).
+
+  Findings (most severe first): None that require gating or a decision before
+  merge. Details per question:
+
+  1. Static action group SGS_CREATE_INDEX gains
+  `indices:admin/data_stream/auto_create_past_tsdb`
+  (/work/security/src/main/resources/static_config/static_action_groups.yml:66,
+  /work/security/src/main/java/com/floragunn/searchguard/authz/actions/Actions.j
+  ava:322) — rolling-upgrade safe. `StaticSgConfig` reads the file from the
+  plugin's own classpath (/work/security/src/main/java/com/floragunn/searchguard
+  /configuration/StaticSgConfig.java:80); groups are resolved on the node that
+  authorizes, nothing is written to the config index or cluster state. The
+  action is only ever emitted by an ES 9.5 coordinating node
+  (`TransportBulkAction.createPastTimeSeriesIndex` executes it through the
+  NodeClient in the caller's thread context, i.e. under the writing user), so an
+  old node never has to resolve it. Surface 7:
+  `data_stream.past_tsdb_index_creation_enabled` defaults to false (verified in
+  the 9.5.5 bytecode: `Setting.boolSetting(..., false, Dynamic, NodeScope)`), so
+  nothing changes under an unchanged configuration. When an operator enables
+  it, a user with only SGS_WRITE on the data stream gets a per-item
+  `security_exception` for past timestamps; a user needs SGS_CREATE_INDEX (or
+  SGS_MANAGE_DATA_STREAMS / SGS_INDICES_ALL / SGS_MANAGE, which match by
+  wildcard). This mirrors X-Pack (`create_index`). X-Pack also grants it via
+  `auto_configure`; SG has no such group and SGS_WRITE already does not include
+  `indices:admin/auto_create`, so this is consistent with today's SG model.
+
+  2. DELETE_BACKING_INDEX -> AdditionalDimension.DELETE_INDEX
+  (/work/security/src/main/java/com/floragunn/searchguard/authz/actions/ActionRe
+  questIntrospector.java:143) — not permissive and cannot break existing users:
+  the action type is new in 9.5, so no existing role depends on it. Effective
+  requirement is `indices:admin/data_stream/modify` on the data stream plus
+  `indices:admin/delete` on the backing index (DELETE_INDEX dimension carries
+  `requiredPrivileges = indices:admin/delete`, evaluated in
+  PrivilegesEvaluator.java:404-416). The 9.5
+  `ModifyDataStreamsAction.Request.indices()` returns data stream and index
+  names for every action, so ES/X-Pack would only need `modify`; SG is
+  deliberately stricter. Consequence for the team to confirm: a role with only
+  SGS_MANAGE_DATA_STREAMS (`indices:admin/data_stream/*`, no
+  `indices:admin/delete`) gets 403 for `delete_backing_index`. That is
+  consistent with the user not being allowed to `DELETE .ds-...` directly, so I
+  consider it correct, but it is a privilege decision the implementer made.
+  Rolling upgrade: a 9.5 node authorizes locally and forwards to master; if the
+  master is still 9.4 the request fails in ES's own
+  `DataStreamAction.Type.fromValue` deserialization, an ES concern not an SG
+  one.
+
+  3. Serialization / thread-context / transport — nothing changed. No SG
+  `writeTo`/`StreamInput` class, no thread-context header or transient, no
+  setting, no internal index mapping is touched. The remaining edits are API
+  renames (`BulkByScrollResponse` -> `BulkByPaginatedSearchResponse`, same
+  constructor shape), new no-op/`Reader`-based stubs in the two local-only
+  XContentGenerators in support, `SourceToParse.source().originalBytes()` in the
+  audit log (returns the raw bytes when present, otherwise lazily re-serializes
+  the source row in its own content type; audit content is equivalent,
+  formatting may differ only for the new batched write path), and
+  `BulkShardRequest`'s new `SplitShardCountSummary.UNSET` arg in tests.
+  DlsFlsValve (/work/dlic-dlsfls/src/main/java/com/floragunn/searchguard/enterpr
+  ise/dlsfls/DlsFlsValve.java:184-191): I verified against the downloaded 9.4.3
+  jar that `RealtimeRequest` was implemented by exactly GetRequest,
+  MultiGetRequest, TermVectorsRequest, MultiTermVectorsRequest, so the four
+  instanceof checks are behaviour-identical (MultiGetShardRequest has
+  `realtime(boolean)` but is created on the coordinating node after the valve
+  already cleared `realtime` on the parent MultiGetRequest).
+
+  4. SearchMapper ref counting (/work/dlic-fe-multi-tenancy/src/main/java/com/fl
+  oragunn/searchguard/enterprise/femt/request/mapper/SearchMapper.java:50-63,
+  75-77) — no leak, no double release. Bytecode of 9.5.5: `new SearchHits(hits,
+  total, maxScore)` wraps a `SimpleRefCounted` in `LeakTracker` (pooled),
+  `deallocate()` only calls `SearchHit.decRef()` on the contained hits, which
+  are `SearchHit.unpooled(...)` (ALWAYS_REFERENCED, no-op). `new
+  BytesArray(source.toBytesRef(), true)` calls `BytesRef.deepCopyOf`, so the
+  copied source does not alias the original response's pooled buffers. The 8-arg
+  `SearchResponseSections` constructor passes `null` for both
+  `topHitsToRelease` and `completionOptionHitsToRelease`, so the rewritten
+  `SearchResponse.decRef()` releases only its own SearchHits; the original
+  response's hits stay owned by the original, which ES releases after
+  `TenantScopedActionListenerWrapper.onResponse` returns. The rewritten response
+  is released exactly once by the `SearchResponse::decRef` final action in
+  SearchRequestHandler.java:50 (in a `finally`). The two trailing `null` ctor
+  args are only consulted when `profileResults != null`, which SearchMapper
+  passes as null.
+
+  Mid-review note (important for the caller): the diff I was first given had
+  `request.source().utf8ToString()` in FrontendDataMigrationInterceptor and
+  `pr.source().utf8ToString()` in RequestResolver. That would have been a real
+  surface-7 regression: in 9.4.3 `PutMappingRequest.source(BytesReference,
+  XContentType)` ran `XContentHelper.convertToJson` (verified in the 9.4.3
+  bytecode), in 9.5.5 it stores the raw body plus `xContentType` and
+  `RestPutMappingAction` passes the REST body through unchanged, so a `PUT
+  /idx/_mapping` sent as YAML/CBOR/SMILE would have put non-JSON (or binary)
+  bytes into the audit `request_body` and made the multi-tenancy interceptor
+  fail with a DocumentParseException. The working tree now has
+  `XContentHelper.convertToJson(request.source(), false,
+  request.xContentType())` (/work/dlic-fe-multi-tenancy/src/main/java/com/florag
+  unn/searchguard/enterprise/femt/FrontendDataMigrationInterceptor.java:145),
+  `msg.addTupleToRequestBody(new Tuple<>(pr.xContentType(), pr.source()))`
+  (/work/dlic-auditlog/src/main/java/com/floragunn/searchguard/enterprise/auditl
+  og/impl/RequestResolver.java:262, `addTupleToRequestBody` converts to JSON)
+  and `XContentHelper.convertToMap(request.source(), false,
+  request.xContentType())` in AbstractAuditLog, plus a new YAML test in
+  AuditlogTest. That final state is correct and byte-identical to 9.4 for JSON
+  bodies (convertToJson with reformat=false returns the input string for JSON).
+  Keep it.
+
+  Separate finding, not introduced by this change: SearchMapper copies only the
+  top-level hits; `response.getAggregations()` (InternalTopHits) and
+  completion-suggest options still reference the original response's pooled
+  SearchHits, which ES releases once the wrapper's `onResponse` returns while
+  the REST layer may serialize the rewritten response later. Same gap existed
+  with `asUnpooled()` in 9.4; only reachable through tenant-scoped (Kibana
+  index) searches with top_hits/completion. Worth a follow-up ticket, not this
+  task.
+
+  Not checked: X-Pack's own privilege mapping for `delete_backing_index` (x-pack
+  jars are not in the local Maven cache); ES's transport-version gating of the
+  two new 9.5 actions toward a 9.4 master (ES responsibility). Also the
+  .ai-runs/ directory that appeared untracked during the review is not part of
+  the change.
+
+● Agent "Compat review of ES 9.5.5 bump" finished · 8m 27s
+
+● The compatibility review came back compatible and independently confirmed the
+  content-type fix. Small tidy-up of the import order in the interceptor while
+  the tests run.
+
+● Bash(python3 -I - <<'EOF'
+      f = "dlic-fe-multi-tenancy/src/main/java/com/floragunn/searchguard/enterpr
+      ise/femt/FrontendDataMigrationInterceptor.java"…)
+  ⎿  ok
+     total 0
+     drwxr-xr-x  3 node node   96 Oct 21 15:23 .
+     … +3 lines (ctrl+o to expand)
+  ⎿  Updated dlic-fe-multi-tenancy/src/main/java/com/floragunn/searchguard/
+     enterprise/femt/FrontendDataMigrationInterceptor.java (+1 -1)
+      42  import org.elasticsearch.common.xcontent.XContentHelper;
+      43  import org.elasticsearch.rest.RestStatus;
+      44  
+      45 +import java.io.IOException;                                    
+      46  import java.util.Arrays;
+      47  import java.util.Map;
+      47 -import java.io.IOException;                                    
+      48  import java.util.Optional;
+      49  import java.util.Set;
+      50  
+● Waiting for the audit log and multi-tenancy re-run to finish before starting
+  the full suite.
+
+● Ran 1 stop hook (ctrl+o to expand)
+  ⎿  Stop hook error: [bash
+  "$CLAUDE_PROJECT_DIR"/.claude/hooks/stop-check.sh]: Before you finish:
+  - No completed full unit-test suite run in .ai-runs/full-suite/ (about
+  10 minutes; if one is running, wait for ALL_DONE). See CLAUDE.md
+  "Tests".
+  If you skipped this on purpose (you only re-ran the tests that failed
+  in the last full run, or you are
+  stopping to ask the user for a decision), say so in one line and stop.
+
+
+● Skipping the full suite for now on purpose: the audit log and multi-tenancy
+  re-run is still executing in the background and the full mvn clean test must
+  not run concurrently with it. I will start it right after that run reports
+  back.
+
+✻ Worked for 28m 29s · done 3:31 PM
+
+● Background command "Re-run the audit log and multi-tenancy tests affected by
+the put-mapping port" completed (exit code 0)
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● All targeted tests are green and the silently caught audit error is gone.
+  Starting the full suite now, recording the run markers the stop hook expects.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● The full suite is running in the background. Meanwhile I'm verifying the
+  license header of the new test file matches its neighbours.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● The header matches the neighbouring files. The only remaining step is the full
+  suite, which is running in the background; I'll assemble the report when its
+  summary arrives.
+
+● Ran 1 stop hook (ctrl+o to expand)
+  ⎿  Stop hook error: [bash
+  "$CLAUDE_PROJECT_DIR"/.claude/hooks/stop-check.sh]: Before you finish:
+  - No completed full unit-test suite run in .ai-runs/full-suite/ (about
+  10 minutes; if one is running, wait for ALL_DONE). See CLAUDE.md
+  "Tests".
+  If you skipped this on purpose (you only re-ran the tests that failed
+  in the last full run, or you are
+  stopping to ask the user for a decision), say so in one line and stop.
+
+
+● The full suite (mvn clean test) is running in the background right now; its
+  summary with ALL_DONE will be written to the run marker directory when it
+  finishes, and I will report after that.
+
+✻ Worked for 28s · done 3:32 PM
+
+※ recap: Bumping Search Guard to Elasticsearch 9.5.5: all code is ported, compiles, and the targeted tests pass; the full mvn clean test suite is running in the background. Next: read its summary and write the final report. (disable recaps in /config)
+
+● Background command "Run the full test suite with mvn clean test and write a
+summary for the stop hook" completed (exit code 0)
+
+  Read 1 file, ran 2 shell commands (ctrl+o to expand)
+
+● The full run surfaced two issues: all external-process cluster tests errored
+  due to an infrastructure problem with the nested mvn clean test build, plus a
+  genuine SQL field-masking failure involving cursors. I'll dig into both while
+  the base-commit comparison run continues in the background. · summary
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Background command "Run the failing SQL test class on the base commit (ES
+9.4.3) in a separate worktree" failed with exit code 1
+
+  Listed 1 directory, ran 10 shell commands (ctrl+o to expand)
+
+● Background command "Build the base commit (ES 9.4.3) in the worktree and run
+the SQL test class there" completed (exit code 0)
+
+● Checking whether the SQL field-masking cursor test also fails on the base
+  commit with ES 9.4.3.
+
+  Searched for 1 pattern, read 1 file, ran 6 shell commands (ctrl+o to expand)
+
+● Still investigating the SQL cursor field-masking failure. Reading the
+  remaining reader-wrapper and hash-provider code to see what differs between
+  the first and second page.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Background command "Re-run the SQL test class on the base commit with an
+absolute plugin zip path" completed (exit code 0)
+
+  Read 1 file (ctrl+o to expand)
+
+● The test passes on the base commit, confirming this is a real behavioral
+  change introduced in ES 9.5. I'll diff the X-Pack SQL transport action and
+  cursor execution path between versions to find where the second page loses the
+  Search Guard user context. · summary
+
+  Searched for 1 pattern, ran 4 shell commands (ctrl+o to expand)
+
+● Background command "Run the failing SQL field-masking cursor test alone with
+DLS/FLS trace logging on the external node" completed (exit code 0)
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+● Reading the changed ES engine code that applies the directory-reader wrapper,
+  since that is where field masking is hooked in.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Waiting for the trace-enabled run of the SQL test class to finish; the
+  engine/shard wrapping path turned out identical in both ES versions, so the
+  node trace is the next source of evidence.
+
+● Ran 1 stop hook (ctrl+o to expand)
+  ⎿  Stop hook error: [bash
+  "$CLAUDE_PROJECT_DIR"/.claude/hooks/stop-check.sh]: Before you finish:
+  - Temporary debug code (SGTRACE) is still in 1 file(s), e.g.
+  security/src/test/java/com/floragunn/searchguard/authz/int_tests/SqlAu
+  thorizationReadOnlyIntTests.java. Remove it; keep the task's real
+  changes in those files.
+  If you skipped this on purpose (you only re-ran the tests that failed
+  in the last full run, or you are
+  stopping to ask the user for a decision), say so in one line and stop.
+
+
+● The SGTRACE line is intentional for the moment: a trace-enabled run of the SQL
+  test class is executing in the background to diagnose the field-masking
+  cursor failure, and I will remove it as soon as that run finishes.
+✻ Churned for 8m 35s · done 3:44 PM
+
+● Background command "Run the whole SQL test class with DLS/FLS trace logging on
+the external node" completed (exit code 0)
+
+  Ran 6 shell commands (ctrl+o to expand)
+
+● I found that the reader wrapper is sometimes invoked without user context
+  during searches. Now checking if this happens specifically on the cursor page
+  for the field-masking user, and which search phase triggers it. · summary
+
+  Searched for 1 pattern, ran 4 shell commands (ctrl+o to expand)
+
+● Confirmed: the fetch-phase wraps run without a user context, unlike the
+  query-phase ones, causing unmasked values to leak through the unwrapped
+  reader. Now checking the ES 9.5 streaming fetch-phase code to find where the
+  thread context gets lost. · summary
+
+  Ran 6 shell commands (ctrl+o to expand)
+
+● I'll dig into how ES re-applies headers in the chunked fetch path and how
+  Search Guard propagates the user on outgoing requests, since that's where the
+  user transient is getting dropped. · summary
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● I'm adding temporary SGTRACE logging to the transport interceptor and request
+  handler, rebuilding the plugin, and rerunning the SQL and FLS/FM search tests
+  to locate where the user header gets dropped, while also reviewing the header
+  propagation helper. · summary
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Bash(python3 -I - <<'EOF'
+      f = "security/src/main/java/com/floragunn/searchguard/transport/SearchGuar
+      dInterceptor.java"…)
+  ⎿  SGTRACE instrumentation added
+     security/src/main/java/com/floragunn/searchguard/transport/SearchGuard
+     RequestHandler.java:114:           log.error("SGTRACE recv action={} d
+     … +13 lines (ctrl+o to expand)
+  ⎿  Updated security/src/main/java/com/floragunn/searchguard/transport/Sea
+     rchGuardInterceptor.java (+1 -0)
+      193              getThreadContext().putHeader(headerMap);
+      194  
+      195              ensureCorrectHeaders(remoteAdress0, user0, origin0
+           );
+      196 +            log.error("SGTRACE send action={} user0={} userHea
+          +derInOrig={} userHeaderNow={} node={} thread={}", action, user
+          +0 != null ? user0.getName() : null, origHeaders0.containsKey(C
+          +onfigConstants.SG_USER_HEADER), getThreadContext().getHeader(C
+          +onfigConstants.SG_USER_HEADER) != null, connection.getNode().g
+          +etName(), Thread.currentThread().getName()); // SGTRACE       
+      197  
+      198              if(actionTrace.isTraceEnabled()) {
+      199                  getThreadContext().putHeader("_sg_trace"+Syste
+           m.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread
+           .currentThread().getName()+" IC -> "+action+" "+getThreadConte
+           xt().getHeaders().entrySet().stream().filter(p->!p.getKey().st
+           artsWith("_sg_trace")).collect(Collectors.toMap(p -> p.getKey(
+           ), p -> p.getValue())));
+  ⎿  Updated security/src/main/java/com/floragunn/searchguard/transport/Sea
+     rchGuardRequestHandler.java (+1 -0)
+      111  
+      112             getThreadContext().putTransient(ConfigConstants.SG_
+           CHANNEL_TYPE, isDirectChannel? "direct": "transport");
+      113             getThreadContext().putTransient(ConfigConstants.SG_
+           ACTION_NAME, task.getAction());
+      114 +           log.error("SGTRACE recv action={} direct={} userHea
+          +der={} userTransient={} thread={}", task.getAction(), isDirect
+          +Channel, getThreadContext().getHeader(ConfigConstants.SG_USER_
+          +HEADER) != null, getThreadContext().getTransient(ConfigConstan
+          +ts.SG_USER) != null, Thread.currentThread().getName()); // SGT
+          +RACE                                                          
+      115             
+      116             if(request instanceof ShardSearchRequest) {
+      117                 ShardSearchRequest sr = ((ShardSearchRequest) r
+           equest);
+  ⎿  Updated security/src/test/java/com/floragunn/searchguard/authz/int_tes
+     ts/SqlAuthorizationReadOnlyIntTests.java (+1 -1)
+      270              .aliases(alias_a, alias_b)
+      271              .dataStreams(ds_a, ds_b)
+      272              .authzDebug(true)
+      273 -            .nodeSettings("logger.com.floragunn.searchguard.en
+          -terprise.dlsfls", "TRACE", "logger.com.floragunn.searchguard.t
+          -ransport", "TRACE", "logger.com.floragunn.searchguard.filter",
+          - "TRACE") // SGTRACE                                          
+      273 +            .nodeSettings("logger.com.floragunn.searchguard.en
+          +terprise.dlsfls", "TRACE", "logger.com.floragunn.searchguard.t
+          +ransport", "TRACE", "logger.com.floragunn.searchguard.filter",
+          + "TRACE", "logger.org.elasticsearch.action.search.SearchTransp
+          +ortService", "DEBUG") // SGTRACE                              
+      274              .useExternalProcessCluster()
+      275              .enterpriseModulesEnabled()
+      276              .build();
+
+  Searched for 1 pattern, ran 3 shell commands (ctrl+o to expand)
+
+● Nothing further can proceed until the instrumented run finishes; I'm waiting
+  for its notification.
+
+● Ran 1 stop hook (ctrl+o to expand)
+  ⎿  Stop hook error: [bash
+  "$CLAUDE_PROJECT_DIR"/.claude/hooks/stop-check.sh]: Before you finish:
+  - Temporary debug code (SGTRACE) is still in 3 file(s), e.g.
+  security/src/main/java/com/floragunn/searchguard/transport/SearchGuard
+  Interceptor.java. Remove it; keep the task's real changes in those
+  files.
+  - Production code changed after the last full-suite run started (e.g.
+  security/src/main/java/com/floragunn/searchguard/transport/SearchGuard
+  Interceptor.java).
+  If you skipped this on purpose (you only re-ran the tests that failed
+  in the last full run, or you are
+  stopping to ask the user for a decision), say so in one line and stop.
+
+
+● The SGTRACE lines are deliberate diagnostics for a background run that is
+  still executing to pin down an ES 9.5 field-masking regression; they will be
+  removed and the full suite re-run once that diagnosis is done.
+
+✻ Crunched for 7m 24s · done 3:52 PM
+
+● Background command "Rebuild the plugin with trace logging, rerun the SQL class
+and the FLS/FM search tests" completed (exit code 0)
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● The FLS bypass affects the new fetch path generally, not just SQL cursors,
+  since the integration tests fail on ES 9.5.5 too. Now pulling the trace lines
+  to pinpoint which hop loses the user context. · summary
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● Found it: ES's chunked fetch coordination action only re-applies captured
+  headers to the thread context, but Search Guard carries the user as a
+  transient that only becomes a header during transport send, causing the FLS/FM
+  failures. I'll remove the instrumentation, add the user header to the thread
+  context once the action filter resolves the user, and re-run the affected
+  tests. · summary
+
+● Bash(python3 -I - <<'EOF'
+      import re…)
+  ⎿  SGTRACE removed
+     78:import com.floragunn.searchguard.support.Base64Helper;
+     79:import com.floragunn.searchguard.support.ConfigConstants;
+     … +12 lines (ctrl+o to expand)
+  ⎿  Updated security/src/main/java/com/floragunn/searchguard/transport/Sea
+     rchGuardInterceptor.java (+0 -1)
+      193              getThreadContext().putHeader(headerMap);
+      194  
+      195              ensureCorrectHeaders(remoteAdress0, user0, origin0
+           );
+      196 -            log.error("SGTRACE send action={} user0={} userHea
+          -derInOrig={} userHeaderNow={} node={} thread={}", action, user
+          -0 != null ? user0.getName() : null, origHeaders0.containsKey(C
+          -onfigConstants.SG_USER_HEADER), getThreadContext().getHeader(C
+          -onfigConstants.SG_USER_HEADER) != null, connection.getNode().g
+          -etName(), Thread.currentThread().getName()); // SGTRACE       
+      196  
+      197              if(actionTrace.isTraceEnabled()) {
+      198                  getThreadContext().putHeader("_sg_trace"+Syste
+           m.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread
+           .currentThread().getName()+" IC -> "+action+" "+getThreadConte
+           xt().getHeaders().entrySet().stream().filter(p->!p.getKey().st
+           artsWith("_sg_trace")).collect(Collectors.toMap(p -> p.getKey(
+           ), p -> p.getValue())));
+  ⎿  Updated security/src/main/java/com/floragunn/searchguard/transport/Sea
+     rchGuardRequestHandler.java (+0 -1)
+      111  
+      112             getThreadContext().putTransient(ConfigConstants.SG_
+           CHANNEL_TYPE, isDirectChannel? "direct": "transport");
+      113             getThreadContext().putTransient(ConfigConstants.SG_
+           ACTION_NAME, task.getAction());
+      114 -           log.error("SGTRACE recv action={} direct={} userHea
+          -der={} userTransient={} thread={}", task.getAction(), isDirect
+          -Channel, getThreadContext().getHeader(ConfigConstants.SG_USER_
+          -HEADER) != null, getThreadContext().getTransient(ConfigConstan
+          -ts.SG_USER) != null, Thread.currentThread().getName()); // SGT
+          -RACE                                                          
+      114             
+      115             if(request instanceof ShardSearchRequest) {
+      116                 ShardSearchRequest sr = ((ShardSearchRequest) r
+           equest);
+  ⎿  Updated security/src/test/java/com/floragunn/searchguard/authz/int_tes
+     ts/SqlAuthorizationReadOnlyIntTests.java (+0 -1)
+      270              .aliases(alias_a, alias_b)
+      271              .dataStreams(ds_a, ds_b)
+      272              .authzDebug(true)
+      273 -            .nodeSettings("logger.com.floragunn.searchguard.en
+          -terprise.dlsfls", "TRACE", "logger.com.floragunn.searchguard.t
+          -ransport", "TRACE", "logger.com.floragunn.searchguard.filter",
+          - "TRACE", "logger.org.elasticsearch.action.search.SearchTransp
+          -ortService", "DEBUG") // SGTRACE                              
+      273              .useExternalProcessCluster()
+      274              .enterpriseModulesEnabled()
+      275              .build();
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● compat-reviewer(Compat review of user-header fix)
+  ⎿  Backgrounded agent (↓ to manage · ctrl+o to expand)
+
+● The only ES code path that captures headers this way is the chunked fetch, so
+  the fix covers the full scope of the change. Waiting now for the fix
+  verification run and the compatibility review of the fix.
+
+● Ran 1 stop hook (ctrl+o to expand)
+  ⎿  Stop hook error: [bash
+  "$CLAUDE_PROJECT_DIR"/.claude/hooks/stop-check.sh]: Before you finish:
+  - Production code changed after the last full-suite run started (e.g.
+  security/src/main/java/com/floragunn/searchguard/filter/SearchGuardFil
+  ter.java).
+  If you skipped this on purpose (you only re-ran the tests that failed
+  in the last full run, or you are
+  stopping to ask the user for a decision), say so in one line and stop.
+
+
+● The full suite will be re-run after the current fix verification
+  (FLS/FM/DLS/SQL classes) finishes in the background; those classes are the
+  ones that failed in the last full run.
+
+✻ Baked for 3m 10s · done 3:57 PM
+
+● Background command "Apply the user-header fix in the action filter, rebuild
+the plugin and re-run the FLS, FM, DLS and SQL tests" completed (exit code 0)
+
+  Read 1 file (ctrl+o to expand)
+
+● The fix is verified: FLS, FM, DLS and the SQL class all pass. Starting the
+  full suite again with the prebuilt plugin zip (avoids the nested-build race)
+  while the compatibility review of the fix runs.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Everything I need now is already in flight: the full suite (background) and
+  the compatibility review of the fix. No further requests until one of them
+  reports back.
+
+● Ran 1 stop hook (ctrl+o to expand)
+  ⎿  Stop hook error: [bash
+  "$CLAUDE_PROJECT_DIR"/.claude/hooks/stop-check.sh]: Before you finish:
+  - No completed full unit-test suite run in .ai-runs/full-suite/ (about
+  10 minutes; if one is running, wait for ALL_DONE). See CLAUDE.md
+  "Tests".
+  If you skipped this on purpose (you only re-ran the tests that failed
+  in the last full run, or you are
+  stopping to ask the user for a decision), say so in one line and stop.
+
+● The full suite is currently running in the background (started after the fix);
+  I'm waiting for its ALL_DONE summary before reporting.
+
+✻ Baked for 28s · done 3:58 PM
+
+› Message from compat-reviewer
+  Verdict: NEEDS GATING (no new setting; two small code adjustments in the same
+  block)
+
+  Change reviewed: /work/security/src/main/java/com/floragunn/searchguard/filter
+  /SearchGuardFilter.java:193-198 (puts `_sg_user_header` = Base64(user) into
+  the thread context in `apply0` if absent).
+
+  Root cause confirmed from the ES 9.5.5 bytecode
+  (org/elasticsearch/search/fetch/chunk/TransportFetchPhaseCoordinationAction,
+  action `internal:data/read/search/fetch/coordination`, a
+  HandledTransportAction): `SearchTransportService.sendExecuteFetch` copies
+  `threadContext.getHeaders()` into the request BEFORE `sendChildRequest`, i.e.
+  before `SearchGuardInterceptor.ensureCorrectHeaders` adds
+  `_sg_user_header`/`_sg_remote_address_header`/`_sg_origin_header`; the action
+  then `stashContext()`s, re-applies only those captured headers and sends
+  `indices:data/read/search[phase/fetch/id]`. Chunked fetch is skipped for CCS,
+  scroll/reindex and for data nodes whose TransportVersion lacks
+  CHUNKED_FETCH_DOC_ID_ORDER.
+
+  Findings (most severe first):
+
+  - SearchGuardFilter.java:197 — surface 2/7 (security-relevant) — the header
+  serializes `user` AFTER it was replaced by
+  `specialPrivilegesEvaluationContext.getUser()` (line 186), not the transient.
+  For restricted auth tokens the transient is a role-less User
+  (AuthTokenAuthenticationDomain.java:76-77) while the special-context user is
+  `user.copy().backendRoles(token base roles).searchGuardRoles(token base
+  roles)` (AuthTokenService.java:852-853). Today the interceptor sends the
+  transient (`user0`, SearchGuardInterceptor.java:114/236-241); with the change
+  the header (and thus the transient restored on the receiving node,
+  SearchGuardRequestHandler.java:127/187) carries the token's base SG roles as
+  direct user roles. `RoleMapping.evaluate` seeds the result with
+  `user.getSearchGuardRoles()` (RoleMapping.java:236). Scenario: new node A
+  (token user) sends any shard/sub-request to new node B; on B
+  `AuthTokenService.provide` returns null (token revoked in the meantime,
+  AuthTokenService.java:833-838, or the provider absent/disabled there) ->
+  `AuthorizationService.getMappedRoles(user, address)`
+  (AuthorizationService.java:96) grants the token's full base roles,
+  unrestricted by the token's requested privileges, instead of denying as
+  before. Narrow window, but a widening with a trivial fix.
+    Smallest mitigation: serialize
+  `threadContext.getTransient(ConfigConstants.SG_USER)` (what
+  `ensureCorrectHeaders` serializes) instead of `user`; keep the `header ==
+  null` guard.
+
+  - SearchGuardFilter.java:193 — surface 2/7 — fix is incomplete for the same ES
+  9.5 path: `_sg_remote_address_header` and `_sg_origin_header` are equally
+  lost (they are also only added by the interceptor at send time). Scenario: new
+  coordinator A, user whose roles are mapped by `hosts`/client IP, chunked
+  fetch to new data node B: B restores the user from the header but
+  SG_REMOTE_ADDRESS becomes A's transport address
+  (SearchGuardRequestHandler.java:195) or null if B==A (direct channel).
+  `getMappedRoles(user, authInfoService.getCurrentRemoteAddress())` then yields
+  a different role set than in the query phase ->
+  `indices:data/read/search[phase/fetch/id]` denied (search fails) or FLS/field
+  masking computed from a different role set than the query phase
+  (DlsFlsBaseContext.java:53). Also: origin arrives as TRANSPORT (netty) or
+  LOCAL (local shard; then SearchGuardFilter.java:271 skips privilege evaluation
+  for the local fetch request, whereas 9.4 evaluated it with origin REST), and
+  audit entries for fetch-phase actions now show the coordinator's
+  address/TRANSPORT origin instead of the client IP/REST
+  (AbstractAuditLog.java:1085-1100). On 9.4.3 none of this happened because the
+  fetch request was sent from the restored full context. Not caused by this
+  change, but the change claims to restore 9.4 semantics and only does so for
+  the user.
+    Smallest mitigation: in the same block also put `_sg_remote_address_header`
+  (Base64 of SG_REMOTE_ADDRESS transient `.address()`) and `_sg_origin_header`
+  (SG_ORIGIN transient) when absent, mirroring `ensureCorrectHeaders`; add an
+  FLS/FM integration test with a `hosts`-mapped role and >1 node.
+
+  - RequestResolver.java:129 / AuditMessage.java:361-372 — surface 7 (audit
+  fields) — LOW. `transport_request_headers` in audit entries is the raw
+  thread-context header map (only `Authorization` stripped). Coordinating-node
+  audit entries (GRANTED_PRIVILEGES, MISSING_PRIVILEGES, ...; logged at
+  SearchGuardFilter.java:235/330/370 after line 193) now contain
+  `_sg_user_header` (Java-serialized User incl. attributes). Data-node entries
+  already contain it today, so no new disclosure class, but a volume/size change
+  customers may notice.
+    Smallest mitigation: none required; if unwanted, drop `_sg_*` keys in
+  `addTransportHeaders` (team decision).
+
+  Assessment of the questions:
+  (1) Side effects: no other sink found. All user-swapping code paths use
+  `stashContext()` (PrivilegedConfigClient.java:57, AbstractApiAction.java:467,
+  AccountRegistry.java:53, AuthTokenService.java:825, all Signals transport
+  actions, WatchLogIndexWriter.java:52), which clears headers, so no stale
+  header outlives a user switch; the filter then re-puts the header for the new
+  user. `apply()` wraps `apply0` in `newStoredContext()` (line 138) so the
+  header does not leak beyond the action's (and its async continuations')
+  context. SearchGuardInterceptor already allow-lists SG_USER_HEADER (line 135)
+  and keeps an existing header (236-241) — note that this "keep existing" rule
+  is exactly what makes finding 1 reach remote nodes. CCS: the header is already
+  sent to remote clusters today; unchanged. REST ingress rejects `_sg_*`
+  headers (AuthenticatingRestFilter.java:290-296) and
+  SearchGuardSSLRequestHandler only rejects `_sg_ssl_*`; the receiving-side
+  handling of the header on netty channels is unchanged (inter-cluster/trusted
+  only). ES Task headers, async search and persistent tasks persist only
+  configured/X-Pack header keys; nothing found that stores `_sg_*`. Fewer
+  `Base64Helper.serializeObject` calls than before (once per context instead of
+  once per shard send).
+  (2) Disagreement: only the special-context case (finding 1). Impersonation and
+  session/token users are resolved before the transient is set; admin-cert
+  users (REST line 153, transport line 208) are serialized identically to today.
+  `User.equals` is name-only (User.java:313-331), so the scroll-context check
+  (SearchGuardPlugin.java:586) is unaffected.
+  (3) Rolling upgrade 9.4 -> 9.5: COMPATIBLE. A 9.4 SG node already receives and
+  deserializes `_sg_user_header` on every transport request; the serialization
+  format is unchanged. A 9.5 coordinator never uses chunked fetch against a 9.4
+  data node (TransportVersion gate), and a 9.4 coordinator never uses it. No
+  wire-format, index, REST or settings change.
+  (4) Placement: the filter is the right place; a REST-layer put would be lost
+  on every `stashContext()` (PrivilegedConfigClient, Signals), and an
+  action-name allow-list would miss SQL/EQL/async-search/femt-wrapped searches
+  that embed a search. The filter runs for every ActionRequest, including nested
+  `indices:data/read/search` issued by SQL/EQL/ES|QL/async search, so those are
+  covered. Signals watches run without a user (conf-request header, SG_USER
+  null) both before and after -> unchanged. ES|QL does not use the fetch phase.
+
+  Not checked: ES 9.5.5 behaviour of X-Pack async-search/persistent-task header
+  persistence was taken from knowledge of
+  `ClientHelper.getPersistableSafeSecurityHeaders`, not re-read from the 9.5.5
+  jar; DlsFlsValve conf-request handling for user-less searches was not re-read
+  (unchanged by this diff).
+
+● The review found two things worth fixing in the new block: serialize the
+  transient user (what the interceptor sends today) rather than the
+  possibly-substituted special-context user, and also carry the origin and
+  remote-address headers so the fetch request keeps the same identity as before.
+  I'll stop the running suite, apply both, verify, and restart the suite.
+
+● Agent "Compat review of user-header fix" finished · 7m 8s
+
+● Stop Task
+  ⎿  SP=/tmp/claude-1000/-work/e66402b3-6a77-4276-977c-a03a8de10951/scratch
+     pad && ls -la $SP/sg-plugin-9.5.5.zip && rm -f
+     .ai-runs/full-suite/summary.txt && touch .a… · stopped
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Bash(python3 -I - <<'EOF'
+      f = "security/src/main/java/com/floragunn/searchguard/filter/SearchGuardFi
+      lter.java"…)
+  ⎿  fix updated
+     158:                threadContext.putTransient(ConfigConstants.SG_ORIG
+     IN, Origin.LOCAL.toString());
+     … +5 lines (ctrl+o to expand)
+  ⎿  Updated security/src/main/java/com/floragunn/searchguard/filter/Search
+     GuardFilter.java (+19 -4)
+      44  import org.elasticsearch.action.support.ActionFilterChain;
+      45  import org.elasticsearch.action.update.UpdateRequest;
+      46  import org.elasticsearch.cluster.service.ClusterService;
+      47 +import org.elasticsearch.common.transport.TransportAddress;    
+      48  import org.elasticsearch.common.util.concurrent.ThreadContext;
+      49  import org.elasticsearch.common.util.concurrent.ThreadContext.S
+          toredContext;
+      50  import org.elasticsearch.core.Tuple;
+     ...
+      191                  }
+      192              }
+      193  
+      193 -            if (user != null && threadContext.getHeader(Config
+          -Constants.SG_USER_HEADER) == null) {                          
+      194 +            if (user != null) {                               
+      195                  // Since ES 9.5, the chunked fetch phase (Tran
+           sportFetchPhaseCoordinationAction) stashes the thread context 
+           and
+      195 -                // re-applies only the headers it captured on 
+          -the coordinating node. The user must thus also be present as a
+          - header,                                                      
+      196 -                // otherwise the fetch requests reach the data
+          - nodes without a user and DLS/FLS/field masking is not applied
+          - there.                                                       
+      197 -                threadContext.putHeader(ConfigConstants.SG_USE
+          -R_HEADER, Base64Helper.serializeObject(user));                
+      196 +                // re-applies only the headers it captured on 
+          +the coordinating node. User, origin and remote address must th
+          +us also be                                                    
+      197 +                // present as headers (the same ones SearchGua
+          +rdInterceptor adds when sending a transport request), otherwis
+          +e the fetch                                                   
+      198 +                // requests reach the data nodes without a use
+          +r and DLS/FLS/field masking is not applied there.             
+      199 +                User transientUser = threadContext.getTransien
+          +t(ConfigConstants.SG_USER);                                   
+      200 +                TransportAddress remoteAddress = threadContext
+          +.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);             
+      201 +                                                              
+      202 +                if (transientUser != null && threadContext.get
+          +Header(ConfigConstants.SG_USER_HEADER) == null) {             
+      203 +                    threadContext.putHeader(ConfigConstants.SG
+          +_USER_HEADER, Base64Helper.serializeObject(transientUser));   
+      204 +                }                                             
+      205 +                                                              
+      206 +                if (threadContext.getHeader(ConfigConstants.SG
+          +_ORIGIN_HEADER) == null) {                                    
+      207 +                    threadContext.putHeader(ConfigConstants.SG
+          +_ORIGIN_HEADER, threadContext.getTransient(ConfigConstants.SG_
+          +ORIGIN));                                                     
+      208 +                }                                             
+      209 +                                                              
+      210 +                if (remoteAddress != null && threadContext.get
+          +Header(ConfigConstants.SG_REMOTE_ADDRESS_HEADER) == null) {   
+      211 +                    threadContext.putHeader(ConfigConstants.SG
+          +_REMOTE_ADDRESS_HEADER, Base64Helper.serializeObject(remoteAdd
+          +ress.address()));                                             
+      212 +                }                                             
+      213              }
+      214  
+      215              org.apache.logging.log4j.ThreadContext.put("user",
+            user != null ? user.getName() : "n/a");
+
+  Ran 2 shell commands, wrote 1 memory (ctrl+o to expand)
+
+● The refined fix is being verified in the background (plugin rebuild plus FLS,
+  FM, DLS, SQL, auth-token and audit-log integration tests). Nothing else is
+  pending on my side until that run reports; the full suite restarts right after
+  it.
+
+● Ran 1 stop hook (ctrl+o to expand)
+  ⎿  Stop hook error: [bash
+  "$CLAUDE_PROJECT_DIR"/.claude/hooks/stop-check.sh]: Before you finish:
+  - No completed full unit-test suite run in .ai-runs/full-suite/ (about
+  10 minutes; if one is running, wait for ALL_DONE). See CLAUDE.md
+  "Tests".
+  If you skipped this on purpose (you only re-ran the tests that failed
+  in the last full run, or you are
+  stopping to ask the user for a decision), say so in one line and stop.
+
+
+● Skipping the full suite for the moment on purpose: the verification run for
+  the refined fix is still executing in the background, and the full mvn clean 
+  test will be started as soon as it completes.
+
+✻ Cooked for 11m 55s · done 4:06 PM
+
+● Background command "Rebuild the plugin with the refined fix and re-run FLS,
+FM, DLS, SQL, auth token and audit log integration tests" completed (exit code
+0)
+
+  Read 1 file (ctrl+o to expand)
+
+● All targeted tests pass with the refined fix. Now the full suite with the
+  freshly built plugin zip.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● The full suite is running; nothing further to request until it completes.
+
+● Ran 1 stop hook (ctrl+o to expand)
+  ⎿  Stop hook error: [bash
+  "$CLAUDE_PROJECT_DIR"/.claude/hooks/stop-check.sh]: Before you finish:
+  - No completed full unit-test suite run in .ai-runs/full-suite/ (about
+  10 minutes; if one is running, wait for ALL_DONE). See CLAUDE.md
+  "Tests".
+  If you skipped this on purpose (you only re-ran the tests that failed
+  in the last full run, or you are
+  stopping to ask the user for a decision), say so in one line and stop.
+
+
+● The full suite is running in the background right now; I'm waiting for its
+  ALL_DONE summary before reporting.
+
+✻ Crunched for 12s · done 4:08 PM
+
+● Background command "Run the full test suite with the prebuilt plugin zip and
+record the summary" completed (exit code 0)
+
+  Read 1 file (ctrl+o to expand)
+
+● Everything through multi-tenancy passed (8680 security tests, 0 failures), but
+  signals had two class-level errors. I'll check their stack traces and run the
+  remaining skipped modules separately. · summary
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Both Signals errors stem from embedded-cluster start failures at the node
+  level during config-variable refresh, not actual test assertions. I'll dig
+  into the node's underlying exception while the remaining modules continue
+  running. · summary
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● The Signals errors are a start-up race in the embedded test cluster (the
+  config-variables index did not exist yet when the refresh ran), unrelated to
+  any ported API. I'll re-run those two classes on their own as soon as the
+  remaining-modules run finishes, to avoid load-induced flakes.
+
+✻ Worked for 48s · done 4:19 PM
+
+● Background command "Run the tests of the modules that were skipped after the
+Signals failure" completed (exit code 0)
+
+  Read 1 file (ctrl+o to expand)
+
+● Audit log and enterprise Signals pass. Now re-running the two Signals classes
+  that hit the start-up race, alone.
+
+  Ran 1 shell command (ctrl+o to expand)
+● Both classes pass standalone, so those were start-up flakes under parallel
+  forks. Cleaning up the base-commit worktree before reporting.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Work is complete. Nothing further is pending, so here is the report.
+
+  Summary
+
+  The branch is bumped from Elasticsearch 9.4.3 to 9.5.5. Nothing is committed;
+  the working tree holds the diff (28 modified files plus one new test).
+
+  Most of the port is mechanical: ES renamed the reindex response classes,
+  removed two interfaces (RealtimeRequest, pooled SearchHits helpers), added
+  abstract methods to XContentGenerator, and changed how put-mapping and
+  index-source bytes are exposed. Behaviour is unchanged for all of these, with
+  one deliberate nuance: ES no longer converts put-mapping bodies to JSON up
+  front, so the audit log and the multi-tenancy mapping interceptor now convert
+  using the request's content type (a YAML regression test was added).
+
+  Three ES behaviour changes needed real work:
+
+  1. FLS and field masking were bypassed on ES 9.5. ES now streams the fetch
+     phase through a coordination action that stashes the thread context and
+     re-applies only captured headers. Search Guard kept the user as a
+     transient, so fetch requests reached data nodes without a user and the
+     reader wrapper applied no FLS/FM. The action filter now also records user,
+     origin and remote address as headers. This is security-relevant and must
+     ship with the bump.
+  2. The modify-data-stream API can delete backing indices. Search Guard
+     requires indices:admin/delete on the backing index in addition to modify on
+     the data stream (stricter than X-Pack).
+  3. ES can create backing indices for past TSDB timestamps on the write path
+     (opt-in setting). The new action is registered and added to the
+     create-index action group, mirroring X-Pack.
+
+  Rolling upgrade: safe (no serialization, config or setting changes; the user
+  header already travels on every transport request). Decisions to review: items
+  2 and 3 above, and the header placement in SearchGuardFilter.
+
+  ES API changes ported
+
+  ES change: BulkByScrollResponse/BulkByScrollTask renamed to
+  BulkByPaginatedSearch*
+  Port: renamed in support, multi-tenancy migration steps, mapper, tests
+  ────────────────────────────────────────
+  ES change: XContentGenerator gained closeAllowIllFormed() and
+  writeString(Reader,int)
+  Port: implemented in the two stub generators in support
+  ────────────────────────────────────────
+  ES change: RealtimeRequest interface removed
+  Port: DlsFlsValve checks the four concrete request classes
+  ────────────────────────────────────────
+  ES change: SearchHits.asUnpooled()/unpooled(...) removed; SearchResponse
+  constructor has two new trailing args
+  Port: SearchMapper deep-copies hit source, uses the public SearchHits
+  constructor, passes nulls (only used for profiling)
+  ────────────────────────────────────────
+  ES change: PutMappingRequest.source() returns BytesReference and keeps the
+  original content type
+  Port: audit log and migration interceptor convert via request.xContentType()
+  ────────────────────────────────────────
+  ES change: SourceToParse.source() returns Source
+  Port: audit log uses originalBytes()
+  ────────────────────────────────────────
+  ES change: BulkShardRequest constructor gained SplitShardCountSummary
+  Port: two tests
+  ────────────────────────────────────────
+  ES change: DataStreamAction.Type.DELETE_BACKING_INDEX added
+  Port: mapped to the existing DELETE_INDEX additional dimension
+  ────────────────────────────────────────
+  ES change: New action indices:admin/data_stream/auto_create_past_tsdb
+  Port: registered as data stream action, added to SGS_CREATE_INDEX
+
+  Checked and not affected: -remote:index exclusion syntax (Search Guard does
+  not evaluate remote patterns locally), form-encoded REST bodies (gated on
+  X-Pack security), ES|QL datasets and the new DATASET index abstraction (X-Pack
+  feature, same situation as views; see findings), ThreadContext, transport and
+  REST handler interface changes.
+
+  Behavioural changes and regression tests
+
+  - Chunked fetch phase (ES 9.5.0, now default). Fix in the action filter;
+    regression coverage is the existing FlsIntTest, FmIntTest and the SQL cursor
+    test, which fail on 9.5.5 without the fix (verified) and pass on 9.4.3
+    (verified in a base-commit worktree).
+  - Delete backing index. Three new tests in the data stream modify test (no
+    permission, modify only, modify plus delete).
+  - Past TSDB index creation. New external-cluster test with and without the
+    privilege.
+
+  Details
+
+  Changed files (production): root pom; IndexCleanupAgent,
+  AttributeValueFromXContent, ObjectTreeXContent (support);
+  ActionRequestIntrospector, Actions, SearchGuardFilter,
+  static_action_groups.yml (security); DlsFlsValve (dlsfls); AbstractAuditLog,
+  RequestResolver (auditlog); FrontendDataMigrationInterceptor, four migration
+  step classes, SearchMapper, UpdateByQueryMapper (multi-tenancy). Tests: nine
+  adjusted, one extended (data stream modify), one extended with a YAML case
+  (audit log), one new (DataStreamPastTsdbIndexCreationIntTest).
+
+  Coverage:
+
+  Changed method: SearchGuardFilter.apply0 header block
+  Test: FlsIntTest, FmIntTest, SqlAuthorizationReadOnlyIntTests
+  Status: existing (fail before fix)
+  ────────────────────────────────────────
+  Changed method: ActionRequestIntrospector DELETE_BACKING_INDEX
+  Test: DataStreamAddRemoveIndicesTest
+  Status: extended
+  ────────────────────────────────────────
+  Changed method: Actions / action group entry
+  Test: DataStreamPastTsdbIndexCreationIntTest, ActionGroupsTest
+  Status: new / existing
+  ────────────────────────────────────────
+  Changed method: DlsFlsValve.apply realtime
+  Test: DlsIntTest, DlsReadOnlyIntTests
+  Status: existing
+  ────────────────────────────────────────
+  Changed method: SearchMapper.unscopeResponse
+  Test: MultiTenancyRequestMappingTest
+  Status: existing
+  ────────────────────────────────────────
+  Changed method: FrontendDataMigrationInterceptor put mapping
+  Test: MultiTenancyMigrationTest
+  Status: existing
+  ────────────────────────────────────────
+  Changed method: AbstractAuditLog put mapping / index source
+  Test: AuditlogTest (YAML case), AuditlogIntegrationTest
+  Status: extended / existing
+  ────────────────────────────────────────
+  Changed method: RequestResolver put mapping
+  Test: AuditlogIntegrationTest
+  Status: existing
+  ────────────────────────────────────────
+  Changed method: IndexCleanupAgent, generators
+  Test: support module suite, XContent converter tests
+  Status: existing
+  ────────────────────────────────────────
+  Changed method: migration steps, UpdateByQueryMapper
+  Test: step tests, MigrationStepsTest
+  Status: existing
+
+  Test runs (final code):
+
+  ┌───────────────────────┬──────┬────────────────────────┬─────────┬────────┐
+  │         Suite         │ Run  │         Failed         │ Skipped │ Flakes │
+  ├───────────────────────┼──────┼────────────────────────┼─────────┼────────┤
+  │ support               │ 23   │ 0                      │ 0       │ 0      │
+  ├───────────────────────┼──────┼────────────────────────┼─────────┼────────┤
+  │ ssl                   │ 25   │ 0                      │ 0       │ 0      │
+  ├───────────────────────┼──────┼────────────────────────┼─────────┼────────┤
+  │ security              │ 8680 │ 0                      │ 7       │ 0      │
+  ├───────────────────────┼──────┼────────────────────────┼─────────┼────────┤
+  │ scheduler             │ 22   │ 0                      │ 3       │ 0      │
+  ├───────────────────────┼──────┼────────────────────────┼─────────┼────────┤
+  │ dlic-dlsfls           │ 2527 │ 0                      │ 0       │ 0      │
+  ├───────────────────────┼──────┼────────────────────────┼─────────┼────────┤
+  │ dlic-security         │ 126  │ 0                      │ 1       │ 0      │
+  ├───────────────────────┼──────┼────────────────────────┼─────────┼────────┤
+  │ dlic-fe-multi-tenancy │ 561  │ 0                      │ 2       │ 0      │
+  ├───────────────────────┼──────┼────────────────────────┼─────────┼────────┤
+  │                       │      │ 2 class errors         │         │        │
+  │ signals               │ 293  │ (cluster start race,   │ 3       │ 0      │
+  │                       │      │ both green standalone) │         │        │
+  ├───────────────────────┼──────┼────────────────────────┼─────────┼────────┤
+  │ dlic-auditlog         │ 129  │ 0                      │ 4       │ 0      │
+  ├───────────────────────┼──────┼────────────────────────┼─────────┼────────┤
+  │ dlic-signals          │ 7    │ 0                      │ 0       │ 0      │
+  └───────────────────────┴──────┴────────────────────────┴─────────┴────────┘
+
+  The full run used mvn clean test with -Dsg.tests.sg_plugin.file=<prebuilt 
+  zip>, because without it every external-cluster class runs its own in-process
+  build and the three surefire forks race (ten class errors in the first
+  attempt). The modules after Signals were run with -rf after the Signals
+  failure. Not run: CI pipeline, multi-node rolling-upgrade clusters.
+
+  Security fixes brought in by 9.5.5: ESA-2026-185, 189, 190, 195, 198, 199
+  (advisory list
+  (https://discuss.elastic.co/c/announcements/security-announcements/31),
+  release notes (https://www.elastic.co/docs/release-notes/elasticsearch)).
+
+  Separate findings (not part of this task)
+
+  - ES|QL datasets (new in 9.5, actions indices:admin/esql/dataset/*,
+    indices:data/read/esql/resolve_datasets) have no Search Guard handling, same
+    as ES views and ES|QL generally. Next step: decide whether dataset
+    privileges need action groups.
+  - SearchMapper copies only top-level hits; aggregation top-hits and completion
+    suggestions still reference the original pooled hits (pre-existing,
+    tenant-scoped Kibana searches only).
+  - Test infrastructure: external-cluster tests build the plugin in-process per
+    fork; with three forks this races under mvn clean test. Suggest building the
+    zip once in the surefire config.
+  - Audit log entries on the coordinating node now include the serialized user
+    header in the raw header dump (data-node entries already did). Team may want
+    to strip _sg_* keys there.
+  - Host-mapped roles on fetch: the fix also forwards origin and remote address,
+    but there is no multi-node test with hosts-mapped roles exercising the
+    fetch phase.
+
+  What would have helped at the start: the Maven repo path in the skill is wrong
+  for this sandbox, and the full suite needs a prebuilt plugin zip; both are
+  now saved as memories.
+
+✻ Cogitated for 2m 15s · done 4:22 PM
+
+※ recap: Bumping Search Guard to Elasticsearch 9.5.5 is done: code ported, an FLS/field-masking bypass on the new fetch path fixed, full suite green. Next action is your review of the uncommitted diff and the two privilege decisions in the report. (disable recaps in /config)
+  ⎿  Read .ai-runs/full-suite/summary.txt (36 lines)
+  ⎿  Read ../home/node/.claude/projects/-work/memory/full-suite-prebuilt-plugin-
+     zip.md (22 lines)
+  ⎿  Referenced file security/src/main/java/com/floragunn/searchguard/transport/
+     SearchGuardInterceptor.java
+  ⎿  Read ../tmp/claude-1000/-work/e66402b3-6a77-4276-977c-a03a8de10951/tasks/br
+     wm82zrz.output (6 lines)
+  ⎿  Read ../tmp/claude-1000/-work/e66402b3-6a77-4276-977c-a03a8de10951/scratchp
+     ad/targeted-tests.out (55 lines)
+
+● Task "Port the multi-tenancy mapping interceptor to the request content type 
+  and add a YAML put-mapping audit test" still running in background
+  ⎿  Skills restored (version-bump)
+  ⎿  SessionStart:compact hook error
+  ⎿  Failed with non-blocking status code: bash: 
+     /work/.claude/hooks/session-start.sh: No such file or directory
+
+● Compacted while idle, before the prompt cache expired · turn off with 
+  "idleCompaction": false in settings.json

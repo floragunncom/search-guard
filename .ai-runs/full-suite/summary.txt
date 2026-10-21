@@ -1,0 +1,35 @@
+mvn clean test -Dsg.tests.sg_plugin.file=<prebuilt zip> exit=1  started=2026-10-21T16:08:40Z finished=2026-10-21T16:18:25Z
+[INFO] Reactor Summary for Search Guard FLX master-SNAPSHOT-es-9.5.5:
+[INFO] 
+[INFO] Search Guard FLX ................................... SUCCESS [  0.298 s]
+[INFO] Search Guard FLX: Support .......................... SUCCESS [  2.699 s]
+[INFO] Search Guard FLX: SSL .............................. SUCCESS [ 14.708 s]
+[INFO] Search Guard FLX: Security ......................... SUCCESS [03:34 min]
+[INFO] Search Guard FLX: Legacy Test Framework ............ SUCCESS [  0.219 s]
+[INFO] Search Guard FLX: Scheduler ........................ SUCCESS [ 12.943 s]
+[INFO] Search Guard FLX: Document and Field Level Security (Enterprise) SUCCESS [01:29 min]
+[INFO] Search Guard FLX: Security (Enterprise) ............ SUCCESS [01:11 min]
+[INFO] Search Guard FLX: Frontend Multi-Tenancy (Enterprise) SUCCESS [01:01 min]
+[INFO] Search Guard FLX: Signals .......................... FAILURE [01:55 min]
+[INFO] Search Guard FLX: Audit Logging (Enterprise) ....... SKIPPED
+[INFO] Search Guard FLX: Signals (Enterprise) ............. SKIPPED
+[INFO] Search Guard FLX: Plugin for Elasticsearch ......... SKIPPED
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+--- per-module totals
+[INFO] Tests run: 23, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 25, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 8680, Failures: 0, Errors: 0, Skipped: 7
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 22, Failures: 0, Errors: 0, Skipped: 3
+[INFO] Tests run: 2527, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 126, Failures: 0, Errors: 0, Skipped: 1
+[INFO] Tests run: 561, Failures: 0, Errors: 0, Skipped: 2
+[ERROR] Tests run: 293, Failures: 0, Errors: 2, Skipped: 3
+--- failures
+[ERROR] Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 1.419 s <<< FAILURE! -- in com.floragunn.signals.RestApiTest
+[ERROR] Tests run: 1, Failures: 0, Errors: 1, Skipped: 0, Time elapsed: 9.240 s <<< FAILURE! -- in com.floragunn.signals.RemoteClusterWatchTest
+[ERROR] com.floragunn.signals.RemoteClusterWatchTest -- Time elapsed: 9.237 s <<< ERROR!
+[ERROR] com.floragunn.signals.RestApiTest -- Time elapsed: 1.416 s <<< ERROR!
+--- flakes
+ALL_DONE

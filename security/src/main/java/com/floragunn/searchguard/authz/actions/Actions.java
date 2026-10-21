@@ -319,6 +319,7 @@ public class Actions {
         open(WhoAmIAction.INSTANCE);
 
         dataStream("indices:admin/data_stream/create");
+        dataStream("indices:admin/data_stream/auto_create_past_tsdb");
         dataStream("indices:admin/data_stream/get");
         dataStream("indices:admin/data_stream/migrate");
         dataStream("indices:admin/data_stream/modify");

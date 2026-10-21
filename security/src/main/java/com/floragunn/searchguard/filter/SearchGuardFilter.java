@@ -44,6 +44,7 @@ import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.util.concurrent.ThreadContext.StoredContext;
 import org.elasticsearch.core.Tuple;
@@ -187,6 +188,27 @@ public class SearchGuardFilter implements ActionFilter {
 
                 if (user != null && threadContext.getTransient(ConfigConstants.SG_USER) == null) {
                     threadContext.putTransient(ConfigConstants.SG_USER, user);
+                }
+            }
+
+            if (user != null) {
+                // Since ES 9.5, the chunked fetch phase (TransportFetchPhaseCoordinationAction) stashes the thread context and
+                // re-applies only the headers it captured on the coordinating node. User, origin and remote address must thus also be
+                // present as headers (the same ones SearchGuardInterceptor adds when sending a transport request), otherwise the fetch
+                // requests reach the data nodes without a user and DLS/FLS/field masking is not applied there.
+                User transientUser = threadContext.getTransient(ConfigConstants.SG_USER);
+                TransportAddress remoteAddress = threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS);
+
+                if (transientUser != null && threadContext.getHeader(ConfigConstants.SG_USER_HEADER) == null) {
+                    threadContext.putHeader(ConfigConstants.SG_USER_HEADER, Base64Helper.serializeObject(transientUser));
+                }
+
+                if (threadContext.getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
+                    threadContext.putHeader(ConfigConstants.SG_ORIGIN_HEADER, threadContext.getTransient(ConfigConstants.SG_ORIGIN));
+                }
+
+                if (remoteAddress != null && threadContext.getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER) == null) {
+                    threadContext.putHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER, Base64Helper.serializeObject(remoteAddress.address()));
                 }
             }
 

@@ -27,6 +27,8 @@ public class DataStreamAddRemoveIndicesTest {
     public static final String INDEX_DS_ADDITION_POSITIVE = "index_ds_addition_positive";
     public static final String DS_TEST_REMOVE_INDEX_POSITIVE = "ds_test_remove_index_positive";
     public static final String DS_TEST_MIXED_OPERATIONS = "ds_test_mixed_operations";
+    public static final String DS_TEST_DELETE_INDEX_POSITIVE = "ds_test_delete_index_positive";
+    public static final String DS_TEST_DELETE_INDEX_MODIFY_ONLY = "ds_test_delete_index_modify_only";
 
     static TestSgConfig.User USER_NO_PERMISSIONS = new TestSgConfig.User("no_permissions")
             .roles(new TestSgConfig.Role("no_permissions").clusterPermissions().indexPermissions().on().aliasPermissions().on().dataStreamPermissions().on());
@@ -49,9 +51,17 @@ public class DataStreamAddRemoveIndicesTest {
                     .aliasPermissions().on()
                     .dataStreamPermissions("indices:admin/data_stream/modify").on(DS_TEST_REMOVE_INDEX_POSITIVE));
 
+    static TestSgConfig.User USER_WITH_PERMISSIONS_TO_DELETE = new TestSgConfig.User("with_permissions_to_delete")
+            .roles(new TestSgConfig.Role("with_permissions_to_delete").clusterPermissions()
+                    .indexPermissions("indices:admin/data_stream/modify").on(".ds-ds_test_delete_index*")
+                    .indexPermissions("indices:admin/delete").on(".ds-" + DS_TEST_DELETE_INDEX_POSITIVE + "*")
+                    .aliasPermissions().on()
+                    .dataStreamPermissions("indices:admin/data_stream/modify").on("ds_test_delete_index*"));
+
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
-            .users(USER_NO_PERMISSIONS, USER_WITH_PERMISSIONS_TO_ADD, USER_WITH_PERMISSIONS_TO_REMOVE, USER_WITH_MIXED_PERMISSIONS)//
+            .users(USER_NO_PERMISSIONS, USER_WITH_PERMISSIONS_TO_ADD, USER_WITH_PERMISSIONS_TO_REMOVE, USER_WITH_MIXED_PERMISSIONS,
+                    USER_WITH_PERMISSIONS_TO_DELETE)//
             .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
             .authzDebug(true)//
             .enterpriseModulesEnabled()
@@ -238,6 +248,78 @@ public class DataStreamAddRemoveIndicesTest {
             assertThat("User with permissions should get 200 response", response, isOk());
             dsBackingIndexNames = getDsBackingIndexNames(dsName);
             assertThat(dsBackingIndexNames + " not removed from data stream", dsBackingIndexNames.contains(dsBackingIndexToRemove), is(false ));
+        }
+    }
+
+    @Test
+    public void deleteIndexFromDataStream_noPermission() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_NO_PERMISSIONS)) {
+            String dsName = "ds_test_delete_index";
+            createDataStream(dsName);
+            rolloverDataStream(dsName);
+            List<String> dsBackingIndexNames = getDsBackingIndexNames(dsName);
+            assertThat(dsBackingIndexNames, hasSize(2));
+            String dsBackingIndexToDelete = dsBackingIndexNames.get(0);
+
+            GenericRestClient.HttpResponse response = client.postJson("/_data_stream/_modify", deleteBackingIndexRequest(dsName, dsBackingIndexToDelete));
+            assertThat("User without permissions should get 403 response", response, isForbidden());
+            assertThat(getDsBackingIndexNames(dsName).contains(dsBackingIndexToDelete), is(true));
+            assertThat(indexExists(dsBackingIndexToDelete), is(true));
+        }
+    }
+
+    @Test
+    public void deleteIndexFromDataStream_withOnlyModifyPermission() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_WITH_PERMISSIONS_TO_DELETE)) {
+            String dsName = DS_TEST_DELETE_INDEX_MODIFY_ONLY;
+            createDataStream(dsName);
+            rolloverDataStream(dsName);
+            List<String> dsBackingIndexNames = getDsBackingIndexNames(dsName);
+            assertThat(dsBackingIndexNames, hasSize(2));
+            String dsBackingIndexToDelete = dsBackingIndexNames.get(0);
+
+            GenericRestClient.HttpResponse response = client.postJson("/_data_stream/_modify", deleteBackingIndexRequest(dsName, dsBackingIndexToDelete));
+            assertThat("User without indices:admin/delete permission should get 403 response", response, isForbidden());
+            assertThat(getDsBackingIndexNames(dsName).contains(dsBackingIndexToDelete), is(true));
+            assertThat(indexExists(dsBackingIndexToDelete), is(true));
+        }
+    }
+
+    @Test
+    public void deleteIndexFromDataStream_withAllPermission() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_WITH_PERMISSIONS_TO_DELETE)) {
+            String dsName = DS_TEST_DELETE_INDEX_POSITIVE;
+            createDataStream(dsName);
+            rolloverDataStream(dsName);
+            List<String> dsBackingIndexNames = getDsBackingIndexNames(dsName);
+            assertThat(dsBackingIndexNames, hasSize(2));
+            String dsBackingIndexToDelete = dsBackingIndexNames.get(0);
+
+            GenericRestClient.HttpResponse response = client.postJson("/_data_stream/_modify", deleteBackingIndexRequest(dsName, dsBackingIndexToDelete));
+            assertThat("User with permissions should get 200 response", response, isOk());
+            assertThat(getDsBackingIndexNames(dsName).contains(dsBackingIndexToDelete), is(false));
+            assertThat(indexExists(dsBackingIndexToDelete), is(false));
+        }
+    }
+
+    private String deleteBackingIndexRequest(String dsName, String index) {
+        return """
+                {
+                  "actions": [
+                    {
+                      "delete_backing_index": {
+                        "data_stream": "%s",
+                        "index": "%s"
+                      }
+                    }
+                  ]
+                }
+                """.formatted(dsName, index);
+    }
+
+    private boolean indexExists(String indexName) throws Exception {
+        try (GenericRestClient adminClient = cluster.getAdminCertRestClient()) {
+            return adminClient.get(indexName).getStatusCode() == 200;
         }
     }
 

@@ -52,6 +52,8 @@ import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.xcontent.XContentType;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.core.TimeValue;
 import org.junit.Assert;
 import org.junit.Before;
@@ -479,6 +481,26 @@ public class AuditlogTest {
             Assert.assertEquals(indexMappings.toJsonString(), requestBody.getAsNode("source").toJsonString());
             Assert.assertEquals(request.writeIndexOnly(), requestBody.getBoolean("write_index_only"));
             Assert.assertEquals(origin, requestBody.getAsString("origin"));
+        }
+    }
+
+    @Test
+    public void testPutMappingRequest_nonJsonSource_requestBodyFieldIsFilledInCorrectly() throws Exception {
+        Settings settings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .build();
+        String indexName = "test-index";
+        DocNode indexMappings = DocNode.of("properties", DocNode.of("field1", DocNode.of("type", "text")));
+        PutMappingRequest request = new PutMappingRequest(indexName)
+                .source(new BytesArray(indexMappings.toString(Format.YAML)), XContentType.YAML);
+        try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {
+            TestAuditlogImpl.clear();
+            al.logIndexCreated(indexName, TransportCreateIndexAction.TYPE.name(), request);
+            Assert.assertEquals(1, TestAuditlogImpl.messages.size());
+            DocNode message = DocNode.wrap(TestAuditlogImpl.messages.get(0).getAsMap());
+            DocNode requestBody = DocNode.parse(Format.JSON).from(message.getAsString(AuditMessage.REQUEST_BODY));
+
+            Assert.assertEquals(indexMappings.toJsonString(), requestBody.getAsNode("source").toJsonString());
         }
     }
 
