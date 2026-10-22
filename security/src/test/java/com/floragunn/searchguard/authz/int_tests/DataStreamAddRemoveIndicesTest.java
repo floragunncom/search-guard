@@ -11,6 +11,7 @@ import org.junit.Test;
 import java.util.List;
 
 import static com.floragunn.searchguard.test.RestMatchers.isForbidden;
+import static com.floragunn.searchguard.test.RestMatchers.isNotFound;
 import static com.floragunn.searchguard.test.RestMatchers.isOk;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
@@ -27,6 +28,8 @@ public class DataStreamAddRemoveIndicesTest {
     public static final String INDEX_DS_ADDITION_POSITIVE = "index_ds_addition_positive";
     public static final String DS_TEST_REMOVE_INDEX_POSITIVE = "ds_test_remove_index_positive";
     public static final String DS_TEST_MIXED_OPERATIONS = "ds_test_mixed_operations";
+    public static final String DS_TEST_DELETE_INDEX_POSITIVE = "ds_test_delete_index_positive";
+    public static final String DS_TEST_DELETE_INDEX_NEGATIVE = "ds_test_delete_index_negative";
 
     static TestSgConfig.User USER_NO_PERMISSIONS = new TestSgConfig.User("no_permissions")
             .roles(new TestSgConfig.Role("no_permissions").clusterPermissions().indexPermissions().on().aliasPermissions().on().dataStreamPermissions().on());
@@ -45,13 +48,20 @@ public class DataStreamAddRemoveIndicesTest {
 
     static TestSgConfig.User USER_WITH_PERMISSIONS_TO_REMOVE = new TestSgConfig.User("with_permissions_to_remove")
             .roles(new TestSgConfig.Role("with_permissions_to_remove").clusterPermissions()
-                    .indexPermissions("indices:admin/data_stream/modify").on(".ds-" + DS_TEST_REMOVE_INDEX_POSITIVE + "*")
+                    .indexPermissions("indices:admin/data_stream/modify").on(".ds-" + DS_TEST_REMOVE_INDEX_POSITIVE + "*", ".ds-" + DS_TEST_DELETE_INDEX_NEGATIVE + "*")
                     .aliasPermissions().on()
-                    .dataStreamPermissions("indices:admin/data_stream/modify").on(DS_TEST_REMOVE_INDEX_POSITIVE));
+                    .dataStreamPermissions("indices:admin/data_stream/modify").on(DS_TEST_REMOVE_INDEX_POSITIVE, DS_TEST_DELETE_INDEX_NEGATIVE));
+
+    static TestSgConfig.User USER_WITH_PERMISSIONS_TO_DELETE = new TestSgConfig.User("with_permissions_to_delete")
+            .roles(new TestSgConfig.Role("with_permissions_to_delete").clusterPermissions()
+                    .indexPermissions("indices:admin/data_stream/modify", "indices:admin/delete").on(".ds-" + DS_TEST_DELETE_INDEX_POSITIVE + "*")
+                    .aliasPermissions().on()
+                    .dataStreamPermissions("indices:admin/data_stream/modify").on(DS_TEST_DELETE_INDEX_POSITIVE));
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
-            .users(USER_NO_PERMISSIONS, USER_WITH_PERMISSIONS_TO_ADD, USER_WITH_PERMISSIONS_TO_REMOVE, USER_WITH_MIXED_PERMISSIONS)//
+            .users(USER_NO_PERMISSIONS, USER_WITH_PERMISSIONS_TO_ADD, USER_WITH_PERMISSIONS_TO_REMOVE, USER_WITH_MIXED_PERMISSIONS,
+                    USER_WITH_PERMISSIONS_TO_DELETE)//
             .indexTemplates(new TestIndexTemplate("ds_test", "ds_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM_MINIMAL))//
             .authzDebug(true)//
             .enterpriseModulesEnabled()
@@ -238,6 +248,65 @@ public class DataStreamAddRemoveIndicesTest {
             assertThat("User with permissions should get 200 response", response, isOk());
             dsBackingIndexNames = getDsBackingIndexNames(dsName);
             assertThat(dsBackingIndexNames + " not removed from data stream", dsBackingIndexNames.contains(dsBackingIndexToRemove), is(false ));
+        }
+    }
+
+    @Test
+    public void deleteBackingIndex_withoutDeleteIndexPermission() throws Exception {
+        // the user may modify the data stream and its backing indices, but may not delete indices
+        try (GenericRestClient client = cluster.getRestClient(USER_WITH_PERMISSIONS_TO_REMOVE)) {
+            String dsName = DS_TEST_DELETE_INDEX_NEGATIVE;
+            createDataStream(dsName);
+            rolloverDataStream(dsName);
+            List<String> dsBackingIndexNames = getDsBackingIndexNames(dsName);
+            assertThat(dsBackingIndexNames, hasSize(2));
+            String dsBackingIndexToDelete = dsBackingIndexNames.get(0);
+
+            GenericRestClient.HttpResponse response = client.postJson("/_data_stream/_modify", """
+                    {
+                      "actions": [
+                        {
+                          "delete_backing_index": {
+                            "data_stream": "%s",
+                            "index": "%s"
+                          }
+                        }
+                      ]
+                    }
+                    """.formatted(dsName, dsBackingIndexToDelete));
+            assertThat("User without delete index permission should get 403 response", response, isForbidden());
+            dsBackingIndexNames = getDsBackingIndexNames(dsName);
+            assertThat("Backing index should still be present after forbidden delete", dsBackingIndexNames.contains(dsBackingIndexToDelete), is(true));
+        }
+    }
+
+    @Test
+    public void deleteBackingIndex_withAllPermission() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_WITH_PERMISSIONS_TO_DELETE);
+                GenericRestClient adminClient = cluster.getAdminCertRestClient()) {
+            String dsName = DS_TEST_DELETE_INDEX_POSITIVE;
+            createDataStream(dsName);
+            rolloverDataStream(dsName);
+            List<String> dsBackingIndexNames = getDsBackingIndexNames(dsName);
+            assertThat(dsBackingIndexNames, hasSize(2));
+            String dsBackingIndexToDelete = dsBackingIndexNames.get(0);
+
+            GenericRestClient.HttpResponse response = client.postJson("/_data_stream/_modify", """
+                    {
+                      "actions": [
+                        {
+                          "delete_backing_index": {
+                            "data_stream": "%s",
+                            "index": "%s"
+                          }
+                        }
+                      ]
+                    }
+                    """.formatted(dsName, dsBackingIndexToDelete));
+            assertThat("User with permissions should get 200 response", response, isOk());
+            dsBackingIndexNames = getDsBackingIndexNames(dsName);
+            assertThat(dsBackingIndexNames + " not removed from data stream", dsBackingIndexNames.contains(dsBackingIndexToDelete), is(false));
+            assertThat("Backing index should be deleted", adminClient.get(dsBackingIndexToDelete), isNotFound());
         }
     }
 

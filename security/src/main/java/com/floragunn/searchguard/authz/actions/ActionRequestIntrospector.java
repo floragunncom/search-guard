@@ -139,10 +139,14 @@ public class ActionRequestIntrospector {
                     DataStreamAction.Type type = dataStreamAction.getType();
                     Action.AdditionalDimension additionalDimension = switch (type) {
                         case ADD_BACKING_INDEX -> Action.AdditionalDimension.ADD_INDEX_TO_DATA_STREAM;
-                        case REMOVE_BACKING_INDEX -> Action.AdditionalDimension.REMOVE_INDEX_FROM_DATA_STREAM;
+                        case REMOVE_BACKING_INDEX, DELETE_BACKING_INDEX -> Action.AdditionalDimension.REMOVE_INDEX_FROM_DATA_STREAM;
                     };
                     result = result.with(ImmutableSet.of(dataStream), EXACT, Scope.INDICES_DATA_STREAMS)
                             .additional(additionalDimension, ImmutableList.of(index), EXACT, Scope.INDEX);
+                    if (type == DataStreamAction.Type.DELETE_BACKING_INDEX) {
+                        // delete_backing_index also deletes the index; like remove_index in the alias API, this needs the delete index privilege
+                        result = result.additional(Action.AdditionalDimension.DELETE_INDEX, ImmutableList.of(index), EXACT, Scope.INDEX);
+                    }
                 }
                 return result;
             } else if (action.scope() == Action.Scope.DATA_STREAM) {

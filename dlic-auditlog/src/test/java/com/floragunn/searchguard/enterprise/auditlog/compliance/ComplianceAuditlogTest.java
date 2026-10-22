@@ -37,6 +37,7 @@ import com.floragunn.searchguard.user.User;
 import com.floragunn.searchsupport.junit.AsyncAssert;
 import org.apache.http.Header;
 import org.apache.http.HttpStatus;
+import org.apache.http.message.BasicHeader;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.index.IndexRequest;
@@ -328,6 +329,14 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         //System.out.println(response.getBody());
         AsyncAssert.awaitAssert("Messages arrived", () -> TestAuditlogImpl.sb.toString().split(".*audit_compliance_diff_content.*replace.*").length == 2, Duration.ofSeconds(2));
         //System.out.println(TestAuditlogImpl.sb.toString());
+
+        // the source keeps the content type of the request; the diff must still be computed for non-JSON bodies
+        TestAuditlogImpl.clear();
+        response = rh.executePostRequest("humanresources/_doc/100?pretty", "Age: 777\n", encodeBasicHeader("admin", "admin"),
+                new BasicHeader("Content-Type", "application/yaml"));
+        Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+        AsyncAssert.awaitAssert("Messages arrived", () -> TestAuditlogImpl.sb.toString().split(".*audit_compliance_diff_content.*replace.*").length == 2, Duration.ofSeconds(2));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString(), TestAuditlogImpl.sb.toString().contains("777"));
     }
 
     @Test

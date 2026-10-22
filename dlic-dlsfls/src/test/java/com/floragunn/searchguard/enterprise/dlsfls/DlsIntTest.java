@@ -15,6 +15,7 @@
 package com.floragunn.searchguard.enterprise.dlsfls;
 
 import java.util.Collection;
+import java.util.List;
 
 import com.floragunn.codova.documents.Format;
 import com.floragunn.searchguard.test.helper.PitHolder;
@@ -41,6 +42,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import org.hamcrest.Matchers;
 import static org.hamcrest.Matchers.*;
 import static org.hamcrest.Matchers.equalTo;
 
@@ -59,6 +61,7 @@ public class DlsIntTest {
     static final String INDEX_PATTERN = INDEX_NAME_PREFIX + "*";
     static final String INDEX_NORMAL_MODE = INDEX_NAME_PREFIX + "_normal_index_mode";
     static final String INDEX_LOGS_DB_MODE = INDEX_NAME_PREFIX + "_logs_db_index_mode";
+    static final String INDEX_COMPLETION_SUGGEST = INDEX_NAME_PREFIX + "_completion_suggest";
 
 
     static final TestSgConfig.User ADMIN = new TestSgConfig.User("admin")
@@ -91,6 +94,17 @@ public class DlsIntTest {
             TEST_DATA.createIndex(adminCertRestClient, INDEX_LOGS_DB_MODE, settings);
 
             adminCertRestClient.postJson("/user_dept_terms_lookup/_doc/dept_d_terms_lookup_user?refresh=true", DocNode.of("dept", "dept_d"));
+
+            GenericRestClient.HttpResponse response = adminCertRestClient.putJson("/" + INDEX_COMPLETION_SUGGEST, DocNode.of("settings.index.number_of_shards", 6,
+                    "mappings.properties.dept.type", "keyword", "mappings.properties.suggest.type", "completion"));
+            assertThat(response.getBody(), response.getStatusCode(), equalTo(200));
+            // enough documents to have documents of both departments on every shard, as the batched query phase is only used for
+            // shards on other nodes than the coordinating node
+            for (int i = 0; i < 20; i++) {
+                adminCertRestClient.putJson("/" + INDEX_COMPLETION_SUGGEST + "/_doc/d" + i, DocNode.of("dept", "dept_d", "suggest", "completion dept d " + i));
+                adminCertRestClient.putJson("/" + INDEX_COMPLETION_SUGGEST + "/_doc/a" + i, DocNode.of("dept", "dept_a_1", "suggest", "completion dept a " + i));
+            }
+            adminCertRestClient.post("/" + INDEX_COMPLETION_SUGGEST + "/_refresh");
 
             String indexMode = TEST_DATA.getIndexMode(adminCertRestClient, INDEX_NORMAL_MODE);
             // null means default mode which is currently normal
@@ -279,6 +293,51 @@ public class DlsIntTest {
             GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_search?pretty", query);
 
             Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+        }
+    }
+
+    @Test
+    public void search_suggest_completion() throws Exception {
+        // The completion suggester reads the suggestions directly from the index; DLS must be applied on the reader level here
+        DocNode query = DocNode.of("suggest.completion_suggestion.prefix", "completion", "suggest.completion_suggestion.completion.field", "suggest",
+                "suggest.completion_suggestion.completion.size", 100);
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_D_USER)) {
+            GenericRestClient.HttpResponse response = client.postJson("/" + INDEX_COMPLETION_SUGGEST + "/_search?pretty", query);
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            List<String> options = response.getBodyAsDocNode().findByJsonPath("$.suggest.completion_suggestion[0].options[*].text").stream().map(String::valueOf).toList();
+            assertThat(response.getBody(), options, hasSize(20));
+            assertThat(response.getBody(), options, everyItem(startsWith("completion dept d")));
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
+            GenericRestClient.HttpResponse response = client.postJson("/" + INDEX_COMPLETION_SUGGEST + "/_search?pretty", query);
+
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            assertThat(response.getBody(), response.getBodyAsDocNode().findByJsonPath("$.suggest.completion_suggestion[0].options[*].text"), hasSize(40));
+        }
+    }
+
+    @Test
+    public void mtermvectors() throws Exception {
+        TestDocument testDocumentA1 = TEST_DATA.anyDocumentForDepartment("dept_a_1");
+        TestDocument testDocumentD = TEST_DATA.anyDocumentForDepartment("dept_d");
+        DocNode body = DocNode.of("ids", DocNode.array(testDocumentA1.getId(), testDocumentD.getId()));
+
+        try (GenericRestClient client = cluster.getRestClient(DEPT_D_USER)) {
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_mtermvectors?fields=*", body);
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            assertThat(response.getBody(), response.getBodyAsDocNode().findByJsonPath("$.docs[?(@._id == '" + testDocumentA1.getId() + "')].found"),
+                    Matchers.<Object>contains(false));
+            assertThat(response.getBody(), response.getBodyAsDocNode().findByJsonPath("$.docs[?(@._id == '" + testDocumentD.getId() + "')].found"),
+                    Matchers.<Object>contains(true));
+        }
+
+        try (GenericRestClient client = cluster.getRestClient(ADMIN)) {
+            GenericRestClient.HttpResponse response = client.postJson("/" + indexName + "/_mtermvectors?fields=*", body);
+            Assert.assertEquals(response.getBody(), 200, response.getStatusCode());
+            assertThat(response.getBody(), response.getBodyAsDocNode().findByJsonPath("$.docs[*].found"), Matchers.<Object>contains(true, true));
         }
     }
 

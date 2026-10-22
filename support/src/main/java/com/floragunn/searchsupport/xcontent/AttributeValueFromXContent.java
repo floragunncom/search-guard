@@ -12,6 +12,7 @@ import java.util.Set;
 
 import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.core.CheckedConsumer;
+import org.elasticsearch.common.io.Streams;
 import org.elasticsearch.xcontent.NamedXContentRegistry;
 import org.elasticsearch.xcontent.ToXContent;
 import org.elasticsearch.xcontent.XContent;
@@ -112,6 +113,11 @@ public class AttributeValueFromXContent implements XContent {
         @Override
         public void close() throws IOException {
 
+        }
+
+        @Override
+        public void closeAllowIllFormed() throws IOException {
+            close();
         }
 
         @Override
@@ -257,6 +263,12 @@ public class AttributeValueFromXContent implements XContent {
         @Override
         public void writeString(String value) throws IOException {
             setObject(value);
+        }
+
+        @Override
+        public void writeString(Reader reader, int len) throws IOException {
+            String value = Streams.copyToString(reader);
+            setObject(len < 0 ? value : value.substring(0, Math.min(len, value.length())));
         }
 
         @Override

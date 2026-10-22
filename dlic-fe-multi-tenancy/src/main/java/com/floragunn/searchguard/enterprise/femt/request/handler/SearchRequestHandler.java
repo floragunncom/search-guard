@@ -19,7 +19,6 @@ import com.floragunn.searchguard.authz.SyncAuthorizationFilter;
 import com.floragunn.searchguard.enterprise.femt.request.mapper.SearchMapper;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 
@@ -47,7 +46,8 @@ public class SearchRequestHandler extends RequestHandler<SearchRequest> {
             threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, request.toString());
 
             SearchRequest scopedRequest = searchMapper.toScopedSearchRequest(request, requestedTenant);
-            var listenerWrapper = new TenantScopedActionListenerWrapper<>(listener, storedContext, searchMapper, SearchResponse::decRef);
+            // the response is rewritten in place, so the usual reference counting of the search response applies
+            var listenerWrapper = new TenantScopedActionListenerWrapper<>(listener, storedContext, searchMapper);
             nodeClient.search(scopedRequest, listenerWrapper);
 
             return SyncAuthorizationFilter.Result.INTERCEPTED;

@@ -18,8 +18,8 @@ import com.floragunn.searchguard.enterprise.femt.datamigration880.service.DataMi
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.MigrationStep;
 import com.floragunn.searchguard.enterprise.femt.datamigration880.service.StepResult;
 import com.google.common.base.Throwables;
-import org.elasticsearch.index.reindex.BulkByScrollResponse;
-import org.elasticsearch.index.reindex.BulkByScrollTask.StatusOrException;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchResponse;
+import org.elasticsearch.index.reindex.BulkByPaginatedSearchTask.StatusOrException;
 
 import java.util.List;
 import java.util.Objects;
@@ -48,7 +48,7 @@ class CreateBackupOfGlobalIndexStep implements MigrationStep {
         }
         String backupDestination = context.getBackupIndexName();
         indexSettingsManager.createIndexWithClonedSettings(backupSource, backupDestination, false);
-        BulkByScrollResponse response = repository.reindexData(backupSource, backupDestination);
+        BulkByPaginatedSearchResponse response = repository.reindexData(backupSource, backupDestination);
         StringBuilder details = new StringBuilder("Backup of ").append(response.getTotal()).append( " documents ")//
             .append("from index '").append(backupSource).append("' placed in '").append(backupDestination).append("'. ")
             .append("It took ").append(response.getTook()).append(", ") //

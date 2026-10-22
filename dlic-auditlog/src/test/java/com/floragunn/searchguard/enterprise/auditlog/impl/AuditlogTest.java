@@ -51,8 +51,10 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.xcontent.XContentType;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -463,8 +465,9 @@ public class AuditlogTest {
         DocNode indexMappings = DocNode.of("_doc", DocNode.of("properties", DocNode.of("field1", DocNode.of("type", "text"))));
         boolean writeIndexOnly = true;
         String origin = "origin";
+        // the mapping source keeps the content type of the request; the audit log must still log it as JSON
         PutMappingRequest request = new PutMappingRequest(indexName)
-                .source(indexMappings)
+                .source(new BytesArray(indexMappings.toYamlString()), XContentType.YAML)
                 .writeIndexOnly(writeIndexOnly)
                 .origin(origin);
         try (AbstractAuditLog al = new AuditLogImpl(settings, null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurationRepository)) {

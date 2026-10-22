@@ -40,8 +40,11 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequest;
-import org.elasticsearch.action.RealtimeRequest;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.MultiGetRequest;
 import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.termvectors.MultiTermVectorsRequest;
+import org.elasticsearch.action.termvectors.TermVectorsRequest;
 import org.elasticsearch.client.internal.Client;
 import org.elasticsearch.cluster.metadata.IndexNameExpressionResolver;
 import org.elasticsearch.cluster.service.ClusterService;
@@ -178,8 +181,15 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
 
             Object request = context.getRequest();
 
-            if (request instanceof RealtimeRequest) {
-                ((RealtimeRequest) request).realtime(Boolean.FALSE);
+            // Realtime requests read from the translog and would bypass the DLS/FLS reader wrapper
+            if (request instanceof GetRequest getRequest) {
+                getRequest.realtime(false);
+            } else if (request instanceof MultiGetRequest multiGetRequest) {
+                multiGetRequest.realtime(false);
+            } else if (request instanceof TermVectorsRequest termVectorsRequest) {
+                termVectorsRequest.realtime(false);
+            } else if (request instanceof MultiTermVectorsRequest multiTermVectorsRequest) {
+                multiTermVectorsRequest.realtime(false);
             }
 
             if (request instanceof SearchRequest) {
@@ -234,6 +244,12 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
 
                         if (source.profile()) {
                             return SyncAuthorizationFilter.Result.DENIED.reason("Profiling is not supported when DLS is activated");
+                        }
+
+                        // Suggesters bypass the query, so DLS must be applied on the reader level. With the batched query phase, the data
+                        // node creates the shard search requests itself; thus, the header is the only way to let it know about the suggest.
+                        if (source.suggest() != null && threadContext.getHeader(ConfigConstants.SG_SUGGEST_HEADER) == null) {
+                            threadContext.putHeader(ConfigConstants.SG_SUGGEST_HEADER, "true");
                         }
                     }
                 }

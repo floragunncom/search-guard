@@ -76,6 +76,7 @@ import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContext;
 import com.floragunn.searchguard.privileges.SpecialPrivilegesEvaluationContextProviderRegistry;
 import com.floragunn.searchguard.privileges.extended_action_handling.ExtendedActionHandlingService;
 import com.floragunn.searchguard.support.Base64Helper;
+import com.floragunn.searchguard.transport.SearchGuardInterceptor;
 import com.floragunn.searchguard.support.ConfigConstants;
 import com.floragunn.searchguard.support.HeaderHelper;
 import com.floragunn.searchguard.support.SourceFieldsContext;
@@ -189,6 +190,11 @@ public class SearchGuardFilter implements ActionFilter {
                     threadContext.putTransient(ConfigConstants.SG_USER, user);
                 }
             }
+
+            // ES stashes the thread context on some paths (e.g. the chunked fetch phase) and restores only the headers it captured
+            // before. Transients are lost there. Thus, user, origin and remote address must be in headers before the request proceeds.
+            SearchGuardInterceptor.ensureCorrectHeaders(threadContext, threadContext.getTransient(ConfigConstants.SG_REMOTE_ADDRESS),
+                    threadContext.getTransient(ConfigConstants.SG_USER), threadContext.getTransient(ConfigConstants.SG_ORIGIN));
 
             org.apache.logging.log4j.ThreadContext.put("user", user != null ? user.getName() : "n/a");
 

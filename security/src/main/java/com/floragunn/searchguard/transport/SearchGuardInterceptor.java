@@ -141,6 +141,7 @@ public class SearchGuardInterceptor {
                     || k.equals(ConfigConstants.SG_DLS_MODE_HEADER)
                     || k.equals(ConfigConstants.SG_DLS_FILTER_LEVEL_QUERY_HEADER)
                     || k.equals(ConfigConstants.SG_AUTHZ_HASH_THREAD_CONTEXT_HEADER)
+                    || k.equals(ConfigConstants.SG_SUGGEST_HEADER)
                     || (k.equals("_sg_source_field_context") && ! (request instanceof SearchRequest) && !(request instanceof GetRequest))
                     || k.startsWith("_sg_trace")
                     || k.startsWith(ConfigConstants.SG_INITIAL_ACTION_CLASS_HEADER)
@@ -192,7 +193,7 @@ public class SearchGuardInterceptor {
             
             getThreadContext().putHeader(headerMap);
 
-            ensureCorrectHeaders(remoteAdress0, user0, origin0);
+            ensureCorrectHeaders(getThreadContext(), remoteAdress0, user0, origin0);
 
             if(actionTrace.isTraceEnabled()) {
                 getThreadContext().putHeader("_sg_trace"+System.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread.currentThread().getName()+" IC -> "+action+" "+getThreadContext().getHeaders().entrySet().stream().filter(p->!p.getKey().startsWith("_sg_trace")).collect(Collectors.toMap(p -> p.getKey(), p -> p.getValue())));
@@ -213,31 +214,31 @@ public class SearchGuardInterceptor {
         }
     }
 
-    private void ensureCorrectHeaders(final TransportAddress remoteAdr, final User origUser, final String origin) {
+    public static void ensureCorrectHeaders(ThreadContext threadContext, final TransportAddress remoteAdr, final User origUser, final String origin) {
         // keep original address
 
-        if(origin != null && !origin.isEmpty() /*&& !Origin.LOCAL.toString().equalsIgnoreCase(origin)*/ && getThreadContext().getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
-            getThreadContext().putHeader(ConfigConstants.SG_ORIGIN_HEADER, origin);
+        if(origin != null && !origin.isEmpty() /*&& !Origin.LOCAL.toString().equalsIgnoreCase(origin)*/ && threadContext.getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
+            threadContext.putHeader(ConfigConstants.SG_ORIGIN_HEADER, origin);
         }
 
-        if(origin == null && getThreadContext().getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
-            getThreadContext().putHeader(ConfigConstants.SG_ORIGIN_HEADER, Origin.LOCAL.toString());
+        if(origin == null && threadContext.getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {
+            threadContext.putHeader(ConfigConstants.SG_ORIGIN_HEADER, Origin.LOCAL.toString());
         }
 
         if (remoteAdr != null) {
 
-            String remoteAddressHeader = getThreadContext().getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER);
+            String remoteAddressHeader = threadContext.getHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER);
 
             if(remoteAddressHeader == null) {
-                getThreadContext().putHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER, Base64Helper.serializeObject(remoteAdr.address()));
+                threadContext.putHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER, Base64Helper.serializeObject(remoteAdr.address()));
             }
         }
 
         if(origUser != null) {
-            String userHeader = getThreadContext().getHeader(ConfigConstants.SG_USER_HEADER);
+            String userHeader = threadContext.getHeader(ConfigConstants.SG_USER_HEADER);
 
             if(userHeader == null) {
-                getThreadContext().putHeader(ConfigConstants.SG_USER_HEADER, Base64Helper.serializeObject(origUser));
+                threadContext.putHeader(ConfigConstants.SG_USER_HEADER, Base64Helper.serializeObject(origUser));
             }
         }
     }

@@ -1,0 +1,2043 @@
+ ▐▛███▛█   Claude Code v2.1.308
+▝▜██████▀  Fable 5.1 · Claude API
+ ▝▝   ▝▝   /work
+
+  Get to finished work sooner with Opus 5.5. Switch anytime with /model.
+
+❯ /model                                                                        
+  ⎿  Set model to Fable 5.1 and saved as your default for new sessions
+          ANTHROPIC_MODEL is set to Opus 5 — new sessions use that while it is 
+     set
+
+● Auto mode lets Claude handle permission prompts automatically — Claude
+  checks each tool call for risky actions and prompt injection before 
+  executing. Actions Claude identifies as safe are executed, while 
+  actions Claude identifies as risky are blocked and Claude may try a 
+  different approach. Ideal for long-running tasks. Sessions are 
+  slightly more expensive. Claude can make mistakes that allow harmful 
+  commands to run, it's recommended to only use in isolated 
+  environments. Shift+Tab to change mode.
+
+❯ /version-bump 9.5.5                                                           
+
+● I'll run the Elasticsearch version bump to 9.5.5, starting with the preflight
+  checks: branch state, current version, target availability, and the knowledge
+  files.
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+● Preflight confirms versions 9.4.3→9.5.5 with dependency bumps (Lucene, log4j,
+  netty, plus a new ip-location-api artifact), and since no baseline file exists
+  for 9.4.3, Phase 4 will require a full analysis. Next I'll pull the release
+  notes, security announcements, and ES source for both tags. · summary
+
+● Fetch(https://www.elastic.co/docs/release-notes/elasticsearch)
+  ⎿  Received 576.2KB (200 OK)
+
+● Fetch(https://discuss.elastic.co/c/announcements/security-announcements/31)
+  ⎿  Received 59KB (200 OK)
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● I found release notes for 9.4.5–9.4.8 and 9.5.0–9.5.5, along with several
+  security announcements. I'll have three agents read through those pages in
+  parallel while I build the current 9.4.3 tree to verify the toolchain before
+  bumping versions. · summary
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● 3 background agents launched (↓ to manage)
+   ├ Read ES 9.5.0 release notes
+   ├ Read ES patch release notes
+   └ Read ES security announcements
+
+● Background command "Download ES 9.4.3 and 9.5.5 sources (server, modules,
+x-pack security) into scratchpad" completed (exit code 0)
+
+  Ran 5 shell commands (ctrl+o to expand)
+
+● The 9.5.5 ES source diff shows chunked_fetch_phase_enabled and
+  batched_query_phase flags removed (now default-on), reindex lost its
+  PIT/resilience flags, and new action names appeared (reindex admin/monitor,
+  OTLP writes, ESQL datasets, reshard, encryption reset). Next I'll check how
+  Search Guard currently handles these paths. · summary
+
+  Searched for 5 patterns, ran 7 shell commands (ctrl+o to expand)
+
+● Background command "Build all modules at the current ES 9.4.3 to verify the
+toolchain" completed (exit code 0)
+
+● The 9.4.3 baseline build succeeded. Since chunked fetch phase defaults to
+  enabled in 9.5.5 (unlike 9.4.3), I'll check whether Search Guard already
+  preserves the user via a header at the coordinator's thread-context
+  stash/restore point. · summary
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● I've confirmed the user header isn't propagated to the coordinator's context,
+  causing the lost-user issue during chunked fetch hops. Next I'll examine the
+  DLS/FLS module's fetch-time reads, the batched query shard execution on data
+  nodes, and check existing test coverage for both paths. · summary
+
+  Searched for 1 pattern, ran 7 shell commands (ctrl+o to expand)
+
+› Message from general-purpose
+  Wrote /tmp/claude-1000/-work/93849c93-67ac-4c5f-8142-f3152874361c/scratchpad/n
+  otes-esa.md: a table of all 38 Elasticsearch ESAs with fixes in 9.4.4..9.5.5
+  (list pages 0-6 scanned; 17 given + 21 more found on pages 1, 3 and 4:
+  ESA-2026-143, 141, 114, 76, 80, 79, 78, 123, 120, 116, 81, 77, 133, 119, 118,
+  75, 74, 68, 64, 57, 56). All pages opened; "Could not read" is empty. ESAs
+  fixed at or before 9.4.3 (e.g. 47, 111, 60, 43, 42) are listed as excluded. No
+  repository files were touched.
+
+  ES-core (non-X-Pack) summary:
+  1. ESA-2026-141 / CVE-2026-78605 (fixed 9.4.5): HTTP/1.1 request smuggling in
+  the ES HTTP layer (CWE-444); responses can reach other users behind
+  connection-reusing proxies. Search Guard owns the Netty HTTP transport, so
+  verify its pipeline uses ES's fixed decoder/framing and does not override it.
+  2. ESA-2026-188 / CVE-2026-102407 (fixed 9.4.4): Modify Data Streams API
+  authorization flaw (CWE-863): privileges over one resource let a user alter a
+  data stream they cannot access. Search Guard does its own index resolution for
+  ModifyDataStreamsAction; check both data stream and backing index of each
+  action are authorized.
+  3. ESA-2026-56 / CVE-2026-56144 (fixed 9.4.4): ingest simulation (Simulate
+  Ingest API, since 8.12) runs pipelines of and returns mappings for indices the
+  user cannot access. Check how Search Guard authorizes SimulateBulkAction
+  ("indices:data/write/simulate/bulk") per target index; add a test.
+  4. ESA-2026-133 / CVE-2026-72636 (fixed 9.4.5): ES's recursive wildcard
+  matcher overflows the stack on patterns with many wildcard groups. Check
+  Search Guard's own pattern matching (role index patterns, FLS field patterns)
+  and any Regex.simpleMatch calls for the same behaviour.
+  5. ESA-2026-199 / CVE-2026-103009 (fixed 9.4.8): X-Pack RCS 2.0 only, but the
+  pattern (authorizing on one request attribute while ShardId selects another
+  index) is worth a glance at Search Guard's shard-level/CCS authorization.
+  6. All remaining ES-core items are pure DoS (recursion/allocation) in search,
+  aggregations, ES|QL (CHUNK, engine), EQL, highlighting, intervals query,
+  retrievers, runtime-field geometry, index templates, _analyze, custom analysis
+  settings, simulate pipeline, opaque ids (likely scroll/PIT), indexing,
+  connectors and inference; they are fixed by the bump itself and need no Search
+  Guard change: ESA-2026-198, 196, 195, 192, 190, 189, 185, 184, 183, 182, 180,
+  179, 176, 170, 143, 76, 80, 79, 78, 120, 116, 81, 77, 119, 118, 75, 74, 68,
+  64, 57.
+  7. X-Pack-only, not relevant: ESA-2026-197 (manage_roles), 114 and 123 (ML
+  trained models RCE/OOB).
+  8. Five advisories (184, 183, 182, 180, 179) and some others do not name the
+  affected component; table says "not stated".
+
+● Agent "Read ES security announcements" finished · 5m 17s
+
+● The security-announcement agent found 38 advisories in range, with 4 affecting
+  code paths Search Guard implements itself (Netty request smuggling, Modify
+  Data Streams and Simulate Ingest authorization, wildcard-matcher stack
+  overflow) — adding those to the Phase 4 checklist. Now finishing the DLS/FLS
+  wrap-time analysis. · summary
+
+  Searched for 2 patterns, read 1 file, ran 2 shell commands (ctrl+o to expand)
+
+● Confirmed the DLS/FLS bypass mechanism and · summary
+
+  Searched for 1 pattern, ran 2 shell commands (ctrl+o to expand)
+
+› Message from general-purpose
+  Notes written to /tmp/claude-1000/-work/93849c93-67ac-4c5f-8142-f3152874361c/s
+  cratchpad/notes-9.5.0.md (all three pages read completely; WebFetch refused
+  verbatim output, so I curl'ed the HTML and parsed it locally; nothing was
+  unreadable). The 9.5.0 section has no "Known issues"/"Security" subsection;
+  9.5.5, 9.4.4 and 9.4.8 only reference an external security advisory. I also
+  added a section for 9.5.1–9.5.5 / 9.4.4+ items since the bump target is 9.5.5.
+
+  Most important items for Search Guard:
+  1. Batched query phase now ON by default (`search.batched_query_phase`,
+  #148622): different node-level search action/request type, partial reduce on
+  data nodes; SearchGuardFilter authz, DLS/FLS and thread-context transients on
+  that path must be verified (follow-up fixes #155908 in 9.5.2, #160152 in
+  9.5.5).
+  2. Reindex rework (#148786): survives node shutdown via task relocation (ES
+  re-sends with X-Pack security headers, see fix #154133 "reindex relocation
+  failing with basic auth"), uses PIT instead of scroll, new reindex management
+  REST APIs/actions needing privilege mapping.
+  3. Breaking: CCS remote exclusion order is now significant (#143338) plus new
+  `-remote:index` syntax (#148497): SG's own index-expression resolution must
+  match.
+  4. HTTP layer: form-encoded bodies for authenticated requests (#149005);
+  PromQL form-encoded POST gated on "security and HTTP TLS enabled" (#148974);
+  OTLP logs/traces endpoints enabled by default (#147811); new PromQL endpoints;
+  ES|QL Data Federation (experimental, off by default) bypasses the index
+  layer.
+  5. Columnar index modes (tech preview, #152481) synthesize _source from doc
+  values; `FieldInfo` cached per shard directory (#148865): check FLS/masking
+  reader wrapper for leakage; Lucene 10.5/10.5.1.
+  6. SearchHit(s).readFrom signatures collapsed and hits ref-counted/pooled in
+  scroll/PIT/suggest/expand paths (#147155 et al.); shard request no longer
+  carried with each shard result (#146931); chunked fetch cleanup path changed
+  (#147855, known SG hotspot).
+  7. Deprecation: implicit child-logger configuration on `logger.*` updates
+  (#151637, removed in 10.0); Monitoring plugin deprecated.
+  8. 9.5.5 security hardening "consistency checks for shard-level requests in
+  CCS" (#159691) and a 9.5.5 security advisory (not in notes); 9.5.3 X-Pack FLS
+  fix for `_field_names` terms (#157889) worth mirroring; 9.4.4 X-Pack fixes for
+  data stream privilege checking and simulate-bulk authz.
+  9. Dependency bumps to align: log4j 2.26.1, Jackson 2.21.7, Netty 4.1.138,
+  Bouncy Castle 1.85 / BC-FIPS, HttpComponents 5.x CVE fixes, bundled JDK 26.0.2
+  (9.5.2).
+  10. TSDB breaking: `index.look_ahead_time` 30→9 min; future-timestamp docs
+  rejected (may hit TSDB tests).
+
+● Agent "Read ES 9.5.0 release notes" finished · 6m 25s
+
+› Message from general-purpose
+  Wrote /tmp/claude-1000/-work/93849c93-67ac-4c5f-8142-f3152874361c/scratchpad/n
+  otes-patches.md (table of ~165 rows, ordered 9.4.4 -> 9.5.5, plus "Versions
+  found on the page" and "Could not read" sections). No repository files were
+  touched.
+
+  Summary:
+  - All ten patch versions have sections on the release-notes page; 9.4.4 exists
+  (located after 9.5.0, ~offset 150k). "## 9.5.0" spans ~53.7k to ~150k and was
+  skipped as instructed.
+  - Breaking changes: 9.4.4 (Inference `secret_parameters` no longer
+  overridable, #153309); 9.4.5 and 9.5.1 (ILM allocate removes
+  `auto_expand_replicas`, #155279). Deprecation: 9.5.3 legacy monitoring REST
+  APIs (#152269). Known issues: 9.5.1/9.5.2 only (replica divergence #158212
+  fixed 9.5.3; must_not false positives on non-indexed fields fixed 9.5.2 via
+  Lucene 10.5.1).
+  - Most SG-relevant items: shard-level request consistency checks on CCS path
+  (#159691, 9.4.8/9.5.5, likely the ESA item); PIT TransportVersion fix in
+  mixed-version CCS (#159248); `ensureShardSearchActive` callbacks forked off
+  the refresh thread (#152509, 9.4.4; follow-ups #159526) and ES|QL
+  thread-context preservation (#154016, 9.4.5), both thread-context handoff
+  paths to check for lost user transients; batched-query/remote-reduction
+  listener fixes (#155908, #160152); FLS on `_field_names` (#157889) and
+  data-stream/simulate-bulk authz fixes (#148179, #152148) as X-Pack parallels
+  to verify in SG; `readArraySize` serialization hardening (#154525); new
+  setting `search.aggs.max_nested_depth` (#155743); `_msearch/template`
+  bounds/cancellation (#157642); audit request-body changes (#158143, #157760).
+  - Dependency bumps to align: Lucene 10.5.1 (9.5.2), bundled JDK 26.0.2, Netty
+  4.1.138, Jackson 2.21.7, Bouncy Castle 1.85 / FIPS, HttpComponents 5.x CVE
+  upgrades, Log4j 2.26.1, lz4-java 1.11.1, ASM 9.10.1.
+  - Caveat: WebFetch returns paraphrases (125-char quote cap) and estimated
+  offsets; pure ES|QL function-semantics fixes are grouped into one "ES|QL misc"
+  row per version with PR numbers rather than one row each.
+
+● Agent "Read ES patch release notes" finished · 7m 22s
+
+● All three reading agents are done. I'll assemble their output into the
+  release-notes checklist, then start Phase 2 (bump the pom and compile) while I
+  keep working through the runtime analysis.
+
+  Searched for 1 pattern, read 2 files, ran 7 shell commands (ctrl+o to expand)
+
+● Background command "Set elasticsearch.version to 9.5.5 and build all modules"
+completed (exit code 0)
+
+  Ran 1 shell command (ctrl+o to expand)
+● The 9.5.5 build fails because a new DataStreamAction.Type enum constant
+  (delete-backing-index) isn't handled in Search Guard's request introspector
+  switch. Since this is a security-relevant privilege decision, I'll check how
+  ES and X-Pack treat this operation. · summary
+
+  Searched for 2 patterns, ran 4 shell commands (ctrl+o to expand)
+  ⎿  Loaded .claude/rules/testing.md
+
+● Now the port plus the regression tests for the new delete_backing_index
+  operation.
+
+● Update(security/src/main/java/com/floragunn/searchguard/authz/actions/ActionRe
+        questIntrospector.java)
+  ⎿  Added 5 lines, removed 1 line
+      139                      DataStreamAction.Type type = dataStreamAct
+           ion.getType();
+      140                      Action.AdditionalDimension additionalDimen
+           sion = switch (type) {
+      141                          case ADD_BACKING_INDEX -> Action.Addit
+           ionalDimension.ADD_INDEX_TO_DATA_STREAM;
+      142 -                        case REMOVE_BACKING_INDEX -> Action.Ad
+          -ditionalDimension.REMOVE_INDEX_FROM_DATA_STREAM;              
+      142 +                        case REMOVE_BACKING_INDEX, DELETE_BACK
+          +ING_INDEX -> Action.AdditionalDimension.REMOVE_INDEX_FROM_DATA
+          +_STREAM;                                                      
+      143                      };
+      144                      result = result.with(ImmutableSet.of(dataS
+           tream), EXACT, Scope.INDICES_DATA_STREAMS)
+      145                              .additional(additionalDimension, I
+           mmutableList.of(index), EXACT, Scope.INDEX);
+      146 +                    if (type == DataStreamAction.Type.DELETE_B
+          +ACKING_INDEX) {                                               
+      147 +                        // delete_backing_index also deletes t
+          +he index; like remove_index in the alias API, this needs the d
+          +elete index privilege                                         
+      148 +                        result = result.additional(Action.Addi
+          +tionalDimension.DELETE_INDEX, ImmutableList.of(index), EXACT, 
+          +Scope.INDEX);                                                 
+      149 +                    }                                         
+      150                  }
+      151                  return result;
+      152              } else if (action.scope() == Action.Scope.DATA_STR
+           EAM) {
+
+● Update(security/src/test/java/com/floragunn/searchguard/authz/int_tests/DataSt
+        reamAddRemoveIndicesTest.java)
+  ⎿  Added 10 lines, removed 3 lines
+      45  
+      46      static TestSgConfig.User USER_WITH_PERMISSIONS_TO_REMOVE = 
+          new TestSgConfig.User("with_permissions_to_remove")
+      47              .roles(new TestSgConfig.Role("with_permissions_to_r
+          emove").clusterPermissions()
+      48 -                    .indexPermissions("indices:admin/data_strea
+         -m/modify").on(".ds-" + DS_TEST_REMOVE_INDEX_POSITIVE + "*")    
+      48 +                    .indexPermissions("indices:admin/data_strea
+         +m/modify").on(".ds-" + DS_TEST_REMOVE_INDEX_POSITIVE + "*", ".d
+         +s-" + DS_TEST_DELETE_INDEX_NEGATIVE + "*")                     
+      49                      .aliasPermissions().on()
+      50 -                    .dataStreamPermissions("indices:admin/data_
+         -stream/modify").on(DS_TEST_REMOVE_INDEX_POSITIVE));            
+      50 +                    .dataStreamPermissions("indices:admin/data_
+         +stream/modify").on(DS_TEST_REMOVE_INDEX_POSITIVE, DS_TEST_DELET
+         +E_INDEX_NEGATIVE));                                            
+      51  
+      52 +    static TestSgConfig.User USER_WITH_PERMISSIONS_TO_DELETE = 
+         +new TestSgConfig.User("with_permissions_to_delete")            
+      53 +            .roles(new TestSgConfig.Role("with_permissions_to_d
+         +elete").clusterPermissions()                                   
+      54 +                    .indexPermissions("indices:admin/data_strea
+         +m/modify", "indices:admin/delete").on(".ds-" + DS_TEST_DELETE_I
+         +NDEX_POSITIVE + "*")                                           
+      55 +                    .aliasPermissions().on()                   
+      56 +                    .dataStreamPermissions("indices:admin/data_
+         +stream/modify").on(DS_TEST_DELETE_INDEX_POSITIVE));            
+      57 +                                                               
+      58      @ClassRule
+      59      public static LocalCluster cluster = new LocalCluster.Build
+          er().singleNode().sslEnabled()
+      54 -            .users(USER_NO_PERMISSIONS, USER_WITH_PERMISSIONS_T
+         -O_ADD, USER_WITH_PERMISSIONS_TO_REMOVE, USER_WITH_MIXED_PERMISS
+         -IONS)//                                                        
+      60 +            .users(USER_NO_PERMISSIONS, USER_WITH_PERMISSIONS_T
+         +O_ADD, USER_WITH_PERMISSIONS_TO_REMOVE, USER_WITH_MIXED_PERMISS
+         +IONS,                                                          
+      61 +                    USER_WITH_PERMISSIONS_TO_DELETE)//         
+      62              .indexTemplates(new TestIndexTemplate("ds_test", "d
+          s_*").dataStream().composedOf(TestComponentTemplate.DATA_STREAM
+          _MINIMAL))//
+      63              .authzDebug(true)//
+      64              .enterpriseModulesEnabled()
+
+● Update(security/src/test/java/com/floragunn/searchguard/authz/int_tests/DataSt
+        reamAddRemoveIndicesTest.java)
+  ⎿  Added 2 lines
+      27      public static final String INDEX_DS_ADDITION_POSITIVE = "in
+          dex_ds_addition_positive";
+      28      public static final String DS_TEST_REMOVE_INDEX_POSITIVE = 
+          "ds_test_remove_index_positive";
+      29      public static final String DS_TEST_MIXED_OPERATIONS = "ds_t
+          est_mixed_operations";
+      30 +    public static final String DS_TEST_DELETE_INDEX_POSITIVE = 
+         +"ds_test_delete_index_positive";                               
+      31 +    public static final String DS_TEST_DELETE_INDEX_NEGATIVE = 
+         +"ds_test_delete_index_negative";                               
+      32  
+      33      static TestSgConfig.User USER_NO_PERMISSIONS = new TestSgCo
+          nfig.User("no_permissions")
+      34              .roles(new TestSgConfig.Role("no_permissions").clus
+          terPermissions().indexPermissions().on().aliasPermissions().on(
+          ).dataStreamPermissions().on());
+
+● Update(security/src/test/java/com/floragunn/searchguard/authz/int_tests/DataSt
+        reamAddRemoveIndicesTest.java)
+  ⎿  Added 59 lines
+      250          }
+      251      }
+      252  
+      253 +    @Test                                                     
+      254 +    public void deleteBackingIndex_withoutDeleteIndexPermissio
+          +n() throws Exception {                                        
+      255 +        // the user may modify the data stream and its backing
+          + indices, but may not delete indices                          
+      256 +        try (GenericRestClient client = cluster.getRestClient(
+          +USER_WITH_PERMISSIONS_TO_REMOVE)) {                           
+      257 +            String dsName = DS_TEST_DELETE_INDEX_NEGATIVE;    
+      258 +            createDataStream(dsName);                         
+      259 +            rolloverDataStream(dsName);                       
+      260 +            List<String> dsBackingIndexNames = getDsBackingInd
+          +exNames(dsName);                                              
+      261 +            assertThat(dsBackingIndexNames, hasSize(2));      
+      262 +            String dsBackingIndexToDelete = dsBackingIndexName
+          +s.get(0);                                                     
+      263 +                                                              
+      264 +            GenericRestClient.HttpResponse response = client.p
+          +ostJson("/_data_stream/_modify", """                          
+      265 +                    {                                         
+      266 +                      "actions": [                            
+      267 +                        {                                     
+      268 +                          "delete_backing_index": {           
+      269 +                            "data_stream": "%s",              
+      270 +                            "index": "%s"                     
+      271 +                          }                                   
+      272 +                        }                                     
+      273 +                      ]                                       
+      274 +                    }                                         
+      275 +                    """.formatted(dsName, dsBackingIndexToDele
+          +te));                                                         
+      276 +            assertThat("User without delete index permission s
+          +hould get 403 response", response, isForbidden());            
+      277 +            dsBackingIndexNames = getDsBackingIndexNames(dsNam
+          +e);                                                           
+      278 +            assertThat("Backing index should still be present 
+          +after forbidden delete", dsBackingIndexNames.contains(dsBackin
+          +gIndexToDelete), is(true));                                   
+      279 +        }                                                     
+      280 +    }                                                         
+      281 +                                                              
+      282 +    @Test                                                     
+      283 +    public void deleteBackingIndex_withAllPermission() throws 
+          +Exception {                                                   
+      284 +        try (GenericRestClient client = cluster.getRestClient(
+          +USER_WITH_PERMISSIONS_TO_DELETE);                             
+      285 +                GenericRestClient adminClient = cluster.getAdm
+          +inCertRestClient()) {                                         
+      286 +            String dsName = DS_TEST_DELETE_INDEX_POSITIVE;    
+      287 +            createDataStream(dsName);                         
+      288 +            rolloverDataStream(dsName);                       
+      289 +            List<String> dsBackingIndexNames = getDsBackingInd
+          +exNames(dsName);                                              
+      290 +            assertThat(dsBackingIndexNames, hasSize(2));      
+      291 +            String dsBackingIndexToDelete = dsBackingIndexName
+          +s.get(0);                                                     
+      292 +                                                              
+      293 +            GenericRestClient.HttpResponse response = client.p
+          +ostJson("/_data_stream/_modify", """                          
+      294 +                    {                                         
+      295 +                      "actions": [                            
+      296 +                        {                                     
+      297 +                          "delete_backing_index": {           
+      298 +                            "data_stream": "%s",              
+      299 +                            "index": "%s"                     
+      300 +                          }                                   
+      301 +                        }                                     
+      302 +                      ]                                       
+      303 +                    }                                         
+      304 +                    """.formatted(dsName, dsBackingIndexToDele
+          +te));                                                         
+      305 +            assertThat("User with permissions should get 200 r
+          +esponse", response, isOk());                                  
+      306 +            dsBackingIndexNames = getDsBackingIndexNames(dsNam
+          +e);                                                           
+      307 +            assertThat(dsBackingIndexNames + " not removed fro
+          +m data stream", dsBackingIndexNames.contains(dsBackingIndexToD
+          +elete), is(false));                                           
+      308 +            assertThat("Backing index should be deleted", admi
+          +nClient.get(dsBackingIndexToDelete), isNotFound());           
+      309 +        }                                                     
+      310 +    }                                                         
+      311 +                                                              
+      312      private void rolloverDataStream(String dsName) throws Exce
+           ption {
+      313          try (GenericRestClient adminClient = cluster.getAdminC
+           ertRestClient()) {
+      314              GenericRestClient.HttpResponse response = adminCli
+           ent.post(dsName + "/_rollover");
+
+  Searched for 2 patterns, ran 6 shell commands (ctrl+o to expand)
+
+● Background command "Add the matcher import and resume the 9.5.5 build from the
+security module" completed (exit code 0)
+
+  Read 1 file, ran 1 shell command (ctrl+o to expand)
+
+● Bash(sed -i 's/        BulkShardRequest request = new BulkShardRequest(null,
+      RefreshPolicy.NONE,/        BulkShardRequest request = new
+      BulkShardRequest(null, SplitS…)
+  ⎿  34:import org.elasticsearch.action.bulk.BulkShardRequest;
+     11:import org.elasticsearch.action.bulk.BulkShardRequest;
+     63:        BulkShardRequest bulkShardRequest = new BulkShardRequest(Sh
+     … +8 lines (ctrl+o to expand)
+  ⎿  Updated security/src/test/java/com/floragunn/searchguard/authz/actions
+     /ActionRequestIntrospectorTest.java (+2 -1)
+      32  import org.elasticsearch.action.admin.indices.alias.get.GetAlia
+          sesRequest;
+      33  import org.elasticsearch.action.bulk.BulkItemRequest;
+      34  import org.elasticsearch.action.bulk.BulkShardRequest;
+      35 +import org.elasticsearch.action.support.replication.SplitShardC
+         +ountSummary;                                                   
+      36  import org.elasticsearch.action.bulk.TransportShardBulkAction;
+      37  import org.elasticsearch.action.index.IndexRequest;
+      38  import org.elasticsearch.action.support.IndicesOptions;
+     ...
+      132  
+      133      @Test
+      134      public void bulkShardRequest_create_datastream() {
+      134 -        BulkShardRequest request = new BulkShardRequest(null, 
+          -RefreshPolicy.NONE,                                           
+      135 +        BulkShardRequest request = new BulkShardRequest(null, 
+          +SplitShardCountSummary.UNSET, RefreshPolicy.NONE,             
+      136                  new BulkItemRequest[] { new BulkItemRequest(1,
+            new IndexRequest("ds_d11")) });
+      137          ActionRequestInfo requestInfo = simple().getActionRequ
+           estInfo(ACTIONS.get(TransportShardBulkAction.ACTION_NAME), req
+           uest);
+      138          assertThat(requestInfo, main().hasNoIndices().hasNoAli
+           ases().hasDataStreams("ds_d11"));
+  ⎿  Updated dlic-auditlog/src/test/java/com/floragunn/searchguard/enterpri
+     se/auditlog/impl/IgnoreRequestBodiesTest.java (+1 -1)
+      60  
+      61      @Test
+      62      public void testIgnoreBulkRequestBodiesDefault() throws Exc
+          eption {
+      63 -        BulkShardRequest bulkShardRequest = new BulkShardReques
+         -t(ShardId.fromString("[my_index][0]"), WriteRequest.RefreshPoli
+         -cy.IMMEDIATE, new BulkItemRequest[] { new BulkItemRequest(0, ne
+         -w IndexRequest("my_index").id("1").source("{\"key\": \"value\"}
+         -", XContentType.JSON))});                                      
+      63 +        BulkShardRequest bulkShardRequest = new BulkShardReques
+         +t(ShardId.fromString("[my_index][0]"), SplitShardCountSummary.U
+         +NSET, WriteRequest.RefreshPolicy.IMMEDIATE, new BulkItemRequest
+         +[] { new BulkItemRequest(0, new IndexRequest("my_index").id("1"
+         +).source("{\"key\": \"value\"}", XContentType.JSON))});        
+      64          try(AbstractAuditLog al = new AuditLogImpl(settingsBuil
+          der.put(SEARCHGUARD_AUDIT_RESOLVE_BULK_REQUESTS, true).build(),
+           null, null, newThreadPool(), null, cs, configurationRepository
+          )) {
+      65              TestAuditlogImpl.clear();
+      66              al.logGrantedPrivileges("indices:data/write/bulk", 
+          bulkShardRequest, null);
+
+● The pom is bumped and the main sources compile; I'm now porting two test
+  constructions of BulkShardRequest (ES dropped the short constructor) and
+  resuming the build.
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● Next: confirm the transport interceptor forwards custom _sg_ headers, see
+  where the DLS valve inspects the search request, and write the
+  completion-suggest DLS test.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Background command "Fix the import and resume the build from the security
+module" completed (exit code 0)
+
+  Listed 1 directory (ctrl+o to expand)
+
+● Found another expected hotspot: the removed RealtimeRequest marker interface
+  in the DLS/FLS valve is causing the next compile error. I'll check 9.4.3 for
+  its former implementors and confirm each still has the required method in
+  9.5.5. · summary
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● Bash(python3 - <<'EOF'
+      import re,io…)
+  ⎿  41:import org.elasticsearch.action.ActionListener;
+     42:import org.elasticsearch.action.ActionRequest;
+     43:import org.elasticsearch.action.get.GetRequest;
+     … +50 lines (ctrl+o to expand)
+  ⎿  Updated dlic-dlsfls/src/main/java/com/floragunn/searchguard/enterprise
+     /dlsfls/DlsFlsValve.java (+13 -3)
+      40  import org.elasticsearch.ElasticsearchStatusException;
+      41  import org.elasticsearch.action.ActionListener;
+      42  import org.elasticsearch.action.ActionRequest;
+      43 -import org.elasticsearch.action.RealtimeRequest;               
+      43 +import org.elasticsearch.action.get.GetRequest;                
+      44 +import org.elasticsearch.action.get.MultiGetRequest;           
+      45  import org.elasticsearch.action.search.SearchRequest;
+      46 +import org.elasticsearch.action.termvectors.MultiTermVectorsReq
+         +uest;                                                          
+      47 +import org.elasticsearch.action.termvectors.TermVectorsRequest;
+      48  import org.elasticsearch.client.internal.Client;
+      49  import org.elasticsearch.cluster.metadata.IndexNameExpressionRe
+          solver;
+      50  import org.elasticsearch.cluster.service.ClusterService;
+     ...
+      181  
+      182              Object request = context.getRequest();
+      183  
+      181 -            if (request instanceof RealtimeRequest) {         
+      182 -                ((RealtimeRequest) request).realtime(Boolean.F
+          -ALSE);                                                        
+      184 +            // Realtime requests read from the translog and wo
+          +uld bypass the DLS/FLS reader wrapper                         
+      185 +            if (request instanceof GetRequest getRequest) {   
+      186 +                getRequest.realtime(false);                   
+      187 +            } else if (request instanceof MultiGetRequest mult
+          +iGetRequest) {                                                
+      188 +                multiGetRequest.realtime(false);              
+      189 +            } else if (request instanceof TermVectorsRequest t
+          +ermVectorsRequest) {                                          
+      190 +                termVectorsRequest.realtime(false);           
+      191 +            } else if (request instanceof MultiTermVectorsRequ
+          +est multiTermVectorsRequest) {                                
+      192 +                multiTermVectorsRequest.realtime(false);      
+      193              }
+      194  
+      195              if (request instanceof SearchRequest) {
+
+● Bash(python3 - <<'EOF'
+      p='dlic-dlsfls/src/test/java/com/floragunn/searchguard/enterprise/dlsfls/D
+      lsIntTest.java'…)
+  ⎿  17:import java.util.Collection;
+     171:                    DocNode.of("docs", DocNode.array(DocNode.of("_
+     id", testDocumentA1.getId()), DocNode.of("_id", testDocumentD.getId())
+     … +7 lines (ctrl+o to expand)
+  ⎿  Updated dlic-dlsfls/src/test/java/com/floragunn/searchguard/enterprise
+     /dlsfls/DlsIntTest.java (+58 -0)
+      59      static final String INDEX_PATTERN = INDEX_NAME_PREFIX + "*"
+          ;
+      60      static final String INDEX_NORMAL_MODE = INDEX_NAME_PREFIX +
+           "_normal_index_mode";
+      61      static final String INDEX_LOGS_DB_MODE = INDEX_NAME_PREFIX 
+          + "_logs_db_index_mode";
+      62 +    static final String INDEX_COMPLETION_SUGGEST = INDEX_NAME_P
+         +REFIX + "_completion_suggest";                                 
+      63  
+      64  
+      65      static final TestSgConfig.User ADMIN = new TestSgConfig.Use
+          r("admin")
+     ...
+       93  
+       94              adminCertRestClient.postJson("/user_dept_terms_loo
+           kup/_doc/dept_d_terms_lookup_user?refresh=true", DocNode.of("d
+           ept", "dept_d"));
+       95  
+       96 +            GenericRestClient.HttpResponse response = adminCer
+          +tRestClient.putJson("/" + INDEX_COMPLETION_SUGGEST, DocNode.of
+          +("settings.index.number_of_shards", 3,                        
+       97 +                    "mappings.properties.dept.type", "keyword"
+          +, "mappings.properties.suggest.type", "completion"));         
+       98 +            assertThat(response.getBody(), response.getStatusC
+          +ode(), equalTo(200));                                         
+       99 +            adminCertRestClient.putJson("/" + INDEX_COMPLETION
+          +_SUGGEST + "/_doc/d?refresh=true", DocNode.of("dept", "dept_d"
+          +, "suggest", "completion dept d"));                           
+      100 +            adminCertRestClient.putJson("/" + INDEX_COMPLETION
+          +_SUGGEST + "/_doc/a?refresh=true", DocNode.of("dept", "dept_a_
+          +1", "suggest", "completion dept a"));                         
+      101 +                                                              
+      102              String indexMode = TEST_DATA.getIndexMode(adminCer
+           tRestClient, INDEX_NORMAL_MODE);
+      103              // null means default mode which is currently norm
+           al
+      104              assertThat(indexMode, anyOf(equalTo("normal"), nul
+           lValue()));
+     ...
+      290      }
+      291  
+      292      @Test
+      293 +    public void search_suggest_completion() throws Exception {
+      294 +        // The completion suggester reads the suggestions dire
+          +ctly from the index; DLS must be applied on the reader level h
+          +ere                                                           
+      295 +        DocNode query = DocNode.of("suggest.completion_suggest
+          +ion.prefix", "completion", "suggest.completion_suggestion.comp
+          +letion.field", "suggest");                                    
+      296 +                                                              
+      297 +        try (GenericRestClient client = cluster.getRestClient(
+          +DEPT_D_USER)) {                                               
+      298 +            GenericRestClient.HttpResponse response = client.p
+          +ostJson("/" + INDEX_COMPLETION_SUGGEST + "/_search?pretty", qu
+          +ery);                                                         
+      299 +                                                              
+      300 +            Assert.assertEquals(response.getBody(), 200, respo
+          +nse.getStatusCode());                                         
+      301 +            assertThat(response.getBody(), response.getBodyAsD
+          +ocNode().findByJsonPath("$.suggest.completion_suggestion[0].op
+          +tions[*].text"),                                              
+      302 +                    contains("completion dept d"));           
+      303 +        }                                                     
+      304 +                                                              
+      305 +        try (GenericRestClient client = cluster.getRestClient(
+          +ADMIN)) {                                                     
+      306 +            GenericRestClient.HttpResponse response = client.p
+          +ostJson("/" + INDEX_COMPLETION_SUGGEST + "/_search?pretty", qu
+          +ery);                                                         
+      307 +                                                              
+      308 +            Assert.assertEquals(response.getBody(), 200, respo
+          +nse.getStatusCode());                                         
+      309 +            assertThat(response.getBody(), response.getBodyAsD
+          +ocNode().findByJsonPath("$.suggest.completion_suggestion[0].op
+          +tions[*].text"),                                              
+      310 +                    containsInAnyOrder("completion dept d", "c
+          +ompletion dept a"));                                          
+     … 36 more lines (ctrl+o to expand)
+
+  Searched for 1 pattern, ran 2 shell commands (ctrl+o to expand)
+
+● Background command "Resume the build from the DLS/FLS module" completed (exit
+code 0)
+
+● Bash(tail -8 /tmp/claude-1000/-work/93849c93-67ac-4c5f-8142-f3152874361c/tasks
+      /baa2ho3lg.output; cd /work && sed -i
+      's/DocNode.of("settings.index.number_of_shards",…)
+  ⎿  exit=1
+     [ERROR] /work/dlic-dlsfls/src/test/java/com/floragunn/searchguard/ente
+     rprise/dlsfls/DlsIntTest.java:[512,17] method termvectors() is already
+     … +16 lines (ctrl+o to expand)
+  ⎿  Updated dlic-dlsfls/src/test/java/com/floragunn/searchguard/enterprise
+     /dlsfls/DlsIntTest.java (+5 -5)
+      93  
+      94              adminCertRestClient.postJson("/user_dept_terms_look
+          up/_doc/dept_d_terms_lookup_user?refresh=true", DocNode.of("dep
+          t", "dept_d"));
+      95  
+      96 -            GenericRestClient.HttpResponse response = adminCert
+         -RestClient.putJson("/" + INDEX_COMPLETION_SUGGEST, DocNode.of("
+         -settings.index.number_of_shards", 3,                           
+      96 +            GenericRestClient.HttpResponse response = adminCert
+         +RestClient.putJson("/" + INDEX_COMPLETION_SUGGEST, DocNode.of("
+         +settings.index.number_of_shards", 6,                           
+      97                      "mappings.properties.dept.type", "keyword",
+           "mappings.properties.suggest.type", "completion"));
+      98              assertThat(response.getBody(), response.getStatusCo
+          de(), equalTo(200));
+      99              adminCertRestClient.putJson("/" + INDEX_COMPLETION_
+          SUGGEST + "/_doc/d?refresh=true", DocNode.of("dept", "dept_d", 
+          "suggest", "completion dept d"));
+     ...
+      299  
+      300              Assert.assertEquals(response.getBody(), 200, respo
+           nse.getStatusCode());
+      301              assertThat(response.getBody(), response.getBodyAsD
+           ocNode().findByJsonPath("$.suggest.completion_suggestion[0].op
+           tions[*].text"),
+      302 -                    contains("completion dept d"));           
+      302 +                    Matchers.<Object>contains("completion dept
+          + d"));                                                        
+      303          }
+      304  
+      305          try (GenericRestClient client = cluster.getRestClient(
+           ADMIN)) {
+     ...
+      307  
+      308              Assert.assertEquals(response.getBody(), 200, respo
+           nse.getStatusCode());
+      309              assertThat(response.getBody(), response.getBodyAsD
+           ocNode().findByJsonPath("$.suggest.completion_suggestion[0].op
+           tions[*].text"),
+      310 -                    containsInAnyOrder("completion dept d", "c
+          -ompletion dept a"));                                          
+      310 +                    Matchers.<Object>containsInAnyOrder("compl
+          +etion dept d", "completion dept a"));                         
+      311          }
+      312      }
+      313  
+     ...
+      328              response = client.postJson("/" + indexName + "/_mt
+           ermvectors?fields=*", DocNode.of("ids", DocNode.array(testDocu
+           mentA1.getId(), testDocumentD.getId())));
+      329              Assert.assertEquals(response.getBody(), 200, respo
+           nse.getStatusCode());
+      330              assertThat(response.getBody(), response.getBodyAsD
+           ocNode().findByJsonPath("$.docs[?(@._id == '" + testDocumentA1
+           .getId() + "')].found"),
+      331 -                    contains(false));                         
+      331 +                    Matchers.<Object>contains(false));        
+      332              assertThat(response.getBody(), response.getBodyAsD
+           ocNode().findByJsonPath("$.docs[?(@._id == '" + testDocumentD.
+           getId() + "')].found"),
+      333 -                    contains(true));                          
+      333 +                    Matchers.<Object>contains(true));         
+      334          }
+      335  
+      336          try (GenericRestClient client = cluster.getRestClient(
+           ADMIN)) {
+
+● I'm fixing a duplicate test name I introduced (DlsIntTest already has a
+  term-vectors test), then resuming the build.
+
+  Searched for 1 pattern, ran 5 shell commands (ctrl+o to expand)
+
+● Background command "Replace the duplicate test with an mtermvectors test and
+resume the build" completed (exit code 0)
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● The multi-tenancy module's classes weren't recompiled against 9.5.5 since
+  Maven's incremental build skipped unchanged modules. I'll rename the moved
+  reindex classes and run a clean build to ensure everything compiles against
+  9.5.5 properly. · summary
+
+  Listed 1 directory, ran 4 shell commands (ctrl+o to expand)
+
+● Background command "Rename the reindex classes in the multi-tenancy module and
+run a clean build of all modules" completed (exit code 0)
+  Searched for 1 pattern, read 1 file, ran 3 shell commands (ctrl+o to expand)
+
+● While the build runs, I'll review the remaining release-note items via code
+  inspection—remote-index exclusions, reindex privileges, simulate-bulk
+  authorization, and the Kibana server role. · summary
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● Background command "Implement the new XContentGenerator methods, rename the
+reindex response, and rerun the clean build" completed (exit code 0)
+
+  Read 1 file (ctrl+o to expand)
+
+● The clean build exposes real API changes affecting the audit log and
+  multi-tenancy modules—index request sources now differ from plain byte
+  references, and the search-hit pooling API has changed. I'll examine each of
+  these next. · summary
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● Background command "Extract the full ES 9.5.5 x-pack sources and list new
+action names of interest" completed (exit code 0)
+
+  Searched for 1 pattern, read 1 file, ran 9 shell commands (ctrl+o to expand)
+
+● While the clean build runs, I'm checking test coverage for the ported code and
+  preparing the two runtime fixes (user header for the chunked fetch path,
+  suggest marker for the batched query phase).
+
+  Searched for 3 patterns (ctrl+o to expand)
+
+● Background command "Port the audit log, multi-tenancy mapping and search
+response code to the 9.5.5 APIs and rebuild" completed (exit code 0)
+
+  Listed 1 directory, ran 5 shell commands (ctrl+o to expand)
+
+● Background command "Port the two Signals tests and resume the build from the
+Signals module" completed (exit code 0)
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Everything now compiles against 9.5.5 and the plugin zip is built. Next I'll
+  run the multi-node DLS/FLS suites on 9.5.5 without the runtime fixes to
+  capture expected failures, while also writing unit tests for the ported
+  generator methods. · summary
+
+  Ran 4 shell commands (ctrl+o to expand)
+
+● Bash(python3 - <<'EOF'
+      # AuditlogTest: YAML put mapping source…)
+  ⎿  dlic-auditlog/src/test/java/com/floragunn/searchguard/enterprise/audit
+     log/impl/AuditlogTest.java:54:import org.elasticsearch.common.bytes.By
+     tesArray;
+     … +31 lines (ctrl+o to expand)
+  ⎿  Updated dlic-auditlog/src/test/java/com/floragunn/searchguard/enterpri
+     se/auditlog/impl/AuditlogTest.java (+21 -0)
+      51  import org.elasticsearch.cluster.ClusterName;
+      52  import org.elasticsearch.cluster.node.DiscoveryNode;
+      53  import org.elasticsearch.cluster.service.ClusterService;
+      54 +import org.elasticsearch.common.bytes.BytesArray;              
+      55  import org.elasticsearch.common.settings.Settings;
+      56  import org.elasticsearch.core.TimeValue;
+      57 +import org.elasticsearch.xcontent.XContentType;                
+      58  import org.junit.Assert;
+      59  import org.junit.Before;
+      60  import org.junit.ClassRule;
+     ...
+      484          }
+      485      }
+      486  
+      487 +    @Test                                                     
+      488 +    public void testPutMappingRequest_nonJsonSourceIsLoggedAsJ
+          +son() throws Exception {                                      
+      489 +        Settings settings = Settings.builder()                
+      490 +                .put("searchguard.audit.type", TestAuditlogImp
+          +l.class.getName())                                            
+      491 +                .build();                                     
+      492 +        String indexName = "test-index";                      
+      493 +        DocNode indexMappings = DocNode.of("_doc", DocNode.of(
+          +"properties", DocNode.of("field1", DocNode.of("type", "text"))
+          +));                                                           
+      494 +        PutMappingRequest request = new PutMappingRequest(inde
+          +xName)                                                        
+      495 +                .source(new BytesArray(indexMappings.toYamlStr
+          +ing()), XContentType.YAML);                                   
+      496 +        try (AbstractAuditLog al = new AuditLogImpl(settings, 
+          +null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurat
+          +ionRepository)) {                                             
+      497 +            TestAuditlogImpl.clear();                         
+      498 +            al.logIndexCreated(indexName, TransportCreateIndex
+          +Action.TYPE.name(), request);                                 
+      499 +            Assert.assertEquals(1, TestAuditlogImpl.messages.s
+          +ize());                                                       
+      500 +            DocNode message = DocNode.wrap(TestAuditlogImpl.me
+          +ssages.get(0).getAsMap());                                    
+      501 +            DocNode requestBody = DocNode.parse(Format.JSON).f
+          +rom(message.getAsString(AuditMessage.REQUEST_BODY));          
+      502 +            Assert.assertEquals(indexMappings.toJsonString(), 
+          +requestBody.getAsNode("source").toJsonString());              
+      503 +        }                                                     
+      504 +    }                                                         
+      505 +                                                              
+      506      private void assertAuditLogDoesNotContainDisabledFields() 
+           {
+      507          Assert.assertFalse(TestAuditlogImpl.messages.stream()
+      508              .map(m -> m.getAsMap().keySet())
+  ⎿  Updated dlic-auditlog/src/test/java/com/floragunn/searchguard/enterpri
+     se/auditlog/compliance/ComplianceAuditlogTest.java (+9 -0)
+      37  import com.floragunn.searchsupport.junit.AsyncAssert;
+      38  import org.apache.http.Header;
+      39  import org.apache.http.HttpStatus;
+      40 +import org.apache.http.message.BasicHeader;                    
+      41  import org.elasticsearch.action.admin.indices.create.CreateInde
+          xRequest;
+      42  import org.elasticsearch.action.get.GetRequest;
+      43  import org.elasticsearch.action.index.IndexRequest;
+     ...
+      329          //System.out.println(response.getBody());
+      330          AsyncAssert.awaitAssert("Messages arrived", () -> Test
+           AuditlogImpl.sb.toString().split(".*audit_compliance_diff_cont
+           ent.*replace.*").length == 2, Duration.ofSeconds(2));
+      331          //System.out.println(TestAuditlogImpl.sb.toString());
+      332 +                                                              
+      333 +        // the source keeps the content type of the request; t
+          +he diff must still be computed for non-JSON bodies            
+      334 +        TestAuditlogImpl.clear();                             
+      335 +        response = rh.executePostRequest("humanresources/_doc/
+          +100?pretty", "Age: 777\n", encodeBasicHeader("admin", "admin")
+          +,                                                             
+      336 +                new BasicHeader("Content-Type", "application/y
+          +aml"));                                                       
+      337 +        Assert.assertEquals(response.getBody(), HttpStatus.SC_
+          +OK, response.getStatusCode());                                
+      338 +        AsyncAssert.awaitAssert("Messages arrived", () -> Test
+          +AuditlogImpl.sb.toString().split(".*audit_compliance_diff_cont
+          +ent.*replace.*").length == 2, Duration.ofSeconds(2));         
+      339 +        Assert.assertTrue(TestAuditlogImpl.sb.toString(), Test
+          +AuditlogImpl.sb.toString().contains("777"));                  
+      340      }
+      341  
+      342      @Test
+
+● Write(support/src/test/java/com/floragunn/searchsupport/xcontent/ObjectTreeXCo
+       ntentTest.java)
+  ⎿  Wrote 72 lines to support/src/test/java/com/floragunn/searchsupport/xc
+     ontent/ObjectTreeXContentTest.java
+       1 /*
+       2  * Copyright 2026 floragunn GmbH
+       4  * Licensed under the Apache License, Version 2.0 (the "License"
+         );
+       5  * you may not use this file except in compliance with the Licen
+       6  * You may obtain a copy of the License at
+       7  *
+       8  *     http://www.apache.org/licenses/LICENSE-2.0
+      10  * Unless required by applicable law or agreed to in writing, so
+         ftware
+     … +78 lines (ctrl+o to expand)
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Bash(python3 - <<'EOF'
+      # interceptor: make ensureCorrectHeaders reusable…)
+  ⎿  dlic-dlsfls/src/main/java/com/floragunn/searchguard/enterprise/dlsfls/
+     lucene/DlsFlsDirectoryReader.java:40:import com.floragunn.searchguard.
+     support.ConfigConstants;
+     … +5 lines (ctrl+o to expand)
+  ⎿  Updated security/src/main/java/com/floragunn/searchguard/transport/Sea
+     rchGuardInterceptor.java (+11 -10)
+      141                      || k.equals(ConfigConstants.SG_DLS_MODE_HE
+           ADER)
+      142                      || k.equals(ConfigConstants.SG_DLS_FILTER_
+           LEVEL_QUERY_HEADER)
+      143                      || k.equals(ConfigConstants.SG_AUTHZ_HASH_
+           THREAD_CONTEXT_HEADER)
+      144 +                    || k.equals(ConfigConstants.SG_SUGGEST_HEA
+          +DER)                                                          
+      145                      || (k.equals("_sg_source_field_context") &
+           & ! (request instanceof SearchRequest) && !(request instanceof
+            GetRequest))
+      146                      || k.startsWith("_sg_trace")
+      147                      || k.startsWith(ConfigConstants.SG_INITIAL
+           _ACTION_CLASS_HEADER)
+     ...
+      193              
+      194              getThreadContext().putHeader(headerMap);
+      195  
+      195 -            ensureCorrectHeaders(remoteAdress0, user0, origin0
+          -);                                                            
+      196 +            ensureCorrectHeaders(getThreadContext(), remoteAdr
+          +ess0, user0, origin0);                                        
+      197  
+      198              if(actionTrace.isTraceEnabled()) {
+      199                  getThreadContext().putHeader("_sg_trace"+Syste
+           m.currentTimeMillis()+"#"+UUID.randomUUID().toString(), Thread
+           .currentThread().getName()+" IC -> "+action+" "+getThreadConte
+           xt().getHeaders().entrySet().stream().filter(p->!p.getKey().st
+           artsWith("_sg_trace")).collect(Collectors.toMap(p -> p.getKey(
+           ), p -> p.getValue())));
+     ...
+      214          }
+      215      }
+      216  
+      216 -    private void ensureCorrectHeaders(final TransportAddress r
+          -emoteAdr, final User origUser, final String origin) {         
+      217 +    public static void ensureCorrectHeaders(ThreadContext thre
+          +adContext, final TransportAddress remoteAdr, final User origUs
+          +er, final String origin) {                                    
+      218          // keep original address
+      219  
+      219 -        if(origin != null && !origin.isEmpty() /*&& !Origin.LO
+          -CAL.toString().equalsIgnoreCase(origin)*/ && getThreadContext(
+          -).getHeader(ConfigConstants.SG_ORIGIN_HEADER) == null) {      
+      220 -            getThreadContext().putHeader(ConfigConstants.SG_OR
+          -IGIN_HEADER, origin);                                         
+      220 +        if(origin != null && !origin.isEmpty() /*&& !Origin.LO
+          +CAL.toString().equalsIgnoreCase(origin)*/ && threadContext.get
+          +Header(ConfigConstants.SG_ORIGIN_HEADER) == null) {           
+      221 +            threadContext.putHeader(ConfigConstants.SG_ORIGIN_
+          +HEADER, origin);                                              
+      222          }
+      223  
+      223 -        if(origin == null && getThreadContext().getHeader(Conf
+          -igConstants.SG_ORIGIN_HEADER) == null) {                      
+      224 -            getThreadContext().putHeader(ConfigConstants.SG_OR
+          -IGIN_HEADER, Origin.LOCAL.toString());                        
+      224 +        if(origin == null && threadContext.getHeader(ConfigCon
+          +stants.SG_ORIGIN_HEADER) == null) {                           
+      225 +            threadContext.putHeader(ConfigConstants.SG_ORIGIN_
+          +HEADER, Origin.LOCAL.toString());                             
+      226          }
+      227  
+      228          if (remoteAdr != null) {
+      229  
+      229 -            String remoteAddressHeader = getThreadContext().ge
+          -tHeader(ConfigConstants.SG_REMOTE_ADDRESS_HEADER);            
+      230 +            String remoteAddressHeader = threadContext.getHead
+          +er(ConfigConstants.SG_REMOTE_ADDRESS_HEADER);                 
+      231  
+      232              if(remoteAddressHeader == null) {
+     … 15 more lines (ctrl+o to expand)
+  ⎿  Updated security/src/main/java/com/floragunn/searchguard/filter/Search
+     GuardFilter.java (+6 -0)
+      76  import com.floragunn.searchguard.privileges.SpecialPrivilegesEv
+          aluationContextProviderRegistry;
+      77  import com.floragunn.searchguard.privileges.extended_action_han
+          dling.ExtendedActionHandlingService;
+      78  import com.floragunn.searchguard.support.Base64Helper;
+      79 +import com.floragunn.searchguard.transport.SearchGuardIntercept
+         +or;                                                            
+      80  import com.floragunn.searchguard.support.ConfigConstants;
+      81  import com.floragunn.searchguard.support.HeaderHelper;
+      82  import com.floragunn.searchguard.support.SourceFieldsContext;
+     ...
+      191                  }
+      192              }
+      193  
+      194 +            // ES stashes the thread context on some paths (e.
+          +g. the chunked fetch phase) and restores only the headers it c
+          +aptured                                                       
+      195 +            // before. Transients are lost there. Thus, user, 
+          +origin and remote address must be in headers before the reques
+          +t proceeds.                                                   
+      196 +            SearchGuardInterceptor.ensureCorrectHeaders(thread
+          +Context, threadContext.getTransient(ConfigConstants.SG_REMOTE_
+          +ADDRESS),                                                     
+      197 +                    threadContext.getTransient(ConfigConstants
+          +.SG_USER), threadContext.getTransient(ConfigConstants.SG_ORIGI
+          +N));                                                          
+      198 +                                                              
+      199              org.apache.logging.log4j.ThreadContext.put("user",
+            user != null ? user.getName() : "n/a");
+      200  
+      201              if (actionTrace.isTraceEnabled()) {
+  ⎿  Updated security/src/main/java/com/floragunn/searchguard/support/Confi
+     gConstants.java (+1 -0)
+      43      public static final String SG_DOC_WHITELST_TRANSIENT = SG_C
+          ONFIG_PREFIX+"doc_whitelist_t";
+      44  
+      45      public static final String SG_FILTER_LEVEL_DLS_DONE = SG_CO
+          NFIG_PREFIX+"filter_level_dls_done";
+      46 +    public static final String SG_SUGGEST_HEADER = SG_CONFIG_PR
+         +EFIX+"suggest";                                                
+      47  
+      48      public static final String SG_DLS_QUERY_CCS = SG_CONFIG_PRE
+          FIX+"dls_query_ccs";
+      49  
+  ⎿  Updated dlic-dlsfls/src/main/java/com/floragunn/searchguard/enterprise
+     /dlsfls/DlsFlsValve.java (+6 -0)
+      245                          if (source.profile()) {
+      246                              return SyncAuthorizationFilter.Res
+           ult.DENIED.reason("Profiling is not supported when DLS is acti
+           vated");
+      247                          }
+      248 +                                                              
+      249 +                        // Suggesters bypass the query, so DLS
+          + must be applied on the reader level. With the batched query p
+          +hase, the data                                                
+      250 +                        // node creates the shard search reque
+          +sts itself; thus, the header is the only way to let it know ab
+          +out the suggest.                                              
+      251 +                        if (source.suggest() != null && thread
+          +Context.getHeader(ConfigConstants.SG_SUGGEST_HEADER) == null) 
+          +{                                                             
+      252 +                            threadContext.putHeader(ConfigCons
+          +tants.SG_SUGGEST_HEADER, "true");                             
+      253 +                        }                                     
+      254                      }
+      255                  }
+      256              }
+  ⎿  Updated dlic-dlsfls/src/main/java/com/floragunn/searchguard/enterprise
+     /dlsfls/lucene/DlsFlsDirectoryReader.java (+2 -1)
+      486              }
+      487  
+      488              private boolean isSuggest() {
+      489 -                return dlsFlsContext.getThreadContext().getTra
+          -nsient("_sg_issuggest") == Boolean.TRUE;                      
+      489 +                return dlsFlsContext.getThreadContext().getTra
+          +nsient("_sg_issuggest") == Boolean.TRUE                       
+      490 +                        || dlsFlsContext.getThreadContext().ge
+          +tHeader(ConfigConstants.SG_SUGGEST_HEADER) != null;           
+      491              }
+      492  
+      493              private boolean isMetaField(String field) {
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Background command "Run FlsIntTest, FmIntTest and DlsIntTest on external 9.5.5
+clusters before the runtime fixes" completed (exit code 0)
+
+  Searched for 1 pattern, listed 1 directory, ran 1 shell command (ctrl+o to expand)
+
+● The before-fix run confirms the chunked-fetch issue: without the user header,
+  FmIntTest fails 8 times with masked source_ip exposed in clear. I'll now
+  investigate the FlsIntTest class-level error and check whether ES batches
+  suggest searches, since the new completion-suggest DLS test passed
+  unexpectedly without the suggest fix. · summary
+
+  Searched for 2 patterns, ran 3 shell commands (ctrl+o to expand)
+
+● Background command "Rerun FlsIntTest alone on 9.5.5 before the runtime fixes"
+completed (exit code 0)
+
+  Ran 5 shell commands (ctrl+o to expand)
+
+● Background command "Make the completion-suggest DLS test deterministic and
+rebuild all modules with the fixes" completed (exit code 0)
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● The rebuild stopped on a generics error in my new DLS test; I'm fixing the
+  matcher types and rebuilding, then running the DLS/FLS suites with the fixes
+  in place.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Bash(S=/tmp/claude-1000/-work/93849c93-67ac-4c5f-8142-f3152874361c/scratchpad;
+      echo "=== SimulateBulkRequest getIndices impl 9.5.5"; grep -n -B3 -A14
+      "getIndices()"…)
+  ⎿  === SimulateBulkRequest getIndices impl 9.5.5
+     239-
+     240-    @Override
+     … +12 lines (ctrl+o to expand)
+  ⎿  Updated dlic-dlsfls/src/test/java/com/floragunn/searchguard/enterprise
+     /dlsfls/DlsIntTest.java (+1 -1)
+      306              GenericRestClient.HttpResponse response = client.p
+           ostJson("/" + INDEX_COMPLETION_SUGGEST + "/_search?pretty", qu
+           ery);
+      307  
+      308              Assert.assertEquals(response.getBody(), 200, respo
+           nse.getStatusCode());
+      309 -            List<?> options = response.getBodyAsDocNode().find
+          -ByJsonPath("$.suggest.completion_suggestion[0].options[*].text
+          -");                                                           
+      309 +            List<String> options = response.getBodyAsDocNode()
+          +.findByJsonPath("$.suggest.completion_suggestion[0].options[*]
+          +.text").stream().map(String::valueOf).toList();               
+      310              assertThat(response.getBody(), options, hasSize(20
+           ));
+      311              assertThat(response.getBody(), options, everyItem(
+           startsWith("completion dept d")));
+      312          }
+
+  Searched for 2 patterns, ran 5 shell commands (ctrl+o to expand)
+
+● Background command "Fix the test generics, rebuild from the DLS module, and
+run the DLS/FLS suites with the fixes" completed (exit code 0)
+
+● Background command "Run the data stream, introspector and action completeness
+tests in the security module" completed (exit code 0)
+  Read 1 file (ctrl+o to expand)
+
+● The user-header fix resolves FmIntTest, FlsIntTest, and DlsIntTest (167 tests)
+  plus data-stream delete tests on external 9.5.5 clusters. I'll now re-run the
+  deterministic completion-suggest DLS test against a build lacking the suggest
+  fix to confirm it's actually necessary. · summary
+
+  Searched for 1 pattern, ran 4 shell commands (ctrl+o to expand)
+
+● Background command "Run the audit log tests covering the ported source
+handling" completed (exit code 0)
+
+  Searched for 1 pattern, read 1 file, ran 1 shell command (ctrl+o to expand)
+
+● Background command "Verify the completion-suggest DLS test fails without the
+suggest header, then restore the fix and rebuild" completed (exit code 0)
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● Confirmed the suggest header fix is needed since the batched query phase leaks
+  all 40 suggestions instead of 20 without it, and the audit-log mapping
+  failure stems from source() now binding to the wrong overload as a byte
+  reference. I'll fix that overload issue and check every other caller of the
+  helper. · summary
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Bash(python3 - <<'EOF'
+      p='.ai-runs/version-bump/release-notes-checklist.md'…)
+  ⎿  439 .ai-runs/version-bump/release-notes-checklist.md
+  ⎿  Updated dlic-auditlog/src/main/java/com/floragunn/searchguard/enterpri
+     se/auditlog/impl/AbstractAuditLog.java (+1 -1)
+      1312      private String serializeRequestContent(PutMappingRequest 
+            request) {
+      1313          return DocNode.of(
+      1314                  "indices", request.indices(),
+      1315 -                "source", Utils.convertJsonToxToStructuredMap
+           -(request.source()),                                          
+      1315 +                "source", XContentHelper.convertToMap(request
+           +.source(), false, request.xContentType()).v2(),              
+      1316                  "write_index_only", request.writeIndexOnly(),
+      1317                  "origin", request.origin()
+      1318          ).toJsonString();
+
+● Bash(python3 - <<'EOF'
+      p='.claude/hotspots.md'…)
+  ⎿  10
+     67:2. `mvn clean install -DskipTests` (online). `clean` is needed once
+     : Maven does not recompile a module whose
+  ⎿  Updated .claude/hotspots.md (+14 -0)
+      106  - **Applies to:** version bumps, code changes (any code that c
+           opies or wraps search hits)
+      107  - Added: bump to 9.5.5 · Last hit: bump to 9.5.5
+      108  
+      109 +## Shard requests built on the data node                      
+      110 +                                                              
+      111 +- **Goes wrong:** with the batched query phase, the coordinato
+          +r sends one `NodeQueryRequest` per data node                  
+      112 +  (`indices:data/read/search[query][n]`) and the data node bui
+          +lds the `ShardSearchRequest`s itself, without any             
+      113 +  transport hop or action filter. Code in `SearchGuardRequestH
+          +andler` that derives state from a received                    
+      114 +  `ShardSearchRequest` (e.g. the suggest marker for reader-lev
+          +el DLS) never runs for those shards; shards on the            
+      115 +  coordinating node itself still take the old per-shard path, 
+          +so single-node and small tests pass.                          
+      116 +- **Check:** anything the data node needs to know about a sear
+          +ch must be a thread-context *header* put on the               
+      117 +  coordinator (the interceptor forwards only the headers liste
+          +d in `SearchGuardInterceptor`); test on a                     
+      118 +  multi-node external cluster with more shards than data nodes
+          +.                                                             
+      119 +- **Search Guard:** `SearchGuardRequestHandler`, `DlsFlsValve`
+          + (`_sg_suggest` header), `DlsFlsDirectoryReader`.             
+      120 +- **Applies to:** version bumps, code changes (anything that i
+          +nspects shard-level search requests)                          
+      121 +- Added: bump to 9.5.5 · Last hit: bump to 9.5.5              
+      122 +                                                              
+      123  ## Interfaces Search Guard implements gain methods or paramete
+           rs
+      124  
+      125  - **Goes wrong:** new abstract methods or constructor paramete
+           rs; the quick fix drops new data or invents semantics.
+  ⎿  Updated .claude/skills/version-bump/SKILL.md (+5 -3)
+      64  ## Phase 2: Bump and compile
+      65  
+      66  1. Set `<elasticsearch.version>` in the root `pom.xml`.
+      67 -2. `mvn install -DskipTests` (online). On a compile error fix i
+         -t and resume with                                              
+      68 -   `-rf :<module-artifact-id>` (e.g. `-rf :search-guard-flx-sup
+         -port`). Test sources compile in this                           
+      69 -   step too, so test-side breakage surfaces here.              
+      67 +2. `mvn clean install -DskipTests` (online). `clean` is needed 
+         +once: Maven does not recompile a module whose                  
+      68 +   sources did not change, so without it modules keep classes c
+         +ompiled against A and their incompatibilities only             
+      69 +   show at runtime. On a compile error fix it and resume with `
+         +-rf :<module-artifact-id>` (e.g.                               
+      70 +   `-rf :search-guard-flx-support`); use `-fae` to see the erro
+         +rs of independent modules in one pass. Test sources            
+      71 +   compile in this step too, so test-side breakage surfaces her
+         +e.                                                             
+      72  3. For every error, look at the real new API before guessing:
+      73     - `javap -cp $REPO/org/elasticsearch/elasticsearch/$ARGUMENT
+          S/elasticsearch-$ARGUMENTS.jar <fqcn>`
+      74     - `unzip -l <jar> | grep <Name>` to find renamed/moved class
+          es
+
+● Write(.claude/skills/version-bump/baseline-9.5.5.md)
+  ⎿  Wrote 100 lines to .claude/skills/version-bump/baseline-9.5.5.md
+       1 # Baseline after the bump to Elasticsearch 9.5.5
+       3 State of this branch after the bump 9.4.3 -> 9.5.5 (October 2026
+         ). The next bump replaces this file. No baseline for
+         s and the single squashed commit "Bump to 9.4.3".
+       5 
+       7 
+       8 - `delete_backing_index` (new operation of the modify data strea
+       9   on the data stream and on the backing index (like `remove_back
+         ing_index`) plus `indices:admin/delete` on the
+         ias API's `remove_index` already requires the delete
+     … +185 lines (ctrl+o to expand)
+
+● Background command "Fix the put-mapping audit serialization, rebuild the audit
+module and plugin, and rerun AuditlogTest" completed (exit code 0)
+
+  Read 1 file (ctrl+o to expand)
+
+● AuditlogTest now passes, with multi-tenancy, Signals, and SQL tests still
+  running. I'll send the near-final diff to the compatibility and simplicity
+  reviewers in parallel while checking for leftover debug code. · summary
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Background command "Run the multi-tenancy, Signals and SQL authorization tests
+that cover the ported code" completed (exit code 0)
+
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● I need to pin down the server-side exception causing the dropped HTTP
+  responses (likely an assertion in the hit replacement), understand how the
+  listener wrapper releases the response, and check whether the test cluster
+  runs with assertions enabled. · summary
+
+  Searched for 3 patterns, ran 1 shell command (ctrl+o to expand)
+
+● Bash(python3 - <<'EOF'
+      p='dlic-fe-multi-tenancy/src/main/java/com/floragunn/searchguard/enterpris
+      e/femt/request/handler/SearchRequestHandler.java'…)
+  ⎿  22:import org.elasticsearch.action.search.SearchResponse;
+     22:import org.elasticsearch.action.search.SearchResponse;
+  ⎿  Updated dlic-fe-multi-tenancy/src/main/java/com/floragunn/searchguard/
+     enterprise/femt/request/handler/SearchRequestHandler.java (+2 -1)
+      47              threadContext.putHeader(SG_FILTER_LEVEL_FEMT_DONE, 
+          request.toString());
+      48  
+      49              SearchRequest scopedRequest = searchMapper.toScoped
+          SearchRequest(request, requestedTenant);
+      50 -            var listenerWrapper = new TenantScopedActionListene
+         -rWrapper<>(listener, storedContext, searchMapper, SearchRespons
+         -e::decRef);                                                    
+      50 +            // the response is rewritten in place, so the usual
+         + reference counting of the search response applies             
+      51 +            var listenerWrapper = new TenantScopedActionListene
+         +rWrapper<>(listener, storedContext, searchMapper);             
+      52              nodeClient.search(scopedRequest, listenerWrapper);
+      53  
+      54              return SyncAuthorizationFilter.Result.INTERCEPTED;
+
+● Bash(sed -i '/^import org.elasticsearch.action.search.SearchResponse;$/d'
+      dlic-fe-multi-tenancy/src/main/java/com/floragunn/searchguard/enterprise/f
+      emt/request/handl…)
+  ⎿  0
+     1201 /tmp/claude-1000/-work/93849c93-67ac-4c5f-8142-f3152874361c/scrat
+     chpad/bump-diff.patch
+  ⎿  Updated dlic-fe-multi-tenancy/src/main/java/com/floragunn/searchguard/
+     enterprise/femt/request/handler/SearchRequestHandler.java (+0 -1)
+      19  import com.floragunn.searchguard.enterprise.femt.request.mapper
+          .SearchMapper;
+      20  import org.elasticsearch.action.ActionListener;
+      21  import org.elasticsearch.action.search.SearchRequest;
+      22 -import org.elasticsearch.action.search.SearchResponse;         
+      22  import org.elasticsearch.client.internal.Client;
+      23  import org.elasticsearch.common.util.concurrent.ThreadContext;
+      24  
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● 2 background agents launched (↓ to manage)
+   ├ compat-reviewer (Compat review of ES bump diff)
+   └ simplicity-reviewer (Simplicity review of ES bump diff)
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Status: the whole tree compiles against 9.5.5 and the targeted tests pass
+  except the multi-tenancy search rerun that is in progress after a
+  reference-counting fix. Two reviewers (compatibility, simplicity) are reading
+  the near-final diff. I'll apply their findings and then run the full suite.
+
+✻ Cogitated for 43m 52s · done 1:10 PM
+
+● Background command "Rebuild the multi-tenancy module and plugin, then rerun
+the request mapping tests" completed (exit code 1: No matches found)
+
+  Read 1 file (ctrl+o to expand)
+
+● The multi-tenancy request mapping tests now pass (81 of 81, no node assertion
+  errors). Nothing else is independent of the two pending reviews, so I'm
+  waiting for the compatibility and simplicity reviewers before applying
+  findings and starting the full suite.
+
+✻ Baked for 6s · done 1:10 PM
+
+› Message from simplicity-reviewer
+  - /work/support/src/main/java/com/floragunn/searchsupport/xcontent/ObjectTreeX
+  Content.java:322 and /work/support/src/main/java/com/floragunn/searchsupport/x
+  content/AttributeValueFromXContent.java:268 — replace the 10-line bounded read
+  loop in each `writeString(Reader reader, int len)` with
+  `addObject(Streams.copyToString(reader));` /
+  `setObject(Streams.copyToString(reader));`
+  (`org.elasticsearch.common.io.Streams`; ES core is already a dependency of
+  `support`) — the only ES caller of `XContentGenerator.writeString(Reader,int)`
+  is `XContentBuilder.value(CharSequence)`, which always passes
+  `value.length()`, i.e. the full reader; nothing passes `-1` or a shorter
+  length, so the `len < 0` branch and the bounded loop handle a state that does
+  not occur. Then drop the "bounded" case from /work/support/src/test/java/com/f
+  loragunn/searchsupport/xcontent/ObjectTreeXContentTest.java (the
+  `writeString(new StringReader("hello world"), 5)` field and its two
+  assertions) — ~18 production lines, ~4 test lines
+  - /work/dlic-auditlog/src/test/java/com/floragunn/searchguard/enterprise/audit
+  log/impl/AuditlogTest.java:488 — delete
+  `testPutMappingRequest_nonJsonSourceIsLoggedAsJson` and instead change
+  `.source(indexMappings)` in the existing
+  `testPutMappingRequest_requestBodyFieldIsFilledInCorrectly` (line 468) to
+  `.source(new BytesArray(indexMappings.toYamlString()), XContentType.YAML)` —
+  the changed production line is the single
+  `XContentHelper.convertToMap(request.source(), false,
+  request.xContentType())`; JSON and YAML input run the same line, and the
+  existing test already asserts the logged `source` equals
+  `indexMappings.toJsonString()`, so one test with a YAML source covers the
+  content-type conversion without duplicating the 18-line scaffold — ~17 test
+  lines
+
+  Net: the production diff could shrink from ~220 changed lines to ~200
+  (insertions ~150 to ~132).
+
+  Opinions on the points raised (no change recommended unless listed above):
+
+  (a) `SearchGuardInterceptor.ensureCorrectHeaders` made `public static` with a
+  `ThreadContext` parameter and called from /work/security/src/main/java/com/flo
+  ragunn/searchguard/filter/SearchGuardFilter.java:194: correct choice.
+  `SearchGuardFilter` has no interceptor instance, and copying the three header
+  writes would be ~20 duplicated lines. The interceptor-side hunk is a
+  mechanical `getThreadContext()` -> `threadContext` rename, nothing extra.
+
+  (b) `SG_SUGGEST_HEADER`: no shorter alternative exists.
+  `SearchQueryThenFetchAsyncAction$NodeQueryRequest` (batched query phase) keeps
+  `searchRequest` as a `private final` field with no accessor (verified via
+  javap on the 9.5.5 jar), so `SearchGuardRequestHandler` cannot set the
+  existing `_sg_issuggest` transient for it. The three touch points (set in
+  `DlsFlsValve`, allowlist in the interceptor, read in `DlsFlsDirectoryReader`)
+  are the minimum for a header that must cross nodes; the `getHeader(...) ==
+  null` guard before `putHeader` is required because `putHeader` throws on
+  duplicates when the valve runs again for sub-requests. Keeping the old
+  transient path alongside is needed for shards executed via
+  `ShardSearchRequest` (local shards, older coordinating nodes).
+
+  (c) `writeString(Reader,int)`: see suggestion 1. The duplication itself is
+  consistent with the two classes (every method is mirrored), but each body
+  should be one line, not ten. `closeAllowIllFormed() { close(); }` is a
+  required abstract-method implementation (new abstract in 9.5's
+  `XContentGenerator`) and is already minimal.
+
+  (d) Tests: `DlsIntTest.search_suggest_completion` needs its own index (no
+  completion field in `TEST_DATA`) and several docs across 6 shards on the
+  3-node external cluster so that a dept_a leak on a non-coordinating data node
+  is observable; acceptable. Nit without line savings: the test does not use the
+  `indexName` parameter, so the parameterized runner executes it twice
+  identically. `mtermvectors` is the only test for the new
+  `MultiTermVectorsRequest` branch (the other three branches already have `get`,
+  `mget`, `termvectors`); keep. `DataStreamAddRemoveIndicesTest` positive and
+  negative delete tests follow the file's existing text-block pattern; the
+  negative test is what covers the `DELETE_INDEX` dimension decision; keep.
+  `ComplianceAuditlogTest` YAML write is 8 lines reusing the existing test's
+  setup and covers the `source().xContentType()` path; keep. `AuditlogTest` YAML
+  variant: see suggestion 2.
+
+  (e) `SearchMapper.unscopeResponse` rewrite
+  (/work/dlic-fe-multi-tenancy/src/main/java/com/floragunn/searchguard/enterpris
+  e/femt/request/mapper/SearchMapper.java): justified and net smaller (-36/+22).
+  `SearchHits.unpooled` is gone in 9.5, `SearchHits.replaceHit` asserts both
+  the container and the new hit are pooled (so `SearchHit.unpooled` cannot be
+  used with it), and the `SearchResponse(sections, ...)` constructor grew three
+  more arguments; rebuilding the response the old way would be longer.
+  `replaceHit` calls `decRef()` on the old hit, which releases its pooled source
+  buffer, so the deep copy `new BytesArray(source.toBytesRef(), true)` is
+  necessary and the comment explains why. Dropping the `SearchResponse::decRef`
+  argument in `SearchRequestHandler` follows from in-place rewriting; the
+  existing 3-arg `TenantScopedActionListenerWrapper` constructor is reused.
+
+  Everything else in the diff (`BulkByScrollResponse` ->
+  `BulkByPaginatedSearchResponse`, `BulkShardRequest` constructor arg
+  `SplitShardCountSummary.UNSET`, `Engine.Index.source()` now returning
+  `SourceToParse.Source`, `PutMappingRequest.source()` now `BytesReference` plus
+  `xContentType()`, removal of `RealtimeRequest` forcing four `instanceof`
+  branches in `DlsFlsValve`, the new `DELETE_BACKING_INDEX` constant in the
+  exhaustive switch) is forced by the ES 9.5.5 API and is already at its minimum
+  (all verified against the 9.4.3 and 9.5.5 jars). The untracked
+  `.claude/skills/version-bump/baseline-9.5.5.md` is required by the
+  version-bump skill (`SKILL.md` lines 36-38 and 141) and is not production
+  code.
+
+● The simplicity reviewer proposes two reductions: a one-line body for the new
+  reader-based writeString and folding the YAML put-mapping test into the
+  existing one. I'll apply both, keeping the length contract of the generator
+  method.
+● Bash(python3 - <<'EOF'
+      for p, call in [('support/src/main/java/com/floragunn/searchsupport/xconte
+      nt/AttributeValueFromXContent.java','setObject'),('support/src/main/…)
+  ⎿  support/src/main/java/com/floragunn/searchsupport/xcontent/AttributeVa
+     lueFromXContent.java:15:import org.elasticsearch.common.io.Streams;
+     support/src/main/java/com/floragunn/searchsupport/xcontent/ObjectTreeX
+     … +3 lines (ctrl+o to expand)
+  ⎿  Updated support/src/main/java/com/floragunn/searchsupport/xcontent/Att
+     ributeValueFromXContent.java (+3 -9)
+      12  
+      13  import org.elasticsearch.common.xcontent.LoggingDeprecationHand
+          ler;
+      14  import org.elasticsearch.core.CheckedConsumer;
+      15 +import org.elasticsearch.common.io.Streams;                    
+      16  import org.elasticsearch.xcontent.NamedXContentRegistry;
+      17  import org.elasticsearch.xcontent.ToXContent;
+      18  import org.elasticsearch.xcontent.XContent;
+     ...
+      267  
+      268          @Override
+      269          public void writeString(Reader reader, int len) throws
+            IOException {
+      269 -            StringBuilder value = new StringBuilder();        
+      270 -            char[] buffer = new char[1024];                   
+      271 -            int remaining = len < 0 ? Integer.MAX_VALUE : len;
+      272 -            int read;                                         
+      273 -            while (remaining > 0 && (read = reader.read(buffer
+          -, 0, Math.min(buffer.length, remaining))) != -1) {            
+      274 -                value.append(buffer, 0, read);                
+      275 -                remaining -= read;                            
+      276 -            }                                                 
+      277 -            setObject(value.toString());                      
+      270 +            String value = Streams.copyToString(reader);      
+      271 +            setObject(len < 0 ? value : value.substring(0, Mat
+          +h.min(len, value.length())));                                 
+      272          }
+      273  
+      274          @Override
+  ⎿  Updated support/src/main/java/com/floragunn/searchsupport/xcontent/Obj
+     ectTreeXContent.java (+3 -9)
+      22  import org.apache.logging.log4j.Logger;
+      23  import org.elasticsearch.common.xcontent.LoggingDeprecationHand
+          ler;
+      24  import org.elasticsearch.core.CheckedConsumer;
+      25 +import org.elasticsearch.common.io.Streams;                    
+      26  import org.elasticsearch.xcontent.DeprecationHandler;
+      27  import org.elasticsearch.xcontent.NamedXContentRegistry;
+      28  import org.elasticsearch.xcontent.ToXContent;
+     ...
+      321  
+      322          @Override
+      323          public void writeString(Reader reader, int len) throws
+            IOException {
+      323 -            StringBuilder value = new StringBuilder();        
+      324 -            char[] buffer = new char[1024];                   
+      325 -            int remaining = len < 0 ? Integer.MAX_VALUE : len;
+      326 -            int read;                                         
+      327 -            while (remaining > 0 && (read = reader.read(buffer
+          -, 0, Math.min(buffer.length, remaining))) != -1) {            
+      328 -                value.append(buffer, 0, read);                
+      329 -                remaining -= read;                            
+      330 -            }                                                 
+      331 -            addObject(value.toString());                      
+      324 +            String value = Streams.copyToString(reader);      
+      325 +            addObject(len < 0 ? value : value.substring(0, Mat
+          +h.min(len, value.length())));                                 
+      326          }
+      327  
+      328          @Override
+  ⎿  Updated dlic-auditlog/src/test/java/com/floragunn/searchguard/enterpri
+     se/auditlog/impl/AuditlogTest.java (+2 -20)
+      465          DocNode indexMappings = DocNode.of("_doc", DocNode.of(
+           "properties", DocNode.of("field1", DocNode.of("type", "text"))
+           ));
+      466          boolean writeIndexOnly = true;
+      467          String origin = "origin";
+      468 +        // the mapping source keeps the content type of the re
+          +quest; the audit log must still log it as JSON                
+      469          PutMappingRequest request = new PutMappingRequest(inde
+           xName)
+      469 -                .source(indexMappings)                        
+      470 +                .source(new BytesArray(indexMappings.toYamlStr
+          +ing()), XContentType.YAML)                                    
+      471                  .writeIndexOnly(writeIndexOnly)
+      472                  .origin(origin);
+      473          try (AbstractAuditLog al = new AuditLogImpl(settings, 
+           null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurat
+           ionRepository)) {
+     ...
+      485          }
+      486      }
+      487  
+      487 -    @Test                                                     
+      488 -    public void testPutMappingRequest_nonJsonSourceIsLoggedAsJ
+          -son() throws Exception {                                      
+      489 -        Settings settings = Settings.builder()                
+      490 -                .put("searchguard.audit.type", TestAuditlogImp
+          -l.class.getName())                                            
+      491 -                .build();                                     
+      492 -        String indexName = "test-index";                      
+      493 -        DocNode indexMappings = DocNode.of("_doc", DocNode.of(
+          -"properties", DocNode.of("field1", DocNode.of("type", "text"))
+          -));                                                           
+      494 -        PutMappingRequest request = new PutMappingRequest(inde
+          -xName)                                                        
+      495 -                .source(new BytesArray(indexMappings.toYamlStr
+          -ing()), XContentType.YAML);                                   
+      496 -        try (AbstractAuditLog al = new AuditLogImpl(settings, 
+          -null, null, AbstractSGUnitTest.MOCK_POOL, null, cs, configurat
+          -ionRepository)) {                                             
+      497 -            TestAuditlogImpl.clear();                         
+      498 -            al.logIndexCreated(indexName, TransportCreateIndex
+          -Action.TYPE.name(), request);                                 
+      499 -            Assert.assertEquals(1, TestAuditlogImpl.messages.s
+          -ize());                                                       
+      500 -            DocNode message = DocNode.wrap(TestAuditlogImpl.me
+          -ssages.get(0).getAsMap());                                    
+      501 -            DocNode requestBody = DocNode.parse(Format.JSON).f
+          -rom(message.getAsString(AuditMessage.REQUEST_BODY));          
+      502 -            Assert.assertEquals(indexMappings.toJsonString(), 
+          -requestBody.getAsNode("source").toJsonString());              
+      503 -        }                                                     
+      504 -    }                                                         
+      505 -                                                              
+      488      private void assertAuditLogDoesNotContainDisabledFields() 
+           {
+      489          Assert.assertFalse(TestAuditlogImpl.messages.stream()
+      490              .map(m -> m.getAsMap().keySet())
+
+● Agent "Simplicity review of ES bump diff" finished · 5m 27s
+
+● Both simplifications are applied and the support unit test still passes. Now I
+  only need the compatibility reviewer's verdict before the full suite; I'll
+  re-run AuditlogTest as part of the full suite.
+
+✻ Crunched for 24s · done 1:15 PM
+
+› Message from compat-reviewer
+  Verdict: NEEDS GATING
+
+  Findings (most severe first):
+
+  - /work/dlic-dlsfls/src/main/java/com/floragunn/searchguard/enterprise/dlsfls/
+  DlsFlsValve.java:251 and /work/security/src/main/java/com/floragunn/searchguar
+  d/transport/SearchGuardInterceptor.java:141 — surface 2/8 (security-relevant,
+  mixed cluster only) — A 9.5.5 coordinator (new SG) receives a DLS-restricted
+  search with a suggest section, puts `_sg_suggest` and forwards it. ES 9.5.5
+  decides batched execution per data node only by
+  `connection.getTransportVersion().supports(batched_query_phase_version)` and
+  node version >= 9.1 (SearchQueryThenFetchAsyncAction:572); a 9.4.3 data node
+  satisfies both and registers the `indices:data/read/search[query][n]` handler
+  unconditionally (its own default was off only on the coordinator side). The
+  old SG on that data node sees a NodeQueryRequest, never sets the
+  `_sg_issuggest` transient, and ignores the unknown `_sg_suggest` header
+  (SearchGuardRequestHandler reads only known headers, no rejection). Its
+  DlsFlsDirectoryReader.applyDlsHere() returns false for
+  `indices:data/read/search*`, so completion/term/phrase suggestions from
+  DLS-restricted documents leak for every shard that lives on a 9.4.x data node
+  during the rolling upgrade. Same scenario for CCS with
+  minimize_roundtrips=false against a remote cluster that stays on 9.1–9.4
+  (batched execution goes through the proxy action; the old remote ignores
+  `_sg_suggest`), and that one persists beyond the upgrade window. The new node
+  cannot gate this itself: there is no per-request batched override in 9.5.5
+  (only `searchService.batchQueryPhase()`), and the old data node's SG is what
+  decides.
+    Smallest mitigation: upgrade note / changelog entry: set the existing ES
+  setting `search.batched_query_phase: false` (dynamic cluster setting in both
+  9.4.3 and 9.5.5; OperatorDynamic is irrelevant without X-Pack operator
+  privileges) on the 9.5.5 nodes until all nodes and all DLS-relevant remote
+  clusters run 9.5.x, if DLS plus suggesters are in use. Whether to document
+  this or to do more is a team decision, not something to implement here.
+
+  Everything else: compatible. Details per hunk:
+
+  1. SearchGuardFilter.java:194-197 (ensureCorrectHeaders in the filter) —
+  surface 2: values and names are byte-identical to what the interceptor already
+  sent on every hop (same Base64Helper serialization of the SG_USER transient,
+  not the special-context user, consistent with the hotspot). Put-if-absent, so:
+  new node receiving from an old node keeps the old node's header; old node
+  receiving from a new node sees exactly what the old interceptor would have
+  produced. SG_USER cannot change inside one thread context (putTransient throws
+  on duplicate; stashContext drops headers and transients together), so the
+  header can never disagree with the transient on the same node.
+  Impersonation/auth tokens: the serialized user is whatever is in SG_USER after
+  the special-context block, which is what the old interceptor serialized on
+  the first hop. Old-node readers (SearchGuardRequestHandler:124/181,
+  AbstractAuditLog:1088-1107 fallback only when the transient is null) behave
+  identically. The chunked fetch path: 9.4.3 supports
+  `chunked_fetch_doc_id_order`, so a 9.5.5 coordinator routes fetches to old
+  data nodes through TransportFetchPhaseCoordinationAction
+  (`internal:data/read/search/fetch/coordination`, local direct channel → passes
+  the filter's internal-request branch, no authorization change); it stashes
+  and restores only captured headers, and with the fix the
+  user/origin/remote-address headers are among them, so old and new data nodes
+  restore the user. No audit-field change: the audit log only reads the header
+  when the transient is null, which is now strictly less often.
+
+  2. `_sg_suggest` header (DlsFlsValve:251, DlsFlsDirectoryReader:489,
+  ConfigConstants:46) — surface 2/8: forwarded by the new interceptor and to CCS
+  remotes; old nodes ignore it (see finding above for the consequence). On the
+  same thread context the header outlives the first sub-search (e.g. later
+  `_msearch` items without suggest), which makes applyDlsHere() true for them:
+  stricter, same result set, only a performance cost. Not a leak.
+
+  3. ActionRequestIntrospector.java:142-150 — surface 8 (privilege decision):
+  `delete_backing_index` needs `indices:admin/data_stream/modify` on data stream
+  and backing index plus `indices:admin/delete` on the backing index. This is a
+  new REST action type (9.5.5 REST layer refuses it in mixed clusters via a
+  cluster feature; ES gates the wire format with
+  `delete_backing_index_action_added`), so no existing user loses anything.
+  AdditionalDimension.DELETE_INDEX exists (Action.java:609). Decision for the
+  team to confirm; mirrors the alias-API remove_index handling.
+
+  4. DlsFlsValve realtime port (lines 185-194) — surface 8: 9.4.3 implementors
+  of RealtimeRequest are exactly GetRequest, MultiGetRequest,
+  TermVectorsRequest, MultiTermVectorsRequest; all four are covered, no
+  behaviour change.
+
+  5. Audit log (AbstractAuditLog.java:727-775, 1312; RequestResolver.java:262) —
+  surface 5/8: for JSON bodies the output is byte-identical:
+  `XContentHelper.convertToJson(bytes, false, JSON)` returns `utf8ToString()`
+  (9.5.5 XContentHelper:351), which is what 9.4.3's `PutMappingRequest.source()`
+  returned; `convertToMap(..., false, type)` and the old
+  `Utils.convertJsonToxToStructuredMap(String)` both yield an unordered map.
+  Non-JSON bodies change from wrong/binary content to correct JSON, which is the
+  intended fix.
+
+  6. SearchMapper.java:43-63 / SearchRequestHandler.java:49 — surface 8/pooling:
+  `SearchHits.replaceHit` decRefs the old hit (which may release a pooled
+  source); the source is deep-copied via `new BytesArray(source.toBytesRef(),
+  true)` before that; the new `SearchHit(docId, id, nestedIdentity)` is pooled,
+  as replaceHit asserts. Document/metadata fields, explanation, shard, version,
+  score are plain objects. The response object is now returned as-is, so
+  dropping the handler's `SearchResponse::decRef` is correct (the downstream
+  REST listener releases the single response). Not copying inner
+  hits/highlights/sort values is unchanged from the old code. No wire or REST
+  change.
+
+  7. FrontendDataMigrationInterceptor.java:142,
+  StepRepository/CopyData/CreateBackup/DeleteGlobalIndex steps,
+  UpdateByQueryMapper, IndexCleanupAgent, test-only BulkShardRequest/SearchHits
+  changes, pom.xml — pure compile ports; no serialized class, header, config
+  document, index mapping, REST shape or setting touched.
+
+  8. ObjectTreeXContent/AttributeValueFromXContent `writeString(Reader,int)` and
+  `closeAllowIllFormed()` — new ES abstract methods, implemented with Jackson's
+  semantics (len < 0 = read to EOF). Only used for local XContent-to-object
+  conversion; nothing crosses nodes.
+
+  Hotspot entries checked: "Lost user context when ES stashes the thread
+  context" (the diff serializes the SG_USER transient, as required), "Shard
+  requests built on the data node" (header is put on the coordinator and
+  forwarded; the remaining gap is the old data node, see finding), "Removed
+  marker interfaces" (implementor list verified against 9.4.3 sources), "Pooling
+  and reference counting" (verified above), "Return types that change to
+  BytesReference" (both audit call sites use the explicit XContentHelper
+  overloads with the request's content type), "Request bodies are not always
+  JSON" (covered), "New action types, enum constants" (DELETE_BACKING_INDEX;
+  X-Pack 9.5.5 has no explicit per-type privilege mapping in its sources to
+  compare against beyond the generic modify-data-streams authorization), "ES
+  classes from packages the server module does not export" (all new references
+  are in org.elasticsearch.action.*, index.reindex, search, cluster.routing,
+  xcontent; none from a non-exported package).
+
+  Not checked: the exact transport-version definition files of 9.4.3 were not
+  present in the source snapshot; support for `chunked_fetch_doc_id_order` and
+  `batched_query_phase_version` on 9.4.3 was inferred from 9.4.3 code
+  referencing both names via `TransportVersion.fromName`. I did not run
+  anything; the FmIntTest/DlsIntTest results are taken from the task
+  description.
+
+● The compatibility reviewer's verdict is "needs gating", not breaking: the only
+  open point is a rolling-upgrade window where old 9.4.x data nodes ignore the
+  new suggest header, which can only be mitigated operationally (the existing ES
+  setting search.batched_query_phase: false during the upgrade). I'll record
+  that in the baseline and start the full suite.
+
+● Bash(python3 - <<'EOF'
+      p='.claude/skills/version-bump/baseline-9.5.5.md'…)
+  ⎿  0
+     Full suite started (pid 21835). Watch /work/.ai-runs/full-suite/summar
+     y.txt until it contains ALL_DONE.
+     … +2 lines (ctrl+o to expand)
+  ⎿  Updated .claude/skills/version-bump/baseline-9.5.5.md (+5 -2)
+      55  - Kibana 9.5 index patterns (`.evaluation-*`, `significant_even
+          ts-*`, third-party agent, XM Cyber, PingDirectory
+      56    indices in X-Pack's `kibana_system`) are not in `SGS_KIBANA_S
+          ERVER`. Not part of the ES bump.
+      57  - Mixed cluster during a rolling upgrade: a 9.5.5 coordinator b
+          atches query requests to 9.4.x data nodes (they
+      58 -  support the transport version); on those nodes the old Search
+         - Guard does not know the `_sg_suggest` header, so the          
+      59 -  suggest DLS gap exists there until they are upgraded.        
+      58 +  support the transport version and register the `[query][n]` h
+         +andler); on those nodes the old Search Guard does not          
+      59 +  know the `_sg_suggest` header, so suggesters can return DLS-r
+         +estricted documents from shards on old nodes until             
+      60 +  they are upgraded (also for CCS against remote clusters on 9.
+         +1-9.4 with `ccs_minimize_roundtrips=false`). The new           
+      61 +  node cannot gate this. Operational mitigation (upgrade note, 
+         +team decision pending): set the dynamic ES cluster             
+      62 +  setting `search.batched_query_phase: false` while DLS-restric
+         +ted users can use suggesters and old nodes remain.             
+      63  - `ActionCompletenessIntTest` is `@Ignore`d ("to facilitate bac
+          kporting"); the manual action-name diff (see commands
+      64    below) replaces it.
+      65  - OTLP logs/traces endpoints are on by default now; they are au
+          thorized coarsely (privilege on `*`), like metrics
+
+● Agent "Compat review of ES bump diff" finished · 7m 35s
+
+● Monitor(full suite summary (ALL_DONE))
+  ⎿  Monitor started · task b410trzfr · timeout 1800s
+
+● The full suite is running in the background (build plus every module with the
+  prebuilt 9.5.5 zip). I'm watching its summary file and will compare the
+  per-module counts, fix anything the bump caused, and then write the report.
+
+✻ Sautéed for 51m 25s · done 1:18 PM
+
+● Monitor "full suite summary (ALL_DONE)" stream ended
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● I'll dig into the class-level error messages for the failing external-process
+  classes—likely a cluster start-up issue since they passed individually—along
+  with the Signals test failure details and the surefire fork count. · summary
+
+  Listed 1 directory, ran 1 shell command (ctrl+o to expand)
+
+● The external-process test failures trace to a stale 9.4.3 plugin zip being
+  picked up instead of 9.5.5, while all 7,000+ embedded tests passed. I'll
+  delete the stale artifact and rerun the failing classes against the correct
+  9.5.5 zip. · summary
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Reruns are in progress for the four modules. Nothing else is independent of
+  their result, so I'll fill in the baseline's test table and write the report
+  once they finish.
+
+✻ Worked for 51s · done 1:27 PM
+
+※ recap: Bumping Search Guard to Elasticsearch 9.5.5: code is ported, two runtime security fixes are in, and the full suite passed except external-cluster classes hit by a stale plugin zip. Now rerunning those classes, then writing the report. (disable recaps in /config)
+
+● Background command "Remove the stale 9.4.3 zip and rerun the failing classes
+module by module with the 9.5.5 zip" completed (exit code 0)
+
+  Read 1 file (ctrl+o to expand)
+
+● Bash(python3 - <<'EOF'
+      p='.claude/skills/version-bump/baseline-9.5.5.md'…)
+  ⎿  0
+     33
+     ?? .claude/
+      32 files changed, 291 insertions(+), 108 deletions(-)
+  ⎿  Updated .claude/skills/version-bump/baseline-9.5.5.md (+17 -1)
+       83  
+       84  ## Test baseline (full suite, `bash .claude/scripts/full-suite
+           .sh`, external-process clusters with the prebuilt zip)
+       85  
+       86 -TEST_BASELINE_PLACEHOLDER                                     
+       86 +| module | run | failures | errors | skipped | flakes | note |
+       87 +|---|---|---|---|---|---|---|                                 
+       88 +| support | 27 | 0 | 0 | 0 | 0 | |                            
+       89 +| ssl | 25 | 0 | 0 | 0 | 0 | |                                
+       90 +| security | 4266 | 0 | 0 | 7 | 0 | plus 4422 tests of the 11 
+          +external-process classes rerun alone (see note) |             
+       91 +| scheduler | 22 | 0 | 0 | 3 | 0 | |                          
+       92 +| signals | 369 | 0 | 0 | 4 | 1 | `SeverityMappingTest` class 
+          +error = known `ConfigVarRefreshAction` flake, passes alone; `S
+          +ignalsTenantTest.shouldInitWatchWhichUsesTruststoreDuringStart
+          +upTime` flaky (passed on rerun) |                             
+       93 +| dlic-security | 108 | 0 | 0 | 1 | 0 | 2 external-process cla
+          +sses rerun alone (20 tests) |                                 
+       94 +| dlic-auditlog | 128 | 0 | 0 | 4 | 0 | |                     
+       95 +| dlic-dlsfls | 2357 | 0 | 0 | 0 | 0 | 5 external-process clas
+          +ses rerun alone (179 tests) |                                 
+       96 +| dlic-fe-multi-tenancy | 561 | 0 | 0 | 2 | 0 | |             
+       97 +| dlic-signals | 7 | 0 | 0 | 0 | 0 | |                        
+       98  
+       99 +Note: in the full run every external-process class errored at 
+          +class level because `full-suite.sh` picked a stale            
+      100 +9.4.3 zip left in `plugin/target/releases` from the pre-bump b
+          +uild (the plugin cannot be installed into ES 9.5.5).          
+      101 +The "run" numbers above are the full run's numbers (the errore
+          +d classes count as 1 each there); the classes were            
+      102 +rerun with the 9.5.5 zip and all passed. Delete old zips from 
+          +`plugin/target/releases` before the full run.                 
+      103 +                                                              
+      104  ## Commands to regenerate the ES lists
+      105  
+      106  ```bash
+
+● Summary
+
+  Elasticsearch moved from 9.4.3 to 9.5.5 on this branch. The build is clean,
+  and all modules pass the full suite plus the reruns described below.
+
+  Compiling needed the usual ports (renamed reindex classes, a removed marker
+  interface for realtime requests, two new methods on the XContent generator
+  interface, a changed source type for index operations and put-mapping
+  requests, changed search-hit pooling, a new data-stream enum constant). None
+  of them changes behaviour for existing JSON requests.
+
+  Two ES defaults changed and would have weakened security without fixes:
+
+  1. The chunked fetch phase is now on by default. ES stashes the thread context
+     on that path and restores only headers, so the fetch ran without a user
+     and field masking and field-level security were lost. Search Guard now
+     writes user, origin and remote address into headers as soon as the user is
+     known, in the same format it already sent on every transport hop. Verified
+     on multi-node clusters: 8 masking tests failed before, 0 after.
+  2. The batched query phase is now on by default. Data nodes build shard
+     requests themselves, so the suggest marker for reader-level DLS was never
+     set and completion suggesters returned restricted documents. A new header
+     carries the marker; verified with a new test that fails without the fix.
+
+  Rolling upgrade: safe, with one gap only the operator can close. Old 9.4.x
+  data nodes ignore the new suggest header, so during a rolling upgrade
+  suggesters on DLS-restricted users can leak from shards on old nodes.
+
+  Decision needed: whether to ship an upgrade note recommending the existing
+  setting search.batched_query_phase: false until all nodes run 9.5.x, and
+  whether to confirm the privilege chosen for delete_backing_index (modify
+  privilege on data stream and index plus delete-index privilege, stricter than
+  X-Pack).
+
+  Decisions made on my own: that privilege choice; no new well-known actions for
+  the new ES action names (generic rules apply).
+
+  Details
+
+  Release-notes checklist
+
+  .ai-runs/version-bump/release-notes-checklist.md (395 items read, Part B gives
+  the outcome per item). Pages read: release notes 9.4.4–9.4.8 and 9.5.0–9.5.5,
+  breaking changes, deprecations, known issues, 38 security announcements.
+  Nothing was unreadable. Four advisories concern code Search Guard owns (HTTP
+  smuggling, modify-data-streams and simulate-bulk authorization, wildcard
+  matching); all verified without change.
+
+  ES API changes and ports
+
+  - DataStreamAction.Type.DELETE_BACKING_INDEX: handled in
+    ActionRequestIntrospector (see decision).
+  - RealtimeRequest removed: DlsFlsValve checks the four former implementors.
+  - SearchHits.unpooled/asUnpooled removed, SearchResponse constructor grew:
+    multi-tenancy SearchMapper rewrites hits in place with replaceHit (source
+    deep-copied), handler no longer releases the response twice.
+  - XContentGenerator gained writeString(Reader,int) and closeAllowIllFormed():
+    implemented in both support generators.
+  - Engine.Index.source() returns SourceToParse.Source,
+    PutMappingRequest.source() returns bytes plus content type: audit log and
+    multi-tenancy mapping interceptor convert with the real content type. The
+    overloaded audit helper silently bound to the wrong overload and produced
+    empty bodies (hotspot); replaced by a direct conversion.
+  - BulkByScroll* renamed to BulkByPaginatedSearch*; BulkShardRequest short
+    constructor removed (tests).
+
+  Behavioural changes found and fixed
+
+  - Chunked fetch: SearchGuardFilter header fix; regression tests FmIntTest,
+    FlsIntTest, DlsIntTest (external, multi-shard).
+  - Batched query phase: _sg_suggest header (valve, interceptor allowlist,
+    reader); regression test DlsIntTest.search_suggest_completion (40 instead of
+    20 options without the fix).
+
+  Hotspot checks
+
+  Hit: lost user context; removed feature flag (8 flags gone); return types to
+  BytesReference; non-JSON request bodies; new enum constant and action names;
+  removed marker interface; pooling; interfaces gaining methods; new entry
+  "shard requests built on the data node". Not hit: ES classes from non-exported
+  packages.
+
+  Changed files
+
+  - pom.xml: version 9.5.5.
+  - security/.../ActionRequestIntrospector.java: delete-backing-index
+    dimensions.
+  - security/.../SearchGuardFilter.java: put user/origin/remote-address headers.
+  - security/.../SearchGuardInterceptor.java: header helper made static, suggest
+    header forwarded.
+  - security/.../ConfigConstants.java: suggest header constant.
+  - dlic-dlsfls/.../DlsFlsValve.java: realtime port, suggest header.
+  - dlic-dlsfls/.../DlsFlsDirectoryReader.java: honour suggest header.
+  - dlic-auditlog/.../AbstractAuditLog.java, RequestResolver.java: source type
+    ports with content type.
+  - dlic-fe-multi-tenancy/.../SearchMapper.java, SearchRequestHandler.java:
+    in-place hit rewrite.
+  - dlic-fe-multi-tenancy/.../FrontendDataMigrationInterceptor.java and four
+    data-migration steps, UpdateByQueryMapper.java: renames and content-type
+    conversion.
+  - support/.../IndexCleanupAgent.java, ObjectTreeXContent.java,
+    AttributeValueFromXContent.java: rename, new generator methods.
+  - Tests: DataStreamAddRemoveIndicesTest (2 new), DlsIntTest (2 new),
+    ActionRequestIntrospectorTest, IgnoreRequestBodiesTest, AuditlogTest (YAML
+    source), ComplianceAuditlogTest (YAML write), four multi-tenancy step tests,
+    two Signals tests, new ObjectTreeXContentTest.
+  - Knowledge: .claude/hotspots.md (new entry, last-hit dates),
+    .claude/skills/version-bump/baseline-9.5.5.md (new), SKILL.md (clean build
+    step). Note that .claude/ and CLAUDE.md are untracked in this checkout.
+
+  Coverage
+
+  ┌─────────────────────────┬──────────────────────────────────────┬───────┐
+  │    production change    │                 test                 │ statu │
+  │                         │                                      │   s   │
+  ├─────────────────────────┼──────────────────────────────────────┼───────┤
+  │ introspector            │ DataStreamAddRemoveIndicesTest.delet │ new   │
+  │ delete_backing_index    │ eBackingIndex_*                      │       │
+  ├─────────────────────────┼──────────────────────────────────────┼───────┤
+  │ SearchGuardFilter       │                                      │ exist │
+  │ headers, interceptor    │ FmIntTest, FlsIntTest, DlsIntTest    │ ing   │
+  │ helper                  │                                      │       │
+  ├─────────────────────────┼──────────────────────────────────────┼───────┤
+  │ suggest header (valve,  │ DlsIntTest.search_suggest_completion │ new   │
+  │ interceptor, reader)    │                                      │       │
+  ├─────────────────────────┼──────────────────────────────────────┼───────┤
+  │                         │ DlsIntTest.get/mget/termvectors,     │ exist │
+  │ DlsFlsValve realtime    │ mtermvectors                         │ ing + │
+  │                         │                                      │  new  │
+  ├─────────────────────────┼──────────────────────────────────────┼───────┤
+  │ audit source handling,  │ ComplianceAuditlogTest.testWriteHist │ exten │
+  │ put-mapping body        │ ory, AuditlogTest put-mapping test   │ ded   │
+  ├─────────────────────────┼──────────────────────────────────────┼───────┤
+  │ SearchMapper,           │ MultiTenancyRequestMappingTest.searc │ exist │
+  │ SearchRequestHandler    │ hRequest_*                           │ ing   │
+  ├─────────────────────────┼──────────────────────────────────────┼───────┤
+  │ FrontendDataMigrationIn │ MultiTenancyRequestMappingTest       │ exist │
+  │ terceptor, steps        │ mapping tests, step tests            │ ing   │
+  ├─────────────────────────┼──────────────────────────────────────┼───────┤
+  │ generator methods       │ ObjectTreeXContentTest               │ new   │
+  ├─────────────────────────┼──────────────────────────────────────┼───────┤
+  │ IndexCleanupAgent       │ compile only, used by Signals tests  │ exist │
+  │ rename                  │                                      │ ing   │
+  └─────────────────────────┴──────────────────────────────────────┴───────┘
+
+  Test runs
+
+  Full suite (full-suite.sh): support 27, ssl 25, security 4266, scheduler 22,
+  signals 369 (1 flake), dlic-security 108, dlic-auditlog 128, dlic-dlsfls 2357,
+  dlic-fe-multi-tenancy 561, dlic-signals 7; 0 failures. Every external-process
+  class errored at class level because the script picked the stale 9.4.3 zip
+  from my pre-bump build; after deleting it, all 20 affected classes were rerun
+  with the 9.5.5 zip and passed (4,621 tests). SeverityMappingTest was the known
+  Signals config-vars flake. No baseline existed for 9.4.3, so counts could not
+  be compared. Not run: nothing.
+
+  Separate findings (not part of this task)
+
+  - ActionCompletenessIntTest is ignored, so new ES actions are never flagged by
+    tests; the manual action diff is in the baseline.
+  - OTLP logs/traces endpoints are now default-on and authorized coarsely
+    (privilege on all indices); consider well-known actions.
+  - SGS_KIBANA_SERVER lacks the index patterns X-Pack added for Kibana 9.5
+    (evaluation, significant events, third-party agent, XM Cyber,
+    PingDirectory).
+  - Reindex relocation on node shutdown is denied unless the user holds the
+    resume action on all indices; fails safe.
+  - The original suggest DLS test only asserted HTTP 200, so the leak went
+    unnoticed.
+
+  What would have helped
+
+  - CLAUDE.md "Build and test": "full-suite.sh takes the first zip in
+    plugin/target/releases; delete zips of other versions first, or make the
+    script pick the one matching elasticsearch.version."
+  - CLAUDE.md known flakes: "Several external-process classes starting in
+    parallel on a fresh machine can collide while extracting the ES download;
+    rerun the class."
+  - The skill now says to use mvn clean install for the first compile; the
+    baseline file for the next bump exists.
+
+✻ Brewed for 1m 1s · done 1:33 PM
+
+※ recap: The Elasticsearch bump from 9.4.3 to 9.5.5 is complete, compiled, ported and fully tested, with two security fixes and the knowledge files updated. Next: you decide on the rolling-upgrade note and the delete-backing-index privilege, then commit. (disable recaps in /config)
