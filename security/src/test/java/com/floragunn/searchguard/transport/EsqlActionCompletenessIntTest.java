@@ -48,10 +48,12 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
  * actually used against the classification below. A new ES|QL action makes this test fail, which forces a decision on how
  * it has to be authorized.
  *
- * The transport statistics only count requests which were received over the network, thus the cluster has dedicated data
- * nodes: that way the requests which read indices are sent from the coordinating node to another node. Actions which
- * Elasticsearch always sends to the local node (the enrich policy resolution and the dispatch of the query drivers) are
- * consequently not reported and cannot be covered by this test.
+ * Note what this test can and cannot see: the transport statistics only count requests which were received over the
+ * network. The cluster therefore has several data nodes and the index below has no replicas, which makes the data requests
+ * cross the network. Requests which Elasticsearch sends to the local node are not reported, which concerns the enrich
+ * policy resolution, the dispatch of the query drivers and, depending on the routing, the lookup of a LOOKUP JOIN. The
+ * requests of a cross cluster query are not covered either, as this test has one cluster. In other words: a new action is
+ * reliably detected if it reads indices of other nodes, which is exactly the case which needs authorization.
  *
  * ActionCompletenessIntTest cannot cover any of this: it runs on an embedded cluster, which has no ES|QL plugin at all.
  */
@@ -92,8 +94,11 @@ public class EsqlActionCompletenessIntTest {
     @BeforeClass
     public static void createTestData() throws Exception {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
-            assertThat(client.putJson("/sales", DocNode.of("settings.index.number_of_shards", 2, "mappings.properties.product.type", "keyword",
-                    "mappings.properties.amount.type", "integer")), isOk());
+            // No replicas, so that a shard of this index lives on a node which does not coordinate the query below. That way
+            // the data request is really sent over the network, which is a precondition for being reported in the
+            // transport statistics.
+            assertThat(client.putJson("/sales", DocNode.of("settings.index.number_of_shards", 2, "settings.index.number_of_replicas", 0,
+                    "mappings.properties.product.type", "keyword", "mappings.properties.amount.type", "integer")), isOk());
             assertThat(client.putJson("/sales/_doc/1?refresh=true", DocNode.of("product", "apple", "amount", 1)), isCreated());
 
             assertThat(client.putJson("/_query/view/view_sales", DocNode.of("query", "FROM sales")), isOk());
@@ -144,8 +149,7 @@ public class EsqlActionCompletenessIntTest {
         }
 
         // Make sure that the transport statistics really report the actions of the queries above. Otherwise, this test
-        // would silently pass without checking anything. The data requests are always sent to another node, as the
-        // coordinating node of this cluster holds no data.
+        // would silently pass without checking anything.
         assertThat(observed, hasItem("indices:data/read/esql/data"));
 
         TreeSet<String> unclassified = new TreeSet<>(observed);

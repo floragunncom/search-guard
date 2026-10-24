@@ -22,6 +22,8 @@ import static org.hamcrest.Matchers.equalTo;
 
 import java.time.Duration;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -98,11 +100,14 @@ public class EsqlAuditlogIntTest {
 
         // The top level request is logged once ...
         AsyncAssert.awaitAssert("The granted privileges of the ES|QL request are logged",
-                () -> countAuditEntries("GRANTED_PRIVILEGES", "indices:data/read/esql") == 1, Duration.ofSeconds(10));
+                () -> countAuditEntries(USER, "GRANTED_PRIVILEGES", "indices:data/read/esql") == 1, Duration.ofSeconds(10));
 
         // ... while the requests which read the indices are not logged, even though they were authorized
-        assertThat(countAuditEntries("GRANTED_PRIVILEGES", "indices:data/read/esql/data"), equalTo(0L));
-        assertThat(countAuditEntries("GRANTED_PRIVILEGES", "indices:data/read/esql/search_shards"), equalTo(1L));
+        // search_shards is a TransportAction and is thus logged by SearchGuardFilter. Asserting it shows that the entries
+        // of this query have arrived, which makes the assertion about the data requests meaningful.
+        AsyncAssert.awaitAssert("The granted privileges of the search_shards request are logged",
+                () -> countAuditEntries(USER, "GRANTED_PRIVILEGES", "indices:data/read/esql/search_shards") == 1, Duration.ofSeconds(10));
+        assertThat(countAuditEntries(USER, "GRANTED_PRIVILEGES", "indices:data/read/esql/data"), equalTo(0L));
     }
 
     @Test
@@ -113,24 +118,28 @@ public class EsqlAuditlogIntTest {
         }
 
         AsyncAssert.awaitAssert("The denial of the ES|QL data request is logged",
-                () -> countAuditEntries("MISSING_PRIVILEGES", "indices:data/read/esql/data") >= 1, Duration.ofSeconds(10));
+                () -> countAuditEntries(DATA_NODE_CHECK_USER, "MISSING_PRIVILEGES", "indices:data/read/esql/data") >= 1,
+                Duration.ofSeconds(10));
     }
 
     /**
-     * Counts the audit log entries of a category and privilege. The entries are filtered here instead of by a query, as
-     * the fields of the audit log index are mapped dynamically.
+     * Counts the audit log entries of one user, category and privilege. The entries of a user are counted separately, as
+     * the users of the test methods have overlapping privileges.
      */
-    private static long countAuditEntries(String category, String privilege) throws Exception {
+    private static long countAuditEntries(TestSgConfig.User user, String category, String privilege) throws Exception {
         try (GenericRestClient client = cluster.getAdminCertRestClient()) {
             assertThat(client.post("/" + AUDIT_INDEX_PATTERN + "/_refresh"), isOk());
 
-            GenericRestClient.HttpResponse response = client.get("/" + AUDIT_INDEX_PATTERN + "/_search?size=1000");
-            assertThat(response, isOk());
+            // The fields of the audit log index are mapped dynamically, thus the keyword sub fields are queried. The query
+            // is built from plain maps, as DocNode.of() would read the dots of the field names as a path.
+            DocNode query = DocNode.wrap(Map.of("query", Map.of("bool", Map.of("filter", List.of(//
+                    Map.of("term", Map.of("audit_category.keyword", category)), //
+                    Map.of("term", Map.of("audit_request_privilege.keyword", privilege)), //
+                    Map.of("term", Map.of("audit_request_effective_user.keyword", user.getName())))))));
 
-            return response.getBodyAsDocNode().findNodesByJsonPath("hits.hits[*]._source").stream()
-                    .filter((source) -> category.equals(source.getAsString("audit_category"))
-                            && privilege.equals(source.getAsString("audit_request_privilege")))
-                    .count();
+            GenericRestClient.HttpResponse response = client.postJson("/" + AUDIT_INDEX_PATTERN + "/_count", query);
+            assertThat(response.getBody(), response, isOk());
+            return response.getBodyAsDocNode().getNumber("count").longValue();
         }
     }
 }
