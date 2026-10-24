@@ -285,10 +285,9 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
      * Note: The SyncAuthorizationFilters provided by modules are intentionally not applied here. DLS/FLS for the ES|QL
      * data requests is enforced on shard level by the DLS/FLS DirectoryReader wrapper.
      *
-     * Note: Granted privileges are intentionally not written to the audit log here. The coordinating node already logs one
-     * entry for the top level request, so one entry per node which takes part in the query would just duplicate it. This
-     * follows the audit log, which suppresses the same duplication for the shard level requests of a bulk request. Denied
-     * privileges are logged, as a denial is relevant on its own and is logged at most once per node.
+     * Note: Granted privileges are only written to the audit log for the requests of a cross cluster query, see
+     * logGrantedPrivilegesIfNotLoggedByCoordinatingCluster(). Denied privileges are always logged, as a denial is relevant
+     * on its own and is logged at most once per node.
      */
     private boolean authorizeTransportLevel(T request, TransportChannel transportChannel, Task task) {
         String actionName = task.getAction();
@@ -308,6 +307,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
             }
 
             if (adminDns.isAdmin(user)) {
+                logGrantedPrivilegesIfNotLoggedByCoordinatingCluster(actionName, request, task);
                 return true;
             }
 
@@ -347,6 +347,7 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                     privilegesEvaluationContext, specialPrivilegesEvaluationContext);
 
             if (result.isOk()) {
+                logGrantedPrivilegesIfNotLoggedByCoordinatingCluster(actionName, request, task);
                 return true;
             } else {
                 auditLog.logMissingPrivileges(actionName, request, task);
@@ -358,6 +359,20 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
             transportChannel.sendResponse(new ElasticsearchSecurityException(
                     "Unexpected exception while evaluating privileges for " + actionName, RestStatus.INTERNAL_SERVER_ERROR));
             return false;
+        }
+    }
+
+    /**
+     * The audit log of the cluster which coordinates a query already contains one entry for the top level request, thus an
+     * entry per node which takes part in the query would just duplicate it. The audit log suppresses the same duplication
+     * for the shard level requests of a bulk request.
+     *
+     * The requests of a cross cluster query are an exception: these are received by another cluster, whose audit log does
+     * not contain any entry for the query otherwise.
+     */
+    private void logGrantedPrivilegesIfNotLoggedByCoordinatingCluster(String actionName, T request, Task task) {
+        if (ESQL_CLUSTER_ACTION.equals(actionName)) {
+            auditLog.logGrantedPrivileges(actionName, request, task);
         }
     }
 
