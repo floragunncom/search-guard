@@ -284,6 +284,11 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
      *
      * Note: The SyncAuthorizationFilters provided by modules are intentionally not applied here. DLS/FLS for the ES|QL
      * data requests is enforced on shard level by the DLS/FLS DirectoryReader wrapper.
+     *
+     * Note: Granted privileges are intentionally not written to the audit log here. The coordinating node already logs one
+     * entry for the top level request, so one entry per node which takes part in the query would just duplicate it. This
+     * follows the audit log, which suppresses the same duplication for the shard level requests of a bulk request. Denied
+     * privileges are logged, as a denial is relevant on its own and is logged at most once per node.
      */
     private boolean authorizeTransportLevel(T request, TransportChannel transportChannel, Task task) {
         String actionName = task.getAction();
@@ -303,7 +308,6 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
             }
 
             if (adminDns.isAdmin(user)) {
-                auditLog.logGrantedPrivileges(actionName, request, task);
                 return true;
             }
 
@@ -343,7 +347,6 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
                     privilegesEvaluationContext, specialPrivilegesEvaluationContext);
 
             if (result.isOk()) {
-                auditLog.logGrantedPrivileges(actionName, request, task);
                 return true;
             } else {
                 auditLog.logMissingPrivileges(actionName, request, task);
