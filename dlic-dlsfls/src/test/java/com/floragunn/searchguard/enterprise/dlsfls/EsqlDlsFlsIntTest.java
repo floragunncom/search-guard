@@ -118,7 +118,7 @@ public class EsqlDlsFlsIntTest {
      * Masks the fields of types which are not strings on doc values level
      */
     static final TestSgConfig.User HASHED_TYPES_USER = new TestSgConfig.User("hashed_types").roles(new Role("hashed_types")
-            .indexPermissions("SGS_READ").maskedFields("geo", "wild", "dt", "kw").on(TYPES_INDEX).clusterPermissions("*"));
+            .indexPermissions("SGS_READ").maskedFields("geo", "wild", "dt", "kw", "ver").on(TYPES_INDEX).clusterPermissions("*"));
 
     static final TestSgConfig.User HASHED_LOC_USER = new TestSgConfig.User("hashed_loc").roles(
             new Role("hashed_loc").indexPermissions("SGS_READ").maskedFields("*_loc").on("logs*", "view_*").dataStreamPermissions("SGS_READ")
@@ -157,12 +157,12 @@ public class EsqlDlsFlsIntTest {
 
             // Index with one field per field type which is interesting for field masking
             assertThat(client.putJson("/" + TYPES_INDEX, DocNode.of("mappings.properties", DocNode.of("kw.type", "keyword", "geo.type", "geo_point",
-                    "flat.type", "flattened", "wild.type", "wildcard", "dt.type", "date"))), isOk());
+                    "flat.type", "flattened", "wild.type", "wildcard", "dt.type", "date", "ver.type", "version"))), isOk());
             for (int i = 1; i <= 3; i++) {
                 assertThat(
                         client.putJson("/" + TYPES_INDEX + "/_doc/" + i + "?refresh=true",
                                 DocNode.of("kw", "value_" + i, "geo", (10 + i) + "," + (20 + i), "flat", DocNode.of("a", "v" + i), "wild",
-                                        "wild_" + i, "dt", "2026-01-0" + i + "T00:00:00Z")),
+                                        "wild_" + i, "dt", "2026-01-0" + i + "T00:00:00Z", "ver", "1.2." + i)),
                         isCreated());
             }
 
@@ -425,10 +425,12 @@ public class EsqlDlsFlsIntTest {
             assertThat(response, json(nodeAt("hits.hits[*]._source.geo", everyItem(matchesPattern(HEX_HASH)))));
         }
 
-        // Masked keyword fields are not affected at all; they yield the hash
-        GenericRestClient.HttpResponse response = query(HASHED_TYPES_USER, "FROM " + TYPES_INDEX + " | KEEP kw | LIMIT 5");
-        assertThat(response, isOk());
-        assertThat(response, json(nodeAt("values[*][0]", everyItem(matchesPattern(HEX_HASH)))));
+        // Masked keyword and version fields are not affected at all; they yield the hash
+        for (String field : new String[] { "kw", "ver" }) {
+            GenericRestClient.HttpResponse response = query(HASHED_TYPES_USER, "FROM " + TYPES_INDEX + " | KEEP " + field + " | LIMIT 5");
+            assertThat(response.getBody(), response, isOk());
+            assertThat(response.getBody(), response, json(nodeAt("values[*][0]", everyItem(matchesPattern(HEX_HASH)))));
+        }
     }
 
     // --- Data streams
