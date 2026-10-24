@@ -27,6 +27,8 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 
 import java.util.Arrays;
@@ -58,8 +60,11 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
  *
  * Covered: index logs, data stream ds_logs, views over both, LOOKUP JOIN with a DLS restricted lookup index.
  *
- * Field masking of ip typed fields: ES|QL reads the masked (hashed) doc values into an ip typed column, which cannot be
- * decoded. Search Guard rejects such queries with HTTP 400 (see fm_hashedIp).
+ * Field masking and field types: ES|QL reads the doc values, not _source. For ip and flattened fields the masked
+ * (hashed) doc values cannot be decoded by Elasticsearch, so Search Guard rejects such queries with HTTP 400 (see
+ * fm_hashedIp, fm_hashedFlattened). Masked keyword and version fields yield the hash, while types whose doc values are
+ * not strings (date, geo_point, geo_shape, wildcard, ...) yield a null column, as this reader hides their doc values
+ * (see fm_typesYieldingNullColumns).
  */
 public class EsqlDlsFlsIntTest {
 
@@ -70,6 +75,7 @@ public class EsqlDlsFlsIntTest {
     static final TestData TEST_DATA_DS = TestData.documentCount(100).seed(2).timestampColumnName("@timestamp").deletedDocumentFraction(0).get();
     static final TestDataStream DS_LOGS = new TestDataStream("ds_logs", TEST_DATA_DS);
     static final String LOOKUP_INDEX = "dept_info";
+    static final String TYPES_INDEX = "types";
     static final String VIEW_COUNT_BY_DEPT = "view_logs_count_by_dept";
     static final String VIEW_IPS = "view_logs_ips";
     static final String VIEW_LOCS = "view_logs_locs";
@@ -105,6 +111,15 @@ public class EsqlDlsFlsIntTest {
     static final TestSgConfig.User HASHED_IP_USER = new TestSgConfig.User("hashed_ip").roles(
             new Role("hashed_ip").indexPermissions("SGS_READ").maskedFields("*_ip").on("logs*", "view_*").clusterPermissions("*"));
 
+    static final TestSgConfig.User HASHED_FLAT_USER = new TestSgConfig.User("hashed_flat").roles(
+            new Role("hashed_flat").indexPermissions("SGS_READ").maskedFields("flat.*").on(TYPES_INDEX).clusterPermissions("*"));
+
+    /**
+     * Masks the fields of types which are not strings on doc values level
+     */
+    static final TestSgConfig.User HASHED_TYPES_USER = new TestSgConfig.User("hashed_types").roles(new Role("hashed_types")
+            .indexPermissions("SGS_READ").maskedFields("geo", "wild", "dt", "kw").on(TYPES_INDEX).clusterPermissions("*"));
+
     static final TestSgConfig.User HASHED_LOC_USER = new TestSgConfig.User("hashed_loc").roles(
             new Role("hashed_loc").indexPermissions("SGS_READ").maskedFields("*_loc").on("logs*", "view_*").dataStreamPermissions("SGS_READ")
                     .maskedFields("*_loc").on("ds_*").clusterPermissions("*"));
@@ -121,7 +136,7 @@ public class EsqlDlsFlsIntTest {
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().sslEnabled().enterpriseModulesEnabled().authc(AUTHC).dlsFls(DLSFLS)
             .users(ADMIN, DEPT_A_USER, DEPT_D_USER, EXCLUDE_IP_USER, INCLUDE_LOC_USER, HASHED_IP_USER, HASHED_LOC_USER, COMBINED_USER,
-                    LOOKUP_DLS_USER)
+                    LOOKUP_DLS_USER, HASHED_FLAT_USER, HASHED_TYPES_USER)
             .indexTemplates(TestIndexTemplate.DATA_STREAM_MINIMAL).dataStreams(DS_LOGS).resources("dlsfls")
             // ES|QL is only available with a real ES distribution
             .useExternalProcessCluster().build();
@@ -139,6 +154,17 @@ public class EsqlDlsFlsIntTest {
                     DocNode.of("query", "FROM " + INDEX_NAME + " | KEEP source_loc.keyword, dest_loc.keyword, dept.keyword")), isOk());
             assertThat(client.putJson("/_query/view/view_ds_count_by_dept",
                     DocNode.of("query", "FROM " + DS_LOGS.getName() + " | STATS c = COUNT(*) BY dept.keyword | SORT dept.keyword")), isOk());
+
+            // Index with one field per field type which is interesting for field masking
+            assertThat(client.putJson("/" + TYPES_INDEX, DocNode.of("mappings.properties", DocNode.of("kw.type", "keyword", "geo.type", "geo_point",
+                    "flat.type", "flattened", "wild.type", "wildcard", "dt.type", "date"))), isOk());
+            for (int i = 1; i <= 3; i++) {
+                assertThat(
+                        client.putJson("/" + TYPES_INDEX + "/_doc/" + i + "?refresh=true",
+                                DocNode.of("kw", "value_" + i, "geo", (10 + i) + "," + (20 + i), "flat", DocNode.of("a", "v" + i), "wild",
+                                        "wild_" + i, "dt", "2026-01-0" + i + "T00:00:00Z")),
+                        isCreated());
+            }
 
             // Lookup index with one row per department
             assertThat(client.putJson("/" + LOOKUP_INDEX, DocNode.of("settings.index.mode", "lookup", "mappings.properties.dept_key.type", "keyword",
@@ -356,6 +382,53 @@ public class EsqlDlsFlsIntTest {
         try (GenericRestClient client = cluster.getRestClient(user)) {
             return client.get("/_query/async/" + asyncId + "?wait_for_completion_timeout=30s");
         }
+    }
+
+    /**
+     * Like masked ip fields, the masked doc values of a flattened field cannot be read by Elasticsearch. Without the
+     * check in the DLS/FLS DirectoryReader, this query fails with an internal error (HTTP 500).
+     */
+    @Test
+    public void fm_hashedFlattened() throws Exception {
+        GenericRestClient.HttpResponse response = query(ADMIN, "FROM " + TYPES_INDEX + " | KEEP flat | LIMIT 5");
+        assertThat(response, isOk());
+        assertThat(response, json(nodeAt("values[*][0].a", hasItems("v1", "v2", "v3"))));
+
+        response = query(HASHED_FLAT_USER, "FROM " + TYPES_INDEX + " | KEEP flat | LIMIT 5");
+        assertThat(response, isBadRequest("error.reason", "*Field masking for fields of type flattened is currently not supported for ES|QL*"));
+    }
+
+    /**
+     * Field types whose doc values are not strings cannot carry a hash. This reader hides the doc values of such fields,
+     * which makes ES|QL yield a null column. The values are not disclosed, so such queries are not rejected.
+     */
+    @Test
+    public void fm_typesYieldingNullColumns() throws Exception {
+        for (String field : new String[] { "geo", "wild", "dt" }) {
+            GenericRestClient.HttpResponse response = query(ADMIN, "FROM " + TYPES_INDEX + " | KEEP " + field + " | LIMIT 5");
+            assertThat(response, isOk());
+            assertThat(response, json(nodeAt("values[*][0]", everyItem(notNullValue()))));
+
+            response = query(HASHED_TYPES_USER, "FROM " + TYPES_INDEX + " | KEEP " + field + " | LIMIT 5");
+            assertThat(response.getBody(), response, isOk());
+            assertThat(response.getBody(), response, json(nodeAt("values[*][0]", everyItem(nullValue()))));
+
+            response = query(HASHED_TYPES_USER, "FROM " + TYPES_INDEX + " | STATS c = COUNT(*) BY " + field);
+            assertThat(response.getBody(), response, isOk());
+            assertThat(response.getBody(), response, json(nodeAt("values[*][1]", everyItem(nullValue()))));
+        }
+
+        // A masked geo_point is still masked, not hidden, in a regular search
+        try (GenericRestClient client = cluster.getRestClient(HASHED_TYPES_USER)) {
+            GenericRestClient.HttpResponse response = client.get("/" + TYPES_INDEX + "/_search?size=5");
+            assertThat(response, isOk());
+            assertThat(response, json(nodeAt("hits.hits[*]._source.geo", everyItem(matchesPattern(HEX_HASH)))));
+        }
+
+        // Masked keyword fields are not affected at all; they yield the hash
+        GenericRestClient.HttpResponse response = query(HASHED_TYPES_USER, "FROM " + TYPES_INDEX + " | KEEP kw | LIMIT 5");
+        assertThat(response, isOk());
+        assertThat(response, json(nodeAt("values[*][0]", everyItem(matchesPattern(HEX_HASH)))));
     }
 
     // --- Data streams
