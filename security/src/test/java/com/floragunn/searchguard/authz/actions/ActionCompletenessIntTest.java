@@ -44,6 +44,10 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
  * This test can be used to discover when new actions are added to ES or when actions are removed. In such cases, the test will fail and report these actions.
  * If new actions are added, these should be reviewed whether special authorization is necessary.
  * If actions are removed, it might make sense to remove these from the Actions class and potentially other code such as action groups, tests, etc.
+ *
+ * Note that this test runs on an embedded cluster, which does not have the plugins of a real Elasticsearch distribution.
+ * Thus, it cannot see the actions of these plugins - which is also why ADDITIONALLY_KNOWN_ACTIONS exists. The actions of
+ * ES|QL are covered by EsqlActionCompletenessIntTest instead.
  */
 @Ignore("ATM ignored to facilitate backporting procedures")
 public class ActionCompletenessIntTest {
