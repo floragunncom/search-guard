@@ -83,6 +83,7 @@ public class SearchGuardCapabilities {
     private final Capabilities local;
     private volatile Capabilities clusterWide;
     private final ConcurrentHashMap<String, Capabilities> byNode = new ConcurrentHashMap<>();
+    private final ClusterService clusterService;
 
     SearchGuardCapabilities(Collection<SearchGuardModule> modules, ClusterService clusterService, Client nodeClient) {
         ImmutableSet<String> capabilities = CORE_CAPABILITIES
@@ -94,14 +95,43 @@ public class SearchGuardCapabilities {
 
         this.clusterWide = this.local = new Capabilities(SearchGuardVersion.getVersion(), capabilities, uiCapabilities, publicCapabilites);
         this.nodeClient = nodeClient;
+        this.clusterService = clusterService;
 
         if (clusterService != null) {
             clusterService.addListener(clusterStateListener);
         }
     }
 
+    /**
+     * Returns true if all nodes of this cluster support the given capability. Used to decide whether a feature which
+     * requires the support of all nodes may be used; thus, this returns false whenever the capabilities of a node are
+     * unknown - which is the case right after the start of a node, and when the capabilities of a node could not be
+     * retrieved.
+     */
     public boolean hasCapability(String capability) {
-        return clusterWide.hasCapability(capability);
+        return clusterWide.hasCapability(capability) && areCapabilitiesKnownForAllNodes();
+    }
+
+    /**
+     * The capabilities are retrieved from the other nodes asynchronously when they join. Until the answer of a node has
+     * arrived, that node is not represented in the intersection, so the intersection alone would wrongly report the
+     * capabilities of this node as cluster wide.
+     */
+    private boolean areCapabilitiesKnownForAllNodes() {
+        if (clusterService == null) {
+            return true;
+        }
+
+        String localNodeId = clusterService.localNode().getId();
+
+        for (DiscoveryNode node : clusterService.state().nodes()) {
+            if (!localNodeId.equals(node.getId()) && !byNode.containsKey(node.getId())) {
+                log.debug("The capabilities of the node {} are not known yet", node.getId());
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public ImmutableSet<String> getCapabilities() {
