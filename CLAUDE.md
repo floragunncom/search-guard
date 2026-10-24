@@ -54,6 +54,16 @@ mvn -o -pl dlic-dlsfls test
 mvn -o -pl dlic-dlsfls -am -DskipTests install && mvn -o -pl dlic-dlsfls test
 ```
 
+**Gotcha:** the plugin assembly collects the `dlic-*` jars from the **local Maven repository**, not from the other
+modules' `target/` directories. Installing only the module you changed and then rebuilding the zip ships a *stale*
+enterprise jar, so a fix silently disappears at test runtime while the build stays green. Always `install` every
+changed module together before building the zip, and verify the jar's content when in doubt:
+
+```bash
+mvn -o -pl security,dlic-dlsfls -DskipTests install && mvn -o -pl plugin install -Dmaven.test.skip.exec=true -Pquick
+unzip -p plugin/target/releases/search-guard-flx-elasticsearch-plugin-*.zip '*dlic-dlsfls*.jar' | strings | grep <marker>
+```
+
 Running a single test:
 
 ```bash
@@ -101,6 +111,24 @@ System properties:
 - `-Dsg.tests.use_ep_cluster=true` — force external process cluster
 - `-Dsg.tests.sg_plugin.file=/path/to/plugin.zip` — use a prebuilt plugin instead of building one per run
 - `-Dsg.tests.es_download_cache.dir=/path` — reuse downloaded ES archives
+
+Working with an external-process cluster, beyond those properties:
+
+- The first run downloads a full ES distribution (~700 MB) into the download cache; pass
+  `-Dsg.tests.sg_plugin.file=plugin/target/releases/search-guard-flx-elasticsearch-plugin-*.zip` so that each test
+  class does not rebuild the plugin.
+- Anything a test needs *inside* the node has to be in the plugin zip. An audit log sink on the test classpath
+  (`TestAuditlogImpl`) is therefore unusable; use a sink which ships with the plugin, e.g. `internal_elasticsearch`,
+  and query the audit index over REST.
+- The audit log index is created **with a replica**, so on a single-node cluster the cluster never goes green. Audit
+  tests which wait for green need `ClusterConfiguration.DEFAULT`.
+- Features implemented by an ES plugin — ES|QL above all — only exist in this mode. `ActionCompletenessIntTest` and
+  anything else running embedded cannot see their actions at all.
+
+**Gotcha:** the per-action transport statistics (`GET /_nodes/stats/transport` → `actions`) only count requests which
+were *received over the network*. Requests a node sends to itself are dispatched locally and never show up. A test
+which inspects them needs several data nodes and an index without replicas, otherwise it passes vacuously — assert
+that the observed set is non-empty.
 
 Watch the import: `scheduler/src/test/java/com/floragunn/searchsupport/jobs/LocalCluster.java` is a completely
 different, unrelated class of the same name, used only by the scheduler's own tests.
