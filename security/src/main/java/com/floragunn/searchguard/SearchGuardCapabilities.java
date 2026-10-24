@@ -71,6 +71,16 @@ public class SearchGuardCapabilities {
      * ES|QL queries are authorized by the nodes which execute them, as the indices a query reads are not known on the
      * coordinating node. Nodes of an older version do not do that, thus ES|QL must be refused while such nodes are part
      * of the cluster. See SearchGuardFilter.
+     * <p>
+     * <b>Upgrade order for cross cluster ES|QL:</b> capabilities are only known for the nodes of the local cluster, as
+     * there is no mechanism to retrieve them from a remote cluster. The check in SearchGuardFilter therefore does not
+     * cover remote clusters: a cross cluster ES|QL query which is coordinated by an upgraded cluster is accepted, while
+     * the part which runs on a remote cluster is authorized by that remote cluster alone - and a remote cluster running
+     * an older version of Search Guard does not authorize it at all. Remote clusters must consequently be upgraded
+     * before the clusters which query them. As long as a remote cluster runs an older version, the indices which an
+     * ES|QL query reads on it are not checked against the user's roles, so either the queried indices must be
+     * unrestricted on that cluster, or the privilege for the top level action indices:data/read/esql must be withheld
+     * on the coordinating cluster until the remote cluster is upgraded.
      */
     public static final String ESQL_DATA_NODE_AUTHZ = "esql_data_node_authz";
 

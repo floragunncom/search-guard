@@ -318,6 +318,9 @@ public class SearchGuardFilter implements ActionFilter {
             // which execute the query, thus these authorize the requests which actually read the indices. Nodes running an
             // older version of Search Guard do not do that. While such nodes are part of the cluster, ES|QL must be
             // refused, as the query might be executed by a node which does not authorize it.
+            // This covers the nodes of the local cluster only; the capabilities of a remote cluster cannot be retrieved.
+            // Remote clusters must therefore be upgraded before the clusters which query them, see
+            // SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ.
             if (ESQL_QUERY_ACTION.equals(actionName) && !capabilities.hasCapability(SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ)) {
                 log.warn("Rejecting {} because not all nodes of this cluster support the capability {}. Nodes which run an older"
                         + " version of Search Guard do not authorize the requests which read the indices of an ES|QL query.", actionName,

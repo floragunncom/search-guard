@@ -61,6 +61,10 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
  * is kept as cluster failure; the remote cluster is then skipped (HTTP 200, status "skipped" and an "Unknown index"
  * failure in _clusters.details) with skip_unavailable=true, or the query fails with "Unknown index" (HTTP 400) with
  * skip_unavailable=false. _clusters.details is only included with include_ccs_metadata=true.
+ *
+ * Upgrade order: as the authorization of the remote part of a query is done by the remote cluster, a remote cluster
+ * running a version of Search Guard which does not authorize ES|QL on its data nodes executes that part unauthorized.
+ * Remote clusters must therefore be upgraded first, see SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ.
  */
 public class EsqlCcsIntTest {
 
