@@ -67,14 +67,26 @@ import com.floragunn.searchsupport.action.RestApi;
 public class SearchGuardCapabilities {
     private static final Logger log = LogManager.getLogger(SearchGuardCapabilities.class);
 
+    /**
+     * ES|QL queries are authorized by the nodes which execute them, as the indices a query reads are not known on the
+     * coordinating node. Nodes of an older version do not do that, thus ES|QL must be refused while such nodes are part
+     * of the cluster. See SearchGuardFilter.
+     */
+    public static final String ESQL_DATA_NODE_AUTHZ = "esql_data_node_authz";
+
+    /**
+     * Capabilities of the Search Guard core, i.e. capabilities which are not provided by a SearchGuardModule.
+     */
+    static final ImmutableSet<String> CORE_CAPABILITIES = ImmutableSet.of(ESQL_DATA_NODE_AUTHZ);
+
     private final Client nodeClient;
     private final Capabilities local;
     private volatile Capabilities clusterWide;
     private final ConcurrentHashMap<String, Capabilities> byNode = new ConcurrentHashMap<>();
 
     SearchGuardCapabilities(Collection<SearchGuardModule> modules, ClusterService clusterService, Client nodeClient) {
-        ImmutableSet<String> capabilities = ImmutableSet
-                .of(modules.stream().flatMap((m) -> m.getCapabilities().stream()).collect(Collectors.toSet()));
+        ImmutableSet<String> capabilities = CORE_CAPABILITIES
+                .with(modules.stream().flatMap((m) -> m.getCapabilities().stream()).collect(Collectors.toSet()));
         ImmutableSet<String> uiCapabilities = ImmutableSet
                 .of(modules.stream().flatMap((m) -> m.getUiCapabilities().stream()).collect(Collectors.toSet()));
         ImmutableSet<String> publicCapabilites = ImmutableSet
