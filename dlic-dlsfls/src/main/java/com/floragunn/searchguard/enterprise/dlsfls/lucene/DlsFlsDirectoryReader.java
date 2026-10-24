@@ -79,6 +79,11 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
 
             private static final ImmutableSet<String> META_FIELDS = ImmutableSet.of(IndicesModule.getBuiltInMetadataFields()).with("_primary_term");
 
+            /**
+             * Field types whose doc values cannot carry a masked (hashed) value, see checkMaskedDocValuesSupported()
+             */
+            private static final ImmutableSet<String> UNSUPPORTED_MASKED_ESQL_TYPES = ImmutableSet.of("ip", "flattened");
+
             private final FieldInfos flsFieldInfos;
             private final DlsFlsActionContext dlsFlsContext;
             private final DlsGetEvaluator dlsGetEvaluator;
@@ -244,8 +249,6 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
                 if (fieldMasking == null) {
                     return binaryDocValues;
                 }
-
-                checkMaskedDocValuesSupported(field);
 
                 return new BinaryDocValues() {
 
@@ -488,10 +491,16 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
             }
             
             /**
-             * Field masking replaces values by a hash. ES|QL reads field values from doc values and hands them to typed
-             * columns; for fields of type ip, the hash cannot be decoded as IP address and Elasticsearch would abort the
-             * response while writing it, which closes the HTTP connection without any response. Thus, we fail early with a
-             * meaningful error. Regular searches are not affected as they read masked values from _source.
+             * Field masking replaces values by a hash. Regular searches read masked values from _source and are not
+             * affected. ES|QL, however, reads the doc values and hands them to a decoder of the field's type, and the hash
+             * is not a valid encoding for some types: for ip, Elasticsearch aborts the response while writing it, which
+             * closes the HTTP connection without any response at all; for flattened, where the doc values contain the
+             * key/value pairs, the reader fails with an internal error. Thus, we fail early with a meaningful error.
+             *
+             * Other types are unproblematic: masked values of keyword and version fields are passed through as the hash,
+             * and for types whose doc values are not strings (date, boolean, geo_point, geo_shape, wildcard, ...) the
+             * values are hidden entirely, as the respective overrides of this reader return null for masked fields. Those
+             * queries yield a null column.
              */
             private void checkMaskedDocValuesSupported(String field) {
                 String action = getRuntimeActionName();
@@ -502,10 +511,11 @@ public class DlsFlsDirectoryReader extends FilterDirectoryReader {
 
                 MappedFieldType fieldType = dlsFlsContext.getIndexService().mapperService().fieldType(field);
 
-                if (fieldType != null && "ip".equals(fieldType.typeName())) {
+                if (fieldType != null && UNSUPPORTED_MASKED_ESQL_TYPES.contains(fieldType.typeName())) {
                     throw new ElasticsearchStatusException(
-                            "Field masking for fields of type ip is currently not supported for ES|QL queries; field: " + field
-                                    + ", index: " + dlsFlsContext.getIndexService().index().getName(),
+                            "Field masking for fields of type " + fieldType.typeName()
+                                    + " is currently not supported for ES|QL queries; field: " + field + ", index: "
+                                    + dlsFlsContext.getIndexService().index().getName(),
                             RestStatus.BAD_REQUEST);
                 }
             }
