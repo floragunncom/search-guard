@@ -617,7 +617,7 @@ public final class SearchGuardPlugin extends SearchGuardSSLPlugin implements Clu
             SearchGuardFilter searchGuardFilter = new SearchGuardFilter(authorizationService, evaluator, adminDns,
                     moduleRegistry.getSyncAuthorizationFilters(), moduleRegistry.getPrePrivilegeSyncAuthorizationFilters(), auditLog, threadPool,
                     clusterService, diagnosticContext, complianceConfig, actions, actionRequestIntrospector,
-                    specialPrivilegesEvaluationContextProviderRegistry, extendedActionHandlingService, xContentRegistry);
+                    specialPrivilegesEvaluationContextProviderRegistry, extendedActionHandlingService, xContentRegistry, capabilities);
 
             filters.add(searchGuardFilter);
 

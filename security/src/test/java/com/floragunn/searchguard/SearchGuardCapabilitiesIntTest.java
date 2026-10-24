@@ -17,6 +17,10 @@
 
 package com.floragunn.searchguard;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.is;
+
 import java.util.Collections;
 
 import org.elasticsearch.cluster.service.ClusterService;
@@ -35,5 +39,20 @@ public class SearchGuardCapabilitiesIntTest {
         ClusterService clusterService = cluster.getInjectable(ClusterService.class);
         
         SearchGuardCapabilities capabilities = new SearchGuardCapabilities(Collections.emptyList(), clusterService, cluster.getInternalNodeClient());
+
+        // The capabilities of the Search Guard core are present even if no module provides capabilities
+        assertThat(capabilities.hasCapability(SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ), is(true));
+    }
+
+    /**
+     * Features which require all nodes to support them check the capabilities of the instance which the plugin provides,
+     * see SearchGuardFilter and the ES|QL authorization.
+     */
+    @Test
+    public void coreCapabilitiesOfProvidedInstance() {
+        SearchGuardCapabilities capabilities = cluster.getInjectable(SearchGuardCapabilities.class);
+
+        assertThat(capabilities.hasCapability(SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ), is(true));
+        assertThat(capabilities.getCapabilities(), hasItem(SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ));
     }
 }

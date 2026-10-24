@@ -58,6 +58,7 @@ import org.elasticsearch.xcontent.NamedXContentRegistry;
 
 import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.SearchGuardCapabilities;
 import com.floragunn.searchguard.action.whoami.WhoAmIAction;
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.auditlog.AuditLog.Origin;
@@ -85,6 +86,8 @@ import com.floragunn.searchsupport.diag.DiagnosticContext;
 
 public class SearchGuardFilter implements ActionFilter {
 
+    private static final String ESQL_QUERY_ACTION = "indices:data/read/esql";
+
     protected final Logger log = LogManager.getLogger(this.getClass());
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
     private final PrivilegesEvaluator evalp;
@@ -101,6 +104,7 @@ public class SearchGuardFilter implements ActionFilter {
     private final Actions actions;
     private final ActionRequestIntrospector actionRequestIntrospector;
     private final AuthorizationService authorizationService;
+    private final SearchGuardCapabilities capabilities;
 
     public SearchGuardFilter(AuthorizationService authorizationService, PrivilegesEvaluator evalp, AdminDNs adminDns,
             ImmutableList<SyncAuthorizationFilter> syncAuthorizationFilters,
@@ -108,7 +112,8 @@ public class SearchGuardFilter implements ActionFilter {
             ClusterService cs, DiagnosticContext diagnosticContext, ComplianceConfig complianceConfig, Actions actions,
             ActionRequestIntrospector actionRequestIntrospector,
             SpecialPrivilegesEvaluationContextProviderRegistry specialPrivilegesEvaluationContextProviderRegistry,
-            ExtendedActionHandlingService extendedActionHandlingService, NamedXContentRegistry namedXContentRegistry) {
+            ExtendedActionHandlingService extendedActionHandlingService, NamedXContentRegistry namedXContentRegistry,
+            SearchGuardCapabilities capabilities) {
         this.evalp = evalp;
         this.adminDns = adminDns;
         this.syncAuthorizationFilters = syncAuthorizationFilters;
@@ -123,6 +128,7 @@ public class SearchGuardFilter implements ActionFilter {
         this.actions = actions;
         this.actionRequestIntrospector = actionRequestIntrospector;
         this.authorizationService = authorizationService;
+        this.capabilities = capabilities;
     }
 
     @Override
@@ -305,6 +311,22 @@ public class SearchGuardFilter implements ActionFilter {
                 listener.onFailure(new ElasticsearchSecurityException(
                         "Search Guard not initialized (SG11) for " + actionName + ". See https://docs.search-guard.com/latest/sgctl",
                         RestStatus.SERVICE_UNAVAILABLE));
+                return;
+            }
+
+            // The indices an ES|QL query reads are not known for the top level request; they are only known to the nodes
+            // which execute the query, thus these authorize the requests which actually read the indices. Nodes running an
+            // older version of Search Guard do not do that. While such nodes are part of the cluster, ES|QL must be
+            // refused, as the query might be executed by a node which does not authorize it.
+            if (ESQL_QUERY_ACTION.equals(actionName) && !capabilities.hasCapability(SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ)) {
+                log.warn("Rejecting {} because not all nodes of this cluster support the capability {}. Nodes which run an older"
+                        + " version of Search Guard do not authorize the requests which read the indices of an ES|QL query.", actionName,
+                        SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ);
+                auditLog.logMissingPrivileges(actionName, request, task);
+                listener.onFailure(new ElasticsearchSecurityException(
+                        "ES|QL is not available because not all nodes of this cluster support ES|QL authorization. This is the case while"
+                                + " nodes which run an older version of Search Guard are part of the cluster.",
+                        RestStatus.FORBIDDEN));
                 return;
             }
 
