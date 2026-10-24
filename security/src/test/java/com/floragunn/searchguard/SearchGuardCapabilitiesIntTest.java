@@ -41,7 +41,12 @@ public class SearchGuardCapabilitiesIntTest {
         SearchGuardCapabilities capabilities = new SearchGuardCapabilities(Collections.emptyList(), clusterService, cluster.getInternalNodeClient());
 
         // The capabilities of the Search Guard core are present even if no module provides capabilities
-        assertThat(capabilities.hasCapability(SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ), is(true));
+        assertThat(capabilities.getCapabilities(), hasItem(SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ));
+
+        // This instance has just been created, so it has not retrieved the capabilities of the other nodes of the cluster
+        // yet. A capability must not be reported as supported by all nodes as long as the capabilities of a node are
+        // unknown, as features which require the support of all nodes would be used too early.
+        assertThat(capabilities.hasCapability(SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ), is(false));
     }
 
     /**
