@@ -18,9 +18,12 @@
 package com.floragunn.searchguard;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 
+import java.time.Duration;
 import java.util.Collections;
 
 import org.elasticsearch.cluster.service.ClusterService;
@@ -28,6 +31,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
+import com.floragunn.searchsupport.junit.AsyncAssert;
 
 public class SearchGuardCapabilitiesIntTest {
 
@@ -47,6 +51,25 @@ public class SearchGuardCapabilitiesIntTest {
         // yet. A capability must not be reported as supported by all nodes as long as the capabilities of a node are
         // unknown, as features which require the support of all nodes would be used too early.
         assertThat(capabilities.hasCapability(SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ), is(false));
+        assertThat(capabilities.getNamesOfNodesWithUnknownCapabilities(), not(empty()));
+    }
+
+    /**
+     * The capabilities of the other nodes are retrieved when they join the cluster. A node which does not answer then
+     * must not stay unknown until the next change of the cluster membership, as that would keep features which require
+     * the support of all nodes unavailable. The instance created here has missed the join of every other node, which is
+     * the same situation; the capabilities must thus be retrieved without any further cluster state change.
+     */
+    @Test
+    public void capabilitiesOfUnknownNodesAreRetrievedAgain() throws Exception {
+        ClusterService clusterService = cluster.getInjectable(ClusterService.class);
+
+        SearchGuardCapabilities capabilities = new SearchGuardCapabilities(Collections.emptyList(), clusterService, cluster.getInternalNodeClient());
+
+        assertThat(capabilities.hasCapability(SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ), is(false));
+
+        AsyncAssert.awaitAssert("The capabilities of all nodes become known", //
+                () -> capabilities.hasCapability(SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ), Duration.ofSeconds(10));
     }
 
     /**
