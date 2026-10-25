@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -60,8 +61,10 @@ import org.elasticsearch.xcontent.XContentBuilder;
 
 import com.floragunn.codova.documents.Document;
 import com.floragunn.fluent.collections.CheckTable;
+import com.floragunn.fluent.collections.ImmutableList;
 import com.floragunn.fluent.collections.ImmutableMap;
 import com.floragunn.fluent.collections.ImmutableSet;
+import com.floragunn.searchguard.support.PrivilegedConfigClient;
 import com.floragunn.searchsupport.action.RestApi;
 
 public class SearchGuardCapabilities {
@@ -89,11 +92,19 @@ public class SearchGuardCapabilities {
      */
     static final ImmutableSet<String> CORE_CAPABILITIES = ImmutableSet.of(ESQL_DATA_NODE_AUTHZ);
 
+    /**
+     * Minimum delay between two attempts to retrieve the capabilities of nodes whose capabilities are unknown. Such an
+     * attempt is triggered by hasCapability(), which is called while a request is being authorized, thus it is rate
+     * limited.
+     */
+    private static final long RETRIEVAL_RETRY_DELAY_MILLIS = 5000;
+
     private final Client nodeClient;
     private final Capabilities local;
     private volatile Capabilities clusterWide;
     private final ConcurrentHashMap<String, Capabilities> byNode = new ConcurrentHashMap<>();
     private final ClusterService clusterService;
+    private final AtomicLong lastRetrievalAttempt = new AtomicLong(0);
 
     SearchGuardCapabilities(Collection<SearchGuardModule> modules, ClusterService clusterService, Client nodeClient) {
         ImmutableSet<String> capabilities = CORE_CAPABILITIES
@@ -104,7 +115,9 @@ public class SearchGuardCapabilities {
                 .of(modules.stream().flatMap((m) -> m.getPublicCapabilities().stream()).collect(Collectors.toSet()));
 
         this.clusterWide = this.local = new Capabilities(SearchGuardVersion.getVersion(), capabilities, uiCapabilities, publicCapabilites);
-        this.nodeClient = nodeClient;
+        // The capabilities are also retrieved while a request of a user is being processed, thus the request must not be
+        // authorized against that user's privileges.
+        this.nodeClient = PrivilegedConfigClient.adapt(nodeClient);
         this.clusterService = clusterService;
 
         if (clusterService != null) {
@@ -128,20 +141,63 @@ public class SearchGuardCapabilities {
      * capabilities of this node as cluster wide.
      */
     private boolean areCapabilitiesKnownForAllNodes() {
-        if (clusterService == null) {
+        ImmutableList<DiscoveryNode> unknownNodes = getNodesWithUnknownCapabilities();
+
+        if (unknownNodes.isEmpty()) {
             return true;
         }
 
+        if (log.isDebugEnabled()) {
+            log.debug("The capabilities of the nodes {} are not known yet", unknownNodes);
+        }
+
+        retrieveCapabilitiesOfUnknownNodes(unknownNodes);
+
+        return false;
+    }
+
+    private ImmutableList<DiscoveryNode> getNodesWithUnknownCapabilities() {
+        if (clusterService == null) {
+            return ImmutableList.empty();
+        }
+
         String localNodeId = clusterService.localNode().getId();
+        ImmutableList.Builder<DiscoveryNode> result = new ImmutableList.Builder<>();
 
         for (DiscoveryNode node : clusterService.state().nodes()) {
             if (!localNodeId.equals(node.getId()) && !byNode.containsKey(node.getId())) {
-                log.debug("The capabilities of the node {} are not known yet", node.getId());
-                return false;
+                result.add(node);
             }
         }
 
-        return true;
+        return result.build();
+    }
+
+    /**
+     * Names of the nodes of this cluster whose capabilities are unknown. Only for diagnostic messages: a feature which
+     * requires the support of all nodes is unavailable while this is not empty.
+     */
+    public ImmutableList<String> getNamesOfNodesWithUnknownCapabilities() {
+        return getNodesWithUnknownCapabilities().map(DiscoveryNode::getName);
+    }
+
+    /**
+     * Retrieves the capabilities of nodes which did not answer when they joined the cluster. Without this, a single
+     * failed retrieval - a node which has just started might not answer yet - would leave that node unknown until the
+     * next change of the cluster membership, and thus features which require the support of all nodes unavailable.
+     * Rate limited, as this is reached from hasCapability() while requests are being authorized.
+     */
+    private void retrieveCapabilitiesOfUnknownNodes(ImmutableList<DiscoveryNode> nodes) {
+        long now = System.currentTimeMillis();
+        long lastAttempt = lastRetrievalAttempt.get();
+
+        if (now - lastAttempt < RETRIEVAL_RETRY_DELAY_MILLIS || !lastRetrievalAttempt.compareAndSet(lastAttempt, now)) {
+            return;
+        }
+
+        log.info("Retrieving the capabilities of the nodes {} again", nodes);
+
+        retrieveCapabilities(nodes);
     }
 
     public ImmutableSet<String> getCapabilities() {
@@ -328,43 +384,53 @@ public class SearchGuardCapabilities {
             }
 
             if (nodesDelta.added()) {
-                nodeClient.execute(GetCapabilitiesAction.INSTANCE, new GetCapabilitiesAction.Request(nodesDelta.addedNodes()),
-                        new ActionListener<GetCapabilitiesAction.Response>() {
-
-                            @Override
-                            public void onResponse(GetCapabilitiesAction.Response response) {
-                                try {
-                                    for (GetCapabilitiesAction.NodeResponse nodeResponse : response.getNodes()) {
-                                        byNode.put(nodeResponse.getNode().getId(), nodeResponse.getCapabilities());
-                                    }
-
-                                    for (FailedNodeException failure : response.failures()) {
-                                        if (failure.getCause() instanceof RemoteTransportException
-                                                && failure.getCause().getCause() instanceof ActionNotFoundTransportException) {
-                                            log.debug("Remote node does not know the GetCapabilitiesAction. Assuming fallback capabilities", failure);
-
-                                            byNode.put(failure.nodeId(), Capabilities.LEGACY_ASSUMED_CAPABILITIES);
-                                        } else {
-                                            log.warn("Got failure from node when retrieving capabilities", failure);
-
-                                            byNode.remove(failure.nodeId());
-                                        }
-                                    }
-
-                                    calculateIntersectionOfCapabilities();
-                                } catch (Exception e) {
-                                    log.error("Error while updating capabilities: " + response, e);
-                                }
-                            }
-
-                            @Override
-                            public void onFailure(Exception e) {
-                                log.error("Error when retrieving capabilities", e);
-                            }
-                        });
+                retrieveCapabilities(nodesDelta.addedNodes());
             }
         }
     };
+
+    /**
+     * Retrieves the capabilities of the given nodes and updates the intersection. Nodes which answer with a failure stay
+     * unknown, so that the retrieval is attempted again, see retrieveCapabilitiesOfUnknownNodes(). The only exception is
+     * a node which does not know the action at all: that is an older version of Search Guard, for which the legacy
+     * capabilities are assumed.
+     */
+    private void retrieveCapabilities(Collection<DiscoveryNode> nodes) {
+        nodeClient.execute(GetCapabilitiesAction.INSTANCE, new GetCapabilitiesAction.Request(nodes),
+                new ActionListener<GetCapabilitiesAction.Response>() {
+
+                    @Override
+                    public void onResponse(GetCapabilitiesAction.Response response) {
+                        try {
+                            for (GetCapabilitiesAction.NodeResponse nodeResponse : response.getNodes()) {
+                                byNode.put(nodeResponse.getNode().getId(), nodeResponse.getCapabilities());
+                            }
+
+                            for (FailedNodeException failure : response.failures()) {
+                                if (failure.getCause() instanceof RemoteTransportException
+                                        && failure.getCause().getCause() instanceof ActionNotFoundTransportException) {
+                                    log.debug("Remote node does not know the GetCapabilitiesAction. Assuming fallback capabilities", failure);
+
+                                    byNode.put(failure.nodeId(), Capabilities.LEGACY_ASSUMED_CAPABILITIES);
+                                } else {
+                                    log.warn("Got failure from node when retrieving capabilities", failure);
+
+                                    byNode.remove(failure.nodeId());
+                                }
+                            }
+
+                            calculateIntersectionOfCapabilities();
+                        } catch (Exception e) {
+                            log.error("Error while updating capabilities: " + response, e);
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+                        log.error("Error when retrieving capabilities", e);
+                    }
+                });
+    }
 
     public static class GetCapabilitiesAction extends ActionType<GetCapabilitiesAction.Response> {
 

@@ -86,8 +86,6 @@ import com.floragunn.searchsupport.diag.DiagnosticContext;
 
 public class SearchGuardFilter implements ActionFilter {
 
-    private static final String ESQL_QUERY_ACTION = "indices:data/read/esql";
-
     protected final Logger log = LogManager.getLogger(this.getClass());
     protected final Logger actionTrace = LogManager.getLogger("sg_action_trace");
     private final PrivilegesEvaluator evalp;
@@ -321,10 +319,11 @@ public class SearchGuardFilter implements ActionFilter {
             // This covers the nodes of the local cluster only; the capabilities of a remote cluster cannot be retrieved.
             // Remote clusters must therefore be upgraded before the clusters which query them, see
             // SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ.
-            if (ESQL_QUERY_ACTION.equals(actionName) && !capabilities.hasCapability(SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ)) {
+            if (Actions.ESQL_QUERY_ACTION.equals(actionName) && !capabilities.hasCapability(SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ)) {
                 log.warn("Rejecting {} because not all nodes of this cluster support the capability {}. Nodes which run an older"
-                        + " version of Search Guard do not authorize the requests which read the indices of an ES|QL query.", actionName,
-                        SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ);
+                        + " version of Search Guard do not authorize the requests which read the indices of an ES|QL query."
+                        + " Nodes whose capabilities are not known: {}", actionName, SearchGuardCapabilities.ESQL_DATA_NODE_AUTHZ,
+                        capabilities.getNamesOfNodesWithUnknownCapabilities());
                 auditLog.logMissingPrivileges(actionName, request, task);
                 listener.onFailure(new ElasticsearchSecurityException(
                         "ES|QL is not available because not all nodes of this cluster support ES|QL authorization. This is the case while"
