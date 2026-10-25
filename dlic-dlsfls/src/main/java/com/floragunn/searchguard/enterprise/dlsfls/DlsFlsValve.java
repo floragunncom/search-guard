@@ -103,6 +103,14 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
         this.authzHashProvider = new ThreadContextAuthzHashProvider(staticSettings, threadContext);
     }
 
+    /**
+     * Whether the request does not reference any index at all - neither a local nor a remote one. Not to be confused
+     * with a request for all indices, which resolves to every index.
+     */
+    private static boolean targetsNoIndices(ResolvedIndices resolvedIndices) {
+        return resolvedIndices.isLocalIndicesEmpty() && resolvedIndices.getRemoteIndices().isEmpty();
+    }
+
     @Override
     public SyncAuthorizationFilter.Result apply(PrivilegesEvaluationContext context, ActionListener<?> listener) {
         Object request = context.getRequest();
@@ -151,7 +159,17 @@ public class DlsFlsValve implements SyncAuthorizationFilter, ComponentStateProvi
             }
 
             if (!hasDlsRestrictions && !hasFlsRestrictions && !hasFieldMasking) {
-                authzHashProvider.noRestrictions();
+                if (!targetsNoIndices(resolvedIndices)) {
+                    authzHashProvider.noRestrictions();
+                } else if (log.isDebugEnabled()) {
+                    // The request does not reference any index, so the absence of restrictions says nothing about the
+                    // indices which are going to be read. Writing the hash of "no restrictions" here would mark the whole
+                    // operation as unrestricted for every consumer of the header, because the header is only written once.
+                    // This is the case for the top level ES|QL request: the indices of a query are only known to the
+                    // sub-requests, and the first of those which references indices writes the correct hash.
+                    log.debug("The request does not reference any index; not writing the authz hash of the unrestricted case");
+                }
+
                 return SyncAuthorizationFilter.Result.OK;
             }
 

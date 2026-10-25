@@ -113,6 +113,24 @@ public class ThreadContextAuthzHashProviderIntTest {
         }
     }
 
+    /**
+     * A request which does not reference any index must not be marked as unrestricted: the absence of restrictions says
+     * nothing about the indices which are going to be read, and the header is only written once, so it would mark the
+     * whole operation as unrestricted for every consumer. This is the case for the top level ES|QL request, whose
+     * indices are only known to its sub-requests. The mock action here has the same shape - an empty index list which is
+     * not expanded - because ES|QL is not available on an embedded cluster.
+     */
+    @Test
+    public void requestWithoutIndices_noHashIsWritten() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(DLS_USER_1A)) {
+            GenericRestClient.HttpResponse response = client.post("_mock");
+            assertThat(response, isOk());
+            assertThat(response, json(distinctNodesAt("header_values.*", containsInAnyOrder(MockPlugin.NO_HEADER_VALUE))));
+        }
+
+        // The same user gets the hash of its restrictions as soon as the request references an index, see access_restricted
+    }
+
     @Test
     public void access_restricted() throws Exception {
         String expectedForUser1 = "8ddcf3b2f3e5c619a3271ba7df12507002280bbf4d22aac8f17b9ab984e23f74";
@@ -154,6 +172,12 @@ public class ThreadContextAuthzHashProviderIntTest {
 
     public static class MockPlugin extends Plugin implements ActionPlugin {
 
+        /**
+         * Reported instead of the header value if the authz hash header is absent. A separate value, as a null value
+         * would not be distinguishable from a missing node in the response.
+         */
+        static final String NO_HEADER_VALUE = "<no_header>";
+
         public List<ActionHandler> getActions() {
             return Arrays.asList(actionHandler(MockTransportAction.TYPE, MockTransportAction.class));
         }
@@ -161,8 +185,12 @@ public class ThreadContextAuthzHashProviderIntTest {
         @Override
         public Collection<RestHandler> getRestHandlers(RestHandlersServices restHandlersServices, Supplier<DiscoveryNodes> nodesInCluster,
                                                        Predicate<NodeFeature> clusterSupportsFeature) {
-            return Arrays.asList(new SimpleRestHandler<>(new Route(Method.POST, "/{index}/_mock"), MockTransportAction.TYPE,
-                    (request) -> new MockActionNodesRequest(request.param("index"))));
+            return Arrays.asList(
+                    new SimpleRestHandler<>(new Route(Method.POST, "/{index}/_mock"), MockTransportAction.TYPE,
+                            (request) -> new MockActionNodesRequest(request.param("index"))),
+                    // A request which references no index at all, like the top level ES|QL request
+                    new SimpleRestHandler<>(new Route(Method.POST, "/_mock"), MockTransportAction.TYPE,
+                            (request) -> new MockActionNodesRequest(null)));
         }
 
         public static class MockTransportAction extends TransportNodesAction<MockActionNodesRequest, MockActionNodesResponse, MockActionRequest, MockActionResponse, MockTransportAction> {
@@ -180,7 +208,7 @@ public class ThreadContextAuthzHashProviderIntTest {
             @Override
             protected MockActionResponse nodeOperation(MockActionRequest request, Task task) {
                 String authzHeaderValue = this.threadContext.getHeader("_sg_dls_fls_authz");
-                return new MockActionResponse(clusterService.localNode(), authzHeaderValue);
+                return new MockActionResponse(clusterService.localNode(), authzHeaderValue != null ? authzHeaderValue : NO_HEADER_VALUE);
             }
 
             @Override
@@ -223,7 +251,7 @@ public class ThreadContextAuthzHashProviderIntTest {
 
             @Override
             public String[] indices() {
-                return new String[] { index };
+                return index != null ? new String[] { index } : new String[0];
             }
 
             @Override
@@ -323,7 +351,7 @@ public class ThreadContextAuthzHashProviderIntTest {
 
             @Override
             public String[] indices() {
-                return new String[] { index };
+                return index != null ? new String[] { index } : new String[0];
             }
 
             @Override
