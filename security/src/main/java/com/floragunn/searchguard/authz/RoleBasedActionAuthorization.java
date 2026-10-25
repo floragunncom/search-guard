@@ -243,6 +243,44 @@ public class RoleBasedActionAuthorization implements ActionAuthorization, Compon
     }
 
     @Override
+    public PrivilegesEvaluationResult hasIndexPermissionForAnyIndex(PrivilegesEvaluationContext context, Action action) {
+        for (String role : context.getMappedRoles()) {
+            if (grantsActionForAnyIndexPattern(this.index, role, action) || grantsActionForAnyIndexPattern(this.alias, role, action)
+                    || grantsActionForAnyIndexPattern(this.dataStream, role, action)) {
+                return PrivilegesEvaluationResult.OK;
+            }
+        }
+
+        return PrivilegesEvaluationResult.INSUFFICIENT.reason("No index privileges for " + action.name() + " on any index pattern");
+    }
+
+    /**
+     * Whether the given role grants the given action on any index pattern. Index patterns which are templates are not
+     * rendered here: whether the pattern matches an index of this user is not the question - only whether the privilege
+     * was granted at all.
+     */
+    private boolean grantsActionForAnyIndexPattern(IndexPermissions<?> indexPermissions, String role, Action action) {
+        ImmutableMap<Action, IndexPattern> actionToIndexPattern = indexPermissions.rolesToActionToIndexPattern.get(role);
+
+        if (actionToIndexPattern != null && actionToIndexPattern.get(action) != null) {
+            return true;
+        }
+
+        // Action patterns which do not match any well known action are not covered by the map above
+        ImmutableMap<Pattern, IndexPattern> actionPatternToIndexPattern = indexPermissions.rolesToActionPatternToIndexPattern.get(role);
+
+        if (actionPatternToIndexPattern != null) {
+            for (Pattern actionPattern : actionPatternToIndexPattern.keySet()) {
+                if (actionPattern.matches(action.name())) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    @Override
     public PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, Action primaryAction, ImmutableSet<Action> actions,
             ResolvedIndices resolved, Action.Scope actionScope) throws PrivilegesEvaluationException {
 

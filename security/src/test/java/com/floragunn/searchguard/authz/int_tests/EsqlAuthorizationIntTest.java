@@ -103,6 +103,13 @@ public class EsqlAuthorizationIntTest {
     static final TestDataStream DS_SALES = TestDataStream.name("ds_sales").documentCount(10).seed(5).build();
 
     /**
+     * Has index privileges, but none of them includes an ES|QL action. Such a user must not be able to run any ES|QL
+     * query, not even one which does not read an index, see indexLessQuery_withoutEsqlPrivilege.
+     */
+    static final TestSgConfig.User NO_ESQL_USER = new TestSgConfig.User("no_esql")
+            .roles(new Role("no_esql").clusterPermissions().indexPermissions("SGS_WRITE").on("sales_*"));
+
+    /**
      * Only has privileges on the alias sales, but not on its member indices or on any view
      */
     static final TestSgConfig.User SALES_ALIAS_USER = new TestSgConfig.User("sales_alias")
@@ -110,7 +117,8 @@ public class EsqlAuthorizationIntTest {
 
     @ClassRule
     public static LocalCluster cluster = new LocalCluster.Builder().singleNode().sslEnabled()
-            .users(SALES_USER, HR_USER, ALL_READ_USER, SALES_ALIAS_USER, LOOKUP_USER, ENRICH_USER, LOOKUP_DATA_NODE_CHECK_USER, DS_USER)
+            .users(SALES_USER, HR_USER, ALL_READ_USER, SALES_ALIAS_USER, LOOKUP_USER, ENRICH_USER, LOOKUP_DATA_NODE_CHECK_USER, DS_USER,
+                    NO_ESQL_USER)
             .indexTemplates(TestIndexTemplate.DATA_STREAM_MINIMAL).dataStreams(DS_SALES).authzDebug(true).enterpriseModulesEnabled()
             .useExternalProcessCluster().build();
 
@@ -365,6 +373,29 @@ public class EsqlAuthorizationIntTest {
         assertThat(count(SALES_USER, "FROM ds_sales"), isForbidden());
         assertThat(count(SALES_USER, "FROM view_ds"), isForbidden());
         assertThat(count(DS_USER, "FROM sales_eu"), isForbidden());
+    }
+
+    // --- queries which do not read an index
+
+    /**
+     * ROW and SHOW do not read any index, so there is nothing the index privileges could be checked against. Like X-Pack
+     * security, Search Guard requires the ES|QL privilege on at least one index pattern for such a query; otherwise every
+     * authenticated user could run it. See PrivilegesEvaluator.
+     */
+    @Test
+    public void indexLessQuery_withoutEsqlPrivilege() throws Exception {
+        assertThat(query(NO_ESQL_USER, "ROW a = 1"), isForbidden());
+        assertThat(query(NO_ESQL_USER, "SHOW INFO"), isForbidden());
+    }
+
+    @Test
+    public void indexLessQuery_withEsqlPrivilege() throws Exception {
+        assertThat(query(SALES_USER, "ROW a = 1"), json(nodeAt("values", equalTo(List.of(List.of(1))))));
+        assertThat(query(SALES_USER, "SHOW INFO"), isOk());
+
+        // The privilege may also be granted on an alias or on a data stream pattern
+        assertThat(query(SALES_ALIAS_USER, "ROW a = 1"), isOk());
+        assertThat(query(DS_USER, "ROW a = 1"), isOk());
     }
 
     @Test

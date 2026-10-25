@@ -397,6 +397,24 @@ public class PrivilegesEvaluator implements ComponentStateProvider {
             }
         }
 
+        if (Actions.ESQL_QUERY_ACTION.equals(action.name())) {
+            // The top level ES|QL request does not reference the indices it reads; these are only known to the
+            // sub-requests, which are checked separately (see ActionRequestIntrospector). The index privilege evaluation
+            // below therefore has nothing to check and grants the request, which would let every authenticated user run
+            // queries which read no index at all, such as ROW or SHOW INFO. As X-Pack security does, we require the
+            // privilege on at least one index pattern for these.
+            PrivilegesEvaluationResult result = actionAuthorization.hasIndexPermissionForAnyIndex(context, action);
+
+            if (result.getStatus() != Status.OK) {
+                if (log.isEnabled(Level.INFO)) {
+                    log.info("### No index privileges for " + action + " on any index pattern (" + request.getClass().getName() + ")\nUser: " + user
+                            + "\nRoles: " + mappedRoles + "\n" + result);
+                }
+
+                return result;
+            }
+        }
+
         PrivilegesEvaluationResult privilegesEvaluationResult = actionAuthorization.hasIndexPermission(context, action, allIndexPermsRequired,
                 actionRequestInfo.getMainResolvedIndices(), action.scope());
 

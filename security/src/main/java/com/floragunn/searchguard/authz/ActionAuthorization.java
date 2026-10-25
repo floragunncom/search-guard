@@ -38,6 +38,15 @@ public interface ActionAuthorization {
     PrivilegesEvaluationResult hasIndexPermission(PrivilegesEvaluationContext context, Action primaryAction, ImmutableSet<Action> actions,
             ResolvedIndices resolvedIndices, Action.Scope scope) throws PrivilegesEvaluationException;
 
+    /**
+     * Whether the user has the privilege for the given index-like action on at least one index pattern - no matter which
+     * indices that pattern actually matches. This is meant for requests of index-like actions which do not reference any
+     * index: these would otherwise be granted to every authenticated user, because there is nothing to check them
+     * against. X-Pack security applies the same rule for such requests.
+     */
+    PrivilegesEvaluationResult hasIndexPermissionForAnyIndex(PrivilegesEvaluationContext context, Action action)
+            throws PrivilegesEvaluationException;
+
     PrivilegesEvaluationResult hasTenantPermission(PrivilegesEvaluationContext context, Action action, String requestedTenant)
             throws PrivilegesEvaluationException;
 
