@@ -44,8 +44,8 @@ import static org.hamcrest.Matchers.equalTo;
  * going to read (the query might reference views), so it is only checked on action level (see
  * ActionRequestIntrospector). The actually referenced indices are checked on the sub-actions issued by the ES|QL
  * coordinator (indices:data/read/esql/resolve_views, indices:data/read/esql/resolve_fields,
- * indices:data/read/esql/search_shards) and, as the final gate, on the data nodes for indices:data/read/esql/data,
- * which is a plain transport request authorized in SearchGuardRequestHandler.
+ * indices:data/read/esql/search_shards); these determine which shards are read. The data nodes additionally check
+ * indices:data/read/esql/data, which is a plain transport request authorized in SearchGuardRequestHandler.
  *
  * 403 vs 400: The ES|QL coordinator resolves indices with ignore_unavailable=true. With the regular
  * ignore_unauthorized_indices (DNFOF) semantics, a forbidden concrete index would be reduced to an empty result and
@@ -60,7 +60,8 @@ import static org.hamcrest.Matchers.equalTo;
  * fails as a whole with HTTP 403 (queryIndex_dataNodeCheck_withoutPermission). Aggregations may still emit a row and
  * answer HTTP 200 with is_partial=true and zero documents read; see EsqlMultiNodeAuthorizationIntTest for that case.
  * The data node check only matters for requests which passed the coordinator checks; normally, the coordinator
- * checks already deny with 403.
+ * checks already deny with 403. It is a coarse check: it does not restrict the shards of a partially authorized
+ * wildcard query, see the javadoc of SearchGuardRequestHandler.TRANSPORT_LEVEL_AUTHORIZED_ACTIONS.
  */
 public class EsqlViewIntTest {
 

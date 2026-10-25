@@ -82,6 +82,23 @@ public class SearchGuardRequestHandler<T extends TransportRequest> extends Searc
      *   request of the ENRICH flow which is executed in the context of the user; the actual lookup in the .enrich-* indices
      *   is executed by Elasticsearch as internal user (like with X-Pack security, which requires the monitor_enrich cluster
      *   privilege for the policy resolution).
+     *
+     * What this check can and cannot do: a data node request carries the <b>original index expression of the query</b>
+     * (for instance index_*), not the concrete indices it reads. Its shard list was determined by the coordinating node
+     * and Elasticsearch does not derive the shards from indices() again; replacing the indices of such a request only
+     * rewrites the expression, not what is read. Reducing the indices to the authorized ones - which the privileges
+     * evaluation does for a partially authorized wildcard, as it does for any read action - therefore has no effect on
+     * these requests. In consequence, this check reliably denies requests which the user may not run at all and requests
+     * which name their indices explicitly, while for a partially authorized wildcard it passes the request on. The
+     * restriction of a wildcard query to the authorized indices is done by the coordinating node, whose
+     * indices:data/read/esql/resolve_fields and indices:data/read/esql/search_shards requests are TransportActions and
+     * are thus checked by SearchGuardFilter; only those determine the shard list. A role which grants those actions on
+     * more indices than indices:data/read/esql/data consequently reads the data of the indices it was not granted
+     * indices:data/read/esql/data for. Roles which grant the ES|QL actions uniformly - which all built-in action groups
+     * do - are not affected. X-Pack has the same structure: its index resolution replaces a wildcard with the authorized
+     * names on the coordinating node, and the data node request is not checked again.
+     * See EsqlMultiNodeAuthorizationIntTest.queryIndexPattern_dataNodeCheckDoesNotRestrictShards, which pins this
+     * behaviour.
      */
     private static final String ESQL_CLUSTER_ACTION = "indices:data/read/esql/cluster";
 
