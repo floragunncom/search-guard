@@ -281,8 +281,10 @@ public class ActionRequestIntrospector {
                 // only known after the query has been parsed and views have been resolved. Thus, index privileges are not
                 // evaluated for this request. Instead, they are evaluated for the sub-requests the ES|QL coordinator
                 // issues for the actually targeted indices: indices:data/read/esql/resolve_views,
-                // indices:data/read/esql/resolve_fields, indices:data/read/esql/search_shards and, as the final gate on
-                // the data nodes, indices:data/read/esql/data (see SearchGuardRequestHandler).
+                // indices:data/read/esql/resolve_fields and indices:data/read/esql/search_shards. The latter two
+                // determine which shards are read. The data nodes additionally check indices:data/read/esql/data, which
+                // is a coarse backstop and does not restrict the shards of a wildcard query (see
+                // SearchGuardRequestHandler).
                 // Note: An ActionRequestInfo without any IndicesRequestInfo would be treated as a request for all indices.
                 // Thus, we use one IndicesRequestInfo with an empty index list and without wildcard expansion; this resolves to
                 // no indices at all and thus passes the index privilege evaluation.

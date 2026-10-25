@@ -45,6 +45,11 @@ import com.floragunn.searchguard.test.helper.cluster.LocalCluster;
  * See EsqlViewIntTest for an overview of how ES|QL is authorized and why forbidden indices yield HTTP 403 instead of
  * HTTP 400.
  *
+ * The data node check is a coarse check: it denies requests which name their indices explicitly and requests the user
+ * may not run at all, but it does not restrict the shards of a partially authorized wildcard query, see
+ * queryIndexPattern_dataNodeCheckDoesNotRestrictShards and the javadoc of
+ * SearchGuardRequestHandler.TRANSPORT_LEVEL_AUTHORIZED_ACTIONS.
+ *
  * Partial results: ES|QL allows partial results by default (allow_partial_results=true). A denial by the data node check
  * is thus not fatal for the query; it is recorded as a shard failure of type security_exception under
  * _clusters.details. If no rows are produced at all, ES|QL fails the query with the recorded failure (HTTP 403, see
@@ -66,8 +71,9 @@ public class EsqlMultiNodeAuthorizationIntTest {
 
     /**
      * This user has all coordinator level ES|QL privileges on all indices, but the privilege for the data node requests
-     * (indices:data/read/esql/data) only on index_allowed*. Queries on index_forbidden thus pass all checks on the coordinator
-     * and must be denied by the transport level check in SearchGuardRequestHandler.
+     * (indices:data/read/esql/data) only on index_allowed*. Queries which name index_forbidden thus pass all checks on the
+     * coordinator and are denied by the transport level check in SearchGuardRequestHandler. A wildcard query is not, see
+     * queryIndexPattern_dataNodeCheckDoesNotRestrictShards.
      */
     static TestSgConfig.User USER_DATA_NODE_PERMISSION_ONLY_FOR_ALLOWED = new TestSgConfig.User("esql_data_node_check")
             .roles(new TestSgConfig.Role("esql_data_node_check").clusterPermissions()
@@ -166,6 +172,27 @@ public class EsqlMultiNodeAuthorizationIntTest {
             assertThat(response, json(nodeAt("_clusters.details['(local)']._shards.failed", equalTo(2))));
             assertThat(response, json(nodeAt("_clusters.details['(local)']._shards.successful", equalTo(0))));
             assertThat(response, json(nodeAt("_clusters.details['(local)'].failures[0].reason.type", equalTo("security_exception"))));
+        }
+    }
+
+    /**
+     * Pins the known limit of the data node check: it does not restrict the shards of a partially authorized wildcard
+     * query. The data node request carries the query's original index expression (index_*) while its shard list was
+     * determined by the coordinating node, so reducing its indices to the authorized ones does not change what is read.
+     * This user is granted indices:data/read/esql/search_shards on * but indices:data/read/esql/data only on
+     * index_allowed*, so the coordinator includes the shards of index_forbidden and the data nodes read them. See the
+     * javadoc of SearchGuardRequestHandler.TRANSPORT_LEVEL_AUTHORIZED_ACTIONS for why this cannot be fixed on the data
+     * node and why roles which grant the ES|QL actions uniformly are not affected.
+     */
+    @Test
+    public void queryIndexPattern_dataNodeCheckDoesNotRestrictShards() throws Exception {
+        try (GenericRestClient client = cluster.getRestClient(USER_DATA_NODE_PERMISSION_ONLY_FOR_ALLOWED)) {
+            GenericRestClient.HttpResponse response = client.postJson("/_query",
+                    DocNode.of("query", "FROM index_* | SORT category | KEEP category"));
+
+            assertThat(response, isOk());
+            assertThat(response, json(nodeAt("is_partial", equalTo(false))));
+            assertThat(response, json(nodeAt("values", equalTo(List.of(List.of("allowed"), List.of("allowed"), List.of("forbidden"))))));
         }
     }
 
