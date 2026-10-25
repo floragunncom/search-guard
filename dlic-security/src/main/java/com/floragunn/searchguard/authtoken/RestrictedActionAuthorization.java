@@ -70,6 +70,19 @@ public class RestrictedActionAuthorization implements ActionAuthorization {
     }
 
     @Override
+    public PrivilegesEvaluationResult hasIndexPermissionForAnyIndex(PrivilegesEvaluationContext context, Action action)
+            throws PrivilegesEvaluationException {
+        PrivilegesEvaluationResult result = restrictionSgRoles.hasIndexPermissionForAnyIndex(context.mappedRoles(RequestedPrivileges.RESTRICTION_ROLES),
+                action);
+
+        if (result.getStatus() != PrivilegesEvaluationResult.Status.OK) {
+            return result.reason("Privilege was not requested for token");
+        }
+
+        return base.hasIndexPermissionForAnyIndex(context, action);
+    }
+
+    @Override
     public PrivilegesEvaluationResult hasTenantPermission(PrivilegesEvaluationContext context, Action action, String requestedTenant)
             throws PrivilegesEvaluationException {
         PrivilegesEvaluationResult result = restrictionSgRoles.hasTenantPermission(context.mappedRoles(RequestedPrivileges.RESTRICTION_ROLES), action,

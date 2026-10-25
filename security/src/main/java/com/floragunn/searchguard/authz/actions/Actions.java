@@ -88,6 +88,12 @@ public class Actions {
 
     public static final String FAILURE_STORE_PERMISSION = "special:failure_store";
 
+    /**
+     * The top level action of ES|QL queries. Known by name, as this request does not reference the indices it reads, see
+     * ActionRequestIntrospector and SearchGuardFilter.
+     */
+    public static final String ESQL_QUERY_ACTION = "indices:data/read/esql";
+
     private final ImmutableMap<String, Action> actionMap;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActions;
     private final ImmutableSet<WellKnownAction<?, ?, ?>> indexLikeActionsPerformanceCritical;
@@ -226,7 +232,7 @@ public class Actions {
         // The scope stays index-like, as roles grant this action as index permission (see SGS_READ).
         // The resource type is ASYNC_SEARCH_RESOURCE_TYPE because the deletion of an async ES|QL result is done by
         // the shared action indices:data/read/async_search/delete.
-        indexLike("indices:data/read/esql") //
+        indexLike(ESQL_QUERY_ACTION) //
                 .createsResource(ASYNC_SEARCH_RESOURCE_TYPE, optionalObjectAttr("asyncExecutionId", "asyncExecutionId"),
                         xContentInstantFromMillisFromRequest("keepAlive", "keepAlive"));
         cluster("indices:data/read/esql/async/get") //
