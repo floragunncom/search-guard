@@ -64,8 +64,19 @@ public class FlsFieldFilter implements Function<String, FieldPredicate>, Compone
             return FieldPredicate.ACCEPT_ALL;
         }
 
+        if (this.baseContext.isDlsDoneOnFilterLevel()) {
+            // The DLS queries are part of the query of the search request. ES uses this predicate to hide the value of
+            // constant_keyword fields from queries; DLS queries must see it, even if FLS hides the field from the user.
+            return FieldPredicate.ACCEPT_ALL;
+        }
+
         try (Meter meter = Meter.detail(config.getMetricsLevel(), applyAggregation)) {
-            Meta.Index index = (Meta.Index) this.baseContext.getIndexMetaData().getIndexOrLike(indexName);
+            if (!(this.baseContext.getIndexMetaData().getIndexOrLike(indexName) instanceof Meta.Index index)) {
+                // To validate index templates, ES creates temporary indices on the thread of the request. These are not
+                // part of the cluster state and do not contain documents.
+                return createFieldPredicate(FlsRule.DENY_ALL);
+            }
+
             RoleBasedFieldAuthorization fieldAuthorization = config.getFieldAuthorization();
 
             if (fieldAuthorization == null) {
