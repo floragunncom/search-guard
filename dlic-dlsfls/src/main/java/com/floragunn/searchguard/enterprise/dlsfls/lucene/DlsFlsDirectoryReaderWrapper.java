@@ -31,6 +31,7 @@ import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.query.SearchExecutionContext;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.shard.ShardUtils;
+import org.elasticsearch.plugins.FieldPredicate;
 
 import com.floragunn.searchguard.auditlog.AuditLog;
 import com.floragunn.searchguard.authz.DocumentWhitelist;
@@ -130,6 +131,9 @@ public class DlsFlsDirectoryReaderWrapper implements CheckedFunction<DirectoryRe
             } else {
                 SearchExecutionContext queryShardContext = this.indexService.newSearchExecutionContext(shardId.getId(), 0, null, nowSupplier(config),
                         null, Collections.emptyMap());
+                // DLS queries are authorization rules: they must see the value of constant_keyword fields, even if FLS hides
+                // these from the user. Otherwise, ES evaluates the query as if the field had no value.
+                queryShardContext.setFieldVisibilityPredicate(FieldPredicate.ACCEPT_ALL);
 
                 // no need for scoring here, so its possible to wrap this in a ConstantScoreQuery
                 dlsQuery = new ConstantScoreQuery(dlsRestriction.toQuery(queryShardContext, null));

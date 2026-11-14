@@ -23,7 +23,9 @@ import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.ConstantScoreQuery;
 import org.elasticsearch.index.query.ParsedQuery;
+import org.elasticsearch.index.query.SearchExecutionContext;
 import org.elasticsearch.index.shard.SearchOperationListener;
+import org.elasticsearch.plugins.FieldPredicate;
 import org.elasticsearch.search.internal.SearchContext;
 
 import com.floragunn.searchguard.authz.PrivilegesEvaluationContext;
@@ -118,8 +120,19 @@ public class DlsFlsSearchOperationListener implements SearchOperationListener, C
                     return;
                 }
 
-                BooleanQuery.Builder queryBuilder = dlsRestriction.toBooleanQueryBuilder(searchContext.getSearchExecutionContext(),
-                        (q) -> new ConstantScoreQuery(q));
+                // DLS queries are authorization rules: they must see the value of constant_keyword fields, even if FLS hides
+                // these from the user. Thus, they are built with a copy of the context which has no field restrictions.
+                // The copy gets no circuit breaker: ES only releases the memory accounted on the original context.
+                SearchExecutionContext searchExecutionContext = searchContext.getSearchExecutionContext();
+                SearchExecutionContext dlsQueryContext = new SearchExecutionContext(searchExecutionContext, null);
+                dlsQueryContext.setFieldVisibilityPredicate(FieldPredicate.ACCEPT_ALL);
+
+                BooleanQuery.Builder queryBuilder = dlsRestriction.toBooleanQueryBuilder(dlsQueryContext, (q) -> new ConstantScoreQuery(q));
+
+                if (!dlsQueryContext.isCacheable()) {
+                    // DLS queries using "now" must keep the search out of the request cache
+                    searchExecutionContext.disableCache();
+                }
 
                 queryBuilder.add(searchContext.parsedQuery().query(), Occur.MUST);
 
