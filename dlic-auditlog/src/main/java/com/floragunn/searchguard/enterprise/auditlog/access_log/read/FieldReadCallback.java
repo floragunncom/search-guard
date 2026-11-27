@@ -27,6 +27,7 @@ import org.apache.lucene.index.FieldInfo;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.mapper.Uid;
+import org.elasticsearch.search.lookup.SourceFilter;
 
 import com.floragunn.codova.documents.DocNode;
 import com.floragunn.codova.documents.DocReader;
@@ -53,7 +54,10 @@ public final class FieldReadCallback {
                     log.trace("_sg_source_field_context: " + sfc);
                 }
 
-                filterFunction = XContentMapValues.filter(sfc.getIncludes(), sfc.getExcludes());
+                // Elasticsearch rewrites the patterns before it filters the source (e.g. "a\\.b" also means the path a.b).
+                // Take the patterns from its SourceFilter, so that the read log covers exactly the fields that are returned.
+                SourceFilter sourceFilter = new SourceFilter(sfc.getIncludes(), sfc.getExcludes());
+                filterFunction = XContentMapValues.filter(sourceFilter.getIncludes(), sourceFilter.getExcludes());
             }
         } catch (Exception e) {
             log.warn("Cannot deserialize _sg_source_field_context because of {}", e.toString());

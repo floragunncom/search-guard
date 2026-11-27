@@ -217,6 +217,58 @@ public class ComplianceAuditlogTest extends AbstractAuditlogiUnitTest {
         Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
     }
 
+    /**
+     * Elasticsearch reads a source filter pattern like "customer\.ssn" also as the path customer.ssn and returns
+     * that field. The read log has to apply the source filter the same way as Elasticsearch does: it must list the
+     * fields that were returned, and only those.
+     */
+    @Test
+    public void testSourceFilterWithEscapedDot() throws Exception {
+
+        Settings additionalSettings = Settings.builder()
+                .put("searchguard.audit.type", TestAuditlogImpl.class.getName())
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_ENABLE_TRANSPORT, true)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_EXTERNAL_CONFIG_ENABLED, false)
+                .put(ConfigConstants.SEARCHGUARD_COMPLIANCE_HISTORY_READ_WATCHED_FIELDS, "emp")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_TRANSPORT_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
+                .put(ConfigConstants.SEARCHGUARD_AUDIT_CONFIG_DISABLED_REST_CATEGORIES, "authenticated,GRANTED_PRIVILEGES")
+                .put("searchguard.audit.threadpool.size", 0)
+                .build();
+
+        setup(additionalSettings);
+        final boolean sendHTTPClientCertificate = rh.sendHTTPClientCertificate;
+        final String keystore = rh.keystore;
+        rh.sendHTTPClientCertificate = true;
+        rh.keystore = "auditlog/kirk-keystore.jks";
+        rh.executePutRequest("emp/_doc/0?refresh", "{\"Designation\" : \"CEO\", \"customer\" : {\"ssn\" : \"ssn-0815\", \"city\" : \"Berlin\"}}",
+                new Header[0]);
+        rh.sendHTTPClientCertificate = sendHTTPClientCertificate;
+        rh.keystore = keystore;
+
+        TestAuditlogImpl.clear();
+        HttpResponse response = rh.executePostRequest("emp/_search", "{\"_source\": [\"customer\\\\.ssn\"]}", encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+        Assert.assertTrue(response.getBody(), response.getBody().contains("ssn-0815"));
+        Assert.assertFalse(response.getBody(), response.getBody().contains("Berlin"));
+        AsyncAssert.awaitAssert("Read of customer.ssn is logged", () -> TestAuditlogImpl.sb.toString().contains("customer.ssn"),
+                Duration.ofSeconds(2));
+        Assert.assertTrue(TestAuditlogImpl.sb.toString().contains("COMPLIANCE_DOC_READ"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("customer.city"));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("Designation"));
+        Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
+
+        TestAuditlogImpl.clear();
+        response = rh.executePostRequest("emp/_search", "{\"_source\": {\"excludes\": [\"customer\\\\.ssn\"]}}",
+                encodeBasicHeader("admin", "admin"));
+        Assert.assertEquals(response.getBody(), HttpStatus.SC_OK, response.getStatusCode());
+        Assert.assertFalse(response.getBody(), response.getBody().contains("ssn-0815"));
+        Assert.assertTrue(response.getBody(), response.getBody().contains("Berlin"));
+        AsyncAssert.awaitAssert("Read of customer.city is logged", () -> TestAuditlogImpl.sb.toString().contains("customer.city"),
+                Duration.ofSeconds(2));
+        Assert.assertFalse(TestAuditlogImpl.sb.toString().contains("customer.ssn"));
+        Assert.assertTrue(validateMsgs(TestAuditlogImpl.messages));
+    }
+
     @Test
     public void testExternalConfig() throws Exception {
 
